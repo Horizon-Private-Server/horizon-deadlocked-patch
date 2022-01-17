@@ -192,12 +192,12 @@ float BezierMove(float t, BezierPoint * a, BezierPoint * b, float distance)
 	return t;
 }
 
-Moby * spawn(int mobyId, VECTOR position, VECTOR rotation, float scale)
+Moby * spawn(int OClass, VECTOR position, VECTOR rotation, float scale)
 {
 	Moby * sourceBox;
 
 	// Spawn
-	sourceBox = mobySpawn(mobyId, 0);
+	sourceBox = mobySpawn(OClass, 0);
 
 	// 
 	position[3] = sourceBox->Position[3];

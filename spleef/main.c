@@ -274,7 +274,7 @@ void setRoundOutcome(int first, int second, int third)
 void onDestroyBox(int id)
 {
 	Moby* box = SpleefBox[id];
-	if (box && box->MobyId == MOBY_ID_NODE_BOLT_GUARD && box->NextMoby)
+	if (box && box->OClass == MOBY_ID_NODE_BOLT_GUARD && box->NextMoby)
 	{
 		mobyDestroy(box);
 	}
@@ -322,7 +322,7 @@ void boxUpdate(Moby* moby)
 	int i;
 	MobyColDamage* colDamage = mobyGetDamage(moby, 0xfffffff, 0);
 
-	if (moby->UNK_2C[0] != -1 && colDamage && colDamage->Moby == moby)
+	if (moby->CollDamage != -1 && colDamage && colDamage->Moby == moby)
 	{
 		int damagePlayerId = colDamage->Damager->NetObjectGid.HostId;
 		if (playerIdIsLocal(damagePlayerId))
@@ -341,7 +341,7 @@ void boxUpdate(Moby* moby)
 		}
 
 		// remove damage
-		moby->UNK_2C[0] = 0xff;
+		moby->CollDamage = -1;
 	}
 
 	// call base
@@ -460,7 +460,7 @@ void resetRoundState(void)
 			{
 				// delete old one
 				int boxId = (k * SPLEEF_BOARD_DIMENSION * SPLEEF_BOARD_DIMENSION) + (i * SPLEEF_BOARD_DIMENSION) + j;
-				if (!SpleefBox[boxId] || SpleefBox[boxId]->MobyId != MOBY_ID_NODE_BOLT_GUARD || !SpleefBox[boxId]->NextMoby)
+				if (!SpleefBox[boxId] || SpleefBox[boxId]->OClass != MOBY_ID_NODE_BOLT_GUARD || !SpleefBox[boxId]->NextMoby)
 				{
 					// spawn
 					SpleefBox[boxId] = hbMoby = mobySpawn(MOBY_ID_NODE_BOLT_GUARD, 0);
@@ -479,7 +479,7 @@ void resetRoundState(void)
 						hbMoby->UNK_38[0] = 2;
 						hbMoby->UNK_38[1] = 2;
 						hbMoby->GuberMoby = 0;
-						hbMoby->UNK_A8 = &boxUpdate;
+						hbMoby->PUpdate = &boxUpdate;
 
 						// For this model the vector here is copied to 0x80 in the moby
 						// This fixes the occlusion bug

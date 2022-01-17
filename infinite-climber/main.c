@@ -59,7 +59,7 @@ typedef struct MobyDef
 	float ScaleVertical;
 	float ObjectScale;
 
-	short MobyId;
+	short OClass;
 	short MapMask;
 } MobyDef;
 
@@ -239,15 +239,15 @@ short RandomRangeShort(short min, short max)
 	return (shaBuffer % (max - min)) + min;
 }
 
-Moby * spawnWithPVars(int mobyId)
+Moby * spawnWithPVars(int OClass)
 {
-	switch (mobyId)
+	switch (OClass)
 	{
-		case MOBY_ID_VEHICLE_PAD: return mobySpawn(mobyId, 0x60);
-		case MOBY_ID_PICKUP_PAD: return mobySpawn(mobyId, 0x90);
-		case MOBY_ID_TELEPORT_PAD: return mobySpawn(mobyId, 0xD0);
-		case MOBY_ID_TURRET_SHIELD_UPGRADE: return mobySpawn(mobyId, 0xD0);
-		default: return mobySpawn(mobyId, 0);
+		case MOBY_ID_VEHICLE_PAD: return mobySpawn(OClass, 0x60);
+		case MOBY_ID_PICKUP_PAD: return mobySpawn(OClass, 0x90);
+		case MOBY_ID_TELEPORT_PAD: return mobySpawn(OClass, 0xD0);
+		case MOBY_ID_TURRET_SHIELD_UPGRADE: return mobySpawn(OClass, 0xD0);
+		default: return mobySpawn(OClass, 0);
 	}
 }
 
@@ -256,7 +256,7 @@ Moby * spawn(MobyDef * def, VECTOR position, VECTOR rotation, float scale)
 	Moby * sourceBox;
 
 	// Spawn box so we know the correct model and collision pointers
-	sourceBox = spawnWithPVars(def->MobyId);
+	sourceBox = spawnWithPVars(def->OClass);
 	if (!sourceBox)
 		return 0;
 
@@ -411,7 +411,7 @@ void spawnTick(void)
 	WaterHeight += WaterRaiseRate;
 
 	// Set water
-	((float*)WaterMoby->PropertiesPointer)[19] = WaterHeight;
+	((float*)WaterMoby->PVar)[19] = WaterHeight;
 
 	// Set death barrier
 	gameSetDeathHeight(WaterHeight);
@@ -458,7 +458,7 @@ void initialize(void)
 
 	// get water moby
 	WaterMoby = mobyGetFirst(); // big assumption here, could be a problem
-	WaterHeight = ((float*)WaterMoby->PropertiesPointer)[19];
+	WaterHeight = ((float*)WaterMoby->PVar)[19];
 
 	// 
 	switch (gameSettings->GameLevel)

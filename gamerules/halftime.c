@@ -86,12 +86,12 @@ void getFlags(void)
 	// grab flags
 	while (moby)
 	{
-		if (moby->MobyId == MOBY_ID_BLUE_FLAG ||
-			moby->MobyId == MOBY_ID_RED_FLAG ||
-			moby->MobyId == MOBY_ID_GREEN_FLAG ||
-			moby->MobyId == MOBY_ID_ORANGE_FLAG)
+		if (moby->OClass == MOBY_ID_BLUE_FLAG ||
+			moby->OClass == MOBY_ID_RED_FLAG ||
+			moby->OClass == MOBY_ID_GREEN_FLAG ||
+			moby->OClass == MOBY_ID_ORANGE_FLAG)
 		{
-			CtfFlags[*(u16*)(moby->PropertiesPointer + 0x14)] = moby;
+			CtfFlags[*(u16*)(moby->PVar + 0x14)] = moby;
 		}
 
 		moby = moby->NextMoby;
@@ -247,7 +247,7 @@ void htCtfSwitch(void)
 		moby = CtfFlags[player->Team];
 		if (moby)
 		{
-			vector_copy(pVector, (float*)moby->PropertiesPointer);
+			vector_copy(pVector, (float*)moby->PVar);
 			float theta = (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU;
 			pVector[0] += cosf(theta) * 2.5;
 			pVector[1] += sinf(theta) * 2.5;
@@ -264,8 +264,8 @@ void htCtfSwitch(void)
 	{
 		if (CtfFlags[i])
 		{
-			*(u16*)(CtfFlags[i]->PropertiesPointer + 0x10) = 0xFFFF;
-			vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PropertiesPointer);
+			*(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+			vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
 		}
 	}
 }
@@ -352,8 +352,8 @@ void htCtfTick(void)
 			{
 				if (CtfFlags[i])
 				{
-					*(u16*)(CtfFlags[i]->PropertiesPointer + 0x10) = 0xFFFF;
-					vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PropertiesPointer);
+					*(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+					vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
 				}
 			}
 

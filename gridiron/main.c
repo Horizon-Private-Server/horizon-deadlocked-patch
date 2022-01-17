@@ -137,10 +137,10 @@ VECTOR BallSpawnPoint __attribute__((section(".config"))) = { 428.368, 239.646, 
 
 void GuberMobyEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler_func eventHandler)
 {
-	switch (moby->MobyId)
+	switch (moby->OClass)
 	{
 		default:
-			DPRINTF("GuberMoby event (%04x) with %08x and %08x, handler=%08x\n", moby->MobyId, (u32)moby, (u32)event, (u32)eventHandler);
+			DPRINTF("GuberMoby event (%04x) with %08x and %08x, handler=%08x\n", moby->OClass, (u32)moby, (u32)event, (u32)eventHandler);
 			eventHandler(moby, event);
 			break;
 	}
@@ -360,9 +360,9 @@ void findFlagBases(void)
 	Moby* moby = mobyGetFirst();
 	while (moby)
 	{
-		if (moby->MobyId == 0x266E && moby->UNK_34[0] == 0x14)
+		if (moby->OClass == 0x266E && (moby->ModeBits & 0xFF) == 0x14)
 		{
-			void * pvars = moby->PropertiesPointer;
+			void * pvars = moby->PVar;
 			int team = -1;
 			if (pvars)
 				team = *(char*)pvars;
@@ -430,7 +430,7 @@ void initialize(void)
 	Moby * moby = mobyGetFirst();
 	while (moby)
 	{
-		switch (moby->MobyId)
+		switch (moby->OClass)
 		{
 			case MOBY_ID_BLUE_FLAG:
 			case MOBY_ID_RED_FLAG:
@@ -438,7 +438,7 @@ void initialize(void)
 			case MOBY_ID_ORANGE_FLAG:
 			{
 				// disables the rendering of
-				moby->UNK_34[0] |= 1;
+				moby->ModeBits |= 1;
 				break;
 			}
 		}

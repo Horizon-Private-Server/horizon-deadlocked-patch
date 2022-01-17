@@ -32,7 +32,7 @@ struct MenuElem_ListData;
 typedef void (*ActionHandler)(struct TabElem* tab, struct MenuElem* element, int actionType, void * actionArg);
 typedef void (*ButtonSelectHandler)(struct TabElem* tab, struct MenuElem* element);
 typedef void (*MenuElementStateHandler)(struct TabElem* tab, struct MenuElem* element, int * state);
-typedef int (*MenuElementListStateHandler)(struct MenuElem_ListData* listData, char value);
+typedef int (*MenuElementListStateHandler)(struct MenuElem_ListData* listData, char* value);
 typedef void (*TabStateHandler)(struct TabElem* tab, int * state);
 
 typedef struct MenuElem

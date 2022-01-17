@@ -165,7 +165,7 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
         float elevation = 0;
         
         // Determine distance and elevation by vehicle id
-        switch (vehicleMoby->MobyId)
+        switch (vehicleMoby->OClass)
         {
             case MOBY_ID_HOVERBIKE:
             {
@@ -208,7 +208,7 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
                 // Get passenger camera rotation -- only works with local
                 if (isPassenger && playerIsLocal(playerToSpectate))
                 {
-                    float * props = (float*)((*(u32*)((u32)vehicleMoby->PropertiesPointer + 0x10)) + 0x180);
+                    float * props = (float*)((*(u32*)((u32)vehicleMoby->PVar + 0x10)) + 0x180);
                     pitch = props[1];
                     yaw = props[0];
                 }

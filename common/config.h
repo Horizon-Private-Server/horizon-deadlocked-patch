@@ -58,6 +58,11 @@ enum CUSTOM_MAP_ID
   CUSTOM_MAP_TORVAL_SP,
   CUSTOM_MAP_TYHRRANOSIS,
 
+  // Survival maps
+  CUSTOM_MAP_SURVIVAL_START,
+  CUSTOM_MAP_SURVIVAL_MINING_FACILITY = CUSTOM_MAP_SURVIVAL_START,
+  CUSTOM_MAP_SURVIVAL_END = CUSTOM_MAP_SURVIVAL_MINING_FACILITY,
+
   // always at the end to indicate how many items there are
   CUSTOM_MAP_COUNT
 };
@@ -74,6 +79,7 @@ enum CUSTOM_MODE_ID
 #if DEV
   CUSTOM_MODE_GRIDIRON,
   CUSTOM_MODE_TEAM_DEFENDER,
+  CUSTOM_MODE_SURVIVAL,
 #endif
 
   // always at the end to indicate how many items there are

@@ -76,7 +76,8 @@ void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int
 void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
 
-int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char value);
+int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -131,7 +132,7 @@ MenuElem_t menuElementsGeneral[] = {
 // map override list item
 MenuElem_ListData_t dataCustomMaps = {
     &gameConfig.customMapId,
-    NULL,
+    menuStateHandler_SelectedMapOverride,
     CUSTOM_MAP_COUNT,
     {
       "None",
@@ -158,6 +159,8 @@ MenuElem_ListData_t dataCustomMaps = {
       "Spleef",
       "Torval SP",
       "Tyhrranosis",
+      // -- SURVIVAL MAPS --
+      "Mining Facility"
     }
 };
 
@@ -183,7 +186,8 @@ MenuElem_ListData_t dataCustomModes = {
       "1000 Kills",
 #if DEV
       "Gridiron",
-      "Team Defenders"
+      "Team Defenders",
+      "Survival"
 #endif
     }
 };
@@ -197,6 +201,7 @@ const char* CustomModeShortNames[] = {
   "SND",
   NULL,
 #if DEV
+  NULL,
   NULL,
   NULL,
 #endif
@@ -338,7 +343,6 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
 // 
 void tabCustomMapStateHandler(TabElem_t* tab, int * state)
 {
-  GameSettings * gameSettings = gameGetSettings();
   if (gameIsIn())
   {
     *state = ELEMENT_VISIBLE;
@@ -460,6 +464,38 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 }
 
 // 
+int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value)
+{
+  if (!value)
+    return 0;
+
+  char gm = gameConfig.customModeId;
+  char v = *value;
+
+  switch (gm)
+  {
+#if DEV
+    case CUSTOM_MODE_SURVIVAL:
+    {
+      if (v >= CUSTOM_MAP_SURVIVAL_START && v <= CUSTOM_MAP_SURVIVAL_END)
+        return 1;
+
+      *value = CUSTOM_MAP_SURVIVAL_START;
+      return 0;
+    }
+#endif
+    default:
+    {
+      if (v < CUSTOM_MAP_SURVIVAL_START)
+        return 1;
+      
+      *value = CUSTOM_MAP_NONE;
+      return 0;
+    }
+  }
+}
+
+// 
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   int i = 0;
@@ -478,36 +514,49 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 }
 
 // 
-int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char value)
+int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value)
 {
+  if (!value)
+    return 0;
+
   GameSettings* gs = gameGetSettings();
+  char v = *value;
 
   if (gs)
   {
-    switch (value)
+    switch (v)
     {
       case CUSTOM_MODE_INFECTED:
       case CUSTOM_MODE_GUN_GAME:
       case CUSTOM_MODE_INFINITE_CLIMBER:
       case CUSTOM_MODE_1000_KILLS:
+#if DEV
+      case CUSTOM_MODE_SURVIVAL:
+#endif
       {
-        if (gs->GameRules != GAMERULE_DM)
-          return 0;
-        break;
+        if (gs->GameRules == GAMERULE_DM)
+          return 1;
+        
+        *value = CUSTOM_MODE_NONE;
+        return 0;
       }
       case CUSTOM_MODE_SEARCH_AND_DESTROY:
       {
-        if (gs->GameRules != GAMERULE_CQ)
-          return 0;
-        break;
+        if (gs->GameRules == GAMERULE_CQ)
+          return 1;
+
+        *value = CUSTOM_MODE_NONE;
+        return 0;
       }
 #if DEV
       case CUSTOM_MODE_GRIDIRON:
       case CUSTOM_MODE_TEAM_DEFENDER:
       {
-        if (gs->GameRules != GAMERULE_CTF)
-          return 0;
-        break;
+        if (gs->GameRules == GAMERULE_CTF)
+          return 1;
+          
+        *value = CUSTOM_MODE_NONE;
+        return 0;
       }
 #endif
     }
@@ -739,7 +788,8 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
         newValue += 1;
         if (newValue >= itemCount)
           newValue = 0;
-        if (listData->stateHandler == NULL || listData->stateHandler(listData, newValue))
+        char tValue = newValue;
+        if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
           break;
       } while (newValue != *listData->value);
 
@@ -757,7 +807,8 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
         newValue -= 1;
         if (newValue < 0)
           newValue = itemCount - 1;
-        if (listData->stateHandler == NULL || listData->stateHandler(listData, newValue))
+        char tValue = newValue;
+        if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
           break;
       } while (newValue != *listData->value);
 
@@ -776,8 +827,8 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     }
     case ACTIONTYPE_VALIDATE:
     {
-      if (listData->stateHandler != NULL && !listData->stateHandler(listData, *listData->value))
-        *listData->value = 0;
+      if (listData->stateHandler != NULL)
+        listData->stateHandler(listData, listData->value);
       break;
     }
   }

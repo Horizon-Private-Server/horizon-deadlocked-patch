@@ -405,7 +405,7 @@ void hideMoby(Moby * moby, int move)
 void hideNode(Moby * nodeBaseMoby, int keepNode, int keepOrb, int move)
 {
 	int i = 2;
-	NodeBasePVar_t * nodePvars = (NodeBasePVar_t*)nodeBaseMoby->PropertiesPointer;
+	NodeBasePVar_t * nodePvars = (NodeBasePVar_t*)nodeBaseMoby->PVar;
 	Moby * orb = nodePvars->HackerOrbMoby;
 	Moby ** subItems = (Moby**)nodePvars->ChildMobies;
 
@@ -433,13 +433,13 @@ void hideNode(Moby * nodeBaseMoby, int keepNode, int keepOrb, int move)
 void showNode(Moby * nodeBaseMoby, VECTOR position)
 {
 	int i = 1;
-	NodeBasePVar_t * nodePvars = (NodeBasePVar_t*)nodeBaseMoby->PropertiesPointer;
+	NodeBasePVar_t * nodePvars = (NodeBasePVar_t*)nodeBaseMoby->PVar;
 	Moby * orb = nodePvars->HackerOrbMoby;
 	Moby ** subItems = (Moby**)nodePvars->ChildMobies;
 
 	vector_copy(nodeBaseMoby->Position, position);
-	nodeBaseMoby->UNK_2C[2] |= 1;
-	nodeBaseMoby->UNK_34[0] &= ~4;
+	nodeBaseMoby->occlIndex |= 1;
+	nodeBaseMoby->ModeBits &= ~4;
 	nodeBaseMoby->RenderDistance = 0xFF;
 	nodeBaseMoby->Opacity = 0x80;
 	if (NodeBaseCollisionPointer)
@@ -507,7 +507,7 @@ inline void enableBlipPulsing(void)
 void SNDHackerOrbEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler_func eventHandler)
 {
 	int nodeIndex = -1;
-	HackerOrbPVar_t * orbPvars = (HackerOrbPVar_t*)moby->PropertiesPointer;
+	HackerOrbPVar_t * orbPvars = (HackerOrbPVar_t*)moby->PVar;
 	
 	/*
 	DPRINTF("Hacker Orb Event: %08x\n\t", (u32)moby);
@@ -652,12 +652,12 @@ void SNDWeaponPackEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler
 
 void GuberMobyEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler_func eventHandler)
 {
-	switch (moby->MobyId)
+	switch (moby->OClass)
 	{
 		case MOBY_ID_CONQUEST_HACKER_ORB: SNDHackerOrbEventHandler(moby, event, eventHandler); break;
 		case MOBY_ID_WEAPON_PACK: SNDWeaponPackEventHandler(moby, event, eventHandler); break;
 		default:
-			DPRINTF("GuberMoby event (%04x) with %08x and %08x, handler=%08x\n", moby->MobyId, (u32)moby, (u32)event, (u32)eventHandler);
+			DPRINTF("GuberMoby event (%04x) with %08x and %08x, handler=%08x\n", moby->OClass, (u32)moby, (u32)event, (u32)eventHandler);
 			eventHandler(moby, event);
 			break;
 	}
@@ -684,8 +684,8 @@ void setPackLifetime(int lifetime)
 	// Set lifetime of bomb pack moby
 	if (SNDState.BombPackMoby)
 	{
-		if (SNDState.BombPackMoby->MobyId == MOBY_ID_WEAPON_PACK && SNDState.BombPackMoby->PropertiesPointer)
-			*(u32*)((u32)SNDState.BombPackMoby->PropertiesPointer + 0x8) = lifetime;
+		if (SNDState.BombPackMoby->OClass == MOBY_ID_WEAPON_PACK && SNDState.BombPackMoby->PVar)
+			*(u32*)((u32)SNDState.BombPackMoby->PVar + 0x8) = lifetime;
 	}
 }
 
@@ -694,8 +694,8 @@ void killPack()
 	// Set lifetime of bomb pack moby
 	if (SNDState.BombPackMoby)
 	{
-		if (SNDState.BombPackMoby->MobyId == MOBY_ID_WEAPON_PACK && SNDState.BombPackMoby->PropertiesPointer)
-			*(u32*)((u32)SNDState.BombPackMoby->PropertiesPointer + 0x8) = 0xFFFFFFFF;
+		if (SNDState.BombPackMoby->OClass == MOBY_ID_WEAPON_PACK && SNDState.BombPackMoby->PVar)
+			*(u32*)((u32)SNDState.BombPackMoby->PVar + 0x8) = 0xFFFFFFFF;
 		
 		DPRINTF("KILLED PACK AT %08X\n", (u32)SNDState.BombPackMoby);
 		SNDState.BombPackMoby = NULL;
@@ -703,11 +703,11 @@ void killPack()
 	}
 }
 
-void * spawnPackHook(u16 mobyId, int pvarSize, int guberId, int arg4, int arg5)
+void * spawnPackHook(u16 OClass, int pvarSize, int guberId, int arg4, int arg5)
 {
-	void * result = ((void* (*)(u16, int, int, int, int))0x0061C3A8)(mobyId, pvarSize, guberId, arg4, arg5);
+	void * result = ((void* (*)(u16, int, int, int, int))0x0061C3A8)(OClass, pvarSize, guberId, arg4, arg5);
 
-	if (mobyId == MOBY_ID_WEAPON_PACK)
+	if (OClass == MOBY_ID_WEAPON_PACK)
 	{
 		Moby * newMoby = (Moby*)(*(u32*)((u32)result + 0x18));
 
@@ -1302,7 +1302,7 @@ void initialize(void)
 	{
 		GuberMoby * next = (GuberMoby*)guberMoby->Guber.Prev;
 
-		if (guberMoby->Moby && guberMoby->Moby->MobyId == MOBY_ID_NODE_BASE && guberMoby->Moby->Position[0] > 0)
+		if (guberMoby->Moby && guberMoby->Moby->OClass == MOBY_ID_NODE_BASE && guberMoby->Moby->Position[0] > 0)
 		{
 			if (SNDState.Nodes[0].Moby == 0)
 			{
@@ -1464,7 +1464,7 @@ void gameStart(void)
 			// Set lifetime of bomb pack moby
 			if (SNDState.BombPackMoby)
 			{
-				if (SNDState.BombPackMoby->MobyId != MOBY_ID_WEAPON_PACK)
+				if (SNDState.BombPackMoby->OClass != MOBY_ID_WEAPON_PACK)
 				{
 					SNDState.BombPackMoby = NULL;
 					SNDState.BombPackGuber = NULL;

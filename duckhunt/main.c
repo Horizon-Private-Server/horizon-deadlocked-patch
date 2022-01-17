@@ -462,8 +462,8 @@ void collDamageMobyDirectHook(MobyColDamage * CollDamage, void * a1, int id, voi
 	int hitPlayerId = getPlayerIdFromMoby(moby);
 	DPRINTF("CollDamageMobyDirect 0x%08X(%d) SRCMOBY: 0x%08X(%04X) DESTMOBY: 0x%08X(%04X) DPID:%d VPID:%d\n",
 		(u32)CollDamage, id,
-		(u32)CollDamageIn->Damager, CollDamageIn->Damager->MobyId, 
-		(u32)moby, moby->MobyId, 
+		(u32)CollDamageIn->Damager, CollDamageIn->Damager->OClass, 
+		(u32)moby, moby->OClass, 
 		damagerPlayerId, hitPlayerId);
 
 	// if damage is from player to another player
@@ -552,7 +552,7 @@ void resetRoundState(void)
 			playerSetPosRot(p, pos, rot);
 
 			// prevent player from getting hurt from sniper
-			p->PlayerMoby->UNK_34[1] &= ~0x40;
+			p->PlayerMoby->ModeBits &= ~0x4000;
 
 			if (playerIsLocal(p))
 			{
@@ -570,7 +570,7 @@ void resetRoundState(void)
 			HuntState.RoundPlayerState[i] = PLAYER_STATE_DUCK_ALIVE;
 
 			// allow player to get hurt from sniper
-			p->PlayerMoby->UNK_34[1] |= 0x40;
+			p->PlayerMoby->ModeBits |= 0x4000;
 
 			// remove weapons
 			pWeapon = playerGetWeaponData(i);

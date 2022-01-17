@@ -72,7 +72,7 @@ Moby * ballSpawn(VECTOR position)
 	DPRINTF("spawning new ball moby: %08X\n", (u32)ball);
 	if (ball)
 	{
-    BallPVars_t * pvars = (BallPVars_t*)ball->PropertiesPointer;
+    BallPVars_t * pvars = (BallPVars_t*)ball->PVar;
     vector_copy(pvars->StartPosition, position);
     pvars->DieTime = 0;
 
@@ -87,9 +87,9 @@ Moby * ballSpawn(VECTOR position)
 		ball->Scale = (float)0.02;
 		ball->UNK_38[0] = 2;
 		ball->UNK_38[1] = 2;
-		ball->UNK_34[0] = 0x10;
+		ball->ModeBits = (ball->ModeBits & 0xFF) | 0x10;
 		ball->PrimaryColor = 0xFFFF4040;
-		ball->UNK_A8 = &ballUpdate;
+		ball->PUpdate = &ballUpdate;
 
 		// animation stuff
 		memcpy(&ball->AnimationPointer, &BallVisualRefMoby->AnimationPointer, 0x20);
@@ -108,7 +108,7 @@ void ballThrow(Moby * ball)
   if (!ball)
     return;
 
-  BallPVars_t * pvars = (BallPVars_t*)ball->PropertiesPointer;
+  BallPVars_t * pvars = (BallPVars_t*)ball->PVar;
   Player * carrier = pvars->Carrier;
 
   // 
@@ -135,7 +135,7 @@ void ballPickup(Moby * ball, Player * player)
   if (!ball)
     return;
 
-  BallPVars_t * pvars = (BallPVars_t*)ball->PropertiesPointer;
+  BallPVars_t * pvars = (BallPVars_t*)ball->PVar;
   
   // drop from existing carrier
   if (pvars->Carrier && pvars->Carrier->HeldMoby == ball)
@@ -154,7 +154,7 @@ void ballUpdate(Moby * ball)
   if (!ball)
     return;
 
-  BallPVars_t * pvars = (BallPVars_t*)ball->PropertiesPointer;
+  BallPVars_t * pvars = (BallPVars_t*)ball->PVar;
   Player * carrier = pvars->Carrier;
 
   // 
