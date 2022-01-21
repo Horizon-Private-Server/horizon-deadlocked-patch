@@ -1,5 +1,5 @@
-#ifndef ZOMBIES_MOB_H
-#define ZOMBIES_MOB_H
+#ifndef SURVIVAL_MOB_H
+#define SURVIVAL_MOB_H
 
 #include <tamtypes.h>
 #include <libdl/moby.h>
@@ -8,16 +8,51 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
+enum MobMutateAttribute {
+	MOB_MUTATE_DAMAGE,
+	MOB_MUTATE_SPEED,
+	MOB_MUTATE_HEALTH,
+	MOB_MUTATE_COST,
+	MOB_MUTATE_COUNT
+};
+
+enum ZombieBangles {
+	ZOMBIE_BANGLE_HEAD_1 =  	(1 << 0),
+	ZOMBIE_BANGLE_HEAD_2 =  	(1 << 1),
+	ZOMBIE_BANGLE_HEAD_3 =  	(1 << 2),
+	ZOMBIE_BANGLE_HEAD_4 =  	(1 << 3),
+	ZOMBIE_BANGLE_HEAD_5 =  	(1 << 4),
+	ZOMBIE_BANGLE_TORSO_1 = 	(1 << 5),
+	ZOMBIE_BANGLE_TORSO_2 = 	(1 << 6),
+	ZOMBIE_BANGLE_TORSO_3 = 	(1 << 7),
+	ZOMBIE_BANGLE_TORSO_4 = 	(1 << 8),
+	ZOMBIE_BANGLE_HIPS = 			(1 << 9),
+	ZOMBIE_BANGLE_LLEG = 			(1 << 10),
+	ZOMBIE_BANGLE_RFOOT = 		(1 << 11),
+	ZOMBIE_BANGLE_RLEG = 			(1 << 12),
+	ZOMBIE_BANGLE_RARM = 			(1 << 13),
+	ZOMBIE_BANGLE_LARM = 			(1 << 14),
+	ZOMBIE_BANGLE_HIDE_BODY =	(1 << 15)
+};
 
 struct MobConfig {
 	int MobType;
+	int Bolts;
 	float Damage;
 	float Speed;
 	float MaxHealth;
 	float AttackRadius;
 	float HitRadius;
+	u16 Bangles;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
+};
+
+struct MobSpawnParams {
+	int Cost;
+	int MinRound;
+	float Probability;
+	struct MobConfig Config;
 };
 
 struct MobVars {
@@ -26,34 +61,122 @@ struct MobVars {
 	int NextAction;
 	float Health;
 	Moby * Target;
+	int LastHitBy;
 	u16 NextActionDelayTicks;
 	u16 ActionCooldownTicks;
 	u16 AttackCooldownTicks;
 	u16 ScoutCooldownTicks;
 	u16 FlinchCooldownTicks;
+	u16 AutoDirtyCooldownTicks;
+	u16 AmbientSoundCooldownTicks;
 	u16 TimeBombTicks;
 	u16 StuckTicks;
 	u16 MovingTicks;
+	u8 ActionId;
+	u8 LastActionId;
+	char HasSpeed;
+	char Owner;
 	char IsTraversing;
 	char AnimationLooped;
 	char AnimationReset;
 	char OpacityFlickerDirection;
 	char Destroy;
 	char Respawn;
+	char Dirty;
+	char Destroyed;
+};
+
+// warning: multiple differing types with the same name, only one recovered
+struct ReactVars {
+	/*   0 */ int flags;
+	/*   4 */ int lastReactFrame;
+	/*   8 */ Moby* pInfectionMoby;
+	/*   c */ float acidDamage;
+	/*  10 */ char eternalDeathCount;
+	/*  11 */ char doHotSpotChecks;
+	/*  12 */ char unchainable;
+	/*  13 */ char isShielded;
+	/*  14 */ char state;
+	/*  15 */ char deathState;
+	/*  16 */ char deathEffectState;
+	/*  17 */ char deathStateType;
+	/*  18 */ signed char knockbackRes;
+	/*  19 */ char padC;
+	/*  1a */ char padD;
+	/*  1b */ char padE;
+	/*  1c */ char padF;
+	/*  1d */ char padG;
+	/*  1e */ char padH;
+	/*  1f */ char padI;
+	/*  20 */ float minorReactPercentage;
+	/*  24 */ float majorReactPercentage;
+	/*  28 */ float deathHeight;
+	/*  2c */ float bounceDamp;
+	/*  30 */ int deadlyHotSpots;
+	/*  34 */ float curUpGravity;
+	/*  38 */ float curDownGravity;
+	/*  3c */ float shieldDamageReduction;
+	/*  40 */ float damageReductionSameOClass;
+	/*  44 */ int deathCorn;
+	/*  48 */ int deathType;
+	/*  4c */ short int deathSound;
+	/*  4e */ short int deathSound2;
+	/*  50 */ float peakFrame;
+	/*  54 */ float landFrame;
+	/*  58 */ float drag;
+	/*  5c */ short unsigned int effectStates;
+	/*  5e */ short unsigned int effectPrimMask;
+	/*  60 */ short unsigned int effectTimers[16];
 };
 
 struct MobPVar {
   struct TargetVars * TargetVarsPtr;
-	char _pad0[0x18];
+	char _pad0[0x0C];
+	struct ReactVars * ReactVarsPtr;
+	char _pad1[0x08];
   struct MoveVars_V2 * MoveVarsPtr;
-	char _pad1[0x14];
+	char _pad2[0x14];
   struct FlashVars * FlashVarsPtr;
-	char _pad2[0x18];
+	char _pad3[0x18];
 
 	struct TargetVars TargetVars;
+	struct ReactVars ReactVars;
 	struct MoveVars_V2 MoveVars;
 	struct FlashVars FlashVars;
 	struct MobVars MobVars;
+};
+
+struct MobDamageEventArgs
+{
+	int SourceUID;
+	float Damage;
+	int DamageFlags;
+};
+
+struct MobActionUpdateEventArgs
+{
+	int Action;
+	u8 ActionId;
+};
+
+struct MobStateUpdateEventArgs
+{
+	VECTOR Position;
+	int TargetUID;
+};
+
+struct MobSpawnEventArgs
+{
+	int Bolts;
+	u16 MaxHealth;
+	u16 Bangles;
+	char MobType;
+	u8 Damage;
+	u8 AttackRadiusEighths;
+	u8 HitRadiusEighths;
+	u8 SpeedHundredths;
+	u8 ReactionTickCount;
+	u8 AttackCooldownTickCount;
 };
 
 enum ZombieAnimId
@@ -98,8 +221,19 @@ enum MobType
 	MOB_GHOST
 };
 
+enum MobEvent
+{
+	MOB_EVENT_SPAWN,
+	MOB_EVENT_DESTROY,
+	MOB_EVENT_DAMAGE,
+	MOB_EVENT_STATE_UPDATE,
+	MOB_EVENT_TARGET_UPDATE,
+	MOB_EVENT_OWNER_UPDATE,
+};
 
+
+void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);
 GuberMoby * mobCreate(VECTOR position, float yaw, struct MobConfig *config);
 void mobInitialize(void);
 
-#endif // ZOMBIES_MOB_H
+#endif // SURVIVAL_MOB_H

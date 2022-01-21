@@ -94,7 +94,7 @@ void getFlags(void)
 			CtfFlags[*(u16*)(moby->PVar + 0x14)] = moby;
 		}
 
-		moby = moby->NextMoby;
+		moby = moby->PChain;
 	}
 }
 

@@ -73,6 +73,12 @@ enum HuntPlayerState
 	PLAYER_STATE_HUNTER
 };
 
+enum GameNetMessage
+{
+	CUSTOM_MSG_SET_ROUND_OUTCOME = CUSTOM_MSG_ID_GAME_MODE_START,
+};
+
+
 struct HuntState
 {
 	int RoundNumber;
@@ -317,7 +323,7 @@ void setRoundOutcome()
 	}
 
 	// send out
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ID_SEARCH_AND_DESTROY_SET_OUTCOME, sizeof(HuntOutcomeMessage_t), &message);
+	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_ROUND_OUTCOME, sizeof(HuntOutcomeMessage_t), &message);
 
 	// set locally
 	onSetRoundOutcome(&message);
@@ -443,8 +449,8 @@ int getPlayerIdFromMoby(Moby * moby)
 		return -1;
 
 	// find root parent
-	while (moby->ParentMoby)
-		moby = moby->ParentMoby;
+	while (moby->PParent)
+		moby = moby->PParent;
 
 	// check if guber is player
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -476,17 +482,6 @@ void collDamageMobyDirectHook(MobyColDamage * CollDamage, void * a1, int id, voi
 		CollDamage->Flags = 0;
 		DPRINTF("ignoring damage\n");
 	}
-}
-
-int playerIsDead(Player* p)
-{
-	return p->PlayerState == 57 // dead
-								|| p->PlayerState == 106 // drown
-								|| p->PlayerState == 118 // death fall
-								|| p->PlayerState == 122 // death sink
-								|| p->PlayerState == 123 // death lava
-								|| p->PlayerState == 148 // death no fall
-								;
 }
 
 void resetRoundState(void)
@@ -637,7 +632,7 @@ void initialize(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 0;
 
 	// Hook set outcome net event
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SEARCH_AND_DESTROY_SET_OUTCOME, &onSetRoundOutcomeRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_OUTCOME, &onSetRoundOutcomeRemote);
 	
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)

@@ -68,7 +68,7 @@
 /*
  * Max number of rounds before game ends
  */
-#define SND_MAX_ROUNDS						(2 * (RoundsToWin-1))
+#define SND_MAX_ROUNDS						(2 * (RoundsToWin-1) + 1)
 
 /*
  *
@@ -211,6 +211,15 @@ enum SNDOutcome
 	SND_OUTCOME_BOMB_DETONATED,
 	SND_OUTCOME_BOMB_DEFUSED,
 	SND_OUTCOME_ATTACKERS_DEAD
+};
+
+/*
+ *
+ */
+enum GameNetMessage
+{
+	CUSTOM_MSG_SET_ROUND_OUTCOME = CUSTOM_MSG_ID_GAME_MODE_START,
+	CUSTOM_MSG_SET_BOMB_OUTCOME,
 };
 
 /*
@@ -395,7 +404,7 @@ void hideMoby(Moby * moby, int move)
 	if (!moby)
 		return;
 
-	moby->CollisionPointer = NULL;
+	moby->CollData = NULL;
 	moby->Opacity = 0;
 	if (move)
 		vector_add(moby->Position, moby->Position, add);
@@ -412,16 +421,16 @@ void hideNode(Moby * nodeBaseMoby, int keepNode, int keepOrb, int move)
 	// hide base and orb
 	if (!keepNode)
 	{
-		if (nodeBaseMoby->CollisionPointer && !NodeBaseCollisionPointer)
-			NodeBaseCollisionPointer = nodeBaseMoby->CollisionPointer;
+		if (nodeBaseMoby->CollData && !NodeBaseCollisionPointer)
+			NodeBaseCollisionPointer = nodeBaseMoby->CollData;
 		hideMoby(nodeBaseMoby, move);
 		i = 0;
 	}
 
 	if (!keepOrb)
 	{
-		if (orb->CollisionPointer && !HackerOrbCollisionPointer)
-			HackerOrbCollisionPointer = orb->CollisionPointer;
+		if (orb->CollData && !HackerOrbCollisionPointer)
+			HackerOrbCollisionPointer = orb->CollData;
 		hideMoby(orb, move);
 	}
 
@@ -438,20 +447,20 @@ void showNode(Moby * nodeBaseMoby, VECTOR position)
 	Moby ** subItems = (Moby**)nodePvars->ChildMobies;
 
 	vector_copy(nodeBaseMoby->Position, position);
-	nodeBaseMoby->occlIndex |= 1;
+	nodeBaseMoby->OcclIndex |= 1;
 	nodeBaseMoby->ModeBits &= ~4;
-	nodeBaseMoby->RenderDistance = 0xFF;
+	nodeBaseMoby->DrawDist = 0xFF;
 	nodeBaseMoby->Opacity = 0x80;
 	if (NodeBaseCollisionPointer)
-		nodeBaseMoby->CollisionPointer = NodeBaseCollisionPointer;
+		nodeBaseMoby->CollData = NodeBaseCollisionPointer;
 	
 	if (orb)
 	{
 		vector_copy(orb->Position, position);
-		orb->RenderDistance = 0xFF;
+		orb->DrawDist = 0xFF;
 		orb->Opacity = 0x80;
 		if (HackerOrbCollisionPointer)
-			orb->CollisionPointer = HackerOrbCollisionPointer;
+			orb->CollData = HackerOrbCollisionPointer;
 	}
 
 	for (i = 0; i < 2; ++i)
@@ -483,8 +492,10 @@ void spawnPlayer(Player * player, VECTOR position)
 
 	player->Explode = 0;
 	player->Invisible = 0;
+	player->SkinMoby->DrawDist = 255;
 	playerRespawn(player);
 	playerSetPosRot(player, pos, r);
+	DPRINTF("player %d spawn with %d %d\n", player->PlayerId, player->SkinMoby->DrawDist, player->SkinMoby->UpdateDist);
 }
 
 void replaceString(int textId, const char * str)
@@ -544,7 +555,7 @@ void SNDHackerOrbEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler_
 	}
 
 	// get id of event
-	u32 eventId = event->NetEvent[0] & 0xF;
+	u32 eventId = event->NetEvent.EventID;
 
 	// if round is already over then ignore event
 	if (SNDState.RoundResult)
@@ -556,8 +567,8 @@ void SNDHackerOrbEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler_
 		case 2: // capture
 		{
 			// get capture team
-			int team = *(int*)(event->NetEvent + 12);
-			int playerId = *(int*)(event->NetEvent + 16);
+			int team = *(int*)((u32)event + 12);
+			int playerId = *(int*)((u32)event + 16);
 
 			// Only capture if bomb is picked up
 			if (SNDState.RoundInitialized && SNDState.IsHost && playerId >= 0 && !SNDState.BombPackMoby && nodeIndex >= 0)
@@ -603,15 +614,15 @@ void SNDWeaponPackEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler
 	Player * localPlayer = (Player*)0x347AA0;
 	int i;
 
-	int eventId = event->NetEvent[0] & 0xF;
-	int isNew = ((u32*)event->NetEvent)[2] == *(u32*)(*(u32*)0x00220710);
+	int eventId = event->NetEvent.EventID;
+	int isNew = event->NetEvent.ObjUID == *(u32*)(*(u32*)0x00220710);
 
 	// get id of event
 	// 0 is pickup
 	if (eventId == 0 && !isNew)
 	{
-		// get host id of player picking up pack
-		int hostId = event->NetEvent[15] >> 4;
+		// get id of player picking up pack
+		int hostId = ((char*)event)[15] >> 4;
 
 		// find player with hostId
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -716,7 +727,7 @@ void * spawnPackHook(u16 OClass, int pvarSize, int guberId, int arg4, int arg5)
 			killPack();
 
 		SNDState.BombPackMoby = newMoby;
-		SNDState.BombPackMoby->TextureId = 0x80 + (8 * SNDState.AttackerTeamId);
+		SNDState.BombPackMoby->ModeBits2 = (SNDState.BombPackMoby->ModeBits2 & 0xff) | ((0x80 + (8 * SNDState.AttackerTeamId)) << 8);
 
 		DPRINTF("spawnPackHook bomb pack moby = %08x\n", (u32)SNDState.BombPackMoby);
 	}
@@ -836,7 +847,7 @@ void setRoundOutcome(int outcome)
 	// send out
 	message.Outcome = outcome;
 	message.GameTime = gameGetTime();
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ID_SEARCH_AND_DESTROY_SET_OUTCOME, sizeof(SNDOutcomeMessage_t), &message);
+	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_ROUND_OUTCOME, sizeof(SNDOutcomeMessage_t), &message);
 
 	// set locally
 	onSetRoundOutcome(outcome, message.GameTime);
@@ -910,7 +921,7 @@ void setBombOutcome(int nodeIndex, int team)
 	message.NodeIndex = nodeIndex;
 	message.Team = team;
 	message.GameTime = gameGetTime();
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ID_SEARCH_AND_DESTROY_SET_BOMB_OUTCOME, sizeof(SNDBombOutcomeMessage_t), &message);
+	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_BOMB_OUTCOME, sizeof(SNDBombOutcomeMessage_t), &message);
 
 	// set locally
 	onSetBombOutcome(nodeIndex, team, message.GameTime);
@@ -996,16 +1007,7 @@ void playerLogic(SNDPlayerState_t * playerState)
 	}
 
 	// Check if died
-	if (!playerState->IsDead && 
-		(  player->Health <= 0
-		|| player->PlayerState == 57 // dead
-		|| player->PlayerState == 106 // drown
-		|| player->PlayerState == 118 // death fall
-		|| player->PlayerState == 122 // death sink
-		|| player->PlayerState == 123 // death lava
-		|| player->PlayerState == 148 // death no fall
-		)
-	)
+	if (!playerState->IsDead && playerIsDead(player))
 	{
 		// spawn new bomb on bomb carrier death
 		if (playerState->IsBombCarrier)
@@ -1017,7 +1019,7 @@ void playerLogic(SNDPlayerState_t * playerState)
 			if (SNDState.IsHost)
 			{
 				// if nonstandard death, then spawn back at start
-				if (   player->PlayerState == 106 // drown
+				if ( player->PlayerState == 106 // drown
 					|| player->PlayerState == 118 // death fall
 					|| player->PlayerState == 122 // death sink
 					|| player->PlayerState == 123 // death lava
@@ -1119,9 +1121,9 @@ void resetRoundState(void)
 
 void spawnGuberHook(void * a0, GuberEvent  * a1)
 {
-	if ((a1->NetEvent[0] & 0xF) == 0)
+	if (a1->NetEvent.EventID == 0)
 	{
-		switch (*(u16*)(a1->NetEvent + 0x10))
+		switch (*(u16*)((u32)a1 + 0x10))
 		{
 			case MOBY_ID_CONQUEST_NODE_TURRET:
 			case MOBY_ID_CONQUEST_POWER_TURRET:
@@ -1239,8 +1241,8 @@ void initialize(void)
 	SNDState.AttackerTeamId = TEAM_RED;
 
 	// Hook set outcome net event
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SEARCH_AND_DESTROY_SET_OUTCOME, &onSetRoundOutcomeRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SEARCH_AND_DESTROY_SET_BOMB_OUTCOME, &onSetBombOutcomeRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_OUTCOME, &onSetRoundOutcomeRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_SET_BOMB_OUTCOME, &onSetBombOutcomeRemote);
 
 	// Install spawn pack hook
 	*(u32*)0x0061CDC8 = 0x0C000000 | ((u32)&spawnPackHook / 4);
@@ -1287,11 +1289,11 @@ void initialize(void)
 
 	// 
 	SNDState.RadarObjectiveMoby[0] = mobySpawn(MOBY_ID_BETA_BOX, 0);
-	SNDState.RadarObjectiveMoby[0]->ModelPointer = 0;
-	SNDState.RadarObjectiveMoby[0]->CollisionPointer = 0;
+	SNDState.RadarObjectiveMoby[0]->PClass = 0;
+	SNDState.RadarObjectiveMoby[0]->CollData = 0;
 	SNDState.RadarObjectiveMoby[1] = mobySpawn(MOBY_ID_BETA_BOX, 0);
-	SNDState.RadarObjectiveMoby[1]->ModelPointer = 0;
-	SNDState.RadarObjectiveMoby[1]->CollisionPointer = 0;
+	SNDState.RadarObjectiveMoby[1]->PClass = 0;
+	SNDState.RadarObjectiveMoby[1]->CollData = 0;
 
 	// Write patch to hook GuberMoby event handler
 	*(u32*)0x0061CB30 = 0x8C460014; // move func ptr to a2

@@ -22,12 +22,12 @@
 #include <io_common.h>
 
 #define MAP_FRAG_PAYLOAD_MAX_SIZE               (1024)
-#define LOAD_MODULES_STATE                      (*(u8*)0x000E2FF0)
-#define LOAD_MODULES_RESULT                     (*(u8*)0x000E2FF1)
+#define LOAD_MODULES_STATE                      (*(u8*)0x00086FF0)
+#define LOAD_MODULES_RESULT                     (*(u8*)0x00086FF1)
 #define HAS_LOADED_MODULES                      (LOAD_MODULES_STATE == 100)
 
-#define USB_FS_ID                               (*(u8*)0x000E2FF4)
-#define USB_SRV_ID                              (*(u8*)0x000E2FF8)
+#define USB_FS_ID                               (*(u8*)0x00086FF4)
+#define USB_SRV_ID                              (*(u8*)0x00086FF8)
 
 
 void hook(void);
@@ -36,9 +36,9 @@ void loadModules(void);
 int readLevelVersion(char * name, int * version);
 int readGlobalVersion(int * version);
 
-void * usbFsModuleStart = (void*)0x000E3000;
+void * usbFsModuleStart = (void*)0x00087000;
 int usbFsModuleSize = 0;
-void * usbSrvModuleStart = (void*)0x000F0000;
+void * usbSrvModuleStart = (void*)0x00094000;
 int usbSrvModuleSize = 0;
 
 // patch config
@@ -776,11 +776,11 @@ void hook(void)
 void runMapLoader(void)
 {
 	// 
-    netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_MAP_OVERRIDE, &onSetMapOverride);
-    netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_MAP_IRX_MODULES, &onServerSentMapIrxModules);
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_MAP_OVERRIDE, &onSetMapOverride);
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_MAP_IRX_MODULES, &onServerSentMapIrxModules);
 
-    // hook irx module loading 
-    hook();
+	// hook irx module loading 
+	hook();
 
 	// 
 	if (!initialized)

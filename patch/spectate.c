@@ -21,6 +21,7 @@
 #include <libdl/pad.h>
 #include <libdl/hud.h>
 #include <libdl/ui.h>
+#include "config.h"
 
 
 /*
@@ -40,6 +41,12 @@ const float CAMERA_ROTATION_SHARPNESS = 5;
  * Higher is more sharp.
  */
 const float VEHICLE_CAMERA_ROTATION_SHARPNESS = 0.3;
+
+// config
+extern PatchConfig_t config;
+
+// game config
+extern PatchGameConfig_t gameConfig;
 
 int Initialized = 0;
 
@@ -248,7 +255,7 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 int findNextPlayerIndex(int currentPlayerIndex, int currentSpectateIndex, int direction)
 {
     Player ** players = playerGetAll();
-
+    int teamOnly = gameConfig.customModeId == CUSTOM_MODE_SEARCH_AND_DESTROY;
     int newIndex = currentSpectateIndex;
 
     do 
@@ -268,6 +275,9 @@ int findNextPlayerIndex(int currentPlayerIndex, int currentSpectateIndex, int di
             return players[currentSpectateIndex] ? currentSpectateIndex : -1;
         // skip self
         if (newIndex == currentPlayerIndex)
+            goto loop;
+        // skip enemy team
+        if (teamOnly && players[newIndex] && players[newIndex]->Team != players[currentPlayerIndex]->Team)
             goto loop;
     }
     while(!players[newIndex]);
@@ -317,7 +327,7 @@ void processSpectate(void)
             spectateIndex = spectateData->Index;
 
             // If dead
-            if ((player->PlayerState & 0xFFFF) == 0x99)
+            if (playerIsDead(player))
             {
                 if (!spectateData->Enabled)
                 {

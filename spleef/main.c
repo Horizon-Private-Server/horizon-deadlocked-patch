@@ -102,6 +102,15 @@ typedef struct SpleefDestroyBoxMessage
 /*
  *
  */
+enum GameNetMessage
+{
+	CUSTOM_MSG_SET_OUTCOME = CUSTOM_MSG_ID_GAME_MODE_START,
+	CUSTOM_MSG_DESTROY_BOX
+};
+
+/*
+ *
+ */
 ScoreboardItem PlayerScores[GAME_MAX_PLAYERS];
 
 /*
@@ -265,7 +274,7 @@ void setRoundOutcome(int first, int second, int third)
 	message.Outcome[1] = first;
 	message.Outcome[2] = second;
 	message.Outcome[3] = third;
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ID_SEARCH_AND_DESTROY_SET_OUTCOME, sizeof(SpleefOutcomeMessage_t), &message);
+	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_OUTCOME, sizeof(SpleefOutcomeMessage_t), &message);
 
 	// set locally
 	onSetRoundOutcome(message.Outcome);
@@ -274,7 +283,7 @@ void setRoundOutcome(int first, int second, int third)
 void onDestroyBox(int id)
 {
 	Moby* box = SpleefBox[id];
-	if (box && box->OClass == MOBY_ID_NODE_BOLT_GUARD && box->NextMoby)
+	if (box && box->OClass == MOBY_ID_NODE_BOLT_GUARD && box->PChain)
 	{
 		mobyDestroy(box);
 	}
@@ -299,7 +308,7 @@ void destroyBox(int id)
 
 	// send out
 	message.BoxId = id;
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ID_SPLEEF_DESTROY_BOX, sizeof(SpleefDestroyBoxMessage_t), &message);
+	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_DESTROY_BOX, sizeof(SpleefDestroyBoxMessage_t), &message);
 	DPRINTF("sent destroy box %d\n", id);
 }
 
@@ -384,17 +393,6 @@ void drawRoundMessage(const char * message, float scale)
 	}
 }
 
-int playerIsDead(Player* p)
-{
-	return p->PlayerState == 57 // dead
-								|| p->PlayerState == 106 // drown
-								|| p->PlayerState == 118 // death fall
-								|| p->PlayerState == 122 // death sink
-								|| p->PlayerState == 123 // death lava
-								|| p->PlayerState == 148 // death no fall
-								;
-}
-
 void resetRoundState(void)
 {
 	GameSettings * gameSettings = gameGetSettings();
@@ -460,7 +458,7 @@ void resetRoundState(void)
 			{
 				// delete old one
 				int boxId = (k * SPLEEF_BOARD_DIMENSION * SPLEEF_BOARD_DIMENSION) + (i * SPLEEF_BOARD_DIMENSION) + j;
-				if (!SpleefBox[boxId] || SpleefBox[boxId]->OClass != MOBY_ID_NODE_BOLT_GUARD || !SpleefBox[boxId]->NextMoby)
+				if (!SpleefBox[boxId] || SpleefBox[boxId]->OClass != MOBY_ID_NODE_BOLT_GUARD || !SpleefBox[boxId]->PChain)
 				{
 					// spawn
 					SpleefBox[boxId] = hbMoby = mobySpawn(MOBY_ID_NODE_BOLT_GUARD, 0);
@@ -469,26 +467,26 @@ void resetRoundState(void)
 					{
 						vector_copy(hbMoby->Position, pos);
 
-						hbMoby->UNK_30 = 0xFF;
-						hbMoby->UNK_31 = 0x01;
-						hbMoby->RenderDistance = 0x0080;
+						hbMoby->UpdateDist = 0xFF;
+						hbMoby->Drawn = 0x01;
+						hbMoby->DrawDist = 0x0080;
 						hbMoby->Opacity = 0x80;
-						hbMoby->UNK_20[0] = 1;
+						hbMoby->State = 1;
 
 						hbMoby->Scale = (float)0.0425 * SPLEEF_BOARD_BOX_SIZE;
-						hbMoby->UNK_38[0] = 2;
-						hbMoby->UNK_38[1] = 2;
+						hbMoby->Lights = 0x202;
 						hbMoby->GuberMoby = 0;
 						hbMoby->PUpdate = &boxUpdate;
 
 						// For this model the vector here is copied to 0x80 in the moby
 						// This fixes the occlusion bug
-						hbMoby->AnimationPointer = StartUNK_80;
+						vector_copy(hbMoby->LSphere, StartUNK_80);
 
 						// Copy from source box
-						hbMoby->ModelPointer = SourceBox->ModelPointer;
-						hbMoby->CollisionPointer = SourceBox->CollisionPointer;
-						hbMoby->UNK_20[2] = SourceBox->UNK_20[2];
+						hbMoby->AnimSeq = SourceBox->AnimSeq;
+						hbMoby->PClass = SourceBox->PClass;
+						hbMoby->CollData = SourceBox->CollData;
+						hbMoby->MClass = SourceBox->MClass;
 
 						++count;
 					}
@@ -558,8 +556,8 @@ void initialize(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 0;
 
 	// Hook set outcome net event
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SEARCH_AND_DESTROY_SET_OUTCOME, &onSetRoundOutcomeRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SPLEEF_DESTROY_BOX, &onDestroyBoxRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_SET_OUTCOME, &onSetRoundOutcomeRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_DESTROY_BOX, &onDestroyBoxRemote);
 	
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
@@ -569,7 +567,7 @@ void initialize(void)
 	SourceBox = mobySpawn(MOBY_ID_BETA_BOX, 0);
 	
 	// change collision ids
-	changeBoxCollisionIds(SourceBox->ModelPointer);
+	//changeBoxCollisionIds(SourceBox->PClass);
 
 	// clear spleefbox array
 	memset(SpleefBox, 0, sizeof(SpleefBox));

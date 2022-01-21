@@ -5,22 +5,40 @@
 #include <libdl/collision.h>
 #include <libdl/moby.h>
 #include <libdl/sound.h>
+#include <libdl/random.h>
 
 /* 
  * Explosion sound def
  */
 SoundDef ExplosionSoundDef =
 {
-	1000.0,		// MinRange
-	1000.0,		// MaxRange
-	2000,		// MinVolume
+	0.0,	// MinRange
+	50.0,	// MaxRange
+	100,		// MinVolume
+	4000,		// MaxVolume
+	0,			// MinPitch
+	0,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	0x106,  // 0x123, 0x171, 
+	3			  // Bank
+};
+
+/* 
+ * Explosion sound def
+ */
+SoundDef UpgradeSoundDef =
+{
+	0.0,	// MinRange
+	20.0,	// MaxRange
+	100,		// MinVolume
 	2000,		// MaxVolume
 	0,			// MinPitch
 	0,			// MaxPitch
 	0,			// Loop
 	0x10,		// Flags
-	0xF4,		// Index
-	3			// Bank
+	0x3A,		// Index (0x2C, )
+	3			  // Bank
 };
 
 Moby * spawnExplosion(VECTOR position, float size)
@@ -36,4 +54,39 @@ Moby * spawnExplosion(VECTOR position, float size)
 	soundPlay(&ExplosionSoundDef, 0, moby, 0, 0x400);
 
 	return moby;
+}
+
+void playUpgradeSound(Player* player)
+{	
+	soundPlay(&UpgradeSoundDef, 0, player->PlayerMoby, 0, 0x400);
+}
+
+u8 decTimerU8(u8* timeValue)
+{
+	int value = *timeValue;
+	if (value == 0)
+		return 0;
+
+	*timeValue = --value;
+	return value;
+}
+
+u16 decTimerU16(u16* timeValue)
+{
+	int value = *timeValue;
+	if (value == 0)
+		return 0;
+
+	*timeValue = --value;
+	return value;
+}
+
+u32 decTimerU32(u32* timeValue)
+{
+	long value = *timeValue;
+	if (value == 0)
+		return 0;
+
+	*timeValue = --value;
+	return value;
 }

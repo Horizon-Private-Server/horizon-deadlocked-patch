@@ -76,7 +76,7 @@
 
 #define IS_PROGRESSIVE_SCAN					(*(int*)0x0021DE6C)
 
-#define EXCEPTION_DISPLAY_ADDR			(0x000E0000)
+#define EXCEPTION_DISPLAY_ADDR			(0x00084000)
 
 #define SHRUB_RENDER_DISTANCE				(*(float*)0x0022308C)
 
@@ -728,7 +728,7 @@ void runSendGameUpdate(void)
 
 	if (gameIsIn())
 	{
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
 		{
 			ScoreboardItem * item = GAME_SCOREBOARD_ARRAY[i];
 			if (item)
@@ -1555,6 +1555,11 @@ int main (void)
 		// patch red and brown as last two color codes
 		*(u32*)0x00391978 = COLOR_CODE_EX1;
 		*(u32*)0x0039197C = COLOR_CODE_EX2;
+
+		// if survivor is enabled then set the respawn time to -1
+		GameOptions* gameOptions = gameGetOptions();
+	  if (gameOptions && gameOptions->GameFlags.MultiplayerGameFlags.Survivor)
+			gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0xFF;
 
 		// trigger config menu update
 		onConfigGameMenu();

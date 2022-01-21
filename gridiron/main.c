@@ -375,7 +375,7 @@ void findFlagBases(void)
 			}
 		}
 
-		moby = moby->NextMoby;
+		moby = moby->PChain;
 	}
 }
 
@@ -443,7 +443,7 @@ void initialize(void)
 			}
 		}
 
-		moby = moby->NextMoby;
+		moby = moby->PChain;
 	}
 
 	// Initialize players

@@ -127,11 +127,7 @@ void processPlayer(Player * player)
 	int teamId = player->Team;
 	PlayerGameStats * stats = gameGetPlayerStats();
 
-	// No respawn
-	player->timers.resurrectWait = 0x27;
-
 	// 
-
 	if (isInfected(player->PlayerId))
 	{
 		// If not on the right team then set it

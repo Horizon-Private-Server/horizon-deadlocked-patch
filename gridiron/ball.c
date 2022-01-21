@@ -29,6 +29,7 @@
 #include <libdl/color.h>
 #include <libdl/radar.h>
 #include <libdl/sound.h>
+#include <libdl/collision.h>
 #include <libdl/net.h>
 #include "module.h"
 #include "messageid.h"
@@ -50,9 +51,7 @@ typedef struct BallPVars
 VECTOR VECTOR_GRAVITY = { 0, 0, -0.005, 0 };
 VECTOR VECTOR_ZERO = { 0, 0, 0, 0 };
 
-int (*CollLine_Fix)(VECTOR from, VECTOR to, u64 a2, Moby * damageSource, u64 t0) = 0x004b7e50;
 int (*CollWaterHeight)(VECTOR from, VECTOR to, u64 a2, Moby * damageSource, u64 t0) = 0x00503780;
-u128 (*vector_reflect)(u128 in, u128 normal) = 0x005b9ae8;
 
 Moby * ballSpawn(VECTOR position)
 {
@@ -77,26 +76,25 @@ Moby * ballSpawn(VECTOR position)
     pvars->DieTime = 0;
 
 		vector_copy(ball->Position, position);
-		ball->UNK_30 = 0xFF;
-		ball->UNK_31 = 0x01;
-		ball->RenderDistance = 0x00FF;
+		ball->UpdateDist = 0xFF;
+		ball->Drawn = 0x01;
+		ball->DrawDist = 0x00FF;
 		ball->Opacity = 0x80;
-		ball->UNK_20[0] = 1;
-		ball->UNK_20[2] = 0x37;
+		ball->State = 1;
+		ball->MClass = 0x37;
 
 		ball->Scale = (float)0.02;
-		ball->UNK_38[0] = 2;
-		ball->UNK_38[1] = 2;
+		ball->Lights = 0x202;
 		ball->ModeBits = (ball->ModeBits & 0xFF) | 0x10;
 		ball->PrimaryColor = 0xFFFF4040;
 		ball->PUpdate = &ballUpdate;
 
 		// animation stuff
-		memcpy(&ball->AnimationPointer, &BallVisualRefMoby->AnimationPointer, 0x20);
-		ball->UNK_48 = 4;
+		memcpy(&ball->AnimSeq, &BallVisualRefMoby->AnimSeq, 0x20);
+		ball->AnimSpeed = 4;
 
-		ball->ModelPointer = BallVisualRefMoby->ModelPointer;
-		ball->CollisionPointer = BallVisualRefMoby->CollisionPointer;
+		ball->PClass = BallVisualRefMoby->PClass;
+		ball->CollData = BallVisualRefMoby->CollData;
 	}
 
   return ball;
@@ -209,7 +207,7 @@ void ballUpdate(Moby * ball)
       {
         // change velocity based on hit
         vector_normalize(hitNormal, (float*)0x0023f940);
-        *(u128*)pvars->Velocity = vector_reflect(*(u128*)pvars->Velocity, *(u128*)hitNormal);
+        vector_reflect(pvars->Velocity, pvars->Velocity, hitNormal);
 
         float dot = vector_innerproduct(direction, hitNormal);
         float exp = powf((dot + 1) / 2, 0.2);

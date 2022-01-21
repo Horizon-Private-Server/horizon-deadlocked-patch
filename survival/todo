@@ -1,0 +1,9 @@
+++ Prevent players from twirling flail infinitely
+Add mob that throws/shoots something
+++ Add pack-a-punch (vending machine)
+++ Add reviving
+-- Change round increment to on complete instead of on start (so the bottom left counter reflects the ne)
+++ Let sniper hit multiple enemies
+Have locals share bolts
+Fix using sheep vars at start
+Randomize weapon spawns (game spawns them randomly -- time and place)

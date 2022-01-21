@@ -267,20 +267,19 @@ Moby * spawn(MobyDef * def, VECTOR position, VECTOR rotation, float scale)
 	//
 	vector_copy(sourceBox->Rotation, rotation);
 
-	sourceBox->UNK_30 = 0xFF;
-	sourceBox->UNK_31 = 0x01;
-	sourceBox->RenderDistance = 0x0080;
+	sourceBox->UpdateDist = 0xFF;
+	sourceBox->Drawn = 0x01;
+	sourceBox->DrawDist = 0x0080;
 	sourceBox->Opacity = 0x7E;
-	sourceBox->UNK_20[0] = 1;
+	sourceBox->State = 1;
 
 	sourceBox->Scale = (float)0.11 * scale * def->ObjectScale;
-	sourceBox->UNK_38[0] = 2;
-	sourceBox->UNK_38[1] = 2;
+	sourceBox->Lights = 0x202;
 	sourceBox->GuberMoby = 0;
 
 	// For this model the vector here is copied to 0x80 in the moby
 	// This fixes the occlusion bug
-	sourceBox->AnimationPointer = StartUNK_80;
+	vector_copy(sourceBox->LSphere, StartUNK_80);
 
 	// 
 	DPRINTF("source: %08x\n", (u32)sourceBox);
@@ -314,7 +313,7 @@ void DestroyOld(void)
 			}
 		}
 
-		moby = moby->NextMoby;
+		moby = moby->PChain;
 	}
 }
 
@@ -458,6 +457,11 @@ void initialize(void)
 
 	// get water moby
 	WaterMoby = mobyGetFirst(); // big assumption here, could be a problem
+	while (WaterMoby && WaterMoby->OClass != MOBY_ID_WATER)
+		WaterMoby = WaterMoby->PChain;
+	if (!WaterMoby)
+		return;
+	DPRINTF("water: %08X\n", (u32)WaterMoby);
 	WaterHeight = ((float*)WaterMoby->PVar)[19];
 
 	// 
@@ -618,8 +622,10 @@ void gameStart(void)
 	if (!gameSettings || !gameIsIn())
 		return;
 
-	if (!Initialized)
+	if (!Initialized) {
 		initialize();
+		return;
+	}
 
 	// Spawn tick
 	spawnTick();
