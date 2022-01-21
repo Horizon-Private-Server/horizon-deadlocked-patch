@@ -7,3 +7,5 @@ Add mob that throws/shoots something
 Have locals share bolts
 Fix using sheep vars at start
 Randomize weapon spawns (game spawns them randomly -- time and place)
+Fix weapon model not upgrading right away
+++Refill ammo on upgrade

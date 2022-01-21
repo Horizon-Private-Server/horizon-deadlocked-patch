@@ -8,9 +8,13 @@
 
 #define TPS																		(60)
 
-#define BUDGET_START													(100)
-#define BUDGET_START_ACCUM										(50)
-#define BUDGET_PLAYER_WEIGHT									(50)
+#define BUDGET_START													(200)
+#define BUDGET_START_ACCUM										(100)
+#define BUDGET_PLAYER_WEIGHT									(100)
+
+#define MAX_MOBS_BASE													(30)
+#define MAX_MOBS_ROUND_WEIGHT									(10)
+#define MAX_MOBS_SPAWNED											(100)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
 
@@ -22,9 +26,6 @@
 
 #define ROUND_BASE_BOLT_BONUS									(100)
 #define ROUND_MAX_BOLT_BONUS									(10000)
-
-#define MAX_MOBS_SPAWNED											(50)
-#define MAX_MOBS_PER_ROUND										(200)
 
 #define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 		(0.2)
 #define MOB_SPAWN_AT_PLAYER_PROBABILITY 			(0.01)
@@ -50,6 +51,9 @@
 #define ZOMBIE_EXPLODE_HIT_RADIUS							(5)
 #define ZOMBIE_MELEE_ATTACK_RADIUS						(2.5)
 
+#define MOB_CORN_LIFETIME_TICKS								(60 * 3)
+#define MOB_CORN_MAX_ON_SCREEN								(15)
+
 #if PAYDAY
 #define ZOMBIE_BASE_BOLTS											(10000)
 #else
@@ -72,7 +76,8 @@ enum GameNetMessage
 	CUSTOM_MSG_ROUND_COMPLETE = CUSTOM_MSG_ID_GAME_MODE_START,
 	CUSTOM_MSG_ROUND_START,
 	CUSTOM_MSG_UPDATE_SPAWN_VARS,
-	CUSTOM_MSG_WEAPON_UPGRADE
+	CUSTOM_MSG_WEAPON_UPGRADE,
+	CUSTOM_MSG_REVIVE_PLAYER
 };
 
 struct SurvivalPlayerState
@@ -96,8 +101,10 @@ struct SurvivalState
 	int RoundEndTime;
 	int RoundMobCount;
 	int RoundMobSpawnedCount;
+	int RoundMaxMobCount;
 	int RoundSpawnTicker;
 	int MinMobCost;
+	u32 CornTicker;
 	struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
 	int RoundInitialized;
 	Moby* Vendor;
@@ -124,6 +131,11 @@ typedef struct SurvivalRoundStartMessage
 	int GameTime;
 	int RoundNumber;
 } SurvivalRoundStartMessage_t;
+
+typedef struct SurvivalReviveMessage
+{
+	int PlayerId;
+} SurvivalReviveMessage_t;
 
 typedef struct SurvivalConfig
 {

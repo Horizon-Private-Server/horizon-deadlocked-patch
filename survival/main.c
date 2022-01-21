@@ -188,14 +188,25 @@ void drawRoundMessage(const char * message, float scale)
 	int fw = gfxGetFontWidth(message, -1, scale);
 	float x = 0.5;
 	float y = 0.16;
-	float p = 0.02;
-	float w = maxf(196.0, fw);
-	float h = 40.0;
 
 	// draw message
 	y *= SCREEN_HEIGHT;
 	x *= SCREEN_WIDTH;
 	gfxScreenSpaceText(x, y + 5, scale, scale * 1.5, 0x80FFFFFF, message, -1, 1);
+}
+
+//--------------------------------------------------------------------------
+void disableSetWeaponsOnRespawn(void) {
+	*(u32*)0x005e2b2c = 0;
+	*(u32*)0x005e2b40 = 0;
+	*(u32*)0x005e2b48 = 0;
+}
+
+//--------------------------------------------------------------------------
+void enableSetWeaponsOnRespawn(void) {
+	*(u32*)0x005e2b2c = 0x0C178B9A;
+	*(u32*)0x005e2b40 = 0x10600005;
+	*(u32*)0x005e2b48 = 0x0C17DD44;
 }
 
 //--------------------------------------------------------------------------
@@ -259,7 +270,6 @@ int spawnGetRandomPoint(VECTOR out) {
 
 	// spawn on player
 	if (r <= MOB_SPAWN_AT_PLAYER_PROBABILITY) {
-		DPRINTF("spawn at player %f\n", r);
 		Player * targetPlayer = playerGetRandom();
 		if (targetPlayer) {
 			vector_write(out, randVectorRange(-1, 1));
@@ -271,7 +281,6 @@ int spawnGetRandomPoint(VECTOR out) {
 
 	// spawn near player
 	if (r <= MOB_SPAWN_NEAR_PLAYER_PROBABILITY) {
-		DPRINTF("spawn near player %f\n", r);
 		Player * targetPlayer = playerGetRandom();
 		if (targetPlayer)
 			return spawnPointGetNearestTo(targetPlayer->PlayerPosition, out, 5);
@@ -343,13 +352,14 @@ int getMinMobCost(void) {
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
 	Player* p = State.PlayerStates[playerId].Player;
-	DPRINTF("%d (%08X) weapon %d upgraded to %d\n", playerId, (u32)p, weaponId, level);
 	if (!p)
 		return;
 
 	PlayerWeaponData* wepData = playerGetWeaponData(playerId);
 	playerGiveWeapon(p, weaponId, level);
 	wepData[weaponId].Level = level;
+	wepData[weaponId].AlphaMods[level] = rand(7);
+	wepData[weaponId].Ammo = ((short (*)(PlayerWeaponData*, int))0x00626fb8)(wepData, weaponId);
 
 	// play upgrade sound
 	playUpgradeSound(p);
@@ -358,6 +368,9 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 	if (level == VENDOR_MAX_WEAPON_LEVEL)
 		wepData[weaponId].Experience = level;
 
+#if LOG_STATS
+	DPRINTF("%d (%08X) weapon %d upgraded to %d\n", playerId, (u32)p, weaponId, level);
+#endif
 }
 
 //--------------------------------------------------------------------------
@@ -390,6 +403,51 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 }
 
 //--------------------------------------------------------------------------
+void onPlayerRevive(int playerId)
+{
+	Player* player = State.PlayerStates[playerId].Player;
+	if (!player)
+		return;
+
+	// backup current position/rotation
+	VECTOR deadPos, deadRot;
+	vector_copy(deadPos, player->PlayerPosition);
+	vector_copy(deadRot, player->PlayerRotation);
+
+	// respawn and warp
+	disableSetWeaponsOnRespawn();
+	playerRespawn(player);
+	enableSetWeaponsOnRespawn();
+	playerSetPosRot(player, deadPos, deadRot);
+}
+
+//--------------------------------------------------------------------------
+int onPlayerReviveRemote(void * connection, void * data)
+{
+	SurvivalReviveMessage_t * message = (SurvivalReviveMessage_t*)data;
+	onPlayerRevive(message->PlayerId);
+
+	return sizeof(SurvivalReviveMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void playerRevive(Player* player)
+{
+	SurvivalReviveMessage_t message;
+
+	// don't allow overwriting existing outcome
+	if (State.RoundEndTime)
+		return;
+
+	// send out
+	message.PlayerId = player->PlayerId;
+	netSendCustomAppMessage(netGetDmeServerConnection(), player->Guber.Id.GID.HostId, CUSTOM_MSG_REVIVE_PLAYER, sizeof(SurvivalReviveMessage_t), &message);
+
+	// set locally
+	//onPlayerRevive(message.PlayerId);
+}
+
+//--------------------------------------------------------------------------
 int canUpgradeWeapon(Player * player, enum WEAPON_IDS weaponId) {
 	if (!player)
 		return 0;
@@ -418,37 +476,6 @@ int getUpgradeCost(Player * player, enum WEAPON_IDS weaponId) {
 
 	PlayerWeaponData* wepData = playerGetWeaponData(player->PlayerId);
 	return WEAPON_UPGRADE_BASE_COST + (WEAPON_UPGRADE_COST_PER_UPGRADE * wepData[(int)weaponId].Level);
-}
-
-//--------------------------------------------------------------------------
-void disableSetWeaponsOnRespawn(void) {
-	*(u32*)0x005e2b2c = 0;
-	*(u32*)0x005e2b40 = 0;
-	*(u32*)0x005e2b48 = 0;
-}
-
-//--------------------------------------------------------------------------
-void enableSetWeaponsOnRespawn(void) {
-	*(u32*)0x005e2b2c = 0x0C178B9A;
-	*(u32*)0x005e2b40 = 0x10600005;
-	*(u32*)0x005e2b48 = 0x0C17DD44;
-}
-
-//--------------------------------------------------------------------------
-void revivePlayer(Player * player) {
-	if (!player)
-		return;
-	
-	// backup current position/rotation
-	VECTOR deadPos, deadRot;
-	vector_copy(deadPos, player->PlayerPosition);
-	vector_copy(deadRot, player->PlayerRotation);
-
-	// respawn and warp
-	disableSetWeaponsOnRespawn();
-	playerRespawn(player);
-	enableSetWeaponsOnRespawn();
-	playerSetPosRot(player, deadPos, deadRot);
 }
 
 //--------------------------------------------------------------------------
@@ -570,7 +597,7 @@ void processPlayer(int pIndex) {
 					// handle pad input
 					if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
 						playerData->State.Bolts -= cost;
-						revivePlayer(otherPlayer);
+						playerRevive(otherPlayer);
 					}
 				}
 			}
@@ -592,7 +619,7 @@ int getRoundBonus(int roundNumber, int numPlayers)
 void onSetRoundComplete(int gameTime, int boltBonus)
 {
 	int i;
-	DPRINTF("round complete. zombies spawned %d/%d\n", State.RoundMobSpawnedCount, MAX_MOBS_PER_ROUND);
+	DPRINTF("round complete. zombies spawned %d/%d\n", State.RoundMobSpawnedCount, State.RoundMaxMobCount);
 
 	// 
 	State.RoundEndTime = 0;
@@ -698,6 +725,8 @@ void resetRoundState(void)
 	State.RoundMobCount = 0;
 	State.RoundMobSpawnedCount = 0;
 	State.RoundSpawnTicker = 0;
+	State.MinMobCost = getMinMobCost();
+	State.RoundMaxMobCount = MAX_MOBS_BASE + (MAX_MOBS_ROUND_WEIGHT * State.RoundNumber * gameSettings->PlayerCountAtStart);
 
 	// 
 	State.RoundInitialized = 1;
@@ -707,7 +736,7 @@ void resetRoundState(void)
 void initialize(void)
 {
 	Player** players = playerGetAll();
-	int i;
+	int i, j;
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
@@ -732,6 +761,7 @@ void initialize(void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_START, &onSetRoundStartRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_WEAPON_UPGRADE, &onPlayerUpgradeWeaponRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_REVIVE_PLAYER, &onPlayerReviveRemote);
 
 	// set game over string (replaces "Draw!")
 	strncpy((char*)0x015A00AA, SURVIVAL_GAME_OVER, 12);
@@ -751,16 +781,16 @@ void initialize(void)
 	}
 
 	// initialize weapon data
-	/*
 	WeaponDefsData* gunDefs = weaponGetGunLevelDefs();
 	for (i = 0; i < 7; ++i) {
-		gunDefs[i].Entries[0].MpLevelUpExperience = VENDOR_MAX_WEAPON_LEVEL;
+		for (j = 0; j < 10; ++j) {
+			gunDefs[i].Entries[j].MpLevelUpExperience = VENDOR_MAX_WEAPON_LEVEL;
+		}
 	}
 	WeaponDefsData* flailDefs = weaponGetFlailLevelDefs();
-	flailDefs->Entries[0].MpLevelUpExperience = VENDOR_MAX_WEAPON_LEVEL;
-	WrenchDefsData* wrenchDefs = weaponGetWrenchLevelDefs();
-	wrenchDefs->Entries[0].MpLevelUpExperience = VENDOR_MAX_WEAPON_LEVEL;
-	*/
+	for (j = 0; j < 10; ++j) {
+		flailDefs->Entries[j].MpLevelUpExperience = VENDOR_MAX_WEAPON_LEVEL;
+	}
 
 	// find vendor
 #if defined(VENDOR_OCLASS)
@@ -791,7 +821,6 @@ void initialize(void)
 	// initialize state
 	State.GameOver = 0;
 	State.RoundNumber = 0;
-	State.MinMobCost = getMinMobCost();
 	resetRoundState();
 
 	Initialized = 1;
@@ -807,7 +836,6 @@ void gameStart(void)
 	char buffer[32];
 	int gameTime = gameGetTime();
 	static int startDelay = 60 * 5;
-
 	if (startDelay > 0) {
 		--startDelay;
 		return;
@@ -826,52 +854,28 @@ void gameStart(void)
 	if (!Initialized)
 		initialize();
 
-	static int ccc = 0;
-	if (ccc <= 0) {
+#if LOG_STATS
+	static int statsTicker = 0;
+	if (statsTicker <= 0) {
 		DPRINTF("budget:%d liveMobCount:%d totalSpawnedThisRound:%d roundNumber:%d roundSpawnTicker:%d\n", State.RoundBudget, State.RoundMobCount, State.RoundMobSpawnedCount, State.RoundNumber, State.RoundSpawnTicker);
-		ccc = 60 * 15;
+		statsTicker = 60 * 15;
 	} else {
-		--ccc;
+		--statsTicker;
 	}
+#endif
 
 	if (padGetButton(0, PAD_L3 | PAD_R3) > 0)
 		State.GameOver = 1;
 	
-#if DEBUG1
-	
-	// 
+#if MANUAL_SPAWN
 	Player * localPlayer = (Player*)0x00347AA0;
-	int playSound = 0;
-	static short bangleId = 0;
-	static Moby * m = 0;
-
-	if (!m) {
-		m = mobyGetFirst();
-		while (m && m->OClass != 0x20F6)
-			m = m->PChain;
-	} else {
-		if (padGetButtonDown(0, PAD_LEFT) > 0) {
-			playSound = 1;
-			--bangleId;
-		} else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-			playSound = 1;
-			++bangleId;
-		} else if (padGetButtonDown(0, PAD_UP) > 0) {
-			playSound = 1;
-		}
-		if (playSound) {
-			mobyBlowCorn(m, bangleId, 0, 0, 0, 0, 0, 0, 0.1, 0, 0x1000, 1, 0, 0, 1.0, 0x23, 0, 1.0, 0, 0);
-			DPRINTF("bangle id %08X  %04X\n", (u32)m, bangleId);
-		}
-	}
-
 	if (padGetButtonDown(0, PAD_DOWN) > 0) {
-		static int aaa = 0;
+		static int manSpawnMobId = 0;
 		VECTOR t;
 		vector_copy(t, localPlayer->PlayerPosition);
 		t[0] += 1;
 
-		mobCreate(t, 0, &defaultSpawnParams[(aaa++ % defaultSpawnParamsCount)].Config);
+		mobCreate(t, 0, &defaultSpawnParams[(manSpawnMobId++ % defaultSpawnParamsCount)].Config);
 	}
 #endif
 
@@ -881,6 +885,9 @@ void gameStart(void)
 
 	if (!gameHasEnded() && !State.GameOver)
 	{
+		// decrement corn cob ticker
+		decTimerU32(&State.CornTicker);
+
 		// update local bolt count
 		*LocalBoltCount = 0;
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -969,7 +976,7 @@ void gameStart(void)
 				// handle spawning
 				if (State.RoundSpawnTicker == 0) {
 					if (State.RoundMobCount < MAX_MOBS_SPAWNED) {
-						if (State.RoundBudget >= State.MinMobCost && State.RoundMobSpawnedCount < MAX_MOBS_PER_ROUND) {
+						if (State.RoundBudget >= State.MinMobCost && State.RoundMobSpawnedCount < State.RoundMaxMobCount) {
 							if (spawnRandomMob()) {
 								++State.RoundMobSpawnedCount;
 #if QUICK_SPAWN
@@ -988,9 +995,6 @@ void gameStart(void)
 								State.RoundBudget -= 5;
 							}
 
-							// determine min mob cost
-							State.MinMobCost = getMinMobCost();
-
 							// 
 							DPRINTF("mutators for next round:\n");
 							for (i = 0; i < defaultSpawnParamsCount; ++i) {
@@ -998,6 +1002,7 @@ void gameStart(void)
 								DPRINTF("\t\tdamage: %f\n", defaultSpawnParams[i].Config.Damage);
 								DPRINTF("\t\tspeed: %f\n", defaultSpawnParams[i].Config.Speed);
 								DPRINTF("\t\thealth: %f\n", defaultSpawnParams[i].Config.MaxHealth);
+								DPRINTF("\t\tcost: %d\n", defaultSpawnParams[i].Cost);
 							}
 
 							State.RoundSpawnTicker = -1;
@@ -1058,7 +1063,7 @@ void setLobbyGameOptions(void)
 	GameOptions * gameOptions = gameGetOptions();
 	if (!gameOptions)
 		return;
-		
+	
 	// apply options
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;

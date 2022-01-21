@@ -364,7 +364,7 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
   // send request
   void * lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
-    netSendCustomAppMessage(lobbyConnection, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
+    netSendCustomAppMessage(lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
 }
 
 #endif
@@ -1347,7 +1347,7 @@ void configTrySendGameConfig(void)
     // send
     void * lobbyConnection = netGetLobbyServerConnection();
     if (lobbyConnection)
-      netSendCustomAppMessage(lobbyConnection, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(PatchGameConfig_t), &gameConfig);
+      netSendCustomAppMessage(lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(PatchGameConfig_t), &gameConfig);
   }
 }
 
@@ -1362,7 +1362,7 @@ void configMenuDisable(void)
   // send config to server for saving
   void * lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
-    netSendCustomAppMessage(lobbyConnection, CUSTOM_MSG_ID_CLIENT_USER_CONFIG, sizeof(PatchConfig_t), &config);
+    netSendCustomAppMessage(lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_CONFIG, sizeof(PatchConfig_t), &config);
 
   // 
   configTrySendGameConfig();

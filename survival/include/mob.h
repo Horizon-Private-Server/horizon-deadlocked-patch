@@ -233,7 +233,7 @@ enum MobEvent
 
 
 void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);
-GuberMoby * mobCreate(VECTOR position, float yaw, struct MobConfig *config);
+int mobCreate(VECTOR position, float yaw, struct MobConfig *config);
 void mobInitialize(void);
 
 #endif // SURVIVAL_MOB_H

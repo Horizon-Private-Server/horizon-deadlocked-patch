@@ -144,7 +144,7 @@ int onSetMapOverride(void * connection, void * data)
 		DPRINTF("MapId:%d MapName:%s MapFileName:%s Version:%d\n", payload->MapId, payload->MapName, payload->MapFileName, version);
 
 		// send response
-		netSendCustomAppMessage(connection, CUSTOM_MSG_ID_SET_MAP_OVERRIDE_RESPONSE, 4, &version);
+		netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_SET_MAP_OVERRIDE_RESPONSE, 4, &version);
 
 		// enable
 		if (version >= 0)
@@ -663,7 +663,7 @@ int mapsPromptEnableCustomMaps(void)
 		// request irx modules from server
 		request.Module1Start = (u32)usbFsModuleStart;
 		request.Module2Start = (u32)usbSrvModuleStart;
-		netSendCustomAppMessage(netGetLobbyServerConnection(), CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
+		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
 		actionState = ACTION_DOWNLOADING_MODULES;
 		return 1;
 	}
@@ -796,7 +796,7 @@ void runMapLoader(void)
 			MapClientRequestModulesMessage request = { 0, 0 };
 			request.Module1Start = (u32)usbFsModuleStart;
 			request.Module2Start = (u32)usbSrvModuleStart;
-			netSendCustomAppMessage(netGetLobbyServerConnection(), CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
+			netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
 			actionState = ACTION_DOWNLOADING_MODULES;
 		}
 

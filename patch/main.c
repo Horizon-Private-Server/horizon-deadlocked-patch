@@ -740,7 +740,7 @@ void runSendGameUpdate(void)
 	memcpy(state.Teams, gameSettings->PlayerTeams, sizeof(state.Teams));
 
 	// send
-	netSendCustomAppMessage(connection, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &state);
+	netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &state);
 }
 
 /*
@@ -922,7 +922,7 @@ void runGameStartMessager(void)
 			// check if host
 			if (*(u8*)0x00172170 == 0)
 			{
-				netSendCustomAppMessage(netGetLobbyServerConnection(), CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
+				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
 			}
 			
 			sentGameStart = 1;

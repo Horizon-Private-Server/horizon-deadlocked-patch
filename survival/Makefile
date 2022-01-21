@@ -8,7 +8,7 @@ EE_INCS := -I../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := RELEASE
+BUILD_CONFIG := DEBUG
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
@@ -22,10 +22,11 @@ BUILD_CONFIG := RELEASE
 #		MOB_CORN							Enables spawning mob limbs (corn) on death.
 #		PAYDAY								Mobs give a lot more bolts.
 #		QUICK_SPAWN						When set will spawn zombies as quickly as possible near the player.
-
+#		LOG_STATS							With DEBUG enabled, will output game state information to the console.
+#		MANUAL_SPAWN					When enabled, allows player to spawn mob at feet by pressing DPAD DOWN.
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DAUTOSTART -DMOB_NO_DAMAGE -DPAYDAY  -DVENDOR_OCLASS=0x20F6 -DQUICK_SPAWN
+EE_DEFS := -DDEBUG -DDISABLE_SPAWNING -DMOB_NO_DAMAGE -DMOB_NO_MOVE -DPAYDAY  -DVENDOR_OCLASS=0x20F6 -DMANUAL_SPAWN
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x20F6 -DDEBUG
 endif

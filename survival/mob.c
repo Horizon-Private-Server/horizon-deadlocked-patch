@@ -908,7 +908,10 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	static int gameTotal = 0;
 	++gameTotal;
 	++State.RoundMobCount;
-	//DPRINTF("mob created event %08X, %08X, %08X mobtype:%d spawnedNum:%d roundTotal:%d gameTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.MobType, State.RoundMobCount, State.RoundMobSpawnedCount, gameTotal);
+	
+#if LOG_STATS
+	DPRINTF("mob created event %08X, %08X, %08X mobtype:%d spawnedNum:%d roundTotal:%d gameTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.MobType, State.RoundMobCount, State.RoundMobSpawnedCount, gameTotal);
+#endif
 	return 0;
 }
 
@@ -927,14 +930,20 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.Config.MobType];
 
-	//mobPlayDeathSound(moby);
-	mobSpawnCorn(moby, ZOMBIE_BANGLE_LARM | ZOMBIE_BANGLE_RARM | ZOMBIE_BANGLE_LLEG | ZOMBIE_BANGLE_RLEG | ZOMBIE_BANGLE_RFOOT | ZOMBIE_BANGLE_HIPS);
-	//((void (*)(Moby*, int, int))0x0051add0)(moby, -1, 1);
+	// limit corn spawning to prevent freezing/framelag
+	if (State.CornTicker < (MOB_CORN_LIFETIME_TICKS * MOB_CORN_MAX_ON_SCREEN)) {
+		mobSpawnCorn(moby, ZOMBIE_BANGLE_LARM | ZOMBIE_BANGLE_RARM | ZOMBIE_BANGLE_LLEG | ZOMBIE_BANGLE_RLEG | ZOMBIE_BANGLE_RFOOT | ZOMBIE_BANGLE_HIPS);
+		State.CornTicker += MOB_CORN_LIFETIME_TICKS;
+	}
+
 	guberMobyDestroy(moby);
 	moby->ModeBits &= ~0x30;
 	--State.RoundMobCount;
 	pvars->MobVars.Destroyed = 1;
-	//DPRINTF("mob destroy event %08X, %08X, by client %d, (%d)\n", (u32)moby, (u32)event, killedByPlayerId, State.RoundMobCount);
+
+#if LOG_STATS
+	DPRINTF("mob destroy event %08X, %08X, by client %d, (%d)\n", (u32)moby, (u32)event, killedByPlayerId, State.RoundMobCount);
+#endif
 	return 0;
 }
 
@@ -1090,13 +1099,13 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 	return 0;
 }
 
-GuberMoby * mobCreate(VECTOR position, float yaw, struct MobConfig *config)
+int mobCreate(VECTOR position, float yaw, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
 
 	// create guber object
 	GuberEvent * guberEvent = 0;
-	int uid = (int)guberMobyCreateSpawned(0x20F6, sizeof(struct MobPVar), &guberEvent, NULL);
+	guberMobyCreateSpawned(0x20F6, sizeof(struct MobPVar), &guberEvent, NULL);
 	if (guberEvent)
 	{
 		args.Bolts = config->Bolts + randRangeInt(-50, 50);
@@ -1119,7 +1128,7 @@ GuberMoby * mobCreate(VECTOR position, float yaw, struct MobConfig *config)
 		DPRINTF("failed to guberevent mob\n");
 	}
   
-  return guberEvent != 0;
+  return guberEvent != NULL;
 }
 
 void mobInitialize(void)
