@@ -212,10 +212,10 @@ void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attri
 	
 	switch (attribute)
 	{
-		case MOB_MUTATE_DAMAGE: if (spawnParams->Config.Damage < ZOMBIE_MAX_DAMAGE) { spawnParams->Config.Damage += ZOMBIE_DAMAGE_MUTATE * ZOMBIE_BASE_DAMAGE; } break;
-		case MOB_MUTATE_SPEED: if (spawnParams->Config.Speed < ZOMBIE_MAX_SPEED) { spawnParams->Config.Speed += ZOMBIE_SPEED_MUTATE * ZOMBIE_BASE_SPEED; } break;
-		case MOB_MUTATE_HEALTH: if (spawnParams->Config.MaxHealth < ZOMBIE_MAX_HEALTH) { spawnParams->Config.MaxHealth += ZOMBIE_HEALTH_MUTATE * ZOMBIE_BASE_HEALTH; } break;
-		case MOB_MUTATE_COST: spawnParams->Cost += ZOMBIE_COST_MUTATE; break;
+		case MOB_MUTATE_DAMAGE: if (spawnParams->Config.Damage < spawnParams->Config.MaxDamage) { spawnParams->Config.Damage += ZOMBIE_DAMAGE_MUTATE * ZOMBIE_BASE_DAMAGE; } break;
+		case MOB_MUTATE_SPEED: if (spawnParams->Config.Speed < spawnParams->Config.MaxSpeed) { spawnParams->Config.Speed += ZOMBIE_SPEED_MUTATE * ZOMBIE_BASE_SPEED; } break;
+		case MOB_MUTATE_HEALTH: if (spawnParams->Config.MaxHealth <= 0 || spawnParams->Config.Health < spawnParams->Config.MaxHealth) { spawnParams->Config.Health += ZOMBIE_HEALTH_MUTATE * ZOMBIE_BASE_HEALTH; } break;
+		case MOB_MUTATE_COST: spawnParams->Cost += rand(spawnParams->Config.MaxCostMutation); break;
 		default: break;
 	}
 }
@@ -266,7 +266,7 @@ void mobSetTarget(Moby* moby, Moby* target)
 
 	// set target and dirty
 	pvars->MobVars.Target = target;
-	pvars->MobVars.ScoutCooldownTicks = 30;
+	pvars->MobVars.ScoutCooldownTicks = 60;
 	pvars->MobVars.Dirty = 1;
 }
 
@@ -400,17 +400,17 @@ Moby* mobGetNextTarget(Moby* moby)
 		Player * p = *players;
 		if (p && !playerIsDead(p)) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
-			float dist = vector_length(delta);
+			float distSqr = vector_sqrmag(delta);
 
-			if (dist < 300000) {
+			if (distSqr < 300000) {
 				// favor existing target
-				if (p->SkinMoby == currentTarget && dist > 5)
-					dist = 5;
+				if (p->SkinMoby == currentTarget && distSqr > (5*5))
+					distSqr = (5*5);
 				
 				// pick closest target
-				if (dist < closestPlayerDist) {
+				if (distSqr < closestPlayerDist) {
 					closestPlayer = p;
-					closestPlayerDist = dist;
+					closestPlayerDist = distSqr;
 				}
 			}
 		}
@@ -448,9 +448,10 @@ int mobGetPreferredAction(Moby* moby)
 	if (target) {
 		vector_copy(t, target->Position);
 		vector_subtract(t, t, moby->Position);
-		float dist = vector_length(t);
+		float distSqr = vector_sqrmag(t);
+		float attackRadiusSqr = pvars->MobVars.Config.AttackRadius * pvars->MobVars.Config.AttackRadius;
 
-		if (dist <= pvars->MobVars.Config.AttackRadius) {
+		if (distSqr <= attackRadiusSqr) {
 			if (mobCanAttack(pvars))
 				return pvars->MobVars.Config.MobType != MOB_EXPLODE ? MOB_ACTION_ATTACK : MOB_ACTION_TIME_BOMB;
 			
@@ -650,6 +651,7 @@ void mobUpdate(Moby* moby)
 	int isOwner;
 
 	// dec timers
+	u16 nextCheckActionDelayTicks = decTimerU16(&pvars->MobVars.NextCheckActionDelayTicks);
 	u16 nextActionTicks = decTimerU16(&pvars->MobVars.NextActionDelayTicks);
 	decTimerU16(&pvars->MobVars.ActionCooldownTicks);
 	decTimerU16(&pvars->MobVars.AttackCooldownTicks);
@@ -692,7 +694,7 @@ void mobUpdate(Moby* moby)
 	mobyUpdateFlash(moby, 0);
 
 	//
-	if (isOwner) {
+	if (isOwner && nextCheckActionDelayTicks == 0) {
 		int nextAction = mobGetPreferredAction(moby);
 		if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction) {
 			pvars->MobVars.NextAction = nextAction;
@@ -706,6 +708,8 @@ void mobUpdate(Moby* moby)
 		if (scoutCooldownTicks == 0) {
 			mobSetTarget(moby, mobGetNextTarget(moby));
 		}
+
+		pvars->MobVars.NextCheckActionDelayTicks = 2;
 	}
 
 	// 
@@ -721,6 +725,14 @@ void mobUpdate(Moby* moby)
 
 	// update armor
 	moby->Bangles = mobGetArmor(pvars);
+
+	// 
+	int renderDist = 128;
+	if (State.RoundMobCount > 50)
+		renderDist = 64;
+	else if (State.RoundMobCount > 70)
+		renderDist = 48;
+	moby->DrawDist = renderDist;
 
 	// move system update
 	mobyMoveSystemUpdate(moby);
@@ -820,6 +832,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	vector_copy(moby->Position, p);
 	moby->Rotation[2] = yaw;
 	moby->Scale *= 0.7;
+	//moby->AnimFlags
 
 	// set update
 	moby->PUpdate = &mobUpdate;
@@ -841,7 +854,8 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	// initialize mob vars
 	pvars->MobVars.Config.MobType = args.MobType;
 	pvars->MobVars.Config.Bolts = args.Bolts;
-	pvars->MobVars.Config.MaxHealth = (float)args.MaxHealth;
+	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth;
+	pvars->MobVars.Config.Health = (float)args.StartHealth;
 	pvars->MobVars.Config.Bangles = args.Bangles;
 	pvars->MobVars.Config.Damage = (float)args.Damage;
 	pvars->MobVars.Config.AttackRadius = (float)args.AttackRadiusEighths / 8.0;
@@ -909,7 +923,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	++gameTotal;
 	++State.RoundMobCount;
 	
-#if LOG_STATS
+#if LOG_STATS2
 	DPRINTF("mob created event %08X, %08X, %08X mobtype:%d spawnedNum:%d roundTotal:%d gameTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.MobType, State.RoundMobCount, State.RoundMobSpawnedCount, gameTotal);
 #endif
 	return 0;
@@ -918,20 +932,30 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 {
 	char killedByPlayerId;
+	int i;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (!pvars || pvars->MobVars.Destroyed)
 		return 0;
 
 	// 
 	guberEventRead(event, &killedByPlayerId, sizeof(killedByPlayerId));
+
+#if SHARED_BOLTS
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		if (State.PlayerStates[i].Player && !playerIsDead(State.PlayerStates[i].Player)) {
+			State.PlayerStates[i].State.Bolts += pvars->MobVars.Config.Bolts;
+		}
+	}
+#else
 	if (killedByPlayerId >= 0)
 		State.PlayerStates[(int)killedByPlayerId].State.Bolts += pvars->MobVars.Config.Bolts;
+#endif
 
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.Config.MobType];
 
 	// limit corn spawning to prevent freezing/framelag
-	if (State.CornTicker < (MOB_CORN_LIFETIME_TICKS * MOB_CORN_MAX_ON_SCREEN)) {
+	if (1 || State.CornTicker < (MOB_CORN_LIFETIME_TICKS * MOB_CORN_MAX_ON_SCREEN)) {
 		mobSpawnCorn(moby, ZOMBIE_BANGLE_LARM | ZOMBIE_BANGLE_RARM | ZOMBIE_BANGLE_LLEG | ZOMBIE_BANGLE_RLEG | ZOMBIE_BANGLE_RFOOT | ZOMBIE_BANGLE_HIPS);
 		State.CornTicker += MOB_CORN_LIFETIME_TICKS;
 	}
@@ -941,7 +965,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	--State.RoundMobCount;
 	pvars->MobVars.Destroyed = 1;
 
-#if LOG_STATS
+#if LOG_STATS2
 	DPRINTF("mob destroy event %08X, %08X, by client %d, (%d)\n", (u32)moby, (u32)event, killedByPlayerId, State.RoundMobCount);
 #endif
 	return 0;
@@ -1109,7 +1133,7 @@ int mobCreate(VECTOR position, float yaw, struct MobConfig *config)
 	if (guberEvent)
 	{
 		args.Bolts = config->Bolts + randRangeInt(-50, 50);
-		args.MaxHealth = (u16)config->MaxHealth;
+		args.StartHealth = (u16)config->Health;
 		args.Bangles = (u16)config->Bangles;
 		args.MobType = (char)config->MobType;
 		args.Damage = (u8)config->Damage;

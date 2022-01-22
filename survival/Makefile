@@ -8,7 +8,7 @@ EE_INCS := -I../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := DEBUG
+BUILD_CONFIG := RELEASE
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
@@ -28,7 +28,7 @@ BUILD_CONFIG := DEBUG
 ifeq ($(BUILD_CONFIG),DEBUG)
 EE_DEFS := -DDEBUG -DDISABLE_SPAWNING -DMOB_NO_DAMAGE -DMOB_NO_MOVE -DPAYDAY  -DVENDOR_OCLASS=0x20F6 -DMANUAL_SPAWN
 else ifeq ($(BUILD_CONFIG),RELEASE)
-EE_DEFS := -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x20F6 -DDEBUG
+EE_DEFS := -DMOB_CORN1 -DAUTOSTART -DVENDOR_OCLASS=0x20F6 -DDEBUG -DLOG_STATS -DSHARED_BOLTS
 endif
 
 all: $(EE_BIN) clean copy

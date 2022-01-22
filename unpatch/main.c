@@ -49,9 +49,10 @@ const int patches[][3] = {
 };
 
 const int clears[][2] = {
-	{ 0x000D0000, 0x00008000 }, // patch
-	{ 0x000C8000, 0x00007000 }, // gamerules
-	{ 0x000CF000, 0x00001000 }, // module definitions
+	{ 0x000E0000, 0x0000C000 }, // 
+	{ 0x000EC000, 0x00004000 }, // gamerules
+	{ 0x000F0000, 0x0000F000 }, // game mode
+	{ 0x000CF000, 0x00000800 }, // module definitions
 };
 
 int hasClearedMemory = 0;

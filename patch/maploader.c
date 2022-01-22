@@ -22,12 +22,12 @@
 #include <io_common.h>
 
 #define MAP_FRAG_PAYLOAD_MAX_SIZE               (1024)
-#define LOAD_MODULES_STATE                      (*(u8*)0x00086FF0)
-#define LOAD_MODULES_RESULT                     (*(u8*)0x00086FF1)
+#define LOAD_MODULES_STATE                      (*(u8*)0x000CFFF0)
+#define LOAD_MODULES_RESULT                     (*(u8*)0x000CFFF1)
 #define HAS_LOADED_MODULES                      (LOAD_MODULES_STATE == 100)
 
-#define USB_FS_ID                               (*(u8*)0x00086FF4)
-#define USB_SRV_ID                              (*(u8*)0x00086FF8)
+#define USB_FS_ID                               (*(u8*)0x000CFFF4)
+#define USB_SRV_ID                              (*(u8*)0x000CFFF8)
 
 
 void hook(void);
@@ -36,9 +36,9 @@ void loadModules(void);
 int readLevelVersion(char * name, int * version);
 int readGlobalVersion(int * version);
 
-void * usbFsModuleStart = (void*)0x00087000;
+void * usbFsModuleStart = (void*)0x000D0000;
 int usbFsModuleSize = 0;
-void * usbSrvModuleStart = (void*)0x00094000;
+void * usbSrvModuleStart = (void*)0x000DD000;
 int usbSrvModuleSize = 0;
 
 // patch config
@@ -187,7 +187,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	//
 	int init = rpcInit = rpcUSBInit();
 
-	DPRINTF("rpcUSBInit: %d\n", init);
+	DPRINTF("rpcUSBInit: %d, %08X:%d, %08X:%d\n", init, (u32)usbFsModuleStart, usbFsModuleSize, (u32)usbSrvModuleStart, usbSrvModuleSize);
 	
 	//
 	if (init < 0)

@@ -30,9 +30,10 @@ make
 ## Memory Usage
 
 ```arm
-0x000C8000 - 0x000CF000 ; Gamerules
+0x000A7000 - 0x000B5000 ; Map loader irx modules
+0x000C8000 - 0x000CA800 ; Exception handler
 0x000CF000 - 0x000D0000 ; Module Definitions
-0x000D0000 - 0x000D8000 ; Patch
-0x000DC000 - 0x000E0000 ; Gamemode
-0x000E0000 - 0x000F0000 ; Map loader irx modules
+0x000D0000 - 0x000E0000 ; Patch
+0x000E0000 - 0x000E8000 ; Gamerules
+0x000E8000 - 0x000F8000 ; Gamemode
 ```

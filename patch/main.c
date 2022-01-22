@@ -76,7 +76,7 @@
 
 #define IS_PROGRESSIVE_SCAN					(*(int*)0x0021DE6C)
 
-#define EXCEPTION_DISPLAY_ADDR			(0x00084000)
+#define EXCEPTION_DISPLAY_ADDR			(0x000C8000)
 
 #define SHRUB_RENDER_DISTANCE				(*(float*)0x0022308C)
 
@@ -1340,6 +1340,7 @@ int onSetTeams(void * connection, void * data)
  */
 void onOnlineMenu(void)
 {
+
 	// call normal draw routine
 	((void (*)(void))0x00707F28)();
 	

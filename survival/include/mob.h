@@ -39,11 +39,15 @@ struct MobConfig {
 	int MobType;
 	int Bolts;
 	float Damage;
+	float MaxDamage;
 	float Speed;
+	float MaxSpeed;
+	float Health;
 	float MaxHealth;
 	float AttackRadius;
 	float HitRadius;
 	u16 Bangles;
+	u8 MaxCostMutation;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 };
@@ -62,6 +66,7 @@ struct MobVars {
 	float Health;
 	Moby * Target;
 	int LastHitBy;
+	u16 NextCheckActionDelayTicks;
 	u16 NextActionDelayTicks;
 	u16 ActionCooldownTicks;
 	u16 AttackCooldownTicks;
@@ -168,7 +173,7 @@ struct MobStateUpdateEventArgs
 struct MobSpawnEventArgs
 {
 	int Bolts;
-	u16 MaxHealth;
+	u16 StartHealth;
 	u16 Bangles;
 	char MobType;
 	u8 Damage;

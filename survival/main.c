@@ -41,8 +41,20 @@ const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
 const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1c   start round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
-const char * SURVIVAL_REVIVE_MESSAGE = "\x11   revive player         [\x0E%d\x08]";
-const char * SURVIVAL_UPGRADE_MESSAGE = "\x11   upgrade to v%d       [\x0E%d\x08]";
+const char * SURVIVAL_REVIVE_MESSAGE = "\x11  revive  [\x0E%d\x08]";
+const char * SURVIVAL_UPGRADE_MESSAGE = "\x11  upgrade  [\x0E%d\x08]";
+
+const char * ALPHA_MODS[] = {
+	"",
+	"Speed Mod",
+	"Ammo Mod",
+	"Aiming Mod",
+	"Impact Mod",
+	"Area Mod",
+	"Xp Mod",
+	"Jackpot Mod",
+	"Nanoleech Mod"
+};
 
 char LocalPlayerStrBuffer[2][48];
 
@@ -79,13 +91,17 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MobType = MOB_GHOST,
 			.Bangles = ZOMBIE_BANGLE_HEAD_2 | ZOMBIE_BANGLE_TORSO_2,
 			.Damage = ZOMBIE_BASE_DAMAGE * 1.0,
+			.MaxDamage = ZOMBIE_BASE_DAMAGE * 1.3,
 			.Speed = ZOMBIE_BASE_SPEED * 1.0,
-			.MaxHealth = ZOMBIE_BASE_HEALTH * 1.0,
+			.MaxSpeed = ZOMBIE_BASE_SPEED * 2.0,
+			.Health = ZOMBIE_BASE_HEALTH * 1.0,
+			.MaxHealth = 0,
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.5,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
-			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS
+			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
+			.MaxCostMutation = 2
 		}
 	},
 	// explode zombie
@@ -97,13 +113,17 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MobType = MOB_EXPLODE,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = ZOMBIE_BASE_DAMAGE * 2.0,
+			.MaxDamage = ZOMBIE_BASE_DAMAGE * 10.0,
 			.Speed = ZOMBIE_BASE_SPEED * 1.0,
-			.MaxHealth = ZOMBIE_BASE_HEALTH * 2.0,
+			.MaxSpeed = ZOMBIE_BASE_SPEED * 1.5,
+			.Health = ZOMBIE_BASE_HEALTH * 2.0,
+			.MaxHealth = 0,
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_EXPLODE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
-			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS
+			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
+			.MaxCostMutation = 2
 		}
 	},
 	// acid zombie
@@ -115,12 +135,16 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MobType = MOB_ACID,
 			.Bangles = ZOMBIE_BANGLE_HEAD_4 | ZOMBIE_BANGLE_TORSO_4,
 			.Damage = ZOMBIE_BASE_DAMAGE * 1.0,
+			.MaxDamage = ZOMBIE_BASE_DAMAGE * 1.0,
 			.Speed = ZOMBIE_BASE_SPEED * 1.0,
-			.MaxHealth = ZOMBIE_BASE_HEALTH * 1.0,
+			.MaxSpeed = ZOMBIE_BASE_SPEED * 1.8,
+			.Health = ZOMBIE_BASE_HEALTH * 1.0,
+			.MaxHealth = 0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
-			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS
+			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
+			.MaxCostMutation = 2
 		}
 	},
 	// freeze zombie
@@ -132,13 +156,17 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MobType = MOB_FREEZE,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = ZOMBIE_BASE_DAMAGE * 1.0,
+			.MaxDamage = ZOMBIE_BASE_DAMAGE * 1.6,
 			.Speed = ZOMBIE_BASE_SPEED * 0.8,
-			.MaxHealth = ZOMBIE_BASE_HEALTH * 1.2,
+			.MaxSpeed = ZOMBIE_BASE_SPEED * 1.5,
+			.Health = ZOMBIE_BASE_HEALTH * 1.2,
+			.MaxHealth = 0,
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.2,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
-			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS
+			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
+			.MaxCostMutation = 2
 		}
 	},
 	// runner zombie
@@ -149,14 +177,18 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.Config = {
 			.MobType = MOB_NORMAL,
 			.Bangles = ZOMBIE_BANGLE_HEAD_5,
-			.Damage = ZOMBIE_BASE_DAMAGE * 0.8,
+			.Damage = ZOMBIE_BASE_DAMAGE * 0.6,
+			.MaxDamage = ZOMBIE_BASE_DAMAGE * 0.9,
 			.Speed = ZOMBIE_BASE_SPEED * 2.0,
-			.MaxHealth = ZOMBIE_BASE_HEALTH * 0.6,
+			.MaxSpeed = ZOMBIE_BASE_SPEED * 3.0,
+			.Health = ZOMBIE_BASE_HEALTH * 0.6,
+			.MaxHealth = 0,
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
-			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS
+			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
+			.MaxCostMutation = 2
 		}
 	},
 	// normal zombie
@@ -168,13 +200,17 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MobType = MOB_NORMAL,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = ZOMBIE_BASE_DAMAGE * 1.0,
+			.MaxDamage = ZOMBIE_BASE_DAMAGE * 1.3,
 			.Speed = ZOMBIE_BASE_SPEED * 1.0,
-			.MaxHealth = ZOMBIE_BASE_HEALTH * 1.0,
+			.MaxSpeed = ZOMBIE_BASE_SPEED * 2.0,
+			.Health = ZOMBIE_BASE_HEALTH * 1.0,
+			.MaxHealth = 0,
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
-			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS
+			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
+			.MaxCostMutation = 2
 		}
 	},
 };
@@ -193,20 +229,6 @@ void drawRoundMessage(const char * message, float scale)
 	y *= SCREEN_HEIGHT;
 	x *= SCREEN_WIDTH;
 	gfxScreenSpaceText(x, y + 5, scale, scale * 1.5, 0x80FFFFFF, message, -1, 1);
-}
-
-//--------------------------------------------------------------------------
-void disableSetWeaponsOnRespawn(void) {
-	*(u32*)0x005e2b2c = 0;
-	*(u32*)0x005e2b40 = 0;
-	*(u32*)0x005e2b48 = 0;
-}
-
-//--------------------------------------------------------------------------
-void enableSetWeaponsOnRespawn(void) {
-	*(u32*)0x005e2b2c = 0x0C178B9A;
-	*(u32*)0x005e2b40 = 0x10600005;
-	*(u32*)0x005e2b48 = 0x0C17DD44;
 }
 
 //--------------------------------------------------------------------------
@@ -246,7 +268,7 @@ int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 		float d = vector_sqrmag(t);
 		if (d >= minDistSqr) {
 			// randomize order a little
-			d += randRange(0, 20);
+			d += randRange(0, 100);
 			if (d < bestPointDist) {
 				vector_copy(out, (float*)&sp->M0[12]);
 				vector_fromyaw(t, randRadian());
@@ -314,6 +336,12 @@ struct MobSpawnParams* spawnGetRandomMobParams(void)
 		if (spawnCanSpawnMob(mob) && randRange(0,1) <= mob->Probability)
 			return mob;
 	}
+
+	for (i = 0; i < defaultSpawnParamsCount; ++i) {
+		struct MobSpawnParams* mob = &defaultSpawnParams[i];
+		DPRINTF("CANT SPAWN budget:%d round:%d mobIdx:%d mobMinRound:%d mobCost:%d mobProb:%f\n", State.RoundBudget, State.RoundNumber, i, mob->MinRound, mob->Cost, mob->Probability);
+	}
+	
 	
 	return NULL;
 }
@@ -355,11 +383,21 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 	if (!p)
 		return;
 
+	int alphaMod = rand(7) + 1;
+	if (alphaMod >= ALPHA_MOD_XP)
+		alphaMod++;
+
 	PlayerWeaponData* wepData = playerGetWeaponData(playerId);
 	playerGiveWeapon(p, weaponId, level);
+	wepData[weaponId].AlphaMods[level] = alphaMod;
 	wepData[weaponId].Level = level;
-	wepData[weaponId].AlphaMods[level] = rand(7);
 	wepData[weaponId].Ammo = ((short (*)(PlayerWeaponData*, int))0x00626fb8)(wepData, weaponId);
+
+	if (p->IsLocal) {
+		char* a = uiMsgString(0x2400);
+		sprintf(a, "Got %s", ALPHA_MODS[alphaMod]);
+		((void (*)(int, int, int))0x0054ea30)(p->LocalPlayerIndex, 0x2400, 0);
+	}
 
 	// play upgrade sound
 	playUpgradeSound(p);
@@ -368,7 +406,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 	if (level == VENDOR_MAX_WEAPON_LEVEL)
 		wepData[weaponId].Experience = level;
 
-#if LOG_STATS
+#if LOG_STATS2
 	DPRINTF("%d (%08X) weapon %d upgraded to %d\n", playerId, (u32)p, weaponId, level);
 #endif
 }
@@ -415,9 +453,13 @@ void onPlayerRevive(int playerId)
 	vector_copy(deadRot, player->PlayerRotation);
 
 	// respawn and warp
-	disableSetWeaponsOnRespawn();
-	playerRespawn(player);
-	enableSetWeaponsOnRespawn();
+	//disableSetWeaponsOnRespawn();
+	//playerRespawn(player);
+	//enableSetWeaponsOnRespawn();
+	PlayerVTable* vtable = playerGetVTable(player);
+	if (vtable)
+		vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
+	player->Health = 50;
 	playerSetPosRot(player, deadPos, deadRot);
 }
 
@@ -464,7 +506,7 @@ int canUpgradeWeapon(Player * player, enum WEAPON_IDS weaponId) {
 		case WEAPON_ID_B6:
 		case WEAPON_ID_OMNI_SHIELD:
 		case WEAPON_ID_FLAIL:
-			return wepData[(int)weaponId].Level < VENDOR_MAX_WEAPON_LEVEL;
+			return wepData[(int)weaponId].Level >= 0 && wepData[(int)weaponId].Level < VENDOR_MAX_WEAPON_LEVEL;
 		default: return 0;
 	}
 }
@@ -475,7 +517,11 @@ int getUpgradeCost(Player * player, enum WEAPON_IDS weaponId) {
 		return 0;
 
 	PlayerWeaponData* wepData = playerGetWeaponData(player->PlayerId);
-	return WEAPON_UPGRADE_BASE_COST + (WEAPON_UPGRADE_COST_PER_UPGRADE * wepData[(int)weaponId].Level);
+	int level = wepData[(int)weaponId].Level;
+	if (level < 0 || level >= VENDOR_MAX_WEAPON_LEVEL)
+		return 0;
+		
+	return UPGRADE_COST[level];
 }
 
 //--------------------------------------------------------------------------
@@ -513,7 +559,7 @@ void processPlayer(int pIndex) {
 	PlayerWeaponData* pWep = playerGetWeaponData(player->PlayerId);
 	localPlayerIndex = player->LocalPlayerIndex;
 	heldWeapon = player->WeaponHeldId;
-	int upgradeCooldownTicks = decTimerU8(&playerData->UpgradeCooldownTicks);
+	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
 
 
 	// set experience to min of level and max level 
@@ -540,8 +586,12 @@ void processPlayer(int pIndex) {
 			}
 	}
 
+	//
+	if (actionCooldownTicks > 0)
+		return;
+
 	// handle vendor logic
-	if (State.Vendor && upgradeCooldownTicks == 0) {
+	if (State.Vendor) {
 
 		// check player is holding upgradable weapon
 		if (canUpgradeWeapon(player, heldWeapon)) {
@@ -554,7 +604,7 @@ void processPlayer(int pIndex) {
 				int cost = getUpgradeCost(player, heldWeapon);
 
 				// draw help popup
-				sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_UPGRADE_MESSAGE, pWep[heldWeapon].Level+2, cost);
+				sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_UPGRADE_MESSAGE, cost);
 				uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
 				hasMessage = 1;
 
@@ -566,7 +616,7 @@ void processPlayer(int pIndex) {
 						playerData->State.Bolts -= cost;
 						playerUpgradeWeapon(player, heldWeapon);
 						uiShowPopup(localPlayerIndex, uiMsgString(0x2330));
-						playerData->UpgradeCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
+						playerData->ActionCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
 					}
 				}
 			}
@@ -597,6 +647,7 @@ void processPlayer(int pIndex) {
 					// handle pad input
 					if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
 						playerData->State.Bolts -= cost;
+						playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
 						playerRevive(otherPlayer);
 					}
 				}
@@ -717,7 +768,9 @@ void resetRoundState(void)
 	// 
 	static int accum = 0;
 	accum += State.RoundNumber * BUDGET_START_ACCUM;
-	State.RoundBudget = BUDGET_START + accum + (State.RoundNumber * gameSettings->PlayerCountAtStart * BUDGET_PLAYER_WEIGHT);
+	State.RoundBudget = BUDGET_START + accum + 
+					(State.RoundNumber * gameSettings->PlayerCountAtStart * gameSettings->PlayerCountAtStart * BUDGET_PLAYER_WEIGHT);
+	State.RoundMaxMobCount = MAX_MOBS_BASE + (MAX_MOBS_ROUND_WEIGHT * State.RoundNumber * gameSettings->PlayerCountAtStart);
 	State.RoundInitialized = 0;
 	State.RoundStartTime = gameTime;
 	State.RoundCompleteTime = 0;
@@ -726,7 +779,6 @@ void resetRoundState(void)
 	State.RoundMobSpawnedCount = 0;
 	State.RoundSpawnTicker = 0;
 	State.MinMobCost = getMinMobCost();
-	State.RoundMaxMobCount = MAX_MOBS_BASE + (MAX_MOBS_ROUND_WEIGHT * State.RoundNumber * gameSettings->PlayerCountAtStart);
 
 	// 
 	State.RoundInitialized = 1;
@@ -777,7 +829,7 @@ void initialize(void)
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		State.PlayerStates[i].State.Bolts = 0;
 		State.PlayerStates[i].Player = players[i];
-		State.PlayerStates[i].UpgradeCooldownTicks = 0;
+		State.PlayerStates[i].ActionCooldownTicks = 0;
 	}
 
 	// initialize weapon data
@@ -790,6 +842,38 @@ void initialize(void)
 	WeaponDefsData* flailDefs = weaponGetFlailLevelDefs();
 	for (j = 0; j < 10; ++j) {
 		flailDefs->Entries[j].MpLevelUpExperience = VENDOR_MAX_WEAPON_LEVEL;
+	}
+
+	// randomize weapon picks
+	if (State.IsHost) {
+		Moby* pickup = mobyGetFirst();
+		char wepCounts[8];
+		memset(wepCounts, 0, sizeof(wepCounts));
+		int pickupCount = 0;
+		while (pickup) {
+			if (pickup->OClass == MOBY_ID_WEAPON_PICKUP && pickup->PVar) {
+				
+				int target = pickupCount / 8;
+				do
+				{
+					j = rand(8);
+				}
+				while (wepCounts[j] != target);
+
+				wepCounts[j]++;
+				j += 2;
+				if (j == 9) // shield
+					j = 0x10;
+				else if (j == 8) // flail
+					j = 0x0C;
+
+				((void (*)(Moby*, int))0x0043A370)(pickup, j);
+
+				++pickupCount;
+			}
+
+			pickup = pickup->PChain;
+		}
 	}
 
 	// find vendor
@@ -857,7 +941,7 @@ void gameStart(void)
 #if LOG_STATS
 	static int statsTicker = 0;
 	if (statsTicker <= 0) {
-		DPRINTF("budget:%d liveMobCount:%d totalSpawnedThisRound:%d roundNumber:%d roundSpawnTicker:%d\n", State.RoundBudget, State.RoundMobCount, State.RoundMobSpawnedCount, State.RoundNumber, State.RoundSpawnTicker);
+		DPRINTF("budget:%d liveMobCount:%d totalSpawnedThisRound:%d roundNumber:%d roundSpawnTicker:%d minCost:%d\n", State.RoundBudget, State.RoundMobCount, State.RoundMobSpawnedCount, State.RoundNumber, State.RoundSpawnTicker, State.MinMobCost);
 		statsTicker = 60 * 15;
 	} else {
 		--statsTicker;
@@ -883,7 +967,7 @@ void gameStart(void)
 	sprintf(buffer, "%d", State.RoundNumber + 1);
 	gfxScreenSpaceText(5, SCREEN_HEIGHT - 5, 1, 1, 0x80FFFFFF, buffer, -1, 6);
 
-	if (!gameHasEnded() && !State.GameOver)
+	if (!State.GameOver)
 	{
 		// decrement corn cob ticker
 		decTimerU32(&State.CornTicker);
@@ -982,7 +1066,7 @@ void gameStart(void)
 #if QUICK_SPAWN
 								State.RoundSpawnTicker = 20;
 #else
-								State.RoundSpawnTicker = 60;
+								State.RoundSpawnTicker = 20;
 #endif
 							}
 						} else {
@@ -1001,7 +1085,7 @@ void gameStart(void)
 								DPRINTF("\tmob %d of type %d:\n", i, defaultSpawnParams[i].Config.MobType);
 								DPRINTF("\t\tdamage: %f\n", defaultSpawnParams[i].Config.Damage);
 								DPRINTF("\t\tspeed: %f\n", defaultSpawnParams[i].Config.Speed);
-								DPRINTF("\t\thealth: %f\n", defaultSpawnParams[i].Config.MaxHealth);
+								DPRINTF("\t\thealth: %f\n", defaultSpawnParams[i].Config.Health);
 								DPRINTF("\t\tcost: %d\n", defaultSpawnParams[i].Cost);
 							}
 
@@ -1067,6 +1151,7 @@ void setLobbyGameOptions(void)
 	// apply options
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
 }
 
 //--------------------------------------------------------------------------

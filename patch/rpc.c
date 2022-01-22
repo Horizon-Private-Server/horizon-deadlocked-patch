@@ -8,20 +8,20 @@
 #define CMD_USBREAD			0x04
 #define CMD_USBSEEK			0x05
 
-#define RPCCLIENT_INITED (*(int*)0x000E2FFC)
+#define RPCCLIENT_INITED (*(int*)0x000CFF00)
 
-static SifRpcClientData_t * rpcclient = (SifRpcClientData_t*)0x000E3000;
+static SifRpcClientData_t * rpcclient = (SifRpcClientData_t*)0x000CFF10;
 static int Rpc_Buffer[16] 			__attribute__((aligned(64)));
 
-static struct { 			// size = 1024
+static struct { 			// size = 256
 	int flags;
-	char filename[1024];	// 0
+	char filename[256];	// 0
 } openParam __attribute__((aligned(64)));
 
 static struct { 		// size =
 	int fd;				// 0
-	u8 buf[USBSERV_BUFSIZE];		// 4
-	int size;			// 
+	void * buf;		// 4
+	int size;			// 8
 } writeParam __attribute__((aligned(64)));
 
 static struct { 		// size = 16
@@ -31,7 +31,7 @@ static struct { 		// size = 16
 
 static struct { 		// size =
 	int fd;				// 0
-	void * buf;			// 4
+	void * buf;		// 4
 	int size;			// 
 } readParam __attribute__((aligned(64)));
 
@@ -111,7 +111,7 @@ int rpcUSBopen(char *filename, int flags)
 }
 
 //--------------------------------------------------------------
-int rpcUSBwrite(int fd, u8 *buf, int size)
+int rpcUSBwrite(int fd, void *buf, int size)
 {
 	int ret = 0;
 
@@ -120,13 +120,11 @@ int rpcUSBwrite(int fd, u8 *buf, int size)
 		return -1;
 			
 	// set global variables
-	writeParam.fd = fd;	
-	if (buf)
-		memcpy(writeParam.buf, buf, size);
-	else
-		memset(writeParam.buf, 0, size);	
-		
+	writeParam.fd = fd;
+	writeParam.buf = buf;
 	writeParam.size = size;
+
+	SifWriteBackDCache(buf, size);
 	 	
 	if((ret = SifCallRpc(rpcclient, CMD_USBWRITE, SIF_RPC_M_NOWAIT, &writeParam, sizeof(writeParam), Rpc_Buffer, 4, 0, 0)) != 0) {
 		return ret;

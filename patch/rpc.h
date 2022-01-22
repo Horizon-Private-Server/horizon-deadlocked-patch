@@ -9,9 +9,6 @@
 #include <libcdvd.h>
 #include <debug.h>
 
-
-#define USBSERV_BUFSIZE 	(1024 * 4)
-
 /* IRX Modules and elf loader */
 
 extern void *memdisk_irx;
@@ -30,7 +27,7 @@ extern int  size_usbserv_irx;
 int rpcUSBInit(void);
 int rpcUSBReset(void);
 int rpcUSBopen(char *filename, int flags);
-int rpcUSBwrite(int fd, u8 *buf, int size);
+int rpcUSBwrite(int fd, void *buf, int size);
 int rpcUSBclose(int fd);
 int rpcUSBread(int fd, void *buf, int size);
 int rpcUSBseek(int fd, int offset, int whence);

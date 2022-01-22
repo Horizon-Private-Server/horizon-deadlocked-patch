@@ -413,6 +413,9 @@ void hideMoby(Moby * moby, int move)
 
 void hideNode(Moby * nodeBaseMoby, int keepNode, int keepOrb, int move)
 {
+	if (!nodeBaseMoby)
+		return;
+		
 	int i = 2;
 	NodeBasePVar_t * nodePvars = (NodeBasePVar_t*)nodeBaseMoby->PVar;
 	Moby * orb = nodePvars->HackerOrbMoby;
@@ -622,7 +625,7 @@ void SNDWeaponPackEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler
 	if (eventId == 0 && !isNew)
 	{
 		// get id of player picking up pack
-		int hostId = ((char*)event)[15] >> 4;
+		int hostId = event->NetEvent.OriginClientIdx;
 
 		// find player with hostId
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
