@@ -173,6 +173,20 @@ void mobSendOwnerUpdate(Moby* moby, char owner)
 	}
 }
 
+void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amount, int damageFlags)
+{
+	struct MobDamageEventArgs args;
+
+	// create event
+	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DAMAGE);
+	if (guberEvent) {
+		args.SourceUID = guberGetUID(sourcePlayer);
+		args.SourceOClass = source->OClass;
+		args.DamageQuarters = amount*4;
+		guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
+	}
+}
+
 void mobDestroy(Moby* moby, int hitByUID)
 {
 	char killedByPlayerId = -1;
@@ -654,67 +668,6 @@ void mobHandleStuck(Moby* moby)
 	}
 }
 
-void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amount, int damageFlags)
-{
-	/*
-	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	if (!pvars)
-		return;
-	int armorStart = mobGetArmor(pvars);
-
-	// flash
-	mobyStartFlash(moby, FT_HIT, 0x800000FF, 0);
-
-	// decrement health
-	float newHp = pvars->MobVars.Health - amount;
-	pvars->MobVars.Health = newHp;
-	pvars->TargetVars.hitPoints = newHp;
-
-	// drop armor bangle
-	//int armorNew = mobGetArmor(pvars);
-	//if (armorNew != armorStart) {
-	//	int b = mobGetLostArmorBangle(armorStart, armorNew);
-	//	mobSpawnCorn(moby, b);
-	//}
-
-	// destroy
-	if (newHp <= 0) {
-		if (pvars->MobVars.Action == MOB_ACTION_TIME_BOMB) {
-			// explode
-			mobForceLocalAction(moby, MOB_ACTION_ATTACK);
-		} else {
-			//pvars->MoveVars.reaction_state = 5;
-			pvars->MobVars.Destroy = 1;
-			pvars->MobVars.LastHitBy = guberGetUID(sourcePlayer);
-			pvars->MobVars.LastHitByOClass = source->OClass;
-		}
-	}
-
-	if (mobAmIOwner(moby))
-	{
-		// flinch
-		if (amount >= 10 && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB && pvars->MobVars.FlinchCooldownTicks == 0)
-			mobSetAction(moby, MOB_ACTION_FLINCH);
-
-		// set target
-		//if (damager)
-		//	mobSetTarget(moby, damager->Moby);
-	}
-	*/
-
-	struct MobDamageEventArgs args;
-
-	// create event
-	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DAMAGE);
-	if (guberEvent) {
-		args.SourceUID = guberGetUID(sourcePlayer);
-		args.SourceOClass = source->OClass;
-		args.DamageQuarters = amount*4;
-		guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
-	}
-}
-
-extern int ddd;
 void mobHandleDraw(Moby* moby)
 {
 	int i;
@@ -758,7 +711,6 @@ void mobHandleDraw(Moby* moby)
 	else
 		pvars->MobVars.MoveStep = 1;
 
-	//pvars->MobVars.MoveStep = ddd;
 	pvars->MoveVars.runSpeed = 0.20 * pvars->MobVars.MoveStep;
 	//pvars->MoveVars.gravity = 20 * pvars->MobVars.MoveStep;
 }
@@ -906,11 +858,11 @@ void mobUpdate(Moby* moby)
 			struct MobConfig config;
 			if (spawnGetRandomPoint(p)) {
 				memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
-				mobCreate(p, 0, &config);
-				mobDestroy(moby, -1);
+				mobCreate(p, 0, guberGetUID(moby), &config);
 			}
 
 			pvars->MobVars.Respawn = 0;
+			pvars->MobVars.Destroyed = 1;
 		}
 
 		// destroy
@@ -952,11 +904,13 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	
 	VECTOR p;
 	float yaw;
+	int spawnFromUID;
 	struct MobSpawnEventArgs args;
 
 	// read event
 	guberEventRead(event, p, 12);
 	guberEventRead(event, &yaw, 4);
+	guberEventRead(event, &spawnFromUID, 4);
 	guberEventRead(event, &args, sizeof(struct MobSpawnEventArgs));
 
 	// set position and rotation
@@ -1052,12 +1006,19 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	// 
 	mobySetState(moby, 0, -1);
 
-	static int gameTotal = 0;
-	++gameTotal;
 	++State.RoundMobCount;
+
+	// destroy spawn from
+	if (spawnFromUID != -1) {
+		GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(spawnFromUID);
+		if (gm && gm->Moby && gm->Moby->PVar) {
+			guberMobyDestroy(gm->Moby);
+			State.RoundMobCount--;
+		}
+	}
 	
 #if LOG_STATS2
-	DPRINTF("mob created event %08X, %08X, %08X mobtype:%d spawnedNum:%d roundTotal:%d gameTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.MobType, State.RoundMobCount, State.RoundMobSpawnedCount, gameTotal);
+	DPRINTF("mob created event %08X, %08X, %08X mobtype:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.MobType, State.RoundMobCount, State.RoundMobSpawnedCount);
 #endif
 	return 0;
 }
@@ -1270,7 +1231,7 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 	return 0;
 }
 
-int mobCreate(VECTOR position, float yaw, struct MobConfig *config)
+int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
 
@@ -1292,6 +1253,7 @@ int mobCreate(VECTOR position, float yaw, struct MobConfig *config)
 
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &yaw, 4);
+		guberEventWrite(guberEvent, &spawnFromUID, 4);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
 	}
 	else

@@ -352,7 +352,7 @@ int spawnRandomMob(void) {
 	if (spawnGetRandomPoint(sp)) {
 		struct MobSpawnParams* mob = spawnGetRandomMobParams();
 		if (mob) {
-			if (mobCreate(sp, 0, &mob->Config)) {
+			if (mobCreate(sp, 0, -1, &mob->Config)) {
 				State.RoundBudget -= mob->Cost;
 				return 1;
 			} else { DPRINTF("failed to create mob\n"); }
@@ -950,7 +950,7 @@ void resetRoundState(void)
 	// 
 	State.RoundInitialized = 1;
 }
-int ddd = 1;
+
 //--------------------------------------------------------------------------
 void initialize(void)
 {
@@ -1128,7 +1128,7 @@ void gameStart(void)
 		vector_copy(t, localPlayer->PlayerPosition);
 		t[0] += 1;
 
-		mobCreate(t, 0, &defaultSpawnParams[(manSpawnMobId++ % defaultSpawnParamsCount)].Config);
+		mobCreate(t, 0, -1, &defaultSpawnParams[(manSpawnMobId++ % defaultSpawnParamsCount)].Config);
 	}
 #endif
 
@@ -1137,24 +1137,13 @@ void gameStart(void)
 	gfxScreenSpaceText(481, 281, 0.7, 0.7, 0x40000000, roundStr, -1, 1);
 	gfxScreenSpaceText(480, 280, 0.7, 0.7, 0x80E0E0E0, roundStr, -1, 1);
 	sprintf(buffer, "%d", State.RoundNumber + 1);
-	gfxScreenSpaceText(481, 291, 1, 1, 0x40000000, buffer, -1, 1);
-	gfxScreenSpaceText(480, 290, 1, 1, 0x8029E5E6, buffer, -1, 1);
+	gfxScreenSpaceText(482, 292, 1, 1, 0x40000000, buffer, -1, 1);
+	gfxScreenSpaceText(481, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
 	// draw number of mobs spawned
 	sprintf(buffer, "%d", State.RoundMobCount);
 	gfxScreenSpaceText(6, SCREEN_HEIGHT - 4, 1, 1, 0x40000000, buffer, -1, 6);
 	gfxScreenSpaceText(5, SCREEN_HEIGHT - 5, 1, 1, 0x80E0E0E0, buffer, -1, 6);
-
-	if (padGetButtonDown(0, PAD_LEFT) > 0) {
-		DPRINTF("mobs drawn: %d\n", State.MobsDrawnLast);
-	}
-
-	// 
-	if (padGetButtonDown(0, PAD_UP) > 0) {
-		++ddd; DPRINTF("%d\n", ddd);
-	} else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-		--ddd; DPRINTF("%d\n", ddd);
-	}
 
 	if (!State.GameOver)
 	{
