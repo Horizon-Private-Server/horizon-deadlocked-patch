@@ -14,7 +14,7 @@
 
 #define MAX_MOBS_BASE													(30)
 #define MAX_MOBS_ROUND_WEIGHT									(10)
-#define MAX_MOBS_SPAWNED											(75)
+#define MAX_MOBS_SPAWNED											(60)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
 
@@ -60,6 +60,8 @@
 #define ZOMBIE_BASE_BOLTS											(100)
 #endif
 
+#define JACKPOT_BOLTS													(50)
+
 #define PLAYER_BASE_REVIVE_COST								(5000)
 #define PLAYER_REVIVE_COST_PER_ROUND					(0)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
@@ -75,7 +77,8 @@ enum GameNetMessage
 	CUSTOM_MSG_ROUND_START,
 	CUSTOM_MSG_UPDATE_SPAWN_VARS,
 	CUSTOM_MSG_WEAPON_UPGRADE,
-	CUSTOM_MSG_REVIVE_PLAYER
+	CUSTOM_MSG_REVIVE_PLAYER,
+	CUSTOM_MSG_PLAYER_DIED
 };
 
 struct SurvivalPlayerState
@@ -87,7 +90,10 @@ struct SurvivalPlayer
 {
 	Player * Player;
 	struct SurvivalPlayerState State;
+	u16 ReviveCooldownTicks;
 	u8 ActionCooldownTicks;
+	u8 MessageCooldownTicks;
+	char IsDead;
 };
 
 struct SurvivalState
@@ -134,6 +140,12 @@ typedef struct SurvivalReviveMessage
 {
 	int PlayerId;
 } SurvivalReviveMessage_t;
+
+typedef struct SurvivalSetPlayerDeadMessage
+{
+	int PlayerId;
+	char IsDead;
+} SurvivalSetPlayerDeadMessage_t;
 
 typedef struct SurvivalConfig
 {

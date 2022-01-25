@@ -6,13 +6,17 @@ Add mob that throws/shoots something
 ++ Let sniper hit multiple enemies
 Have locals share bolts
 Fix using sheep vars at start
-Randomize weapon spawns (game spawns them randomly -- time and place)
+++Randomize weapon spawns (game spawns them randomly -- time and place)
 Fix weapon model not upgrading right away
 ++Refill ammo on upgrade
 ++Add revive cooldown to prevent paying twice on circle spam
 ++increase attack radius of zombies so they dont trap you
 Add scoreboard showing number of kills per player
-Change round counter to singleplayer one
-Add # of spawned zombies to the bottom left
+++Change round counter to singleplayer one
+++Add # of spawned zombies to the bottom left
 Add ability to open weapons menu to move alpha mods around
-Fix fake mag upgrade giving money and giving mag
+++Fix fake mag upgrade giving money and giving mag
+++Disable mod pads
+Change spawner to work in bursts
+Optimize network code
+Fix zombie getting stuck and respawning causing round to end if last one

@@ -66,6 +66,7 @@ struct MobVars {
 	float Health;
 	Moby * Target;
 	int LastHitBy;
+	u16 LastHitByOClass;
 	u16 NextCheckActionDelayTicks;
 	u16 NextActionDelayTicks;
 	u16 ActionCooldownTicks;
@@ -154,8 +155,8 @@ struct MobPVar {
 struct MobDamageEventArgs
 {
 	int SourceUID;
-	float Damage;
-	int DamageFlags;
+	u16 DamageQuarters;
+	u16 SourceOClass;
 };
 
 struct MobActionUpdateEventArgs

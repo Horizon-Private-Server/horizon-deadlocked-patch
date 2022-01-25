@@ -148,20 +148,6 @@ void mobSpawnCorn(Moby* moby, int bangle)
 #endif
 }
 
-void mobSendDamageEvent(Moby* moby, Moby* source, float amount, int damageFlags)
-{
-	struct MobDamageEventArgs args;
-
-	// create event
-	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DAMAGE);
-	if (guberEvent) {
-		args.SourceUID = guberGetUID(source);
-		args.Damage = amount;
-		args.DamageFlags = damageFlags;
-		guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
-	}
-}
-
 void mobSendStateUpdate(Moby* moby)
 {
 	struct MobStateUpdateEventArgs args;
@@ -190,10 +176,29 @@ void mobSendOwnerUpdate(Moby* moby, char owner)
 void mobDestroy(Moby* moby, int hitByUID)
 {
 	char killedByPlayerId = -1;
+	char weaponId = -1;
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
 	// create event
 	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DESTROY);
 	if (guberEvent) {
+
+		// get weapon id from source oclass
+		if (pvars->MobVars.LastHitByOClass > 0) {
+			switch (pvars->MobVars.LastHitByOClass)
+			{
+				case MOBY_ID_DUAL_VIPER_SHOT: weaponId = WEAPON_ID_VIPERS; break;
+				case MOBY_ID_MAGMA_CANNON: weaponId = WEAPON_ID_MAGMA_CANNON; break;
+				case MOBY_ID_ARBITER_ROCKET0: weaponId = WEAPON_ID_ARBITER; break;
+				case MOBY_ID_FUSION_SHOT: weaponId = WEAPON_ID_FUSION_RIFLE; break;
+				case MOBY_ID_MINE_LAUNCHER_MINE: weaponId = WEAPON_ID_MINE_LAUNCHER; break;
+				case MOBY_ID_B6_BOMB_EXPLOSION: weaponId = WEAPON_ID_B6; break;
+				case MOBY_ID_FLAIL: weaponId = WEAPON_ID_FLAIL; break;
+				case MOBY_ID_HOLOSHIELD_LAUNCHER: weaponId = WEAPON_ID_OMNI_SHIELD; break;
+				case MOBY_ID_WRENCH: weaponId = WEAPON_ID_WRENCH; break;
+			}
+			DPRINTF("hit by %04X -> %d\n", pvars->MobVars.LastHitByOClass, weaponId);
+		}
 
 		// get damager player id
 		Player* damager = (Player*)playerGetFromUID(hitByUID);
@@ -202,6 +207,7 @@ void mobDestroy(Moby* moby, int hitByUID)
 
 		// 
 		guberEventWrite(guberEvent, &killedByPlayerId, sizeof(killedByPlayerId));
+		guberEventWrite(guberEvent, &weaponId, sizeof(weaponId));
 	}
 }
 
@@ -241,9 +247,11 @@ void mobDoDamage(Moby* moby, float offset, float radius, float amount, int damag
 	VECTOR p;
 
 	// determine hit center
+	if (offset < 0)
+		offset = 0;
 	vector_fromyaw(p, moby->Rotation[2]);
 	vector_scale(p, p, offset);
-	p[2] = 1;
+	p[2] = 0.75;
 	vector_add(p, p, moby->Position);
 
 	// 
@@ -308,7 +316,7 @@ void mobForceLocalAction(Moby* moby, int action)
 			{
 				case MOB_FREEZE:
 				{
-					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00881801, 0);
+					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00881801, 0);
 					break;
 				}
 				case MOB_EXPLODE:
@@ -321,12 +329,12 @@ void mobForceLocalAction(Moby* moby, int action)
 				}
 				case MOB_ACID:
 				{
-					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00081881, 0);
+					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00081881, 0);
 					break;
 				}
 				default:
 				{
-					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00081801, 0);
+					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00081801, 0);
 					break;
 				}
 			}
@@ -643,6 +651,66 @@ void mobHandleStuck(Moby* moby)
 	}
 }
 
+void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amount, int damageFlags)
+{
+	/*
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	if (!pvars)
+		return;
+	int armorStart = mobGetArmor(pvars);
+
+	// flash
+	mobyStartFlash(moby, FT_HIT, 0x800000FF, 0);
+
+	// decrement health
+	float newHp = pvars->MobVars.Health - amount;
+	pvars->MobVars.Health = newHp;
+	pvars->TargetVars.hitPoints = newHp;
+
+	// drop armor bangle
+	//int armorNew = mobGetArmor(pvars);
+	//if (armorNew != armorStart) {
+	//	int b = mobGetLostArmorBangle(armorStart, armorNew);
+	//	mobSpawnCorn(moby, b);
+	//}
+
+	// destroy
+	if (newHp <= 0) {
+		if (pvars->MobVars.Action == MOB_ACTION_TIME_BOMB) {
+			// explode
+			mobForceLocalAction(moby, MOB_ACTION_ATTACK);
+		} else {
+			//pvars->MoveVars.reaction_state = 5;
+			pvars->MobVars.Destroy = 1;
+			pvars->MobVars.LastHitBy = guberGetUID(sourcePlayer);
+			pvars->MobVars.LastHitByOClass = source->OClass;
+		}
+	}
+
+	if (mobAmIOwner(moby))
+	{
+		// flinch
+		if (amount >= 10 && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB && pvars->MobVars.FlinchCooldownTicks == 0)
+			mobSetAction(moby, MOB_ACTION_FLINCH);
+
+		// set target
+		//if (damager)
+		//	mobSetTarget(moby, damager->Moby);
+	}
+	*/
+
+	struct MobDamageEventArgs args;
+
+	// create event
+	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DAMAGE);
+	if (guberEvent) {
+		args.SourceUID = guberGetUID(sourcePlayer);
+		args.SourceOClass = source->OClass;
+		args.DamageQuarters = amount*4;
+		guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
+	}
+}
+
 void mobUpdate(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -731,8 +799,12 @@ void mobUpdate(Moby* moby)
 	if (State.RoundMobCount > 50)
 		renderDist = 64;
 	else if (State.RoundMobCount > 70)
-		renderDist = 48;
+		renderDist = 32;
 	moby->DrawDist = renderDist;
+	if (isOwner)
+		moby->UpdateDist = 0xff;
+	else
+		moby->UpdateDist = renderDist*2 - 1;
 
 	// move system update
 	mobyMoveSystemUpdate(moby);
@@ -753,9 +825,9 @@ void mobUpdate(Moby* moby)
 		//DPRINTF("damage: %f\n", damage);
 		Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
 		if (damager && playerIsLocal(damager)) {
-			mobSendDamageEvent(moby, damager->PlayerMoby, damage, colDamage->DamageFlags);
+			mobSendDamageEvent(moby, damager->PlayerMoby, colDamage->Damager, damage, colDamage->DamageFlags);	
 		} else if (isOwner) {
-			mobSendDamageEvent(moby, colDamage->Damager, damage, colDamage->DamageFlags);
+			mobSendDamageEvent(moby, colDamage->Damager, colDamage->Damager, damage, colDamage->DamageFlags);	
 		}
 
 		// 
@@ -931,7 +1003,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 {
-	char killedByPlayerId;
+	char killedByPlayerId, weaponId;
 	int i;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (!pvars || pvars->MobVars.Destroyed)
@@ -939,6 +1011,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 	// 
 	guberEventRead(event, &killedByPlayerId, sizeof(killedByPlayerId));
+	guberEventRead(event, &weaponId, sizeof(weaponId));
 
 #if SHARED_BOLTS
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -950,6 +1023,17 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	if (killedByPlayerId >= 0)
 		State.PlayerStates[(int)killedByPlayerId].State.Bolts += pvars->MobVars.Config.Bolts;
 #endif
+
+	if (killedByPlayerId >= 0 && weaponId > 1) {
+		int jackpotCount = 0;
+		PlayerWeaponData* pWep = playerGetWeaponData(killedByPlayerId);
+		for (i = 0; i < 10; ++i) {
+			if (pWep[(int)weaponId].AlphaMods[i] == ALPHA_MOD_JACKPOT)
+				++jackpotCount;
+		}
+
+		State.PlayerStates[(int)killedByPlayerId].State.Bolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
+	}
 
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.Config.MobType];
@@ -989,7 +1073,8 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	mobyStartFlash(moby, FT_HIT, 0x800000FF, 0);
 
 	// decrement health
-	float newHp = pvars->MobVars.Health - args.Damage;
+	float damage = args.DamageQuarters / 4.0;
+	float newHp = pvars->MobVars.Health - damage;
 	pvars->MobVars.Health = newHp;
 	pvars->TargetVars.hitPoints = newHp;
 
@@ -1011,13 +1096,14 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 			//pvars->MoveVars.reaction_state = 5;
 			pvars->MobVars.Destroy = 1;
 			pvars->MobVars.LastHitBy = args.SourceUID;
+			pvars->MobVars.LastHitByOClass = args.SourceOClass;
 		}
 	}
 
 	if (mobAmIOwner(moby))
 	{
 		// flinch
-		if (args.Damage >= 10 && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB && pvars->MobVars.FlinchCooldownTicks == 0)
+		if (damage >= 10 && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB && pvars->MobVars.FlinchCooldownTicks == 0)
 			mobSetAction(moby, MOB_ACTION_FLINCH);
 
 		// set target

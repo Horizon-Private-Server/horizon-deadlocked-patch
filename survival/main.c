@@ -41,8 +41,8 @@ const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
 const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1c   start round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
-const char * SURVIVAL_REVIVE_MESSAGE = "\x11  revive  [\x0E%d\x08]";
-const char * SURVIVAL_UPGRADE_MESSAGE = "\x11  upgrade  [\x0E%d\x08]";
+const char * SURVIVAL_REVIVE_MESSAGE = "\x11 revive [\x0E%d\x08]";
+const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 upgrade [\x0E%d\x08]";
 
 const char * ALPHA_MODS[] = {
 	"",
@@ -383,8 +383,8 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 	if (!p)
 		return;
 
-	int alphaMod = rand(7) + 1;
-	if (alphaMod >= ALPHA_MOD_XP)
+	int alphaMod = rand(6) + 1;
+	if (alphaMod == ALPHA_MOD_XP)
 		alphaMod++;
 
 	PlayerWeaponData* wepData = playerGetWeaponData(playerId);
@@ -443,6 +443,7 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 //--------------------------------------------------------------------------
 void onPlayerRevive(int playerId)
 {
+	State.PlayerStates[playerId].IsDead = 0;
 	Player* player = State.PlayerStates[playerId].Player;
 	if (!player)
 		return;
@@ -477,16 +478,43 @@ void playerRevive(Player* player)
 {
 	SurvivalReviveMessage_t message;
 
-	// don't allow overwriting existing outcome
-	if (State.RoundEndTime)
-		return;
+	// send out
+	message.PlayerId = player->PlayerId;
+	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_REVIVE_PLAYER, sizeof(SurvivalReviveMessage_t), &message);
+
+	// set locally
+	onPlayerRevive(message.PlayerId);
+}
+
+//--------------------------------------------------------------------------
+void onSetPlayerDead(int playerId, char isDead)
+{
+	State.PlayerStates[playerId].IsDead = isDead;
+	State.PlayerStates[playerId].ReviveCooldownTicks = isDead ? 60 * 60 : 0;
+	DPRINTF("%d died (%d)\n", playerId, isDead);
+}
+
+//--------------------------------------------------------------------------
+int onSetPlayerDeadRemote(void * connection, void * data)
+{
+	SurvivalSetPlayerDeadMessage_t * message = (SurvivalSetPlayerDeadMessage_t*)data;
+	onSetPlayerDead(message->PlayerId, message->IsDead);
+
+	return sizeof(SurvivalSetPlayerDeadMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void setPlayerDead(Player* player, char isDead)
+{
+	SurvivalSetPlayerDeadMessage_t message;
 
 	// send out
 	message.PlayerId = player->PlayerId;
-	netSendCustomAppMessage(netGetDmeServerConnection(), player->Guber.Id.GID.HostId, CUSTOM_MSG_REVIVE_PLAYER, sizeof(SurvivalReviveMessage_t), &message);
+	message.IsDead = isDead;
+	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_DIED, sizeof(SurvivalSetPlayerDeadMessage_t), &message);
 
 	// set locally
-	//onPlayerRevive(message.PlayerId);
+	onSetPlayerDead(message.PlayerId, message.IsDead);
 }
 
 //--------------------------------------------------------------------------
@@ -534,6 +562,9 @@ void respawnDeadPlayers(void) {
 		if (p && p->IsLocal && playerIsDead(p)) {
 			playerRespawn(p);
 		}
+		
+		State.PlayerStates[i].IsDead = 0;
+		State.PlayerStates[i].ReviveCooldownTicks = 0;
 	}
 }
 
@@ -550,108 +581,136 @@ int getPlayerReviveCost(Player * player) {
 void processPlayer(int pIndex) {
 	VECTOR t;
 	int i = 0, localPlayerIndex, heldWeapon, hasMessage = 0;
+	char strBuf[32];
 
 	struct SurvivalPlayer * playerData = &State.PlayerStates[pIndex];
 	Player * player = playerData->Player;
-	if (!player || !player->IsLocal || playerIsDead(player))
+	if (!player)
 		return;
-	
-	PlayerWeaponData* pWep = playerGetWeaponData(player->PlayerId);
-	localPlayerIndex = player->LocalPlayerIndex;
-	heldWeapon = player->WeaponHeldId;
+
 	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
+	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
+	int reviveCooldownTicks = decTimerU16(&playerData->ReviveCooldownTicks);
+	if (playerData->IsDead && reviveCooldownTicks > 0) {
 
-
-	// set experience to min of level and max level 
-	for (i = WEAPON_ID_VIPERS; i <= WEAPON_ID_FLAIL; ++i) {
-		if (pWep[i].Level >= 0) {
-			pWep[i].Experience = pWep[i].Level < VENDOR_MAX_WEAPON_LEVEL ? pWep[i].Level : VENDOR_MAX_WEAPON_LEVEL;
+		int x,y;
+		VECTOR pos = {0,0,1,0};
+		vector_add(pos, player->PlayerPosition, pos);
+		if (gfxWorldSpaceToScreenSpace(pos, &x, &y)) {
+			sprintf(strBuf, "\x11  %02d", reviveCooldownTicks/60);
+			gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
 		}
 	}
+	
+	if (player->IsLocal) {
+		
+		PlayerWeaponData* pWep = playerGetWeaponData(player->PlayerId);
+		localPlayerIndex = player->LocalPlayerIndex;
+		heldWeapon = player->WeaponHeldId;
 
-	// decrement flail ammo while spinning flail
-	GameOptions* gameOptions = gameGetOptions();
-	if (!gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo
-		&& player->PlayerState == PLAYER_STATE_FLAIL_ATTACK
-		&& player->timers.state >= 60) {
-			PlayerWeaponData* pWep = playerGetWeaponData(pIndex);
-			if (pWep[WEAPON_ID_FLAIL].Ammo > 0) {
-				if ((player->timers.state % 60) == 0) {
-					pWep[WEAPON_ID_FLAIL].Ammo -= 1;
-				}
-			} else {
-				PlayerVTable* vtable = playerGetVTable(player);
-				if (vtable && vtable->UpdateState)
-					vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
+		// handle death
+		if (playerIsDead(player) && !playerData->IsDead) {
+			setPlayerDead(player, 1);
+		}
+
+		// set experience to min of level and max level 
+		for (i = WEAPON_ID_VIPERS; i <= WEAPON_ID_FLAIL; ++i) {
+			if (pWep[i].Level >= 0) {
+				pWep[i].Experience = pWep[i].Level < VENDOR_MAX_WEAPON_LEVEL ? pWep[i].Level : VENDOR_MAX_WEAPON_LEVEL;
 			}
-	}
+		}
 
-	//
-	if (actionCooldownTicks > 0)
-		return;
-
-	// handle vendor logic
-	if (State.Vendor) {
-
-		// check player is holding upgradable weapon
-		if (canUpgradeWeapon(player, heldWeapon)) {
-
-			// check distance
-			vector_subtract(t, player->PlayerPosition, State.Vendor->Position);
-			if (vector_sqrmag(t) < (WEAPON_VENDOR_MAX_DIST * WEAPON_VENDOR_MAX_DIST)) {
-				
-				// get upgrade cost
-				int cost = getUpgradeCost(player, heldWeapon);
-
-				// draw help popup
-				sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_UPGRADE_MESSAGE, cost);
-				uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-				hasMessage = 1;
-
-				// handle purchase
-				if (playerData->State.Bolts >= cost) {
-
-					// handle pad input
-					if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0) {
-						playerData->State.Bolts -= cost;
-						playerUpgradeWeapon(player, heldWeapon);
-						uiShowPopup(localPlayerIndex, uiMsgString(0x2330));
-						playerData->ActionCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
+		// decrement flail ammo while spinning flail
+		GameOptions* gameOptions = gameGetOptions();
+		if (!gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo
+			&& player->PlayerState == PLAYER_STATE_FLAIL_ATTACK
+			&& player->timers.state >= 60) {
+				PlayerWeaponData* pWep = playerGetWeaponData(pIndex);
+				if (pWep[WEAPON_ID_FLAIL].Ammo > 0) {
+					if ((player->timers.state % 60) == 0) {
+						pWep[WEAPON_ID_FLAIL].Ammo -= 1;
 					}
+				} else {
+					PlayerVTable* vtable = playerGetVTable(player);
+					if (vtable && vtable->UpdateState)
+						vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
 				}
-			}
 		}
-	}
 
-	// handle revive logic
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		if (i != pIndex && !hasMessage) {
+		//
+		if (actionCooldownTicks > 0)
+			return;
 
-			// ensure player exists, is dead, and is on the same team
-			struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
-			Player * otherPlayer = otherPlayerData->Player;
-			if (otherPlayer && playerIsDead(otherPlayer) && otherPlayer->Team == player->Team) {
+		// handle vendor logic
+		if (State.Vendor) {
+
+			// check player is holding upgradable weapon
+			if (canUpgradeWeapon(player, heldWeapon)) {
 
 				// check distance
-				vector_subtract(t, player->PlayerPosition, otherPlayer->PlayerPosition);
-				if (vector_sqrmag(t) < (PLAYER_REVIVE_MAX_DIST * PLAYER_REVIVE_MAX_DIST)) {
+				vector_subtract(t, player->PlayerPosition, State.Vendor->Position);
+				if (vector_sqrmag(t) < (WEAPON_VENDOR_MAX_DIST * WEAPON_VENDOR_MAX_DIST)) {
 					
-					// get revive cost
-					int cost = getPlayerReviveCost(otherPlayer);
+					// get upgrade cost
+					int cost = getUpgradeCost(player, heldWeapon);
 
 					// draw help popup
-					sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_REVIVE_MESSAGE, cost);
+					sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_UPGRADE_MESSAGE, cost);
 					uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
 					hasMessage = 1;
+					playerData->MessageCooldownTicks = 2;
 
-					// handle pad input
-					if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
-						playerData->State.Bolts -= cost;
-						playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
-						playerRevive(otherPlayer);
+					// handle purchase
+					if (playerData->State.Bolts >= cost) {
+
+						// handle pad input
+						if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0) {
+							playerData->State.Bolts -= cost;
+							playerUpgradeWeapon(player, heldWeapon);
+							uiShowPopup(localPlayerIndex, uiMsgString(0x2330));
+							playerData->ActionCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
+						}
 					}
 				}
 			}
+		}
+
+		// handle revive logic
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+			if (i != pIndex && !hasMessage) {
+
+				// ensure player exists, is dead, and is on the same team
+				struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
+				Player * otherPlayer = otherPlayerData->Player;
+				if (otherPlayer && otherPlayerData->IsDead && otherPlayerData->ReviveCooldownTicks > 0 && otherPlayer->Team == player->Team) {
+
+					// check distance
+					vector_subtract(t, player->PlayerPosition, otherPlayer->PlayerPosition);
+					if (vector_sqrmag(t) < (PLAYER_REVIVE_MAX_DIST * PLAYER_REVIVE_MAX_DIST)) {
+						
+						// get revive cost
+						int cost = getPlayerReviveCost(otherPlayer);
+
+						// draw help popup
+						sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_REVIVE_MESSAGE, cost);
+						uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+						hasMessage = 1;
+						playerData->MessageCooldownTicks = 2;
+
+						// handle pad input
+						if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
+							playerData->State.Bolts -= cost;
+							playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
+							playerRevive(otherPlayer);
+						}
+					}
+				}
+			}
+		}
+
+		// hide message right away
+		if (!hasMessage && messageCooldownTicks > 0) {
+			((void (*)(int))0x0054e5e8)(localPlayerIndex);
 		}
 	}
 }
@@ -758,12 +817,97 @@ void setRoundStart(void)
 }
 
 //--------------------------------------------------------------------------
+void forcePlayerHUD(void)
+{
+	int i;
+
+	// replace normal scoreboard with bolt counter
+	for (i = 0; i < 2; ++i)
+	{
+		PlayerHUDFlags* hudFlags = hudGetPlayerFlags(i);
+		if (hudFlags) {
+			hudFlags->Flags.BoltCounter = 1;
+			hudFlags->Flags.NormalScoreboard = 0;
+		}
+	}
+}
+
+//--------------------------------------------------------------------------
+void destroyOmegaPads(void)
+{
+	GuberMoby* gm = guberMobyGetFirst();
+	while (gm)
+	{
+		Moby* moby = gm->Moby;
+		if (moby && moby->OClass == MOBY_ID_PICKUP_PAD && moby->PVar) {
+			if (*(int*)moby->PVar == 5) {
+				//vector_write(moby->Position, 0);
+				guberMobyDestroy(moby);
+			}
+		}
+
+		gm = (GuberMoby*)gm->Guber.Prev;
+	}
+}
+
+//--------------------------------------------------------------------------
+void randomizeWeaponPickups(void)
+{
+	int i,j;
+	GameOptions* gameOptions = gameGetOptions();
+	GuberMoby* gm = guberMobyGetFirst();
+	char wepCounts[9];
+	char wepEnabled[17];
+	int pickupCount = 0;
+	int pickupOptionCount = 0;
+	memset(wepEnabled, 0, sizeof(wepEnabled));
+	memset(wepCounts, 0, sizeof(wepCounts));
+
+	if (gameOptions->WeaponFlags.DualVipers) { wepEnabled[2] = 1; pickupOptionCount++; DPRINTF("dv\n"); }
+	if (gameOptions->WeaponFlags.MagmaCannon) { wepEnabled[3] = 1; pickupOptionCount++; DPRINTF("mag\n"); }
+	if (gameOptions->WeaponFlags.Arbiter) { wepEnabled[4] = 1; pickupOptionCount++; DPRINTF("arb\n"); }
+	if (gameOptions->WeaponFlags.FusionRifle) { wepEnabled[5] = 1; pickupOptionCount++; DPRINTF("fusion\n"); }
+	if (gameOptions->WeaponFlags.MineLauncher) { wepEnabled[6] = 1; pickupOptionCount++; DPRINTF("mines\n"); }
+	if (gameOptions->WeaponFlags.B6) { wepEnabled[7] = 1; pickupOptionCount++; DPRINTF("b6\n"); }
+	if (gameOptions->WeaponFlags.Holoshield) { wepEnabled[16] = 1; pickupOptionCount++; DPRINTF("shields\n"); }
+	if (gameOptions->WeaponFlags.Flail) { wepEnabled[12] = 1; pickupOptionCount++; DPRINTF("flail\n"); }
+	if (gameOptions->WeaponFlags.Chargeboots) { wepEnabled[13] = 1; pickupOptionCount++; DPRINTF("cboots\n"); }
+
+	if (pickupOptionCount > 0) {
+		while (gm) {
+			Moby* moby = gm->Moby;
+			if (moby) {
+				if (moby->OClass == MOBY_ID_WEAPON_PICKUP && moby->PVar) {
+					
+					int target = pickupCount / pickupOptionCount;
+					do { j = rand(pickupOptionCount); } while (wepCounts[j] != target);
+
+					wepCounts[j]++;
+					
+					i = -1;
+					do
+					{
+						++i;
+						if (wepEnabled[i])
+							--j;
+					} while (j >= 0);
+
+					DPRINTF("setting pickup at %08X to %d\n", (u32)moby, i);
+					((void (*)(Moby*, int))0x0043A370)(moby, i);
+					++pickupCount;
+				}
+			}
+
+			gm = (GuberMoby*)gm->Guber.Prev;
+		}
+	}
+}
+
+//--------------------------------------------------------------------------
 void resetRoundState(void)
 {
 	GameSettings* gameSettings = gameGetSettings();
 	int gameTime = gameGetTime();
-	int i;
-	Player ** players = playerGetAll();
 
 	// 
 	static int accum = 0;
@@ -814,13 +958,30 @@ void initialize(void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_START, &onSetRoundStartRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_WEAPON_UPGRADE, &onPlayerUpgradeWeaponRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_REVIVE_PLAYER, &onPlayerReviveRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_DIED, &onSetPlayerDeadRemote);
 
 	// set game over string (replaces "Draw!")
 	strncpy((char*)0x015A00AA, SURVIVAL_GAME_OVER, 12);
+	strncpy(uiMsgString(0x3152), SURVIVAL_UPGRADE_MESSAGE, strlen(SURVIVAL_UPGRADE_MESSAGE));
+	strncpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE));
 
 	// disable v2s and packs
 	cheatsApplyNoV2s();
 	cheatsApplyNoPacks();
+
+	// change hud
+	forcePlayerHUD();
+
+	// set bolts to 0
+	*LocalBoltCount = 0;
+
+	// give a 3 second delay before finalizing the initialization.
+	// this helps prevent the slow loaders from desyncing
+	static int startDelay = 60 * 3;
+	if (startDelay > 0) {
+		--startDelay;
+		return;
+	}
 
 	// 
 	mobInitialize();
@@ -830,6 +991,9 @@ void initialize(void)
 		State.PlayerStates[i].State.Bolts = 0;
 		State.PlayerStates[i].Player = players[i];
 		State.PlayerStates[i].ActionCooldownTicks = 0;
+		State.PlayerStates[i].ReviveCooldownTicks = 0;
+		State.PlayerStates[i].MessageCooldownTicks = 0;
+		State.PlayerStates[i].IsDead = 0;
 	}
 
 	// initialize weapon data
@@ -846,35 +1010,11 @@ void initialize(void)
 
 	// randomize weapon picks
 	if (State.IsHost) {
-		Moby* pickup = mobyGetFirst();
-		char wepCounts[8];
-		memset(wepCounts, 0, sizeof(wepCounts));
-		int pickupCount = 0;
-		while (pickup) {
-			if (pickup->OClass == MOBY_ID_WEAPON_PICKUP && pickup->PVar) {
-				
-				int target = pickupCount / 8;
-				do
-				{
-					j = rand(8);
-				}
-				while (wepCounts[j] != target);
-
-				wepCounts[j]++;
-				j += 2;
-				if (j == 9) // shield
-					j = 0x10;
-				else if (j == 8) // flail
-					j = 0x0C;
-
-				((void (*)(Moby*, int))0x0043A370)(pickup, j);
-
-				++pickupCount;
-			}
-
-			pickup = pickup->PChain;
-		}
+		randomizeWeaponPickups();
 	}
+
+	// destroy omega mod pads
+	destroyOmegaPads();
 
 	// find vendor
 #if defined(VENDOR_OCLASS)
@@ -897,7 +1037,6 @@ void initialize(void)
 		vector_print(&vendorSp->M0[12]);
 		printf("\n");
 #endif
-
 	}
 
 	DPRINTF("vendor %08X\n", (u32)State.Vendor);
@@ -919,11 +1058,6 @@ void gameStart(void)
 	int i;
 	char buffer[32];
 	int gameTime = gameGetTime();
-	static int startDelay = 60 * 5;
-	if (startDelay > 0) {
-		--startDelay;
-		return;
-	}
 
 	// first
 	dlPreUpdate();
@@ -935,8 +1069,10 @@ void gameStart(void)
 	// Determine if host
 	State.IsHost = gameAmIHost();
 
-	if (!Initialized)
+	if (!Initialized) {
 		initialize();
+		return;
+	}
 
 #if LOG_STATS
 	static int statsTicker = 0;
@@ -964,8 +1100,17 @@ void gameStart(void)
 #endif
 
 	// draw round number
+	char* roundStr = uiMsgString(0x25A9);
+	gfxScreenSpaceText(481, 281, 0.7, 0.7, 0x40000000, roundStr, -1, 1);
+	gfxScreenSpaceText(480, 280, 0.7, 0.7, 0x80E0E0E0, roundStr, -1, 1);
 	sprintf(buffer, "%d", State.RoundNumber + 1);
-	gfxScreenSpaceText(5, SCREEN_HEIGHT - 5, 1, 1, 0x80FFFFFF, buffer, -1, 6);
+	gfxScreenSpaceText(481, 291, 1, 1, 0x40000000, buffer, -1, 1);
+	gfxScreenSpaceText(480, 290, 1, 1, 0x8029E5E6, buffer, -1, 1);
+
+	// draw number of mobs spawned
+	sprintf(buffer, "%d", State.RoundMobCount);
+	gfxScreenSpaceText(6, SCREEN_HEIGHT - 4, 1, 1, 0x40000000, buffer, -1, 6);
+	gfxScreenSpaceText(5, SCREEN_HEIGHT - 5, 1, 1, 0x80E0E0E0, buffer, -1, 6);
 
 	if (!State.GameOver)
 	{
@@ -982,14 +1127,7 @@ void gameStart(void)
 		}
 
 		// replace normal scoreboard with bolt counter
-		for (i = 0; i < 2; ++i)
-		{
-			PlayerHUDFlags* hudFlags = hudGetPlayerFlags(i);
-			if (hudFlags) {
-				hudFlags->Flags.BoltCounter = 1;
-				hudFlags->Flags.NormalScoreboard = 0;
-			}
-		}
+		forcePlayerHUD();
 
 		// handle game over
 		if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor)
@@ -1125,17 +1263,7 @@ void gameStart(void)
 //--------------------------------------------------------------------------
 void setLobbyGameOptions(void)
 {
-	return;
 	int i;
-
-	// deathmatch options
-	static char options[] = { 
-		0, 0, 			// 0x06 - 0x08
-		0, 0, 0, 0, 	// 0x08 - 0x0C
-		1, 1, 1, 0,  	// 0x0C - 0x10
-		0, 1, 0, 0,		// 0x10 - 0x14
-		-1, -1, 0, 1,	// 0x14 - 0x18
-	};
 
 	//
 	GameSettings * gameSettings = gameGetSettings();
@@ -1149,7 +1277,6 @@ void setLobbyGameOptions(void)
 		return;
 	
 	// apply options
-	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
 }
