@@ -588,6 +588,7 @@ void processPlayer(int pIndex) {
 	if (!player)
 		return;
 
+	int isDeadState = playerIsDead(player);
 	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
 	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
 	int reviveCooldownTicks = decTimerU16(&playerData->ReviveCooldownTicks);
@@ -608,9 +609,31 @@ void processPlayer(int pIndex) {
 		localPlayerIndex = player->LocalPlayerIndex;
 		heldWeapon = player->WeaponHeldId;
 
+		// find closest mob
+		playerData->MinSqrDistFromMob = 1000000;
+		playerData->MaxSqrDistFromMob = 0;
+		GuberMoby* gm = guberMobyGetFirst();
+		
+		while (gm)
+		{
+			if (gm->Moby && gm->Moby->OClass == ZOMBIE_MOBY_OCLASS)
+			{
+				vector_subtract(t, player->PlayerPosition, gm->Moby->Position);
+				float sqrDist = vector_sqrmag(t);
+				if (sqrDist < playerData->MinSqrDistFromMob)
+					playerData->MinSqrDistFromMob = sqrDist;
+			  if (sqrDist > playerData->MaxSqrDistFromMob)
+					playerData->MaxSqrDistFromMob = sqrDist;
+			}
+			
+			gm = (GuberMoby*)gm->Guber.Prev;
+		}
+
 		// handle death
-		if (playerIsDead(player) && !playerData->IsDead) {
+		if (isDeadState && !playerData->IsDead) {
 			setPlayerDead(player, 1);
+		} else if (playerData->IsDead && !isDeadState) {
+			setPlayerDead(player, 0);
 		}
 
 		// set experience to min of level and max level 
@@ -927,7 +950,7 @@ void resetRoundState(void)
 	// 
 	State.RoundInitialized = 1;
 }
-
+int ddd = 1;
 //--------------------------------------------------------------------------
 void initialize(void)
 {
@@ -953,6 +976,10 @@ void initialize(void)
 	// Enable sniper to shoot through multiple enemies
 	*(u32*)0x003FC2A8 = 0;
 
+	// Disable sniper shot corn
+	//*(u32*)0x003FC410 = 0;
+	*(u32*)0x003FC5A8 = 0;
+
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_START, &onSetRoundStartRemote);
@@ -977,7 +1004,7 @@ void initialize(void)
 
 	// give a 3 second delay before finalizing the initialization.
 	// this helps prevent the slow loaders from desyncing
-	static int startDelay = 60 * 3;
+	static int startDelay = 60 * 1;
 	if (startDelay > 0) {
 		--startDelay;
 		return;
@@ -994,6 +1021,8 @@ void initialize(void)
 		State.PlayerStates[i].ReviveCooldownTicks = 0;
 		State.PlayerStates[i].MessageCooldownTicks = 0;
 		State.PlayerStates[i].IsDead = 0;
+		State.PlayerStates[i].MinSqrDistFromMob = 0;
+		State.PlayerStates[i].MaxSqrDistFromMob = 0;
 	}
 
 	// initialize weapon data
@@ -1044,6 +1073,9 @@ void initialize(void)
 	// initialize state
 	State.GameOver = 0;
 	State.RoundNumber = 0;
+	State.MobsDrawnCurrent = 0;
+	State.MobsDrawnLast = 0;
+	State.MobsDrawGameTime = 0;
 	resetRoundState();
 
 	Initialized = 1;
@@ -1091,6 +1123,7 @@ void gameStart(void)
 	Player * localPlayer = (Player*)0x00347AA0;
 	if (padGetButtonDown(0, PAD_DOWN) > 0) {
 		static int manSpawnMobId = 0;
+		manSpawnMobId = defaultSpawnParamsCount - 1;
 		VECTOR t;
 		vector_copy(t, localPlayer->PlayerPosition);
 		t[0] += 1;
@@ -1112,15 +1145,29 @@ void gameStart(void)
 	gfxScreenSpaceText(6, SCREEN_HEIGHT - 4, 1, 1, 0x40000000, buffer, -1, 6);
 	gfxScreenSpaceText(5, SCREEN_HEIGHT - 5, 1, 1, 0x80E0E0E0, buffer, -1, 6);
 
+	if (padGetButtonDown(0, PAD_LEFT) > 0) {
+		DPRINTF("mobs drawn: %d\n", State.MobsDrawnLast);
+	}
+
+	// 
+	if (padGetButtonDown(0, PAD_UP) > 0) {
+		++ddd; DPRINTF("%d\n", ddd);
+	} else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+		--ddd; DPRINTF("%d\n", ddd);
+	}
+
 	if (!State.GameOver)
 	{
 		// decrement corn cob ticker
 		decTimerU32(&State.CornTicker);
 
-		// update local bolt count
 		*LocalBoltCount = 0;
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
+			// update player refs
+			State.PlayerStates[i].Player = players[i];
+
+			// update bolt counter
 			// since there is only one bolt count just show the sum of each local client's bolts
 			if (State.PlayerStates[i].Player && State.PlayerStates[i].Player->IsLocal)
 				*LocalBoltCount += State.PlayerStates[i].State.Bolts;

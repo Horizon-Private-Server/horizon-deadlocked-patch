@@ -8,6 +8,8 @@
 
 #define TPS																		(60)
 
+#define ZOMBIE_MOBY_OCLASS										(0x20F6)
+
 #define BUDGET_START													(200)
 #define BUDGET_START_ACCUM										(100)
 #define BUDGET_PLAYER_WEIGHT									(100)
@@ -89,6 +91,8 @@ struct SurvivalPlayerState
 struct SurvivalPlayer
 {
 	Player * Player;
+	float MinSqrDistFromMob;
+	float MaxSqrDistFromMob;
 	struct SurvivalPlayerState State;
 	u16 ReviveCooldownTicks;
 	u8 ActionCooldownTicks;
@@ -108,6 +112,9 @@ struct SurvivalState
 	int RoundMaxMobCount;
 	int RoundSpawnTicker;
 	int MinMobCost;
+	int MobsDrawnCurrent;
+	int MobsDrawnLast;
+	int MobsDrawGameTime;
 	u32 CornTicker;
 	struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
 	int RoundInitialized;

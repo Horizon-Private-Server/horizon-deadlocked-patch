@@ -8,7 +8,7 @@ EE_INCS := -I../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := DEBUG
+BUILD_CONFIG := RELEASE
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
@@ -26,9 +26,9 @@ BUILD_CONFIG := DEBUG
 #		MANUAL_SPAWN					When enabled, allows player to spawn mob at feet by pressing DPAD DOWN.
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DDISABLE_SPAWNING -DMOB_NO_DAMAGE1 -DMOB_NO_MOVE -DPAYDAY  -DVENDOR_OCLASS=0x20F6 -DMANUAL_SPAWN
+EE_DEFS := -DDEBUG -DDISABLE_SPAWNING -DMOB_NO_DAMAGE -DMOB_NO_MOVE1 -DPAYDAY  -DVENDOR_OCLASS=0x20F6 -DMANUAL_SPAWN
 else ifeq ($(BUILD_CONFIG),RELEASE)
-EE_DEFS := -DMOB_CORN1 -DAUTOSTART -DVENDOR_OCLASS=0x20F6 -DSHARED_BOLTSw
+EE_DEFS := -DMOB_CORN1 -DAUTOSTART -DVENDOR_OCLASS=0x20F6 -DSHARED_BOLTS
 endif
 
 all: $(EE_BIN) clean copy

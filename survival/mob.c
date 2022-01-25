@@ -476,6 +476,7 @@ void mobDoAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	float speed = pvars->MobVars.Config.Speed;
+	float speedMult = (float)pvars->MobVars.MoveStep;
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t;
 
@@ -514,12 +515,12 @@ void mobDoAction(Moby* moby)
 					float dY = t[2];
 					t[2] = 0;
 					float dist = vector_length(t);
-					vector_scale(t, t, 2 / dist);
+					vector_scale(t, t, (2 * speedMult) / dist);
 					t[2] = dY;
 					vector_add(t, moby->Position, t);
 
 					// move
-					mobyMove(moby, vector_read(t), speed);
+					mobyMove(moby, vector_read(t), speed * speedMult);
 					mobTransAnim(moby, ZOMBIE_ANIM_JUMP);
 				} else {
 					// stand
@@ -539,13 +540,13 @@ void mobDoAction(Moby* moby)
 				vector_copy(t, target->Position);
 				vector_subtract(t, t, moby->Position);
 				float dist = vector_length(t);
-				vector_scale(t, t, 1 / dist);
+				vector_scale(t, t, (1 * speedMult) / dist);
 				vector_add(t, moby->Position, t);
 				if (dist < pvars->MobVars.Config.AttackRadius)
 					speed = 0;
 
 				// move
-				mobyMove(moby, vector_read(t), speed);
+				mobyMove(moby, vector_read(t), speed * speedMult);
 			} else {
 				// stand
 				speed = 0;
@@ -641,10 +642,12 @@ void mobHandleStuck(Moby* moby)
 			} else {
 				// stuck so cycle step
 				pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, 20);
+				
 				mobSetAction(moby, MOB_ACTION_JUMP);
 			}
 		}
 	} else if (pvars->MobVars.Action == MOB_ACTION_JUMP) {
+		pvars->MoveVars.jumpVel[2] += 0.1;
 		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, 20);
 	} else {
 		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = 2;
@@ -711,12 +714,72 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	}
 }
 
+extern int ddd;
+void mobHandleDraw(Moby* moby)
+{
+	int i;
+	VECTOR t;
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+	// find closest local player
+	float nearSqrDist = 100000;
+	int nearPlayerIdx = -1;
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		Player* p = State.PlayerStates[i].Player;
+		if (!p || !p->IsLocal)
+			continue;
+		
+		vector_subtract(t, p->PlayerPosition, moby->Position);
+		float sqrDist = vector_sqrmag(t);
+		if (sqrDist < nearSqrDist)
+		{
+			nearSqrDist = sqrDist;
+			nearPlayerIdx = i;
+		}
+	}
+	
+	if (nearPlayerIdx >= 0) {
+		float min = State.PlayerStates[nearPlayerIdx].MinSqrDistFromMob;
+		float max = State.PlayerStates[nearPlayerIdx].MaxSqrDistFromMob;
+		float rank = 1 - clamp((nearSqrDist - min) / (max - min), 0, 1);
+		rank = rank*rank*rank;
+		if (State.RoundMobCount > 30)
+			moby->DrawDist = 4 + (128 - 4)*rank;
+		else
+			moby->DrawDist = 128;
+	} else { moby->DrawDist = 16; }
+
+	if (State.RoundMobCount >= 60)
+		pvars->MobVars.MoveStep = 6;
+	else if (State.RoundMobCount >= 45)
+		pvars->MobVars.MoveStep = 4;
+	else if (State.RoundMobCount >= 30)
+		pvars->MobVars.MoveStep = 2;
+	else
+		pvars->MobVars.MoveStep = 1;
+
+	//pvars->MobVars.MoveStep = ddd;
+	pvars->MoveVars.runSpeed = 0.20 * pvars->MobVars.MoveStep;
+	//pvars->MoveVars.gravity = 20 * pvars->MobVars.MoveStep;
+}
+
 void mobUpdate(Moby* moby)
 {
+	int i;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (!pvars || pvars->MobVars.Destroyed)
 		return;
 	int isOwner;
+
+	// keep track of number of mobs drawn on screen to try and reduce the lag
+	int gameTime = gameGetTime();
+	if (gameTime != State.MobsDrawGameTime) {
+		State.MobsDrawGameTime = gameTime;
+		State.MobsDrawnLast = State.MobsDrawnCurrent;
+		State.MobsDrawnCurrent = 0;
+	}
+	if (moby->Drawn)
+		State.MobsDrawnCurrent++;
 
 	// dec timers
 	u16 nextCheckActionDelayTicks = decTimerU16(&pvars->MobVars.NextCheckActionDelayTicks);
@@ -728,6 +791,7 @@ void mobUpdate(Moby* moby)
 	decTimerU16(&pvars->MobVars.TimeBombTicks);
 	u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
 	u16 ambientSoundCooldownTicks = decTimerU16(&pvars->MobVars.AmbientSoundCooldownTicks);
+	u16 moveStepCooldownTicks = decTimerU8(&pvars->MobVars.MoveStepCooldownTicks);
 
 	// validate owner
 	Player * ownerPlayer = playerGetAll()[(int)pvars->MobVars.Owner];
@@ -751,6 +815,9 @@ void mobUpdate(Moby* moby)
 		mobPlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS, ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS);
 	}
+
+	// 
+	mobHandleDraw(moby);
 
 	// 
 	mobHandleStuck(moby);
@@ -794,20 +861,12 @@ void mobUpdate(Moby* moby)
 	// update armor
 	moby->Bangles = mobGetArmor(pvars);
 
-	// 
-	int renderDist = 128;
-	if (State.RoundMobCount > 50)
-		renderDist = 64;
-	else if (State.RoundMobCount > 70)
-		renderDist = 32;
-	moby->DrawDist = renderDist;
-	if (isOwner)
-		moby->UpdateDist = 0xff;
-	else
-		moby->UpdateDist = renderDist*2 - 1;
-
 	// move system update
-	mobyMoveSystemUpdate(moby);
+	if (moveStepCooldownTicks == 0) {
+		if (pvars->MobVars.HasSpeed)
+			mobyMoveSystemUpdate(moby);
+		pvars->MobVars.MoveStepCooldownTicks = pvars->MobVars.MoveStep;
+	}
 
 	// process damage
 	int damageIndex = moby->CollDamage;
@@ -956,6 +1015,8 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MoveVars.slopeLimit = MATH_PI / 2;
 	pvars->MoveVars.maxStepUp = 2;
 	pvars->MoveVars.maxStepDown = 2;
+	pvars->MoveVars.linearAccel = 1;
+	pvars->MoveVars.linearDecel = 1;
 
 	// initialize react vars
 	pvars->ReactVars.acidDamage = 1.0;
@@ -1215,7 +1276,7 @@ int mobCreate(VECTOR position, float yaw, struct MobConfig *config)
 
 	// create guber object
 	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(0x20F6, sizeof(struct MobPVar), &guberEvent, NULL);
+	guberMobyCreateSpawned(ZOMBIE_MOBY_OCLASS, sizeof(struct MobPVar), &guberEvent, NULL);
 	if (guberEvent)
 	{
 		args.Bolts = config->Bolts + randRangeInt(-50, 50);

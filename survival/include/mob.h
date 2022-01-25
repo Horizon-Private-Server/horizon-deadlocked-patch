@@ -80,6 +80,8 @@ struct MobVars {
 	u16 MovingTicks;
 	u8 ActionId;
 	u8 LastActionId;
+	u8 MoveStep;
+	u8 MoveStepCooldownTicks;
 	char HasSpeed;
 	char Owner;
 	char IsTraversing;
