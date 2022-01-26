@@ -1002,19 +1002,22 @@ void forcePlayerHUD(void)
 //--------------------------------------------------------------------------
 void destroyOmegaPads(void)
 {
+	int c = 0;
 	GuberMoby* gm = guberMobyGetFirst();
 	while (gm)
 	{
 		Moby* moby = gm->Moby;
 		if (moby && moby->OClass == MOBY_ID_PICKUP_PAD && moby->PVar) {
 			if (*(int*)moby->PVar == 5) {
-				//vector_write(moby->Position, 0);
 				guberMobyDestroy(moby);
+				++c;
 			}
 		}
 
 		gm = (GuberMoby*)gm->Guber.Prev;
 	}
+
+	DPRINTF("mod pad destroyed: %d\n", c);
 }
 
 //--------------------------------------------------------------------------
@@ -1180,6 +1183,9 @@ void initialize(void)
 	// set bolts to 0
 	*LocalBoltCount = 0;
 
+	// destroy omega mod pads
+	destroyOmegaPads();
+
 	// give a 3 second delay before finalizing the initialization.
 	// this helps prevent the slow loaders from desyncing
 	static int startDelay = 60 * 1;
@@ -1227,9 +1233,6 @@ void initialize(void)
 	if (State.IsHost) {
 		randomizeWeaponPickups();
 	}
-
-	// destroy omega mod pads
-	destroyOmegaPads();
 
 	// find vendor
 #if defined(VENDOR_OCLASS)

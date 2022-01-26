@@ -57,7 +57,7 @@
 #define MOB_CORN_MAX_ON_SCREEN								(15)
 
 #if PAYDAY
-#define ZOMBIE_BASE_BOLTS											(10000)
+#define ZOMBIE_BASE_BOLTS											(100000)
 #else
 #define ZOMBIE_BASE_BOLTS											(100)
 #endif
