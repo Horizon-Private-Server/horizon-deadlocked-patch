@@ -70,7 +70,6 @@ const u8 UPGRADEABLE_WEAPONS[] = {
 
 char LocalPlayerStrBuffer[2][48];
 
-u8 * PlayerAlphaMods = (u8*)0x001D3FB0;
 int * LocalBoltCount = (int*)0x00171B40;
 
 int Initialized = 0;
@@ -404,7 +403,6 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
 	int i;
 	Player* p = State.PlayerStates[playerId].Player;
-	u8* localMods = PlayerAlphaMods + (0x12B0 * playerId);
 	if (!p)
 		return;
 
@@ -412,13 +410,13 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 	if (alphaMod == ALPHA_MOD_XP)
 		alphaMod++;
 
-	PlayerWeaponData* wepData = playerGetWeaponData(playerId);
+	GadgetBox* gBox = p->GadgetBox;
 	playerGiveWeapon(p, weaponId, level);
-	wepData[weaponId].Level = level;
-	wepData[weaponId].Ammo = ((short (*)(PlayerWeaponData*, int))0x00626fb8)(wepData, weaponId);
+	gBox->Gadgets[weaponId].Level = level;
+	gBox->Gadgets[weaponId].Ammo = ((short (*)(GadgetBox*, int))0x00626FB8)(gBox, weaponId);
 
 	if (p->IsLocal) {
-		localMods[alphaMod]++;
+		gBox->ModBasic[alphaMod-1]++;
 		char* a = uiMsgString(0x2400);
 		sprintf(a, "Got %s", ALPHA_MODS[alphaMod]);
 		((void (*)(int, int, int))0x0054ea30)(p->LocalPlayerIndex, 0x2400, 0);
@@ -429,7 +427,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 
 	// set exp bar to max
 	if (level == VENDOR_MAX_WEAPON_LEVEL)
-		wepData[weaponId].Experience = level;
+		gBox->Gadgets[weaponId].Experience = level;
 
 #if LOG_STATS2
 	DPRINTF("%d (%08X) weapon %d upgraded to %d\n", playerId, (u32)p, weaponId, level);
@@ -449,7 +447,7 @@ int onPlayerUpgradeWeaponRemote(void * connection, void * data)
 void playerUpgradeWeapon(Player* player, int weaponId)
 {
 	SurvivalWeaponUpgradeMessage_t message;
-	PlayerWeaponData* wepData = playerGetWeaponData(player->PlayerId);
+	GadgetBox* gBox = player->GadgetBox;
 
 	// don't allow overwriting existing outcome
 	if (State.RoundEndTime)
@@ -458,7 +456,7 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 	// send out
 	message.PlayerId = player->PlayerId;
 	message.WeaponId = weaponId;
-	message.Level = wepData[weaponId].Level + 1;
+	message.Level = gBox->Gadgets[weaponId].Level + 1;
 	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_UPGRADE, sizeof(SurvivalWeaponUpgradeMessage_t), &message);
 
 	// set locally
@@ -544,9 +542,13 @@ void setPlayerDead(Player* player, char isDead)
 void onSetPlayerWeaponMods(int playerId, int weaponId, u8* mods)
 {
 	int i;
-	PlayerWeaponData* pWep = playerGetWeaponData(playerId);
+	Player* p = State.PlayerStates[playerId].Player;
+	if (!p)
+		return;
+
+	GadgetBox* gBox = p->GadgetBox;
 	for (i = 0; i < 10; ++i)
-		pWep[weaponId].AlphaMods[i] = mods[i];
+		gBox->Gadgets[weaponId].AlphaMods[i] = mods[i];
 		
 	DPRINTF("%d set %d mods\n", playerId, weaponId);
 }
@@ -582,7 +584,7 @@ int canUpgradeWeapon(Player * player, enum WEAPON_IDS weaponId) {
 	if (!player)
 		return 0;
 
-	PlayerWeaponData* wepData = playerGetWeaponData(player->PlayerId);
+	GadgetBox* gBox = player->GadgetBox;
 
 	switch (weaponId)
 	{
@@ -594,7 +596,7 @@ int canUpgradeWeapon(Player * player, enum WEAPON_IDS weaponId) {
 		case WEAPON_ID_B6:
 		case WEAPON_ID_OMNI_SHIELD:
 		case WEAPON_ID_FLAIL:
-			return wepData[(int)weaponId].Level >= 0 && wepData[(int)weaponId].Level < VENDOR_MAX_WEAPON_LEVEL;
+			return gBox->Gadgets[(int)weaponId].Level >= 0 && gBox->Gadgets[(int)weaponId].Level < VENDOR_MAX_WEAPON_LEVEL;
 		default: return 0;
 	}
 }
@@ -604,8 +606,8 @@ int getUpgradeCost(Player * player, enum WEAPON_IDS weaponId) {
 	if (!player)
 		return 0;
 
-	PlayerWeaponData* wepData = playerGetWeaponData(player->PlayerId);
-	int level = wepData[(int)weaponId].Level;
+	GadgetBox* gBox = player->GadgetBox;
+	int level = gBox->Gadgets[(int)weaponId].Level;
 	if (level < 0 || level >= VENDOR_MAX_WEAPON_LEVEL)
 		return 0;
 		
@@ -665,7 +667,7 @@ void processPlayer(int pIndex) {
 	
 	if (player->IsLocal && !player->timers.noInput) {
 		
-		PlayerWeaponData* pWep = playerGetWeaponData(player->PlayerId);
+		GadgetBox* gBox = player->GadgetBox;
 		localPlayerIndex = player->LocalPlayerIndex;
 		heldWeapon = player->WeaponHeldId;
 
@@ -698,8 +700,8 @@ void processPlayer(int pIndex) {
 
 		// set experience to min of level and max level 
 		for (i = WEAPON_ID_VIPERS; i <= WEAPON_ID_FLAIL; ++i) {
-			if (pWep[i].Level >= 0) {
-				pWep[i].Experience = pWep[i].Level < VENDOR_MAX_WEAPON_LEVEL ? pWep[i].Level : VENDOR_MAX_WEAPON_LEVEL;
+			if (gBox->Gadgets[i].Level >= 0) {
+				gBox->Gadgets[i].Experience = gBox->Gadgets[i].Level < VENDOR_MAX_WEAPON_LEVEL ? gBox->Gadgets[i].Level : VENDOR_MAX_WEAPON_LEVEL;
 			}
 		}
 
@@ -708,10 +710,9 @@ void processPlayer(int pIndex) {
 		if (!gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo
 			&& player->PlayerState == PLAYER_STATE_FLAIL_ATTACK
 			&& player->timers.state >= 60) {
-				PlayerWeaponData* pWep = playerGetWeaponData(pIndex);
-				if (pWep[WEAPON_ID_FLAIL].Ammo > 0) {
+				if (gBox->Gadgets[WEAPON_ID_FLAIL].Ammo > 0) {
 					if ((player->timers.state % 60) == 0) {
-						pWep[WEAPON_ID_FLAIL].Ammo -= 1;
+						gBox->Gadgets[WEAPON_ID_FLAIL].Ammo -= 1;
 					}
 				} else {
 					PlayerVTable* vtable = playerGetVTable(player);
@@ -727,7 +728,7 @@ void processPlayer(int pIndex) {
 		// handle closing weapons menu
 		if (playerData->IsInWeaponsMenu) {
 			for (i = 0; i < sizeof(UPGRADEABLE_WEAPONS)/sizeof(u8); ++i)
-				setPlayerWeaponMods(player, UPGRADEABLE_WEAPONS[i], pWep[UPGRADEABLE_WEAPONS[i]].AlphaMods);
+				setPlayerWeaponMods(player, UPGRADEABLE_WEAPONS[i], gBox->Gadgets[UPGRADEABLE_WEAPONS[i]].AlphaMods);
 			playerData->IsInWeaponsMenu = 0;
 		}
 
@@ -1099,10 +1100,6 @@ void initialize(void)
 	//*(u32*)0x003FC410 = 0;
 	*(u32*)0x003FC5A8 = 0;
 
-	// clear alpha mods
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		memset(PlayerAlphaMods + (0x12B0 * i), 0, 10);
-
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_START, &onSetRoundStartRemote);
@@ -1151,6 +1148,10 @@ void initialize(void)
 		State.PlayerStates[i].IsDead = 0;
 		State.PlayerStates[i].MinSqrDistFromMob = 0;
 		State.PlayerStates[i].MaxSqrDistFromMob = 0;
+
+		// clear alpha mods
+		if (players[i] && players[i]->GadgetBox)
+			memset(players[i]->GadgetBox->ModBasic, 0, sizeof(players[i]->GadgetBox->ModBasic));
 	}
 
 	// initialize weapon data

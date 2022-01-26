@@ -1051,22 +1051,23 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 #endif
 
 	if (killedByPlayerId >= 0) {
-		struct SurvivalPlayerState* pState = &State.PlayerStates[(int)killedByPlayerId].State;
+		struct SurvivalPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
+
 		// handle weapon jackpot
-		if (weaponId > 1) {
+		if (weaponId > 1 && pState->Player) {
 			int jackpotCount = 0;
-			PlayerWeaponData* pWep = playerGetWeaponData(killedByPlayerId);
+			GadgetBox* gBox = pState->Player->GadgetBox;
 			for (i = 0; i < 10; ++i) {
-				if (pWep[(int)weaponId].AlphaMods[i] == ALPHA_MOD_JACKPOT)
+				if (gBox->Gadgets[(int)weaponId].AlphaMods[i] == ALPHA_MOD_JACKPOT)
 					++jackpotCount;
 			}
 
-			pState->Bolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
-			pState->TotalBolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
+			pState->State.Bolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
+			pState->State.TotalBolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
 		}
 
 		// handle kills
-		pState->Kills++;
+		pState->State.Kills++;
 	}
 
 	// set colors before death so that the corn has the correct color
