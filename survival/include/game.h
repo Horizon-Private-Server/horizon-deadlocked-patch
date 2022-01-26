@@ -71,6 +71,7 @@
 
 #define WEAPON_VENDOR_MAX_DIST								(3)
 #define WEAPON_UPGRADE_COOLDOWN_TICKS					(60)
+#define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
 enum GameNetMessage
@@ -80,7 +81,8 @@ enum GameNetMessage
 	CUSTOM_MSG_UPDATE_SPAWN_VARS,
 	CUSTOM_MSG_WEAPON_UPGRADE,
 	CUSTOM_MSG_REVIVE_PLAYER,
-	CUSTOM_MSG_PLAYER_DIED
+	CUSTOM_MSG_PLAYER_DIED,
+	CUSTOM_MSG_PLAYER_SET_WEAPON_MODS
 };
 
 struct SurvivalPlayerState
@@ -102,6 +104,7 @@ struct SurvivalPlayer
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;
 	char IsDead;
+	char IsInWeaponsMenu;
 };
 
 struct SurvivalState
@@ -123,6 +126,7 @@ struct SurvivalState
 	struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
 	int RoundInitialized;
 	Moby* Vendor;
+	Moby* BigAl;
 	int GameOver;
 	int WinningTeam;
 	int IsHost;
@@ -157,6 +161,13 @@ typedef struct SurvivalSetPlayerDeadMessage
 	int PlayerId;
 	char IsDead;
 } SurvivalSetPlayerDeadMessage_t;
+
+typedef struct SurvivalSetWeaponModsMessage
+{
+	int PlayerId;
+	u8 WeaponId;
+	u8 Mods[10];
+} SurvivalSetWeaponModsMessage_t;
 
 typedef struct SurvivalConfig
 {

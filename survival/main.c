@@ -43,6 +43,7 @@ const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1c   start round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x11 revive [\x0E%d\x08]";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 upgrade [\x0E%d\x08]";
+const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 manage mods";
 
 const char * ALPHA_MODS[] = {
 	"",
@@ -54,6 +55,17 @@ const char * ALPHA_MODS[] = {
 	"Xp Mod",
 	"Jackpot Mod",
 	"Nanoleech Mod"
+};
+
+const u8 UPGRADEABLE_WEAPONS[] = {
+	WEAPON_ID_VIPERS,
+	WEAPON_ID_MAGMA_CANNON,
+	WEAPON_ID_ARBITER,
+	WEAPON_ID_FUSION_RIFLE,
+	WEAPON_ID_MINE_LAUNCHER,
+	WEAPON_ID_B6,
+	WEAPON_ID_OMNI_SHIELD,
+	WEAPON_ID_FLAIL
 };
 
 char LocalPlayerStrBuffer[2][48];
@@ -232,6 +244,17 @@ void drawRoundMessage(const char * message, float scale)
 }
 
 //--------------------------------------------------------------------------
+void openWeaponsMenu(int localPlayerIndex)
+{
+	((void (*)(int, int))0x00544748)(localPlayerIndex, 4);
+	((void (*)(int, int))0x005415c8)(localPlayerIndex, 2);
+
+	((void (*)(int))0x00543e10)(localPlayerIndex); // hide player
+	int s = ((int (*)(int))0x00543648)(localPlayerIndex); // get hud enter state
+	((void (*)(int))0x005c2370)(s); // swapto
+}
+
+//--------------------------------------------------------------------------
 Player * playerGetRandom(void)
 {
 	int r = rand(GAME_MAX_PLAYERS);
@@ -379,7 +402,9 @@ int getMinMobCost(void) {
 //--------------------------------------------------------------------------
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
+	int i;
 	Player* p = State.PlayerStates[playerId].Player;
+	u8* localMods = (u8*)0x001D3FB0;
 	if (!p)
 		return;
 
@@ -389,7 +414,8 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 
 	PlayerWeaponData* wepData = playerGetWeaponData(playerId);
 	playerGiveWeapon(p, weaponId, level);
-	wepData[weaponId].AlphaMods[level] = alphaMod;
+	if (p->IsLocal)
+		localMods[alphaMod]++;
 	wepData[weaponId].Level = level;
 	wepData[weaponId].Ammo = ((short (*)(PlayerWeaponData*, int))0x00626fb8)(wepData, weaponId);
 
@@ -516,6 +542,43 @@ void setPlayerDead(Player* player, char isDead)
 }
 
 //--------------------------------------------------------------------------
+void onSetPlayerWeaponMods(int playerId, int weaponId, u8* mods)
+{
+	int i;
+	PlayerWeaponData* pWep = playerGetWeaponData(playerId);
+	for (i = 0; i < 10; ++i)
+		pWep[weaponId].AlphaMods[i] = mods[i];
+		
+	DPRINTF("%d set %d mods\n", playerId, weaponId);
+}
+
+//--------------------------------------------------------------------------
+int onSetPlayerWeaponModsRemote(void * connection, void * data)
+{
+	SurvivalSetWeaponModsMessage_t * message = (SurvivalSetWeaponModsMessage_t*)data;
+	onSetPlayerWeaponMods(message->PlayerId, message->WeaponId, message->Mods);
+
+	return sizeof(SurvivalSetPlayerDeadMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void setPlayerWeaponMods(Player* player, int weaponId, int* mods)
+{
+	int i;
+	SurvivalSetWeaponModsMessage_t message;
+
+	// send out
+	message.PlayerId = player->PlayerId;
+	message.WeaponId = (u8)weaponId;
+	for (i = 0; i < 10; ++i)
+		message.Mods[i] = (u8)mods[i];
+	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_WEAPON_MODS, sizeof(SurvivalSetWeaponModsMessage_t), &message);
+
+	// set locally
+	onSetPlayerWeaponMods(message.PlayerId, message.WeaponId, message.Mods);
+}
+
+//--------------------------------------------------------------------------
 int canUpgradeWeapon(Player * player, enum WEAPON_IDS weaponId) {
 	if (!player)
 		return 0;
@@ -601,7 +664,7 @@ void processPlayer(int pIndex) {
 		}
 	}
 	
-	if (player->IsLocal) {
+	if (player->IsLocal && !player->timers.noInput) {
 		
 		PlayerWeaponData* pWep = playerGetWeaponData(player->PlayerId);
 		localPlayerIndex = player->LocalPlayerIndex;
@@ -662,6 +725,13 @@ void processPlayer(int pIndex) {
 		if (actionCooldownTicks > 0)
 			return;
 
+		// handle closing weapons menu
+		if (playerData->IsInWeaponsMenu) {
+			for (i = 0; i < sizeof(UPGRADEABLE_WEAPONS)/sizeof(u8); ++i)
+				setPlayerWeaponMods(player, UPGRADEABLE_WEAPONS[i], pWep[UPGRADEABLE_WEAPONS[i]].AlphaMods);
+			playerData->IsInWeaponsMenu = 0;
+		}
+
 		// handle vendor logic
 		if (State.Vendor) {
 
@@ -692,6 +762,26 @@ void processPlayer(int pIndex) {
 							playerData->ActionCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
 						}
 					}
+				}
+			}
+		}
+
+		// handle big al logic
+		if (State.BigAl) {
+
+			// check distance
+			vector_subtract(t, player->PlayerPosition, State.BigAl->Position);
+			if (vector_sqrmag(t) < (WEAPON_VENDOR_MAX_DIST * WEAPON_VENDOR_MAX_DIST)) {
+				
+				// draw help popup
+				uiShowPopup(localPlayerIndex, SURVIVAL_OPEN_WEAPONS_MESSAGE);
+				hasMessage = 1;
+				playerData->MessageCooldownTicks = 2;
+
+				if (padGetButtonDown(localPlayerIndex, PAD_TRIANGLE) > 0) {
+					openWeaponsMenu(localPlayerIndex);
+					playerData->ActionCooldownTicks = WEAPON_MENU_COOLDOWN_TICKS;
+					playerData->IsInWeaponsMenu = 1;
 				}
 			}
 		}
@@ -927,6 +1017,36 @@ void randomizeWeaponPickups(void)
 }
 
 //--------------------------------------------------------------------------
+Moby* FindMobyOrSpawnBox(int oclass, int defaultToSpawnpointId)
+{
+	Moby* m = NULL;
+	
+	// find
+	if (oclass > 0) {
+		m = mobyGetFirst();	
+		while (m && m->OClass != oclass)
+			m = m->PChain;
+	}
+
+	// if can't find moby then just spawn a beta box at a spawn point
+	if (!m) {
+		SpawnPoint* sp = spawnPointGet(defaultToSpawnpointId);
+
+		//
+		m = mobySpawn(MOBY_ID_BETA_BOX, 0);
+		vector_copy(m->Position, &sp->M0[12]);
+
+#if DEBUG
+		printf("could not find oclass %04X... spawned box (%08X) at ", oclass, (u32)m);
+		vector_print(&sp->M0[12]);
+		printf("\n");
+#endif
+	}
+
+	return m;
+}
+
+//--------------------------------------------------------------------------
 void resetRoundState(void)
 {
 	GameSettings* gameSettings = gameGetSettings();
@@ -980,12 +1100,16 @@ void initialize(void)
 	//*(u32*)0x003FC410 = 0;
 	*(u32*)0x003FC5A8 = 0;
 
+	// clear alpha mods
+	memset((void*)0x001D3FB0, 0, 10);
+
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_START, &onSetRoundStartRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_WEAPON_UPGRADE, &onPlayerUpgradeWeaponRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_REVIVE_PLAYER, &onPlayerReviveRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_DIED, &onSetPlayerDeadRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_WEAPON_MODS, &onSetPlayerWeaponModsRemote);
 
 	// set game over string (replaces "Draw!")
 	strncpy((char*)0x015A00AA, SURVIVAL_GAME_OVER, 12);
@@ -1051,28 +1175,20 @@ void initialize(void)
 
 	// find vendor
 #if defined(VENDOR_OCLASS)
-	int vendorOClass = VENDOR_OCLASS;
-	State.Vendor = mobyGetFirst();
-	while (State.Vendor && State.Vendor->OClass != vendorOClass)
-		State.Vendor = State.Vendor->PChain;
+	State.Vendor = FindMobyOrSpawnBox(VENDOR_OCLASS, 1);
+#else
+	State.Vendor = FindMobyOrSpawnBox(0, 1);
 #endif
 
-	// if can't find vendor then just spawn a beta box at a spawn point
-	if (!State.Vendor) {
-		SpawnPoint* vendorSp = spawnPointGet(1);
-
-		//
-		State.Vendor = mobySpawn(MOBY_ID_BETA_BOX, 0);
-		vector_copy(State.Vendor->Position, &vendorSp->M0[12]);
-
-#if DEBUG
-		printf("no vendor oclass specified... spawned vendor box (%08X) at ", (u32)State.Vendor);
-		vector_print(&vendorSp->M0[12]);
-		printf("\n");
+	// find al
+#if defined(BIGAL_OCLASS)
+	State.BigAl = FindMobyOrSpawnBox(BIGAL_OCLASS, 2);
+#else
+	State.BigAl = FindMobyOrSpawnBox(0, 2);
 #endif
-	}
 
 	DPRINTF("vendor %08X\n", (u32)State.Vendor);
+	DPRINTF("big al %08X\n", (u32)State.BigAl);
 
 	// initialize state
 	State.GameOver = 0;
