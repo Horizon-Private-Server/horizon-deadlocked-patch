@@ -658,7 +658,6 @@ void mobHandleStuck(Moby* moby)
 			}
 		}
 	} else if (pvars->MobVars.Action == MOB_ACTION_JUMP) {
-		pvars->MoveVars.jumpVel[2] += 0.1;
 		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, 20);
 	} else {
 		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = 2;

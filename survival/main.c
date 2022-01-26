@@ -70,7 +70,7 @@ const u8 UPGRADEABLE_WEAPONS[] = {
 
 char LocalPlayerStrBuffer[2][48];
 
-
+u8 * PlayerAlphaMods = (u8*)0x001D3FB0;
 int * LocalBoltCount = (int*)0x00171B40;
 
 int Initialized = 0;
@@ -404,7 +404,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
 	int i;
 	Player* p = State.PlayerStates[playerId].Player;
-	u8* localMods = (u8*)0x001D3FB0;
+	u8* localMods = PlayerAlphaMods + (0x12B0 * playerId);
 	if (!p)
 		return;
 
@@ -414,12 +414,11 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 
 	PlayerWeaponData* wepData = playerGetWeaponData(playerId);
 	playerGiveWeapon(p, weaponId, level);
-	if (p->IsLocal)
-		localMods[alphaMod]++;
 	wepData[weaponId].Level = level;
 	wepData[weaponId].Ammo = ((short (*)(PlayerWeaponData*, int))0x00626fb8)(wepData, weaponId);
 
 	if (p->IsLocal) {
+		localMods[alphaMod]++;
 		char* a = uiMsgString(0x2400);
 		sprintf(a, "Got %s", ALPHA_MODS[alphaMod]);
 		((void (*)(int, int, int))0x0054ea30)(p->LocalPlayerIndex, 0x2400, 0);
@@ -1101,7 +1100,8 @@ void initialize(void)
 	*(u32*)0x003FC5A8 = 0;
 
 	// clear alpha mods
-	memset((void*)0x001D3FB0, 0, 10);
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		memset(PlayerAlphaMods + (0x12B0 * i), 0, 10);
 
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);
@@ -1257,13 +1257,13 @@ void gameStart(void)
 	gfxScreenSpaceText(481, 281, 0.7, 0.7, 0x40000000, roundStr, -1, 1);
 	gfxScreenSpaceText(480, 280, 0.7, 0.7, 0x80E0E0E0, roundStr, -1, 1);
 	sprintf(buffer, "%d", State.RoundNumber + 1);
-	gfxScreenSpaceText(482, 292, 1, 1, 0x40000000, buffer, -1, 1);
-	gfxScreenSpaceText(481, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
+	gfxScreenSpaceText(481, 292, 1, 1, 0x40000000, buffer, -1, 1);
+	gfxScreenSpaceText(480, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
 	// draw number of mobs spawned
 	sprintf(buffer, "%d", State.RoundMobCount);
-	gfxScreenSpaceText(6, SCREEN_HEIGHT - 4, 1, 1, 0x40000000, buffer, -1, 6);
-	gfxScreenSpaceText(5, SCREEN_HEIGHT - 5, 1, 1, 0x80E0E0E0, buffer, -1, 6);
+	gfxScreenSpaceText(481, 267, 0.7, 0.7, 0x40000000, buffer, -1, 1);
+	gfxScreenSpaceText(480, 266, 0.7, 0.7, 0x80C0E0C0, buffer, -1, 1);
 
 	if (!State.GameOver)
 	{
