@@ -399,6 +399,58 @@ int getMinMobCost(void) {
 }
 
 //--------------------------------------------------------------------------
+void customBangelizeWeapons(Moby* weaponMoby, int weaponId, int weaponLevel)
+{
+	switch (weaponId)
+	{
+		case WEAPON_ID_VIPERS:
+		{
+			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? 0 : 1;
+			break;
+		}
+		case WEAPON_ID_MAGMA_CANNON:
+		{
+			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 4 : 3) : 0x31;
+			break;
+		}
+		case WEAPON_ID_ARBITER:
+		{
+			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 3 : 1) : 0xC;
+			break;
+		}
+		case WEAPON_ID_FUSION_RIFLE:
+		{
+			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 2 : 1) : 6;
+			break;
+		}
+		case WEAPON_ID_MINE_LAUNCHER:
+		{
+			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 0xC : 0) : 0xF;
+			break;
+		}
+		case WEAPON_ID_B6:
+		{
+			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 6 : 4) : 7;
+			break;
+		}
+		case WEAPON_ID_OMNI_SHIELD:
+		{
+			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 0xC : 1) : 0xF;
+			break;
+		}
+		case WEAPON_ID_FLAIL:
+		{
+			if (weaponMoby->PVar) {
+				weaponMoby = *(Moby**)((u32)weaponMoby->PVar + 0x33C);
+				if (weaponMoby)
+					weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 7 : 3) : 0x1F;
+			}
+			break;
+		}
+	}
+}
+
+//--------------------------------------------------------------------------
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
 	int i;
@@ -414,6 +466,8 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 	playerGiveWeapon(p, weaponId, level);
 	gBox->Gadgets[weaponId].Level = level;
 	gBox->Gadgets[weaponId].Ammo = ((short (*)(GadgetBox*, int))0x00626FB8)(gBox, weaponId);
+	if (p->GadgetMoby && p->WeaponSwitchLastWeaponHeldId == weaponId)
+		customBangelizeWeapons(p->GadgetMoby, weaponId, level);
 
 	if (p->IsLocal) {
 		gBox->ModBasic[alphaMod-1]++;
@@ -1099,6 +1153,9 @@ void initialize(void)
 	// Disable sniper shot corn
 	//*(u32*)0x003FC410 = 0;
 	*(u32*)0x003FC5A8 = 0;
+
+	// Change bangelize weapons call to ours
+	*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
 
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);

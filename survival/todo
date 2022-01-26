@@ -16,7 +16,7 @@ Add scoreboard showing number of kills per player
 ++Add # of spawned zombies to the bottom left
 ++Add ability to open weapons menu to move alpha mods around
 ++Fix fake mag upgrade giving money and giving mag
-++Disable mod pads
+Disable mod pads
 Change spawner to work in bursts
 Optimize network code
 ++Fix zombie getting stuck and respawning causing round to end if last one
@@ -24,3 +24,5 @@ Optimize network code
 ++Fix ammo being reset to v1 max ammo on upgrade
 Remove v10 child mines on other peoples screens
 Auto destruct v10 child mines after n seconds
+Add weapon level to equipped weapon hud string
+Fix silencer shots not spreading out in lock strafe and first person mode
