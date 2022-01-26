@@ -451,6 +451,32 @@ void customBangelizeWeapons(Moby* weaponMoby, int weaponId, int weaponLevel)
 }
 
 //--------------------------------------------------------------------------
+// TODO: Move this into the code segment, overwriting GuiMain_GetGadgetVersionName at (0x00541850)
+char * customGetGadgetVersionName(int localPlayerIndex, int weaponId, int showWeaponLevel, int capitalize, int minLevel)
+{
+	Player* p = playerGetFromSlot(localPlayerIndex);
+	char* buf = (char*)(0x2F9D78 + localPlayerIndex*0x40);
+	short* gadgetDef = ((short* (*)(int, int))0x00627f48)(weaponId, 0);
+	int level = 0;
+	int strIdOffset = capitalize ? 3 : 4;
+	if (p && p->GadgetBox) {
+		level = p->GadgetBox->Gadgets[weaponId].Level;
+	}
+
+	if (level >= 9)
+		strIdOffset = capitalize ? 12 : 10;
+
+	char* str = uiMsgString(gadgetDef[strIdOffset]);
+
+	if (level < 9 && level >= minLevel) {
+		sprintf(buf, "%s V%d", str, level+1);
+		return buf;
+	} else {
+		return str;
+	}
+}
+
+//--------------------------------------------------------------------------
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
 	int i;
@@ -1159,6 +1185,10 @@ void initialize(void)
 
 	// Change bangelize weapons call to ours
 	*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
+
+	// Enable weapon version and v10 name variant in places that display weapon name
+	*(u32*)0x00541850 = 0x08000000 | ((u32)&customGetGadgetVersionName >> 2);
+	*(u32*)0x00541854 = 0;
 
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);

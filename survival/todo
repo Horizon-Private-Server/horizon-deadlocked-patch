@@ -24,6 +24,5 @@ Optimize network code
 ++Fix ammo being reset to v1 max ammo on upgrade
 Remove v10 child mines on other peoples screens
 Auto destruct v10 child mines after n seconds
-Add weapon level to equipped weapon hud string
+++Add weapon level to equipped weapon hud string
 Fix silencer shots not spreading out in lock strafe and first person mode
-
