@@ -444,6 +444,7 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 void onPlayerRevive(int playerId)
 {
 	State.PlayerStates[playerId].IsDead = 0;
+	State.PlayerStates[playerId].State.TimesRevived++;
 	Player* player = State.PlayerStates[playerId].Player;
 	if (!player)
 		return;
@@ -453,14 +454,11 @@ void onPlayerRevive(int playerId)
 	vector_copy(deadPos, player->PlayerPosition);
 	vector_copy(deadRot, player->PlayerRotation);
 
-	// respawn and warp
-	//disableSetWeaponsOnRespawn();
-	//playerRespawn(player);
-	//enableSetWeaponsOnRespawn();
+	// respawn
 	PlayerVTable* vtable = playerGetVTable(player);
 	if (vtable)
 		vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
-	player->Health = 50;
+	playerSetHealth(player, 50);
 	playerSetPosRot(player, deadPos, deadRot);
 }
 
@@ -723,6 +721,7 @@ void processPlayer(int pIndex) {
 						// handle pad input
 						if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
 							playerData->State.Bolts -= cost;
+							playerData->State.Revives++;
 							playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
 							playerRevive(otherPlayer);
 						}
@@ -761,6 +760,7 @@ void onSetRoundComplete(int gameTime, int boltBonus)
 	// add bonus
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		State.PlayerStates[i].State.Bolts += boltBonus;
+		State.PlayerStates[i].State.TotalBolts += boltBonus;
 	}
 
 	respawnDeadPlayers();
@@ -1016,6 +1016,10 @@ void initialize(void)
 	// initialize player states
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		State.PlayerStates[i].State.Bolts = 0;
+		State.PlayerStates[i].State.TotalBolts = 0;
+		State.PlayerStates[i].State.Kills = 0;
+		State.PlayerStates[i].State.Revives = 0;
+		State.PlayerStates[i].State.TimesRevived = 0;
 		State.PlayerStates[i].Player = players[i];
 		State.PlayerStates[i].ActionCooldownTicks = 0;
 		State.PlayerStates[i].ReviveCooldownTicks = 0;

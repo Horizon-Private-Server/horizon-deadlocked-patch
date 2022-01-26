@@ -86,6 +86,7 @@ enum GameNetMessage
 struct SurvivalPlayerState
 {
 	int Bolts;
+	int TotalBolts;
 	int Kills;
 	int Revives;
 	int TimesRevived;

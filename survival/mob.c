@@ -17,7 +17,6 @@
 #define ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS    (60 * 2)
 #define ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS    (60 * 3)
 
-
 /* 
  * 
  */
@@ -60,8 +59,6 @@ u32 MobSecondaryColors[] = {
 	[MOB_GHOST] 	0x80202020,
 };
 
-struct MoveVars_V2 DefaultMoveVars;
-struct TargetVars DefaultTargetVars;
 extern struct SurvivalState State;
 
 GuberEvent* mobCreateEvent(Moby* moby, u32 eventType);
@@ -957,20 +954,25 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 #endif
 
 	// initialize target vars
-	memcpy(pvars->TargetVarsPtr, &DefaultTargetVars, sizeof(struct TargetVars));
 	pvars->TargetVars.hitPoints = pvars->MobVars.Health;
 	pvars->TargetVars.team = 10;
 	pvars->TargetVars.targetHeight = 1;
 
 	// initialize move vars
-	memcpy(pvars->MoveVarsPtr, &DefaultMoveVars, sizeof(struct MoveVars_V2));
+	mobyMoveSystemInit(moby);
+	mobySetMoveDistanceThresholds(moby, 0.5, 0.5, 1.0, 5.0);
+	mobySetMoveSpeedLimits(moby, 1, 1, 1/6.0, 1/6.0, 1/60.0, 1/60.0, 1/60.0);
+	mobySetMoveAngularSpeeds(moby, 0.00349066, 0.00349066, 0.20944);
 	pvars->MoveVars.groupCache = 0;
 	pvars->MoveVars.elv_state = 0;
 	pvars->MoveVars.slopeLimit = MATH_PI / 2;
 	pvars->MoveVars.maxStepUp = 2;
 	pvars->MoveVars.maxStepDown = 2;
-	pvars->MoveVars.linearAccel = 1;
-	pvars->MoveVars.linearDecel = 1;
+	pvars->MoveVars.flags |= 2;
+	pvars->MoveVars.boundArea = -1;
+	pvars->MoveVars.groundHotspot = -1;
+	mobySetAnimCache(moby, (void*)0x36f980, 0);
+	moby->ModeBits &= ~0x100;
 
 	// initialize react vars
 	pvars->ReactVars.acidDamage = 1.0;
@@ -1039,22 +1041,33 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		if (State.PlayerStates[i].Player && !playerIsDead(State.PlayerStates[i].Player)) {
 			State.PlayerStates[i].State.Bolts += pvars->MobVars.Config.Bolts;
+			State.PlayerStates[i].State.TotalBolts += pvars->MobVars.Config.Bolts;
 		}
 	}
 #else
-	if (killedByPlayerId >= 0)
+	if (killedByPlayerId >= 0) {
 		State.PlayerStates[(int)killedByPlayerId].State.Bolts += pvars->MobVars.Config.Bolts;
+		State.PlayerStates[(int)killedByPlayerId].State.TotalBolts += pvars->MobVars.Config.Bolts;
+	}
 #endif
 
-	if (killedByPlayerId >= 0 && weaponId > 1) {
-		int jackpotCount = 0;
-		PlayerWeaponData* pWep = playerGetWeaponData(killedByPlayerId);
-		for (i = 0; i < 10; ++i) {
-			if (pWep[(int)weaponId].AlphaMods[i] == ALPHA_MOD_JACKPOT)
-				++jackpotCount;
+	if (killedByPlayerId >= 0) {
+		struct SurvivalPlayerState* pState = &State.PlayerStates[(int)killedByPlayerId].State;
+		// handle weapon jackpot
+		if (weaponId > 1) {
+			int jackpotCount = 0;
+			PlayerWeaponData* pWep = playerGetWeaponData(killedByPlayerId);
+			for (i = 0; i < 10; ++i) {
+				if (pWep[(int)weaponId].AlphaMods[i] == ALPHA_MOD_JACKPOT)
+					++jackpotCount;
+			}
+
+			pState->Bolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
+			pState->TotalBolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
 		}
 
-		State.PlayerStates[(int)killedByPlayerId].State.Bolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
+		// handle kills
+		pState->Kills++;
 	}
 
 	// set colors before death so that the corn has the correct color
@@ -1268,17 +1281,7 @@ void mobInitialize(void)
 {
 	Moby* firstMoby = mobyGetFirst();
 
-	// set 
+	// set vtable callbacks
 	*(u32*)0x003A0A84 = (u32)&mobGetGuber;
 	*(u32*)0x003A0A94 = (u32)&mobHandleEvent;
-
-	// spawn sheep so we can get the default movevars
-	Moby * moby = ((Moby* (*)(Moby*, int ,int))0x003a5cd8)(firstMoby, 0, -1);
-	if (moby) {
-		struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-		memcpy(&DefaultMoveVars, pvars->MoveVarsPtr, sizeof(struct MoveVars_V2));
-		memcpy(&DefaultTargetVars, pvars->TargetVarsPtr, sizeof(struct TargetVars));
-		DefaultMoveVars.pGroundMoby = NULL;
-		mobyDestroy(moby);
-	}
 }
