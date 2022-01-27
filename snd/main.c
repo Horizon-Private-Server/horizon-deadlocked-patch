@@ -884,8 +884,9 @@ void onSetBombOutcome(int nodeIndex, int team, int gameTime)
 			if (p && p->Player && p->IsBombCarrier)
 			{
 				p->IsBombCarrier = 0;
-				PlayerWeaponData * wepData = playerGetWeaponData(i);
-				wepData[WEAPON_ID_HACKER_RAY].Level = -1;
+				GadgetBox* gBox = p->Player->GadgetBox;
+				if (gBox)
+					gBox->Gadgets[WEAPON_ID_HACKER_RAY].Level = -1;
 
 				// unequip hacker ray if equipped
 				if (p->Player->WeaponHeldGun == WEAPON_ID_HACKER_RAY)
@@ -1091,8 +1092,9 @@ void resetRoundState(void)
 				spawnPlayer(player, AttackTeamSpawnPoint);
 
 				// remove hacker ray from attackers
-				PlayerWeaponData * wepData = playerGetWeaponData(player->PlayerId);
-				wepData[WEAPON_ID_HACKER_RAY].Level = -1;
+				GadgetBox* gBox = player->GadgetBox;
+				if (gBox)
+					gBox->Gadgets[WEAPON_ID_HACKER_RAY].Level = -1;
 			}
 			else
 			{
@@ -1267,6 +1269,14 @@ void initialize(void)
 	// Overwrite 'you picked up a weapon pack' string to pickup bomb message
 	replaceString(0x2331, SND_BOMB_YOU_PICKED_UP);
 
+	// 
+	static int delayStart = 60 * 1;
+	if (delayStart > 0)
+	{
+		--delayStart;
+		return;
+	}
+
 	// Initialize scoreboard
 	for (i = 0; i < 2; ++i)
 	{
@@ -1366,8 +1376,10 @@ void gameStart(void)
 
 	// Initialize if not yet initialized
 	if (!Initialized)
+	{
 		initialize();
-
+		return;
+	}
 
 #if DEBUG
 	if (!SNDState.GameOver && padGetButton(0, PAD_L3 | PAD_R3) > 0)

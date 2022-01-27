@@ -185,24 +185,24 @@ void sortScoreboard(int dontLockLocal)
  * 
  * ARGS : 
  * 		player			:		Target player's player object.
- * 		wepData 		:		Target player's weapon data.
  * 		weaponId 		:		Target weapon id to set.
  * 
  * RETURN :
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void setWeapon(Player * player, PlayerWeaponData * wepData, int weaponId)
+void setWeapon(Player * player, int weaponId)
 {
+	GadgetBox* gBox = player->GadgetBox;
 	// Give
-	if (wepData[weaponId].Level < 0)
+	if (gBox->Gadgets[weaponId].Level < 0)
 	{
 		playerGiveWeapon(player, weaponId, 0);
-		wepData[weaponId].Level = 0;
+		gBox->Gadgets[weaponId].Level = 0;
 	}
 
 	// Set alpha mods
-	memcpy(&wepData[weaponId].AlphaMods, &WeaponModStates[weaponId].Alpha, 10 * sizeof(int));
+	memcpy(&gBox->Gadgets[weaponId].AlphaMods, &WeaponModStates[weaponId].Alpha, 10 * sizeof(int));
 }
 
 /*
@@ -335,7 +335,6 @@ void processPlayer(Player * player)
 	char activeGunSlotId = GunGameWeaponIds[playerState->GunIndex];
 	char activeGunId = weaponSlotToId(activeGunSlotId);
 	PlayerWeaponStats * playerWepStats = gameGetPlayerWeaponStats();
-	PlayerWeaponData * playerWeaponData = NULL;
 
 	// If player has reached end then game over
 	if (playerState->GunIndex >= GUN_INDEX_END)
@@ -350,15 +349,14 @@ void processPlayer(Player * player)
 		playerState->GunIndex = 0;
 
 	// Enable all weapons
-	playerWeaponData = playerGetWeaponData(playerId);
-	setWeapon(player, playerWeaponData, WEAPON_ID_VIPERS);
-	setWeapon(player, playerWeaponData, WEAPON_ID_MAGMA_CANNON);
-	setWeapon(player, playerWeaponData, WEAPON_ID_ARBITER);
-	setWeapon(player, playerWeaponData, WEAPON_ID_FUSION_RIFLE);
-	setWeapon(player, playerWeaponData, WEAPON_ID_MINE_LAUNCHER);
-	setWeapon(player, playerWeaponData, WEAPON_ID_B6);
-	setWeapon(player, playerWeaponData, WEAPON_ID_OMNI_SHIELD);
-	setWeapon(player, playerWeaponData, WEAPON_ID_FLAIL);
+	setWeapon(player, WEAPON_ID_VIPERS);
+	setWeapon(player, WEAPON_ID_MAGMA_CANNON);
+	setWeapon(player, WEAPON_ID_ARBITER);
+	setWeapon(player, WEAPON_ID_FUSION_RIFLE);
+	setWeapon(player, WEAPON_ID_MINE_LAUNCHER);
+	setWeapon(player, WEAPON_ID_B6);
+	setWeapon(player, WEAPON_ID_OMNI_SHIELD);
+	setWeapon(player, WEAPON_ID_FLAIL);
 
 	// Only allow swingshot, wrench and active gun
 	if (player->WeaponHeldId != WEAPON_ID_WRENCH &&

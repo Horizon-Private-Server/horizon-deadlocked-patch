@@ -488,7 +488,7 @@ void resetRoundState(void)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
-	PlayerWeaponData * pWeapon = NULL;
+	GadgetBox* gBox = NULL;
 	int gameTime = gameGetTime();
 	int i = 0;
 	VECTOR pos = {0,0,0,0}, rot = {0,0,0,0};
@@ -568,18 +568,18 @@ void resetRoundState(void)
 			p->PlayerMoby->ModeBits |= 0x4000;
 
 			// remove weapons
-			pWeapon = playerGetWeaponData(i);
-			if (pWeapon)
+			gBox = p->GadgetBox;
+			if (gBox)
 			{
-				pWeapon[WEAPON_ID_WRENCH].Level = -1;
-				pWeapon[WEAPON_ID_VIPERS].Level = -1;
-				pWeapon[WEAPON_ID_MAGMA_CANNON].Level = -1;
-				pWeapon[WEAPON_ID_ARBITER].Level = -1;
-				pWeapon[WEAPON_ID_B6].Level = -1;
-				pWeapon[WEAPON_ID_FUSION_RIFLE].Level = -1;
-				pWeapon[WEAPON_ID_MINE_LAUNCHER].Level = -1;
-				pWeapon[WEAPON_ID_FLAIL].Level = -1;
-				pWeapon[WEAPON_ID_OMNI_SHIELD].Level = -1;
+				gBox->Gadgets[WEAPON_ID_WRENCH].Level = -1;
+				gBox->Gadgets[WEAPON_ID_VIPERS].Level = -1;
+				gBox->Gadgets[WEAPON_ID_MAGMA_CANNON].Level = -1;
+				gBox->Gadgets[WEAPON_ID_ARBITER].Level = -1;
+				gBox->Gadgets[WEAPON_ID_B6].Level = -1;
+				gBox->Gadgets[WEAPON_ID_FUSION_RIFLE].Level = -1;
+				gBox->Gadgets[WEAPON_ID_MINE_LAUNCHER].Level = -1;
+				gBox->Gadgets[WEAPON_ID_FLAIL].Level = -1;
+				gBox->Gadgets[WEAPON_ID_OMNI_SHIELD].Level = -1;
 			}
 			
 			if (playerIsLocal(p))
