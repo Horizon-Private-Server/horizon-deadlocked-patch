@@ -1183,6 +1183,9 @@ void initialize(void)
 	//*(u32*)0x003FC410 = 0;
 	*(u32*)0x003FC5A8 = 0;
 
+	// Fix v10 arb overlapping shots
+	*(u32*)0x003F2E70 = 0x24020000;
+
 	// Change bangelize weapons call to ours
 	*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
 
