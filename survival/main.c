@@ -39,11 +39,11 @@
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
-const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1c   start round";
+const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1c   Start Round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
-const char * SURVIVAL_REVIVE_MESSAGE = "\x11 revive [\x0E%d\x08]";
-const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 upgrade [\x0E%d\x08]";
-const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 manage mods";
+const char * SURVIVAL_REVIVE_MESSAGE = "\x11 Revive [\x0E%d\x08]";
+const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
+const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
 
 const char * ALPHA_MODS[] = {
 	"",
@@ -443,7 +443,7 @@ void customBangelizeWeapons(Moby* weaponMoby, int weaponId, int weaponLevel)
 			if (weaponMoby->PVar) {
 				weaponMoby = *(Moby**)((u32)weaponMoby->PVar + 0x33C);
 				if (weaponMoby)
-					weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 7 : 3) : 0x1F;
+					weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 3 : 1) : 0x1F;
 			}
 			break;
 		}
@@ -883,7 +883,7 @@ void processPlayer(int pIndex) {
 
 			// check distance
 			vector_subtract(t, player->PlayerPosition, State.BigAl->Position);
-			if (vector_sqrmag(t) < (WEAPON_VENDOR_MAX_DIST * WEAPON_VENDOR_MAX_DIST)) {
+			if (vector_sqrmag(t) < (BIG_AL_MAX_DIST * BIG_AL_MAX_DIST)) {
 				
 				// draw help popup
 				uiShowPopup(localPlayerIndex, SURVIVAL_OPEN_WEAPONS_MESSAGE);
@@ -1553,7 +1553,7 @@ void setLobbyGameOptions(void)
 	//
 	GameSettings * gameSettings = gameGetSettings();
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		if (gameSettings->PlayerTeams[i] > 0)
+		if (gameSettings->PlayerClients[i] >= 0)
 			gameSettings->PlayerTeams[i] = 0;
 
 	// set game options

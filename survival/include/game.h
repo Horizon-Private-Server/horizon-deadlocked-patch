@@ -51,7 +51,7 @@
 #define ZOMBIE_BASE_EXPLODE_RADIUS						(5)
 #define ZOMBIE_MELEE_HIT_RADIUS								(1)
 #define ZOMBIE_EXPLODE_HIT_RADIUS							(5)
-#define ZOMBIE_MELEE_ATTACK_RADIUS						(3)
+#define ZOMBIE_MELEE_ATTACK_RADIUS						(2.5)
 
 #define MOB_CORN_LIFETIME_TICKS								(60 * 3)
 #define MOB_CORN_MAX_ON_SCREEN								(15)
@@ -69,6 +69,7 @@
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
 #define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
 
+#define BIG_AL_MAX_DIST												(5)
 #define WEAPON_VENDOR_MAX_DIST								(3)
 #define WEAPON_UPGRADE_COOLDOWN_TICKS					(60)
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)

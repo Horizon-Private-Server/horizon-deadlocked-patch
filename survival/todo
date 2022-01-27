@@ -11,7 +11,7 @@ Have locals share bolts
 ++Refill ammo on upgrade
 ++Add revive cooldown to prevent paying twice on circle spam
 ++increase attack radius of zombies so they dont trap you
-Add scoreboard showing number of kills per player
+--Add scoreboard showing number of kills per player
 ++Change round counter to singleplayer one
 ++Add # of spawned zombies to the bottom left
 ++Add ability to open weapons menu to move alpha mods around
@@ -27,3 +27,8 @@ Optimize network code
 ++Add weapon level to equipped weapon hud string
 ++Fix silencer shots not spreading out in lock strafe and first person mode
 Fix playing with locals breaking vendor/al spawns
+Add end game scoreboard with kills/bolts/deaths/revives
+Animate vendor for when you get near the it
+Send mutators to everyone at start of each round (in case host leaves midgame)
+Add knockback for impact mod
+Fix zombies flying across air when step skip is on
