@@ -21,6 +21,7 @@
 #include "module.h"
 #include "messageid.h"
 #include "config.h"
+#include "include/config.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
 #include <libdl/stdio.h>
@@ -120,10 +121,13 @@ int hasInstalledExceptionHandler = 0;
 int lastSurvivor = 0;
 int lastRespawnTime = 5;
 int lastCrazyMode = 0;
+char mapOverrideResponse = 1;
+char showNoMapPopup = 0;
 const char * patchConfigStr = "PATCH CONFIG";
 
 extern float _lodScale;
 extern void* _correctTieLod;
+extern MenuElem_ListData_t dataCustomMaps;
 
 typedef struct ChangeTeamRequest {
 	u32 Seed;
@@ -744,7 +748,7 @@ void runSendGameUpdate(void)
 }
 
 /*
- * NAME :		runGameStartMessager
+ * NAME :		runEnableSingleplayerMusic
  * 
  * DESCRIPTION :
  * 
@@ -920,7 +924,7 @@ void runGameStartMessager(void)
 		if (!sentGameStart && gameSettings->GameLoadStartTime > 0)
 		{
 			// check if host
-			if (*(u8*)0x00172170 == 0)
+			if (gameAmIHost())
 			{
 				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
 			}
@@ -1159,6 +1163,61 @@ void runFpsCounter(void)
 	{			
 		snprintf(buf, 16, "%.2f", lastFps);
 		gfxScreenSpaceText(SCREEN_WIDTH - 5, 5, 0.75, 0.75, 0x80FFFFFF, buf, -1, 2);
+	}
+}
+
+int hookCheckHostStartGame(void* a0)
+{
+	// call base
+	int v0 = ((int (*)(void*))0x00757660)(a0);
+
+	if (v0 && mapOverrideResponse < 0)
+	{
+		v0 = 0;
+		showNoMapPopup = 1;
+		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+	}
+
+	return v0;
+}
+
+/*
+ * NAME :		runCheckGameMapInstalled
+ * 
+ * DESCRIPTION :
+ * 
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runCheckGameMapInstalled(void)
+{
+	int i;
+	GameSettings* gs = gameGetSettings();
+	if (!gs || gameIsIn())
+		return;
+
+	// install start game hook
+	if (*(u32*)0x00759580 == 0x0C1D5D98)
+		*(u32*)0x00759580 = 0x0C000000 | ((u32)&hookCheckHostStartGame >> 2);
+
+	int clientId = gameGetMyClientId();
+	if (mapOverrideResponse < 0)
+	{
+		for (i = 1; i < GAME_MAX_PLAYERS; ++i)
+		{
+			if (gs->PlayerClients[i] == clientId && gs->PlayerStates[i] == 6)
+			{
+				gameSetClientState(i, 0);
+				showNoMapPopup = 1;
+				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+			}
+		}
 	}
 }
 
@@ -1430,6 +1489,23 @@ void onOnlineMenu(void)
 
 	// settings
 	onConfigOnlineMenu();
+
+	// 
+	if (showNoMapPopup)
+	{
+		if (mapOverrideResponse == -1)
+		{
+			uiShowOkDialog("Custom Maps", "You have not installed the map modules.");
+		}
+		else
+		{
+			char buf[32];
+			sprintf(buf, "Please install %s to play.", dataCustomMaps.items[gameConfig.customMapId]);
+			uiShowOkDialog("Custom Maps", buf);
+		}
+
+		showNoMapPopup = 0;
+	}
 }
 
 /*
@@ -1492,6 +1568,9 @@ int main (void)
 
 	// Run map loader
 	runMapLoader();
+
+	// 
+	runCheckGameMapInstalled();
 
 	// Run game start messager
 	runGameStartMessager();

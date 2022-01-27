@@ -82,6 +82,11 @@ enum CustomMessageId
     CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE = 11,
 
     /*
+     * Client requests server to sent current map override info.
+     */
+    CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE = 12,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,

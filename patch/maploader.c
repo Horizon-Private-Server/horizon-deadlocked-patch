@@ -57,6 +57,8 @@ extern struct MenuElem_ListData dataCustomMaps;
 extern char dataCustomMapsWithExclusiveGameMode[];
 extern const int dataCustomMapsWithExclusiveGameModeCount;
 
+extern char mapOverrideResponse;
+
 enum MenuActionId
 {
 	ACTION_ERROR_LOADING_MODULES = -1,
@@ -130,6 +132,7 @@ int onSetMapOverride(void * connection, void * data)
 	{
 		State.Enabled = 0;
 		State.CheckState = 0;
+		mapOverrideResponse = 1;
 	}
 	else
 	{
@@ -151,6 +154,7 @@ int onSetMapOverride(void * connection, void * data)
 		{
 			State.Enabled = 1;
 			State.CheckState = 0;
+			mapOverrideResponse = version;
 			State.MapId = payload->MapId;
 			State.LoadingFd = -1;
 			State.LoadingFileSize = -1;
@@ -160,6 +164,7 @@ int onSetMapOverride(void * connection, void * data)
 		else
 		{
 			State.Enabled = 0;
+			mapOverrideResponse = version;
 		}
 	}
 
@@ -210,6 +215,10 @@ int onServerSentMapIrxModules(void * connection, void * data)
 		}
 		
 		DPRINTF("local maps version %d || remote maps version %d\n", localVersion, remoteVersion);
+
+		// if in game, ask server to resend map override to use
+		if (gameGetSettings())
+			netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
 	}
 
 	return sizeof(MapServerSentModulesMessage);
