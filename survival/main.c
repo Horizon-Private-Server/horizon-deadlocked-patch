@@ -477,6 +477,38 @@ char * customGetGadgetVersionName(int localPlayerIndex, int weaponId, int showWe
 }
 
 //--------------------------------------------------------------------------
+void customMineMobyUpdate(Moby* moby)
+{
+	// handle auto destructing v10 child mines after N seconds
+	// and auto destroy v10 child mines if they came from a remote client
+	u32 pvar = (u32)moby->PVar;
+	if (pvar) {
+		int mLayer = *(int*)(pvar + 0x200);
+		Player * p = playerGetAll()[*(short*)(pvar + 0xC0)];
+		int createdLocally = p && p->IsLocal;
+		int gameTime = gameGetTime();
+		int timeCreated = *(int*)(&moby->Rotation[3]);
+
+		// set initial time created
+		if (timeCreated == 0) {
+			timeCreated = gameTime;
+			*(int*)(&moby->Rotation[3]) = timeCreated;
+		}
+
+		// don't spawn child mines if mine was created by remote client
+		if (!createdLocally) {
+			*(int*)(pvar + 0x200) = 2;
+		} else if (p && mLayer > 0 && (gameTime - timeCreated) > (5 * TIME_SECOND)) {
+			*(int*)(&moby->Rotation[3]) = gameTime;
+			((void (*)(Moby*, Player*, int))0x003C90C0)(moby, p, 0);
+		}
+	}
+	
+	// call base
+	((void (*)(Moby*))0x003C6C28)(moby);
+}
+
+//--------------------------------------------------------------------------
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
 	int i;
@@ -1185,6 +1217,9 @@ void initialize(void)
 
 	// Fix v10 arb overlapping shots
 	*(u32*)0x003F2E70 = 0x24020000;
+
+	// Change mine update function to ours
+	*(u32*)0x002499D4 = &customMineMobyUpdate;
 
 	// Change bangelize weapons call to ours
 	*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
