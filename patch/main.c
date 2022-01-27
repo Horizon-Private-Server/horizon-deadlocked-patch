@@ -1325,6 +1325,69 @@ int onSetTeams(void * connection, void * data)
 }
 
 /*
+ */
+#if SCR_PRINT
+
+#define SCRPRINT_RINGSIZE (32)
+#define SCRPRINT_BUFSIZE  (96)
+int scrPrintTop = 0, scrPrintBottom = 0;
+int scrPrintStepTicker = 60 * 5;
+char scrPrintRingBuf[SCRPRINT_RINGSIZE][SCRPRINT_BUFSIZE];
+
+int scrPrintHook(int fd, char* buf, int len)
+{
+	// add to our ring buf
+	int n = len < SCRPRINT_BUFSIZE ? len : SCRPRINT_BUFSIZE;
+	memcpy(scrPrintRingBuf[scrPrintTop], buf, n);
+	scrPrintRingBuf[scrPrintTop][n] = 0;
+	scrPrintTop = (scrPrintTop + 1) % SCRPRINT_RINGSIZE;
+
+	// loop bottom to end of ring
+	if (scrPrintBottom == scrPrintTop)
+		scrPrintBottom = (scrPrintTop + 1) % SCRPRINT_RINGSIZE;
+
+	return ((int (*)(int, char*, int))0x00127168)(fd, buf, len);
+}
+
+void handleScrPrint(void)
+{
+	int i = scrPrintTop;
+	float x = 15, y = SCREEN_HEIGHT - 15;
+
+	// hook
+	*(u32*)0x00123D38 = 0x0C000000 | ((u32)&scrPrintHook >> 2);
+
+	if (scrPrintTop != scrPrintBottom)
+	{
+		// draw
+		do
+		{
+			i--;
+			if (i < 0)
+				i = SCRPRINT_RINGSIZE - 1;
+
+			gfxScreenSpaceText(x+1, y+1, 0.7, 0.7, 0x80000000, scrPrintRingBuf[i], -1, 0);
+			gfxScreenSpaceText(x, y, 0.7, 0.7, 0x80FFFFFF, scrPrintRingBuf[i], -1, 0);
+
+			y -= 12;
+		}
+		while (i != scrPrintBottom);
+
+		// move bottom to top
+		if (scrPrintStepTicker == 0)
+		{
+			scrPrintBottom = (scrPrintBottom + 1) % SCRPRINT_RINGSIZE;
+			scrPrintStepTicker = 60 * 5;
+		}
+		else
+		{
+			scrPrintStepTicker--;
+		}
+	}
+}
+#endif
+
+/*
  * NAME :		onOnlineMenu
  * 
  * DESCRIPTION :
@@ -1418,6 +1481,11 @@ int main (void)
 			*(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F8) = 0x2278;
 		}
 	}
+
+	
+#if SCR_PRINT
+	handleScrPrint();
+#endif
 
 	// install net handlers
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_REQUEST_TEAM_CHANGE, &onSetTeams);
