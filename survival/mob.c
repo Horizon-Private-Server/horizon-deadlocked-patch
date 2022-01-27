@@ -811,8 +811,7 @@ void mobUpdate(Moby* moby)
 
 	// move system update
 	if (moveStepCooldownTicks == 0) {
-		if (pvars->MobVars.HasSpeed)
-			mobyMoveSystemUpdate(moby);
+		mobyMoveSystemUpdate(moby);
 		pvars->MobVars.MoveStepCooldownTicks = pvars->MobVars.MoveStep;
 	}
 

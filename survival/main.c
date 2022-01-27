@@ -1391,8 +1391,8 @@ void gameStart(void)
 
 	// draw number of mobs spawned
 	sprintf(buffer, "%d", State.RoundMobCount);
-	gfxScreenSpaceText(481, 267, 0.7, 0.7, 0x40000000, buffer, -1, 1);
-	gfxScreenSpaceText(480, 266, 0.7, 0.7, 0x80C0E0C0, buffer, -1, 1);
+	gfxScreenSpaceText(481, 58, 1, 1, 0x40000000, buffer, -1, 1);
+	gfxScreenSpaceText(480, 57, 1, 1, 0x80B0B0E0, buffer, -1, 1);
 
 	if (!State.GameOver)
 	{

@@ -26,3 +26,4 @@ Optimize network code
 ++Auto destruct v10 child mines after n seconds
 ++Add weapon level to equipped weapon hud string
 ++Fix silencer shots not spreading out in lock strafe and first person mode
+Fix playing with locals breaking vendor/al spawns
