@@ -786,9 +786,9 @@ void gameStart(void)
 			continue;
 
 		if (!playerIsDead(p))
-			p->Health = PLAYER_MAX_HEALTH;
+			playerSetHealth(p, PLAYER_MAX_HEALTH);
 		else
-			p->Health = 0;
+			playerSetHealth(p, 0);
 	}
 
 	// 

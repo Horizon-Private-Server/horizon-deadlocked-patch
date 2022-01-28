@@ -201,7 +201,7 @@ void vampireLogic(GameModule * module, float healRate)
 			// Try to heal if player exists
 			player = playerObjects[i];
 			if (player)
-				player->Health = clamp(player->Health + healRate, 0, PLAYER_MAX_HEALTH);
+				playerSetHealth(player, clamp(player->Health + healRate, 0, PLAYER_MAX_HEALTH));
 			
 			// Update our cached kills count
 			PlayerKills[i] = stats->Kills[i];

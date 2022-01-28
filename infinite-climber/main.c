@@ -651,12 +651,12 @@ void gameStart(void)
 		// kill or give health
 		if (p->PlayerPosition[2] <= (WaterHeight - 0.5))
 		{
-			p->Health = 0;
+			playerSetHealth(p, 0);
 			State.TimePlayerDied[i] = gameGetTime();
 		}
 		else
 		{
-			p->Health = PLAYER_MAX_HEALTH;
+			playerSetHealth(p, PLAYER_MAX_HEALTH);
 		}
 	}
 
