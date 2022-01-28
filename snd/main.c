@@ -1372,7 +1372,7 @@ void gameStart(void)
 		return;
 
 	// Determine if host
-	SNDState.IsHost = gameIsHost(localPlayer->Guber.Id.GID.HostId);
+	SNDState.IsHost = gameAmIHost(); // gameIsHost(localPlayer->Guber.Id.GID.HostId);
 
 	// Initialize if not yet initialized
 	if (!Initialized)
