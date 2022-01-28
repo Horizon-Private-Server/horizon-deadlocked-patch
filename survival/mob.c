@@ -708,7 +708,11 @@ void mobHandleDraw(Moby* moby)
 		pvars->MobVars.MoveStep = 1;
 
 	pvars->MoveVars.runSpeed = 0.20 * pvars->MobVars.MoveStep;
-	//pvars->MoveVars.gravity = 20 * pvars->MobVars.MoveStep;
+	pvars->MoveVars.flySpeed = 0.20 * pvars->MobVars.MoveStep;
+	pvars->MoveVars.angularAccel = 0.00349066 * pvars->MobVars.MoveStep;
+	pvars->MoveVars.angularDecel = 0.00349066 * pvars->MobVars.MoveStep;
+	pvars->MoveVars.angularLimit = 0.20 * pvars->MobVars.MoveStep;
+	pvars->MoveVars.gravity = 20 * pvars->MobVars.MoveStep;
 }
 
 void mobUpdate(Moby* moby)
