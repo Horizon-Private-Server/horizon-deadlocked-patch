@@ -767,7 +767,7 @@ void processPlayer(int pIndex) {
 	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
 	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
 	int reviveCooldownTicks = decTimerU16(&playerData->ReviveCooldownTicks);
-	if (playerData->IsDead && reviveCooldownTicks > 0) {
+	if (playerData->IsDead && reviveCooldownTicks > 0 && playerGetNumLocals() == 1) {
 
 		int x,y;
 		VECTOR pos = {0,0,1,0};
@@ -1135,15 +1135,9 @@ void randomizeWeaponPickups(void)
 //--------------------------------------------------------------------------
 Moby* FindMobyOrSpawnBox(int oclass, int defaultToSpawnpointId)
 {
-	Moby* m = NULL;
-	
 	// find
-	if (oclass > 0) {
-		m = mobyGetFirst();	
-		while (m && m->OClass != oclass)
-			m = m->PChain;
-	}
-
+	Moby* m = mobyFindNextByOClass(mobyListGetStart(), oclass);
+	
 	// if can't find moby then just spawn a beta box at a spawn point
 	if (!m) {
 		SpawnPoint* sp = spawnPointGet(defaultToSpawnpointId);

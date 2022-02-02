@@ -357,10 +357,10 @@ void findFlagBases(void)
 	GridironState.Base[1] = 0;
 	int count = 0;
 
-	Moby* moby = mobyGetFirst();
-	while (moby)
+	Moby* moby = mobyListGetStart();
+	while ((moby = mobyFindNextByOClass(moby, 0x266E)))
 	{
-		if (moby->OClass == 0x266E && (moby->ModeBits & 0xFF) == 0x14)
+		if ((moby->ModeBits & 0xFF) == 0x14)
 		{
 			void * pvars = moby->PVar;
 			int team = -1;
@@ -375,7 +375,7 @@ void findFlagBases(void)
 			}
 		}
 
-		moby = moby->PChain;
+		++moby;
 	}
 }
 
@@ -427,23 +427,26 @@ void initialize(void)
 	*(u32*)0x00417EB0 = 0;
 
 	// find and hide flags
-	Moby * moby = mobyGetFirst();
+	Moby * moby = mobyListGetStart();
 	while (moby)
 	{
-		switch (moby->OClass)
+		if (!mobyIsDestroyed(moby))
 		{
-			case MOBY_ID_BLUE_FLAG:
-			case MOBY_ID_RED_FLAG:
-			case MOBY_ID_GREEN_FLAG:
-			case MOBY_ID_ORANGE_FLAG:
+			switch (moby->OClass)
 			{
-				// disables the rendering of
-				moby->ModeBits |= 1;
-				break;
+				case MOBY_ID_BLUE_FLAG:
+				case MOBY_ID_RED_FLAG:
+				case MOBY_ID_GREEN_FLAG:
+				case MOBY_ID_ORANGE_FLAG:
+				{
+					// disables the rendering of
+					moby->ModeBits |= 1;
+					break;
+				}
 			}
 		}
 
-		moby = moby->PChain;
+		++moby;
 	}
 
 	// Initialize players

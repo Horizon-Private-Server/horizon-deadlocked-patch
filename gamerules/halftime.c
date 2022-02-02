@@ -78,7 +78,7 @@ void htReset(void)
  */
 void getFlags(void)
 {
-	Moby * moby = mobyGetFirst();
+	Moby * moby = mobyListGetStart();
 
 	// reset
 	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
@@ -86,15 +86,16 @@ void getFlags(void)
 	// grab flags
 	while (moby)
 	{
-		if (moby->OClass == MOBY_ID_BLUE_FLAG ||
+		if (!mobyIsDestroyed(moby) &&
+		 (moby->OClass == MOBY_ID_BLUE_FLAG ||
 			moby->OClass == MOBY_ID_RED_FLAG ||
 			moby->OClass == MOBY_ID_GREEN_FLAG ||
-			moby->OClass == MOBY_ID_ORANGE_FLAG)
+			moby->OClass == MOBY_ID_ORANGE_FLAG))
 		{
 			CtfFlags[*(u16*)(moby->PVar + 0x14)] = moby;
 		}
 
-		moby = moby->PChain;
+		++moby;
 	}
 }
 

@@ -1305,8 +1305,6 @@ int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
 
 void mobInitialize(void)
 {
-	Moby* firstMoby = mobyGetFirst();
-
 	// set vtable callbacks
 	*(u32*)0x003A0A84 = (u32)&mobGetGuber;
 	*(u32*)0x003A0A94 = (u32)&mobHandleEvent;

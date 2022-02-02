@@ -299,11 +299,11 @@ struct ClimbChain * GetFreeChain(void)
 
 void DestroyOld(void)
 {
-	Moby * moby = mobyGetFirst();
+	Moby * moby = mobyListGetStart();
 
 	while (moby)
 	{
-		if (moby->Opacity == 0x7E)
+		if (!mobyIsDestroyed(moby) && moby->Opacity == 0x7E)
 		{
 			if (moby->Position[2] < WaterHeight)
 			{
@@ -313,7 +313,7 @@ void DestroyOld(void)
 			}
 		}
 
-		moby = moby->PChain;
+		++moby;
 	}
 }
 
@@ -456,9 +456,7 @@ void initialize(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0xFF;
 
 	// get water moby
-	WaterMoby = mobyGetFirst(); // big assumption here, could be a problem
-	while (WaterMoby && WaterMoby->OClass != MOBY_ID_WATER)
-		WaterMoby = WaterMoby->PChain;
+	WaterMoby = mobyFindNextByOClass(mobyListGetStart(), MOBY_ID_WATER);
 	if (!WaterMoby)
 		return;
 	DPRINTF("water: %08X\n", (u32)WaterMoby);

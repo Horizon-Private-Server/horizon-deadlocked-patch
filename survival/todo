@@ -26,10 +26,11 @@ Optimize network code
 ++Auto destruct v10 child mines after n seconds
 ++Add weapon level to equipped weapon hud string
 ++Fix silencer shots not spreading out in lock strafe and first person mode
-Fix playing with locals breaking vendor/al spawns
+++Fix playing with locals breaking vendor/al spawns
 Add end game scoreboard with kills/bolts/deaths/revives
 Animate vendor for when you get near the it
 Send mutators to everyone at start of each round (in case host leaves midgame)
 ++Add knockback for impact mod
 ++Fix zombies flying across air when step skip is on
 Add grace period between rounds
+Improve mob distance based drawing
