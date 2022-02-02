@@ -693,6 +693,33 @@ void setPlayerWeaponMods(Player* player, int weaponId, int* mods)
 }
 
 //--------------------------------------------------------------------------
+void onSetPlayerStats(int playerId, struct SurvivalPlayerState* stats)
+{
+	memcpy(&State.PlayerStates[playerId].State, stats, sizeof(struct SurvivalPlayerState));
+}
+
+//--------------------------------------------------------------------------
+int onSetPlayerStatsRemote(void * connection, void * data)
+{
+	SurvivalSetPlayerStatsMessage_t * message = (SurvivalSetPlayerStatsMessage_t*)data;
+	onSetPlayerStats(message->PlayerId, &message->Stats);
+
+	return sizeof(SurvivalSetPlayerStatsMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void sendPlayerStats(int playerId)
+{
+	int i;
+	SurvivalSetPlayerStatsMessage_t message;
+
+	// send out
+	message.PlayerId = playerId;
+	memcpy(&message.Stats, &State.PlayerStates[playerId].State, sizeof(struct SurvivalPlayerState));
+	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SurvivalSetPlayerStatsMessage_t), &message);
+}
+
+//--------------------------------------------------------------------------
 int canUpgradeWeapon(Player * player, enum WEAPON_IDS weaponId) {
 	if (!player)
 		return 0;
@@ -1233,6 +1260,7 @@ void initialize(void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_REVIVE_PLAYER, &onPlayerReviveRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_DIED, &onSetPlayerDeadRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_WEAPON_MODS, &onSetPlayerWeaponModsRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_STATS, &onSetPlayerStatsRemote);
 
 	// set game over string (replaces "Draw!")
 	strncpy((char*)0x015A00AA, SURVIVAL_GAME_OVER, 12);
@@ -1265,22 +1293,30 @@ void initialize(void)
 
 	// initialize player states
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		Player * p = players[i];
 		State.PlayerStates[i].State.Bolts = 0;
 		State.PlayerStates[i].State.TotalBolts = 0;
 		State.PlayerStates[i].State.Kills = 0;
 		State.PlayerStates[i].State.Revives = 0;
 		State.PlayerStates[i].State.TimesRevived = 0;
-		State.PlayerStates[i].Player = players[i];
+		State.PlayerStates[i].Player = p;
 		State.PlayerStates[i].ActionCooldownTicks = 0;
 		State.PlayerStates[i].ReviveCooldownTicks = 0;
 		State.PlayerStates[i].MessageCooldownTicks = 0;
 		State.PlayerStates[i].IsDead = 0;
 		State.PlayerStates[i].MinSqrDistFromMob = 0;
 		State.PlayerStates[i].MaxSqrDistFromMob = 0;
+		State.PlayerStates[i].IsLocal = 0;
 
-		// clear alpha mods
-		if (players[i] && players[i]->GadgetBox)
-			memset(players[i]->GadgetBox->ModBasic, 0, sizeof(players[i]->GadgetBox->ModBasic));
+		if (p) {
+
+			// is local
+			State.PlayerStates[i].IsLocal = p->IsLocal;
+				
+			// clear alpha mods
+			if (p->GadgetBox)
+				memset(p->GadgetBox->ModBasic, 0, sizeof(p->GadgetBox->ModBasic));
+		}
 	}
 
 	// initialize weapon data
@@ -1567,14 +1603,64 @@ void setLobbyGameOptions(void)
 //--------------------------------------------------------------------------
 void setEndGameScoreboard(void)
 {
-	
+	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
+	GameSettings * gs = gameGetSettings();
+	int i;
+	char buf[24];
+
+	// reset buf
+	memset(buf, 0, sizeof(buf));
+
+	// column headers start at 17
+	strncpy((char*)(uiElements[19] + 0x60), "BOLTS", 6);
+	strncpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
+	strncpy((char*)(uiElements[21] + 0x60), "REVIVES", 8);
+
+	// rows
+	int* pids = (int*)(uiElements[0] - 0x9C);
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+	{
+		// match scoreboard player row to their respective dme id
+		int pid = pids[i];
+		char* name = (char*)(uiElements[7 + i] + 0x18);
+		if (pid < 0 || name[0] == 0)
+			continue;
+
+		struct SurvivalPlayerState* pState = &State.PlayerStates[pid].State;
+
+		// set round number
+		sprintf((char*)0x003D3AE0, "Survived %d Rounds!", State.RoundNumber);
+
+		// set kills
+		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", pState->Kills);
+
+		// copy over deaths
+		strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 10);
+
+		// set bolts
+		sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%d", pState->TotalBolts);
+
+		// set revives
+		sprintf((char*)(uiElements[22 + (i*4) + 3] + 0x60), "%d", pState->Revives);
+	}
 }
 
 //--------------------------------------------------------------------------
 void lobbyStart(void)
 {
+	int i;
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
+
+	// send final local player stats to others
+	if (Initialized == 1) {
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+			if (State.PlayerStates[i].IsLocal) {
+				sendPlayerStats(i);
+			}
+		}
+		Initialized = 2;
+	}
 
 	// scoreboard
 	switch (activeId)

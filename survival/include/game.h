@@ -83,7 +83,8 @@ enum GameNetMessage
 	CUSTOM_MSG_WEAPON_UPGRADE,
 	CUSTOM_MSG_REVIVE_PLAYER,
 	CUSTOM_MSG_PLAYER_DIED,
-	CUSTOM_MSG_PLAYER_SET_WEAPON_MODS
+	CUSTOM_MSG_PLAYER_SET_WEAPON_MODS,
+	CUSTOM_MSG_PLAYER_SET_STATS
 };
 
 struct SurvivalPlayerState
@@ -104,6 +105,7 @@ struct SurvivalPlayer
 	u16 ReviveCooldownTicks;
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;
+	char IsLocal;
 	char IsDead;
 	char IsInWeaponsMenu;
 };
@@ -169,6 +171,12 @@ typedef struct SurvivalSetWeaponModsMessage
 	u8 WeaponId;
 	u8 Mods[10];
 } SurvivalSetWeaponModsMessage_t;
+
+typedef struct SurvivalSetPlayerStatsMessage
+{
+	int PlayerId;
+	struct SurvivalPlayerState Stats;
+} SurvivalSetPlayerStatsMessage_t;
 
 typedef struct SurvivalConfig
 {
