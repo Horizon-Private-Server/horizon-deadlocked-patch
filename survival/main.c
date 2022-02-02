@@ -1364,8 +1364,14 @@ void initialize(void)
 	Initialized = 1;
 }
 
+void UpdateGameState(struct UpdateGameStateRequest * gameStateUpdate)
+{
+	// game state
+	gameStateUpdate->RoundNumber = State.RoundNumber + 1;
+}
+
 //--------------------------------------------------------------------------
-void gameStart(void)
+void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct UpdateGameStateRequest * gameStateUpdate)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
@@ -1376,6 +1382,9 @@ void gameStart(void)
 
 	// first
 	dlPreUpdate();
+
+	// 
+	UpdateGameState(gameStateUpdate);
 
 	// Ensure in game
 	if (!gameSettings || !gameIsIn())
@@ -1649,7 +1658,7 @@ void setEndGameScoreboard(void)
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(void)
+void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct UpdateGameStateRequest * gameStateUpdate)
 {
 	int i;
 	int activeId = uiGetActive();
@@ -1664,6 +1673,9 @@ void lobbyStart(void)
 		}
 		Initialized = 2;
 	}
+
+	// 
+	UpdateGameState(gameStateUpdate);
 
 	// scoreboard
 	switch (activeId)

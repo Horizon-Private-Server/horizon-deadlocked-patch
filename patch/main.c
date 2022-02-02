@@ -125,6 +125,9 @@ char mapOverrideResponse = 1;
 char showNoMapPopup = 0;
 const char * patchConfigStr = "PATCH CONFIG";
 
+// 
+UpdateGameStateRequest_t gameStateUpdate;
+
 extern float _lodScale;
 extern void* _correctTieLod;
 extern MenuElem_ListData_t dataCustomMaps;
@@ -134,14 +137,6 @@ typedef struct ChangeTeamRequest {
 	int PoolSize;
 	char Pool[GAME_MAX_PLAYERS];
 } ChangeTeamRequest_t;
-
-typedef struct UpdateGameStateRequest {
-	int TeamsEnabled;
-	short TeamScores[GAME_MAX_PLAYERS];
-	char ClientIds[GAME_MAX_PLAYERS];
-	char Teams[GAME_MAX_PLAYERS];
-} UpdateGameStateRequest_t;
-
 
 //
 enum PlayerStateConditionType
@@ -697,7 +692,7 @@ void patchStateUpdate(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void runSendGameUpdate(void)
+int runSendGameUpdate(void)
 {
 	static int lastGameUpdate = 0;
 	GameSettings * gameSettings = gameGetSettings();
@@ -705,30 +700,30 @@ void runSendGameUpdate(void)
 	int gameTime = gameGetTime();
 	int i;
 	void * connection = netGetLobbyServerConnection();
-	UpdateGameStateRequest_t state;
 
 	// skip if not online, in lobby, or the game host
 	if (!connection || !gameSettings || !gameAmIHost())
 	{
 		lastGameUpdate = -GAME_UPDATE_SENDRATE;
-		return;
+		return 0;
 	}
 
 	// skip if time since last update is less than sendrate
 	if ((gameTime - lastGameUpdate) < GAME_UPDATE_SENDRATE)
-		return;
+		return 0;
 
 	// update last sent time
 	lastGameUpdate = gameTime;
 
 	// construct
-	state.TeamsEnabled = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
+	gameStateUpdate.RoundNumber = 0;
+	gameStateUpdate.TeamsEnabled = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
 
 	// copy over client ids
-	memcpy(state.ClientIds, gameSettings->PlayerClients, sizeof(state.ClientIds));
+	memcpy(gameStateUpdate.ClientIds, gameSettings->PlayerClients, sizeof(gameStateUpdate.ClientIds));
 
 	// 
-	memset(state.TeamScores, 0, sizeof(state.TeamScores));
+	memset(gameStateUpdate.TeamScores, 0, sizeof(gameStateUpdate.TeamScores));
 
 	if (gameIsIn())
 	{
@@ -736,15 +731,14 @@ void runSendGameUpdate(void)
 		{
 			ScoreboardItem * item = GAME_SCOREBOARD_ARRAY[i];
 			if (item)
-				state.TeamScores[item->TeamId] = item->Value;
+				gameStateUpdate.TeamScores[item->TeamId] = item->Value;
 		}
 	}
 
 	// copy teams over
-	memcpy(state.Teams, gameSettings->PlayerTeams, sizeof(state.Teams));
+	memcpy(gameStateUpdate.Teams, gameSettings->PlayerTeams, sizeof(gameStateUpdate.Teams));
 
-	// send
-	netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &state);
+	return 1;
 }
 
 /*
@@ -1094,7 +1088,7 @@ u64 hookedProcessLevel()
 		while (module->GameEntrypoint || module->LobbyEntrypoint)
 		{
 			if (module->State > GAMEMODULE_OFF && module->LoadEntrypoint)
-				module->LoadEntrypoint(module, &config, &gameConfig);
+				module->LoadEntrypoint(module, &config, &gameConfig, &gameStateUpdate);
 
 			++module;
 		}
@@ -1262,7 +1256,7 @@ void processGameModules()
 					{
 						// Invoke module
 						if (module->GameEntrypoint)
-							module->GameEntrypoint(module, &config, &gameConfig);
+							module->GameEntrypoint(module, &config, &gameConfig, &gameStateUpdate);
 					}
 				}
 				else
@@ -1270,7 +1264,7 @@ void processGameModules()
 					// Invoke lobby module if still active
 					if (module->LobbyEntrypoint)
 					{
-						module->LobbyEntrypoint(module, &config, &gameConfig);
+						module->LobbyEntrypoint(module, &config, &gameConfig, &gameStateUpdate);
 					}
 				}
 			}
@@ -1287,7 +1281,7 @@ void processGameModules()
 			// Invoke lobby module if still active
 			if (!gameIsIn() && module->LobbyEntrypoint)
 			{
-				module->LobbyEntrypoint(module, &config, &gameConfig);
+				module->LobbyEntrypoint(module, &config, &gameConfig, &gameStateUpdate);
 			}
 		}
 
@@ -1618,7 +1612,7 @@ int main (void)
 	patchVoiceUpdate();
 
 	// 
-	runSendGameUpdate();
+	int sendGameStateUpdate = runSendGameUpdate();
 
 	// config update
 	onConfigUpdate();
@@ -1780,6 +1774,10 @@ int main (void)
 	// Process spectate
 	if (config.enableSpectate)
 		processSpectate();
+
+	//
+	if (sendGameStateUpdate)
+		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &gameStateUpdate);
 
 	// Call this last
 	dlPostUpdate();
