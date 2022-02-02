@@ -1428,6 +1428,9 @@ void gameStart(void)
 	gfxScreenSpaceText(481, 58, 1, 1, 0x40000000, buffer, -1, 1);
 	gfxScreenSpaceText(480, 57, 1, 1, 0x80B0B0E0, buffer, -1, 1);
 
+	// mob tick
+	mobTick();
+
 	if (!State.GameOver)
 	{
 		// decrement corn cob ticker

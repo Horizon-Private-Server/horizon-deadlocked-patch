@@ -71,6 +71,7 @@ struct MobVars {
 	int Action;
 	int NextAction;
 	float Health;
+	float ClosestDist;
 	Moby * Target;
 	int LastHitBy;
 	u16 LastHitByOClass;
@@ -99,6 +100,7 @@ struct MobVars {
 	char Respawn;
 	char Dirty;
 	char Destroyed;
+	char Order;
 };
 
 // warning: multiple differing types with the same name, only one recovered
@@ -252,5 +254,6 @@ enum MobEvent
 void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);
 int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 void mobInitialize(void);
+void mobTick(void);
 
 #endif // SURVIVAL_MOB_H

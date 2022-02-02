@@ -59,6 +59,9 @@ u32 MobSecondaryColors[] = {
 	[MOB_GHOST] 	0x80202020,
 };
 
+Moby* AllMobsSorted[MAX_MOBS_SPAWNED];
+int AllMobsSortedFreeSpots = MAX_MOBS_SPAWNED;
+
 extern struct SurvivalState State;
 
 GuberEvent* mobCreateEvent(Moby* moby, u32 eventType);
@@ -686,33 +689,29 @@ void mobHandleDraw(Moby* moby)
 	VECTOR t;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-	// find closest local player
-	float nearSqrDist = 100000;
-	int nearPlayerIdx = -1;
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player* p = State.PlayerStates[i].Player;
-		if (!p || !p->IsLocal)
-			continue;
-		
-		vector_subtract(t, p->PlayerPosition, moby->Position);
-		float sqrDist = vector_sqrmag(t);
-		if (sqrDist < nearSqrDist)
-		{
-			nearSqrDist = sqrDist;
-			nearPlayerIdx = i;
+	// if we aren't in the sorted list, try and find an empty spot
+	if (pvars->MobVars.Order < 0 && AllMobsSortedFreeSpots > 0) {
+		for (i = 0; i < MAX_MOBS_SPAWNED; ++i) {
+			Moby* m = AllMobsSorted[i];
+			if (m == NULL) {
+				AllMobsSorted[i] = moby;
+				pvars->MobVars.Order = i;
+				--AllMobsSortedFreeSpots;
+				DPRINTF("set %08X to order %d (free %d)\n", (u32)moby, i, AllMobsSortedFreeSpots);
+				break;
+			}
 		}
 	}
-	
-	if (nearPlayerIdx >= 0) {
-		float min = State.PlayerStates[nearPlayerIdx].MinSqrDistFromMob;
-		float max = State.PlayerStates[nearPlayerIdx].MaxSqrDistFromMob;
-		float rank = 1 - clamp((nearSqrDist - min) / (max - min), 0, 1);
+
+	int order = pvars->MobVars.Order;
+	if (order >= 0) {
+		float rank = 1 - clamp(order / (float)State.RoundMobCount, 0, 1);
 		rank = rank*rank*rank;
 		if (State.RoundMobCount > 30)
 			moby->DrawDist = 4 + (128 - 4)*rank;
 		else
 			moby->DrawDist = 128;
-	} else { moby->DrawDist = 16; }
+	} else { moby->DrawDist = 128; }
 
 	if (State.RoundMobCount >= 70)
 		pvars->MobVars.MoveStep = 8;
@@ -922,6 +921,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	
 	VECTOR p;
 	float yaw;
+	int i;
 	int spawnFromUID;
 	struct MobSpawnEventArgs args;
 
@@ -967,6 +967,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount;
 	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
 	pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
+	pvars->MobVars.Order = -1;
 #if MOB_NO_MOVE
 	pvars->MobVars.Config.Speed = 0;
 #endif
@@ -1096,6 +1097,10 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		State.CornTicker += MOB_CORN_LIFETIME_TICKS;
 	}
 
+	if (pvars->MobVars.Order >= 0) {
+		AllMobsSorted[(int)pvars->MobVars.Order] = NULL;
+		++AllMobsSortedFreeSpots;
+	}
 	guberMobyDestroy(moby);
 	moby->ModeBits &= ~0x30;
 	--State.RoundMobCount;
@@ -1308,4 +1313,53 @@ void mobInitialize(void)
 	// set vtable callbacks
 	*(u32*)0x003A0A84 = (u32)&mobGetGuber;
 	*(u32*)0x003A0A94 = (u32)&mobHandleEvent;
+}
+
+void mobTick(void)
+{
+	int i, j;
+	VECTOR t;
+	Player* locals[] = { playerGetFromSlot(0), playerGetFromSlot(1) };
+	int localsCount = playerGetNumLocals();
+
+	// run single pass on sort
+	for (i = 0; i < MAX_MOBS_SPAWNED; ++i)
+	{
+		Moby* m = AllMobsSorted[i];
+
+		// remove invalid moby ref
+		if (m && (mobyIsDestroyed(m) || !m->PVar || m->OClass != ZOMBIE_MOBY_OCLASS)) {
+			AllMobsSorted[i] = NULL;
+			m = NULL;
+			++AllMobsSortedFreeSpots;
+		}
+
+		if (m) {
+			struct MobPVar* pvars = (struct MobPVar*)m->PVar;
+
+			// find closest dist to local
+			pvars->MobVars.ClosestDist = 10000000;
+			for (j = 0; j < localsCount; ++j) {
+				Player * p = locals[j];
+				vector_subtract(t, m->Position, p->PlayerPosition);
+				float dist = vector_sqrmag(t);
+				if (dist < pvars->MobVars.ClosestDist)
+					pvars->MobVars.ClosestDist = dist;
+			}
+
+			// if closer than last, swap
+			if (i > 0) {
+				Moby* last = AllMobsSorted[i-1];
+				struct MobPVar* lPvars = (struct MobPVar*)last->PVar;
+				if (!last || pvars->MobVars.ClosestDist < lPvars->MobVars.ClosestDist)
+				{
+					AllMobsSorted[i] = AllMobsSorted[i-1];
+					AllMobsSorted[i-1] = m;
+					pvars->MobVars.Order = i-1;
+					if (lPvars)
+						lPvars->MobVars.Order = i;
+				}
+			}
+		}
+	}
 }
