@@ -61,6 +61,47 @@ void playUpgradeSound(Player* player)
 	soundPlay(&UpgradeSoundDef, 0, player->PlayerMoby, 0, 0x400);
 }
 
+int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod)
+{
+	int i, c = 0;
+	if (!player)
+		return 0;
+	
+	GadgetBox* gBox = player->GadgetBox;
+	if (!gBox)
+		return 0;
+
+	// count
+	for (i = 0; i < 10; ++i)
+	{
+		if (gBox->Gadgets[weaponId].AlphaMods[i] == alphaMod)
+			++c;
+	}
+
+	return c;
+}
+
+int getWeaponIdFromOClass(short oclass)
+{
+	int weaponId = -1;
+	if (oclass > 0) {
+		switch (oclass)
+		{
+			case MOBY_ID_DUAL_VIPER_SHOT: weaponId = WEAPON_ID_VIPERS; break;
+			case MOBY_ID_MAGMA_CANNON: weaponId = WEAPON_ID_MAGMA_CANNON; break;
+			case MOBY_ID_ARBITER_ROCKET0: weaponId = WEAPON_ID_ARBITER; break;
+			case MOBY_ID_FUSION_SHOT: weaponId = WEAPON_ID_FUSION_RIFLE; break;
+			case MOBY_ID_MINE_LAUNCHER_MINE: weaponId = WEAPON_ID_MINE_LAUNCHER; break;
+			case MOBY_ID_B6_BOMB_EXPLOSION: weaponId = WEAPON_ID_B6; break;
+			case MOBY_ID_FLAIL: weaponId = WEAPON_ID_FLAIL; break;
+			case MOBY_ID_HOLOSHIELD_LAUNCHER: weaponId = WEAPON_ID_OMNI_SHIELD; break;
+			case MOBY_ID_WRENCH: weaponId = WEAPON_ID_WRENCH; break;
+		}
+	}
+
+	return weaponId;
+}
+
 u8 decTimerU8(u8* timeValue)
 {
 	int value = *timeValue;

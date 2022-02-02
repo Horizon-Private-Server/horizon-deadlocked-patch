@@ -10,8 +10,10 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
+int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod);
 Moby * spawnExplosion(VECTOR position, float size);
 void playUpgradeSound(Player* player);
+int getWeaponIdFromOClass(short oclass);
 u8 decTimerU8(u8* timeValue);
 u16 decTimerU16(u16* timeValue);
 u32 decTimerU32(u32* timeValue);

@@ -59,8 +59,15 @@ struct MobSpawnParams {
 	struct MobConfig Config;
 };
 
+struct Knockback {
+	short Angle;
+	u8 Power;
+	u8 Ticks;
+};
+
 struct MobVars {
 	struct MobConfig Config;
+	struct Knockback Knockback;
 	int Action;
 	int NextAction;
 	float Health;
@@ -156,7 +163,9 @@ struct MobPVar {
 
 struct MobDamageEventArgs
 {
+	struct Knockback Knockback;
 	int SourceUID;
+	float Angle;
 	u16 DamageQuarters;
 	u16 SourceOClass;
 };

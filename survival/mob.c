@@ -172,8 +172,26 @@ void mobSendOwnerUpdate(Moby* moby, char owner)
 
 void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amount, int damageFlags)
 {
+	VECTOR delta;
 	struct MobDamageEventArgs args;
 
+	// determine knockback
+	Player * pDamager = playerGetFromUID(guberGetUID(sourcePlayer));
+	if (pDamager)
+	{
+		int weaponId = getWeaponIdFromOClass(source->OClass);
+		if (weaponId >= 0) {
+			args.Knockback.Power = (u8)playerGetWeaponAlphaModCount(pDamager, weaponId, ALPHA_MOD_IMPACT);
+		}
+	}
+
+	// determine angle
+	vector_subtract(delta, moby->Position, sourcePlayer->Position);
+	float len = vector_length(delta);
+	float angle = atan2f(delta[1] / len, delta[0] / len);
+	args.Knockback.Angle = (short)(angle * 1000);
+	args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
+	
 	// create event
 	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DAMAGE);
 	if (guberEvent) {
@@ -195,21 +213,7 @@ void mobDestroy(Moby* moby, int hitByUID)
 	if (guberEvent) {
 
 		// get weapon id from source oclass
-		if (pvars->MobVars.LastHitByOClass > 0) {
-			switch (pvars->MobVars.LastHitByOClass)
-			{
-				case MOBY_ID_DUAL_VIPER_SHOT: weaponId = WEAPON_ID_VIPERS; break;
-				case MOBY_ID_MAGMA_CANNON: weaponId = WEAPON_ID_MAGMA_CANNON; break;
-				case MOBY_ID_ARBITER_ROCKET0: weaponId = WEAPON_ID_ARBITER; break;
-				case MOBY_ID_FUSION_SHOT: weaponId = WEAPON_ID_FUSION_RIFLE; break;
-				case MOBY_ID_MINE_LAUNCHER_MINE: weaponId = WEAPON_ID_MINE_LAUNCHER; break;
-				case MOBY_ID_B6_BOMB_EXPLOSION: weaponId = WEAPON_ID_B6; break;
-				case MOBY_ID_FLAIL: weaponId = WEAPON_ID_FLAIL; break;
-				case MOBY_ID_HOLOSHIELD_LAUNCHER: weaponId = WEAPON_ID_OMNI_SHIELD; break;
-				case MOBY_ID_WRENCH: weaponId = WEAPON_ID_WRENCH; break;
-			}
-			DPRINTF("hit by %04X -> %d\n", pvars->MobVars.LastHitByOClass, weaponId);
-		}
+		weaponId = getWeaponIdFromOClass(pvars->MobVars.LastHitByOClass);
 
 		// get damager player id
 		Player* damager = (Player*)playerGetFromUID(hitByUID);
@@ -229,8 +233,8 @@ void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attri
 	
 	switch (attribute)
 	{
-		case MOB_MUTATE_DAMAGE: if (spawnParams->Config.Damage < spawnParams->Config.MaxDamage) { spawnParams->Config.Damage += ZOMBIE_DAMAGE_MUTATE * ZOMBIE_BASE_DAMAGE; } break;
-		case MOB_MUTATE_SPEED: if (spawnParams->Config.Speed < spawnParams->Config.MaxSpeed) { spawnParams->Config.Speed += ZOMBIE_SPEED_MUTATE * ZOMBIE_BASE_SPEED; } break;
+		case MOB_MUTATE_DAMAGE: if (spawnParams->Config.Damage < spawnParams->Config.MaxDamage) { spawnParams->Config.Damage += ZOMBIE_DAMAGE_MUTATE * ZOMBIE_BASE_DAMAGE; break; } 
+		case MOB_MUTATE_SPEED: if (spawnParams->Config.Speed < spawnParams->Config.MaxSpeed) { spawnParams->Config.Speed += ZOMBIE_SPEED_MUTATE * ZOMBIE_BASE_SPEED; break; } 
 		case MOB_MUTATE_HEALTH: if (spawnParams->Config.MaxHealth <= 0 || spawnParams->Config.Health < spawnParams->Config.MaxHealth) { spawnParams->Config.Health += ZOMBIE_HEALTH_MUTATE * ZOMBIE_BASE_HEALTH; } break;
 		case MOB_MUTATE_COST: spawnParams->Cost += rand(spawnParams->Config.MaxCostMutation); break;
 		default: break;
@@ -297,7 +301,7 @@ void mobSetAction(Moby* moby, int action)
 	// don't set if already action
 	if (pvars->MobVars.Action == action)
 		return;
-	
+
 	GuberEvent* event = mobCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
 	if (event) {
 		args.Action = action;
@@ -508,6 +512,18 @@ void mobDoAction(Moby* moby)
 			mobTransAnim(moby, ZOMBIE_ANIM_BIG_FLINCH);
 			speed = 0;
 			mobyStand(moby);
+
+			if (pvars->MobVars.Knockback.Ticks > 0) {
+				pvars->MoveVars.onGround = 0;
+				pvars->MoveVars.offGround = 1;
+				pvars->MoveVars.gravityVel = -0.1;
+				VECTOR t;
+				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power * pvars->MobVars.MoveStep;
+				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
+				t[2] = 1.0;
+				vector_scale(t, t, power);
+				vector_copy(pvars->MoveVars.vel, t);
+			}
 			break;
 		}
 		case MOB_ACTION_IDLE:
@@ -647,18 +663,18 @@ void mobHandleStuck(Moby* moby)
 		// 
 		if (pvars->MobVars.IsTraversing) {
 			if (pvars->MobVars.MovingTicks > 10) {
-				pvars->MoveVars.maxStepUp = 2;
-				pvars->MoveVars.maxStepDown = 2;
+				pvars->MoveVars.maxStepUp = ZOMBIE_BASE_STEP_HEIGHT;
+				pvars->MoveVars.maxStepDown = ZOMBIE_BASE_STEP_HEIGHT;
 				pvars->MobVars.IsTraversing = 0;
 			} else {
 				// stuck so cycle step
-				pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, 20);
+				pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, ZOMBIE_MAX_STEP_HEIGHT);
 				
 				mobSetAction(moby, MOB_ACTION_JUMP);
 			}
 		}
 	} else if (pvars->MobVars.Action == MOB_ACTION_JUMP) {
-		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, 20);
+		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, ZOMBIE_MAX_STEP_HEIGHT);
 	} else {
 		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = 2;
 	}
@@ -698,14 +714,16 @@ void mobHandleDraw(Moby* moby)
 			moby->DrawDist = 128;
 	} else { moby->DrawDist = 16; }
 
-	if (State.RoundMobCount >= 60)
+	if (State.RoundMobCount >= 70)
+		pvars->MobVars.MoveStep = 8;
+	else if (State.RoundMobCount >= 60)
 		pvars->MobVars.MoveStep = 6;
 	else if (State.RoundMobCount >= 45)
 		pvars->MobVars.MoveStep = 4;
 	else if (State.RoundMobCount >= 30)
 		pvars->MobVars.MoveStep = 2;
 	else
-		pvars->MobVars.MoveStep = 1;
+		pvars->MobVars.MoveStep = 1;  
 
 	pvars->MoveVars.runSpeed = 0.20 * pvars->MobVars.MoveStep;
 	pvars->MoveVars.flySpeed = 0.20 * pvars->MobVars.MoveStep;
@@ -744,6 +762,7 @@ void mobUpdate(Moby* moby)
 	u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
 	u16 ambientSoundCooldownTicks = decTimerU16(&pvars->MobVars.AmbientSoundCooldownTicks);
 	u16 moveStepCooldownTicks = decTimerU8(&pvars->MobVars.MoveStepCooldownTicks);
+	decTimerU8(&pvars->MobVars.Knockback.Ticks);
 
 	// validate owner
 	Player * ownerPlayer = playerGetAll()[(int)pvars->MobVars.Owner];
@@ -786,7 +805,7 @@ void mobUpdate(Moby* moby)
 		if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction) {
 			pvars->MobVars.NextAction = nextAction;
 			pvars->MobVars.NextActionDelayTicks = nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
-		} else if (pvars->MobVars.NextAction >= 0 && nextActionTicks == 0) {
+		} else if (pvars->MobVars.NextAction >= 0 && nextActionTicks == 0 && pvars->MobVars.ActionCooldownTicks == 0) {
 			mobSetAction(moby, pvars->MobVars.NextAction);
 			pvars->MobVars.NextAction = -1;
 		}
@@ -1058,15 +1077,10 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 		// handle weapon jackpot
 		if (weaponId > 1 && pState->Player) {
-			int jackpotCount = 0;
-			GadgetBox* gBox = pState->Player->GadgetBox;
-			for (i = 0; i < 10; ++i) {
-				if (gBox->Gadgets[(int)weaponId].AlphaMods[i] == ALPHA_MOD_JACKPOT)
-					++jackpotCount;
-			}
+			int jackpotCount = playerGetWeaponAlphaModCount(pState->Player, weaponId, ALPHA_MOD_JACKPOT);
 
-			pState->State.Bolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
-			pState->State.TotalBolts += jackpotCount * jackpotCount * JACKPOT_BOLTS;
+			pState->State.Bolts += jackpotCount * JACKPOT_BOLTS;
+			pState->State.TotalBolts += jackpotCount * JACKPOT_BOLTS;
 		}
 
 		// handle kills
@@ -1095,11 +1109,14 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 {
+	VECTOR t;
 	struct MobDamageEventArgs args;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	int armorStart = mobGetArmor(pvars);
 	if (!pvars)
 		return 0;
+
+	int canFlinch = pvars->MobVars.Action != MOB_ACTION_FLINCH && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB && pvars->MobVars.FlinchCooldownTicks == 0;
 
 	// read event
 	guberEventRead(event, &args, sizeof(struct MobDamageEventArgs));
@@ -1138,10 +1155,16 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 		}
 	}
 
+	// knockback
+	if (args.Knockback.Power > 0 && canFlinch)
+	{
+		memcpy(&pvars->MobVars.Knockback, &args.Knockback, sizeof(struct Knockback));
+	}
+
 	if (mobAmIOwner(moby))
 	{
 		// flinch
-		if (damage >= 10 && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB && pvars->MobVars.FlinchCooldownTicks == 0)
+		if ((args.Knockback.Power > 0 || damage >= 10) && canFlinch)
 			mobSetAction(moby, MOB_ACTION_FLINCH);
 
 		// set target

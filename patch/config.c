@@ -160,7 +160,9 @@ MenuElem_ListData_t dataCustomMaps = {
       "Torval SP",
       "Tyhrranosis",
       // -- SURVIVAL MAPS --
-      "Mining Facility"
+      "Marcadia Palace",
+      "Mining Facility",
+      "Temple of Shaar"
     }
 };
 

@@ -501,6 +501,7 @@ void customMineMobyUpdate(Moby* moby)
 		} else if (p && mLayer > 0 && (gameTime - timeCreated) > (5 * TIME_SECOND)) {
 			*(int*)(&moby->Rotation[3]) = gameTime;
 			((void (*)(Moby*, Player*, int))0x003C90C0)(moby, p, 0);
+			return;
 		}
 	}
 	
@@ -1227,6 +1228,9 @@ void initialize(void)
 	// Enable weapon version and v10 name variant in places that display weapon name
 	*(u32*)0x00541850 = 0x08000000 | ((u32)&customGetGadgetVersionName >> 2);
 	*(u32*)0x00541854 = 0;
+
+	WeaponDefsData* wepDefs = weaponGetGunLevelDefs();
+	wepDefs[WEAPON_ID_MAGMA_CANNON].Entries[9].Damage[2] = 80.0;
 
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);

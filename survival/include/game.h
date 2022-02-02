@@ -16,7 +16,7 @@
 
 #define MAX_MOBS_BASE													(30)
 #define MAX_MOBS_ROUND_WEIGHT									(10)
-#define MAX_MOBS_SPAWNED											(60)
+#define MAX_MOBS_SPAWNED											(70)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
 
@@ -33,18 +33,13 @@
 #define MOB_SPAWN_AT_PLAYER_PROBABILITY 			(0.01)
 
 #define ZOMBIE_BASE_DAMAGE										(15)
-#define ZOMBIE_MAX_DAMAGE											(100)
 #define ZOMBIE_DAMAGE_MUTATE									(0.02)
 
 #define ZOMBIE_BASE_SPEED											(0.08)
-#define ZOMBIE_MAX_SPEED											(0.15)
 #define ZOMBIE_SPEED_MUTATE										(0.001)
 
 #define ZOMBIE_BASE_HEALTH										(40)
-#define ZOMBIE_MAX_HEALTH											(1000)
 #define ZOMBIE_HEALTH_MUTATE									(0.02)
-
-#define ZOMBIE_COST_MUTATE										(1)
 
 #define ZOMBIE_BASE_REACTION_TICKS						(0.25 * TPS)
 #define ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS			(2 * TPS)
@@ -53,11 +48,14 @@
 #define ZOMBIE_EXPLODE_HIT_RADIUS							(5)
 #define ZOMBIE_MELEE_ATTACK_RADIUS						(2.5)
 
+#define ZOMBIE_BASE_STEP_HEIGHT								(2)
+#define ZOMBIE_MAX_STEP_HEIGHT								(40)
+
 #define MOB_CORN_LIFETIME_TICKS								(60 * 3)
 #define MOB_CORN_MAX_ON_SCREEN								(15)
 
 #if PAYDAY
-#define ZOMBIE_BASE_BOLTS											(100000)
+#define ZOMBIE_BASE_BOLTS											(1000000)
 #else
 #define ZOMBIE_BASE_BOLTS											(100)
 #endif
@@ -68,6 +66,8 @@
 #define PLAYER_REVIVE_COST_PER_ROUND					(0)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
 #define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
+#define PLAYER_KNOCKBACK_BASE_POWER						(0.05)
+#define PLAYER_KNOCKBACK_BASE_TICKS						(3)
 
 #define BIG_AL_MAX_DIST												(5)
 #define WEAPON_VENDOR_MAX_DIST								(3)
