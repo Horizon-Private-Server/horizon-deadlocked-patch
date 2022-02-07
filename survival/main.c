@@ -40,6 +40,7 @@
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
 const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1c   Start Round";
+const char * SURVIVAL_NEXT_ROUND_TIMER_MESSAGE = "Next Round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x11 Revive [\x0E%d\x08]";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
@@ -290,7 +291,7 @@ int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 		float d = vector_sqrmag(t);
 		if (d >= minDistSqr) {
 			// randomize order a little
-			d += randRange(0, 100);
+			d += randRange(0, 15 * 15);
 			if (d < bestPointDist) {
 				vector_copy(out, (float*)&sp->M0[12]);
 				vector_fromyaw(t, randRadian());
@@ -306,7 +307,7 @@ int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 
 //--------------------------------------------------------------------------
 int spawnGetRandomPoint(VECTOR out) {
-	float r = randRange(0, 1);
+	float r = randRange(0, 1) / State.Difficulty;
 
 #if QUICK_SPAWN
 	r = MOB_SPAWN_NEAR_PLAYER_PROBABILITY;
@@ -561,10 +562,6 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 {
 	SurvivalWeaponUpgradeMessage_t message;
 	GadgetBox* gBox = player->GadgetBox;
-
-	// don't allow overwriting existing outcome
-	if (State.RoundEndTime)
-		return;
 
 	// send out
 	message.PlayerId = player->PlayerId;
@@ -1048,12 +1045,12 @@ int onSetRoundStartRemote(void * connection, void * data)
 }
 
 //--------------------------------------------------------------------------
-void setRoundStart(void)
+void setRoundStart(int skip)
 {
 	SurvivalRoundStartMessage_t message;
 
-	// don't allow overwriting existing outcome
-	if (State.RoundEndTime)
+	// don't allow overwriting existing outcome unless skip
+	if (State.RoundEndTime && !skip)
 		return;
 
 	// don't allow changing outcome when not host
@@ -1062,7 +1059,7 @@ void setRoundStart(void)
 
 	// send out
 	message.RoundNumber = State.RoundNumber + 1;
-	message.GameTime = gameGetTime();
+	message.GameTime = gameGetTime() + (skip ? 0 : ROUND_TRANSITION_DELAY_MS);
 	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ROUND_START, sizeof(SurvivalRoundStartMessage_t), &message);
 
 	// set locally
@@ -1191,9 +1188,9 @@ void resetRoundState(void)
 
 	// 
 	static int accum = 0;
-	accum += State.RoundNumber * BUDGET_START_ACCUM;
+	accum += State.RoundNumber * BUDGET_START_ACCUM * State.Difficulty;
 	State.RoundBudget = BUDGET_START + accum + 
-					(State.RoundNumber * gameSettings->PlayerCountAtStart * gameSettings->PlayerCountAtStart * BUDGET_PLAYER_WEIGHT);
+					(State.RoundNumber * gameSettings->PlayerCountAtStart * gameSettings->PlayerCountAtStart * State.Difficulty * BUDGET_PLAYER_WEIGHT);
 	State.RoundMaxMobCount = MAX_MOBS_BASE + (MAX_MOBS_ROUND_WEIGHT * State.RoundNumber * gameSettings->PlayerCountAtStart);
 	State.RoundInitialized = 0;
 	State.RoundStartTime = gameTime;
@@ -1202,6 +1199,8 @@ void resetRoundState(void)
 	State.RoundMobCount = 0;
 	State.RoundMobSpawnedCount = 0;
 	State.RoundSpawnTicker = 0;
+	State.RoundSpawnTickerCounter = 0;
+	State.RoundNextSpawnTickerCounter = 0;
 	State.MinMobCost = getMinMobCost();
 
 	// 
@@ -1209,7 +1208,7 @@ void resetRoundState(void)
 }
 
 //--------------------------------------------------------------------------
-void initialize(void)
+void initialize(PatchGameConfig_t* gameConfig)
 {
 	Player** players = playerGetAll();
 	int i, j;
@@ -1241,7 +1240,7 @@ void initialize(void)
 	*(u32*)0x003F2E70 = 0x24020000;
 
 	// Change mine update function to ours
-	*(u32*)0x002499D4 = &customMineMobyUpdate;
+	*(u32*)0x002499D4 = (u32)&customMineMobyUpdate;
 
 	// Change bangelize weapons call to ours
 	*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
@@ -1292,6 +1291,7 @@ void initialize(void)
 	mobInitialize();
 
 	// initialize player states
+	State.LocalPlayerState = NULL;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
 		State.PlayerStates[i].State.Bolts = 0;
@@ -1312,6 +1312,8 @@ void initialize(void)
 
 			// is local
 			State.PlayerStates[i].IsLocal = p->IsLocal;
+			if (p->IsLocal && !State.LocalPlayerState)
+				State.LocalPlayerState = &State.PlayerStates[i];
 				
 			// clear alpha mods
 			if (p->GadgetBox)
@@ -1359,6 +1361,7 @@ void initialize(void)
 	State.MobsDrawnCurrent = 0;
 	State.MobsDrawnLast = 0;
 	State.MobsDrawGameTime = 0;
+	State.Difficulty = DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 	resetRoundState();
 
 	Initialized = 1;
@@ -1394,7 +1397,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	State.IsHost = gameAmIHost();
 
 	if (!Initialized) {
-		initialize();
+		initialize(gameConfig);
 		return;
 	}
 
@@ -1439,12 +1442,18 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 	// mob tick
 	mobTick();
+	static int aaa = 0;
+	if (padGetButtonDown(0, PAD_LEFT) > 0) {
+		--aaa;
+		DPRINTF("%d\n", aaa);
+	} else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+		++aaa;
+		DPRINTF("%d\n", aaa);
+	}
+	//uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE, 1000 + aaa);
 
 	if (!State.GameOver)
 	{
-		// decrement corn cob ticker
-		decTimerU32(&State.CornTicker);
-
 		*LocalBoltCount = 0;
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
@@ -1455,6 +1464,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			// since there is only one bolt count just show the sum of each local client's bolts
 			if (State.PlayerStates[i].Player && State.PlayerStates[i].Player->IsLocal)
 				*LocalBoltCount += State.PlayerStates[i].State.Bolts;
+		}
+
+		// 
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+			processPlayer(i);
 		}
 
 		// replace normal scoreboard with bolt counter
@@ -1480,13 +1494,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 		if (State.RoundCompleteTime)
 		{
-#if !AUTOSTART
 			// draw round complete message
 			if (gameTime < (State.RoundCompleteTime + ROUND_MESSAGE_DURATION_MS)) {
 				sprintf(buffer, SURVIVAL_ROUND_COMPLETE_MESSAGE, State.RoundNumber+1);
 				drawRoundMessage(buffer, 1.5);
 			}
-#endif
 
 			if (State.RoundEndTime)
 			{
@@ -1496,16 +1508,30 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					// reset round state
 					resetRoundState();
 				}
+				else if (State.IsHost)
+				{
+					// draw round countdown
+					uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
+
+					// handle skip
+					if (!State.LocalPlayerState->Player->timers.noInput && padGetButtonDown(0, PAD_UP) > 0) {
+						setRoundStart(1);
+					}
+				}
+				else
+				{
+					// draw round countdown
+					uiShowTimer(0, SURVIVAL_NEXT_ROUND_TIMER_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
+				}
 			}
 			else if (State.IsHost)
 			{
 #if AUTOSTART
-				setRoundStart();
-#else 
+				setRoundStart(0);
+#else
 				gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE, -1, 4);
-
 				if (padGetButtonDown(0, PAD_UP) > 0) {
-					setRoundStart();
+					setRoundStart(1);
 				}
 #endif
 			}
@@ -1516,10 +1542,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			if (gameTime < (State.RoundStartTime + ROUND_MESSAGE_DURATION_MS)) {
 				sprintf(buffer, SURVIVAL_ROUND_START_MESSAGE, State.RoundNumber+1);
 				drawRoundMessage(buffer, 1.5);
-			}
-
-			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				processPlayer(i);
 			}
 
 #if !defined(DISABLE_SPAWNING)
@@ -1533,9 +1555,19 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 							if (spawnRandomMob()) {
 								++State.RoundMobSpawnedCount;
 #if QUICK_SPAWN
-								State.RoundSpawnTicker = 20;
+								State.RoundSpawnTicker = 10;
 #else
-								State.RoundSpawnTicker = 20;
+								++State.RoundSpawnTickerCounter;
+								if (State.RoundSpawnTickerCounter > State.RoundNextSpawnTickerCounter)
+								{
+									State.RoundSpawnTickerCounter = 0;
+									State.RoundNextSpawnTickerCounter = randRangeInt(MOB_SPAWN_BURST_MIN + (State.RoundNumber * MOB_SPAWN_BURST_MIN_INC_PER_ROUND), MOB_SPAWN_BURST_MAX + (State.RoundNumber * MOB_SPAWN_BURST_MAX_INC_PER_ROUND)) * State.Difficulty;
+									State.RoundSpawnTicker = randRangeInt(MOB_SPAWN_BURST_MIN_DELAY, MOB_SPAWN_BURST_MAX_DELAY) / State.Difficulty;
+								}
+								else
+								{
+									State.RoundSpawnTicker = 10 / State.Difficulty;
+								}
 #endif
 							}
 						} else {
@@ -1616,12 +1648,7 @@ void setLobbyGameOptions(void)
 void setEndGameScoreboard(void)
 {
 	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
-	GameSettings * gs = gameGetSettings();
 	int i;
-	char buf[24];
-
-	// reset buf
-	memset(buf, 0, sizeof(buf));
 
 	// column headers start at 17
 	strncpy((char*)(uiElements[19] + 0x60), "BOLTS", 6);

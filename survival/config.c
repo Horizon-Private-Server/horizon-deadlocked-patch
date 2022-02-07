@@ -13,10 +13,23 @@ const int UPGRADE_COST[] = {
 	350000,		// v10
 };
 
-// Config for survivor
-// This is configured and sent by the server
-// to a fixed meemory location (start of module)
-// see linkfile and include/game.h for config attribute
-SurvivalConfig_t Config = {
-  .Difficulty = 1.0,
+const float BOLT_TAX[] = {
+	1.00,			// 1 player
+	0.90,			// 2 players
+	0.80,			// 3 players
+	0.70,			// 4 players
+	0.60,			// 5 players
+	0.55,			// 6 players
+	0.50,			// 7 players
+	0.45,			// 8 players
+	0.40,			// 9 players
+	0.40,			// 10 players
+};
+
+const float DIFFICULTY_MAP[] = {
+	0.25,			// Couch Potato
+	0.50,			// Contestant
+	0.75,			// Gladiator
+	1.00,			// Hero
+	1.50,			// Exterminator
 };

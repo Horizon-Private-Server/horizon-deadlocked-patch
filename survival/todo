@@ -17,7 +17,7 @@ Have locals share bolts
 ++Add ability to open weapons menu to move alpha mods around
 ++Fix fake mag upgrade giving money and giving mag
 ++Disable mod pads
-Change spawner to work in bursts
+++Change spawner to work in bursts
 Optimize network code
 ++Fix zombie getting stuck and respawning causing round to end if last one
 ++Fix zombies floating on spawn
@@ -32,6 +32,6 @@ Animate vendor for when you get near the it
 Send mutators to everyone at start of each round (in case host leaves midgame)
 ++Add knockback for impact mod
 ++Fix zombies flying across air when step skip is on
-Add grace period between rounds
+++Add grace period between rounds
 ++Improve mob distance based drawing
 ++Hook up patch game state updater to round number

@@ -79,6 +79,8 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
 
+void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
 #endif
@@ -209,6 +211,20 @@ const char* CustomModeShortNames[] = {
 #endif
 };
 
+// survival difficulty
+MenuElem_ListData_t dataSurvivalDifficulty = {
+    &gameConfig.survivalConfig.difficulty,
+    NULL,
+    5,
+    {
+      "Couch Potato",
+      "Contestant",
+      "Gladiator",
+      "Hero",
+      "Exterminator"
+    }
+};
+
 // weather override list item
 MenuElem_ListData_t dataWeather = {
     &gameConfig.grWeatherId,
@@ -255,6 +271,9 @@ MenuElem_t menuElementsGameSettings[] = {
   // { "Game Settings", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps },
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
+
+  // game mode settings
+  { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
 
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Better hills", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterHills },
@@ -565,6 +584,15 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
   }
 
   return 1;
+}
+
+// 
+void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
 int getMenuElementState(TabElem_t* tab, MenuElem_t* element)
@@ -1314,6 +1342,9 @@ void onConfigInitialize(void)
   // reset game configs
   memset(&gameConfigHostBackup, 0, sizeof(gameConfigHostBackup));
   memset(&gameConfig, 0, sizeof(gameConfig));
+
+  // set defaults
+  gameConfigHostBackup.survivalConfig.difficulty = 4;
 
 #if DEFAULT_GAMEMODE > 0
   gameConfigHostBackup.customModeId = DEFAULT_GAMEMODE;

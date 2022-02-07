@@ -19,18 +19,26 @@
 #define MAX_MOBS_SPAWNED											(70)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
+#define ROUND_START_DELAY_MS									(TIME_SECOND * 1)
 
 #if QUICK_SPAWN
-#define ROUND_START_DELAY_MS									(TIME_SECOND * 1)
+#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 0)
 #else
-#define ROUND_START_DELAY_MS									(TIME_SECOND * 10)
+#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 30)
 #endif
 
 #define ROUND_BASE_BOLT_BONUS									(100)
 #define ROUND_MAX_BOLT_BONUS									(10000)
 
-#define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 		(0.75)
+#define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 		(0.5)
 #define MOB_SPAWN_AT_PLAYER_PROBABILITY 			(0.01)
+
+#define MOB_SPAWN_BURST_MIN_DELAY							(1 * 60)
+#define MOB_SPAWN_BURST_MAX_DELAY							(2 * 60)
+#define MOB_SPAWN_BURST_MIN										(5)
+#define MOB_SPAWN_BURST_MAX										(30)
+#define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(2)
+#define MOB_SPAWN_BURST_MIN_INC_PER_ROUND			(1)
 
 #define ZOMBIE_BASE_DAMAGE										(15)
 #define ZOMBIE_DAMAGE_MUTATE									(0.02)
@@ -49,15 +57,12 @@
 #define ZOMBIE_MELEE_ATTACK_RADIUS						(2.5)
 
 #define ZOMBIE_BASE_STEP_HEIGHT								(2)
-#define ZOMBIE_MAX_STEP_HEIGHT								(40)
-
-#define MOB_CORN_LIFETIME_TICKS								(60 * 3)
-#define MOB_CORN_MAX_ON_SCREEN								(15)
+#define ZOMBIE_MAX_STEP_HEIGHT								(20)
 
 #if PAYDAY
 #define ZOMBIE_BASE_BOLTS											(1000000)
 #else
-#define ZOMBIE_BASE_BOLTS											(100)
+#define ZOMBIE_BASE_BOLTS											(120)
 #endif
 
 #define JACKPOT_BOLTS													(50)
@@ -121,18 +126,21 @@ struct SurvivalState
 	int RoundMobSpawnedCount;
 	int RoundMaxMobCount;
 	int RoundSpawnTicker;
+	int RoundSpawnTickerCounter;
+	int RoundNextSpawnTickerCounter;
 	int MinMobCost;
 	int MobsDrawnCurrent;
 	int MobsDrawnLast;
 	int MobsDrawGameTime;
-	u32 CornTicker;
 	struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
 	int RoundInitialized;
 	Moby* Vendor;
 	Moby* BigAl;
+	struct SurvivalPlayer* LocalPlayerState;
 	int GameOver;
 	int WinningTeam;
 	int IsHost;
+	float Difficulty;
 };
 
 typedef struct SurvivalRoundCompleteMessage
@@ -178,13 +186,8 @@ typedef struct SurvivalSetPlayerStatsMessage
 	struct SurvivalPlayerState Stats;
 } SurvivalSetPlayerStatsMessage_t;
 
-typedef struct SurvivalConfig
-{
-	float Difficulty;
-} SurvivalConfig_t;
-
-// Where the defending team spawns
-extern SurvivalConfig_t Config __attribute__((section(".config")));
 extern const int UPGRADE_COST[];
+extern const float BOLT_TAX[];
+extern const float DIFFICULTY_MAP[];
 
 #endif // SURVIVAL_GAME_H

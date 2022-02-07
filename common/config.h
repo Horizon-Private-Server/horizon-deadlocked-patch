@@ -14,6 +14,11 @@ typedef struct PatchConfig
   char disableCircleToHackerRay;
 } PatchConfig_t;
 
+typedef struct SurvivalConfig
+{
+	u8 difficulty;
+} SurvivalConfig_t;
+
 typedef struct PatchGameConfig
 {
   char customMapId;
@@ -29,6 +34,7 @@ typedef struct PatchGameConfig
   char grHealthBars;
   char grNoNames;
   char grNoInvTimer;
+  SurvivalConfig_t survivalConfig;
 } PatchGameConfig_t;
 
 enum CUSTOM_MAP_ID

@@ -956,15 +956,15 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	
 	// initialize mob vars
 	pvars->MobVars.Config.MobType = args.MobType;
-	pvars->MobVars.Config.Bolts = args.Bolts;
-	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth;
-	pvars->MobVars.Config.Health = (float)args.StartHealth;
+	pvars->MobVars.Config.Bolts = args.Bolts / State.Difficulty;
+	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth * State.Difficulty;
+	pvars->MobVars.Config.Health = (float)args.StartHealth * State.Difficulty;
 	pvars->MobVars.Config.Bangles = args.Bangles;
-	pvars->MobVars.Config.Damage = (float)args.Damage;
+	pvars->MobVars.Config.Damage = (float)args.Damage * State.Difficulty;
 	pvars->MobVars.Config.AttackRadius = (float)args.AttackRadiusEighths / 8.0;
 	pvars->MobVars.Config.HitRadius = (float)args.HitRadiusEighths / 8.0;
 	pvars->MobVars.Config.Speed = (float)args.SpeedHundredths / 100.0;
-	pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount;
+	pvars->MobVars.Config.ReactionTickCount = (u8)(args.ReactionTickCount / State.Difficulty);
 	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
 	pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
 	pvars->MobVars.Order = -1;
@@ -988,8 +988,8 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MoveVars.groupCache = 0;
 	pvars->MoveVars.elv_state = 0;
 	pvars->MoveVars.slopeLimit = MATH_PI / 2;
-	pvars->MoveVars.maxStepUp = 2;
-	pvars->MoveVars.maxStepDown = 2;
+	pvars->MoveVars.maxStepUp = ZOMBIE_BASE_STEP_HEIGHT;
+	pvars->MoveVars.maxStepDown = ZOMBIE_BASE_STEP_HEIGHT;
 	pvars->MoveVars.flags |= 2;
 	pvars->MoveVars.boundArea = -1;
 	pvars->MoveVars.groundHotspot = -1;
@@ -1092,9 +1092,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.Config.MobType];
 
 	// limit corn spawning to prevent freezing/framelag
-	if (1 || State.CornTicker < (MOB_CORN_LIFETIME_TICKS * MOB_CORN_MAX_ON_SCREEN)) {
+	if (State.RoundMobCount < 30) {
 		mobSpawnCorn(moby, ZOMBIE_BANGLE_LARM | ZOMBIE_BANGLE_RARM | ZOMBIE_BANGLE_LLEG | ZOMBIE_BANGLE_RLEG | ZOMBIE_BANGLE_RFOOT | ZOMBIE_BANGLE_HIPS);
-		State.CornTicker += MOB_CORN_LIFETIME_TICKS;
 	}
 
 	if (pvars->MobVars.Order >= 0) {
@@ -1277,6 +1276,7 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 
 int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
+	GameSettings* gs = gameGetSettings();
 	struct MobSpawnEventArgs args;
 
 	// create guber object
@@ -1284,7 +1284,7 @@ int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
 	guberMobyCreateSpawned(ZOMBIE_MOBY_OCLASS, sizeof(struct MobPVar), &guberEvent, NULL);
 	if (guberEvent)
 	{
-		args.Bolts = config->Bolts + randRangeInt(-50, 50);
+		args.Bolts = (config->Bolts + randRangeInt(-50, 50)) * BOLT_TAX[(int)gs->PlayerCount];
 		args.StartHealth = (u16)config->Health;
 		args.Bangles = (u16)config->Bangles;
 		args.MobType = (char)config->MobType;
@@ -1313,6 +1313,9 @@ void mobInitialize(void)
 	// set vtable callbacks
 	*(u32*)0x003A0A84 = (u32)&mobGetGuber;
 	*(u32*)0x003A0A94 = (u32)&mobHandleEvent;
+
+	// 
+	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
 }
 
 void mobTick(void)
@@ -1350,14 +1353,25 @@ void mobTick(void)
 			// if closer than last, swap
 			if (i > 0) {
 				Moby* last = AllMobsSorted[i-1];
-				struct MobPVar* lPvars = (struct MobPVar*)last->PVar;
-				if (!last || pvars->MobVars.ClosestDist < lPvars->MobVars.ClosestDist)
-				{
+				int swap = 0;
+
+				// swap if previous is empty
+				// or if this is closer than previous
+				if (!last) {
+					swap = 1;
+				} else {
+					struct MobPVar* lPvars = (struct MobPVar*)last->PVar;
+					if (lPvars && pvars->MobVars.ClosestDist < lPvars->MobVars.ClosestDist) {
+						swap = 1;
+						lPvars->MobVars.Order = i;
+					}
+				}
+				
+				// move current to previous
+				if (swap) {
 					AllMobsSorted[i] = AllMobsSorted[i-1];
 					AllMobsSorted[i-1] = m;
 					pvars->MobVars.Order = i-1;
-					if (lPvars)
-						lPvars->MobVars.Order = i;
 				}
 			}
 		}
