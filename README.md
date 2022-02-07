@@ -1,6 +1,6 @@
-# deadlocked-patch
+# Horizon Deadlocked (PS2) Patch
 
-Patches applied to all Deadlocked PS2 clients connecting to the Deadlocked custom server.
+Patches applied to all Deadlocked PS2 clients connecting to the Horizon private server.
 
 ## Build
 
