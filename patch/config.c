@@ -79,7 +79,9 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
 
+#if DEV
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+#endif
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -274,7 +276,9 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
 
   // game mode settings
+#if DEV
   { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
+#endif
 
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Better hills", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterHills },
@@ -588,6 +592,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
 }
 
 // 
+#if DEV
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL)
@@ -595,6 +600,7 @@ void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* el
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
+#endif
 
 int getMenuElementState(TabElem_t* tab, MenuElem_t* element)
 {

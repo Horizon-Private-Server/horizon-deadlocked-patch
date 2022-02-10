@@ -695,6 +695,7 @@ void patchStateUpdate(void)
 int runSendGameUpdate(void)
 {
 	static int lastGameUpdate = 0;
+	static int newGame = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
 	int gameTime = gameGetTime();
@@ -705,6 +706,7 @@ int runSendGameUpdate(void)
 	if (!connection || !gameSettings || !gameAmIHost())
 	{
 		lastGameUpdate = -GAME_UPDATE_SENDRATE;
+		newGame = 1;
 		return 0;
 	}
 
@@ -722,11 +724,18 @@ int runSendGameUpdate(void)
 	// copy over client ids
 	memcpy(gameStateUpdate.ClientIds, gameSettings->PlayerClients, sizeof(gameStateUpdate.ClientIds));
 
-	// 
-	memset(gameStateUpdate.TeamScores, 0, sizeof(gameStateUpdate.TeamScores));
+	// reset some stuff whenever we enter a new game
+	if (newGame)
+	{
+		memset(gameStateUpdate.TeamScores, 0, sizeof(gameStateUpdate.TeamScores));
+		newGame = 0;
+	}
 
+	// 
 	if (gameIsIn())
 	{
+		memset(gameStateUpdate.TeamScores, 0, sizeof(gameStateUpdate.TeamScores));
+
 		for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
 		{
 			ScoreboardItem * item = GAME_SCOREBOARD_ARRAY[i];
