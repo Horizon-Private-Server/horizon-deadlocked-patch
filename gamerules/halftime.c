@@ -79,12 +79,13 @@ void htReset(void)
 void getFlags(void)
 {
 	Moby * moby = mobyListGetStart();
+	Moby * mEnd = mobyListGetEnd();
 
 	// reset
 	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
 
 	// grab flags
-	while (moby)
+	while (moby < mEnd)
 	{
 		if (!mobyIsDestroyed(moby) &&
 		 (moby->OClass == MOBY_ID_BLUE_FLAG ||

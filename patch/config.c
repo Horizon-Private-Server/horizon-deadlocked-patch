@@ -129,6 +129,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
+  { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
 };
 
 // map override list item
@@ -293,7 +294,7 @@ MenuElem_t menuElementsGameSettings[] = {
 MenuElem_t menuElementsCustomMap[] = {
   { "", labelActionHandler, menuStateHandler_InstalledCustomMaps, (void*)LABELTYPE_HEADER },
   { "To play on custom maps you must first go to", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "dl.uyaonline.com/maps and download the maps.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
+  { "rac-horizon.com/maps and download the maps.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Then install the map files onto a USB drive", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "and insert it into your PS2.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Finally install the custom maps modules here.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },

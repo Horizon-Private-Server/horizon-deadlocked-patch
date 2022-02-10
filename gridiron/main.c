@@ -428,7 +428,8 @@ void initialize(void)
 
 	// find and hide flags
 	Moby * moby = mobyListGetStart();
-	while (moby)
+	Moby * mEnd = mobyListGetEnd();
+	while (moby < mEnd)
 	{
 		if (!mobyIsDestroyed(moby))
 		{

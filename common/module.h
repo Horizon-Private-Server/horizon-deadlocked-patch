@@ -18,6 +18,7 @@
 
 
 #include <tamtypes.h>
+#include <libdl/gamesettings.h>
 #include "config.h"
 
 // Forward declarations

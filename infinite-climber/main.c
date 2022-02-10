@@ -300,8 +300,9 @@ struct ClimbChain * GetFreeChain(void)
 void DestroyOld(void)
 {
 	Moby * moby = mobyListGetStart();
+	Moby * mEnd = mobyListGetEnd();
 
-	while (moby)
+	while (moby < mEnd)
 	{
 		if (!mobyIsDestroyed(moby) && moby->Opacity == 0x7E)
 		{
