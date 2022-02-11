@@ -385,7 +385,8 @@ int mobCanAttack(struct MobPVar* pvars) {
 }
 
 int mobHasVelocity(struct MobPVar* pvars) {
-	return vector_sqrmag(pvars->MoveVars.passThruNormal) > 0.02
+	DPRINTF("%f:%f:%f:%f\n", vector_sqrmag(pvars->MoveVars.passThruNormal), pvars->MobVars.Config.Speed, pvars->MoveVars.runSpeed, vector_sqrmag(pvars->MoveVars.vel));
+	return vector_sqrmag(pvars->MoveVars.passThruNormal) > (pvars->MobVars.Config.Speed * pvars->MobVars.Config.Speed * 0.5)
 				&& vector_sqrmag(pvars->MoveVars.vel) > 0.001;
 }
 
@@ -646,7 +647,8 @@ void mobHandleStuck(Moby* moby)
 	// increment ticks stuck
 	if (hasVelocity) {
 		pvars->MobVars.MovingTicks++;
-		pvars->MobVars.StuckTicks = 0;
+		if (pvars->MobVars.MovingTicks > 5)
+			pvars->MobVars.StuckTicks = 0;
 	}
 	else {
 		if (pvars->MobVars.HasSpeed)
@@ -665,7 +667,7 @@ void mobHandleStuck(Moby* moby)
 
 		// 
 		if (pvars->MobVars.IsTraversing) {
-			if (pvars->MobVars.MovingTicks > 10) {
+			if (pvars->MobVars.MovingTicks > 20) {
 				pvars->MoveVars.maxStepUp = ZOMBIE_BASE_STEP_HEIGHT;
 				pvars->MoveVars.maxStepDown = ZOMBIE_BASE_STEP_HEIGHT;
 				pvars->MoveVars.collRadius = ZOMBIE_BASE_COLL_RADIUS;
