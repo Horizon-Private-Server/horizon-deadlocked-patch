@@ -39,7 +39,7 @@
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
-const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1c   Start Round";
+const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1d   Start Round";
 const char * SURVIVAL_NEXT_ROUND_TIMER_MESSAGE = "Next Round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x11 Revive [\x0E%d\x08]";
@@ -1057,8 +1057,13 @@ void setRoundStart(int skip)
 	if (!State.IsHost)
 		return;
 
+	// increment round if end
+	int targetRound = State.RoundNumber;
+	if (!State.RoundEndTime)
+		targetRound += 1;
+		
 	// send out
-	message.RoundNumber = State.RoundNumber + 1;
+	message.RoundNumber = targetRound;
 	message.GameTime = gameGetTime() + (skip ? 0 : ROUND_TRANSITION_DELAY_MS);
 	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ROUND_START, sizeof(SurvivalRoundStartMessage_t), &message);
 
@@ -1418,7 +1423,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	Player * localPlayer = (Player*)0x00347AA0;
 	if (padGetButtonDown(0, PAD_DOWN) > 0) {
 		static int manSpawnMobId = 0;
-		manSpawnMobId = defaultSpawnParamsCount - 1;
+		manSpawnMobId = defaultSpawnParamsCount - 2;
 		VECTOR t;
 		vector_copy(t, localPlayer->PlayerPosition);
 		t[0] += 1;
@@ -1442,15 +1447,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 	// mob tick
 	mobTick();
-	static int aaa = 0;
-	if (padGetButtonDown(0, PAD_LEFT) > 0) {
-		--aaa;
-		DPRINTF("%d\n", aaa);
-	} else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-		++aaa;
-		DPRINTF("%d\n", aaa);
-	}
-	//uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE, 1000 + aaa);
 
 	if (!State.GameOver)
 	{
@@ -1496,7 +1492,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		{
 			// draw round complete message
 			if (gameTime < (State.RoundCompleteTime + ROUND_MESSAGE_DURATION_MS)) {
-				sprintf(buffer, SURVIVAL_ROUND_COMPLETE_MESSAGE, State.RoundNumber+1);
+				sprintf(buffer, SURVIVAL_ROUND_COMPLETE_MESSAGE, State.RoundNumber);
 				drawRoundMessage(buffer, 1.5);
 			}
 

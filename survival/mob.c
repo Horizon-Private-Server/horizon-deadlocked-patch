@@ -481,7 +481,7 @@ int mobGetPreferredAction(Moby* moby)
 			if (mobCanAttack(pvars))
 				return pvars->MobVars.Config.MobType != MOB_EXPLODE ? MOB_ACTION_ATTACK : MOB_ACTION_TIME_BOMB;
 			
-			return MOB_ACTION_LOOK_AT_TARGET;
+			return MOB_ACTION_WALK;
 		} else {
 			return MOB_ACTION_WALK;
 		}
@@ -572,8 +572,16 @@ void mobDoAction(Moby* moby)
 				float dist = vector_length(t);
 				vector_scale(t, t, (1 * speedMult) / dist);
 				vector_add(t, moby->Position, t);
-				if (dist < pvars->MobVars.Config.AttackRadius)
-					speed = 0;
+
+				// slow down as they near their target
+				float slowDownFar = pvars->MobVars.Config.AttackRadius * 1.0;
+				float slowDownNear = pvars->MobVars.Config.AttackRadius * 0.5;
+				if (dist < slowDownFar) {
+					float slowDown = ((dist - slowDownNear) / (slowDownFar - slowDownNear)) - 0.0;
+					if (slowDown < 0.1)
+						slowDown = 0;
+					speed *= slowDown;
+				}
 
 				// move
 				mobyMove(moby, vector_read(t), speed * speedMult);
@@ -799,22 +807,32 @@ void mobUpdate(Moby* moby)
 	mobyUpdateFlash(moby, 0);
 
 	//
-	if (isOwner && nextCheckActionDelayTicks == 0) {
-		int nextAction = mobGetPreferredAction(moby);
-		if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction) {
-			pvars->MobVars.NextAction = nextAction;
-			pvars->MobVars.NextActionDelayTicks = nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
-		} else if (pvars->MobVars.NextAction >= 0 && nextActionTicks == 0 && pvars->MobVars.ActionCooldownTicks == 0) {
-			mobSetAction(moby, pvars->MobVars.NextAction);
-			pvars->MobVars.NextAction = -1;
+	if (isOwner) {
+		// set next state
+		if (pvars->MobVars.NextAction >= 0 && pvars->MobVars.ActionCooldownTicks == 0) {
+			if (nextActionTicks == 0) {
+				mobSetAction(moby, pvars->MobVars.NextAction);
+				pvars->MobVars.NextAction = -1;
+			} else {
+				//mobSetAction(moby, MOB_ACTION_LOOK_AT_TARGET);
+			}
 		}
+		
+		// 
+		if (nextCheckActionDelayTicks == 0) {
+			int nextAction = mobGetPreferredAction(moby);
+			if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction && nextAction != pvars->MobVars.Action && nextActionTicks == 0) {
+				pvars->MobVars.NextAction = nextAction;
+				pvars->MobVars.NextActionDelayTicks = nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
+			} 
 
-		// get new target
-		if (scoutCooldownTicks == 0) {
-			mobSetTarget(moby, mobGetNextTarget(moby));
+			// get new target
+			if (scoutCooldownTicks == 0) {
+				mobSetTarget(moby, mobGetNextTarget(moby));
+			}
+
+			pvars->MobVars.NextCheckActionDelayTicks = 2;
 		}
-
-		pvars->MobVars.NextCheckActionDelayTicks = 2;
 	}
 
 	// 
@@ -964,7 +982,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.AttackRadius = (float)args.AttackRadiusEighths / 8.0;
 	pvars->MobVars.Config.HitRadius = (float)args.HitRadiusEighths / 8.0;
 	pvars->MobVars.Config.Speed = (float)args.SpeedHundredths / 100.0;
-	pvars->MobVars.Config.ReactionTickCount = (u8)(args.ReactionTickCount / State.Difficulty);
+	pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount; // (u8)(args.ReactionTickCount / State.Difficulty);
 	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
 	pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
 	pvars->MobVars.Order = -1;
