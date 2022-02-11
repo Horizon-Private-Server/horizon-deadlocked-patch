@@ -8,15 +8,6 @@
 #include <libdl/moby.h>
 #include <libdl/random.h>
 
-#define ZOMBIE_ANIM_ATTACK_TICKS						(30)
-#define ZOMBIE_TIMEBOMB_TICKS								(60 * 3)
-#define ZOMBIE_FLINCH_COOLDOWN_TICKS				(60)
-#define ZOMBIE_ACTION_COOLDOWN_TICKS				(30)
-#define ZOMBIE_RESPAWN_AFTER_TICKS					(60 * 30)
-#define ZOMBIE_AUTO_DIRTY_COOLDOWN_TICKS		(60 * 5)
-#define ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS    (60 * 2)
-#define ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS    (60 * 3)
-
 /* 
  * 
  */
@@ -394,7 +385,8 @@ int mobCanAttack(struct MobPVar* pvars) {
 }
 
 int mobHasVelocity(struct MobPVar* pvars) {
-	return vector_sqrmag(pvars->MoveVars.vel) > 0.001;
+	return vector_sqrmag(pvars->MoveVars.passThruNormal) > 0.02
+				&& vector_sqrmag(pvars->MoveVars.vel) > 0.001;
 }
 
 int mobGetLostArmorBangle(short armorStart, short armorEnd)
@@ -676,18 +668,24 @@ void mobHandleStuck(Moby* moby)
 			if (pvars->MobVars.MovingTicks > 10) {
 				pvars->MoveVars.maxStepUp = ZOMBIE_BASE_STEP_HEIGHT;
 				pvars->MoveVars.maxStepDown = ZOMBIE_BASE_STEP_HEIGHT;
+				pvars->MoveVars.collRadius = ZOMBIE_BASE_COLL_RADIUS;
 				pvars->MobVars.IsTraversing = 0;
 			} else {
 				// stuck so cycle step
-				pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, ZOMBIE_MAX_STEP_HEIGHT);
+				pvars->MoveVars.maxStepUp = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, ZOMBIE_MAX_STEP_UP);
+				pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepDown + 0.5, 0, ZOMBIE_MAX_STEP_DOWN);
+				pvars->MoveVars.collRadius = clamp(pvars->MoveVars.collRadius + 0.25, 0, ZOMBIE_MAX_COLL_RADIUS);
 				
 				mobSetAction(moby, MOB_ACTION_JUMP);
 			}
 		}
 	} else if (pvars->MobVars.Action == MOB_ACTION_JUMP) {
-		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, ZOMBIE_MAX_STEP_HEIGHT);
+		pvars->MoveVars.maxStepUp = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, ZOMBIE_MAX_STEP_UP);
+		pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepDown + 0.5, 0, ZOMBIE_MAX_STEP_DOWN);
+		pvars->MoveVars.collRadius = clamp(pvars->MoveVars.collRadius + 0.25, 0, ZOMBIE_MAX_COLL_RADIUS);
 	} else {
-		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = 2;
+		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = ZOMBIE_BASE_STEP_HEIGHT;
+		pvars->MoveVars.collRadius = ZOMBIE_BASE_COLL_RADIUS;
 	}
 }
 
@@ -747,6 +745,10 @@ void mobUpdate(Moby* moby)
 	if (!pvars || pvars->MobVars.Destroyed)
 		return;
 	int isOwner;
+
+	// calculate delta position
+	vector_subtract(pvars->MoveVars.passThruNormal, moby->Position, pvars->MoveVars.passThruPoint);
+	vector_copy(pvars->MoveVars.passThruPoint, moby->Position);
 
 	// keep track of number of mobs drawn on screen to try and reduce the lag
 	int gameTime = gameGetTime();
