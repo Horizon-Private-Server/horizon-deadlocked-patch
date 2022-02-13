@@ -691,17 +691,17 @@ void onMapLoaderOnlineMenu(void)
 		padDisableInput();
 
 		// render background
-		gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.3, bgColorDownload);
+		//gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.3, bgColorDownload);
 
 		// flash color
-		u32 downloadColor = 0x80808080;
-		int gameTime = ((gameGetTime()/100) % 15);
-		if (gameTime > 7)
-			gameTime = 15 - gameTime;
-		downloadColor += 0x101010 * gameTime;
+		//u32 downloadColor = 0x80808080;
+		//int gameTime = ((gameGetTime()/100) % 15);
+		//if (gameTime > 7)
+		//	gameTime = 15 - gameTime;
+		//downloadColor += 0x101010 * gameTime;
 
 		// render text
-		gfxScreenSpaceText(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 1, 1, downloadColor, "Downloading modules, please wait...", -1, 4);
+		//gfxScreenSpaceText(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 1, 1, downloadColor, "Downloading modules, please wait...", -1, 4);
 	}
 	else if (actionState == ACTION_MODULES_INSTALLED)
 	{

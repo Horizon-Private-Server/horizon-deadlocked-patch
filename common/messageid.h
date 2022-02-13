@@ -87,10 +87,36 @@ enum CustomMessageId
     CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE = 12,
 
     /*
+     * Sent to the client when the server initiates a data download.
+     */
+    CUSTOM_MSG_ID_SERVER_DOWNLOAD_DATA_REQUEST = 13,
+
+    /*
+     * Sent from the client to the server when the client receives a data request message.
+     */
+    CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE = 14,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
 
 };
+
+typedef struct ServerDownloadDataRequest
+{
+    int Id;
+    int TargetAddress;
+    int TotalSize;
+    int DataOffset;
+    short DataSize;
+    char Data[2048];
+} ServerDownloadDataRequest_t;
+
+typedef struct ClientDownloadDataResponse
+{
+    int Id;
+    int BytesReceived;
+} ClientDownloadDataResponse_t;
 
 #endif // _MESSAGEID_H_

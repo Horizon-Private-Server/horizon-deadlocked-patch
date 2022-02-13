@@ -17,7 +17,9 @@
 #include <libdl/player.h>
 #include <libdl/pad.h>
 #include <libdl/time.h>
+#include <libdl/net.h>
 #include "module.h"
+#include "messageid.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
 #include <libdl/stdio.h>
@@ -56,6 +58,32 @@ const int clears[][2] = {
 };
 
 int hasClearedMemory = 0;
+int bytesReceived = 0;
+int totalBytes = 0;
+
+int onServerDownloadDataRequest(void * connection, void * data)
+{
+	ServerDownloadDataRequest_t* request = (ServerDownloadDataRequest_t*)data;
+
+
+	// copy bytes to target
+	totalBytes = request->TotalSize;
+	bytesReceived += request->DataSize;
+	memcpy((void*)request->TargetAddress, request->Data, request->DataSize);
+	DPRINTF("DOWNLOAD: {%d} %d/%d, writing %d to %08X\n", request->Id, bytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
+
+	// respond
+	if (connection)
+	{
+		ClientDownloadDataResponse_t response;
+		response.Id = request->Id;
+		response.BytesReceived = bytesReceived;
+		netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE, sizeof(ClientDownloadDataResponse_t), &response);
+	}
+
+	return sizeof(ServerDownloadDataRequest_t) - sizeof(request->Data) + request->DataSize;
+}
+
 
 /*
  * NAME :		onOnlineMenu
@@ -73,8 +101,10 @@ int hasClearedMemory = 0;
  */
 void onOnlineMenu(void)
 {
-	u32 bgColorDownload = 0x70000000;
-	u32 downloadColor = 0x80808080;
+	u32 bgColorDownload = 0x80000000;
+	u32 textColor = 0x80C0C0C0;
+	u32 barBgColor = 0x80202020;
+	u32 barFgColor = 0x80000040;
 
 	// call normal draw routine
 	((void (*)(void))0x00707F28)();
@@ -83,17 +113,15 @@ void onOnlineMenu(void)
 	if (uiGetActive() != UI_ID_ONLINE_MAIN_MENU)
 		return;
 
-	// render background
-	gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.3, bgColorDownload);
+	gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, bgColorDownload);
+	gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, barBgColor);
+	gfxScreenSpaceText(SCREEN_WIDTH * 0.35, SCREEN_HEIGHT * 0.4, 1, 1, textColor, "Downloading patch...", 17 + (gameGetTime()/240 % 4), 3);
 
-	// flash color
-	int gameTime = ((gameGetTime()/100) % 15);
-	if (gameTime > 7)
-		gameTime = 15 - gameTime;
-	downloadColor += 0x101010 * gameTime;
-
-	// render text
-	gfxScreenSpaceText(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 1, 1, downloadColor, "Downloading patch, please wait...", -1, 4);
+	if (totalBytes > 0)
+	{
+		float w = (float)bytesReceived / (float)totalBytes;
+		gfxScreenSpaceBox(0.2, 0.45, 0.6 * w, 0.05, barFgColor);
+	}
 }
 
 /*
@@ -117,23 +145,26 @@ int main (void)
 	const int clearsSize =  sizeof(clears) / (2 * sizeof(int));
 	int inGame = gameIsIn();
 
-	// unhook patch
-	for (i = 0; i < patchesSize; ++i)
-	{
-		int context = patches[i][0];
-		if (context < 0 || context == inGame)
-			*(u32*)patches[i][1] = (u32)patches[i][2];
-	}
-
 	// clear memory
 	if (!hasClearedMemory)
 	{
+		// unhook patch
+		for (i = 0; i < patchesSize; ++i)
+		{
+			int context = patches[i][0];
+			if (context < 0 || context == inGame)
+				*(u32*)patches[i][1] = (u32)patches[i][2];
+		}
+
 		hasClearedMemory = 1;
 		for (i = 0; i < clearsSize; ++i)
 		{
 			memset((void*)clears[i][0], 0, clears[i][1]);
 		}
 	}
+
+	// 
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_DATA_REQUEST, &onServerDownloadDataRequest);
 
 	// 
 	if (inGame)

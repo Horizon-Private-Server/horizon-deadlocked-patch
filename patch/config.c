@@ -28,6 +28,11 @@ int isConfigMenuActive = 0;
 int selectedTabItem = 0;
 u32 padPointer = 0;
 
+//
+int dlBytesReceived = 0;
+int dlTotalBytes = 0;
+
+
 // constants
 const char footerText[] = "\x14 \x15 TAB     \x10 SELECT     \x12 BACK";
 
@@ -167,7 +172,7 @@ MenuElem_ListData_t dataCustomMaps = {
       // -- SURVIVAL MAPS --
       "Marcadia Palace",
       "Mining Facility",
-      "Temple of Shaar"
+      "Veldin"
     }
 };
 
@@ -1321,6 +1326,36 @@ void navTab(int direction)
 }
 
 //------------------------------------------------------------------------------
+int onServerDownloadDataRequest(void * connection, void * data)
+{
+	ServerDownloadDataRequest_t* request = (ServerDownloadDataRequest_t*)data;
+
+	// copy bytes to target
+	dlTotalBytes = request->TotalSize;
+	dlBytesReceived += request->DataSize;
+	memcpy((void*)request->TargetAddress, request->Data, request->DataSize);
+	DPRINTF("DOWNLOAD: %d/%d, writing %d to %08X\n", dlBytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
+
+	// respond
+	if (connection)
+	{
+		ClientDownloadDataResponse_t response;
+		response.Id = request->Id;
+		response.BytesReceived = dlBytesReceived;
+		netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE, sizeof(ClientDownloadDataResponse_t), &response);
+	}
+
+  // reset at end
+  if (dlBytesReceived >= request->TotalSize)
+  {
+    dlTotalBytes = 0;
+    dlBytesReceived = 0;
+  }
+
+	return sizeof(ServerDownloadDataRequest_t) - sizeof(request->Data) + request->DataSize;
+}
+
+//------------------------------------------------------------------------------
 int onSetGameConfig(void * connection, void * data)
 {
   // copy it over
@@ -1337,6 +1372,17 @@ void onConfigGameMenu(void)
 //------------------------------------------------------------------------------
 void onConfigOnlineMenu(void)
 {
+  // draw download data box
+	if (dlTotalBytes > 0)
+	{
+    gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, colorBlack);
+    gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, colorContentBg);
+    gfxScreenSpaceText(SCREEN_WIDTH * 0.4, SCREEN_HEIGHT * 0.4, 1, 1, colorText, "Downloading...", 11 + (gameGetTime()/240 % 4), 3);
+
+		float w = (float)dlBytesReceived / (float)dlTotalBytes;
+		gfxScreenSpaceBox(0.2, 0.45, 0.6 * w, 0.05, colorRed);
+	}
+
   onMenuUpdate(0);
 }
 
@@ -1345,6 +1391,7 @@ void onConfigInitialize(void)
 {
 	// install net handlers
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_GAME_CONFIG, &onSetGameConfig);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_DATA_REQUEST, &onServerDownloadDataRequest);
 
   // reset game configs
   memset(&gameConfigHostBackup, 0, sizeof(gameConfigHostBackup));
