@@ -1528,7 +1528,7 @@ void onOnlineMenu(void)
 int main (void)
 {
 	int i;
-
+	
 	// Call this first
 	dlPreUpdate();
 

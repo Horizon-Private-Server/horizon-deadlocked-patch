@@ -130,6 +130,7 @@ int onSetMapOverride(void * connection, void * data)
 
 	if (payload->MapId == 0)
 	{
+		DPRINTF("recv empty map\n");
 		State.Enabled = 0;
 		State.CheckState = 0;
 		mapOverrideResponse = 1;

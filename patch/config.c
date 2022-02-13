@@ -1390,6 +1390,7 @@ void onConfigOnlineMenu(void)
 void onConfigInitialize(void)
 {
 	// install net handlers
+  *(u32*)0x00211E64 = 0; // reset net callbacks
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_GAME_CONFIG, &onSetGameConfig);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_DATA_REQUEST, &onServerDownloadDataRequest);
 
