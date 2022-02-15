@@ -385,7 +385,6 @@ int mobCanAttack(struct MobPVar* pvars) {
 }
 
 int mobHasVelocity(struct MobPVar* pvars) {
-	DPRINTF("%f:%f:%f:%f\n", vector_sqrmag(pvars->MoveVars.passThruNormal), pvars->MobVars.Config.Speed, pvars->MoveVars.runSpeed, vector_sqrmag(pvars->MoveVars.vel));
 	return vector_sqrmag(pvars->MoveVars.passThruNormal) > (pvars->MobVars.Config.Speed * pvars->MobVars.Config.Speed * 0.5)
 				&& vector_sqrmag(pvars->MoveVars.vel) > 0.001;
 }
@@ -483,11 +482,39 @@ int mobGetPreferredAction(Moby* moby)
 	return MOB_ACTION_IDLE;
 }
 
+void mobMove(Moby* moby, u128 to, float speed)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+	if (pvars->MobVars.MoveStepCooldownTicks == 0)
+	{
+		// move
+		mobyMove(moby, to, speed);
+
+		// calculate delta position
+		vector_subtract(pvars->MoveVars.passThruNormal, moby->Position, pvars->MoveVars.passThruPoint);
+		vector_copy(pvars->MoveVars.passThruPoint, moby->Position);
+
+		//
+		pvars->MobVars.MoveStepCooldownTicks = pvars->MobVars.MoveStep;
+	}
+	else if (speed > 0)
+	{
+		// apply velocity
+		vector_add(moby->Position, moby->Position, pvars->MoveVars.vel);
+	}
+}
+
+void mobStand(Moby* moby)
+{
+	mobyStand(moby);
+}
+
 void mobDoAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	float speed = pvars->MobVars.Config.Speed;
-	float speedMult = (float)pvars->MobVars.MoveStep;
+	float speedMult = 1; //(float)pvars->MobVars.MoveStep;
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t;
 
@@ -500,14 +527,14 @@ void mobDoAction(Moby* moby)
 		{
 			mobTransAnim(moby, ZOMBIE_ANIM_CRAWL_OUT_OF_GROUND);
 			speed = 0;
-			mobyStand(moby);
+			mobStand(moby);
 			break;
 		}
 		case MOB_ACTION_FLINCH:
 		{
 			mobTransAnim(moby, ZOMBIE_ANIM_BIG_FLINCH);
 			speed = 0;
-			mobyStand(moby);
+			mobStand(moby);
 
 			if (pvars->MobVars.Knockback.Ticks > 0) {
 				pvars->MoveVars.onGround = 0;
@@ -526,7 +553,7 @@ void mobDoAction(Moby* moby)
 		{
 			mobTransAnim(moby, ZOMBIE_ANIM_IDLE);
 			speed = 0;
-			mobyStand(moby);
+			mobStand(moby);
 			break;
 		}
 		case MOB_ACTION_JUMP:
@@ -543,12 +570,12 @@ void mobDoAction(Moby* moby)
 					vector_add(t, moby->Position, t);
 
 					// move
-					mobyMove(moby, vector_read(t), speed * speedMult);
+					mobMove(moby, vector_read(t), speed * speedMult);
 					mobTransAnim(moby, ZOMBIE_ANIM_JUMP);
 				} else {
 					// stand
 					speed = 0;
-					mobyStand(moby);
+					mobStand(moby);
 					mobTransAnim(moby, ZOMBIE_ANIM_IDLE);
 				}
 				break;
@@ -577,11 +604,11 @@ void mobDoAction(Moby* moby)
 				}
 
 				// move
-				mobyMove(moby, vector_read(t), speed * speedMult);
+				mobMove(moby, vector_read(t), speed * speedMult);
 			} else {
 				// stand
 				speed = 0;
-				mobyStand(moby);
+				mobStand(moby);
 			}
 
 			// 
@@ -646,13 +673,13 @@ void mobHandleStuck(Moby* moby)
 
 	// increment ticks stuck
 	if (hasVelocity) {
-		pvars->MobVars.MovingTicks++;
+		pvars->MobVars.MovingTicks += pvars->MobVars.MoveStep;
 		if (pvars->MobVars.MovingTicks > 5)
 			pvars->MobVars.StuckTicks = 0;
 	}
 	else {
 		if (pvars->MobVars.HasSpeed)
-			pvars->MobVars.StuckTicks++;
+			pvars->MobVars.StuckTicks += pvars->MobVars.MoveStep;
 		else
 			pvars->MobVars.StuckTicks = 0;
 		pvars->MobVars.MovingTicks = 0;
@@ -714,30 +741,42 @@ void mobHandleDraw(Moby* moby)
 	int order = pvars->MobVars.Order;
 	if (order >= 0) {
 		float rank = 1 - clamp(order / (float)State.RoundMobCount, 0, 1);
-		rank = rank*rank*rank;
-		if (State.RoundMobCount > 30)
-			moby->DrawDist = 4 + (128 - 4)*rank;
-		else
+		float rankCubed = rank*rank*rank;
+		if (State.RoundMobCount > 30) {
+			moby->DrawDist = 4 + (128 - 4)*rankCubed;
+			pvars->MobVars.MoveStep = 1 + (12-1)*(1-rank);
+		}
+		else {
 			moby->DrawDist = 128;
-	} else { moby->DrawDist = 128; }
+			pvars->MobVars.MoveStep = 1;
+		}
+	} else {
+		moby->DrawDist = 128;
+		pvars->MobVars.MoveStep = 1;
+	}
 
-	if (State.RoundMobCount >= 70)
-		pvars->MobVars.MoveStep = 8;
-	else if (State.RoundMobCount >= 60)
-		pvars->MobVars.MoveStep = 6;
-	else if (State.RoundMobCount >= 45)
-		pvars->MobVars.MoveStep = 4;
-	else if (State.RoundMobCount >= 30)
-		pvars->MobVars.MoveStep = 2;
-	else
-		pvars->MobVars.MoveStep = 1;  
+	if (pvars->MobVars.Order > 10) {
+		if (State.RoundMobCount >= 70)
+			pvars->MobVars.MoveStep = 8;
+		else if (State.RoundMobCount >= 60)
+			pvars->MobVars.MoveStep = 6;
+		else if (State.RoundMobCount >= 45)
+			pvars->MobVars.MoveStep = 4;
+		else if (State.RoundMobCount >= 30)
+			pvars->MobVars.MoveStep = 2;
+		else
+			pvars->MobVars.MoveStep = 1;
+	} else {
+		pvars->MobVars.MoveStep = 1;
+	}
+	
 
-	pvars->MoveVars.runSpeed = 0.20 * pvars->MobVars.MoveStep;
-	pvars->MoveVars.flySpeed = 0.20 * pvars->MobVars.MoveStep;
-	pvars->MoveVars.angularAccel = 0.00349066 * pvars->MobVars.MoveStep;
-	pvars->MoveVars.angularDecel = 0.00349066 * pvars->MobVars.MoveStep;
+	//pvars->MoveVars.runSpeed = 0.20 * pvars->MobVars.MoveStep;
+	//pvars->MoveVars.flySpeed = 0.20 * pvars->MobVars.MoveStep;
+	pvars->MoveVars.angularAccel = 0.005 * pvars->MobVars.MoveStep;
+	pvars->MoveVars.angularDecel = 0.005 * pvars->MobVars.MoveStep;
 	pvars->MoveVars.angularLimit = 0.20 * pvars->MobVars.MoveStep;
-	pvars->MoveVars.gravity = 20 * pvars->MobVars.MoveStep;
+	//pvars->MoveVars.gravity = 20 * pvars->MobVars.MoveStep;
 }
 
 void mobUpdate(Moby* moby)
@@ -747,10 +786,6 @@ void mobUpdate(Moby* moby)
 	if (!pvars || pvars->MobVars.Destroyed)
 		return;
 	int isOwner;
-
-	// calculate delta position
-	vector_subtract(pvars->MoveVars.passThruNormal, moby->Position, pvars->MoveVars.passThruPoint);
-	vector_copy(pvars->MoveVars.passThruPoint, moby->Position);
 
 	// keep track of number of mobs drawn on screen to try and reduce the lag
 	int gameTime = gameGetTime();
@@ -802,13 +837,13 @@ void mobUpdate(Moby* moby)
 	mobHandleDraw(moby);
 
 	// 
-	mobHandleStuck(moby);
-
-	// 
 	mobDoAction(moby);
 
 	// 
 	mobyUpdateFlash(moby, 0);
+
+	// 
+	mobHandleStuck(moby);
 
 	//
 	if (isOwner) {
@@ -854,10 +889,7 @@ void mobUpdate(Moby* moby)
 	moby->Bangles = mobGetArmor(pvars);
 
 	// move system update
-	if (moveStepCooldownTicks == 0) {
-		mobyMoveSystemUpdate(moby);
-		pvars->MobVars.MoveStepCooldownTicks = pvars->MobVars.MoveStep;
-	}
+	mobyMoveSystemUpdate(moby);
 
 	// process damage
 	int damageIndex = moby->CollDamage;
@@ -1015,6 +1047,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MoveVars.flags |= 2;
 	pvars->MoveVars.boundArea = -1;
 	pvars->MoveVars.groundHotspot = -1;
+	vector_copy(pvars->MoveVars.passThruPoint, p);
 	mobySetAnimCache(moby, (void*)0x36f980, 0);
 	moby->ModeBits &= ~0x100;
 
@@ -1335,6 +1368,8 @@ void mobInitialize(void)
 	// set vtable callbacks
 	*(u32*)0x003A0A84 = (u32)&mobGetGuber;
 	*(u32*)0x003A0A94 = (u32)&mobHandleEvent;
+
+	DPRINTF("%08X\n", (u32)&mobMove);
 
 	// 
 	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));

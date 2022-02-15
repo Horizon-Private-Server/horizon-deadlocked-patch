@@ -924,33 +924,35 @@ void processPlayer(int pIndex) {
 		}
 
 		// handle revive logic
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-			if (i != pIndex && !hasMessage) {
+		if (!isDeadState) {
+			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+				if (i != pIndex && !hasMessage) {
 
-				// ensure player exists, is dead, and is on the same team
-				struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
-				Player * otherPlayer = otherPlayerData->Player;
-				if (otherPlayer && otherPlayerData->IsDead && otherPlayerData->ReviveCooldownTicks > 0 && otherPlayer->Team == player->Team) {
+					// ensure player exists, is dead, and is on the same team
+					struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
+					Player * otherPlayer = otherPlayerData->Player;
+					if (otherPlayer && otherPlayerData->IsDead && otherPlayerData->ReviveCooldownTicks > 0 && otherPlayer->Team == player->Team) {
 
-					// check distance
-					vector_subtract(t, player->PlayerPosition, otherPlayer->PlayerPosition);
-					if (vector_sqrmag(t) < (PLAYER_REVIVE_MAX_DIST * PLAYER_REVIVE_MAX_DIST)) {
-						
-						// get revive cost
-						int cost = getPlayerReviveCost(otherPlayer);
+						// check distance
+						vector_subtract(t, player->PlayerPosition, otherPlayer->PlayerPosition);
+						if (vector_sqrmag(t) < (PLAYER_REVIVE_MAX_DIST * PLAYER_REVIVE_MAX_DIST)) {
+							
+							// get revive cost
+							int cost = getPlayerReviveCost(otherPlayer);
 
-						// draw help popup
-						sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_REVIVE_MESSAGE, cost);
-						uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-						hasMessage = 1;
-						playerData->MessageCooldownTicks = 2;
+							// draw help popup
+							sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_REVIVE_MESSAGE, cost);
+							uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+							hasMessage = 1;
+							playerData->MessageCooldownTicks = 2;
 
-						// handle pad input
-						if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
-							playerData->State.Bolts -= cost;
-							playerData->State.Revives++;
-							playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
-							playerRevive(otherPlayer);
+							// handle pad input
+							if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
+								playerData->State.Bolts -= cost;
+								playerData->State.Revives++;
+								playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
+								playerRevive(otherPlayer);
+							}
 						}
 					}
 				}

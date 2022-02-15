@@ -35,3 +35,8 @@ Send mutators to everyone at start of each round (in case host leaves midgame)
 ++Add grace period between rounds
 ++Improve mob distance based drawing
 ++Hook up patch game state updater to round number
+++Fix hasVelocity when MoveStep is greater than 0
+Enable selecting any alpha mod for any weapon
+Give +5 ammo for all weapons per ammo alpha mod
+Disable mob collision while crawling out of ground
+Add competitive teamplay logic
