@@ -36,7 +36,7 @@ Send mutators to everyone at start of each round (in case host leaves midgame)
 ++Improve mob distance based drawing
 ++Hook up patch game state updater to round number
 ++Fix hasVelocity when MoveStep is greater than 0
-Enable selecting any alpha mod for any weapon
-Give +5 ammo for all weapons per ammo alpha mod
+++Enable selecting any alpha mod for any weapon (codesegment at 0x0040B00C)
+++Give +5 ammo for all weapons per ammo alpha mod (codesegment at 0x0017A0F8)
 ++Disable mob collision while crawling out of ground
-Add competitive teamplay logic
+++Add competitive teamplay logic

@@ -24,7 +24,7 @@
 #if QUICK_SPAWN
 #define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 0)
 #else
-#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 30)
+#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 20)
 #endif
 
 #define ROUND_BASE_BOLT_BONUS									(100)
@@ -140,6 +140,7 @@ struct SurvivalState
 	int RoundSpawnTicker;
 	int RoundSpawnTickerCounter;
 	int RoundNextSpawnTickerCounter;
+	int InitializedTime;
 	int MinMobCost;
 	int MobsDrawnCurrent;
 	int MobsDrawnLast;
@@ -153,6 +154,7 @@ struct SurvivalState
 	int WinningTeam;
 	int IsHost;
 	float Difficulty;
+	char HasTeams;
 };
 
 typedef struct SurvivalRoundCompleteMessage

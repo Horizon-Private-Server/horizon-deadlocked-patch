@@ -39,7 +39,7 @@
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
-const char * SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE = "\x1d   Start Round";
+const char * SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE = "\x1d   Start Round";
 const char * SURVIVAL_NEXT_ROUND_TIMER_MESSAGE = "Next Round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x11 Revive [\x0E%d\x08]";
@@ -1162,6 +1162,16 @@ void randomizeWeaponPickups(void)
 }
 
 //--------------------------------------------------------------------------
+int whoKilledMeHook(Player* player, Moby* moby, int b)
+{
+	// allow damage from mobs
+	if (moby && moby->OClass == ZOMBIE_MOBY_OCLASS)
+		return ((int (*)(Player*, Moby*, int))0x005dff08)(player, moby, b);
+		
+	return 0;
+}
+
+//--------------------------------------------------------------------------
 Moby* FindMobyOrSpawnBox(int oclass, int defaultToSpawnpointId)
 {
 	// find
@@ -1216,7 +1226,7 @@ void resetRoundState(void)
 void initialize(PatchGameConfig_t* gameConfig)
 {
 	Player** players = playerGetAll();
-	int i, j;
+	int i, j, lastTeam = -1;
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
@@ -1253,6 +1263,10 @@ void initialize(PatchGameConfig_t* gameConfig)
 	// Enable weapon version and v10 name variant in places that display weapon name
 	*(u32*)0x00541850 = 0x08000000 | ((u32)&customGetGadgetVersionName >> 2);
 	*(u32*)0x00541854 = 0;
+
+	// patch who killed me to prevent damaging others
+	*(u32*)0x005E07C8 = 0x0C000000 | ((u32)&whoKilledMeHook >> 2);
+	*(u32*)0x005E11B0 = *(u32*)0x005E07C8;
 
 	WeaponDefsData* wepDefs = weaponGetGunLevelDefs();
 	wepDefs[WEAPON_ID_MAGMA_CANNON].Entries[9].Damage[2] = 80.0;
@@ -1297,6 +1311,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 	// initialize player states
 	State.LocalPlayerState = NULL;
+	State.HasTeams = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
 		State.PlayerStates[i].State.Bolts = 0;
@@ -1323,6 +1338,13 @@ void initialize(PatchGameConfig_t* gameConfig)
 			// clear alpha mods
 			if (p->GadgetBox)
 				memset(p->GadgetBox->ModBasic, 0, sizeof(p->GadgetBox->ModBasic));
+
+			if (lastTeam != p->Team) {
+				if (lastTeam >= 0)
+					State.HasTeams = 1;
+				
+				lastTeam = p->Team;
+			}
 		}
 	}
 
@@ -1366,6 +1388,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.MobsDrawnCurrent = 0;
 	State.MobsDrawnLast = 0;
 	State.MobsDrawGameTime = 0;
+	State.InitializedTime = gameGetTime();
 	State.Difficulty = DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 	resetRoundState();
 
@@ -1471,18 +1494,36 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		forcePlayerHUD();
 
 		// handle game over
-		if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor)
+		if (State.IsHost && gameTime > (State.InitializedTime + 5*TIME_SECOND))
 		{
 			int isAnyPlayerAlive = 0;
+			int oneTeamLeft = 1;
+			int lastTeam = -1;
+			int teams = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
+
+			// determine number of players alive
+			// and if one or more teams are left alive
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				if (players[i] && !playerIsDead(players[i])) {
 					isAnyPlayerAlive = 1;
-					break;
+					if (lastTeam != players[i]->Team) {
+						if (lastTeam >= 0)
+							oneTeamLeft = 0;
+						
+						lastTeam = players[i]->Team;
+					}
 				}
 			}
 
-			// everyone died, end game
-			if (!isAnyPlayerAlive) {
+			// if have teams, and only one team left alive, end game
+			if (State.HasTeams && oneTeamLeft && lastTeam >= 0)
+			{
+				State.GameOver = 1;
+				gameSetWinner(lastTeam, teams);
+			}
+			// if survivor and everyone has died, end game
+			else if (gameOptions->GameFlags.MultiplayerGameFlags.Survivor && !isAnyPlayerAlive)
+			{
 				State.GameOver = 1;
 				gameSetWinner(10, 1);
 			}
@@ -1504,10 +1545,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					// reset round state
 					resetRoundState();
 				}
-				else if (State.IsHost)
+				else if (State.IsHost && !State.HasTeams)
 				{
 					// draw round countdown
-					uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
+					uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
 
 					// handle skip
 					if (!State.LocalPlayerState->Player->timers.noInput && padGetButtonDown(0, PAD_UP) > 0) {
@@ -1525,9 +1566,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #if AUTOSTART
 				setRoundStart(0);
 #else
-				gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_MESSAGE, -1, 4);
-				if (padGetButtonDown(0, PAD_UP) > 0) {
-					setRoundStart(1);
+				if (!State.HasTeams) {
+					gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
+					if (padGetButtonDown(0, PAD_UP) > 0) {
+						setRoundStart(1);
+					}
 				}
 #endif
 			}
@@ -1622,14 +1665,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 //--------------------------------------------------------------------------
 void setLobbyGameOptions(void)
 {
-	int i;
-
-	//
-	GameSettings * gameSettings = gameGetSettings();
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		if (gameSettings->PlayerClients[i] >= 0)
-			gameSettings->PlayerTeams[i] = 0;
-
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
 	if (!gameOptions)
