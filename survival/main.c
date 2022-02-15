@@ -792,13 +792,15 @@ void processPlayer(int pIndex) {
 	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
 	int reviveCooldownTicks = decTimerU16(&playerData->ReviveCooldownTicks);
 	if (playerData->IsDead && reviveCooldownTicks > 0 && playerGetNumLocals() == 1) {
-
-		int x,y;
-		VECTOR pos = {0,0,1,0};
-		vector_add(pos, player->PlayerPosition, pos);
-		if (gfxWorldSpaceToScreenSpace(pos, &x, &y)) {
-			sprintf(strBuf, "\x11  %02d", reviveCooldownTicks/60);
-			gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
+		Player* localPlayer = playerGetFromSlot(0);
+		if (localPlayer->Team == player->Team) {
+			int x,y;
+			VECTOR pos = {0,0,1,0};
+			vector_add(pos, player->PlayerPosition, pos);
+			if (gfxWorldSpaceToScreenSpace(pos, &x, &y)) {
+				sprintf(strBuf, "\x11  %02d", reviveCooldownTicks/60);
+				gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
+			}
 		}
 	}
 	
@@ -1494,7 +1496,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		forcePlayerHUD();
 
 		// handle game over
-		if (State.IsHost && gameTime > (State.InitializedTime + 5*TIME_SECOND))
+		if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
 		{
 			int isAnyPlayerAlive = 0;
 			int oneTeamLeft = 1;
@@ -1515,17 +1517,17 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				}
 			}
 
-			// if have teams, and only one team left alive, end game
-			if (State.HasTeams && oneTeamLeft && lastTeam >= 0)
-			{
-				State.GameOver = 1;
-				gameSetWinner(lastTeam, teams);
-			}
-			// if survivor and everyone has died, end game
-			else if (gameOptions->GameFlags.MultiplayerGameFlags.Survivor && !isAnyPlayerAlive)
+			// if everyone has died, end game
+			if (!isAnyPlayerAlive)
 			{
 				State.GameOver = 1;
 				gameSetWinner(10, 1);
+			}
+			// if have teams, and only one team left alive, end game
+			else if (State.HasTeams && oneTeamLeft && lastTeam >= 0)
+			{
+				State.GameOver = 1;
+				gameSetWinner(lastTeam, teams);
 			}
 		}
 

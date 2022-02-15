@@ -523,6 +523,9 @@ void mobMove(Moby* moby, u128 to, float speed)
 
 void mobStand(Moby* moby)
 {
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	vector_write(pvars->MoveVars.passThruNormal, 0);
+	vector_copy(pvars->MoveVars.passThruPoint, moby->Position);
 	mobyStand(moby);
 }
 
@@ -689,13 +692,13 @@ void mobHandleStuck(Moby* moby)
 
 	// increment ticks stuck
 	if (hasVelocity) {
-		pvars->MobVars.MovingTicks += pvars->MobVars.MoveStep;
+		pvars->MobVars.MovingTicks += 1;
 		if (pvars->MobVars.MovingTicks > 5)
 			pvars->MobVars.StuckTicks = 0;
 	}
 	else {
 		if (pvars->MobVars.HasSpeed)
-			pvars->MobVars.StuckTicks += pvars->MobVars.MoveStep;
+			pvars->MobVars.StuckTicks += 1;
 		else
 			pvars->MobVars.StuckTicks = 0;
 		pvars->MobVars.MovingTicks = 0;
@@ -920,9 +923,8 @@ void mobUpdate(Moby* moby)
 	((void (*)(Moby*, float*, MobyColDamage*))0x005184d0)(moby, &damage, colDamage);
 
 	if (colDamage && damage > 0) {
-		//DPRINTF("damage: %f\n", damage);
 		Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
-		if (damager && playerIsLocal(damager)) {
+		if (damager && (isOwner || playerIsLocal(damager))) {
 			mobSendDamageEvent(moby, damager->PlayerMoby, colDamage->Damager, damage, colDamage->DamageFlags);	
 		} else if (isOwner) {
 			mobSendDamageEvent(moby, colDamage->Damager, colDamage->Damager, damage, colDamage->DamageFlags);	

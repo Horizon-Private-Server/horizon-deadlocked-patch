@@ -40,3 +40,5 @@ Send mutators to everyone at start of each round (in case host leaves midgame)
 ++Give +5 ammo for all weapons per ammo alpha mod (codesegment at 0x0017A0F8)
 ++Disable mob collision while crawling out of ground
 ++Add competitive teamplay logic
+Change team bolts to multiply by # of teams, then per team divide by # players on team
+Turn off player targeting when teams are on
