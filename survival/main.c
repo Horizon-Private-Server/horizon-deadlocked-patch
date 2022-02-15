@@ -1106,8 +1106,6 @@ void destroyOmegaPads(void)
 
 		gm = (GuberMoby*)gm->Guber.Prev;
 	}
-
-	DPRINTF("mod pad destroyed: %d\n", c);
 }
 
 //--------------------------------------------------------------------------

@@ -52,6 +52,7 @@ u32 MobSecondaryColors[] = {
 
 Moby* AllMobsSorted[MAX_MOBS_SPAWNED];
 int AllMobsSortedFreeSpots = MAX_MOBS_SPAWNED;
+void * mobCollData = NULL;
 
 extern struct SurvivalState State;
 
@@ -308,9 +309,24 @@ void mobForceLocalAction(Moby* moby, int action)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-	// set animation
+	// from
+	switch (pvars->MobVars.Action)
+	{
+		case MOB_EVENT_SPAWN:
+		{
+			moby->CollData = mobCollData;
+			break;
+		}
+	}
+
+	// to
 	switch (action)
 	{
+		case MOB_ACTION_SPAWN:
+		{
+			moby->CollData = NULL;
+			break;
+		}
 		case MOB_ACTION_WALK:
 		{
 			
@@ -999,6 +1015,11 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	moby->GlowRGBA = MobSecondaryColors[(int)args.MobType];
 	moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
 
+	// update reference to moby collision
+	if (!mobCollData)
+		mobCollData = moby->CollData;
+	moby->CollData = NULL;
+
 
 	// update pvars
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -1368,8 +1389,6 @@ void mobInitialize(void)
 	// set vtable callbacks
 	*(u32*)0x003A0A84 = (u32)&mobGetGuber;
 	*(u32*)0x003A0A94 = (u32)&mobHandleEvent;
-
-	DPRINTF("%08X\n", (u32)&mobMove);
 
 	// 
 	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
