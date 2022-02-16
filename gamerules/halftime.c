@@ -154,7 +154,7 @@ void htCtfSwitch(void)
 	Moby * moby;
 	ScoreboardItem * scoreboardItem;
 	VECTOR rVector, pVector;
-	u8 * teamCaps = gameGetTeamStatCaps();
+	u8 * teamCaps = (u8*)0x0036DC4C;
 	int teams = 0;
 	u8 teamChangeMap[4] = {0,1,2,3};
 	u8 backupTeamCaps[4];

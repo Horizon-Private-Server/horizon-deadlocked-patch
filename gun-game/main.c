@@ -222,15 +222,14 @@ void setWeapon(Player * player, int weaponId)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void demotePlayer(Player * player, struct GunGameState * playerState, PlayerWeaponStats * playerWepStats)
+void demotePlayer(Player * player, struct GunGameState * playerState, GameData * gameData)
 {
-	if (!player || !playerState || !playerWepStats)
+	if (!player || !playerState || !gameData)
 		return;
 
 	int playerId = player->PlayerId;
-	PlayerGameStats * stats = gameGetPlayerStats();
-	playerState->LastWrenchDeaths = playerWepStats->WeaponDeaths[playerId][WEAPON_SLOT_WRENCH];
-	playerState->LastSuicides = stats->Suicides[playerId];
+	playerState->LastWrenchDeaths = gameData->PlayerStats.WeaponDeaths[playerId][WEAPON_SLOT_WRENCH];
+	playerState->LastSuicides = gameData->PlayerStats.Suicides[playerId];
 
 	if (playerState->GunIndex <= 0)
 	{
@@ -240,7 +239,7 @@ void demotePlayer(Player * player, struct GunGameState * playerState, PlayerWeap
 
 	// Decrement gun index
 	playerState->GunIndex -= 1;
-	playerState->LastGunKills = playerWepStats->WeaponKills[playerId][(int)GunGameWeaponIds[playerState->GunIndex]];
+	playerState->LastGunKills = gameData->PlayerStats.WeaponKills[playerId][(int)GunGameWeaponIds[playerState->GunIndex]];
 
 	// Show popup
 	if (playerIsLocal(player))
@@ -264,13 +263,12 @@ void demotePlayer(Player * player, struct GunGameState * playerState, PlayerWeap
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void promotePlayer(Player * player, struct GunGameState * playerState, PlayerWeaponStats * playerWepStats)
+void promotePlayer(Player * player, struct GunGameState * playerState, GameData * gameData)
 {
-	if (!player || !playerState || !playerWepStats)
+	if (!player || !playerState || !gameData)
 		return;
 
 	int playerId = player->PlayerId;
-	PlayerGameStats * stats = gameGetPlayerStats();
 
 	// Player has already promoted as far as possible
 	if (playerState->GunIndex >= GUN_INDEX_END)
@@ -281,9 +279,9 @@ void promotePlayer(Player * player, struct GunGameState * playerState, PlayerWea
 
 	// Increment gun index
 	playerState->GunIndex += 1;
-	playerState->LastGunKills = playerWepStats->WeaponKills[playerId][(int)GunGameWeaponIds[playerState->GunIndex]];
-	playerState->LastWrenchDeaths = playerWepStats->WeaponDeaths[playerId][WEAPON_SLOT_WRENCH];
-	playerState->LastSuicides = stats->Suicides[playerId];
+	playerState->LastGunKills = gameData->PlayerStats.WeaponKills[playerId][(int)GunGameWeaponIds[playerState->GunIndex]];
+	playerState->LastWrenchDeaths = gameData->PlayerStats.WeaponDeaths[playerId][WEAPON_SLOT_WRENCH];
+	playerState->LastSuicides = gameData->PlayerStats.Suicides[playerId];
 
 	// Show popup
 	if (playerIsLocal(player))
@@ -331,10 +329,9 @@ void processPlayer(Player * player)
 
 	int playerId = player->PlayerId;
 	struct GunGameState * playerState = &PlayerGunGameStates[player->PlayerId];
-	PlayerGameStats * stats = gameGetPlayerStats();
 	char activeGunSlotId = GunGameWeaponIds[playerState->GunIndex];
 	char activeGunId = weaponSlotToId(activeGunSlotId);
-	PlayerWeaponStats * playerWepStats = gameGetPlayerWeaponStats();
+	GameData * gameData = gameGetData();
 
 	// If player has reached end then game over
 	if (playerState->GunIndex >= GUN_INDEX_END)
@@ -374,13 +371,13 @@ void processPlayer(Player * player)
 	}
 	
 	// Check for demotion
-	if (playerWepStats->WeaponDeaths[playerId][WEAPON_SLOT_WRENCH] > playerState->LastWrenchDeaths ||
-		stats->Suicides[playerId] > playerState->LastSuicides)
-		demotePlayer(player, playerState, playerWepStats);
+	if (gameData->PlayerStats.WeaponDeaths[playerId][WEAPON_SLOT_WRENCH] > playerState->LastWrenchDeaths ||
+		gameData->PlayerStats.Suicides[playerId] > playerState->LastSuicides)
+		demotePlayer(player, playerState, gameData);
 
 	// Check for promotion
-	else if (playerWepStats->WeaponKills[playerId][(int)activeGunSlotId] > playerState->LastGunKills)
-		promotePlayer(player, playerState, playerWepStats);
+	else if (gameData->PlayerStats.WeaponKills[playerId][(int)activeGunSlotId] > playerState->LastGunKills)
+		promotePlayer(player, playerState, gameData);
 
 #if DEBUG
 	if (playerState->PadReset == 1 && (player->Paddata->btns & PAD_L3))
@@ -394,12 +391,12 @@ void processPlayer(Player * player)
 	else if (playerState->PadReset == 0 && !(player->Paddata->btns & PAD_L3) && playerState->GunIndex > 0)
 	{
 		playerState->PadReset = 1;
-		DemotePlayer(player, playerState, playerWepStats);
+		DemotePlayer(player, playerState, gameData);
 	}
 	else if (playerState->PadReset == 0 && !(player->Paddata->btns & PAD_R3) && playerState->GunIndex < (GUN_INDEX_END - 1))
 	{
 		playerState->PadReset = 2;
-		PromotePlayer(player, playerState, playerWepStats);
+		PromotePlayer(player, playerState, gameData);
 	}
 #endif
 

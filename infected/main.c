@@ -125,7 +125,7 @@ void processPlayer(Player * player)
 		return;
 
 	int teamId = player->Team;
-	PlayerGameStats * stats = gameGetPlayerStats();
+	GameData * gameData = gameGetData();
 
 	// 
 	if (isInfected(player->PlayerId))
@@ -146,7 +146,7 @@ void processPlayer(Player * player)
 	// If the player is already on the infected team
 	// or if they've died
 	// then infect them
-	else if (teamId == INFECTED_TEAM || stats->Deaths[player->PlayerId] > 0)
+	else if (teamId == INFECTED_TEAM || gameData->PlayerStats.Deaths[player->PlayerId] > 0)
 	{
 		infect(player->PlayerId);
 	}

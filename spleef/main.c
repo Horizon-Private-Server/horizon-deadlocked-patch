@@ -619,7 +619,7 @@ void gameStart(void)
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
 	Player * localPlayer = (Player*)0x00347AA0;
-	PlayerGameStats * stats = gameGetPlayerStats();
+	GameData * gameData = gameGetData();
 	int i;
 
 	// Ensure in game
@@ -706,7 +706,7 @@ void gameStart(void)
 			// iterate each player
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 			{
-				SpleefState.PlayerKills[i] = stats->Kills[i];
+				SpleefState.PlayerKills[i] = gameData->PlayerStats.Kills[i];
 			}
 
 			// host specific logic

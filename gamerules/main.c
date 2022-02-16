@@ -191,12 +191,12 @@ void vampireLogic(GameModule * module, float healRate)
 	int i;
 	Player ** playerObjects = playerGetAll();
 	Player * player;
-	PlayerGameStats * stats = gameGetPlayerStats();
+	GameData * gameData = gameGetData();
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
 		// Check if player has killed someone
-		if (stats->Kills[i] > PlayerKills[i])
+		if (gameData->PlayerStats.Kills[i] > PlayerKills[i])
 		{
 			// Try to heal if player exists
 			player = playerObjects[i];
@@ -204,7 +204,7 @@ void vampireLogic(GameModule * module, float healRate)
 				playerSetHealth(player, clamp(player->Health + healRate, 0, PLAYER_MAX_HEALTH));
 			
 			// Update our cached kills count
-			PlayerKills[i] = stats->Kills[i];
+			PlayerKills[i] = gameData->PlayerStats.Kills[i];
 		}
 	}
 }

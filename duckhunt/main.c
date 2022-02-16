@@ -203,12 +203,12 @@ void sortScoreboard(int dontLockLocal)
 void updateScoreboard(void)
 {
 	int i;
-	PlayerGameStats * stats = gameGetPlayerStats();
+	GameData* gameData = gameGetData();
 
 	// Update player scores
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
-		PlayerScores[i].Value = stats->Kills[i];
+		PlayerScores[i].Value = gameData->PlayerStats.Kills[i];
 	}
 
 	// Correct scoreboard
@@ -701,7 +701,6 @@ void gameStart(void)
 	Player * localPlayer = (Player*)0x00347AA0;
 	GameData * gameData = gameGetData();
 	int gameTime = gameGetTime();
-	PlayerGameStats * stats = gameGetPlayerStats();
 	int i;
 	VECTOR vTemp;
 	char buf[128];
@@ -752,8 +751,8 @@ void gameStart(void)
 					if (playerIndex >= 0 && HuntState.RoundPlayerState[playerIndex] == PLAYER_STATE_DUCK_FINISHED)
 					{
 						HuntState.PlayerScore[playerIndex] += 3 - i;
-						stats->Kills[playerIndex] += 3 - i;
-						DPRINTF("player %d score %d\n", playerIndex, stats->Kills[playerIndex]);
+						gameData->PlayerStats.Kills[playerIndex] += 3 - i;
+						DPRINTF("player %d score %d\n", playerIndex, gameData->PlayerStats.Kills[playerIndex]);
 					}
 				}
 
