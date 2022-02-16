@@ -803,6 +803,10 @@ void processPlayer(int pIndex) {
 			}
 		}
 	}
+
+	// turn off player targeting
+	if (player->PlayerMoby)
+		player->PlayerMoby->ModeBits2 &= ~0x1000;
 	
 	if (player->IsLocal && !player->timers.noInput) {
 		
@@ -1227,8 +1231,9 @@ void resetRoundState(void)
 //--------------------------------------------------------------------------
 void initialize(PatchGameConfig_t* gameConfig)
 {
+	char hasTeam[10] = {0,0,0,0,0,0,0,0,0,0};
 	Player** players = playerGetAll();
-	int i, j, lastTeam = -1;
+	int i, j;
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
@@ -1313,7 +1318,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 	// initialize player states
 	State.LocalPlayerState = NULL;
-	State.HasTeams = 0;
+	State.NumTeams = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
 		State.PlayerStates[i].State.Bolts = 0;
@@ -1341,11 +1346,9 @@ void initialize(PatchGameConfig_t* gameConfig)
 			if (p->GadgetBox)
 				memset(p->GadgetBox->ModBasic, 0, sizeof(p->GadgetBox->ModBasic));
 
-			if (lastTeam != p->Team) {
-				if (lastTeam >= 0)
-					State.HasTeams = 1;
-				
-				lastTeam = p->Team;
+			if (!hasTeam[p->Team]) {
+				State.NumTeams++;
+				hasTeam[p->Team] = 1;
 			}
 		}
 	}
@@ -1524,7 +1527,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				gameSetWinner(10, 1);
 			}
 			// if have teams, and only one team left alive, end game
-			else if (State.HasTeams && oneTeamLeft && lastTeam >= 0)
+			else if (State.NumTeams > 1 && oneTeamLeft && lastTeam >= 0)
 			{
 				State.GameOver = 1;
 				gameSetWinner(lastTeam, teams);
@@ -1547,7 +1550,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					// reset round state
 					resetRoundState();
 				}
-				else if (State.IsHost && !State.HasTeams)
+				else if (State.IsHost && State.NumTeams <= 1)
 				{
 					// draw round countdown
 					uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));

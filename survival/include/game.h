@@ -154,7 +154,7 @@ struct SurvivalState
 	int WinningTeam;
 	int IsHost;
 	float Difficulty;
-	char HasTeams;
+	char NumTeams;
 };
 
 typedef struct SurvivalRoundCompleteMessage

@@ -1137,22 +1137,24 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &killedByPlayerId, sizeof(killedByPlayerId));
 	guberEventRead(event, &weaponId, sizeof(weaponId));
 
+	int bolts = pvars->MobVars.Config.Bolts * State.NumTeams;
+
 #if SHARED_BOLTS
 	if (killedByPlayerId >= 0) {
 		Player * killedByPlayer = State.PlayerStates[killedByPlayerId].Player;
 		if (killedByPlayer) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				if (State.PlayerStates[i].Player && !playerIsDead(State.PlayerStates[i].Player) && State.PlayerStates[i].Player->Team == killedByPlayer->Team) {
-					State.PlayerStates[i].State.Bolts += pvars->MobVars.Config.Bolts;
-					State.PlayerStates[i].State.TotalBolts += pvars->MobVars.Config.Bolts;
+					State.PlayerStates[i].State.Bolts += bolts;
+					State.PlayerStates[i].State.TotalBolts += bolts;
 				}
 			}
 		}
 	}
 #else
 	if (killedByPlayerId >= 0) {
-		State.PlayerStates[(int)killedByPlayerId].State.Bolts += pvars->MobVars.Config.Bolts;
-		State.PlayerStates[(int)killedByPlayerId].State.TotalBolts += pvars->MobVars.Config.Bolts;
+		State.PlayerStates[(int)killedByPlayerId].State.Bolts += bolts;
+		State.PlayerStates[(int)killedByPlayerId].State.TotalBolts += bolts;
 	}
 #endif
 
