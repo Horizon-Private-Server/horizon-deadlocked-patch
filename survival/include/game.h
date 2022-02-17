@@ -111,6 +111,8 @@ struct SurvivalPlayerState
 	int Kills;
 	int Revives;
 	int TimesRevived;
+	short AlphaMods[8];
+	char BestWeaponLevel[9];
 };
 
 struct SurvivalPlayer
@@ -157,6 +159,17 @@ struct SurvivalState
 	char NumTeams;
 };
 
+struct SurvivalGameData
+{
+	int RoundNumber;
+	int Kills[GAME_MAX_PLAYERS];
+	int Revives[GAME_MAX_PLAYERS];
+	int TimesRevived[GAME_MAX_PLAYERS];
+	char AlphaMods[GAME_MAX_PLAYERS][8];
+	char BestWeaponLevel[GAME_MAX_PLAYERS][9];
+};
+
+
 typedef struct SurvivalRoundCompleteMessage
 {
 	int GameTime;
@@ -168,6 +181,7 @@ typedef struct SurvivalWeaponUpgradeMessage
 	char PlayerId;
 	char WeaponId;
 	char Level;
+	char Alphamod;
 } SurvivalWeaponUpgradeMessage_t;
 
 typedef struct SurvivalRoundStartMessage

@@ -511,16 +511,12 @@ void customMineMobyUpdate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
+void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 {
 	int i;
 	Player* p = State.PlayerStates[playerId].Player;
 	if (!p)
 		return;
-
-	int alphaMod = rand(6) + 1;
-	if (alphaMod == ALPHA_MOD_XP)
-		alphaMod++;
 
 	GadgetBox* gBox = p->GadgetBox;
 	playerGiveWeapon(p, weaponId, level);
@@ -535,6 +531,12 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 		sprintf(a, "Got %s", ALPHA_MODS[alphaMod]);
 		((void (*)(int, int, int))0x0054ea30)(p->LocalPlayerIndex, 0x2400, 0);
 	}
+	
+	// stats
+	State.PlayerStates[playerId].State.AlphaMods[alphaMod]++;
+	int wepSlotId = weaponIdToSlot(weaponId);
+	if (level > State.PlayerStates[playerId].State.BestWeaponLevel[wepSlotId])
+		State.PlayerStates[playerId].State.BestWeaponLevel[wepSlotId] = level;
 
 	// play upgrade sound
 	playUpgradeSound(p);
@@ -552,7 +554,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 int onPlayerUpgradeWeaponRemote(void * connection, void * data)
 {
 	SurvivalWeaponUpgradeMessage_t * message = (SurvivalWeaponUpgradeMessage_t*)data;
-	onPlayerUpgradeWeapon(message->PlayerId, message->WeaponId, message->Level);
+	onPlayerUpgradeWeapon(message->PlayerId, message->WeaponId, message->Level, message->Alphamod);
 
 	return sizeof(SurvivalWeaponUpgradeMessage_t);
 }
@@ -567,10 +569,13 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 	message.PlayerId = player->PlayerId;
 	message.WeaponId = weaponId;
 	message.Level = gBox->Gadgets[weaponId].Level + 1;
+	message.Alphamod = rand(6) + 1;
+	if (message.Alphamod == ALPHA_MOD_XP)
+		message.Alphamod++;
 	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_UPGRADE, sizeof(SurvivalWeaponUpgradeMessage_t), &message);
 
 	// set locally
-	onPlayerUpgradeWeapon(message.PlayerId, message.WeaponId, message.Level);
+	onPlayerUpgradeWeapon(message.PlayerId, message.WeaponId, message.Level, message.Alphamod);
 }
 
 //--------------------------------------------------------------------------
@@ -772,8 +777,8 @@ int getPlayerReviveCost(Player * player) {
 	if (!player)
 		return 0;
 
-	PlayerGameStats* stats = gameGetPlayerStats();
-	return stats->Deaths[player->PlayerId] * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber));
+	GameData * gameData = gameGetData();
+	return gameData->PlayerStats.Deaths[player->PlayerId] * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber));
 }
 
 //--------------------------------------------------------------------------
@@ -994,8 +999,10 @@ void onSetRoundComplete(int gameTime, int boltBonus)
 
 	// add bonus
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		State.PlayerStates[i].State.Bolts += boltBonus;
-		State.PlayerStates[i].State.TotalBolts += boltBonus;
+		if (!State.PlayerStates[i].IsDead) {
+			State.PlayerStates[i].State.Bolts += boltBonus;
+			State.PlayerStates[i].State.TotalBolts += boltBonus;
+		}
 	}
 
 	respawnDeadPlayers();
@@ -1334,6 +1341,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 		State.PlayerStates[i].MinSqrDistFromMob = 0;
 		State.PlayerStates[i].MaxSqrDistFromMob = 0;
 		State.PlayerStates[i].IsLocal = 0;
+		memset(State.PlayerStates[i].State.AlphaMods, 0, sizeof(State.PlayerStates[i].State.AlphaMods));
+		memset(State.PlayerStates[i].State.BestWeaponLevel, 0, sizeof(State.PlayerStates[i].State.BestWeaponLevel));
 
 		if (p) {
 
@@ -1400,14 +1409,35 @@ void initialize(PatchGameConfig_t* gameConfig)
 	Initialized = 1;
 }
 
-void UpdateGameState(struct UpdateGameStateRequest * gameStateUpdate)
+void UpdateGameState(PatchStateContainer_t * gameState)
 {
-	// game state
-	gameStateUpdate->RoundNumber = State.RoundNumber + 1;
+	int i;
+
+	// game state update
+	if (gameState->UpdateGameState)
+	{
+		gameState->GameStateUpdate.RoundNumber = State.RoundNumber + 1;
+	}
+
+	// stats
+	if (gameState->UpdateCustomGameStats)
+	{
+		struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats.Payload;
+		sGameData->RoundNumber = State.RoundNumber;
+
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		{
+			sGameData->Kills[i] = State.PlayerStates[i].State.Kills;
+			sGameData->Revives[i] = State.PlayerStates[i].State.Revives;
+			sGameData->TimesRevived[i] = State.PlayerStates[i].State.TimesRevived;
+			memcpy(sGameData->AlphaMods[i], State.PlayerStates[i].State.AlphaMods, sizeof(State.PlayerStates[i].State.AlphaMods));
+			memcpy(sGameData->BestWeaponLevel[i], State.PlayerStates[i].State.BestWeaponLevel, sizeof(State.PlayerStates[i].State.BestWeaponLevel));
+		}
+	}
 }
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct UpdateGameStateRequest * gameStateUpdate)
+void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
@@ -1420,7 +1450,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	dlPreUpdate();
 
 	// 
-	UpdateGameState(gameStateUpdate);
+	UpdateGameState(gameState);
 
 	// Ensure in game
 	if (!gameSettings || !gameIsIn())
@@ -1444,7 +1474,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	}
 #endif
 
-	if (padGetButton(0, PAD_L3 | PAD_R3) > 0)
+	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
 		State.GameOver = 1;
 	
 #if MANUAL_SPAWN
@@ -1721,7 +1751,7 @@ void setEndGameScoreboard(void)
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct UpdateGameStateRequest * gameStateUpdate)
+void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int i;
 	int activeId = uiGetActive();
@@ -1738,7 +1768,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 	}
 
 	// 
-	UpdateGameState(gameStateUpdate);
+	UpdateGameState(gameState);
 
 	// scoreboard
 	switch (activeId)

@@ -97,6 +97,11 @@ enum CustomMessageId
     CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE = 14,
 
     /*
+     * Sent from the client to the server when the game ends, containing all the stat information of the game.
+     */
+    CUSTOM_MSG_ID_CLIENT_SEND_GAME_DATA = 15,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,

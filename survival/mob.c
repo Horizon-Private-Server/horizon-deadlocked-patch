@@ -1160,8 +1160,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 	if (killedByPlayerId >= 0) {
 		struct SurvivalPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
-	 	PlayerGameStats* stats = gameGetPlayerStats();
-		PlayerWeaponStats* pWStats = gameGetPlayerWeaponStats();
+		GameData * gameData = gameGetData();
 
 		// handle weapon jackpot
 		if (weaponId > 1 && pState->Player) {
@@ -1173,9 +1172,9 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 		// handle stats
 		pState->State.Kills++;
-		stats->Kills[killedByPlayerId]++;
+		gameData->PlayerStats.Kills[killedByPlayerId]++;
 		if (weaponId > 0)
-			pWStats->WeaponKills[killedByPlayerId][weaponId]++;
+			gameData->PlayerStats.WeaponKills[killedByPlayerId][weaponId]++;
 	}
 
 	// set colors before death so that the corn has the correct color
@@ -1434,7 +1433,7 @@ void mobTick(void)
 			pvars->MobVars.ClosestDist = 10000000;
 			for (j = 0; j < localsCount; ++j) {
 				Player * p = locals[j];
-				vector_subtract(t, m->Position, p->PlayerPosition);
+				vector_subtract(t, m->Position, p->CameraPos);
 				float dist = vector_sqrmag(t);
 				if (dist < pvars->MobVars.ClosestDist)
 					pvars->MobVars.ClosestDist = dist;

@@ -23,7 +23,7 @@
 
 // Forward declarations
 struct GameModule;
-struct UpdateGameStateRequest;
+struct PatchStateContainer;
 
 /*
  * NAME :		ModuleStart
@@ -38,7 +38,7 @@ struct UpdateGameStateRequest;
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-typedef void (*ModuleStart)(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct UpdateGameStateRequest * gameStateUpdate);
+typedef void (*ModuleStart)(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct PatchStateContainer * gameState);
 
 
 /*
@@ -118,6 +118,20 @@ typedef struct UpdateGameStateRequest {
 	char ClientIds[GAME_MAX_PLAYERS];
 	char Teams[GAME_MAX_PLAYERS];
 } UpdateGameStateRequest_t;
+
+typedef struct CustomGameModeStats
+{
+  u8 Payload[484];
+} CustomGameModeStats_t;
+
+typedef struct PatchStateContainer
+{
+    int UpdateGameState;
+    UpdateGameStateRequest_t GameStateUpdate;
+    int UpdateCustomGameStats;
+    CustomGameModeStats_t CustomGameStats;
+    GameSettings GameSettingsAtStart;
+} PatchStateContainer_t;
 
 
 #endif // _MODULE_H_

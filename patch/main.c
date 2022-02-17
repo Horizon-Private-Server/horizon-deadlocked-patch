@@ -126,7 +126,16 @@ char showNoMapPopup = 0;
 const char * patchConfigStr = "PATCH CONFIG";
 
 // 
-UpdateGameStateRequest_t gameStateUpdate;
+struct GameDataBlock
+{
+  short Offset;
+  short Length;
+  char EndOfList;
+  u8 Payload[484];
+};
+
+// 
+PatchStateContainer_t patchStateContainer;
 
 extern float _lodScale;
 extern void* _correctTieLod;
@@ -718,34 +727,34 @@ int runSendGameUpdate(void)
 	lastGameUpdate = gameTime;
 
 	// construct
-	gameStateUpdate.RoundNumber = 0;
-	gameStateUpdate.TeamsEnabled = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
+	patchStateContainer.GameStateUpdate.RoundNumber = 0;
+	patchStateContainer.GameStateUpdate.TeamsEnabled = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
 
 	// copy over client ids
-	memcpy(gameStateUpdate.ClientIds, gameSettings->PlayerClients, sizeof(gameStateUpdate.ClientIds));
+	memcpy(patchStateContainer.GameStateUpdate.ClientIds, gameSettings->PlayerClients, sizeof(patchStateContainer.GameStateUpdate.ClientIds));
 
 	// reset some stuff whenever we enter a new game
 	if (newGame)
 	{
-		memset(gameStateUpdate.TeamScores, 0, sizeof(gameStateUpdate.TeamScores));
+		memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
 		newGame = 0;
 	}
 
 	// 
 	if (gameIsIn())
 	{
-		memset(gameStateUpdate.TeamScores, 0, sizeof(gameStateUpdate.TeamScores));
+		memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
 
 		for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
 		{
 			ScoreboardItem * item = GAME_SCOREBOARD_ARRAY[i];
 			if (item)
-				gameStateUpdate.TeamScores[item->TeamId] = item->Value;
+				patchStateContainer.GameStateUpdate.TeamScores[item->TeamId] = item->Value;
 		}
 	}
 
 	// copy teams over
-	memcpy(gameStateUpdate.Teams, gameSettings->PlayerTeams, sizeof(gameStateUpdate.Teams));
+	memcpy(patchStateContainer.GameStateUpdate.Teams, gameSettings->PlayerTeams, sizeof(patchStateContainer.GameStateUpdate.Teams));
 
 	return 1;
 }
@@ -1097,7 +1106,7 @@ u64 hookedProcessLevel()
 		while (module->GameEntrypoint || module->LobbyEntrypoint)
 		{
 			if (module->State > GAMEMODULE_OFF && module->LoadEntrypoint)
-				module->LoadEntrypoint(module, &config, &gameConfig, &gameStateUpdate);
+				module->LoadEntrypoint(module, &config, &gameConfig, &patchStateContainer);
 
 			++module;
 		}
@@ -1124,6 +1133,134 @@ void patchProcessLevel(void)
 {
 	// jal hookedProcessLevel
 	*(u32*)0x00157D38 = 0x0C000000 | (u32)&hookedProcessLevel / 4;
+}
+
+/*
+ * NAME :		sendGameDataBlock
+ * 
+ * DESCRIPTION :
+ * 			Sends a block of data over to the server as a GameDataBlock.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int sendGameDataBlock(short offset, char endOfList, void* buffer, int size)
+{
+	int i = 0;
+	struct GameDataBlock data;
+
+	data.Offset = offset;
+	data.EndOfList = endOfList;
+
+	// send in chunks
+	while (i < size)
+	{
+		short len = (size - i);
+		if (len > sizeof(data.Payload))
+			len = sizeof(data.Payload);
+
+		data.Length = len;
+		memcpy(data.Payload, (char*)buffer + i, len);
+		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SEND_GAME_DATA, sizeof(struct GameDataBlock), &data);
+		i += len;
+		data.Offset += len;
+	}
+
+	// return written bytes
+	return i;
+}
+
+/*
+ * NAME :		sendGameData
+ * 
+ * DESCRIPTION :
+ * 			Sends all game data, including stats, to the server when the game ends.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void sendGameData(void)
+{
+  GameOptions* gameOptions = gameGetOptions();
+  GameSettings* gameSettings = gameGetSettings();
+  GameData* gameData = gameGetData();
+	short offset = 0;
+
+	// ensure in game/staging
+	if (!gameSettings)
+		return;
+	
+	DPRINTF("sending stats... ");
+	offset += sendGameDataBlock(offset, 0, gameData, sizeof(GameData));
+	offset += sendGameDataBlock(offset, 0, &patchStateContainer.GameSettingsAtStart, sizeof(GameSettings));
+	offset += sendGameDataBlock(offset, 0, gameSettings, sizeof(GameSettings));
+	offset += sendGameDataBlock(offset, 0, gameOptions, sizeof(GameOptions));
+	offset += sendGameDataBlock(offset, 0, &patchStateContainer.CustomGameStats, sizeof(CustomGameModeStats_t));
+	offset += sendGameDataBlock(offset, 1, &patchStateContainer.GameStateUpdate, sizeof(UpdateGameStateRequest_t));
+	DPRINTF("done.\n");
+}
+
+/*
+ * NAME :		processSendGameData
+ * 
+ * DESCRIPTION :
+ * 			Logic that determines when to send game data to the server.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int processSendGameData(void)
+{
+	static int state = 0;
+  GameSettings* gameSettings = gameGetSettings();
+	int send = 0;
+
+	// ensure in game/staging
+	if (!gameSettings)
+		return;
+	
+	if (gameIsIn())
+	{
+		// move game settings
+		if (state == 0)
+		{
+			memcpy(&patchStateContainer.GameSettingsAtStart, gameSettings, sizeof(GameSettings));
+			state = 1;
+		}
+
+		// game has ended
+		if (state == 1 && gameGetFinishedExitTime() && gameAmIHost())
+			send = 1;
+	}
+	else if (state > 0)
+	{
+		// last person leaves the game
+		if (state == 1 && gameAmIHost() && gameSettings->PlayerCount == 1)
+			send = 1;
+
+		state = 0;
+	}
+
+	// 
+	if (send)
+		state = 2;
+
+	return send;
 }
 
 /*
@@ -1265,7 +1402,7 @@ void processGameModules()
 					{
 						// Invoke module
 						if (module->GameEntrypoint)
-							module->GameEntrypoint(module, &config, &gameConfig, &gameStateUpdate);
+							module->GameEntrypoint(module, &config, &gameConfig, &patchStateContainer);
 					}
 				}
 				else
@@ -1273,7 +1410,7 @@ void processGameModules()
 					// Invoke lobby module if still active
 					if (module->LobbyEntrypoint)
 					{
-						module->LobbyEntrypoint(module, &config, &gameConfig, &gameStateUpdate);
+						module->LobbyEntrypoint(module, &config, &gameConfig, &patchStateContainer);
 					}
 				}
 			}
@@ -1290,7 +1427,7 @@ void processGameModules()
 			// Invoke lobby module if still active
 			if (!gameIsIn() && module->LobbyEntrypoint)
 			{
-				module->LobbyEntrypoint(module, &config, &gameConfig, &gameStateUpdate);
+				module->LobbyEntrypoint(module, &config, &gameConfig, &patchStateContainer);
 			}
 		}
 
@@ -1503,7 +1640,7 @@ void onOnlineMenu(void)
 		else
 		{
 			char buf[32];
-			sprintf(buf, "Please install %s to play.", dataCustomMaps.items[gameConfig.customMapId]);
+			sprintf(buf, "Please install %s to play.", dataCustomMaps.items[(int)gameConfig.customMapId]);
 			uiShowOkDialog("Custom Maps", buf);
 		}
 
@@ -1621,7 +1758,10 @@ int main (void)
 	patchVoiceUpdate();
 
 	// 
-	int sendGameStateUpdate = runSendGameUpdate();
+	patchStateContainer.UpdateCustomGameStats = processSendGameData();
+
+	// 
+	patchStateContainer.UpdateGameState = runSendGameUpdate();
 
 	// config update
 	onConfigUpdate();
@@ -1785,8 +1925,16 @@ int main (void)
 		processSpectate();
 
 	//
-	if (sendGameStateUpdate)
-		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &gameStateUpdate);
+	if (patchStateContainer.UpdateGameState) {
+		patchStateContainer.UpdateGameState = 0;
+		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &patchStateContainer.GameStateUpdate);
+	}
+
+	// 
+	if (patchStateContainer.UpdateCustomGameStats) {
+		patchStateContainer.UpdateCustomGameStats = 0;
+		sendGameData();
+	}
 
 	// Call this last
 	dlPostUpdate();
