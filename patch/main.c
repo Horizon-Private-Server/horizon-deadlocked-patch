@@ -1917,12 +1917,12 @@ int main (void)
 		lastGameState = 0;
 	}
 
-	// Process game modules
-	processGameModules();
-
 	// Process spectate
 	if (config.enableSpectate)
 		processSpectate();
+
+	// Process game modules
+	processGameModules();
 
 	//
 	if (patchStateContainer.UpdateGameState) {

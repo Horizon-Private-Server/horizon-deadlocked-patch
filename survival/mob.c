@@ -7,6 +7,7 @@
 #include <libdl/collision.h>
 #include <libdl/moby.h>
 #include <libdl/random.h>
+#include <libdl/radar.h>
 
 /* 
  * 
@@ -401,7 +402,10 @@ int mobCanAttack(struct MobPVar* pvars) {
 }
 
 int mobHasVelocity(struct MobPVar* pvars) {
-	return vector_sqrmag(pvars->MoveVars.passThruNormal) > (pvars->MobVars.Config.Speed * pvars->MobVars.Config.Speed * 0.5)
+	VECTOR t;
+	vector_copy(t, pvars->MoveVars.passThruNormal);
+	t[2] = 0;
+	return vector_sqrmag(t) > (pvars->MobVars.Config.Speed * pvars->MobVars.Config.Speed * 0.5)
 				&& vector_sqrmag(pvars->MoveVars.vel) > 0.001;
 }
 
@@ -505,7 +509,9 @@ void mobMove(Moby* moby, u128 to, float speed)
 	if (pvars->MobVars.MoveStepCooldownTicks == 0)
 	{
 		// move
+		*(u32*)0x004BD1EC = 0x2402000F;
 		mobyMove(moby, to, speed);
+		*(u32*)0x004BD1EC = 0x00431024;
 
 		// calculate delta position
 		vector_subtract(pvars->MoveVars.passThruNormal, moby->Position, pvars->MoveVars.passThruPoint);
@@ -535,7 +541,7 @@ void mobDoAction(Moby* moby)
 	float speed = pvars->MobVars.Config.Speed;
 	float speedMult = 1; //(float)pvars->MobVars.MoveStep;
 	Moby* target = pvars->MobVars.Target;
-	VECTOR t;
+	VECTOR t, t2;
 
 	// turn on holos so we can collide with them
 	weaponTurnOnHoloshields(-1);
@@ -559,7 +565,6 @@ void mobDoAction(Moby* moby)
 				pvars->MoveVars.onGround = 0;
 				pvars->MoveVars.offGround = 1;
 				pvars->MoveVars.gravityVel = -0.1;
-				VECTOR t;
 				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power * pvars->MobVars.MoveStep;
 				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
 				t[2] = 1.0;
@@ -586,11 +591,20 @@ void mobDoAction(Moby* moby)
 					float dist = vector_length(t);
 					vector_scale(t, t, (2 * speedMult) / dist);
 					t[2] = dY;
-					vector_add(t, moby->Position, t);
+					vector_add(t2, moby->Position, t);
 
 					// move
-					mobMove(moby, vector_read(t), speed * speedMult);
+					mobMove(moby, vector_read(t2), speed * speedMult);
 					mobTransAnim(moby, ZOMBIE_ANIM_JUMP);
+					
+					if (0 && pvars->MobVars.IsTraversing && pvars->MoveVars.onGround && pvars->MobVars.StuckTicks > 200) {
+						pvars->MoveVars.onGround = 0;
+						pvars->MoveVars.offGround = 1;
+						pvars->MoveVars.gravityVel = -0.1;
+						vector_scale(t, t, 0.003);
+						t[2] = dY * 0.01;
+						vector_add(pvars->MoveVars.vel, pvars->MoveVars.vel, t);
+					}
 				} else {
 					// stand
 					speed = 0;
@@ -693,7 +707,7 @@ void mobHandleStuck(Moby* moby)
 	// increment ticks stuck
 	if (hasVelocity) {
 		pvars->MobVars.MovingTicks += 1;
-		if (pvars->MobVars.MovingTicks > 5)
+		if (pvars->MobVars.MovingTicks > 25)
 			pvars->MobVars.StuckTicks = 0;
 	}
 	else {
@@ -708,7 +722,7 @@ void mobHandleStuck(Moby* moby)
 	if (mobAmIOwner(moby)) {
 		if (pvars->MobVars.StuckTicks > ZOMBIE_RESPAWN_AFTER_TICKS)
 			pvars->MobVars.Respawn = 1;
-		else if (pvars->MobVars.StuckTicks > 60)
+		else if (pvars->MobVars.StuckTicks > 60 && pvars->MobVars.IsTraversing == 0)
 			pvars->MobVars.IsTraversing = 1;
 
 		// 
@@ -718,11 +732,12 @@ void mobHandleStuck(Moby* moby)
 				pvars->MoveVars.maxStepDown = ZOMBIE_BASE_STEP_HEIGHT;
 				pvars->MoveVars.collRadius = ZOMBIE_BASE_COLL_RADIUS;
 				pvars->MobVars.IsTraversing = 0;
-			} else {
-				// stuck so cycle step
-				pvars->MoveVars.maxStepUp = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, ZOMBIE_MAX_STEP_UP);
-				pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepDown + 0.5, 0, ZOMBIE_MAX_STEP_DOWN);
-				pvars->MoveVars.collRadius = clamp(pvars->MoveVars.collRadius + 0.25, 0, ZOMBIE_MAX_COLL_RADIUS);
+			} else if (pvars->MobVars.Target) {
+				
+				float dy = fabsf(pvars->MobVars.Target->Position[2] - moby->Position[2]);
+				pvars->MoveVars.maxStepUp = clamp(pvars->MoveVars.maxStepUp + 0.5, ZOMBIE_BASE_STEP_HEIGHT, dy + 5);
+				pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepDown + 0.5, ZOMBIE_BASE_STEP_HEIGHT, dy + 5);
+				pvars->MoveVars.collRadius = clamp(pvars->MoveVars.collRadius + 0.25, ZOMBIE_BASE_COLL_RADIUS, ZOMBIE_MAX_COLL_RADIUS);
 				
 				mobSetAction(moby, MOB_ACTION_JUMP);
 			}
@@ -730,7 +745,7 @@ void mobHandleStuck(Moby* moby)
 	} else if (pvars->MobVars.Action == MOB_ACTION_JUMP) {
 		pvars->MoveVars.maxStepUp = clamp(pvars->MoveVars.maxStepUp + 0.5, 0, ZOMBIE_MAX_STEP_UP);
 		pvars->MoveVars.maxStepDown = clamp(pvars->MoveVars.maxStepDown + 0.5, 0, ZOMBIE_MAX_STEP_DOWN);
-		pvars->MoveVars.collRadius = clamp(pvars->MoveVars.collRadius + 0.25, 0, ZOMBIE_MAX_COLL_RADIUS);
+		pvars->MoveVars.collRadius = clamp(pvars->MoveVars.collRadius + 0.25, ZOMBIE_BASE_COLL_RADIUS, ZOMBIE_MAX_COLL_RADIUS);
 	} else {
 		pvars->MoveVars.maxStepUp = pvars->MoveVars.maxStepDown = ZOMBIE_BASE_STEP_HEIGHT;
 		pvars->MoveVars.collRadius = ZOMBIE_BASE_COLL_RADIUS;
@@ -774,6 +789,7 @@ void mobHandleDraw(Moby* moby)
 		pvars->MobVars.MoveStep = 1;
 	}
 
+	/*
 	if (pvars->MobVars.Order > 10) {
 		if (State.RoundMobCount >= 70)
 			pvars->MobVars.MoveStep = 8;
@@ -788,6 +804,7 @@ void mobHandleDraw(Moby* moby)
 	} else {
 		pvars->MobVars.MoveStep = 1;
 	}
+	*/
 	
 
 	//pvars->MoveVars.runSpeed = 0.20 * pvars->MobVars.MoveStep;
@@ -802,9 +819,28 @@ void mobUpdate(Moby* moby)
 {
 	int i;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	GameOptions* gameOptions = gameGetOptions();
 	if (!pvars || pvars->MobVars.Destroyed)
 		return;
 	int isOwner;
+
+	// handle radar
+	if (pvars->MobVars.Action != MOB_ACTION_SPAWN && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
+	{
+		if (gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips == 1 || pvars->MobVars.ClosestDist < (20 * 20))
+		{
+			int blipId = radarGetBlipIndex(moby);
+			if (blipId >= 0)
+			{
+				RadarBlip * blip = radarGetBlips() + blipId;
+				blip->X = moby->Position[0];
+				blip->Y = moby->Position[1];
+				blip->Life = 0x1F;
+				blip->Type = 4;
+				blip->Team = 1;
+			}
+		}
+	}
 
 	// keep track of number of mobs drawn on screen to try and reduce the lag
 	int gameTime = gameGetTime();

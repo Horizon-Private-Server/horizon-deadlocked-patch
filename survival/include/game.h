@@ -57,7 +57,7 @@
 #define ZOMBIE_MELEE_ATTACK_RADIUS						(2.5)
 
 #define ZOMBIE_BASE_STEP_HEIGHT								(2)
-#define ZOMBIE_MAX_STEP_UP										(20)
+#define ZOMBIE_MAX_STEP_UP										(100)
 #define ZOMBIE_MAX_STEP_DOWN									(300)
 
 #define ZOMBIE_ANIM_ATTACK_TICKS							(30)

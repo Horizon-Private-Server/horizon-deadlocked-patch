@@ -1282,8 +1282,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 	*(u32*)0x005E07C8 = 0x0C000000 | ((u32)&whoKilledMeHook >> 2);
 	*(u32*)0x005E11B0 = *(u32*)0x005E07C8;
 
-	WeaponDefsData* wepDefs = weaponGetGunLevelDefs();
-	wepDefs[WEAPON_ID_MAGMA_CANNON].Entries[9].Damage[2] = 80.0;
+	//WeaponDefsData* wepDefs = weaponGetGunLevelDefs();
+	//wepDefs[WEAPON_ID_MAGMA_CANNON].Entries[9].Damage[2] = 80.0;
 
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);
@@ -1601,7 +1601,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #if AUTOSTART
 				setRoundStart(0);
 #else
-				if (!State.HasTeams) {
+				if (State.NumTeams == 1) {
 					gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
 					if (padGetButtonDown(0, PAD_UP) > 0) {
 						setRoundStart(1);
