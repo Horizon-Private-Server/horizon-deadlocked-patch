@@ -825,7 +825,7 @@ void mobUpdate(Moby* moby)
 	int isOwner;
 
 	// handle radar
-	if (pvars->MobVars.Action != MOB_ACTION_SPAWN && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
+	if (pvars->MobVars.Config.MobType != MOB_GHOST && pvars->MobVars.Action != MOB_ACTION_SPAWN && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
 	{
 		if (gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips == 1 || pvars->MobVars.ClosestDist < (20 * 20))
 		{
