@@ -1474,9 +1474,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	}
 #endif
 
+#if DEBUG
 	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
 		State.GameOver = 1;
-	
+#endif
+
 #if MANUAL_SPAWN
 	Player * localPlayer = (Player*)0x00347AA0;
 	if (padGetButtonDown(0, PAD_DOWN) > 0) {

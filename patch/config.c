@@ -84,9 +84,7 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
 
-#if DEV
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-#endif
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -195,11 +193,11 @@ MenuElem_ListData_t dataCustomModes = {
       "Infected",
       "Infinite Climber",
       "Search and Destroy",
+      "Survival",
       "1000 Kills",
 #if DEV
       "Gridiron",
       "Team Defenders",
-      "Survival"
 #endif
     }
 };
@@ -212,8 +210,8 @@ const char* CustomModeShortNames[] = {
   "Climber",
   "SND",
   NULL,
-#if DEV
   NULL,
+#if DEV
   NULL,
   NULL,
 #endif
@@ -281,9 +279,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
 
   // game mode settings
-#if DEV
   { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
-#endif
 
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Better hills", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterHills },
@@ -505,7 +501,6 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
 
   switch (gm)
   {
-#if DEV
     case CUSTOM_MODE_SURVIVAL:
     {
       if (v >= CUSTOM_MAP_SURVIVAL_START && v <= CUSTOM_MAP_SURVIVAL_END)
@@ -514,7 +509,6 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
       *value = CUSTOM_MAP_SURVIVAL_START;
       return 0;
     }
-#endif
     default:
     {
       if (v < CUSTOM_MAP_SURVIVAL_START)
@@ -561,9 +555,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
       case CUSTOM_MODE_GUN_GAME:
       case CUSTOM_MODE_INFINITE_CLIMBER:
       case CUSTOM_MODE_1000_KILLS:
-#if DEV
       case CUSTOM_MODE_SURVIVAL:
-#endif
       {
         if (gs->GameRules == GAMERULE_DM)
           return 1;
@@ -597,7 +589,6 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
 }
 
 // 
-#if DEV
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL)
@@ -605,7 +596,6 @@ void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* el
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
-#endif
 
 int getMenuElementState(TabElem_t* tab, MenuElem_t* element)
 {
