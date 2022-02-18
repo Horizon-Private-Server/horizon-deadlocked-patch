@@ -775,10 +775,11 @@ void mobHandleDraw(Moby* moby)
 	int order = pvars->MobVars.Order;
 	if (order >= 0) {
 		float rank = 1 - clamp(order / (float)State.RoundMobCount, 0, 1);
-		float rankCubed = rank*rank*rank;
+		float rankSqr = rank*rank;
+		float rankCubed = rankSqr*rank;
 		if (State.RoundMobCount > 30) {
 			moby->DrawDist = 4 + (128 - 4)*rankCubed;
-			pvars->MobVars.MoveStep = 1 + (12-1)*(1-rank);
+			pvars->MobVars.MoveStep = 1 + (12-1)*(1-rankSqr);
 		}
 		else {
 			moby->DrawDist = 128;

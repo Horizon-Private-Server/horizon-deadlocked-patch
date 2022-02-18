@@ -62,7 +62,7 @@
 
 #define ZOMBIE_ANIM_ATTACK_TICKS							(30)
 #define ZOMBIE_TIMEBOMB_TICKS									(60 * 3)
-#define ZOMBIE_FLINCH_COOLDOWN_TICKS					(60)
+#define ZOMBIE_FLINCH_COOLDOWN_TICKS					(60 * 7)
 #define ZOMBIE_ACTION_COOLDOWN_TICKS					(30)
 #define ZOMBIE_RESPAWN_AFTER_TICKS						(60 * 30)
 #define ZOMBIE_BASE_COLL_RADIUS								(0.5)
@@ -132,7 +132,7 @@ struct SurvivalPlayer
 struct SurvivalState
 {
 	int RoundNumber;
-	int RoundBudget;
+	long RoundBudget;
 	int RoundStartTime;
 	int RoundCompleteTime;
 	int RoundEndTime;

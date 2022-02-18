@@ -43,3 +43,4 @@ Send mutators to everyone at start of each round (in case host leaves midgame)
 ++Change team bolts to multiply by # of teams  --then per team divide by # players on team
 ++Turn off player targeting when teams are on
 Fix mob order not working correctly when spectating
+++Add difficulty to end game scoreboard text

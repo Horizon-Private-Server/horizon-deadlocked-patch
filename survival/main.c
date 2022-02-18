@@ -58,6 +58,14 @@ const char * ALPHA_MODS[] = {
 	"Nanoleech Mod"
 };
 
+const char * DIFFICULTY_NAMES[] = {
+	"Couch Potato",
+	"Contestant",
+	"Gladiator",
+	"Hero",
+	"Exterminator"
+};
+
 const u8 UPGRADEABLE_WEAPONS[] = {
 	WEAPON_ID_VIPERS,
 	WEAPON_ID_MAGMA_CANNON,
@@ -1218,7 +1226,7 @@ void resetRoundState(void)
 	static int accum = 0;
 	accum += State.RoundNumber * BUDGET_START_ACCUM * State.Difficulty;
 	State.RoundBudget = BUDGET_START + accum + 
-					(State.RoundNumber * gameSettings->PlayerCountAtStart * gameSettings->PlayerCountAtStart * State.Difficulty * BUDGET_PLAYER_WEIGHT);
+					(State.RoundNumber * gameSettings->PlayerCountAtStart * gameSettings->PlayerCountAtStart * (int)(State.Difficulty * BUDGET_PLAYER_WEIGHT));
 	State.RoundMaxMobCount = MAX_MOBS_BASE + (MAX_MOBS_ROUND_WEIGHT * State.RoundNumber * gameSettings->PlayerCountAtStart);
 	State.RoundInitialized = 0;
 	State.RoundStartTime = gameTime;
@@ -1713,7 +1721,7 @@ void setLobbyGameOptions(void)
 }
 
 //--------------------------------------------------------------------------
-void setEndGameScoreboard(void)
+void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 {
 	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
 	int i;
@@ -1736,7 +1744,7 @@ void setEndGameScoreboard(void)
 		struct SurvivalPlayerState* pState = &State.PlayerStates[pid].State;
 
 		// set round number
-		sprintf((char*)0x003D3AE0, "Survived %d Rounds!", State.RoundNumber);
+		sprintf((char*)0x003D3AE0, "Survived %d Rounds on %s!", State.RoundNumber, DIFFICULTY_NAMES[(int)gameConfig->survivalConfig.difficulty]);
 
 		// set kills
 		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", pState->Kills);
@@ -1780,7 +1788,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 			if (initializedScoreboard)
 				break;
 
-			setEndGameScoreboard();
+			setEndGameScoreboard(gameConfig);
 			initializedScoreboard = 1;
 			break;
 		}
