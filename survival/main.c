@@ -811,7 +811,7 @@ void processPlayer(int pIndex) {
 			VECTOR pos = {0,0,1,0};
 			vector_add(pos, player->PlayerPosition, pos);
 			if (gfxWorldSpaceToScreenSpace(pos, &x, &y)) {
-				sprintf(strBuf, "\x11  %02d", reviveCooldownTicks/60);
+				sprintf(strBuf, "\x1c  %02d", reviveCooldownTicks/60);
 				gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
 			}
 		}
