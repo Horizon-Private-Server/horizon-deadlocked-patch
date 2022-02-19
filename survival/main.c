@@ -42,7 +42,7 @@ const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
 const char * SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE = "\x1d   Start Round";
 const char * SURVIVAL_NEXT_ROUND_TIMER_MESSAGE = "Next Round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
-const char * SURVIVAL_REVIVE_MESSAGE = "\x11 Revive [\x0E%d\x08]";
+const char * SURVIVAL_REVIVE_MESSAGE = "\x1c Revive [\x0E%d\x08]";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
 
@@ -966,7 +966,7 @@ void processPlayer(int pIndex) {
 							playerData->MessageCooldownTicks = 2;
 
 							// handle pad input
-							if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
+							if (padGetButtonDown(localPlayerIndex, PAD_DOWN) > 0 && playerData->State.Bolts >= cost) {
 								playerData->State.Bolts -= cost;
 								playerData->State.Revives++;
 								playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;

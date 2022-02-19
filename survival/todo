@@ -44,3 +44,4 @@ Send mutators to everyone at start of each round (in case host leaves midgame)
 ++Turn off player targeting when teams are on
 Fix mob order not working correctly when spectating
 ++Add difficulty to end game scoreboard text
+++Change respawn button to not overlap with upgrading weapon
