@@ -474,12 +474,16 @@ void showNode(Moby * nodeBaseMoby, VECTOR position)
 void nodeCapture(GuberMoby * guberMoby, int team)
 {
 	u32 buffer[] = { team, -1 };
+	Guber* guber = &guberMoby->Guber;
 	
-	GuberEvent * event = guberEventCreateEvent(&guberMoby->Guber, 2, 0, 0);
-	if (event)
+	if (guber)
 	{
-		guberEventWrite(event, buffer + 0, 4);
-		guberEventWrite(event, buffer + 1, 4);
+		GuberEvent * event = guberEventCreateEvent(guber, 2, 0, 0);
+		if (event)
+		{
+			guberEventWrite(event, buffer + 0, 4);
+			guberEventWrite(event, buffer + 1, 4);
+		}
 	}
 }
 
@@ -615,7 +619,7 @@ void SNDWeaponPackEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler
 	Player ** players = playerGetAll();
 	Player * p;
 	Player * localPlayer = (Player*)0x347AA0;
-	int i;
+	int i,j;
 
 	int eventId = event->NetEvent.EventID;
 	int isNew = event->NetEvent.ObjUID == *(u32*)(*(u32*)0x00220710);
@@ -625,7 +629,8 @@ void SNDWeaponPackEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler
 	if (eventId == 0 && !isNew)
 	{
 		// get id of player picking up pack
-		int hostId = event->NetEvent.OriginClientIdx;
+		int hostId = event->NetEvent.NetData[3] >> 4;
+		DPRINTF("weapon pack event %d\n", hostId);
 
 		// find player with hostId
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -633,6 +638,7 @@ void SNDWeaponPackEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler
 			p = *players;
 			if (p && p->Guber.Id.GID.HostId == hostId)
 			{
+				DPRINTF("wp player %d\n", p->Guber.Id.GID.HostId);
 				// only allow attacking team to pickup
 				if (p->Team != SNDState.AttackerTeamId)
 					return;
@@ -647,11 +653,11 @@ void SNDWeaponPackEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler
 
 				// set bomb carrier
 				SNDState.BombCarrier = p;
-				for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+				for (j = 0; j < GAME_MAX_PLAYERS; ++j)
 				{
-					if (SNDState.Players[i].Player == p)
+					if (SNDState.Players[j].Player == p)
 					{
-						SNDState.Players[i].IsBombCarrier = 1;
+						SNDState.Players[j].IsBombCarrier = 1;
 						break;
 					}
 				}
