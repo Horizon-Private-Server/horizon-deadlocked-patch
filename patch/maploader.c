@@ -978,6 +978,17 @@ void onMapLoaderOnlineMenu(void)
 		}
 	}
 #endif
+	else if (initialized == 2)
+	{
+		printf("downloading maps\n");
+		initialized = 1;
+		// request irx modules from server
+		MapClientRequestModulesMessage request = { 0, 0 };
+		request.Module1Start = (u32)usbFsModuleStart;
+		request.Module2Start = (u32)usbSrvModuleStart;
+		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
+		actionState = ACTION_DOWNLOADING_MODULES;
+	}
 
 	return;
 }
@@ -1050,6 +1061,8 @@ void runMapLoader(void)
 	// 
 	if (!initialized)
 	{
+		initialized = 1;
+
 		// set map loader defaults
 		State.Enabled = 0;
 		State.CheckState = 0;
@@ -1057,15 +1070,8 @@ void runMapLoader(void)
 		// install on login
 		if (config.enableAutoMaps && LOAD_MODULES_RESULT == 0)
 		{
-			// request irx modules from server
-			MapClientRequestModulesMessage request = { 0, 0 };
-			request.Module1Start = (u32)usbFsModuleStart;
-			request.Module2Start = (u32)usbSrvModuleStart;
-			netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
-			actionState = ACTION_DOWNLOADING_MODULES;
+			initialized = 2;
 		}
-
-		initialized = 1;
 	}
 
 	// force map id to current map override if in staging
