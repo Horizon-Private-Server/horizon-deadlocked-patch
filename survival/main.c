@@ -523,6 +523,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 {
 	int i;
 	Player* p = State.PlayerStates[playerId].Player;
+	State.PlayerStates[playerId].State.AlphaMods[alphaMod]++;
 	if (!p)
 		return;
 
@@ -541,7 +542,6 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 	}
 	
 	// stats
-	State.PlayerStates[playerId].State.AlphaMods[alphaMod]++;
 	int wepSlotId = weaponIdToSlot(weaponId);
 	if (level > State.PlayerStates[playerId].State.BestWeaponLevel[wepSlotId])
 		State.PlayerStates[playerId].State.BestWeaponLevel[wepSlotId] = level;
@@ -587,8 +587,11 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 }
 
 //--------------------------------------------------------------------------
-void onPlayerRevive(int playerId)
+void onPlayerRevive(int playerId, int fromPlayerId)
 {
+	if (fromPlayerId >= 0)
+		State.PlayerStates[fromPlayerId].State.Revives++;
+	
 	State.PlayerStates[playerId].IsDead = 0;
 	State.PlayerStates[playerId].State.TimesRevived++;
 	Player* player = State.PlayerStates[playerId].Player;
@@ -612,22 +615,23 @@ void onPlayerRevive(int playerId)
 int onPlayerReviveRemote(void * connection, void * data)
 {
 	SurvivalReviveMessage_t * message = (SurvivalReviveMessage_t*)data;
-	onPlayerRevive(message->PlayerId);
+	onPlayerRevive(message->PlayerId, message->FromPlayerId);
 
 	return sizeof(SurvivalReviveMessage_t);
 }
 
 //--------------------------------------------------------------------------
-void playerRevive(Player* player)
+void playerRevive(Player* player, int fromPlayerId)
 {
 	SurvivalReviveMessage_t message;
 
 	// send out
 	message.PlayerId = player->PlayerId;
+	message.FromPlayerId = fromPlayerId;
 	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_REVIVE_PLAYER, sizeof(SurvivalReviveMessage_t), &message);
 
 	// set locally
-	onPlayerRevive(message.PlayerId);
+	onPlayerRevive(message.PlayerId, message.FromPlayerId);
 }
 
 //--------------------------------------------------------------------------
@@ -816,10 +820,6 @@ void processPlayer(int pIndex) {
 			}
 		}
 	}
-
-	// turn off player targeting
-	if (player->PlayerMoby)
-		player->PlayerMoby->ModeBits2 &= ~0x1000;
 	
 	if (player->IsLocal && !player->timers.noInput) {
 		
@@ -968,9 +968,8 @@ void processPlayer(int pIndex) {
 							// handle pad input
 							if (padGetButtonDown(localPlayerIndex, PAD_DOWN) > 0 && playerData->State.Bolts >= cost) {
 								playerData->State.Bolts -= cost;
-								playerData->State.Revives++;
 								playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
-								playerRevive(otherPlayer);
+								playerRevive(otherPlayer, player->PlayerId);
 							}
 						}
 					}
@@ -1153,31 +1152,32 @@ void randomizeWeaponPickups(void)
 	if (gameOptions->WeaponFlags.Chargeboots) { wepEnabled[13] = 1; pickupOptionCount++; DPRINTF("cboots\n"); }
 
 	if (pickupOptionCount > 0) {
-		while (gm) {
-			Moby* moby = gm->Moby;
-			if (moby) {
-				if (moby->OClass == MOBY_ID_WEAPON_PICKUP && moby->PVar) {
-					
-					int target = pickupCount / pickupOptionCount;
-					do { j = rand(pickupOptionCount); } while (wepCounts[j] != target);
+		Moby* moby = mobyListGetStart();
+		Moby* mEnd = mobyListGetEnd();
 
-					wepCounts[j]++;
-					
-					i = -1;
-					do
-					{
-						++i;
-						if (wepEnabled[i])
-							--j;
-					} while (j >= 0);
+		while (moby < mEnd) {
+			if (moby->OClass == MOBY_ID_WEAPON_PICKUP && moby->PVar) {
+				
+				int target = pickupCount / pickupOptionCount;
+				do { j = rand(pickupOptionCount); } while (wepCounts[j] != target);
 
-					DPRINTF("setting pickup at %08X to %d\n", (u32)moby, i);
-					((void (*)(Moby*, int))0x0043A370)(moby, i);
-					++pickupCount;
-				}
+				++wepCounts[j];
+				
+				i = -1;
+				do
+				{
+					++i;
+					if (wepEnabled[i])
+						--j;
+				} while (j >= 0);
+
+				DPRINTF("setting pickup at %08X to %d\n", (u32)moby, i);
+				((void (*)(Moby*, int))0x0043A370)(moby, i);
+
+				++pickupCount;
 			}
 
-			gm = (GuberMoby*)gm->Guber.Prev;
+			++moby;
 		}
 	}
 }
@@ -1289,6 +1289,14 @@ void initialize(PatchGameConfig_t* gameConfig)
 	// patch who killed me to prevent damaging others
 	*(u32*)0x005E07C8 = 0x0C000000 | ((u32)&whoKilledMeHook >> 2);
 	*(u32*)0x005E11B0 = *(u32*)0x005E07C8;
+	
+	// set default ammo for flail to 8
+	*(u8*)0x0039A3B4 = 8;
+
+	// disable targeting players
+	*(u32*)0x005F8A80 = 0x10A20002;
+	*(u32*)0x005F8A84 = 0x0000102D;
+	*(u32*)0x005F8A88 = 0x24440001;
 
 	//WeaponDefsData* wepDefs = weaponGetGunLevelDefs();
 	//wepDefs[WEAPON_ID_MAGMA_CANNON].Entries[9].Damage[2] = 80.0;
@@ -1419,7 +1427,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 void UpdateGameState(PatchStateContainer_t * gameState)
 {
-	int i;
+	int i,j;
 
 	// game state update
 	if (gameState->UpdateGameState)
@@ -1432,13 +1440,15 @@ void UpdateGameState(PatchStateContainer_t * gameState)
 	{
 		struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats.Payload;
 		sGameData->RoundNumber = State.RoundNumber;
+		sGameData->Version = 0x00000001;
 
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
 			sGameData->Kills[i] = State.PlayerStates[i].State.Kills;
 			sGameData->Revives[i] = State.PlayerStates[i].State.Revives;
 			sGameData->TimesRevived[i] = State.PlayerStates[i].State.TimesRevived;
-			memcpy(sGameData->AlphaMods[i], State.PlayerStates[i].State.AlphaMods, sizeof(State.PlayerStates[i].State.AlphaMods));
+			for (j = 0; j < 8; ++j)
+				sGameData->AlphaMods[i][j] = (u8)State.PlayerStates[i].State.AlphaMods[j];
 			memcpy(sGameData->BestWeaponLevel[i], State.PlayerStates[i].State.BestWeaponLevel, sizeof(State.PlayerStates[i].State.BestWeaponLevel));
 		}
 	}

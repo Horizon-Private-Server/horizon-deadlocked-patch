@@ -775,11 +775,10 @@ void mobHandleDraw(Moby* moby)
 	int order = pvars->MobVars.Order;
 	if (order >= 0) {
 		float rank = 1 - clamp(order / (float)State.RoundMobCount, 0, 1);
-		float rankSqr = rank*rank;
 		float rankCubed = rankSqr*rank;
-		if (State.RoundMobCount > 30) {
+		if (State.RoundMobCount > 20) {
 			moby->DrawDist = 4 + (128 - 4)*rankCubed;
-			pvars->MobVars.MoveStep = 1 + (12-1)*(1-rankSqr);
+			pvars->MobVars.MoveStep = 1 + (u8)((12-1)*(1-(rankCubed*rankCubed)));
 		}
 		else {
 			moby->DrawDist = 128;
@@ -1094,6 +1093,13 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->TargetVars.team = 10;
 	pvars->TargetVars.targetHeight = 1;
 
+	// 
+	Guber* guber = guberGetObjectByMoby(moby);
+	if (guber)
+	{
+		((GuberMoby*)guber)->TeamNum = 10;
+	}
+
 	// initialize move vars
 	mobyMoveSystemInit(moby);
 	mobySetMoveDistanceThresholds(moby, 0.5, 0.5, 1.0, 5.0);
@@ -1174,7 +1180,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &killedByPlayerId, sizeof(killedByPlayerId));
 	guberEventRead(event, &weaponId, sizeof(weaponId));
 
-	int bolts = pvars->MobVars.Config.Bolts * State.NumTeams;
+	int bolts = pvars->MobVars.Config.Bolts;
 
 #if SHARED_BOLTS
 	if (killedByPlayerId >= 0) {
@@ -1372,7 +1378,7 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-	if (moby->OClass == 0x20F6 && pvars) {
+	if (gameIsIn() && moby->OClass == 0x20F6 && pvars) {
 		u32 mobEvent = event->NetEvent.EventID;
 		int isFromHost = gameIsHost(event->NetEvent.OriginClientIdx);
 		if (!isFromHost && mobEvent != MOB_EVENT_SPAWN && mobEvent != MOB_EVENT_DAMAGE && mobEvent != MOB_EVENT_DESTROY && pvars->MobVars.Owner != event->NetEvent.OriginClientIdx)

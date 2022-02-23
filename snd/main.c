@@ -243,6 +243,7 @@ struct SNDState
 	int DefenderTeamId;
 	int AttackerTeamId;
 	int IsHost;
+	char RoundWinner[32];
 	GuberMoby * BombPackGuber;
 	Moby * BombPackMoby;
 	Moby * RadarObjectiveMoby[2];
@@ -254,6 +255,16 @@ struct SNDState
 	SNDPlayerState_t Players[GAME_MAX_PLAYERS];
 	SNDTimerState_t Timer;
 } SNDState;
+
+
+/*
+ *
+ */
+struct SNDGameData
+{
+	int Version;
+	char RoundWinner[32];
+};
 
 /*
  *
@@ -1212,6 +1223,27 @@ void loadGameplayHook(void * gameplayMobies, void * a1, u32 a2)
 	((void (*)(void*,void*,u32))0x004ECF70)(gameplayMobies, a1, a2);
 }
 
+
+void UpdateGameState(PatchStateContainer_t * gameState)
+{
+	int i;
+
+	// game state update
+	if (gameState->UpdateGameState)
+	{
+		gameState->GameStateUpdate.RoundNumber = SNDState.RoundNumber + 1;
+	}
+
+	// stats
+	if (gameState->UpdateCustomGameStats)
+	{
+		struct SNDGameData* sGameData = (struct SNDGameData*)gameState->CustomGameStats.Payload;
+		
+		sGameData->Version = 1;
+		memcpy(sGameData->RoundWinner, SNDState.RoundWinner, sizeof(SNDState.RoundWinner));
+	}
+}
+
 /*
  * NAME :		initialize
  * 
@@ -1250,6 +1282,7 @@ void initialize(void)
 	SNDState.BombPackGuber = 0;
 	SNDState.DefenderTeamId = TEAM_BLUE;
 	SNDState.AttackerTeamId = TEAM_RED;
+	memset(SNDState.RoundWinner, -1, sizeof(SNDState.RoundWinner));
 
 	// Hook set outcome net event
 	netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_OUTCOME, &onSetRoundOutcomeRemote);
@@ -1364,7 +1397,7 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(void)
+void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int i = 0;
 	GameSettings * gameSettings = gameGetSettings();
@@ -1400,6 +1433,9 @@ void gameStart(void)
 		setBombOutcome(1, SNDState.DefenderTeamId);
 #endif
 
+	//
+	UpdateGameState(gameState);
+
 	if (!gameHasEnded() && gameIsIn() && !SNDState.GameOver)
 	{
 		if (SNDState.RoundEndTicks)
@@ -1420,6 +1456,7 @@ void gameStart(void)
 					case SND_OUTCOME_BOMB_DEFUSED:
 					{
 						// defenders win
+						SNDState.RoundWinner[SNDState.RoundNumber] = (SNDState.TeamRolesFlipped << 4) | 0x00;
 						if (++SNDState.TeamWins[SNDState.DefenderTeamId] >= RoundsToWin)
 							SNDState.GameOver = 1;
 						
@@ -1429,6 +1466,7 @@ void gameStart(void)
 					case SND_OUTCOME_BOMB_DETONATED:
 					{
 						// attackers win
+						SNDState.RoundWinner[SNDState.RoundNumber] = (SNDState.TeamRolesFlipped << 4) | 0x01;
 						if (++SNDState.TeamWins[SNDState.AttackerTeamId] >= RoundsToWin)
 							SNDState.GameOver = 1;
 

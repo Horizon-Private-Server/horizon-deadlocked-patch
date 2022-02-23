@@ -737,6 +737,7 @@ int runSendGameUpdate(void)
 	if (newGame)
 	{
 		memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
+		memset(patchStateContainer.CustomGameStats.Payload, 0, sizeof(patchStateContainer.CustomGameStats.Payload));
 		newGame = 0;
 	}
 
@@ -1074,6 +1075,32 @@ void onGameStartMenuBack(long a0)
 	// open config
 	if (netGetLobbyServerConnection())
 		configMenuEnable();
+}
+
+/*
+ * NAME :		patchStartMenuBack_Hook
+ * 
+ * DESCRIPTION :
+ * 			Changes the BACK button text to our patch config text.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Troy "Agent Moose" Pruitt
+ */
+void patchStartMenuBack_Hook(long a0, u64 a1, u64 a2, u8 a3)
+{
+    // Force Start Menu to swap "Back" Option with "Patch Config"
+    /*
+        a0: Unknown
+        a1: String
+        a2: Function Pointer
+        a3: Unknown
+    */
+    ((void (*)(long, const char*, void*, u8))0x005600F8)(a0, patchConfigStr, &onGameStartMenuBack, a3);
 }
 
 /*
@@ -1639,9 +1666,23 @@ void onOnlineMenu(void)
 		}
 		else
 		{
+#if MAPDOWNLOADER
+			char buf[32];
+			sprintf(buf, "Would you like to download the map now?", dataCustomMaps.items[(int)gameConfig.customMapId]);
+			
+			//uiShowOkDialog("Custom Maps", buf);
+			if (uiShowYesNoDialog("Required Map Update", buf) == 1)
+			{
+				ClientInitiateMapDownloadRequest_t msg = {
+					.MapId = (int)gameConfig.customMapId
+				};
+				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
+			}
+#else
 			char buf[32];
 			sprintf(buf, "Please install %s to play.", dataCustomMaps.items[(int)gameConfig.customMapId]);
 			uiShowOkDialog("Custom Maps", buf);
+#endif
 		}
 
 		showNoMapPopup = 0;
@@ -1698,6 +1739,7 @@ int main (void)
 		}
 	}
 
+	//*(u32*)0x00167F54 = 1000 * 15;
 	
 #if SCR_PRINT
 	handleScrPrint();
@@ -1799,12 +1841,6 @@ int main (void)
 			hasInitialized = 1;
 		}
 
-		// Hook game start menu back callback
-		if (*(u32*)0x003106a0 == 0x00560E30)
-		{
-			*(u32*)0x003106a0  = (u32)&onGameStartMenuBack;
-		}
-
 		// patch lod
 		if (*(u32*)0x005930B8 == 0x02C3B020)
 		{
@@ -1840,8 +1876,11 @@ int main (void)
 			}
 		}
 
-		// patch start menu back button text
-		*(u32*)0x002AC15C = (u32)patchConfigStr;
+		// Hook game start menu back callback
+		if (*(u32*)0x005605D4 == 0x0C15803E)
+		{
+			*(u32*)0x005605D4 = 0x0C000000 | ((u32)&patchStartMenuBack_Hook / 4);
+		}
 
 		// patch red and brown as last two color codes
 		*(u32*)0x00391978 = COLOR_CODE_EX1;

@@ -53,6 +53,12 @@ extern struct MenuElem_ListData dataCustomModes;
 // map overrides
 extern struct MenuElem_ListData dataCustomMaps;
 
+extern u32 colorBlack;
+extern u32 colorBg;
+extern u32 colorRed;
+extern u32 colorContentBg;
+extern u32 colorText;
+
 // 
 extern char dataCustomMapsWithExclusiveGameMode[];
 extern const int dataCustomMapsWithExclusiveGameModeCount;
@@ -72,7 +78,6 @@ enum MenuActionId
 };
 
 // memory card fd
-int fd = 0;
 int initialized = 0;
 int actionState = ACTION_MODULES_NOT_INSTALLED;
 int rpcInit = 0;
@@ -89,9 +94,9 @@ char * fGlobalVersion = "dl/version";
 
 typedef struct MapOverrideMessage
 {
-    u8 MapId;
-    char MapName[32];
-    char MapFileName[128];
+	u8 MapId;
+	char MapName[32];
+	char MapFileName[128];
 } MapOverrideMessage;
 
 typedef struct MapOverrideResponseMessage
@@ -122,6 +127,22 @@ struct MapLoaderState
     int LoadingFileSize;
     int LoadingFd;
 } State;
+
+#if MAPDOWNLOADER
+struct MapDownloadState
+{
+    u8 Enabled;
+    u8 MapId;
+    char MapName[32];
+    char MapFileName[128];
+    int Fd;
+		int Version;
+    int TotalSize;
+		int TotalDownloaded;
+		int Ticks;
+		int Cancel;
+} DownloadState;
+#endif
 
 //------------------------------------------------------------------------------
 int onSetMapOverride(void * connection, void * data)
@@ -224,6 +245,130 @@ int onServerSentMapIrxModules(void * connection, void * data)
 
 	return sizeof(MapServerSentModulesMessage);
 }
+
+#if MAPDOWNLOADER
+//------------------------------------------------------------------------------
+int onServerSentMapChunk(void * connection, void * data)
+{
+	ServerDownloadMapChunkRequest_t * msg = (ServerDownloadMapChunkRequest_t*)data;
+	ClientDownloadMapChunkResponse_t response = {
+		.Cancel = 0,
+		.Id = msg->Id
+	};
+	response.BytesReceived = DownloadState.TotalDownloaded += msg->DataSize;
+
+	DPRINTF("server sent map chunk %d, %d bytes (%d/%d)\n", msg->Id, msg->DataSize, DownloadState.TotalDownloaded, DownloadState.TotalSize);
+
+	// 
+	if (LOAD_MODULES_STATE == 100)
+	{
+		// open
+		if (DownloadState.Fd < 0) {
+			sprintf(membuffer, msg->Id == 0 ? fWad : fBg, DownloadState.MapFileName);
+			DownloadState.Fd = usbOpen(membuffer, FIO_O_CREAT | FIO_O_WRONLY | FIO_O_TRUNC);
+
+			// failed to open
+			if (DownloadState.Fd < 0) {
+				DownloadState.Cancel = 1;
+				DownloadState.Enabled = 2;
+			}
+		}
+
+		if (DownloadState.Fd >= 0) {
+			if (!usbWrite(DownloadState.Fd, msg->Data, msg->DataSize)) {
+				DownloadState.Cancel = 1;
+				DownloadState.Enabled = 2;
+				DownloadState.Fd = -1;
+			}
+			else if (DownloadState.Cancel) {
+				usbClose(DownloadState.Fd);
+				DownloadState.Fd = -1;
+				DownloadState.Enabled = 2;
+			}
+			else if (msg->IsEnd) {
+				usbClose(DownloadState.Fd);
+				DownloadState.Fd = -1;
+
+				// finished
+				if (DownloadState.TotalDownloaded >= DownloadState.TotalSize) {
+					DownloadState.Enabled = 2;
+
+					// save version
+					sprintf(membuffer, fVersion, DownloadState.MapFileName);
+					int fd = usbOpen(membuffer, FIO_O_CREAT | FIO_O_WRONLY | FIO_O_TRUNC);
+					if (fd < 0)
+					{
+						DPRINTF("failed to create version\n");
+					}
+					else
+					{
+						usbWrite(fd, &DownloadState.Version, sizeof(DownloadState.Version));
+						usbClose(fd);
+					}
+				}
+			}
+		}
+	}
+
+	// 
+	response.Cancel = DownloadState.Cancel;
+	
+
+	char b[sizeof(ClientDownloadMapChunkResponse_t) + 4];
+	b[0] = CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE;
+	memcpy(b+4, &response, sizeof(ClientDownloadMapChunkResponse_t));
+
+	internal_netSendMessage(0x40, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, NET_CUSTOM_MESSAGE_CLASS, NET_CUSTOM_MESSAGE_ID, 4 + sizeof(ClientDownloadMapChunkResponse_t), b);
+	
+	
+	//netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE, sizeof(ClientDownloadMapChunkResponse_t), &response);
+
+	return sizeof(ServerDownloadMapChunkRequest_t);
+}
+
+//------------------------------------------------------------------------------
+int onServerSentMapInitiated(void * connection, void * data)
+{
+	ServerInitiateMapDownloadResponse_t * msg = (ServerInitiateMapDownloadResponse_t*)data;
+	ClientDownloadMapChunkResponse_t response = {
+		.Id = msg->MapId,
+		.BytesReceived = 0,
+		.Cancel = 0
+	};
+	DPRINTF("server sent map init %d,%d,%s\n", msg->MapId, msg->MapVersion, msg->MapFileName);
+
+	DownloadState.Enabled = 1;
+	DownloadState.MapId = msg->MapId;
+	DownloadState.Version = msg->MapVersion;
+	DownloadState.TotalSize = msg->TotalSize;
+	DownloadState.Fd = -1;
+	DownloadState.TotalDownloaded = 0;
+	DownloadState.Ticks = 0;
+	DownloadState.Cancel = 0;
+	strncpy(DownloadState.MapFileName, msg->MapFileName, sizeof(DownloadState.MapFileName));
+	strncpy(DownloadState.MapName, msg->MapName, sizeof(DownloadState.MapName));
+
+	// just create the version file to reset it
+	// and also to verify that the usb drive is present
+	sprintf(membuffer, fVersion, DownloadState.MapFileName);
+	int fd = usbOpen(membuffer, FIO_O_CREAT | FIO_O_WRONLY | FIO_O_TRUNC);
+	if (fd < 0)
+	{
+		DownloadState.Cancel = 1;
+		DownloadState.Enabled = 0;
+	}
+	else
+	{
+		usbClose(fd);
+	}
+
+	// 
+	response.Cancel = DownloadState.Cancel;
+	netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE, sizeof(ClientDownloadMapChunkResponse_t), &response);
+
+	return sizeof(ServerInitiateMapDownloadResponse_t);
+}
+#endif
 
 //------------------------------------------------------------------------------
 void loadModules(void)
@@ -338,7 +483,7 @@ int readGlobalVersion(int * version)
 	r = readFile(fGlobalVersion, (void*)version, 4);
 	if (r != 4)
 	{
-		DPRINTF("error reading file (%s): %d\n", fGlobalVersion, fd);
+		DPRINTF("error reading file (%s)\n", fGlobalVersion);
 		return 0;
 	}
 
@@ -357,7 +502,7 @@ int readLevelVersion(char * name, int * version)
 	r = readFile(membuffer, (void*)version, 4);
 	if (r != 4)
 	{
-		DPRINTF("error reading file (%s): %d\n", membuffer, fd);
+		DPRINTF("error reading file (%s)\n", membuffer);
 		return 0;
 	}
 
@@ -409,6 +554,76 @@ int readLevelBgUsb(u8 * buf, int size)
 	// read
 	return readFile(membuffer, (void*)buf, size) > 0;
 }
+
+#if MAPDOWNLOADER
+//--------------------------------------------------------------
+int usbOpen(char* filepath, int flags)
+{
+	int fd = 0;
+
+	// open wad file
+	rpcUSBopen(filepath, flags);
+	rpcUSBSync(0, NULL, &fd);
+	
+	// Ensure wad successfully opened
+	if (fd < 0)
+	{
+		DPRINTF("error opening file (%s): %d\n", filepath, fd);
+		return -1;									
+	}
+	
+	return fd;
+}
+
+//--------------------------------------------------------------
+void usbClose(int fd)
+{
+	DPRINTF("close %d\n", fd);
+	// open wad file
+	rpcUSBclose(fd);
+	rpcUSBSync(0, NULL, NULL);
+}
+
+//--------------------------------------------------------------
+int usbWrite(int fd, u8* buf, int len)
+{
+	int r = 0, rPos = 0;
+
+	// Ensure the wad is open
+	if (fd < 0)
+	{
+		DPRINTF("error opening file: %d\n", fd);
+		return 0;									
+	}
+
+	while (rPos < len)
+	{
+		int size = len;
+		if (size > 8192)
+			size = 8192;
+
+		// Try to write to usb
+		if ((r = rpcUSBwrite(fd, buf, size)) != 0)
+		{
+			rpcUSBSync(0, NULL, NULL);
+			DPRINTF("error writing to file %d\n", r);
+			rpcUSBclose(fd);
+			rpcUSBSync(0, NULL, NULL);
+			fd = -1;
+			return 0;
+		}
+
+		rpcUSBSync(0, NULL, &r);
+		rPos += r;
+		buf += r;
+
+		if (r != size)
+			break;
+	}
+
+	return 1;
+}
+#endif
 
 //--------------------------------------------------------------
 int openLevelUsb()
@@ -732,6 +947,37 @@ void onMapLoaderOnlineMenu(void)
 		actionState = ACTION_NONE;
 		LOAD_MODULES_RESULT = -1;
 	}
+#if MAPDOWNLOADER
+	else if (DownloadState.Enabled == 2)
+	{
+		padEnableInput();
+		DownloadState.Enabled = 0;
+	}
+	else if (DownloadState.Enabled == 1)
+	{
+		// disable input
+		padDisableInput();
+
+    gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, colorBlack);
+    gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, colorContentBg);
+
+		sprintf(membuffer, "Downloading %s... %.02f kbps", DownloadState.MapName, (float)DownloadState.TotalDownloaded / (1024.0 * (DownloadState.Ticks / 60.0)));
+    gfxScreenSpaceText(SCREEN_WIDTH * 0.22, SCREEN_HEIGHT * 0.4, 1, 1, colorText, membuffer, -1, 3);
+
+		float w = (float)DownloadState.TotalDownloaded / (float)DownloadState.TotalSize;
+		gfxScreenSpaceBox(0.2, 0.45, 0.6 * w, 0.05, colorRed);
+
+		if (padGetButtonDown(0, PAD_CIRCLE) > 0) {
+			DPRINTF("canceling\n");
+			DownloadState.Cancel = 1;
+			DownloadState.Enabled = 2;
+		}
+
+		if (!netGetLobbyServerConnection()) {
+			DownloadState.Enabled = 2;
+		}
+	}
+#endif
 
 	return;
 }
@@ -788,9 +1034,18 @@ void runMapLoader(void)
 	// 
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_MAP_OVERRIDE, &onSetMapOverride);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_MAP_IRX_MODULES, &onServerSentMapIrxModules);
+#if MAPDOWNLOADER
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_INITIATE_DOWNLOAD_MAP_RESPONSE, &onServerSentMapInitiated);
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_MAP_CHUNK_REQUEST, &onServerSentMapChunk);
+#endif
 
 	// hook irx module loading 
 	hook();
+
+#if MAPDOWNLOADER
+	if (DownloadState.Enabled)
+		++DownloadState.Ticks;
+#endif
 
 	// 
 	if (!initialized)

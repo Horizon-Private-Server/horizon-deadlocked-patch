@@ -102,6 +102,26 @@ enum CustomMessageId
     CUSTOM_MSG_ID_CLIENT_SEND_GAME_DATA = 15,
 
     /*
+     * Sent to the server when the client initiates a map download.
+     */
+    CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST = 16,
+
+    /*
+     * Sent to the client in response to the client's initiate map download request.
+     */
+    CUSTOM_MSG_ID_SERVER_INITIATE_DOWNLOAD_MAP_RESPONSE = 17,
+
+    /*
+     * Sent to the client when the server sends a map data chunk.
+     */
+    CUSTOM_MSG_ID_SERVER_DOWNLOAD_MAP_CHUNK_REQUEST = 18,
+
+    /*
+     * Sent from the client to the server when the client receives a map data request message.
+     */
+    CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE = 19,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -123,5 +143,34 @@ typedef struct ClientDownloadDataResponse
     int Id;
     int BytesReceived;
 } ClientDownloadDataResponse_t;
+
+typedef struct ClientInitiateMapDownloadRequest
+{
+    int MapId;
+} ClientInitiateMapDownloadRequest_t;
+
+typedef struct ServerInitiateMapDownloadResponse
+{
+    int MapId;
+    int MapVersion;
+    int TotalSize;
+    char MapName[32];
+    char MapFileName[128];
+} ServerInitiateMapDownloadResponse_t;
+
+typedef struct ServerDownloadMapChunkRequest
+{
+    int Id;
+    short DataSize;
+    char IsEnd;
+    char Data[1024*6];
+} ServerDownloadMapChunkRequest_t;
+
+typedef struct ClientDownloadMapChunkResponse
+{
+    int Id;
+    int BytesReceived;
+    int Cancel;
+} ClientDownloadMapChunkResponse_t;
 
 #endif // _MESSAGEID_H_

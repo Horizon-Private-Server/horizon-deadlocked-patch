@@ -161,7 +161,8 @@ struct SurvivalState
 
 struct SurvivalGameData
 {
-	int RoundNumber;
+	u32 Version;
+	u32 RoundNumber;
 	int Kills[GAME_MAX_PLAYERS];
 	int Revives[GAME_MAX_PLAYERS];
 	int TimesRevived[GAME_MAX_PLAYERS];
@@ -193,6 +194,7 @@ typedef struct SurvivalRoundStartMessage
 typedef struct SurvivalReviveMessage
 {
 	int PlayerId;
+	int FromPlayerId;
 } SurvivalReviveMessage_t;
 
 typedef struct SurvivalSetPlayerDeadMessage

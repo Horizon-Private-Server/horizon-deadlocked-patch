@@ -10,6 +10,8 @@
 
 #define RPCCLIENT_INITED (*(int*)0x000CFF00)
 
+#define USBSERV_BUFSIZE (1024 * 8)
+
 static SifRpcClientData_t * rpcclient = (SifRpcClientData_t*)0x000CFF10;
 static int Rpc_Buffer[16] 			__attribute__((aligned(64)));
 
@@ -20,8 +22,8 @@ static struct { 			// size = 256
 
 static struct { 		// size =
 	int fd;				// 0
-	void * buf;		// 4
 	int size;			// 8
+	u8 buf[USBSERV_BUFSIZE];		//
 } writeParam __attribute__((aligned(64)));
 
 static struct { 		// size = 16
@@ -118,10 +120,13 @@ int rpcUSBwrite(int fd, void *buf, int size)
 	// check lib is inited
 	if (!RPCCLIENT_INITED)
 		return -1;
+
+	if (size > USBSERV_BUFSIZE)
+		return -1;
 			
 	// set global variables
 	writeParam.fd = fd;
-	writeParam.buf = buf;
+	memcpy(writeParam.buf, buf, size);
 	writeParam.size = size;
 
 	SifWriteBackDCache(buf, size);
@@ -132,7 +137,7 @@ int rpcUSBwrite(int fd, void *buf, int size)
 			
 	currentCmd = CMD_USBWRITE;
 	
-	return 1;
+	return ret;
 }
 
 //--------------------------------------------------------------

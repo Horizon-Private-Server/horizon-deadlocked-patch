@@ -10,6 +10,7 @@ EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 #EE_DEFS += -DDEV
 #EE_DEFS += -DMAPEDITOR
 #EE_DEFS += -DSCR_PRINT
+#EE_DEFS += -DMAPDOWNLOADER
 
 all: $(EE_BIN) clean copy
 
