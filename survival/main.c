@@ -1422,6 +1422,17 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.Difficulty = DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 	resetRoundState();
 
+	// scale default mob params by difficulty
+	for (i = 0; i < defaultSpawnParamsCount; ++i)
+	{
+		struct MobConfig* config = &defaultSpawnParams[i].Config;
+		config->Bolts /= State.Difficulty;
+		config->MaxHealth *= State.Difficulty;
+		config->Health *= State.Difficulty;
+		config->Damage *= State.Difficulty;
+	}
+
+
 	Initialized = 1;
 }
 

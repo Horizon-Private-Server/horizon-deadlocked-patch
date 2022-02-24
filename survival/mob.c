@@ -229,9 +229,9 @@ void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attri
 	
 	switch (attribute)
 	{
-		case MOB_MUTATE_DAMAGE: if (spawnParams->Config.Damage < spawnParams->Config.MaxDamage) { spawnParams->Config.Damage += ZOMBIE_DAMAGE_MUTATE * ZOMBIE_BASE_DAMAGE; break; } 
-		case MOB_MUTATE_SPEED: if (spawnParams->Config.Speed < spawnParams->Config.MaxSpeed) { spawnParams->Config.Speed += ZOMBIE_SPEED_MUTATE * ZOMBIE_BASE_SPEED; break; } 
-		case MOB_MUTATE_HEALTH: if (spawnParams->Config.MaxHealth <= 0 || spawnParams->Config.Health < spawnParams->Config.MaxHealth) { spawnParams->Config.Health += ZOMBIE_HEALTH_MUTATE * ZOMBIE_BASE_HEALTH; } break;
+		case MOB_MUTATE_DAMAGE: if (spawnParams->Config.Damage < spawnParams->Config.MaxDamage) { spawnParams->Config.Damage += ZOMBIE_DAMAGE_MUTATE * ZOMBIE_BASE_DAMAGE * State.Difficulty; break; } 
+		case MOB_MUTATE_SPEED: if (spawnParams->Config.Speed < spawnParams->Config.MaxSpeed) { spawnParams->Config.Speed += ZOMBIE_SPEED_MUTATE * ZOMBIE_BASE_SPEED * State.Difficulty; break; } 
+		case MOB_MUTATE_HEALTH: if (spawnParams->Config.MaxHealth <= 0 || spawnParams->Config.Health < spawnParams->Config.MaxHealth) { spawnParams->Config.Health += ZOMBIE_HEALTH_MUTATE * ZOMBIE_BASE_HEALTH * State.Difficulty; } break;
 		case MOB_MUTATE_COST: spawnParams->Cost += rand(spawnParams->Config.MaxCostMutation); break;
 		default: break;
 	}
@@ -775,7 +775,7 @@ void mobHandleDraw(Moby* moby)
 	int order = pvars->MobVars.Order;
 	if (order >= 0) {
 		float rank = 1 - clamp(order / (float)State.RoundMobCount, 0, 1);
-		float rankCubed = rankSqr*rank;
+		float rankCubed = rank*rank*rank;
 		if (State.RoundMobCount > 20) {
 			moby->DrawDist = 4 + (128 - 4)*rankCubed;
 			pvars->MobVars.MoveStep = 1 + (u8)((12-1)*(1-(rankCubed*rankCubed)));
@@ -1069,15 +1069,15 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	
 	// initialize mob vars
 	pvars->MobVars.Config.MobType = args.MobType;
-	pvars->MobVars.Config.Bolts = args.Bolts / State.Difficulty;
-	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth * State.Difficulty;
-	pvars->MobVars.Config.Health = (float)args.StartHealth * State.Difficulty;
+	pvars->MobVars.Config.Bolts = args.Bolts;
+	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth;
+	pvars->MobVars.Config.Health = (float)args.StartHealth;
 	pvars->MobVars.Config.Bangles = args.Bangles;
-	pvars->MobVars.Config.Damage = (float)args.Damage * State.Difficulty;
+	pvars->MobVars.Config.Damage = (float)args.Damage;
 	pvars->MobVars.Config.AttackRadius = (float)args.AttackRadiusEighths / 8.0;
 	pvars->MobVars.Config.HitRadius = (float)args.HitRadiusEighths / 8.0;
 	pvars->MobVars.Config.Speed = (float)args.SpeedHundredths / 100.0;
-	pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount; // (u8)(args.ReactionTickCount / State.Difficulty);
+	pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount;
 	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
 	pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
 	pvars->MobVars.Order = -1;
