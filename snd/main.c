@@ -243,6 +243,7 @@ struct SNDState
 	int DefenderTeamId;
 	int AttackerTeamId;
 	int IsHost;
+	int NodeCount;
 	char RoundWinner[32];
 	GuberMoby * BombPackGuber;
 	Moby * BombPackMoby;
@@ -725,8 +726,7 @@ void killPack()
 	// Set lifetime of bomb pack moby
 	if (SNDState.BombPackMoby)
 	{
-		if (SNDState.BombPackMoby->OClass == MOBY_ID_WEAPON_PACK && SNDState.BombPackMoby->PVar)
-			*(u32*)((u32)SNDState.BombPackMoby->PVar + 0x8) = 0xFFFFFFFF;
+		guberMobyDestroy(SNDState.BombPackMoby);
 		
 		DPRINTF("KILLED PACK AT %08X\n", (u32)SNDState.BombPackMoby);
 		SNDState.BombPackMoby = NULL;
@@ -889,6 +889,7 @@ void onSetBombOutcome(int nodeIndex, int team, int gameTime)
 
 		// change capture time to default (defuse time)
 		*(u16*)0x00440E68 = 0x3C23;
+		*(u8*)0x0044111E = 2;
 
 		// set state
 		SNDState.BombPlantedTicks = gameTime;
@@ -1090,6 +1091,7 @@ void resetRoundState(void)
 
 	// set capture time to fast (plant speed)
 	*(u16*)0x00440E68 = 0x3CA3;
+	*(u8*)0x0044111E = 1;
 
 	// iterate players
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -1187,8 +1189,15 @@ void loadGameplayHook(void * gameplayMobies, void * a1, u32 a2)
 				}
 				case 1:
 				{
-					point = Node2SpawnPoint;
-					break;
+					if (vector_read(Node2SpawnPoint) == 0)
+					{
+
+					}
+					else
+					{
+						point = Node2SpawnPoint;
+						break;
+					}
 				}
 				default:
 				{
@@ -1282,7 +1291,12 @@ void initialize(void)
 	SNDState.BombPackGuber = 0;
 	SNDState.DefenderTeamId = TEAM_BLUE;
 	SNDState.AttackerTeamId = TEAM_RED;
+	SNDState.NodeCount = 2;
 	memset(SNDState.RoundWinner, -1, sizeof(SNDState.RoundWinner));
+
+	// 
+	if (vector_read(Node2SpawnPoint) == 0)
+		SNDState.NodeCount = 1;
 
 	// Hook set outcome net event
 	netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_OUTCOME, &onSetRoundOutcomeRemote);
@@ -1304,9 +1318,6 @@ void initialize(void)
 
 	// Remove blip type write
 	*(u32*)0x00553C5C = 0;
-
-	// Prevent faster node cap with multiple people
-	*(u8*)0x0044111E = 2;
 
 	// Overwrite 'you picked up a weapon pack' string to pickup bomb message
 	replaceString(0x2331, SND_BOMB_YOU_PICKED_UP);
@@ -1578,7 +1589,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			}
 
 			// set objectives
-			for (i = 0; i < 2; ++i)
+			for (i = 0; i < SNDState.NodeCount; ++i)
 			{
 				if (target[i])
 				{
