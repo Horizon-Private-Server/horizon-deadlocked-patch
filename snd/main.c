@@ -1305,6 +1305,9 @@ void initialize(void)
 	// Remove blip type write
 	*(u32*)0x00553C5C = 0;
 
+	// Prevent faster node cap with multiple people
+	*(u8*)0x0044111E = 2;
+
 	// Overwrite 'you picked up a weapon pack' string to pickup bomb message
 	replaceString(0x2331, SND_BOMB_YOU_PICKED_UP);
 
