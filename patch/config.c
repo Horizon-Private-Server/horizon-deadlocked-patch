@@ -192,6 +192,7 @@ MenuElem_ListData_t dataCustomModes = {
       "Gun Game",
       "Infected",
       "Infinite Climber",
+      "Payload",
       "Search and Destroy",
       "Survival",
       "1000 Kills",
@@ -208,6 +209,7 @@ const char* CustomModeShortNames[] = {
   NULL,
   NULL,
   "Climber",
+  NULL,
   "SND",
   NULL,
   NULL,
@@ -509,6 +511,14 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
       *value = CUSTOM_MAP_SURVIVAL_START;
       return 0;
     }
+    case CUSTOM_MODE_PAYLOAD:
+    {
+      if (v == CUSTOM_MAP_SARATHOS_SP)
+        return 1;
+
+      *value = CUSTOM_MAP_SARATHOS_SP;
+      return 0;
+    }
     default:
     {
       if (v < CUSTOM_MAP_SURVIVAL_START)
@@ -556,6 +566,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
       case CUSTOM_MODE_INFINITE_CLIMBER:
       case CUSTOM_MODE_1000_KILLS:
       case CUSTOM_MODE_SURVIVAL:
+      case CUSTOM_MODE_PAYLOAD:
       {
         if (gs->GameRules == GAMERULE_DM)
           return 1;
@@ -1325,7 +1336,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
 	dlBytesReceived += request->DataSize;
 	memcpy((void*)request->TargetAddress, request->Data, request->DataSize);
 	DPRINTF("DOWNLOAD: %d/%d, writing %d to %08X\n", dlBytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
-
+  
 	// respond
 	if (connection)
 	{
@@ -1340,6 +1351,11 @@ int onServerDownloadDataRequest(void * connection, void * data)
   {
     dlTotalBytes = 0;
     dlBytesReceived = 0;
+    *(u32*)0x00167F54 = 1000 * 3;
+  }
+  else
+  {
+    *(u32*)0x00167F54 = 1000 * 15;
   }
 
 	return sizeof(ServerDownloadDataRequest_t) - sizeof(request->Data) + request->DataSize;

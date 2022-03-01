@@ -13,6 +13,8 @@ all:
 	$(MAKE) -C duckhunt
 	$(MAKE) -C gridiron
 	$(MAKE) -C thousand-kills
+	$(MAKE) -C survival
+	$(MAKE) -C payload
 	
 clean:
 	$(MAKE) -C patch clean
@@ -27,4 +29,6 @@ clean:
 	$(MAKE) -C duckhunt clean
 	$(MAKE) -C gridiron clean
 	$(MAKE) -C thousand-kills clean
+	$(MAKE) -C survival clean
+	$(MAKE) -C payload clean
 

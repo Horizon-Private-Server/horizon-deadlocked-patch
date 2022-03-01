@@ -1276,8 +1276,8 @@ int processSendGameData(void)
 	}
 	else if (state > 0)
 	{
-		// last person leaves the game
-		if (state == 1 && gameAmIHost() && gameSettings->PlayerCount == 1)
+		// host leaves the game
+		if (state == 1 && gameAmIHost())
 			send = 1;
 
 		state = 0;
@@ -1739,8 +1739,6 @@ int main (void)
 		}
 	}
 
-	//*(u32*)0x00167F54 = 1000 * 15;
-	
 #if SCR_PRINT
 	handleScrPrint();
 #endif
