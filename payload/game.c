@@ -1220,7 +1220,6 @@ void updateGameState(PatchStateContainer_t * gameState)
 		struct PayloadGameData* sGameData = (struct PayloadGameData*)gameState->CustomGameStats.Payload;
 		sGameData->Rounds = State.RoundNumber;
 		sGameData->Version = 0x00000002;
-		
 
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{

@@ -131,6 +131,9 @@ typedef struct SNDPlayerState
 	Player * Player;
 	int IsBombCarrier;
 	int IsDead;
+	short BombsPlanted;
+	short BombsDefused;
+	short BombsNinjaDefused;
 } SNDPlayerState_t;
 
 /*
@@ -158,6 +161,7 @@ typedef struct SNDBombOutcomeMessage
 {
 	int NodeIndex;
 	int Team;
+	int PlayerId;
 	int GameTime;
 } SNDBombOutcomeMessage_t;
 
@@ -265,6 +269,9 @@ struct SNDGameData
 {
 	int Version;
 	char RoundWinner[32];
+	short BombsPlanted[GAME_MAX_PLAYERS];
+	short BombsDefused[GAME_MAX_PLAYERS];
+	short BombsNinjaDefused[GAME_MAX_PLAYERS];
 };
 
 /*
@@ -353,9 +360,9 @@ int onSetRoundOutcomeRemote(void * connection, void * data);
 void setRoundOutcome(int outcome);
 
 // forwards
-void onSetBombOutcome(int nodeIndex, int team, int gameTime);
+void onSetBombOutcome(int nodeIndex, int team, int playerId, int gameTime);
 int onSetBombOutcomeRemote(void * connection, void * data);
-void setBombOutcome(int nodeIndex, int team);
+void setBombOutcome(int nodeIndex, int team, int playerId);
 
 /*
  * NAME :		updateScoreboard
@@ -595,12 +602,12 @@ void SNDHackerOrbEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler_
 				if (team == SNDState.AttackerTeamId)
 				{
 					// send to others
-					setBombOutcome(nodeIndex, team);
+					setBombOutcome(nodeIndex, team, playerId);
 				}
 				else
 				{
 					// send to others
-					setBombOutcome(nodeIndex, team);
+					setBombOutcome(nodeIndex, team, playerId);
 
 					// set state
 					setRoundOutcome(SND_OUTCOME_BOMB_DEFUSED);
@@ -874,7 +881,7 @@ void setRoundOutcome(int outcome)
 }
 
 
-void onSetBombOutcome(int nodeIndex, int team, int gameTime)
+void onSetBombOutcome(int nodeIndex, int team, int playerId, int gameTime)
 {
 	int i;
 
@@ -901,6 +908,11 @@ void onSetBombOutcome(int nodeIndex, int team, int gameTime)
 			SNDPlayerState_t * p = &SNDState.Players[i];
 			if (p && p->Player && p->IsBombCarrier)
 			{
+				DPRINTF("bomb planted %d, carrier %d\n", playerId, i);
+				if (i == playerId) {
+					p->BombsPlanted++;
+				}
+
 				p->IsBombCarrier = 0;
 				GadgetBox* gBox = p->Player->GadgetBox;
 				if (gBox)
@@ -920,18 +932,37 @@ void onSetBombOutcome(int nodeIndex, int team, int gameTime)
 		// bomb defused
 		uiShowPopup(0, SND_BOMB_DEFUSED);
 		uiShowPopup(1, SND_BOMB_DEFUSED);
+
+		DPRINTF("bomb defused from %d\n", playerId);
+		if (playerId >= 0) {
+			SNDState.Players[playerId].BombsDefused++;
+
+			// check if ninja
+			int attackerAlive = 0;
+			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+				if (SNDState.Players[i].Player && !SNDState.Players[i].IsDead && SNDState.Players[i].Player->Team == SNDState.AttackerTeamId) {
+					attackerAlive = 1;
+					break;
+				}
+			}
+
+			if (attackerAlive) {
+				SNDState.Players[playerId].BombsNinjaDefused++;
+				DPRINTF("ninja defuse %d\n", playerId);
+			}
+		}
 	}
 }
 
 int onSetBombOutcomeRemote(void * connection, void * data)
 {
 	SNDBombOutcomeMessage_t * message = (SNDBombOutcomeMessage_t*)data;
-	onSetBombOutcome(message->NodeIndex, message->Team, message->GameTime);
+	onSetBombOutcome(message->NodeIndex, message->Team, message->PlayerId, message->GameTime);
 
 	return sizeof(SNDBombOutcomeMessage_t);
 }
 
-void setBombOutcome(int nodeIndex, int team)
+void setBombOutcome(int nodeIndex, int team, int playerId)
 {
 	SNDBombOutcomeMessage_t message;
 
@@ -942,11 +973,12 @@ void setBombOutcome(int nodeIndex, int team)
 	// send out
 	message.NodeIndex = nodeIndex;
 	message.Team = team;
+	message.PlayerId = playerId;
 	message.GameTime = gameGetTime();
 	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_BOMB_OUTCOME, sizeof(SNDBombOutcomeMessage_t), &message);
 
 	// set locally
-	onSetBombOutcome(nodeIndex, team, message.GameTime);
+	onSetBombOutcome(nodeIndex, team, playerId, message.GameTime);
 }
 
 void playTimerTickSound()
@@ -1233,7 +1265,7 @@ void loadGameplayHook(void * gameplayMobies, void * a1, u32 a2)
 }
 
 
-void UpdateGameState(PatchStateContainer_t * gameState)
+void updateGameState(PatchStateContainer_t * gameState)
 {
 	int i;
 
@@ -1248,8 +1280,14 @@ void UpdateGameState(PatchStateContainer_t * gameState)
 	{
 		struct SNDGameData* sGameData = (struct SNDGameData*)gameState->CustomGameStats.Payload;
 		
-		sGameData->Version = 1;
+		sGameData->Version = 2;
 		memcpy(sGameData->RoundWinner, SNDState.RoundWinner, sizeof(SNDState.RoundWinner));
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		{
+			sGameData->BombsDefused[i] = SNDState.Players[i].BombsDefused;
+			sGameData->BombsNinjaDefused[i] = SNDState.Players[i].BombsNinjaDefused;
+			sGameData->BombsPlanted[i] = SNDState.Players[i].BombsPlanted;
+		}
 	}
 }
 
@@ -1328,6 +1366,14 @@ void initialize(void)
 	{
 		--delayStart;
 		return;
+	}
+
+	// 
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+	{
+		SNDState.Players[i].BombsDefused = 0;
+		SNDState.Players[i].BombsNinjaDefused = 0;
+		SNDState.Players[i].BombsPlanted = 0;
 	}
 
 	// Initialize scoreboard
@@ -1438,17 +1484,17 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	if (!SNDState.GameOver && padGetButton(0, PAD_L3 | PAD_R3) > 0)
 		SNDState.GameOver = 1;
 	if (!SNDState.GameOver && padGetButton(0, PAD_L1 | PAD_UP) > 0 && SNDState.IsHost && !SNDState.BombPlantedTicks)
-		setBombOutcome(0, SNDState.AttackerTeamId);
+		setBombOutcome(0, SNDState.AttackerTeamId, -1);
 	if (!SNDState.GameOver && padGetButton(0, PAD_L1 | PAD_DOWN) > 0 && SNDState.IsHost && !SNDState.BombPlantedTicks)
-		setBombOutcome(1, SNDState.AttackerTeamId);
+		setBombOutcome(1, SNDState.AttackerTeamId, -1);
 	if (!SNDState.GameOver && padGetButton(0, PAD_L1 | PAD_LEFT) > 0 && SNDState.IsHost && SNDState.BombPlantedTicks)
-		setBombOutcome(0, SNDState.DefenderTeamId);
+		setBombOutcome(0, SNDState.DefenderTeamId, -1);
 	if (!SNDState.GameOver && padGetButton(0, PAD_L1 | PAD_RIGHT) > 0 && SNDState.IsHost && SNDState.BombPlantedTicks)
-		setBombOutcome(1, SNDState.DefenderTeamId);
+		setBombOutcome(1, SNDState.DefenderTeamId, -1);
 #endif
 
 	//
-	UpdateGameState(gameState);
+	updateGameState(gameState);
 
 	if (!gameHasEnded() && gameIsIn() && !SNDState.GameOver)
 	{
@@ -1470,7 +1516,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					case SND_OUTCOME_BOMB_DEFUSED:
 					{
 						// defenders win
-						SNDState.RoundWinner[SNDState.RoundNumber] = (SNDState.TeamRolesFlipped << 4) | 0x00;
+						SNDState.RoundWinner[SNDState.RoundNumber] = (u8)(SNDState.BombPlantSiteIndex << 6) | (SNDState.TeamRolesFlipped << 4) | 0x00;
+						DPRINTF("round result %02X\n", (u8)SNDState.RoundWinner[SNDState.RoundNumber]);
 						if (++SNDState.TeamWins[SNDState.DefenderTeamId] >= RoundsToWin)
 							SNDState.GameOver = 1;
 						
@@ -1480,7 +1527,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					case SND_OUTCOME_BOMB_DETONATED:
 					{
 						// attackers win
-						SNDState.RoundWinner[SNDState.RoundNumber] = (SNDState.TeamRolesFlipped << 4) | 0x01;
+						SNDState.RoundWinner[SNDState.RoundNumber] = (u8)(SNDState.BombPlantSiteIndex << 6) | (SNDState.TeamRolesFlipped << 4) | 0x01;
+						DPRINTF("round result %02X\n", (u8)SNDState.RoundWinner[SNDState.RoundNumber]);
 						if (++SNDState.TeamWins[SNDState.AttackerTeamId] >= RoundsToWin)
 							SNDState.GameOver = 1;
 
@@ -1745,7 +1793,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(void)
+void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	// conquest homenodes options
 	static char cqOptions[] = { 
@@ -1755,6 +1803,11 @@ void lobbyStart(void)
 		0, 0, 0, 0,		// 0x10 - 0x14
 		-1, -1, 1, 1,	// 0x14 - 0x18
 	};
+
+
+	//
+	updateGameState(gameState);
+
 
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();

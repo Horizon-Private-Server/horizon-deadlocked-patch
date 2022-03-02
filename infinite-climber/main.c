@@ -74,6 +74,16 @@ struct State
 } State;
 
 /*
+ * 
+ */
+struct ClimberGameData
+{
+	u32 Version;
+	float FinalScore[GAME_MAX_PLAYERS];
+	float BestScore[GAME_MAX_PLAYERS];
+};
+
+/*
  *
  */
 int Initialized = 0;
@@ -422,6 +432,25 @@ int whoKilledMeHook(void)
 	return 0;
 }
 
+void updateGameState(PatchStateContainer_t * gameState)
+{
+	int i,j;
+
+	// stats
+	if (gameState->UpdateCustomGameStats)
+	{
+		struct ClimberGameData* sGameData = (struct ClimberGameData*)gameState->CustomGameStats.Payload;
+		sGameData->Version = 0x00000001;
+
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		{
+			sGameData->BestScore[i] = State.PlayerBestHeight[i];
+			sGameData->FinalScore[i] = State.PlayerFinalHeight[i];
+			DPRINTF("%d: best:%f final:%f\n", i, sGameData->BestScore[i], sGameData->FinalScore[i]);
+		}
+	}
+}
+
 /*
  * NAME :		initialize
  * 
@@ -611,7 +640,7 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(void)
+void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
@@ -625,6 +654,9 @@ void gameStart(void)
 		initialize();
 		return;
 	}
+
+	// 
+	updateGameState(gameState);
 
 	// Spawn tick
 	spawnTick();
@@ -751,7 +783,7 @@ void setEndGameScoreboard(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(void)
+void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
@@ -759,6 +791,9 @@ void lobbyStart(void)
 	// set time ended
 	if (Initialized && State.StartTime && !State.EndTime)
 		State.EndTime = gameGetTime();
+
+	// 
+	updateGameState(gameState);
 
 	// scoreboard
 	switch (activeId)

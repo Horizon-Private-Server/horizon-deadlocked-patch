@@ -1436,7 +1436,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	Initialized = 1;
 }
 
-void UpdateGameState(PatchStateContainer_t * gameState)
+void updateGameState(PatchStateContainer_t * gameState)
 {
 	int i,j;
 
@@ -1479,7 +1479,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	dlPreUpdate();
 
 	// 
-	UpdateGameState(gameState);
+	updateGameState(gameState);
 
 	// Ensure in game
 	if (!gameSettings || !gameIsIn())
@@ -1799,7 +1799,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 	}
 
 	// 
-	UpdateGameState(gameState);
+	updateGameState(gameState);
 
 	// scoreboard
 	switch (activeId)

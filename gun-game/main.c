@@ -79,6 +79,9 @@ const int GUN_INDEX_END = 9;
 struct GunGameState
 {
 	int GunIndex;
+	int Promotions;
+	int Demotions;
+	int TimesDemotionedAnother;
 	int LastGunKills;
 	int LastWrenchDeaths;
 	int LastSuicides;
@@ -95,6 +98,18 @@ struct WeaponModState
 	int Omega;
 	int Alpha[10];
 } WeaponModStates[16];
+
+/*
+ * 
+ */
+struct GunGameGameData
+{
+	u32 Version;
+	int Gun[GAME_MAX_PLAYERS];
+	int Demotions[GAME_MAX_PLAYERS];
+	int Promotions[GAME_MAX_PLAYERS];
+	int TimesDemotionedAnother[GAME_MAX_PLAYERS];
+};
 
 /*
  *
@@ -238,6 +253,7 @@ void demotePlayer(Player * player, struct GunGameState * playerState, GameData *
 	}
 
 	// Decrement gun index
+	playerState->Demotions++;
 	playerState->GunIndex -= 1;
 	playerState->LastGunKills = gameData->PlayerStats.WeaponKills[playerId][(int)GunGameWeaponIds[playerState->GunIndex]];
 
@@ -282,6 +298,7 @@ void promotePlayer(Player * player, struct GunGameState * playerState, GameData 
 	playerState->LastGunKills = gameData->PlayerStats.WeaponKills[playerId][(int)GunGameWeaponIds[playerState->GunIndex]];
 	playerState->LastWrenchDeaths = gameData->PlayerStats.WeaponDeaths[playerId][WEAPON_SLOT_WRENCH];
 	playerState->LastSuicides = gameData->PlayerStats.Suicides[playerId];
+	playerState->Promotions++;
 
 	// Show popup
 	if (playerIsLocal(player))
@@ -391,12 +408,12 @@ void processPlayer(Player * player)
 	else if (playerState->PadReset == 0 && !(player->Paddata->btns & PAD_L3) && playerState->GunIndex > 0)
 	{
 		playerState->PadReset = 1;
-		DemotePlayer(player, playerState, gameData);
+		demotePlayer(player, playerState, gameData);
 	}
 	else if (playerState->PadReset == 0 && !(player->Paddata->btns & PAD_R3) && playerState->GunIndex < (GUN_INDEX_END - 1))
 	{
 		playerState->PadReset = 2;
-		PromotePlayer(player, playerState, gameData);
+		promotePlayer(player, playerState, gameData);
 	}
 #endif
 
@@ -405,6 +422,69 @@ void processPlayer(Player * player)
 	{
 		PlayerScores[playerId].Value = playerState->GunIndex;
 		ScoreboardChanged = 1;
+	}
+}
+
+/*
+ * NAME :		onPlayerKill
+ * 
+ * DESCRIPTION :
+ * 			Triggers whenever a player is killed.
+ * 			Handles detection of when a player demotes another.
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onPlayerKill(char * fragMsg)
+{
+	// call base function
+	((void (*)(char*))0x00621CF8)(fragMsg);
+
+	char weaponId = fragMsg[3];
+	char killedPlayerId = fragMsg[2];
+	char sourcePlayerId = fragMsg[0];
+
+	if (sourcePlayerId >= 0 && killedPlayerId >= 0 && weaponId == WEAPON_ID_WRENCH) {
+		if (PlayerGunGameStates[killedPlayerId].GunIndex > 0) {
+			PlayerGunGameStates[sourcePlayerId].TimesDemotionedAnother++;
+			DPRINTF("%d demoted %d\n", sourcePlayerId, killedPlayerId);
+		}
+	}
+}
+
+/*
+ * NAME :		updateGameState
+ * 
+ * DESCRIPTION :
+ * 			Updates the gamemode state for the server stats.
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void updateGameState(PatchStateContainer_t * gameState)
+{
+	int i,j;
+
+	// stats
+	if (gameState->UpdateCustomGameStats)
+	{
+		struct GunGameGameData* sGameData = (struct GunGameGameData*)gameState->CustomGameStats.Payload;
+		sGameData->Version = 0x00000001;
+
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		{
+			sGameData->Gun[i] = PlayerGunGameStates[i].GunIndex;
+			sGameData->Promotions[i] = PlayerGunGameStates[i].Promotions;
+			sGameData->Demotions[i] = PlayerGunGameStates[i].Demotions;
+			sGameData->TimesDemotionedAnother[i] = PlayerGunGameStates[i].TimesDemotionedAnother;
+			DPRINTF("%d: gun:%d promo:%d demo:%d demoAnother:%d\n", i, sGameData->Gun[i], sGameData->Promotions[i], sGameData->Demotions[i], sGameData->TimesDemotionedAnother[i]);
+		}
 	}
 }
 
@@ -441,6 +521,9 @@ void initialize(void)
 		PlayerGunGameStates[i].LastGunKills = 0;
 		PlayerGunGameStates[i].LastWrenchDeaths = 0;
 		PlayerGunGameStates[i].LastSuicides = 0;
+		PlayerGunGameStates[i].Promotions = 0;
+		PlayerGunGameStates[i].Demotions = 0;
+		PlayerGunGameStates[i].TimesDemotionedAnother = 0;
 		
 #if DEBUG
 		PlayerGunGameStates[i].PadReset = 0;
@@ -502,6 +585,9 @@ void initialize(void)
 	// No packs
 	cheatsApplyNoPacks();
 
+	// hook into player kill event
+	*(u32*)0x00621c7c = 0x0C000000 | ((u32)&onPlayerKill >> 2);
+
 	// Set respawn time to 2
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 2;
 
@@ -535,7 +621,7 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(void)
+void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int i = 0;
 	GameSettings * gameSettings = gameGetSettings();
@@ -547,6 +633,9 @@ void gameStart(void)
 
 	if (!Initialized)
 		initialize();
+
+	// 
+	updateGameState(gameState);
 
 	if (!gameHasEnded() && !GameOver)
 	{
@@ -690,10 +779,13 @@ void setEndGameScoreboard(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(void)
+void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
+
+	// 
+	updateGameState(gameState);
 
 	// scoreboard
 	switch (activeId)

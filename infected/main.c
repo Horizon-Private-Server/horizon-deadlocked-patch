@@ -29,6 +29,17 @@
 #define INFECTED_TEAM			(TEAM_GREEN)
 
 /*
+ * 
+ */
+struct InfectedGameData
+{
+	u32 Version;
+	int Infections[GAME_MAX_PLAYERS];
+	char IsInfected[GAME_MAX_PLAYERS];
+	char IsFirstInfected[GAME_MAX_PLAYERS];
+};
+
+/*
  *
  */
 int InfectedMask = 0;
@@ -42,6 +53,16 @@ int WinningTeam = 0;
  *
  */
 int Initialized = 0;
+
+/*
+ *
+ */
+char FirstInfected[GAME_MAX_PLAYERS];
+
+/*
+ *
+ */
+int Infections[GAME_MAX_PLAYERS];
 
 /*
  * 
@@ -202,6 +223,67 @@ Player * getRandomSurvivor(u32 seed)
 }
 
 /*
+ * NAME :		onPlayerKill
+ * 
+ * DESCRIPTION :
+ * 			Triggers whenever a player is killed.
+ * 			Handles detection of when a player infects another.
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onPlayerKill(char * fragMsg)
+{
+	VECTOR delta;
+
+	// call base function
+	((void (*)(char*))0x00621CF8)(fragMsg);
+
+	char weaponId = fragMsg[3];
+	char killedPlayerId = fragMsg[2];
+	char sourcePlayerId = fragMsg[0];
+
+	if (sourcePlayerId >= 0 && isInfected(sourcePlayerId) && killedPlayerId >= 0 && !isInfected(killedPlayerId)) {
+		Infections[sourcePlayerId]++;
+	}
+}
+
+/*
+ * NAME :		updateGameState
+ * 
+ * DESCRIPTION :
+ * 			Updates the gamemode state for the server stats.
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void updateGameState(PatchStateContainer_t * gameState)
+{
+	int i,j;
+
+	// stats
+	if (gameState->UpdateCustomGameStats)
+	{
+		struct InfectedGameData* sGameData = (struct InfectedGameData*)gameState->CustomGameStats.Payload;
+		sGameData->Version = 0x00000001;
+
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		{
+			sGameData->Infections[i] = Infections[i];
+			sGameData->IsInfected[i] = isInfected(i);
+			sGameData->IsFirstInfected[i] = FirstInfected[i];
+			DPRINTF("%d: infections:%d infected:%d firstInfected:%d\n", i, Infections[i], isInfected(i) != 0, FirstInfected[i]);
+		}
+	}
+}
+
+/*
  * NAME :		initialize
  * 
  * DESCRIPTION :
@@ -220,6 +302,13 @@ void initialize(void)
 {
 	// No packs
 	cheatsApplyNoPacks();
+
+	// 
+	memset(FirstInfected, 0, sizeof(FirstInfected));
+	memset(Infections, 0, sizeof(Infections));
+
+	// hook into player kill event
+	*(u32*)0x00621c7c = 0x0C000000 | ((u32)&onPlayerKill >> 2);
 
 	// Disable health boxes
 	if (cheatsDisableHealthboxes())
@@ -242,7 +331,7 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(void)
+void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int i = 0;
 	int infectedCount = 0;
@@ -257,6 +346,9 @@ void gameStart(void)
 
 	if (!Initialized)
 		initialize();
+
+	// 
+	updateGameState(gameState);
 
 	if (!gameHasEnded())
 	{
@@ -307,6 +399,7 @@ void gameStart(void)
 				if (survivor)
 				{
 					infect(survivor->PlayerId);
+					FirstInfected[survivor->PlayerId] = 1;
 				}
 			}
 		}
@@ -353,9 +446,12 @@ void setLobbyGameOptions(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(void)
+void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
+
+	// 
+	updateGameState(gameState);
 
 	// scoreboard
 	switch (activeId)

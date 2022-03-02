@@ -77,6 +77,7 @@ struct SpleefState
 	char RoundResult[4];
 	char RoundPlayerState[GAME_MAX_PLAYERS];
 	short PlayerKills[GAME_MAX_PLAYERS];
+	int PlayerBoxesDestroyed[GAME_MAX_PLAYERS];
 	int RoundInitialized;
 	int GameOver;
 	int WinningTeam;
@@ -96,8 +97,22 @@ typedef struct SpleefOutcomeMessage
  */
 typedef struct SpleefDestroyBoxMessage
 {
-	int BoxId;
+	short BoxId;
+	char PlayerId;
 } SpleefDestroyBoxMessage_t;
+
+
+/*
+ *
+ */
+struct SpleefGameData
+{
+	u32 Version;
+	u32 Rounds;
+	int Points[GAME_MAX_PLAYERS];
+	int BoxesDestroyed[GAME_MAX_PLAYERS];
+};
+
 
 /*
  *
@@ -280,7 +295,7 @@ void setRoundOutcome(int first, int second, int third)
 	onSetRoundOutcome(message.Outcome);
 }
 
-void onDestroyBox(int id)
+void onDestroyBox(int id, int playerId)
 {
 	Moby* box = SpleefBox[id];
 	if (box && box->OClass == MOBY_ID_NODE_BOLT_GUARD && box->PChain)
@@ -288,7 +303,11 @@ void onDestroyBox(int id)
 		mobyDestroy(box);
 	}
 
-	DPRINTF("box destroyed %d\n", id);
+	// 
+	if (playerId >= 0)
+		SpleefState.PlayerBoxesDestroyed[playerId]++;
+
+	DPRINTF("box destroyed %d by %d\n", id, playerId);
 }
 
 int onDestroyBoxRemote(void * connection, void * data)
@@ -297,18 +316,24 @@ int onDestroyBoxRemote(void * connection, void * data)
 
 	// if the round hasn't ended
 	if (!SpleefState.RoundEndTicks)
-		onDestroyBox(message->BoxId);
+		onDestroyBox(message->BoxId, message->PlayerId);
 
 	return sizeof(SpleefDestroyBoxMessage_t);
 }
 
-void destroyBox(int id)
+void destroyBox(int id, int playerId)
 {
 	SpleefDestroyBoxMessage_t message;
 
 	// send out
 	message.BoxId = id;
+	message.PlayerId = playerId;
 	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_DESTROY_BOX, sizeof(SpleefDestroyBoxMessage_t), &message);
+
+	// 
+	if (playerId >= 0)
+		SpleefState.PlayerBoxesDestroyed[playerId]++;
+		
 	DPRINTF("sent destroy box %d\n", id);
 }
 
@@ -343,7 +368,7 @@ void boxUpdate(Moby* moby)
 			{
 				if (SpleefBox[i] == moby)
 				{
-					destroyBox(i);
+					destroyBox(i, damagePlayerId);
 					return;
 				}
 			}
@@ -389,6 +414,34 @@ void drawRoundMessage(const char * message, float scale)
 			y += 18.0 * scale;
 			gfxScreenSpaceText(x-(w/2), y, scale, scale, 0x80FFFFFF, rankStrings[i-1], -1, 3);
 			gfxScreenSpaceText(x+(w/2), y, scale, scale, 0x80FFFFFF, gameSettings->PlayerNames[pId], -1, 5);
+		}
+	}
+}
+
+
+void updateGameState(PatchStateContainer_t * gameState)
+{
+	int i,j;
+
+	// game state update
+	if (gameState->UpdateGameState)
+	{
+		gameState->GameStateUpdate.RoundNumber = SpleefState.RoundNumber + 1;
+	}
+
+	// stats
+	if (gameState->UpdateCustomGameStats)
+	{
+		struct SpleefGameData* sGameData = (struct SpleefGameData*)gameState->CustomGameStats.Payload;
+		sGameData->Rounds = SpleefState.RoundNumber+1;
+		DPRINTF("spleef ran for %d rounds\n", sGameData->Rounds);
+		sGameData->Version = 0x00000001;
+		
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		{
+			DPRINTF("%d: %d points %d boxes\n", i, PlayerScores[i].Value, SpleefState.PlayerBoxesDestroyed[i]);
+			sGameData->Points[i] = PlayerScores[i].Value;
+			sGameData->BoxesDestroyed[i] = SpleefState.PlayerBoxesDestroyed[i];
 		}
 	}
 }
@@ -594,6 +647,7 @@ void initialize(void)
 	SpleefState.GameOver = 0;
 	SpleefState.RoundNumber = 0;
 	memset(SpleefState.PlayerKills, 0, sizeof(SpleefState.PlayerKills));
+	memset(SpleefState.PlayerBoxesDestroyed, 0, sizeof(SpleefState.PlayerBoxesDestroyed));
 	resetRoundState();
 
 	Initialized = 1;
@@ -614,7 +668,7 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(void)
+void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
@@ -633,6 +687,9 @@ void gameStart(void)
 		initialize();
 
 	int killsToWin = gameGetOptions()->GameFlags.MultiplayerGameFlags.KillsToWin;
+
+	// 
+	updateGameState(gameState);
 
 #if DEBUG
 	if (padGetButton(0, PAD_L3 | PAD_R3) > 0)
@@ -871,10 +928,13 @@ void setEndGameScoreboard(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(void)
+void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
+
+	// 
+	updateGameState(gameState);
 
 	// scoreboard
 	switch (activeId)
