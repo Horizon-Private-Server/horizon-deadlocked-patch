@@ -43,6 +43,7 @@ void sendSpawn(u16 seed, int gameTime)
 		return;
 
 	// send out
+	DPRINTF("send %d\n", gameTime);
 	message.GameTime = gameTime;
 	message.Seed = seed;
 	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SPAWN, sizeof(SpawnMessage_t), &message);

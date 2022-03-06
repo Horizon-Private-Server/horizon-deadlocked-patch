@@ -1581,7 +1581,7 @@ int onSetRanks(void * connection, void * data)
  */
 #if SCR_PRINT
 
-#define SCRPRINT_RINGSIZE (32)
+#define SCRPRINT_RINGSIZE (16)
 #define SCRPRINT_BUFSIZE  (96)
 int scrPrintTop = 0, scrPrintBottom = 0;
 int scrPrintStepTicker = 60 * 5;

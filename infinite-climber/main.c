@@ -118,7 +118,20 @@ MobyDef MobyDefs[] = {
 //--------------------------------------------------------------------------
 int gameGetTeamScore(int team, int score)
 {
-	return State.PlayerBestHeight[team];
+	int s = 0, i;
+	Player ** players = playerGetAll();
+
+	// find best score on team
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+	{
+		if (players[i] && players[i]->Team == team)
+		{
+			if (State.PlayerBestHeight[i] > score)
+				score = State.PlayerBestHeight[i];
+		}
+	}
+
+	return score;
 }
 
 Moby * spawnWithPVars(int OClass)
@@ -237,6 +250,7 @@ void GenerateNext(struct ClimbChain * chain, MobyDef * currentItem, float scale)
 
 void onReceiveSpawn(u16 seed, int gameTime)
 {
+	DPRINTF("recv %d\n", gameTime);
 	shaBuffer = seed;
 	int chainIndex;
 	VECTOR rot;
@@ -380,6 +394,9 @@ void initialize(void)
 	GameData* gameData = gameGetData();
 	Player ** players = playerGetAll();
 
+	// 
+	netHookMessages();
+
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
 	*(u32*)0x00620F54 = 0;	// time end (1)
@@ -471,9 +488,6 @@ void initialize(void)
 	RadarBlipMoby->Position[2] = 0;
 
 	// 
-	netHookMessages();
-
-	// 
 	memset(Chains, 0, sizeof(Chains));
 	Chains[0].Active = 1;
 	vector_copy(Chains[0].CurrentPosition, startPos);
@@ -521,9 +535,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		return;
 	}
 
-	if (State.GameOver)
-		return;
-
 #if DEBUG
 	dlPreUpdate();
 	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0) {
@@ -551,45 +562,47 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	// 
 	updateGameState(gameState);
 
-	// Spawn tick
-	spawnTick();
-
-	// Fix health
-	int livingPlayerCount = 0;
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+	if (!State.GameOver)
 	{
-		Player * p = players[i];
-		if (!p || p->Health <= 0)
-			continue;
+		// Spawn tick
+		spawnTick();
 
-		// set max height
-		float height = p->PlayerPosition[2] - State.StartHeight;
-		State.PlayerFinalHeight[i] = height;
-		if (height > State.PlayerBestHeight[i])
+		// Fix health
+		int livingPlayerCount = 0;
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
-			State.PlayerBestHeight[i] = height;
-			gameData->PlayerStats.TicketScore[i] = height;
+			Player * p = players[i];
+			if (!p || p->Health <= 0)
+				continue;
+
+			// set max height
+			float height = p->PlayerPosition[2] - State.StartHeight;
+			State.PlayerFinalHeight[i] = height;
+			if (height > State.PlayerBestHeight[i])
+			{
+				State.PlayerBestHeight[i] = height;
+				gameData->PlayerStats.TicketScore[i] = height;
+			}
+
+			// kill or give health
+			if (p->PlayerPosition[2] <= (WaterHeight - 0.5))
+			{
+				playerSetHealth(p, 0);
+				State.TimePlayerDied[i] = gameGetTime();
+			}
+			else
+			{
+				playerSetHealth(p, PLAYER_MAX_HEALTH);
+				livingPlayerCount++;
+			}
 		}
 
-		// kill or give health
-		if (p->PlayerPosition[2] <= (WaterHeight - 0.5))
+		if (!livingPlayerCount)
 		{
-			playerSetHealth(p, 0);
-			State.TimePlayerDied[i] = gameGetTime();
-		}
-		else
-		{
-			playerSetHealth(p, PLAYER_MAX_HEALTH);
-			livingPlayerCount++;
+			State.GameOver = 1;
 		}
 	}
-
-	if (!livingPlayerCount)
-	{
-		State.GameOver = 1;
-	}
-
-	if (State.GameOver)
+	else
 	{
 		float bestHeight = 0;
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
