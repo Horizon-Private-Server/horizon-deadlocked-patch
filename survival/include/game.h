@@ -107,7 +107,7 @@ enum GameNetMessage
 struct SurvivalPlayerState
 {
 	int Bolts;
-	int TotalBolts;
+	u64 TotalBolts;
 	int Kills;
 	int Revives;
 	int TimesRevived;
@@ -163,13 +163,13 @@ struct SurvivalGameData
 {
 	u32 Version;
 	u32 RoundNumber;
+	u64 Points[GAME_MAX_PLAYERS];
 	int Kills[GAME_MAX_PLAYERS];
 	int Revives[GAME_MAX_PLAYERS];
 	int TimesRevived[GAME_MAX_PLAYERS];
 	char AlphaMods[GAME_MAX_PLAYERS][8];
 	char BestWeaponLevel[GAME_MAX_PLAYERS][9];
 };
-
 
 typedef struct SurvivalRoundCompleteMessage
 {

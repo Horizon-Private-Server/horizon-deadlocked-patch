@@ -92,7 +92,7 @@ float bezierMove(float* t, BezierPoint_t * a, BezierPoint_t * b, float distance)
 {
 	VECTOR lastPos, curPos, delta;
 	vector_subtract(delta, a->ControlPoint, b->ControlPoint);
-	float step = (distance / clamp(vector_length(delta), 1, 1000)) * 0.2;
+	float step = (distance / clamp(vector_length(delta), 1, 1000)) * 0.05;
 	float traveled = 0;
 
 	// Get start position

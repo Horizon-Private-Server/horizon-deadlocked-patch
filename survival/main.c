@@ -340,7 +340,10 @@ int spawnGetRandomPoint(VECTOR out) {
 	}
 
 	// spawn randomly
-	SpawnPoint* sp = spawnPointGet(rand(spawnPointGetCount()));
+	int spIdx = rand(spawnPointGetCount());
+	while (!spawnPointIsPlayer(spIdx))
+		spIdx = rand(spawnPointGetCount());
+	SpawnPoint* sp = spawnPointGet(spIdx);
 	if (sp) {
 		vector_copy(out, &sp->M0[12]);
 		return 1;
@@ -1451,13 +1454,14 @@ void updateGameState(PatchStateContainer_t * gameState)
 	{
 		struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats.Payload;
 		sGameData->RoundNumber = State.RoundNumber;
-		sGameData->Version = 0x00000001;
+		sGameData->Version = 0x00000002;
 
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
 			sGameData->Kills[i] = State.PlayerStates[i].State.Kills;
 			sGameData->Revives[i] = State.PlayerStates[i].State.Revives;
 			sGameData->TimesRevived[i] = State.PlayerStates[i].State.TimesRevived;
+			sGameData->Points[i] = State.PlayerStates[i].State.TotalBolts;
 			for (j = 0; j < 8; ++j)
 				sGameData->AlphaMods[i][j] = (u8)State.PlayerStates[i].State.AlphaMods[j];
 			memcpy(sGameData->BestWeaponLevel[i], State.PlayerStates[i].State.BestWeaponLevel, sizeof(State.PlayerStates[i].State.BestWeaponLevel));

@@ -124,6 +124,8 @@ int lastCrazyMode = 0;
 char mapOverrideResponse = 1;
 char showNoMapPopup = 0;
 const char * patchConfigStr = "PATCH CONFIG";
+char hasSetRanks = 0;
+ServerSetRanksRequest_t lastSetRanksRequest;
 
 // 
 struct GameDataBlock
@@ -1551,6 +1553,31 @@ int onSetTeams(void * connection, void * data)
 }
 
 /*
+ * NAME :		onSetRanks
+ * 
+ * DESCRIPTION :
+ * 			Called when the server requests the client to change the lobby's ranks.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onSetRanks(void * connection, void * data)
+{
+	int i, j;
+
+	// move message payload into local
+	memcpy(&lastSetRanksRequest, data, sizeof(ServerSetRanksRequest_t));
+	hasSetRanks = -1;
+
+	return sizeof(ServerSetRanksRequest_t);
+}
+
+/*
  */
 #if SCR_PRINT
 
@@ -1705,7 +1732,7 @@ void onOnlineMenu(void)
  */
 int main (void)
 {
-	int i;
+	int i,j;
 	
 	// Call this first
 	dlPreUpdate();
@@ -1745,6 +1772,7 @@ int main (void)
 
 	// install net handlers
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_REQUEST_TEAM_CHANGE, &onSetTeams);
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
 
 	// Run map loader
 	runMapLoader();
@@ -1919,11 +1947,33 @@ int main (void)
 				configTrySendGameConfig();
 			}
 
+			// try and apply ranks
+			if (hasSetRanks && hasSetRanks != gameSettings->PlayerCount)
+			{
+				for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+				{
+					int accountId = lastSetRanksRequest.AccountIds[i];
+					if (accountId >= 0)
+					{
+						for (j = 0; j < GAME_MAX_PLAYERS; ++j)
+						{
+							if (gameSettings->PlayerAccountIds[j] == accountId)
+							{
+								gameSettings->PlayerRanks[j] = lastSetRanksRequest.Ranks[i];
+							}
+						}
+					}
+				}
+
+				hasSetRanks = gameSettings->PlayerCount;
+			}
+
 			isInStaging = 1;
 		}
 		else
 		{
 			isInStaging = 0;
+			hasSetRanks = 0;
 		}
 
 		// patch server hostname

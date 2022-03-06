@@ -106,6 +106,7 @@ struct PayloadConfig
 	VECTOR PayloadDeliveredCameraRot;
 	BezierPoint_t Path[PAYLOAD_PATH_MAX_POINTS];
 	VECTOR SpawnPoints[PAYLOAD_MAX_SPAWNPOINTS];
+	u8 PayloadDeliveredCameraOcc[0x80];
 };
 
 struct PayloadState

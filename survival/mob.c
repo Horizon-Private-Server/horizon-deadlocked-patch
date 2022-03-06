@@ -1216,8 +1216,9 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		// handle stats
 		pState->State.Kills++;
 		gameData->PlayerStats.Kills[killedByPlayerId]++;
-		if (weaponId > 0)
-			gameData->PlayerStats.WeaponKills[killedByPlayerId][weaponId]++;
+		int weaponSlotId = weaponIdToSlot(weaponId);
+		if (weaponId > 0 && (weaponId != WEAPON_ID_WRENCH || weaponSlotId == WEAPON_SLOT_WRENCH))
+			gameData->PlayerStats.WeaponKills[killedByPlayerId][weaponSlotId]++;
 	}
 
 	// set colors before death so that the corn has the correct color

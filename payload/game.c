@@ -353,6 +353,22 @@ void flipTeams(void)
 }
 
 //--------------------------------------------------------------------------
+void onOcclusionUpdate()
+{
+	// call update occlusion
+	((void (*)(void))0x004C0AA8)();
+	
+	// 
+	Moby* payload = State.PayloadMoby;
+	if (payload) {
+		struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)payload->PVar;
+		if (pvar && pvar->State >= PAYLOAD_STATE_DELIVERED) {
+			memcpy((void*)0x00240A40, Config.PayloadDeliveredCameraOcc, sizeof(Config.PayloadDeliveredCameraOcc));
+		}
+	}
+}
+
+//--------------------------------------------------------------------------
 void onPlayerKill(char * fragMsg)
 {
 	VECTOR delta;
@@ -773,7 +789,7 @@ void processPlayer(int pIndex)
 	if (!pvar)
 		return;
 
-	if (playerData->IsAttacking) {
+	if (playerData->IsAttacking && !playerIsDead(player)) {
 		vector_subtract(t, player->PlayerPosition, payload->Position);
 		if (vector_sqrmag(t) < (PAYLOAD_PLAYER_RADIUS*PAYLOAD_PLAYER_RADIUS)) {
 			isNearPayload = 1;
@@ -1077,6 +1093,9 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 	// hook into player kill event
 	*(u32*)0x00621c7c = 0x0C000000 | ((u32)&onPlayerKill >> 2);
+
+	// hook into occlusion update
+	*(u32*)0x004C327C = 0x0C000000 | ((u32)&onOcclusionUpdate >> 2);
 
 	// hook messages
 	netHookMessages();

@@ -150,6 +150,7 @@ void htCtfSwitch(void)
 {
 	int i, j;
 	Player ** players = playerGetAll();
+	GameSettings* gameSettings = gameGetSettings();
 	Player * player;
 	Moby * moby;
 	ScoreboardItem * scoreboardItem;
@@ -242,6 +243,9 @@ void htCtfSwitch(void)
 		// Change to new team
 		playerSetTeam(player, teamChangeMap[player->Team]);
 
+		// 
+		gameSettings->PlayerTeams[player->PlayerId] = player->Team;
+		
 		// Respawn
 		playerRespawn(player);
 

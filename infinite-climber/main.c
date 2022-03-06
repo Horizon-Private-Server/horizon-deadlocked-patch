@@ -26,62 +26,28 @@
 #include <libdl/map.h>
 #include <libdl/dialog.h>
 #include <libdl/ui.h>
+#include <libdl/spawnpoint.h>
+#include <libdl/collision.h>
+#include <libdl/radar.h>
 #include "module.h"
+#include "include/game.h"
 
 #define MAX_MAP_MOBY_DEFS		(10)
 #define MAX_WATER_RATE			(0.03)
 #define MAX_SPAWN_RATE			(TIME_SECOND * 0.5)
 
-/*
- * When non-zero, it refreshes the in-game scoreboard.
- */
-#define GAME_SCOREBOARD_REFRESH_FLAG        (*(u32*)0x00310248)
 
 /*
- * Target scoreboard value.
+ *
  */
-#define GAME_SCOREBOARD_TARGET              (*(u32*)0x002FA084)
-
-/*
- * Collection of scoreboard items.
- */
-#define GAME_SCOREBOARD_ARRAY               ((ScoreboardItem**)0x002FA04C)
-
-/*
- * Number of items in the scoreboard.
- */
-#define GAME_SCOREBOARD_ITEM_COUNT          (*(u32*)0x002F9FCC)
-
-
-typedef struct MobyDef
-{
-	float ScaleHorizontal;
-	float ScaleVertical;
-	float ObjectScale;
-
-	short OClass;
-	short MapMask;
-} MobyDef;
-
-struct State
-{
-	int TimePlayerDied[GAME_MAX_PLAYERS];
-	float PlayerFinalHeight[GAME_MAX_PLAYERS];
-	float PlayerBestHeight[GAME_MAX_PLAYERS];
-	int StartTime;
-	int EndTime;
-	float StartHeight;
-} State;
-
-/*
- * 
- */
-struct ClimberGameData
-{
-	u32 Version;
-	float FinalScore[GAME_MAX_PLAYERS];
-	float BestScore[GAME_MAX_PLAYERS];
+struct ClimberConfig Config __attribute__((section(".config"))) = {
+	
 };
+
+/*
+ *
+ */
+u8 WaterPVars[0x70] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x0A, 0xD7, 0xA3, 0x3B, 0x00, 0x00, 0x40, 0x40, 0x00, 0x00, 0x40, 0x41, 0x00, 0x00, 0x7A, 0x43, 0x9A, 0x99, 0x99, 0x3E, 0xCD, 0xCC, 0x4C, 0x3E, 0x00, 0x00, 0x40, 0x41, 0x00, 0x00, 0xA0, 0x41, 0x00, 0x00, 0x80, 0x3E, 0x80, 0x80, 0x80, 0x80, 0x22, 0x22, 0x22, 0x80, 0x00, 0x00, 0xB4, 0xC3, 0x82, 0x00, 0x37, 0x00, 0x00, 0x00, 0x48, 0x42, 0x00, 0x80, 0x6D, 0x44, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0xCA, 0x42, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x04, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 /*
  *
@@ -97,6 +63,7 @@ int LastSpawn = 0;
 float WaterRaiseRate = 0.1 * (1 / 60.0);
 float WaterHeight = 0;
 int MobyCount = 0;
+Moby * RadarBlipMoby = NULL;
 Moby * WaterMoby = NULL;
 int BranchDialogs[] = { DIALOG_ID_CLANK_YOU_HAVE_A_CHOICE_OF_2_PATHS, DIALOG_ID_DALLAS_WOAH_THIS_IS_GETTING_INTERESTING, DIALOG_ID_DALLAS_KICKING_PROVERBIAL_BUTT_IDK_WHAT_THAT_MEANS, DIALOG_ID_DALLAS_DARKSTAR_TIGHT_SPOTS_BEFORE  };
 int StartDialogs[] = { DIALOG_ID_TEAM_DEADSTAR, DIALOG_ID_DALLAS_SHOWTIME, DIALOG_ID_DALLAS_RATCHET_LAST_WILL_AND_TESTAMENT, DIALOG_ID_DALLAS_WHO_PACKED_YOUR_PARACHUTE, };
@@ -132,121 +99,26 @@ MobyDef * MapMobyDefs[MAX_MAP_MOBY_DEFS];
 
 MobyDef MobyDefs[] = {
 	
-	//{ 5, 0.85, 1, MOBY_ID_PART_CATACROM_BRIDGE, MAP_MASK_CATACROM },
-	{ 5, 0.8, 1, MOBY_ID_SARATHOS_BRIDGE, MAP_MASK_BATTLEDOME },
+	//{ 5, 0.85, 1, MOBY_ID_PART_CATACROM_BRIDGE },
+	{ 5, 0.8, 1, MOBY_ID_SARATHOS_BRIDGE },
 
-	{ 5, 0.85, 1, MOBY_ID_SARATHOS_BRIDGE, MAP_MASK_SARATHOS },
-	{ 5, 0.85, 1, MOBY_ID_OTHER_PART_FOR_SARATHOS_BRIDGE, MAP_MASK_SARATHOS },
+	{ 5, 0.85, 1, MOBY_ID_SARATHOS_BRIDGE },
+	{ 5, 0.85, 1, MOBY_ID_OTHER_PART_FOR_SARATHOS_BRIDGE },
 
-	{ 5, 0.8, 1, MOBY_ID_DARK_CATHEDRAL_SECRET_PLATFORM, MAP_MASK_DC },
+	{ 5, 0.8, 1, MOBY_ID_DARK_CATHEDRAL_SECRET_PLATFORM },
 
 	
-	//{ 5, 0.8, 0.5, MOBY_ID_TURRET_SHIELD_UPGRADE, MAP_MASK_ALL }, //this freezes ps2, need to fix sometime
-	{ 3, 0.5, 0.5, MOBY_ID_BETA_BOX, MAP_MASK_ALL },
-	{ 5, 0.85, 1, MOBY_ID_VEHICLE_PAD, MAP_MASK_ALL },
-	{ 3, 0.8, 0.5, MOBY_ID_TELEPORT_PAD, MAP_MASK_ALL },
-	//{ 3, 0.8, 0.5, MOBY_ID_PICKUP_PAD, MAP_MASK_ALL }
+	//{ 5, 0.8, 0.5, MOBY_ID_TURRET_SHIELD_UPGRADE }, //this freezes ps2, need to fix sometime
+	{ 3, 0.5, 0.5, MOBY_ID_BETA_BOX },
+	{ 5, 0.85, 1, MOBY_ID_VEHICLE_PAD },
+	{ 3, 0.8, 0.5, MOBY_ID_TELEPORT_PAD },
+	//{ 3, 0.8, 0.5, MOBY_ID_PICKUP_PAD }
 };
 
-
-/*
- *
- */
-ScoreboardItem PlayerScores[GAME_MAX_PLAYERS];
-
-/*
- *
- */
-ScoreboardItem * SortedPlayerScores[GAME_MAX_PLAYERS];
-
-
-/*
- * NAME :		sortScoreboard
- * 
- * DESCRIPTION :
- * 			Sorts the scoreboard by value.
- * 
- * NOTES :
- * 
- * ARGS : 
- * 		player			:		Target player's player object.
- * 		playerState 	:		Target player's gun game state.
- * 		playerWepStats 	:		Target player's weapon stats.
- * 
- * RETURN :
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-void sortScoreboard(int dontLockLocal)
+//--------------------------------------------------------------------------
+int gameGetTeamScore(int team, int score)
 {
-	int i = 0;
-	int j = 0;
-
-	// bubble sort
-	for (j = GAME_MAX_PLAYERS - 1; j > 0; --j)
-	{
-		for (i = 0; i < j; ++i)
-		{
-			// Swap
-			if (SortedPlayerScores[i]->TeamId < 0 ||
-				((dontLockLocal || SortedPlayerScores[i]->UNK != 1) &&
-				 (SortedPlayerScores[i]->Value < SortedPlayerScores[i+1]->Value || 
-				 (SortedPlayerScores[i+1]->UNK == 1 && !dontLockLocal))))
-			{
-				ScoreboardItem * temp = SortedPlayerScores[i];
-				SortedPlayerScores[i] = SortedPlayerScores[i+1];
-				SortedPlayerScores[i+1] = temp;
-			}
-		}
-	}
-}
-
-/*
- * NAME :		updateScoreboard
- * 
- * DESCRIPTION :
- * 			Updates the in game scoreboard.
- * 
- * NOTES :
- * 
- * ARGS : 
- * 
- * RETURN :
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-void updateScoreboard(void)
-{
-	int i;
-
-	// Correct scoreboard
-	for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
-	{
-		// Force scoreboard to custom scoreboard values
-		if (GAME_SCOREBOARD_ARRAY[i] != SortedPlayerScores[i])
-		{
-			GAME_SCOREBOARD_ARRAY[i] = SortedPlayerScores[i];
-			GAME_SCOREBOARD_REFRESH_FLAG = 1;
-		}
-	}
-}
-
-float RandomRange(float min, float max)
-{
-	// Generate our rng seed from SHA1 of spawn seed
-	sha1(&shaBuffer, 2, (void*)&shaBuffer, 2);
-
-	float value = ((float)shaBuffer / 0xFFFF);
-
-	return (value + min) * (max - min);
-}
-
-short RandomRangeShort(short min, short max)
-{
-	// Generate our rng seed from SHA1 of spawn seed
-	sha1(&shaBuffer, 2, (void*)&shaBuffer, 2);
-
-	return (shaBuffer % (max - min)) + min;
+	return State.PlayerBestHeight[team];
 }
 
 Moby * spawnWithPVars(int OClass)
@@ -261,7 +133,7 @@ Moby * spawnWithPVars(int OClass)
 	}
 }
 
-Moby * spawn(MobyDef * def, VECTOR position, VECTOR rotation, float scale)
+Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 {
 	Moby * sourceBox;
 
@@ -328,6 +200,24 @@ void DestroyOld(void)
 	}
 }
 
+float RandomRange(float min, float max)
+{
+	// Generate our rng seed from SHA1 of spawn seed
+	sha1(&shaBuffer, 2, (void*)&shaBuffer, 2);
+
+	float value = ((float)shaBuffer / 0xFFFF);
+
+	return (value + min) * (max - min);
+}
+
+short RandomRangeShort(short min, short max)
+{
+	// Generate our rng seed from SHA1 of spawn seed
+	sha1(&shaBuffer, 2, (void*)&shaBuffer, 2);
+
+	return (shaBuffer % (max - min)) + min;
+}
+
 void GenerateNext(struct ClimbChain * chain, MobyDef * currentItem, float scale)
 {
 	// Determine next object
@@ -345,6 +235,76 @@ void GenerateNext(struct ClimbChain * chain, MobyDef * currentItem, float scale)
 	chain->CurrentPosition[2] += nextItem->ScaleVertical * RandomRange(1.5, 3);
 }
 
+void onReceiveSpawn(u16 seed, int gameTime)
+{
+	shaBuffer = seed;
+	int chainIndex;
+	VECTOR rot;
+
+	// Destroy submerged objects
+	DestroyOld();
+
+	// 
+	for (chainIndex = 0; chainIndex < 3; ++chainIndex)
+	{
+		struct ClimbChain * chain = &Chains[chainIndex];
+		if (!chain->Active)
+			continue;
+
+		// Generate new random parameters
+		float scale =  RandomRange(1, 2);
+		rot[0] = RandomRange(-0.3, 0.3);
+		rot[1] = RandomRange(-0.3, 0.3);
+		rot[2] = RandomRange(-1, 1);
+		MobyDef * currentItem = MapMobyDefs[chain->NextItem];
+
+		// Spawn
+		spawn(currentItem, chain->CurrentPosition, rot, scale);
+
+		// Branch
+		if ((gameTime - chain->LastBranch) > BranchRate)
+		{
+			struct ClimbChain * branchChain = GetFreeChain();
+			if (branchChain)
+			{
+				branchChain->Active = 1;
+				branchChain->LastBranch = gameTime;
+				branchChain->LastTheta = MATH_PI + chain->LastTheta;
+				vector_copy(branchChain->CurrentPosition, chain->CurrentPosition);
+
+				// Determine next object
+				GenerateNext(branchChain, currentItem, scale);
+				dialogPlaySound(BranchDialogs[RandomRangeShort(0, sizeof(BranchDialogs)/sizeof(int)-1)], 0);
+			}
+
+			chain->LastBranch = gameTime;
+		}
+
+		// Determine next object
+		GenerateNext(chain, currentItem, scale);
+	}
+
+	if(MobyCount == 0)
+		dialogPlaySound(StartDialogs[RandomRangeShort(0, sizeof(BranchDialogs)/sizeof(int)-1)], 0);
+	else if(MobyCount % 20 == 0)
+		dialogPlaySound(IncrementalDialogs[RandomRangeShort(0, sizeof(BranchDialogs)/sizeof(int)-1)], 0);
+
+
+	// 
+	LastSpawn = gameTime;
+
+	++MobyCount;
+	if (SpawnRate > MAX_SPAWN_RATE)
+		SpawnRate -= MobyCount * 6.5;
+	else
+		SpawnRate = MAX_SPAWN_RATE;
+
+	if (WaterRaiseRate < MAX_WATER_RATE)
+		WaterRaiseRate *= 1.1;
+	else
+		WaterRaiseRate = MAX_WATER_RATE;
+}
+
 void spawnTick(void)
 {
 	int gameTime = gameGetTime();
@@ -354,68 +314,11 @@ void spawnTick(void)
 
 	if ((gameTime - LastSpawn) > SpawnRate)
 	{
-		// Destroy submerged objects
-		DestroyOld();
-
-		// 
-		for (chainIndex = 0; chainIndex < 3; ++chainIndex)
+		if (State.IsHost)
 		{
-			struct ClimbChain * chain = &Chains[chainIndex];
-			if (!chain->Active)
-				continue;
-
-			// Generate new random parameters
-			scale = RandomRange(1, 2);
-			rot[0] = RandomRange(-0.3, 0.3);
-			rot[1] = RandomRange(-0.3, 0.3);
-			rot[2] = RandomRange(-1, 1);
-			MobyDef * currentItem = MapMobyDefs[chain->NextItem];
-
-			// Spawn
-			spawn(currentItem, chain->CurrentPosition, rot, scale);
-
-			// Branch
-			if ((gameTime - chain->LastBranch) > BranchRate)
-			{
-				struct ClimbChain * branchChain = GetFreeChain();
-				if (branchChain)
-				{
-					branchChain->Active = 1;
-					branchChain->LastBranch = gameTime;
-					branchChain->LastTheta = MATH_PI + chain->LastTheta;
-					vector_copy(branchChain->CurrentPosition, chain->CurrentPosition);
-
-					// Determine next object
-					GenerateNext(branchChain, currentItem, scale);
-					dialogPlaySound(BranchDialogs[RandomRangeShort(0, sizeof(BranchDialogs)/sizeof(int)-1)], 0);
-				}
-
-				chain->LastBranch = gameTime;
-			}
-
-			// Determine next object
-			GenerateNext(chain, currentItem, scale);
+			sendSpawn(shaBuffer, gameTime);
+			onReceiveSpawn(shaBuffer, gameTime);
 		}
-
-		if(MobyCount == 0)
-			dialogPlaySound(StartDialogs[RandomRangeShort(0, sizeof(BranchDialogs)/sizeof(int)-1)], 0);
-		else if(MobyCount % 20 == 0)
-			dialogPlaySound(IncrementalDialogs[RandomRangeShort(0, sizeof(BranchDialogs)/sizeof(int)-1)], 0);
-
-
-		// 
-		LastSpawn = gameTime;
-
-		++MobyCount;
-		if (SpawnRate > MAX_SPAWN_RATE)
-			SpawnRate -= MobyCount * 6.5;
-		else
-			SpawnRate = MAX_SPAWN_RATE;
-
-		if (WaterRaiseRate < MAX_WATER_RATE)
-			WaterRaiseRate *= 1.1;
-		else
-			WaterRaiseRate = MAX_WATER_RATE;
 	}
 
 	WaterHeight += WaterRaiseRate;
@@ -468,13 +371,20 @@ void updateGameState(PatchStateContainer_t * gameState)
  */
 void initialize(void)
 {
-	VECTOR startPos;
+	VECTOR startPos, to;
 	int i;
 
 	// 
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
+	GameData* gameData = gameGetData();
 	Player ** players = playerGetAll();
+
+	// Disable normal game ending
+	*(u32*)0x006219B8 = 0;	// survivor (8)
+	*(u32*)0x00620F54 = 0;	// time end (1)
+	*(u32*)0x00621568 = 0;	// kills reached (2)
+	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
 
 	// Init seed
 	shaBuffer = (short)gameSettings->GameLoadStartTime;
@@ -487,97 +397,49 @@ void initialize(void)
 
 	// get water moby
 	WaterMoby = mobyFindNextByOClass(mobyListGetStart(), MOBY_ID_WATER);
-	if (!WaterMoby)
-		return;
-	DPRINTF("water: %08X\n", (u32)WaterMoby);
-	WaterHeight = ((float*)WaterMoby->PVar)[19];
-
-	// 
-	switch (gameSettings->GameLevel)
-	{
-		case MAP_ID_BATTLEDOME:
-		{
-			startPos[0] = 846;
-			startPos[1] = 556.5;
-			startPos[2] = 540;
-			break;
+	if (!WaterMoby) {
+		if (mobyClassIsLoaded(MOBY_ID_WATER)) {
+			WaterMoby = mobySpawn(MOBY_ID_WATER, sizeof(WaterPVars));
+		} else {
+			WaterMoby = mobySpawn(MOBY_ID_BETA_BOX, sizeof(WaterPVars));
 		}
-		case MAP_ID_CATACROM:
-		{
-			startPos[0] = 350.3;
-			startPos[1] = 254;
-			startPos[2] = 63.1;
-			break;
-		}
-		case MAP_ID_SARATHOS:
-		{
-			startPos[0] = 440;
-			startPos[1] = 205;
-			startPos[2] = 106.1;
-			break;
-		}
-		case MAP_ID_DC:
-		{
-			startPos[0] = 503;
-			startPos[1] = 493;
-			startPos[2] = 641.3;
-			break;
-		}
-		case MAP_ID_SHAAR:
-		{
-			startPos[0] = 484.5;
-			startPos[1] = 569.5;
-			startPos[2] = 509.3;
-			break;
-		}
-		case MAP_ID_VALIX:
-		{
-			startPos[0] = 311.5;
-			startPos[1] = 488.5;
-			startPos[2] = 331;
-			break;
-		}
-		case MAP_ID_MF:
-		{
-			startPos[0] = 410;
-			startPos[1] = 598;
-			startPos[2] = 434.5;
-			break;
-		}
-		case MAP_ID_TORVAL:
-		{
-			startPos[0] = 300;
-			startPos[1] = 371;
-			startPos[2] = 106;
-			break;
-		}
-		case MAP_ID_TEMPUS:
-		{
-			startPos[0] = 462;
-			startPos[1] = 512;
-			startPos[2] = 102.5;
-			break;
-		}
-		case MAP_ID_MARAXUS:
-		{
-			startPos[0] = 501;
-			startPos[1] = 766.5;
-			startPos[2] = 103.5;
-			break;
-		}
-		case MAP_ID_GS:
-		{
-			startPos[0] = 732;
-			startPos[1] = 565;
-			startPos[2] = 101.5;
-			break;
-		}
+		WaterMoby->DrawDist = 1000;
+		WaterMoby->UpdateDist = 0xFF;
+		memcpy(WaterMoby->PVar, WaterPVars, sizeof(WaterPVars));
 	}
+	DPRINTF("water: %08X\n", (u32)WaterMoby);
 
+	// find random start place that isn't underneath something
+	int count = 0;
+	while(count < 10)
+	{
+		int spIdx = RandomRangeShort(0, spawnPointGetCount());
+		if (!spawnPointIsPlayer(spIdx)) {
+			DPRINTF("skipping nonplayer sp %d\n", spIdx)
+			continue;
+		}
+
+		SpawnPoint* sp = spawnPointGet(spIdx);
+
+		{
+			vector_copy(startPos, &sp->M0[12]);
+			vector_copy(to, startPos);
+			to[2] += 100;
+		}
+		if (CollLine_Fix(startPos, to, 2, NULL, 0) == 0) {
+			DPRINTF("selected spidx:%d\n", spIdx);
+			break;
+		}
+
+		count++;
+	}
+	
 	// 
+	WaterHeight = startPos[2] - 15;
 	State.StartTime = gameGetTime();
 	State.StartHeight = startPos[2];
 	State.EndTime = 0;
+	State.GameOver = 0;
 
 	// 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -586,31 +448,30 @@ void initialize(void)
 		State.PlayerBestHeight[i] = 0;
 		State.TimePlayerDied[i] = 0;
 	}
-	
-	// Initialize scoreboard
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		Player * p = players[i];
-		PlayerScores[i].TeamId = p ? i : -1;
-		PlayerScores[i].UNK = playerIsLocal(p);
-		PlayerScores[i].Value = 0;
-		SortedPlayerScores[i] = &PlayerScores[i];
-	}
 
 	//
-	sortScoreboard(0);
-	updateScoreboard();
+	initializeScoreboard();
 
 	// Populate moby defs
-	int mapIdMask = mapIdToMask(gameSettings->GameLevel);
 	for (i = 0; i < sizeof(MobyDefs)/sizeof(MobyDef); ++i)
 	{
 		if (MapMobyDefsCount >= MAX_MAP_MOBY_DEFS)
 			break;
 
-		if (mapMaskHasMask(MobyDefs[i].MapMask, mapIdMask))
+		if (mobyClassIsLoaded(MobyDefs[i].OClass)) {
 			MapMobyDefs[MapMobyDefsCount++] = &MobyDefs[i];
+			DPRINTF("found moby %04X\n", MobyDefs[i].OClass);
+		}
 	}
+
+	// spawn radar blip moby
+	RadarBlipMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
+	RadarBlipMoby->Opacity = 0;
+	vector_copy(RadarBlipMoby->Position, startPos);
+	RadarBlipMoby->Position[2] = 0;
+
+	// 
+	netHookMessages();
 
 	// 
 	memset(Chains, 0, sizeof(Chains));
@@ -644,15 +505,47 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 {
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
+	GameData * gameData = gameGetData();
 	int i;
+
 
 	// Ensure in game
 	if (!gameSettings || !gameIsIn())
 		return;
 
+	// Determine if host
+	State.IsHost = gameAmIHost();
+
 	if (!Initialized) {
 		initialize();
 		return;
+	}
+
+	if (State.GameOver)
+		return;
+
+#if DEBUG
+	dlPreUpdate();
+	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0) {
+		DPRINTF("GameOver");
+		State.GameOver = 1;
+	}
+	dlPostUpdate();
+#endif
+
+	// update radar
+	if (RadarBlipMoby && gameGetTime() < (State.StartTime + (TIME_SECOND * 30)))
+	{
+		int radarIdx = radarGetBlipIndex(RadarBlipMoby);
+		if (radarIdx >= 0)
+		{
+			RadarBlip* blip = radarGetBlips() + radarIdx;
+			blip->Life = 30;
+			blip->Team = 10;
+			blip->Type = 0x11;
+			blip->X = RadarBlipMoby->Position[0];
+			blip->Y = RadarBlipMoby->Position[1];
+		}
 	}
 
 	// 
@@ -662,6 +555,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	spawnTick();
 
 	// Fix health
+	int livingPlayerCount = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
 		Player * p = players[i];
@@ -674,9 +568,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (height > State.PlayerBestHeight[i])
 		{
 			State.PlayerBestHeight[i] = height;
-			PlayerScores[i].Value = (int)height;
-			sortScoreboard(0);
-			GAME_SCOREBOARD_REFRESH_FLAG = 1;
+			gameData->PlayerStats.TicketScore[i] = height;
 		}
 
 		// kill or give health
@@ -688,11 +580,26 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		else
 		{
 			playerSetHealth(p, PLAYER_MAX_HEALTH);
+			livingPlayerCount++;
 		}
 	}
 
-	// 
-	updateScoreboard();
+	if (!livingPlayerCount)
+	{
+		State.GameOver = 1;
+	}
+
+	if (State.GameOver)
+	{
+		float bestHeight = 0;
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+			if (State.PlayerBestHeight[i] > bestHeight) {
+				gameSetWinner(i, 0);
+				bestHeight = State.PlayerBestHeight[i];
+			}
+		}
+		gameEnd(4);
+	}
 }
 
 void setLobbyGameOptions(void)
@@ -714,58 +621,6 @@ void setLobbyGameOptions(void)
 	// apply options
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
-}
-
-void setEndGameScoreboard(void)
-{
-	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
-	GameSettings * gs = gameGetSettings();
-	int i;
-	char buf[24];
-
-	// reset buf
-	memset(buf, 0, sizeof(buf));
-
-	// give more detail to player score
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		PlayerScores[i].Value = (int)(State.PlayerBestHeight[i] * 100);
-	}
-
-	// sort scoreboard again
-	sortScoreboard(1);
-
-	// names start at 7
-	//for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	//{
-	//	int pid = SortedPlayerScores[i]->TeamId;
-	//	strncpy((char*)(uiElements[7 + i] + 0x18), gs->PlayerNames[pid], 16);
-	//}
-
-	// column headers start at 17
-	strncpy((char*)(uiElements[18] + 0x60), "DISTANCE", 9);
-	strncpy((char*)(uiElements[19] + 0x60), "TIME", 5);
-
-	// rows
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		int pid = SortedPlayerScores[i]->TeamId;
-		if (pid >= 0)
-		{
-			// set distance
-			sprintf(buf, "%.2f", SortedPlayerScores[i]->Value / 100.0);
-			strncpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
-
-			// set time alive
-			int pTime = State.TimePlayerDied[pid] - State.StartTime;
-			if (pTime < 0)
-				pTime = State.EndTime - State.StartTime;
-
-			sprintf(buf, "%02d:%02d", pTime / TIME_MINUTE, (pTime % TIME_MINUTE) / TIME_SECOND);
-			strncpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), buf, strlen(buf) + 1);
-
-		}
-	}
 }
 
 /*

@@ -122,6 +122,11 @@ enum CustomMessageId
     CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE = 19,
 
     /*
+     * Sent from the server to the host containing each players rank.
+     */
+    CUSTOM_MSG_ID_SERVER_SET_RANKS = 20,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -172,5 +177,11 @@ typedef struct ClientDownloadMapChunkResponse
     int BytesReceived;
     int Cancel;
 } ClientDownloadMapChunkResponse_t;
+
+typedef struct ServerSetRanksRequest
+{
+    int AccountIds[10];
+    float Ranks[10];
+} ServerSetRanksRequest_t;
 
 #endif // _MESSAGEID_H_

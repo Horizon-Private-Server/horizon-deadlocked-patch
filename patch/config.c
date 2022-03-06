@@ -513,10 +513,10 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
     }
     case CUSTOM_MODE_PAYLOAD:
     {
-      if (v == CUSTOM_MAP_SARATHOS_SP)
+      if (v == CUSTOM_MAP_SARATHOS_SP || v == CUSTOM_MAP_DESERT_PRISON)
         return 1;
 
-      *value = CUSTOM_MAP_SARATHOS_SP;
+      *value = CUSTOM_MAP_DESERT_PRISON;
       return 0;
     }
     default:
