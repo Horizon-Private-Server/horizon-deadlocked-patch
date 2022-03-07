@@ -354,21 +354,31 @@ void changeBoxCollisionIds(void * modelPtr)
 void boxUpdate(Moby* moby)
 {
 	int i;
+	GameSettings* gameSettings = gameGetSettings();
 	MobyColDamage* colDamage = mobyGetDamage(moby, 0xfffffff, 0);
 
 	if (moby->CollDamage != -1 && colDamage && colDamage->Moby == moby)
 	{
-		int damagePlayerId = colDamage->Damager->NetObjectGid.HostId;
-		if (playerIdIsLocal(damagePlayerId))
+		int damageClientId = colDamage->Damager->NetObjectGid.HostId;
+		if (gameGetMyClientId() == damageClientId)
 		{
 			// call base
 			((void (*)(Moby*))0x00427450)(moby);
+
+			int playerId = 0;
+			for (playerId = 0; playerId < GAME_MAX_PLAYERS; ++playerId)
+			{
+				if (gameSettings->PlayerClients[playerId] == damageClientId)
+					break;
+			}
+			if (playerId ==GAME_MAX_PLAYERS)
+				playerId = -1;
 
 			for (i = 0; i < SPLEEF_BOARD_BOX_MAX; ++i)
 			{
 				if (SpleefBox[i] == moby)
 				{
-					destroyBox(i, damagePlayerId);
+					destroyBox(i, playerId);
 					return;
 				}
 			}
