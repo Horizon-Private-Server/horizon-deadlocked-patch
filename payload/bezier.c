@@ -92,7 +92,7 @@ float bezierMove(float* t, BezierPoint_t * a, BezierPoint_t * b, float distance)
 {
 	VECTOR lastPos, curPos, delta;
 	vector_subtract(delta, a->ControlPoint, b->ControlPoint);
-	float step = (distance / clamp(vector_length(delta), 1, 1000)) * 0.05;
+	float step = (distance / clamp(vector_length(delta), 1, 500)) * 0.2;
 	float traveled = 0;
 
 	// Get start position
@@ -233,7 +233,7 @@ float bezierGetClosestPointOnPath(VECTOR out, VECTOR position, BezierPoint_t* ve
 			}
 
 			// move
-			traveled += bezierMove(&t, &vertices[i], &vertices[i+1], 0.1);
+			traveled += bezierMove(&t, &vertices[i], &vertices[i+1], 0.5);
 		}
 
 		++i;

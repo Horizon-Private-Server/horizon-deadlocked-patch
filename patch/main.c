@@ -124,8 +124,8 @@ int lastCrazyMode = 0;
 char mapOverrideResponse = 1;
 char showNoMapPopup = 0;
 const char * patchConfigStr = "PATCH CONFIG";
-char hasSetRanks = 0;
-ServerSetRanksRequest_t lastSetRanksRequest;
+//char hasSetRanks = 0;
+//ServerSetRanksRequest_t lastSetRanksRequest;
 
 // 
 struct GameDataBlock
@@ -494,6 +494,57 @@ void patchCreateGame()
 	{
 		GAMESETTINGS_CREATE_PATCH = 0x0C000000 | ((u32)&patchCreateGame_Hook >> 2);
 	}
+}
+
+/*
+ * NAME :		patchWideStats_Hook
+ * 
+ * DESCRIPTION :
+ * 			Copies over game mode ranks into respective slot in medius stats.
+ * 			This just ensures that the ranks in the database always match up with the rank appearing in game.
+ * 			Since, after login, the game tracks its own copies of ranks regardless of the ranks stored in the accounts wide stats.
+ * 			This causes problems with custom gamemodes, which ignore rank changes as they are handled separately by the server.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchWideStats_Hook(int * stats)
+{
+	int* mediusStats = (int*)0x001722C0;
+
+	// skip to stats
+	stats += 8;
+
+	// store each respective gamemode rank in player medius stats
+	mediusStats[1] = stats[17]; // CQ
+	mediusStats[2] = stats[24]; // CTF
+	mediusStats[3] = stats[11]; // DM
+	mediusStats[4] = stats[31]; // KOTH
+	mediusStats[5] = stats[38]; // JUGGY
+}
+
+/*
+ * NAME :		patchWideStats
+ * 
+ * DESCRIPTION :
+ * 			Writes hook into the callback of MediusGetLadderStatsWide.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchWideStats(void)
+{
+	*(u32*)0x0015C0EC = 0x08000000 | ((u32)&patchWideStats_Hook >> 2);
 }
 
 /*
@@ -1566,6 +1617,7 @@ int onSetTeams(void * connection, void * data)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
+/*
 int onSetRanks(void * connection, void * data)
 {
 	int i, j;
@@ -1576,6 +1628,7 @@ int onSetRanks(void * connection, void * data)
 
 	return sizeof(ServerSetRanksRequest_t);
 }
+*/
 
 /*
  */
@@ -1772,7 +1825,7 @@ int main (void)
 
 	// install net handlers
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_REQUEST_TEAM_CHANGE, &onSetTeams);
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
+	//netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
 
 	// Run map loader
 	runMapLoader();
@@ -1824,6 +1877,9 @@ int main (void)
 
 	// Patch voice update
 	patchVoiceUpdate();
+
+	// 
+	patchWideStats();
 
 	// 
 	patchStateContainer.UpdateCustomGameStats = processSendGameData();
@@ -1948,6 +2004,7 @@ int main (void)
 			}
 
 			// try and apply ranks
+			/*
 			if (hasSetRanks && hasSetRanks != gameSettings->PlayerCount)
 			{
 				for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -1967,13 +2024,14 @@ int main (void)
 
 				hasSetRanks = gameSettings->PlayerCount;
 			}
+			*/
 
 			isInStaging = 1;
 		}
 		else
 		{
 			isInStaging = 0;
-			hasSetRanks = 0;
+			//hasSetRanks = 0;
 		}
 
 		// patch server hostname

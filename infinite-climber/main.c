@@ -399,6 +399,7 @@ void initialize(void)
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
+	*(u32*)0x00621A10 = 0;  // survivor (8)
 	*(u32*)0x00620F54 = 0;	// time end (1)
 	*(u32*)0x00621568 = 0;	// kills reached (2)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
@@ -615,6 +616,31 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	}
 }
 
+//--------------------------------------------------------------------------
+float computePlayerRank(int playerIdx)
+{
+	// current stats are stored in the calling function's stack
+	int * sp;
+	int * gameOverData = (int*)0x001E0D78;
+
+	asm __volatile__ (
+		"move %0, $sp"
+		: : "r" (sp)
+	);
+
+	// get index of gamemode rank's stat in widestats
+	// and return that as a float
+	int currentRank = sp[8 + ((int (*)(int))0x0077a8f8)(gameOverData[2])];
+
+	// uninstall hook
+	*(u32*)0x0077b0d4 = 0x0C1DEAE6;
+
+	// return current rank
+	// don't compute new rank for base gamemode
+	return (float)currentRank;
+	//return ((float (*)(int))0x0077AB98)(playerIdx);
+}
+
 void setLobbyGameOptions(void)
 {
 	// deathmatch options
@@ -673,6 +699,9 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 
 			setEndGameScoreboard();
 			initializedScoreboard = 1;
+
+			// hook compute rank
+			*(u32*)0x0077b0d4 = 0x0C000000 | ((u32)&computePlayerRank >> 2);
 			break;
 		}
 		case UI_ID_GAME_LOBBY:

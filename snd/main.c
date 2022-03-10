@@ -1778,6 +1778,55 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	return;
 }
 
+//--------------------------------------------------------------------------
+float computePlayerRank(int playerIdx)
+{
+	// current stats are stored in the calling function's stack
+	int * sp;
+	int * gameOverData = (int*)0x001E0D78;
+
+	asm __volatile__ (
+		"move %0, $sp"
+		: : "r" (sp)
+	);
+
+	// get index of gamemode rank's stat in widestats
+	// and return that as a float
+	int currentRank = sp[8 + ((int (*)(int))0x0077a8f8)(gameOverData[2])];
+
+	// uninstall hook
+	*(u32*)0x0077b0d4 = 0x0C1DEAE6;
+
+	// return current rank
+	// don't compute new rank for base gamemode
+	return (float)currentRank;
+	//return ((float (*)(int))0x0077AB98)(playerIdx);
+}
+
+//--------------------------------------------------------------------------
+void setLobbyGameOptions(void)
+{
+	// conquest homenodes options
+	static char cqOptions[] = { 
+		1, 1, 			// 0x06 - 0x08
+		0, 1, 1, 0, 	// 0x08 - 0x0C
+		0, 0, 0, 0,  	// 0x0C - 0x10
+		0, 0, 0, 0,		// 0x10 - 0x14
+		-1, -1, 1, 1,	// 0x14 - 0x18
+	};
+
+	// set game options
+	GameOptions * gameOptions = gameGetOptions();
+	if (!gameOptions)
+		return;
+		
+	// set to conquest homenodes
+	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)cqOptions, sizeof(cqOptions)/sizeof(char));
+
+	// force hacker orbs
+	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 1;
+}
+
 /*
  * NAME :		lobbyStart
  * 
@@ -1795,30 +1844,33 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
  */
 void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
-	// conquest homenodes options
-	static char cqOptions[] = { 
-		1, 1, 			// 0x06 - 0x08
-		0, 1, 1, 0, 	// 0x08 - 0x0C
-		0, 0, 0, 0,  	// 0x0C - 0x10
-		0, 0, 0, 0,		// 0x10 - 0x14
-		-1, -1, 1, 1,	// 0x14 - 0x18
-	};
+	int i;
+	int activeId = uiGetActive();
+	static int initializedScoreboard = 0;
 
-
-	//
+	// 
 	updateGameState(gameState);
 
+	// scoreboard
+	switch (activeId)
+	{
+		case 0x15C:
+		{
+			if (initializedScoreboard)
+				break;
 
-	// set game options
-	GameOptions * gameOptions = gameGetOptions();
-	if (!gameOptions)
-		return;
-		
-	// set to conquest homenodes
-	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)cqOptions, sizeof(cqOptions)/sizeof(char));
+			initializedScoreboard = 1;
 
-	// force hacker orbs
-	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 1;
+			// hook compute rank
+			*(u32*)0x0077b0d4 = 0x0C000000 | ((u32)&computePlayerRank >> 2);
+			break;
+		}
+		case UI_ID_GAME_LOBBY:
+		{
+			setLobbyGameOptions();
+			break;
+		}
+	}
 }
 
 /*
