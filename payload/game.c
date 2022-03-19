@@ -416,6 +416,7 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 	int isAttacking = State.PlayerStates[player->PlayerId].IsAttacking;
 	int selectedPoint = isAttacking;
 	VECTOR delta;
+	VECTOR spawnHitOffset = {0,0,0.1,0};
 
 	// pass down to game
 	if (!State.PayloadMoby)
@@ -497,8 +498,22 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 	}
 
 set: ;
+
 	// set position
+	float theta = (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU;
 	vector_copy(outPos, Config.SpawnPoints[selectedPoint]);
+	outPos[0] += cosf(theta) * 1.5;
+	outPos[1] += sinf(theta) * 1.5;
+	outPos[2] += 1;
+
+	// ensure we're not spawning over nothing
+	// if we are just spawn at center of point
+	vector_copy(delta, outPos);
+	delta[2] -= 4;
+	if (CollLine_Fix(outPos, delta, 2, NULL, 0) == 0)
+		vector_copy(outPos, Config.SpawnPoints[selectedPoint]);
+	else
+		vector_add(outPos, CollLine_Fix_GetHitPosition(), spawnHitOffset);
 
 	// determine and set yaw
 	vector_write(outRot, 0);
@@ -1199,8 +1214,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 	// spawn payload
 	State.PayloadMoby = mobySpawn(PAYLOAD_MOBY_ID, sizeof(struct PayloadMobyPVar));
-	State.PayloadMoby->DrawDist = 0xFF;
-	State.PayloadMoby->UpdateDist = 0xFF;
+	State.PayloadMoby->DrawDist = 0x7FFF;
+	State.PayloadMoby->UpdateDist = 0xFF; 
 	State.PayloadMoby->PUpdate = &payloadUpdate;
 	struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
 	pvar->Distance = 0;

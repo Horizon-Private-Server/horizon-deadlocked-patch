@@ -65,7 +65,7 @@ float bezierGetLength(BezierPoint_t * a, BezierPoint_t * b, float tA, float tB)
 {
 	VECTOR lastPos, curPos, delta;
 	vector_subtract(delta, a->ControlPoint, b->ControlPoint);
-	float step = (1 / vector_length(delta)) * 0.1;
+	float step = (1 / clamp(vector_length(delta), 1, 1000)) * 0.1;
 	float distance = 0;
 
 	// Get start position
@@ -92,7 +92,7 @@ float bezierMove(float* t, BezierPoint_t * a, BezierPoint_t * b, float distance)
 {
 	VECTOR lastPos, curPos, delta;
 	vector_subtract(delta, a->ControlPoint, b->ControlPoint);
-	float step = (distance / clamp(vector_length(delta), 1, 500)) * 0.2;
+	float step = (distance / clamp(vector_length(delta), 1, 1000)) * 0.1;
 	float traveled = 0;
 
 	// Get start position
@@ -187,7 +187,7 @@ float bezierMovePath(float* time, int* index, BezierPoint_t* vertices, int verte
 //--------------------------------------------------------------------------
 float bezierGetClosestPointOnPath(VECTOR out, VECTOR position, BezierPoint_t* vertices, float* segmentLengths, int vertexCount)
 {
-	VECTOR delta, temp;
+	VECTOR delta, last, temp;
 	int i = 0, bestCtrlIdx = 0, lastVertex = vertexCount - 1;
 	float t = 0;
 	float bestDistSqr = -1;
@@ -218,13 +218,14 @@ float bezierGetClosestPointOnPath(VECTOR out, VECTOR position, BezierPoint_t* ve
   while (i < (bestCtrlIdx+2) && i < lastVertex)
 	{
 		t = 0;
-		while (t < 1)
-		{
-			// get position
-			bezierGetPosition(temp, &vertices[i], &vertices[i+1], t);
 
+		// get first position
+		bezierGetPosition(last, &vertices[i], &vertices[i+1], t);
+
+		while (1)
+		{
 			// determine if its the closest one yet
-			vector_subtract(delta, temp, position);
+			vector_subtract(delta, last, position);
 			float d = vector_sqrmag(delta);
 			if (d < bestDistSqr || bestDistSqr < 0) {
 				vector_copy(out, temp);
@@ -233,7 +234,13 @@ float bezierGetClosestPointOnPath(VECTOR out, VECTOR position, BezierPoint_t* ve
 			}
 
 			// move
-			traveled += bezierMove(&t, &vertices[i], &vertices[i+1], 0.5);
+			t += 0.01;
+			if (t > 1)
+				break;
+			bezierGetPosition(temp, &vertices[i], &vertices[i+1], t);
+			vector_subtract(delta, last, temp);
+			vector_copy(last, temp);
+			traveled += vector_length(delta);
 		}
 
 		++i;
