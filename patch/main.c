@@ -513,19 +513,19 @@ void patchCreateGame()
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void patchWideStats_Hook(int * stats)
+void patchWideStats_Hook(void)
 {
 	int* mediusStats = (int*)0x001722C0;
+	int* stats = *(int**)0x0017277c;
 
-	// skip to stats
-	stats += 8;
-
-	// store each respective gamemode rank in player medius stats
-	mediusStats[1] = stats[17]; // CQ
-	mediusStats[2] = stats[24]; // CTF
-	mediusStats[3] = stats[11]; // DM
-	mediusStats[4] = stats[31]; // KOTH
-	mediusStats[5] = stats[38]; // JUGGY
+	if (stats) {
+		// store each respective gamemode rank in player medius stats
+		mediusStats[1] = stats[17]; // CQ
+		mediusStats[2] = stats[24]; // CTF
+		mediusStats[3] = stats[11]; // DM
+		mediusStats[4] = stats[31]; // KOTH
+		mediusStats[5] = stats[38]; // JUGGY
+	}
 }
 
 /*
