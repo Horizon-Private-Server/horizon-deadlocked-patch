@@ -170,7 +170,17 @@ const PlayerStateCondition_t stateSkipRemoteConditions[] = {
 	{	// skip when player is swinging
 		PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
 		0,
-		43
+		PLAYER_STATE_SWING
+	},
+	{	// skip when player is drowning
+		PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+		0,
+		PLAYER_STATE_DROWN
+	},
+	{	// skip when player is falling into death void
+		PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+		0,
+		PLAYER_STATE_DEATH_FALL
 	},
 };
 
@@ -178,7 +188,7 @@ const PlayerStateCondition_t stateForceRemoteConditions[] = {
 	{ // force chargebooting
 		PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
 		0,
-		125
+		PLAYER_STATE_CHARGE
 	},
 	// { // force remote if local is still wrenching
 	// 	PLAYERSTATECONDITION_LOCAL_EQUALS,
