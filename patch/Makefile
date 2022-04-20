@@ -1,22 +1,11 @@
 
-EE_ELF = patch-11184.elf
-EE_BIN = patch-11184.bin
-EE_OBJS = main.o spectate.o maploader.o rpc.o config.o functions.o mapeditor.o
-EE_LIBS = -ldl
+all: base comp
 
-EE_INCS := -I../common -I../libdl/include
-EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
-#EE_DEFS = -DDEBUG
-#EE_DEFS += -DDEV
-#EE_DEFS += -DMAPEDITOR
-#EE_DEFS += -DSCR_PRINT
-#EE_DEFS += -DMAPDOWNLOADER
+comp:
+	$(MAKE) -f Makefile.comp
 
-all: $(EE_BIN) clean copy
+base:
+	$(MAKE) -f Makefile.base
 
 clean:
 	rm -f *.irx *.o
-
-include ${CURDIR}/../Makefile.pref
-include ${CURDIR}/../Makefile.eeglobal
-include ${CURDIR}/../Makefile.rules

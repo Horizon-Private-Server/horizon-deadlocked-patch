@@ -1,0 +1,11 @@
+
+EE_DEFS += -DCOMP
+EE_OBJS += comp.o
+EE_ELF = patch-comp-11184.elf
+EE_BIN = patch-comp-11184.bin
+
+include ${CURDIR}/Makefile.base
+
+include ${CURDIR}/../Makefile.pref
+include ${CURDIR}/../Makefile.eeglobal
+include ${CURDIR}/../Makefile.rules
