@@ -180,16 +180,16 @@ const PlayerStateCondition_t stateForceRemoteConditions[] = {
 		0,
 		125
 	},
-	{ // force remote if local is still wrenching
-		PLAYERSTATECONDITION_LOCAL_EQUALS,
-		15,
-		19
-	},
-	{ // force remote if local is still hyper striking
-		PLAYERSTATECONDITION_LOCAL_EQUALS,
-		15,
-		20
-	}
+	// { // force remote if local is still wrenching
+	// 	PLAYERSTATECONDITION_LOCAL_EQUALS,
+	// 	15,
+	// 	19
+	// },
+	// { // force remote if local is still hyper striking
+	// 	PLAYERSTATECONDITION_LOCAL_EQUALS,
+	// 	15,
+	// 	20
+	// }
 };
 
 // 
@@ -1064,7 +1064,7 @@ void runPlayerStateSync(void)
 			PlayerVTable* vtable = playerGetVTable(p);
 			if (vtable && remoteState != localState)
 			{
-				int pStateTimer = *(int*)((u32)p + 0x25e0);
+				int pStateTimer = p->timers.state;
 				int skip = 0;
 
 				// iterate each condition
@@ -1096,7 +1096,7 @@ void runPlayerStateSync(void)
 					{
 						if (checkStateCondition(condition, localState, remoteState))
 						{
-							DPRINTF("%d changing remote player %08x (%d) state to %d timer:%d\n", j, (u32)p, p->PlayerId, remoteState, pStateTimer);
+							DPRINTF("%d changing remote player %08x (%d) state to %d (from %d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, localState, pStateTimer);
 							vtable->UpdateState(p, remoteState, 1, 1, 1);
 							break;
 						}
