@@ -117,6 +117,7 @@ int sentGameStart = 0;
 int lastMenuInvokedTime = 0;
 int lastGameState = 0;
 int isInStaging = 0;
+int hasSendReachedEndScoreboard = 0;
 int hasInstalledExceptionHandler = 0;
 int lastSurvivor = 0;
 int lastRespawnTime = 5;
@@ -1181,7 +1182,7 @@ u64 hookedProcessLevel()
 	{
 		// Start at the first game module
 		GameModule * module = GLOBAL_GAME_MODULES_START;
-
+	
 		// pass event to modules
 		while (module->GameEntrypoint || module->LobbyEntrypoint)
 		{
@@ -1879,7 +1880,7 @@ int main (void)
 	patchVoiceUpdate();
 
 	// 
-	patchWideStats();
+	//patchWideStats();
 
 	// 
 	patchStateContainer.UpdateCustomGameStats = processSendGameData();
@@ -1893,6 +1894,9 @@ int main (void)
 	// in game stuff
 	if (gameIsIn())
 	{
+		// reset when in game
+		hasSendReachedEndScoreboard = 0;
+
 		// this lets guber events that are < 5 seconds old be processed (original is 1.2 seconds)
 		//GADGET_EVENT_MAX_TLL = 5 * TIME_SECOND;
 
@@ -2032,6 +2036,21 @@ int main (void)
 		{
 			isInStaging = 0;
 			//hasSetRanks = 0;
+		}
+
+		// send game reached end scoreboard
+		if (!hasSendReachedEndScoreboard)
+		{
+			if (gameSettings && gameSettings->GameStartTime > 0 && uiGetActive() == 0x15C && gameAmIHost())
+			{
+				hasSendReachedEndScoreboard = 1;
+				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_REACHED_END_SCOREBOARD, 0, NULL);
+			}
+			else if (!gameSettings)
+			{
+				// disable if not in a lobby (must be in a lobby to send)
+				hasSendReachedEndScoreboard = 1;
+			}
 		}
 
 		// patch server hostname

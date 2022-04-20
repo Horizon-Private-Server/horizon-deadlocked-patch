@@ -127,6 +127,11 @@ enum CustomMessageId
     CUSTOM_MSG_ID_SERVER_SET_RANKS = 20,
 
     /*
+     * Sent by the host when a game has entered the end scoreboard screen.
+     */
+    CUSTOM_MSG_ID_GAME_LOBBY_REACHED_END_SCOREBOARD = 21,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
