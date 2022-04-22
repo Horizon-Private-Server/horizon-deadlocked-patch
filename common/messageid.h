@@ -132,6 +132,33 @@ enum CustomMessageId
     CUSTOM_MSG_ID_GAME_LOBBY_REACHED_END_SCOREBOARD = 21,
 
     /*
+     * Sent from the client to the server when the client wishes to enter a queue.
+     */
+    CUSTOM_MSG_ID_QUEUE_BEGIN_REQUEST = 22,
+
+    /*
+     * Sent from the server to the client indicating that the client has entered a queue.
+     */
+    CUSTOM_MSG_ID_QUEUE_BEGIN_RESPONSE = 23,
+
+    /*
+     * Sent from the client to the server when the client wishes to know if they are in a queue and its stats.
+     */
+    CUSTOM_MSG_ID_GET_MY_QUEUE_REQUEST = 24,
+
+    /*
+     * Sent from the server to the client with information about the client's queue.
+     */
+    CUSTOM_MSG_ID_GET_MY_QUEUE_RESPONSE = 25,
+
+    /*
+     * Sent from the server to the client when the server wants the client to join a game.
+     */
+    CUSTOM_MSG_ID_FORCE_JOIN_GAME_REQUEST = 26,
+
+
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -188,5 +215,36 @@ typedef struct ServerSetRanksRequest
     int AccountIds[10];
     float Ranks[10];
 } ServerSetRanksRequest_t;
+
+typedef struct QueueBeginRequest
+{
+    int QueueId;
+} QueueBeginRequest_t;
+
+typedef struct QueueBeginResponse
+{
+    int Status;
+    int CurrentQueueId;
+    int SecondsInQueue;
+    int PlayersInQueue;
+} QueueBeginResponse_t;
+
+typedef struct GetMyQueueResponse
+{
+    int CurrentQueueId;
+    int SecondsInQueue;
+    int PlayersInQueue;
+} GetMyQueueResponse_t;
+
+typedef struct ForceJoinGameRequest
+{
+    int ChannelWorldId;
+    int GameWorldId;
+    u32 WeaponFlags;
+    char AmIHost;
+    char Level;
+    char Ruleset;
+    char GameFlags[59];
+} ForceJoinGameRequest_t;
 
 #endif // _MESSAGEID_H_

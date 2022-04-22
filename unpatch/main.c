@@ -46,6 +46,13 @@ const int patches[][3] = {
 	{ -1, 0x00159B20, 0x0C056680 }, // hookTableAddr
 	{ -1, 0x00159B20, 0x0C056680 }, // hookTableAddr
 	{ 0, 0x007055B4, 0x0C046A7B }, // hook loading screen map name strcpy
+	// comp
+	{ 0, 0x004BD1B8, 0x0073BA08 }, // end game scoreboard vtable function
+	{ 0, 0x004BB6C8, 0x007280F0 }, // clan room menu vtable function
+	{ 0, 0x004BE5A0, 0x00749250 }, // quick play vtable function
+	{ 0, 0x0074B428, 0x0C1C671A }, // quick play select dialog open
+	{ 0, 0x00728620, 0x24070001 }, // clan room logout
+	{ 0, 0x0072862C, 0xAFA70148 }, // clan room logout
 	// in game
 	{ 1, 0x005930B8, 0x02C3B020 }, // lod patch
 };

@@ -1,6 +1,6 @@
 
-EE_DEFS += -DCOMP
-EE_OBJS += comp.o
+EE_DEFS = -DCOMP
+EE_OBJS = comp.o
 EE_ELF = patch-comp-11184.elf
 EE_BIN = patch-comp-11184.bin
 

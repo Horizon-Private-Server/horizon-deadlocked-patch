@@ -107,6 +107,11 @@ void configMenuEnable(void);
 void configMenuDisable(void);
 void configTrySendGameConfig(void);
 
+#if COMP
+void runCompMenuLogic(void);
+void runCompLogic(void);
+#endif
+
 #if MAPEDITOR
 void onMapEditorGameUpdate(void);
 #endif
@@ -1745,6 +1750,11 @@ void onOnlineMenu(void)
 	// map loader
 	onMapLoaderOnlineMenu();
 
+#if COMP
+	// run comp patch logic
+	runCompMenuLogic();
+#endif
+
 	// settings
 	onConfigOnlineMenu();
 
@@ -1840,6 +1850,11 @@ int main (void)
 
 	// Run map loader
 	runMapLoader();
+
+#if COMP
+	// run comp patch logic
+	runCompLogic();
+#endif
 
 	// 
 	runCheckGameMapInstalled();
