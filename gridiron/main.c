@@ -504,7 +504,7 @@ void gameStart(void)
 		GridironState.GameOver = 1;
 #endif
 
-	if (!gameHasEnded() && gameIsIn() && !GridironState.GameOver)
+	if (!gameHasEnded() && isInGame() && !GridironState.GameOver)
 	{
 		// game is running
 		findFlagBases();

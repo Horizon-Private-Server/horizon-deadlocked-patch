@@ -361,7 +361,7 @@ void gameStart(void)
 	int i;
 
 	// Ensure in game
-	if (!gameSettings || !gameIsIn())
+	if (!gameSettings || !isInGame())
 		return;
 
 	if (!Initialized)

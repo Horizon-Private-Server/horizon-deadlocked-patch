@@ -27,7 +27,7 @@
 int onSetRoundCompleteRemote(void * connection, void * data)
 {
 	RoundCompleteMessage_t * message = (RoundCompleteMessage_t*)data;
-	if (gameIsIn())
+	if (isInGame())
 		onSetRoundComplete(message->GameTime, message->Outcome, message->RoundDuration, message->Teams);
 
 	return sizeof(RoundCompleteMessage_t);
@@ -114,7 +114,7 @@ void sendTeamScore(void)
 int onReceivePayloadStateRemote(void * connection, void * data)
 {
 	SetPayloadStateMessage_t * message = (SetPayloadStateMessage_t*)data;
-	if (gameIsIn())
+	if (isInGame())
 		onReceivePayloadState(message->State, message->PathIndex, message->Time);
 
 	return sizeof(SetPayloadStateMessage_t);

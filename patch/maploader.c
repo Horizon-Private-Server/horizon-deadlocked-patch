@@ -1074,7 +1074,7 @@ void runMapLoader(void)
 	}
 
 	// force map id to current map override if in staging
-	if (State.Enabled == 1 && !gameIsIn())
+	if (State.Enabled == 1 && !isInGame())
 	{
 		GameSettings * settings = gameGetSettings();
 		if (settings && settings->GameLoadStartTime > 0)

@@ -525,7 +525,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 
 	// Ensure in game
-	if (!gameSettings || !gameIsIn())
+	if (!gameSettings || !isInGame())
 		return;
 
 	// Determine if host

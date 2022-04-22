@@ -341,7 +341,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	Player ** players = playerGetAll();
 
 	// Ensure in game
-	if (!gameSettings || !gameIsIn())
+	if (!gameSettings || !isInGame())
 		return;
 
 	if (!Initialized)

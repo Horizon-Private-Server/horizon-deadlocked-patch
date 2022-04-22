@@ -706,7 +706,7 @@ void gameStart(void)
 	char buf[128];
 
 	// Ensure in game
-	if (!gameSettings || !gameIsIn())
+	if (!gameSettings || !isInGame())
 		return;
 
 	// Determine if host

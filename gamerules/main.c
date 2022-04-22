@@ -487,7 +487,7 @@ void gameStart(GameModule * module, PatchConfig_t * config, PatchGameConfig_t * 
 	if (gameConfig->grBetterHills && gameConfig->customMapId == 0)
 		betterHillsLogic(module);
 
-	if (gameConfig->grHealthBars && gameIsIn())
+	if (gameConfig->grHealthBars && isInGame())
 	{
 		u32 hookValue = 0x0C000000 | ((u32)&healthbarsHook >> 2);
 		*(u32*)0x005d608c = hookValue;

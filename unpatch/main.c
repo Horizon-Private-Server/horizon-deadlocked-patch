@@ -150,7 +150,12 @@ int main (void)
 	int i;
 	const int patchesSize =  sizeof(patches) / (3 * sizeof(int));
 	const int clearsSize =  sizeof(clears) / (2 * sizeof(int));
-	int inGame = gameIsIn();
+
+	// state
+	// 0 = menus
+	// 1 = in game
+	// 2 = loading scene
+	int state = isInGame() ? 1 : (isInMenus() ? 0 : 2);
 
 	// clear memory
 	if (!hasClearedMemory)
@@ -159,7 +164,7 @@ int main (void)
 		for (i = 0; i < patchesSize; ++i)
 		{
 			int context = patches[i][0];
-			if (context < 0 || context == inGame)
+			if (context < 0 || context == state)
 				*(u32*)patches[i][1] = (u32)patches[i][2];
 		}
 
@@ -173,8 +178,8 @@ int main (void)
 	// 
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_DATA_REQUEST, &onServerDownloadDataRequest);
 
-	// 
-	if (inGame)
+	// only continue if in menus
+	if (state != 0)
 		return;
 
 	// Hook menu loop

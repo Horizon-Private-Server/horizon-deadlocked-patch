@@ -63,7 +63,7 @@ void gameStart(void)
 	GameSettings * gameSettings = gameGetSettings();
 
 	// Ensure in game
-	if (!gameSettings || !gameIsIn())
+	if (!gameSettings || !isInGame())
 		return;
 
 	DPRINTF("%d\n", gameSettings->GameRules);

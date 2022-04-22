@@ -343,7 +343,6 @@ void patchGameSettingsLoad_Save(void * a0, int offset0, int offset1, int value)
 void patchGameSettingsLoad_Hook(void * a0, void * a1)
 {
 	int index = 0;
-	int value = 0;
 
 	// Load normal
 	((void (*)(void *, void *))GAMESETTINGS_LOAD_FUNC)(a0, a1);
@@ -811,7 +810,7 @@ int runSendGameUpdate(void)
 	}
 
 	// 
-	if (gameIsIn())
+	if (isInGame())
 	{
 		memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
 
@@ -959,7 +958,7 @@ void runEnableSingleplayerMusic(void)
 	}
 
 	// If in game
-	if(gameIsIn())
+	if(isInGame())
 	{
 		int TrackDuration = *(u32*)0x002069A4;
 		if (*(u32*)0x002069A0 <= 0)
@@ -1020,7 +1019,7 @@ void runGameStartMessager(void)
 	}
 }
 
-int checkStateCondition(PlayerStateCondition_t * condition, int localState, int remoteState)
+int checkStateCondition(const PlayerStateCondition_t * condition, int localState, int remoteState)
 {
 	switch (condition->Type)
 	{
@@ -1063,7 +1062,7 @@ void runPlayerStateSync(void)
 	Player ** players = playerGetAll();
 	int i,j;
 
-	if (!gameIsIn() || !config.enablePlayerStateSync)
+	if (!isInGame() || !config.enablePlayerStateSync)
 		return;
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -1328,9 +1327,9 @@ int processSendGameData(void)
 
 	// ensure in game/staging
 	if (!gameSettings)
-		return;
+		return 0;
 	
-	if (gameIsIn())
+	if (isInGame())
 	{
 		// move game settings
 		if (state == 0)
@@ -1435,7 +1434,7 @@ void runCheckGameMapInstalled(void)
 {
 	int i;
 	GameSettings* gs = gameGetSettings();
-	if (!gs || gameIsIn())
+	if (!gs || isInGame())
 		return;
 
 	// install start game hook
@@ -1489,7 +1488,7 @@ void processGameModules()
 			if (module->State > GAMEMODULE_OFF)
 			{
 				// If in game, run game entrypoint
-				if (gameIsIn())
+				if (isInGame())
 				{
 					// Check if the game hasn't ended
 					// We also give the module a second after the game has ended to
@@ -1501,7 +1500,7 @@ void processGameModules()
 							module->GameEntrypoint(module, &config, &gameConfig, &patchStateContainer);
 					}
 				}
-				else
+				else if (isInMenus())
 				{
 					// Invoke lobby module if still active
 					if (module->LobbyEntrypoint)
@@ -1521,7 +1520,7 @@ void processGameModules()
 		else if (module->State == GAMEMODULE_ALWAYS_ON)
 		{
 			// Invoke lobby module if still active
-			if (!gameIsIn() && module->LobbyEntrypoint)
+			if (isInMenus() && module->LobbyEntrypoint)
 			{
 				module->LobbyEntrypoint(module, &config, &gameConfig, &patchStateContainer);
 			}
@@ -1806,7 +1805,7 @@ void onOnlineMenu(void)
  */
 int main (void)
 {
-	int i,j;
+	int i;
 	
 	// Call this first
 	dlPreUpdate();
@@ -1917,7 +1916,7 @@ int main (void)
 	onConfigUpdate();
 
 	// in game stuff
-	if (gameIsIn())
+	if (isInGame())
 	{
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
@@ -2012,7 +2011,7 @@ int main (void)
 
 		lastGameState = 1;
 	}
-	else
+	else if (isInMenus())
 	{
 		// Hook menu loop
 		if (*(u32*)0x00594CBC == 0)

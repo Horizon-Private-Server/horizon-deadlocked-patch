@@ -1379,7 +1379,7 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-	if (gameIsIn() && moby->OClass == 0x20F6 && pvars) {
+	if (isInGame() && moby->OClass == 0x20F6 && pvars) {
 		u32 mobEvent = event->NetEvent.EventID;
 		int isFromHost = gameIsHost(event->NetEvent.OriginClientIdx);
 		if (!isFromHost && mobEvent != MOB_EVENT_SPAWN && mobEvent != MOB_EVENT_DAMAGE && mobEvent != MOB_EVENT_DESTROY && pvars->MobVars.Owner != event->NetEvent.OriginClientIdx)

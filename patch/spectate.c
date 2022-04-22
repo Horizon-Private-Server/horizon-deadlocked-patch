@@ -301,7 +301,7 @@ void processSpectate(void)
     int spectateIndex = 0;
 
     // First, we have to ensure we are in-game
-	if (!gameSettings || !gameIsIn()) 
+	if (!gameSettings || !isInGame()) 
     {
         SpectateData->Enabled = 0;
         Initialized = 0;

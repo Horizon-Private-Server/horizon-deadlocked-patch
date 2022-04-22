@@ -312,7 +312,7 @@ void runCompLogic(void) {
 
   // hook menu stuff
   int menu = uiGetActive();
-  if (!gameIsIn() && (menu == UI_ID_ONLINE_MAIN_MENU || menu == 0x15c)) {
+  if (isInMenus() && (menu == UI_ID_ONLINE_MAIN_MENU || menu == 0x15c)) {
     *(u32*)0x004BB6C8 = &onCompChatRoom;
     *(u32*)0x004BD1B8 = &onCompEndGameScoreboard;
     *(u32*)0x00728620 = 0x0C000000 | ((u32)&onLogoutChatRoom / 4);

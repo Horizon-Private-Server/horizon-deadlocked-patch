@@ -1496,7 +1496,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	//
 	updateGameState(gameState);
 
-	if (!gameHasEnded() && gameIsIn() && !SNDState.GameOver)
+	if (!gameHasEnded() && isInGame() && !SNDState.GameOver)
 	{
 		if (SNDState.RoundEndTicks)
 		{
@@ -1746,7 +1746,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			bombTimerLogic();
 		}
 	}
-	else
+	else if (isInGame())
 	{
 		// Kill pack
 		killPack();
