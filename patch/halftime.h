@@ -33,7 +33,7 @@ void htReset(void);
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void halftimeLogic(GameModule * module);
+void halftimeLogic(void);
 
 #if DEBUG
 

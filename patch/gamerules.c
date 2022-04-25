@@ -1,12 +1,10 @@
 /***************************************************
- * FILENAME :		main.c
+ * FILENAME :		gamerules.c
  * 
  * DESCRIPTION :
  * 		Gamerules entrypoint and logic.
  * 
  * NOTES :
- * 		Each offset is determined per app id.
- * 		This is to ensure compatibility between versions of Deadlocked/Gladiator.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -28,16 +26,23 @@
 #include <libdl/graphics.h>
 #include "module.h"
 #include "halftime.h"
+#include "include/config.h"
+
+// config
+extern PatchConfig_t config;
+
+// game config
+extern PatchGameConfig_t gameConfig;
 
 /*
  *
  */
-int Initialized = 0;
+int GameRulesInitialized = 0;
 
 /*
  *
  */
-int betterHillsInitialized = 0;
+int BetterHillsInitialized = 0;
 
 /*
  *
@@ -47,7 +52,7 @@ int HasDisabledHealthboxes = 0;
 /*
  *
  */
-u32 weatherOverrideId = 0;
+u32 WeatherOverrideId = 0;
 
 /*
  * 
@@ -186,7 +191,7 @@ enum BETTER_HILL_PTS
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void vampireLogic(GameModule * module, float healRate)
+void vampireLogic(float healRate)
 {
 	int i;
 	Player ** playerObjects = playerGetAll();
@@ -223,13 +228,13 @@ void vampireLogic(GameModule * module, float healRate)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void betterHillsLogic(GameModule * module)
+void betterHillsLogic(void)
 {
-	if (betterHillsInitialized)
+	if (BetterHillsInitialized)
 		return;
 
 	//
-	betterHillsInitialized = 1;
+	BetterHillsInitialized = 1;
 
 	// 
 	switch (gameGetSettings()->GameLevel)
@@ -363,7 +368,7 @@ void healthbarsHook(int nameX, int nameY, u32 nameColor, char * nameStr, int nam
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void invTimerLogic(GameModule * module)
+void invTimerLogic(void)
 {
 	int i;
 	Player ** players = playerGetAll();
@@ -377,7 +382,7 @@ void invTimerLogic(GameModule * module)
 }
 
 /*
- * NAME :		initialize
+ * NAME :		grInitialize
  * 
  * DESCRIPTION :
  * 			Initializes this module.
@@ -391,7 +396,7 @@ void invTimerLogic(GameModule * module)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(void)
+void grInitialize(void)
 {
 	int i;
 
@@ -401,14 +406,14 @@ void initialize(void)
 
 	// reset
 	htReset();
-	betterHillsInitialized = 0;
+	BetterHillsInitialized = 0;
 	HasDisabledHealthboxes = 0;
 
-	Initialized = 1;
+	GameRulesInitialized = 1;
 }
 
 /*
- * NAME :		gameStart
+ * NAME :		grGameStart
  * 
  * DESCRIPTION :
  * 			Gamerules game logic entrypoint.
@@ -422,41 +427,41 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig)
+void grGameStart(void)
 {
 	GameSettings * gameSettings = gameGetSettings();
 
 	// Initialize
-	if (Initialized != 1)
+	if (GameRulesInitialized != 1)
 	{
 		// 
-		initialize();
+		grInitialize();
 
 		// convert weather id to game value
-		weatherOverrideId = gameConfig->grWeatherId;
+		WeatherOverrideId = gameConfig.grWeatherId;
 
 		// random weather
-		if (weatherOverrideId == 1)
+		if (WeatherOverrideId == 1)
 		{
-			sha1(&gameSettings->GameLoadStartTime, 4, &weatherOverrideId, 4);
-			weatherOverrideId = 1 + (weatherOverrideId % 16);
-			if (weatherOverrideId == 8)
-				weatherOverrideId = 9;
-			else if (weatherOverrideId == 15)
-				weatherOverrideId = 16;
+			sha1(&gameSettings->GameLoadStartTime, 4, &WeatherOverrideId, 4);
+			WeatherOverrideId = 1 + (WeatherOverrideId % 16);
+			if (WeatherOverrideId == 8)
+				WeatherOverrideId = 9;
+			else if (WeatherOverrideId == 15)
+				WeatherOverrideId = 16;
 		}
 		// shift down weather (so that the list value is equivalent to game value)
-		else if (weatherOverrideId > 1 && weatherOverrideId < 9)
-			--weatherOverrideId;
+		else if (WeatherOverrideId > 1 && WeatherOverrideId < 9)
+			--WeatherOverrideId;
 	}
 
 	// Apply weather
-	cheatsApplyWeather(weatherOverrideId);
+	cheatsApplyWeather(WeatherOverrideId);
 
 #if DEBUG
 	dlPreUpdate();
 
-	halftimeLogic(module);
+	halftimeLogic();
 	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
 	{
 		htCtfBegin();
@@ -466,43 +471,43 @@ void gameStart(GameModule * module, PatchConfig_t * config, PatchGameConfig_t * 
 	dlPostUpdate();
 #endif
 
-	if (gameConfig->grNoPacks)
+	if (gameConfig.grNoPacks)
 		cheatsApplyNoPacks();
 
-	if (gameConfig->grNoV2s)
+	if (gameConfig.grNoV2s)
 		cheatsApplyNoV2s();
 
-	if (gameConfig->grMirrorWorld)
+	if (gameConfig.grMirrorWorld)
 		cheatsApplyMirrorWorld(1);
 
-	if (gameConfig->grNoHealthBoxes && !HasDisabledHealthboxes)
+	if (gameConfig.grNoHealthBoxes && !HasDisabledHealthboxes)
 		HasDisabledHealthboxes = cheatsDisableHealthboxes();
 
-	if (gameConfig->grVampire)
-		vampireLogic(module, VampireHealRate[gameConfig->grVampire-1]);
+	if (gameConfig.grVampire)
+		vampireLogic(VampireHealRate[gameConfig.grVampire-1]);
 
-	if (gameConfig->grHalfTime)
-		halftimeLogic(module);
+	if (gameConfig.grHalfTime)
+		halftimeLogic();
 
-	if (gameConfig->grBetterHills && gameConfig->customMapId == 0)
-		betterHillsLogic(module);
+	if (gameConfig.grBetterHills && gameConfig.customMapId == 0)
+		betterHillsLogic();
 
-	if (gameConfig->grHealthBars && isInGame())
+	if (gameConfig.grHealthBars && isInGame())
 	{
 		u32 hookValue = 0x0C000000 | ((u32)&healthbarsHook >> 2);
 		*(u32*)0x005d608c = hookValue;
 		*(u32*)0x005d60c4 = hookValue;
 	}
 
-	if (gameConfig->grNoNames)
+	if (gameConfig.grNoNames)
 		gameSettings->PlayerNamesOn = 0;
 
-	if (gameConfig->grNoInvTimer)
-		invTimerLogic(module);
+	if (gameConfig.grNoInvTimer)
+		invTimerLogic();
 }
 
 /*
- * NAME :		lobbyStart
+ * NAME :		grLobbyStart
  * 
  * DESCRIPTION :
  * 			Gamerules lobby logic entrypoint.
@@ -516,7 +521,7 @@ void gameStart(GameModule * module, PatchConfig_t * config, PatchGameConfig_t * 
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(GameModule * module)
+void grLobbyStart(void)
 {
 	GameSettings * gameSettings = gameGetSettings();
 
@@ -525,29 +530,8 @@ void lobbyStart(GameModule * module)
 		return;
 
 	// Reset
-	module->State = GAMEMODULE_OFF;
-	Initialized = 0;
+	GameRulesInitialized = 0;
 
 	// Reset mirror world in lobby
 	cheatsApplyMirrorWorld(0);
-}
-
-/*
- * NAME :		loadStart
- * 
- * DESCRIPTION :
- * 			Load logic entrypoint.
- * 
- * NOTES :
- * 			This is called only when the game has finished reading the level from the disc and before it has started processing the data.
- * 
- * ARGS : 
- * 
- * RETURN :
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-void loadStart(void)
-{
-	
 }

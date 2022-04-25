@@ -116,6 +116,10 @@ void runCompLogic(void);
 void onMapEditorGameUpdate(void);
 #endif
 
+// gamerules
+void grGameStart(void);
+void grLobbyStart(void);
+
 // 
 int hasInitialized = 0;
 int sentGameStart = 0;
@@ -1921,6 +1925,9 @@ int main (void)
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
 
+		//
+		grGameStart();
+
 		// this lets guber events that are < 5 seconds old be processed (original is 1.2 seconds)
 		//GADGET_EVENT_MAX_TLL = 5 * TIME_SECOND;
 
@@ -2013,6 +2020,9 @@ int main (void)
 	}
 	else if (isInMenus())
 	{
+		//
+		grLobbyStart();
+
 		// Hook menu loop
 		if (*(u32*)0x00594CBC == 0)
 			*(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
