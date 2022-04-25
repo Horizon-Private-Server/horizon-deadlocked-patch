@@ -104,6 +104,11 @@ enum GameNetMessage
 	CUSTOM_MSG_PLAYER_SET_STATS
 };
 
+typedef struct SurvivalBakedConfig
+{
+	float MapSize;
+} SurvivalBakedConfig_t;
+
 struct SurvivalPlayerState
 {
 	int Bolts;
@@ -219,5 +224,6 @@ typedef struct SurvivalSetPlayerStatsMessage
 extern const int UPGRADE_COST[];
 extern const float BOLT_TAX[];
 extern const float DIFFICULTY_MAP[];
+extern SurvivalBakedConfig_t BakedConfig;
 
 #endif // SURVIVAL_GAME_H

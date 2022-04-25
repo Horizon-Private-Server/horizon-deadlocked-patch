@@ -33,3 +33,7 @@ const float DIFFICULTY_MAP[] = {
 	1.00,			// Hero
 	1.50,			// Exterminator
 };
+
+SurvivalBakedConfig_t BakedConfig __attribute__((section(".config"))) = {
+	1.0
+};

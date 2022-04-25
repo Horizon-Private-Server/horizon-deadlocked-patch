@@ -315,7 +315,9 @@ int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 
 //--------------------------------------------------------------------------
 int spawnGetRandomPoint(VECTOR out) {
-	float r = randRange(0, 1) / State.Difficulty;
+	// larger the map, better chance mob spawns near you
+	// harder difficulty, better chance mob spawns near you
+	float r = randRange(0, 1) / (BakedConfig.MapSize * State.Difficulty);
 
 #if QUICK_SPAWN
 	r = MOB_SPAWN_NEAR_PLAYER_PROBABILITY;
