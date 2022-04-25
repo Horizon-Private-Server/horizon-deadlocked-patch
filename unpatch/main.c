@@ -49,10 +49,13 @@ const int patches[][3] = {
 	// comp
 	{ 0, 0x004BD1B8, 0x0073BA08 }, // end game scoreboard vtable function
 	{ 0, 0x004BB6C8, 0x007280F0 }, // clan room menu vtable function
+	{ 0, 0x004BFA70, 0x00759220 }, // staging menu vtable function
 	{ 0, 0x004BE5A0, 0x00749250 }, // quick play vtable function
 	{ 0, 0x0074B428, 0x0C1C671A }, // quick play select dialog open
 	{ 0, 0x00728620, 0x24070001 }, // clan room logout
 	{ 0, 0x0072862C, 0xAFA70148 }, // clan room logout
+	{ 0, 0x0075A150, 0x11000005 }, // enable add buddy/ignored/kick in staging 
+	{ 0, 0x00763DC0, 0x24020004 }, // enable changing team in staging
 	// in game
 	{ 1, 0x005930B8, 0x02C3B020 }, // lod patch
 };

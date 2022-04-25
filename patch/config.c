@@ -353,6 +353,22 @@ void tabDefaultStateHandler(TabElem_t* tab, int * state)
 // 
 void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
 {
+
+#if COMP
+
+  GameSettings * gameSettings = gameGetSettings();
+  if (!gameSettings)
+  {
+    *state = ELEMENT_VISIBLE;
+  }
+  else
+  {
+    // don't let users change anything in COMP mode
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
+  }
+
+#else
+
   GameSettings * gameSettings = gameGetSettings();
   if (!gameSettings)
   {
@@ -367,6 +383,8 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
   }
+#endif
+
 }
 
 // 
@@ -1416,6 +1434,10 @@ void onConfigInitialize(void)
 //------------------------------------------------------------------------------
 void configTrySendGameConfig(void)
 {
+#if COMP
+  // disable changing game config in COMP mode
+  return;
+#else
   int state = 0;
   int i = 0, j = 0;
 
@@ -1443,6 +1465,8 @@ void configTrySendGameConfig(void)
     if (lobbyConnection)
       netSendCustomAppMessage(lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(PatchGameConfig_t), &gameConfig);
   }
+#endif
+
 }
 
 //------------------------------------------------------------------------------

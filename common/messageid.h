@@ -156,6 +156,37 @@ enum CustomMessageId
      */
     CUSTOM_MSG_ID_FORCE_JOIN_GAME_REQUEST = 26,
 
+    /*
+     * Sent from the server to the client when the server wants the host to force the team colors of the lobby.
+     */
+    CUSTOM_MSG_ID_FORCE_TEAMS_REQUEST = 27,
+
+    /*
+     * Sent from the server to the client when the server wants the host to force lobby's map.
+     */
+    CUSTOM_MSG_ID_FORCE_MAP_REQUEST = 28,
+
+    /*
+     * Sent from the client to the server when the client issues their vote.
+     */
+    CUSTOM_MSG_ID_VOTE_REQUEST = 29,
+
+    /*
+     * Sent from the server to the client when the server wants the host to force start the game.
+     */
+    CUSTOM_MSG_ID_FORCE_START_GAME_REQUEST = 30,
+
+    /*
+     * Sent from the server to the client when the server wants the client to leave the game.
+     */
+    CUSTOM_MSG_ID_FORCE_LEAVE_GAME_REQUEST = 31,
+
+    /*
+     * Sent from the server to the client with information when a queue'd game will start.
+     */
+    CUSTOM_MSG_ID_SET_GAME_START_TIME_REQUEST = 32,
+
+
 
 
     /*
@@ -240,11 +271,40 @@ typedef struct ForceJoinGameRequest
 {
     int ChannelWorldId;
     int GameWorldId;
+    int PlayerCount;
     u32 WeaponFlags;
     char AmIHost;
     char Level;
     char Ruleset;
     char GameFlags[59];
 } ForceJoinGameRequest_t;
+
+typedef struct ForceTeamsRequest
+{
+    int AccountIds[10];
+    char Teams[10];
+} ForceTeamsRequest_t;
+
+typedef struct ForceMapRequest
+{
+    int Level;
+} ForceMapRequest_t;
+
+enum VoteContext
+{
+    VOTE_CONTEXT_GAME_SKIP_MAP
+};
+
+typedef struct VoteRequest
+{
+    enum VoteContext Context;
+    int Vote;
+} VoteRequest_t;
+
+typedef struct SetGameStartTimeRequest
+{
+    int SecondsUntilStart;
+} SetGameStartTimeRequest_t;
+
 
 #endif // _MESSAGEID_H_

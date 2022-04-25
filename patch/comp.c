@@ -15,11 +15,18 @@ const char * QUEUE_NAMES[] = {
   "Capture the Flag",
   "Cancel"
 };
+const int QUEUE_NAMES_SIZE = sizeof(QUEUE_NAMES)/sizeof(char*);
+
+const char * SELECT_VOTE_TITLE = "VOTE";
+const char * SELECT_VOTE_NAMES[] = {
+  "Skip Map"
+};
+const int SELECT_VOTE_NAMES_SIZE = sizeof(SELECT_VOTE_NAMES)/sizeof(char*);
+
 const char * QUEUE_SHORT_NAMES[] = {
   "KOTH",
   "CTF"
 };
-const int QUEUE_NAMES_SIZE = sizeof(QUEUE_NAMES)/sizeof(char*);
 
 enum COMP_ERROR
 {
@@ -35,14 +42,21 @@ struct CompState {
   int TimeLastGetMyQueue;
   int TimeStartedQueue;
   int HasJoinRequest;
+  int TimeUntilGameStart;
+  int TimeAllReady;
   ForceJoinGameRequest_t JoinRequest;
+  ForceTeamsRequest_t TeamsRequest;
   enum COMP_ERROR ErrorId;
 } CompState = {0};
 
-typedef int (*uiVTable18_func)(void * ui, void * a1);
+typedef int (*uiVTable18_func)(void * ui, int pad);
 
 uiVTable18_func chatRoom18Func = (uiVTable18_func)0x007280F0;
 uiVTable18_func endGameScoreboard18Func = (uiVTable18_func)0x0073BA08;
+uiVTable18_func staging18Func = (uiVTable18_func)0x00759220;
+
+void forceStartGame(void);
+
 
 //------------------------------------------------------------------------------
 int onQueueBeginResponse(void * connection, void * data)
@@ -91,15 +105,80 @@ int onGetMyQueueResponse(void * connection, void * data)
 }
 
 //------------------------------------------------------------------------------
+int onForceTeamsRequest(void * connection, void * data)
+{
+	// move message payload into local
+	memcpy(&CompState.TeamsRequest, data, sizeof(ForceTeamsRequest_t));
+
+	return sizeof(ForceTeamsRequest_t);
+}
+
+//------------------------------------------------------------------------------
+int onForceMapRequest(void * connection, void * data)
+{
+  ForceMapRequest_t request;
+
+	// move message payload into local
+	memcpy(&request, data, sizeof(ForceMapRequest_t));
+
+  // set level
+  CompState.JoinRequest.Level = (char)request.Level;
+
+	return sizeof(ForceMapRequest_t);
+}
+
+//------------------------------------------------------------------------------
+int onSetGameStartTimeRequest(void * connection, void * data)
+{
+  SetGameStartTimeRequest_t request;
+
+	// move message payload into local
+	memcpy(&request, data, sizeof(SetGameStartTimeRequest_t));
+
+  if (request.SecondsUntilStart < 0)
+    CompState.TimeUntilGameStart = -1;
+  else
+    CompState.TimeUntilGameStart = gameGetTime() + (TIME_SECOND * request.SecondsUntilStart);
+
+	return sizeof(SetGameStartTimeRequest_t);
+}
+
+//------------------------------------------------------------------------------
 int onForceJoinGameRequest(void * connection, void * data)
 {
 	// move message payload into local
 	memcpy(&CompState.JoinRequest, data, sizeof(ForceJoinGameRequest_t));
   CompState.HasJoinRequest = 1;
-
-  printf("host:%d level:%d rule:%d size:%d\n", CompState.JoinRequest.AmIHost, CompState.JoinRequest.Level, CompState.JoinRequest.Ruleset, sizeof(ForceJoinGameRequest_t));
+  CompState.TimeUntilGameStart = -1;
 
 	return sizeof(ForceJoinGameRequest_t);
+}
+
+//------------------------------------------------------------------------------
+int onForceStartGameRequest(void * connection, void * data)
+{
+  forceStartGame();
+
+	return 0;
+}
+
+//------------------------------------------------------------------------------
+void forceStartGame(void)
+{
+  GameSettings* gs = gameGetSettings();
+  int clientId = gameGetMyClientId();
+  int i;
+  if (!gs || !gameAmIHost())
+    return;
+
+  // start
+  gs->GameLoadStartTime = gameGetTime();
+  for (i = 0; i < 10; ++i) {
+    if (gs->PlayerClients[i] == clientId) {
+      gs->PlayerStates[i] = 7;
+      break;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -262,6 +341,94 @@ int onCompChatRoom(void * ui, int pad) {
 }
 
 //------------------------------------------------------------------------------
+int onCompStaging(void * ui, int pad) {
+  int i,j;
+  GameSettings* gs = gameGetSettings();
+  u32 * uiElements = (u32*)((u32)ui + 0xB0);
+  int gameTime = gameGetTime();
+  int canHostStart = CompState.TimeAllReady > 0 && gameTime > (CompState.TimeAllReady + (TIME_SECOND * 3));
+
+  // intercept pad
+  int context = *(int*)((u32)ui + 0x230);
+  if (context != 0x33) {
+    // prevent host from starting game
+    if (!canHostStart && pad == 6) {
+      pad = 0;
+    } else if (pad == 8) {
+      // open vote menu
+      int vote = uiShowSelectDialog(SELECT_VOTE_TITLE, SELECT_VOTE_NAMES, SELECT_VOTE_NAMES_SIZE, 0);
+      switch (vote)
+      {
+        case 0: // skip map
+        {
+          // send request
+          VoteRequest_t request;
+          request.Context = VOTE_CONTEXT_GAME_SKIP_MAP;
+          request.Vote = 1;
+          netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_VOTE_REQUEST, sizeof(request), &request);
+          break;
+        }
+      }
+
+      pad = 0;
+    }
+  }
+  
+  // call game function we're replacing
+	int result = staging18Func(ui, pad);
+  
+  // rename INVITE to VOTE
+  sprintf((char*)(uiElements[53] + 0x18), "\x13 VOTE");
+  
+  // rename START to STARTING
+  if (CompState.TimeUntilGameStart > 0) {
+    if (gs->GameLoadStartTime < 0) {
+      char prefix = canHostStart ? '\x11' : ' ';
+      int secondsLeft = (CompState.TimeUntilGameStart - gameGetTime()) / TIME_SECOND;
+      if (secondsLeft < 1)
+        secondsLeft = 1;
+      sprintf((char*)(uiElements[55] + 0x18), "%cStarting...%d", prefix, secondsLeft);
+    }
+
+    // show starting
+    *(u32*)(uiElements[55] + 4) = 2;
+  } else {
+    // hide starting
+    *(u32*)(uiElements[55] + 4) = 1;
+  }
+  
+  // rename SELECT to empty
+  *(u8*)(uiElements[54] + 0x18) = 0;
+
+  if (gameAmIHost()) {
+    
+    int numReady = 0;
+    for (i = 0; i < 10; ++i) {
+      // force teams
+      int accountId = CompState.TeamsRequest.AccountIds[i];
+      for (j = 0; j < 10; ++j) {
+        if (gs->PlayerAccountIds[j] == accountId) {
+          gs->PlayerTeams[j] = CompState.TeamsRequest.Teams[i];
+          break;
+        }
+      }
+
+      
+      if (gs->PlayerStates[i] == 6)
+        numReady++;
+    }
+
+    if (numReady != CompState.JoinRequest.PlayerCount) {
+      CompState.TimeAllReady = -1;
+    } else if (CompState.TimeAllReady < 0) {
+      CompState.TimeAllReady = gameGetTime();
+    }
+  }
+
+  return result;
+}
+
+//------------------------------------------------------------------------------
 void runCompMenuLogic(void) {
   
   // display error message
@@ -287,6 +454,7 @@ void runCompMenuLogic(void) {
 
 //------------------------------------------------------------------------------
 void runCompLogic(void) {
+  GameSettings* gs = gameGetSettings();
   void* connection = netGetLobbyServerConnection();
   if (!connection) {
     CompState.InQueue = 0;
@@ -302,6 +470,12 @@ void runCompLogic(void) {
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_QUEUE_BEGIN_RESPONSE, &onQueueBeginResponse);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_GET_MY_QUEUE_RESPONSE, &onGetMyQueueResponse);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_FORCE_JOIN_GAME_REQUEST, &onForceJoinGameRequest);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_FORCE_TEAMS_REQUEST, &onForceTeamsRequest);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_FORCE_MAP_REQUEST, &onForceMapRequest);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_FORCE_START_GAME_REQUEST, &onForceStartGameRequest);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_GAME_START_TIME_REQUEST, &onSetGameStartTimeRequest);
+  
+
 
   // refresh queue every 5 seconds
   int gameTime = gameGetTime();
@@ -315,8 +489,11 @@ void runCompLogic(void) {
   if (isInMenus() && (menu == UI_ID_ONLINE_MAIN_MENU || menu == 0x15c)) {
     *(u32*)0x004BB6C8 = &onCompChatRoom;
     *(u32*)0x004BD1B8 = &onCompEndGameScoreboard;
+    *(u32*)0x004BFA70 = &onCompStaging;
     *(u32*)0x00728620 = 0x0C000000 | ((u32)&onLogoutChatRoom / 4);
     *(u32*)0x0072862C = 0xAFA00148;
+    *(u32*)0x0075A150 = 0x10000153; // disable add buddy/ignored/kick in staging 
+    *(u32*)0x00763DC0 = 0x24020003; // disable changing team in staging
     
     // change clan room channel name to "Default"
     strncpy((char*)0x00220A80, "Default", 7);
@@ -335,8 +512,13 @@ void runCompLogic(void) {
   }
 
   if (CompState.HasJoinRequest == 1) {
+
     // join game
     CompState.HasJoinRequest = 2;
+
+    // write config to game setup
+    memcpy((void*)0x001737e8, CompState.JoinRequest.GameFlags, sizeof(CompState.JoinRequest.GameFlags));
+    *(u32*)0x00173824 = CompState.JoinRequest.WeaponFlags;
 
     // join
     *(u8*)0x00173A50 = CompState.JoinRequest.AmIHost;
@@ -344,7 +526,7 @@ void runCompLogic(void) {
   } else if (CompState.HasJoinRequest == 2) {
 
     // await join game
-    GameSettings* gs = gameGetSettings();
+    *(u8*)0x00173A50 = CompState.JoinRequest.AmIHost;
     GameOptions* gOpts = gameGetOptions();
     if (gs && gOpts) {
 
@@ -353,7 +535,7 @@ void runCompLogic(void) {
 
       memcpy(gOpts->GameFlags.Raw, CompState.JoinRequest.GameFlags, sizeof(CompState.JoinRequest.GameFlags));
       gOpts->WeaponFlags.Raw = CompState.JoinRequest.WeaponFlags;
-
+      
       // started
       if (gs->GameLoadStartTime > 0) {
         CompState.HasJoinRequest = 3;
