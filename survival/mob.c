@@ -9,6 +9,8 @@
 #include <libdl/random.h>
 #include <libdl/radar.h>
 
+int mobInMobMove = 0;
+
 /* 
  * 
  */
@@ -502,6 +504,16 @@ int mobGetPreferredAction(Moby* moby)
 	return MOB_ACTION_IDLE;
 }
 
+int colHotspot(int colId)
+{
+	if (mobInMobMove && (colId == 0xf || colId == 0x8))
+		return -1;
+	else if (colId == 0xf)
+		return -1;
+
+	return colId;
+}
+
 void mobMove(Moby* moby, u128 to, float speed)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -509,9 +521,9 @@ void mobMove(Moby* moby, u128 to, float speed)
 	if (pvars->MobVars.MoveStepCooldownTicks == 0)
 	{
 		// move
-		*(u32*)0x004BD1EC = 0x2402000F;
+		mobInMobMove = 1;
 		mobyMove(moby, to, speed);
-		*(u32*)0x004BD1EC = 0x00431024;
+		mobInMobMove = 0;
 
 		// calculate delta position
 		vector_subtract(pvars->MoveVars.passThruNormal, moby->Position, pvars->MoveVars.passThruPoint);
@@ -1446,6 +1458,10 @@ void mobInitialize(void)
 	// set vtable callbacks
 	*(u32*)0x003A0A84 = (u32)&mobGetGuber;
 	*(u32*)0x003A0A94 = (u32)&mobHandleEvent;
+
+	// collision hit type
+	*(u32*)0x004bd1f0 = 0x08000000 | ((u32)&colHotspot / 4);
+	*(u32*)0x004bd1f4 = 0x00402021;
 
 	// 
 	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
