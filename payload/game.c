@@ -30,6 +30,7 @@
 #include <libdl/sound.h>
 #include <libdl/color.h>
 #include <libdl/dl.h>
+#include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
 #include "include/game.h"
@@ -362,7 +363,7 @@ void onOcclusionUpdate()
 	Moby* payload = State.PayloadMoby;
 	if (payload) {
 		struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)payload->PVar;
-		if (pvar && pvar->State >= PAYLOAD_STATE_DELIVERED) {
+		if (isInEEMemory(pvar) && pvar->State >= PAYLOAD_STATE_DELIVERED) {
 			memcpy((void*)0x00240A40, Config.PayloadDeliveredCameraOcc, sizeof(Config.PayloadDeliveredCameraOcc));
 		}
 	}
