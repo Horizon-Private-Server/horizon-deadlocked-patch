@@ -1097,6 +1097,9 @@ void initialize(PatchGameConfig_t* gameConfig)
 	GameData* gameData = gameGetData();
 	int i, j;
 
+	// set payload moby to NULL
+	State.PayloadMoby = NULL;
+
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
 	*(u32*)0x00620F54 = 0;	// time end (1)
