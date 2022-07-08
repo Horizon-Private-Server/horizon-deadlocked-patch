@@ -32,8 +32,8 @@
 #include "include/config.h"
 
 
-#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN					(TIME_SECOND * 5)
-#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX					(TIME_SECOND * 5)
+#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN					(TIME_SECOND * 15)
+#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX					(TIME_SECOND * 45)
 
 typedef struct RotatingWeaponsChangedMessage
 {
