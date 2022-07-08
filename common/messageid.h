@@ -194,6 +194,11 @@ enum CustomMessageId
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
 
+    /*
+     * Start of custom message ids reserved for in game only patch custom messages.
+     */
+    CUSTOM_MSG_ID_PATCH_IN_GAME_START = 200,
+
 };
 
 typedef struct ServerDownloadDataRequest

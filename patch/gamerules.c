@@ -24,9 +24,51 @@
 #include <libdl/sha1.h>
 #include <libdl/spawnpoint.h>
 #include <libdl/graphics.h>
+#include <libdl/random.h>
+#include <libdl/net.h>
 #include "module.h"
+#include "messageid.h"
 #include "halftime.h"
 #include "include/config.h"
+
+
+#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN					(TIME_SECOND * 5)
+#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX					(TIME_SECOND * 5)
+
+typedef struct RotatingWeaponsChangedMessage
+{
+	int gameTime;
+	int weaponId;
+} RotatingWeaponsChangedMessage_t;
+
+enum BETTER_HILL_PTS
+{
+	TORVAL_13 = 0,
+	MARAXUS_13 = 1,
+	SARATHOS_11 = 2,
+	SARATHOS_14 = 3,
+	CATACROM_0D = 4,
+	CATACROM_11 = 5,
+	DC_11 = 6,
+	DC_14 = 7,
+	DC_16 = 8,
+	DC_17 = 9,
+	SHAAR_14 = 10,
+	SHAAR_17 = 11,
+	VALIX_01 = 24,
+	VALIX_13 = 12,
+	VALIX_16 = 13,
+	MF_20 = 14,
+	MF_22 = 15,
+	MF_24 = 16,
+	GS_20 = 17,
+	GS_21 = 18,
+	GS_22 = 19,
+	GS_23 = 20,
+	TEMPUS_16 = 21,
+	TEMPUS_17 = 22,
+	TEMPUS_18 = 23
+};
 
 // config
 extern PatchConfig_t config;
@@ -67,6 +109,12 @@ float VampireHealRate[] = {
 	PLAYER_MAX_HEALTH * 0.50,
 	PLAYER_MAX_HEALTH * 1.00
 };
+
+/*
+ *
+ */
+int RotatingWeaponsActiveId = WEAPON_ID_WRENCH;
+int RotatingWeaponsNextRotationTime = 0;
 
 /*
  * Custom hill spawn points
@@ -148,34 +196,131 @@ SpawnPoint BetterHillPoints[] = {
 	{ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 } },
 };
 
-enum BETTER_HILL_PTS
+/*
+ * NAME :		onRotatingWeaponsChangedRemote
+ * 
+ * DESCRIPTION :
+ * 			Raised when client receives RotatingWeaponsChanged message from host.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onRotatingWeaponsChangedRemote(void * connection, void * data)
 {
-	TORVAL_13 = 0,
-	MARAXUS_13 = 1,
-	SARATHOS_11 = 2,
-	SARATHOS_14 = 3,
-	CATACROM_0D = 4,
-	CATACROM_11 = 5,
-	DC_11 = 6,
-	DC_14 = 7,
-	DC_16 = 8,
-	DC_17 = 9,
-	SHAAR_14 = 10,
-	SHAAR_17 = 11,
-	VALIX_01 = 24,
-	VALIX_13 = 12,
-	VALIX_16 = 13,
-	MF_20 = 14,
-	MF_22 = 15,
-	MF_24 = 16,
-	GS_20 = 17,
-	GS_21 = 18,
-	GS_22 = 19,
-	GS_23 = 20,
-	TEMPUS_16 = 21,
-	TEMPUS_17 = 22,
-	TEMPUS_18 = 23
-};
+	RotatingWeaponsChangedMessage_t message;
+	memcpy(&message, data, sizeof(RotatingWeaponsChangedMessage_t));
+
+	RotatingWeaponsNextRotationTime = message.gameTime;
+	RotatingWeaponsActiveId = message.weaponId;
+}
+
+/*
+ * NAME :		rotatingWeaponsLogic
+ * 
+ * DESCRIPTION :
+ * 			Forces player's weapon to the randomly chosen weapon.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void rotatingWeaponsLogic(void)
+{
+	int i;
+	int gameTime = gameGetTime();
+	Player** players = playerGetAll();
+
+	// don't run when playing gun game.
+	if (gameConfig.customModeId == CUSTOM_MODE_GUN_GAME)
+		return;
+
+	// hook
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_PATCH_IN_GAME_START, &onRotatingWeaponsChangedRemote);
+
+	// determine new weapon from enabled weapons randomly
+	if (gameAmIHost() && gameTime > RotatingWeaponsNextRotationTime)
+	{
+		GameOptions* gameOptions = gameGetOptions();
+		int r = randRangeInt(0, 8);
+		int slotId = WEAPON_SLOT_WRENCH;
+		int iterations = 0;
+		int matches = 0;
+		
+		// randomly select weapon from enabled weapons
+		while (r) {
+			slotId = (slotId + 1) % 7;
+			if (gameOptions->WeaponFlags.Raw & (1 << weaponSlotToId(1 + slotId))) {
+				--r;
+				++matches;
+			}
+			++iterations;
+
+			if (iterations > 7 && matches == 0)
+				return;
+		}
+
+		// set weapon
+		RotatingWeaponsActiveId = weaponSlotToId(1 + slotId);
+
+		// determine next rotation time
+		RotatingWeaponsNextRotationTime = gameTime + randRangeInt(ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN, ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX);
+
+		// send to others
+		RotatingWeaponsChangedMessage_t message = {
+			.gameTime = RotatingWeaponsNextRotationTime,
+			.weaponId = RotatingWeaponsActiveId
+		};
+		netBroadcastCustomAppMessage(0x40, netGetDmeServerConnection(), CUSTOM_MSG_ID_PATCH_IN_GAME_START, sizeof(message), &message);
+	}
+
+	// if active weapon is wrench then just exit
+	if (RotatingWeaponsActiveId == WEAPON_ID_WRENCH)
+		return;
+
+	// force weapons
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+	{
+		Player * player = players[i];
+		if (player)
+		{
+			// don't change weapons of the infected
+			if (gameConfig.customModeId == CUSTOM_MODE_INFECTED)
+				if (player->Team == TEAM_GREEN)
+					continue;
+
+			// give weapon
+			GadgetBox* gBox = player->GadgetBox;
+			if (gBox->Gadgets[RotatingWeaponsActiveId].Level < 0) {
+				playerGiveWeapon(player, RotatingWeaponsActiveId, 0);
+				gBox->Gadgets[RotatingWeaponsActiveId].Level = 0;
+			}
+
+			// set slot and weapon
+			if (player->IsLocal) {
+
+				if (player->WeaponHeldId != WEAPON_ID_WRENCH &&
+						player->WeaponHeldId != WEAPON_ID_SWINGSHOT &&
+						player->WeaponHeldId != MOBY_ID_HACKER_RAY &&
+						player->WeaponHeldId != RotatingWeaponsActiveId)
+				{
+					playerSetLocalEquipslot(player->LocalPlayerIndex, 0, RotatingWeaponsActiveId);
+					playerSetLocalEquipslot(player->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
+					playerSetLocalEquipslot(player->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
+					playerSetWeapon(player, RotatingWeaponsActiveId);
+				}
+			}
+		}
+	}
+}
 
 /*
  * NAME :		playerSizeLogic
@@ -195,7 +340,7 @@ void playerSizeLogic(void)
 {
 	int i, j;
 	Player** players = playerGetAll();
-	float size = gameConfig.grPlayerSize == 1 ? 1.5 : 0.6666;
+	float size = gameConfig.prPlayerSize == 1 ? 1.5 : 0.6666;
 	
 	// disable fixed player scale
 	*(u32*)0x005D1580 = 0;
@@ -222,7 +367,7 @@ void playerSizeLogic(void)
 
 			// update camera
 			player->CameraOffset[0] = -6 * size;
-			player->CameraOffset[2] = gameConfig.grPlayerSize == 1 ? 1 : -1;
+			player->CameraOffset[2] = gameConfig.prPlayerSize == 1 ? 1 : -1;
 
 			// update player size
 			for (j = 0; j < 1; ++j) {
@@ -230,6 +375,32 @@ void playerSizeLogic(void)
 			}
 		}
 	}
+}
+
+/*
+ * NAME :		headbuttLogic
+ * 
+ * DESCRIPTION :
+ * 			Enables damaging players by chargebooting into them.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void headbuttLogic(void)
+{
+	// enable for all mobies
+	*(u32*)0x005F98D0 = 0x24020001;
+
+	// set damage flag to allow player damaging
+	*(u16*)0x005F990C = 0x0801;
+
+	// set damage to 10 (20%)
+	*(u16*)0x005F9918 = 0x4120;
 }
 
 /*
@@ -463,6 +634,8 @@ void grInitialize(void)
 	htReset();
 	BetterHillsInitialized = 0;
 	HasDisabledHealthboxes = 0;
+	RotatingWeaponsNextRotationTime = 0;
+	RotatingWeaponsActiveId = WEAPON_ID_WRENCH;
 
 	GameRulesInitialized = 1;
 }
@@ -548,9 +721,6 @@ void grGameStart(void)
 	if (gameConfig.grBetterHills && gameConfig.customMapId == 0)
 		betterHillsLogic();
 
-	if (gameConfig.grPlayerSize)
-		playerSizeLogic();
-
 	if (gameConfig.grHealthBars && isInGame())
 	{
 		u32 hookValue = 0x0C000000 | ((u32)&healthbarsHook >> 2);
@@ -563,6 +733,15 @@ void grGameStart(void)
 
 	if (gameConfig.grNoInvTimer)
 		invTimerLogic();
+
+	if (gameConfig.prPlayerSize)
+		playerSizeLogic();
+
+	if (gameConfig.prRotatingWeapons)
+		rotatingWeaponsLogic();
+
+	if (gameConfig.prHeadbutt)
+		headbuttLogic();
 }
 
 /*

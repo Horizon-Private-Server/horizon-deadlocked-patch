@@ -235,7 +235,7 @@ MenuElem_ListData_t dataSurvivalDifficulty = {
 
 // player size list item
 MenuElem_ListData_t dataPlayerSize = {
-    &gameConfig.grPlayerSize,
+    &gameConfig.prPlayerSize,
     NULL,
     3,
     {
@@ -303,11 +303,15 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Healthboxes", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoHealthBoxes },
   { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grMirrorWorld },
   { "Nametags", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoNames },
-  { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
   { "V2s", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoV2s },
   { "Vampire", listActionHandler, menuStateAlwaysEnabledHandler, &dataVampire },
   { "Weapon packs", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPacks },
   { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather },
+
+  { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
+  { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons },
+  { "Headbutt", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbutt },
 };
 
 // custom map tab menu items
@@ -1139,10 +1143,22 @@ void drawTab(TabElem_t* tab)
   {
     navMenu(tab, 1, 0);
   }
+  // nav page down
+  if (padGetButtonDown(0, PAD_R2) > 0)
+  {
+    for (i = 0; i < 10; ++i)
+      navMenu(tab, 1, 0);
+  }
   // nav up
   else if (padGetButtonDown(0, PAD_UP) > 0)
   {
     navMenu(tab, -1, 0);
+  }
+  // nav up
+  else if (padGetButtonDown(0, PAD_L2) > 0)
+  {
+    for (i = 0; i < 10; ++i)
+      navMenu(tab, -1, 0);
   }
   // nav select
   else if (padGetButtonDown(0, PAD_CROSS) > 0)

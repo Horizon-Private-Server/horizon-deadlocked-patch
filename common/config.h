@@ -34,7 +34,9 @@ typedef struct PatchGameConfig
   char grHealthBars;
   char grNoNames;
   char grNoInvTimer;
-  char grPlayerSize;
+  char prPlayerSize;
+  char prRotatingWeapons;
+  char prHeadbutt;
   SurvivalConfig_t survivalConfig;
 } PatchGameConfig_t;
 
