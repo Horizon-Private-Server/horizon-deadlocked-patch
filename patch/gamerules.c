@@ -177,16 +177,31 @@ enum BETTER_HILL_PTS
 	TEMPUS_18 = 23
 };
 
+/*
+ * NAME :		playerSizeLogic
+ * 
+ * DESCRIPTION :
+ * 			Sets player size depending on setting.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
 void playerSizeLogic(void)
 {
 	int i, j;
 	Player** players = playerGetAll();
-	float size = gameConfig.grPlayerSize == 1 ? 1.5 : 0.5;
+	float size = gameConfig.grPlayerSize == 1 ? 1.5 : 0.6666;
 	
-	// disable fixed scale
+	// disable fixed player scale
 	*(u32*)0x005D1580 = 0;
 
-	// prevent new radius from impacting velocity dampening
+	// change velocity dampening function's radius
+	// to original so new radius doesn't affect movement physics
 	*(u16*)0x005E72C4 = 0x238;
 	*(u16*)0x005E72C8 = 0x23C;
 
