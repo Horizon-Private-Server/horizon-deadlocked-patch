@@ -177,6 +177,46 @@ enum BETTER_HILL_PTS
 	TEMPUS_18 = 23
 };
 
+void playerSizeLogic(void)
+{
+	int i, j;
+	Player** players = playerGetAll();
+	float size = gameConfig.grPlayerSize == 1 ? 1.5 : 0.5;
+	
+	// disable fixed scale
+	*(u32*)0x005D1580 = 0;
+
+	// prevent new radius from impacting velocity dampening
+	*(u16*)0x005E72C4 = 0x238;
+	*(u16*)0x005E72C8 = 0x23C;
+
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+	{
+		Player * player = players[i];
+		if (player) {
+
+			// write original radius and radius squared
+			*(float*)((u32)player + 0x238) = 0.45;
+			*(float*)((u32)player + 0x23C) = 0.45 * 0.45;
+
+			// update collision size
+			player->PlayerConstants->colRadius = 0.45 * size;
+			player->PlayerConstants->colTop = 1.05 * size;
+			player->PlayerConstants->colBot = 0.70 * size;
+			player->PlayerConstants->colBotFall = 0.50 * size;
+
+			// update camera
+			player->CameraOffset[0] = -6 * size;
+			player->CameraOffset[2] = gameConfig.grPlayerSize == 1 ? 1 : -1;
+
+			// update player size
+			for (j = 0; j < 1; ++j) {
+				player->Tweakers[j].scale = size;
+			}
+		}
+	}
+}
+
 /*
  * NAME :		vampireLogic
  * 
@@ -429,6 +469,7 @@ void grInitialize(void)
  */
 void grGameStart(void)
 {
+	int i = 0;
 	GameSettings * gameSettings = gameGetSettings();
 
 	// Initialize
@@ -491,6 +532,9 @@ void grGameStart(void)
 
 	if (gameConfig.grBetterHills && gameConfig.customMapId == 0)
 		betterHillsLogic();
+
+	if (gameConfig.grPlayerSize)
+		playerSizeLogic();
 
 	if (gameConfig.grHealthBars && isInGame())
 	{

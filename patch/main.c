@@ -1011,7 +1011,7 @@ void runGameStartMessager(void)
 			// check if host
 			if (gameAmIHost())
 			{
-				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
+				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
 			}
 			
 			sentGameStart = 1;
@@ -1265,7 +1265,7 @@ int sendGameDataBlock(short offset, char endOfList, void* buffer, int size)
 
 		data.Length = len;
 		memcpy(data.Payload, (char*)buffer + i, len);
-		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SEND_GAME_DATA, sizeof(struct GameDataBlock), &data);
+		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SEND_GAME_DATA, sizeof(struct GameDataBlock), &data);
 		i += len;
 		data.Offset += len;
 	}
@@ -1414,7 +1414,7 @@ int hookCheckHostStartGame(void* a0)
 	{
 		v0 = 0;
 		showNoMapPopup = 1;
-		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
 	}
 
 	return v0;
@@ -1454,7 +1454,7 @@ void runCheckGameMapInstalled(void)
 			{
 				gameSetClientState(i, 0);
 				showNoMapPopup = 1;
-				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
 			}
 		}
 	}
@@ -1780,7 +1780,7 @@ void onOnlineMenu(void)
 				ClientInitiateMapDownloadRequest_t msg = {
 					.MapId = (int)gameConfig.customMapId
 				};
-				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
+				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
 			}
 #else
 			char buf[32];
@@ -1792,6 +1792,93 @@ void onOnlineMenu(void)
 		showNoMapPopup = 0;
 	}
 }
+
+/*
+int sampleCount = 0;
+int isSampling = 0;
+int deltaTotal = 0;
+int deltaCount = 0;
+int counts[200];
+const int SAMPLE_SIZE = 250;
+
+int dot_callback(void * connection, void * data)
+{
+	int time = *(int*)data;
+	int delta = gameGetTime() - time;
+
+	//printf("delta %d\n", delta);
+	counts[delta]++;
+	deltaTotal += delta;
+	deltaCount++;
+
+	return sizeof(int);
+}
+
+int dot_callback2(void * connection, void * data)
+{
+	int time = *(int*)data;
+	int delta = gameGetTime() - time;
+
+	printf("delta %d\n", delta);
+
+	return sizeof(int);
+}
+
+void dot(void)
+{
+
+	netInstallCustomMsgHandler(101, &dot_callback);
+	netInstallCustomMsgHandler(102, &dot_callback2);
+
+	int i = 0;
+	int gameTime = gameGetTime();
+	GameSettings* gs = gameGetSettings();
+	if (!gs)
+		return;
+
+	void * dmeConnection = netGetDmeServerConnection();
+	if (!dmeConnection)
+		return;
+
+	if (!isSampling && padGetButtonDown(0, PAD_L1) > 0) {
+		printf("sending %d samples\n", SAMPLE_SIZE);
+		isSampling = 1;
+		sampleCount = 0;
+		deltaCount = 0;
+		deltaTotal = 0;
+		memset(counts, 0, sizeof(counts));
+	}
+	else if (!isSampling && padGetButtonDown(0, PAD_R1) > 0) {
+		netBroadcastCustomAppMessage(NET_LATENCY_CRITICAL, dmeConnection, 102, sizeof(gameTime), &gameTime);
+	}
+
+	if (isSampling) {
+		if (sampleCount >= SAMPLE_SIZE) {
+			isSampling = 0;
+
+			float avgDt = (float)deltaTotal / (float)deltaCount;
+			int minDt = (int)avgDt;
+			int maxDt = (int)avgDt;
+			for (i = 0; i < 200; ++i) {
+				if (counts[i] < minDt && counts[i] > 0)
+					minDt = counts[i];
+				if (counts[i] > maxDt)
+					maxDt = counts[i];
+			}
+
+			printf("received %d samples with average latency %f, min:%d max:%d\n", deltaCount, avgDt, minDt, maxDt);
+			for (i = 0; i < 200; ++i) {
+				if (counts[i] > 0) {
+					printf("\t%d: %d\n", i, counts[i]);
+				}
+			}
+		} else {
+			netBroadcastCustomAppMessage(NET_LATENCY_CRITICAL, dmeConnection, 101, sizeof(gameTime), &gameTime);
+			++sampleCount;
+		}
+	}
+}
+*/
 
 /*
  * NAME :		main
@@ -1858,6 +1945,8 @@ int main (void)
 	// run comp patch logic
 	runCompLogic();
 #endif
+
+	//dot();
 
 	// 
 	runCheckGameMapInstalled();
@@ -2078,7 +2167,7 @@ int main (void)
 			if (gameSettings && gameSettings->GameStartTime > 0 && uiGetActive() == 0x15C && gameAmIHost())
 			{
 				hasSendReachedEndScoreboard = 1;
-				netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_REACHED_END_SCOREBOARD, 0, NULL);
+				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_REACHED_END_SCOREBOARD, 0, NULL);
 			}
 			else if (!gameSettings)
 			{
@@ -2125,7 +2214,7 @@ int main (void)
 	//
 	if (patchStateContainer.UpdateGameState) {
 		patchStateContainer.UpdateGameState = 0;
-		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &patchStateContainer.GameStateUpdate);
+		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &patchStateContainer.GameStateUpdate);
 	}
 
 	// 

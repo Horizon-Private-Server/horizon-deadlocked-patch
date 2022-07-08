@@ -157,7 +157,7 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 
     currentPlayer->CameraPitchMin = playerToSpectate->CameraPitchMin;
     currentPlayer->CameraPitchMax = playerToSpectate->CameraPitchMax;
-    currentPlayer->CameraDistance = -6;
+    currentPlayer->CameraOffset[0] = -6;
 
     if (playerToSpectate->Vehicle)
     {

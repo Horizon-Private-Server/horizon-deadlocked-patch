@@ -169,7 +169,7 @@ int onSetMapOverride(void * connection, void * data)
 		DPRINTF("MapId:%d MapName:%s MapFileName:%s Version:%d\n", payload->MapId, payload->MapName, payload->MapFileName, version);
 
 		// send response
-		netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_SET_MAP_OVERRIDE_RESPONSE, 4, &version);
+		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_SET_MAP_OVERRIDE_RESPONSE, 4, &version);
 
 		// enable
 		if (version >= 0)
@@ -240,7 +240,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
 
 		// if in game, ask server to resend map override to use
 		if (gameGetSettings())
-			netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+			netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
 	}
 
 	return sizeof(MapServerSentModulesMessage);
@@ -321,7 +321,7 @@ int onServerSentMapChunk(void * connection, void * data)
 	internal_netSendMessage(0x40, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, NET_CUSTOM_MESSAGE_CLASS, NET_CUSTOM_MESSAGE_ID, 4 + sizeof(ClientDownloadMapChunkResponse_t), b);
 	
 	
-	//netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE, sizeof(ClientDownloadMapChunkResponse_t), &response);
+	//netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE, sizeof(ClientDownloadMapChunkResponse_t), &response);
 
 	return sizeof(ServerDownloadMapChunkRequest_t);
 }
@@ -364,7 +364,7 @@ int onServerSentMapInitiated(void * connection, void * data)
 
 	// 
 	response.Cancel = DownloadState.Cancel;
-	netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE, sizeof(ClientDownloadMapChunkResponse_t), &response);
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_MAP_CHUNK_RESPONSE, sizeof(ClientDownloadMapChunkResponse_t), &response);
 
 	return sizeof(ServerInitiateMapDownloadResponse_t);
 }
@@ -888,7 +888,7 @@ int mapsPromptEnableCustomMaps(void)
 		// request irx modules from server
 		request.Module1Start = (u32)usbFsModuleStart;
 		request.Module2Start = (u32)usbSrvModuleStart;
-		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
+		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
 		actionState = ACTION_DOWNLOADING_MODULES;
 		return 1;
 	}
@@ -984,7 +984,7 @@ void onMapLoaderOnlineMenu(void)
 		MapClientRequestModulesMessage request = { 0, 0 };
 		request.Module1Start = (u32)usbFsModuleStart;
 		request.Module2Start = (u32)usbSrvModuleStart;
-		netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
+		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
 		actionState = ACTION_DOWNLOADING_MODULES;
 		initialized = 1;
 	}

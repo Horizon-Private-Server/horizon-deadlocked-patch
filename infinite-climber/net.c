@@ -46,7 +46,7 @@ void sendSpawn(u16 seed, int gameTime)
 	DPRINTF("send %d\n", gameTime);
 	message.GameTime = gameTime;
 	message.Seed = seed;
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SPAWN, sizeof(SpawnMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SPAWN, sizeof(SpawnMessage_t), &message);
 }
 
 void netHookMessages(void)

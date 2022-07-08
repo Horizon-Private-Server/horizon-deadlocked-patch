@@ -323,7 +323,7 @@ void setRoundOutcome()
 	}
 
 	// send out
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_ROUND_OUTCOME, sizeof(HuntOutcomeMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SET_ROUND_OUTCOME, sizeof(HuntOutcomeMessage_t), &message);
 
 	// set locally
 	onSetRoundOutcome(&message);

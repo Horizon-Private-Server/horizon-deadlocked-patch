@@ -261,7 +261,7 @@ int openQueueSelect(void) {
     // send
     QueueBeginRequest_t request;
     request.QueueId = selected + 1;
-    netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_QUEUE_BEGIN_REQUEST, sizeof(QueueBeginRequest_t), &request);
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_QUEUE_BEGIN_REQUEST, sizeof(QueueBeginRequest_t), &request);
   }
   
   return -1;
@@ -365,7 +365,7 @@ int onCompStaging(void * ui, int pad) {
           VoteRequest_t request;
           request.Context = VOTE_CONTEXT_GAME_SKIP_MAP;
           request.Vote = 1;
-          netSendCustomAppMessage(netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_VOTE_REQUEST, sizeof(request), &request);
+          netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_VOTE_REQUEST, sizeof(request), &request);
           break;
         }
       }
@@ -480,7 +480,7 @@ void runCompLogic(void) {
   // refresh queue every 5 seconds
   int gameTime = gameGetTime();
   if ((gameTime - CompState.TimeLastGetMyQueue) > (5 * TIME_SECOND)) {
-    netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GET_MY_QUEUE_REQUEST, 0, NULL);
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GET_MY_QUEUE_REQUEST, 0, NULL);
     CompState.TimeLastGetMyQueue = gameTime;
   }
 

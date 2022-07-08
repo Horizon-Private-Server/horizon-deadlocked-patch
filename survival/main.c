@@ -585,7 +585,7 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 	message.Alphamod = rand(6) + 1;
 	if (message.Alphamod == ALPHA_MOD_XP)
 		message.Alphamod++;
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_UPGRADE, sizeof(SurvivalWeaponUpgradeMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_UPGRADE, sizeof(SurvivalWeaponUpgradeMessage_t), &message);
 
 	// set locally
 	onPlayerUpgradeWeapon(message.PlayerId, message.WeaponId, message.Level, message.Alphamod);
@@ -633,7 +633,7 @@ void playerRevive(Player* player, int fromPlayerId)
 	// send out
 	message.PlayerId = player->PlayerId;
 	message.FromPlayerId = fromPlayerId;
-	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_REVIVE_PLAYER, sizeof(SurvivalReviveMessage_t), &message);
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_REVIVE_PLAYER, sizeof(SurvivalReviveMessage_t), &message);
 
 	// set locally
 	onPlayerRevive(message.PlayerId, message.FromPlayerId);
@@ -664,7 +664,7 @@ void setPlayerDead(Player* player, char isDead)
 	// send out
 	message.PlayerId = player->PlayerId;
 	message.IsDead = isDead;
-	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_DIED, sizeof(SurvivalSetPlayerDeadMessage_t), &message);
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_DIED, sizeof(SurvivalSetPlayerDeadMessage_t), &message);
 
 	// set locally
 	onSetPlayerDead(message.PlayerId, message.IsDead);
@@ -705,7 +705,7 @@ void setPlayerWeaponMods(Player* player, int weaponId, int* mods)
 	message.WeaponId = (u8)weaponId;
 	for (i = 0; i < 10; ++i)
 		message.Mods[i] = (u8)mods[i];
-	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_WEAPON_MODS, sizeof(SurvivalSetWeaponModsMessage_t), &message);
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_WEAPON_MODS, sizeof(SurvivalSetWeaponModsMessage_t), &message);
 
 	// set locally
 	onSetPlayerWeaponMods(message.PlayerId, message.WeaponId, message.Mods);
@@ -735,7 +735,7 @@ void sendPlayerStats(int playerId)
 	// send out
 	message.PlayerId = playerId;
 	memcpy(&message.Stats, &State.PlayerStates[playerId].State, sizeof(struct SurvivalPlayerState));
-	netSendCustomAppMessage(netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SurvivalSetPlayerStatsMessage_t), &message);
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SurvivalSetPlayerStatsMessage_t), &message);
 }
 
 //--------------------------------------------------------------------------
@@ -1046,7 +1046,7 @@ void setRoundComplete(void)
 	GameSettings* gameSettings = gameGetSettings();
 	message.GameTime = gameGetTime();
 	message.BoltBonus = getRoundBonus(State.RoundNumber, gameSettings->PlayerCount);
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ROUND_COMPLETE, sizeof(SurvivalRoundCompleteMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_ROUND_COMPLETE, sizeof(SurvivalRoundCompleteMessage_t), &message);
 
 	// set locally
 	onSetRoundComplete(message.GameTime, message.BoltBonus);
@@ -1092,7 +1092,7 @@ void setRoundStart(int skip)
 	// send out
 	message.RoundNumber = targetRound;
 	message.GameTime = gameGetTime() + (skip ? 0 : ROUND_TRANSITION_DELAY_MS);
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ROUND_START, sizeof(SurvivalRoundStartMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_ROUND_START, sizeof(SurvivalRoundStartMessage_t), &message);
 
 	// set locally
 	onSetRoundStart(message.RoundNumber, message.GameTime);

@@ -874,7 +874,7 @@ void setRoundOutcome(int outcome)
 	// send out
 	message.Outcome = outcome;
 	message.GameTime = gameGetTime();
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_ROUND_OUTCOME, sizeof(SNDOutcomeMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SET_ROUND_OUTCOME, sizeof(SNDOutcomeMessage_t), &message);
 
 	// set locally
 	onSetRoundOutcome(outcome, message.GameTime);
@@ -975,7 +975,7 @@ void setBombOutcome(int nodeIndex, int team, int playerId)
 	message.Team = team;
 	message.PlayerId = playerId;
 	message.GameTime = gameGetTime();
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_BOMB_OUTCOME, sizeof(SNDBombOutcomeMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SET_BOMB_OUTCOME, sizeof(SNDBombOutcomeMessage_t), &message);
 
 	// set locally
 	onSetBombOutcome(nodeIndex, team, playerId, message.GameTime);

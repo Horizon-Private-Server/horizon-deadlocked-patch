@@ -233,6 +233,18 @@ MenuElem_ListData_t dataSurvivalDifficulty = {
     }
 };
 
+// player size list item
+MenuElem_ListData_t dataPlayerSize = {
+    &gameConfig.grPlayerSize,
+    NULL,
+    3,
+    {
+      "Normal",
+      "Large",
+      "Small"
+    }
+};
+
 // weather override list item
 MenuElem_ListData_t dataWeather = {
     &gameConfig.grWeatherId,
@@ -291,6 +303,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Healthboxes", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoHealthBoxes },
   { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grMirrorWorld },
   { "Nametags", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoNames },
+  { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
   { "V2s", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoV2s },
   { "Vampire", listActionHandler, menuStateAlwaysEnabledHandler, &dataVampire },
   { "Weapon packs", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPacks },
@@ -411,7 +424,7 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
   // send request
   void * lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
-    netSendCustomAppMessage(lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
 }
 
 #endif
@@ -1361,7 +1374,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
 		ClientDownloadDataResponse_t response;
 		response.Id = request->Id;
 		response.BytesReceived = dlBytesReceived;
-		netSendCustomAppMessage(connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE, sizeof(ClientDownloadDataResponse_t), &response);
+		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE, sizeof(ClientDownloadDataResponse_t), &response);
 	}
 
   // reset at end
@@ -1463,7 +1476,7 @@ void configTrySendGameConfig(void)
     // send
     void * lobbyConnection = netGetLobbyServerConnection();
     if (lobbyConnection)
-      netSendCustomAppMessage(lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(PatchGameConfig_t), &gameConfig);
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(PatchGameConfig_t), &gameConfig);
   }
 #endif
 
@@ -1480,7 +1493,7 @@ void configMenuDisable(void)
   // send config to server for saving
   void * lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
-    netSendCustomAppMessage(lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_CONFIG, sizeof(PatchConfig_t), &config);
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_CONFIG, sizeof(PatchConfig_t), &config);
 
   // 
   configTrySendGameConfig();

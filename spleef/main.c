@@ -289,7 +289,7 @@ void setRoundOutcome(int first, int second, int third)
 	message.Outcome[1] = first;
 	message.Outcome[2] = second;
 	message.Outcome[3] = third;
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SET_OUTCOME, sizeof(SpleefOutcomeMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SET_OUTCOME, sizeof(SpleefOutcomeMessage_t), &message);
 
 	// set locally
 	onSetRoundOutcome(message.Outcome);
@@ -328,7 +328,7 @@ void destroyBox(int id, int playerId)
 	// send out
 	message.BoxId = id;
 	message.PlayerId = playerId;
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_DESTROY_BOX, sizeof(SpleefDestroyBoxMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_DESTROY_BOX, sizeof(SpleefDestroyBoxMessage_t), &message);
 
 	// 
 	if (playerId >= 0)

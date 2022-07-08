@@ -51,7 +51,7 @@ void setRoundComplete(enum RoundOutcome outcome, int roundDuration)
   message.Outcome = outcome;
 	message.RoundDuration = roundDuration;
 	memcpy(message.Teams, State.Teams, sizeof(State.Teams));
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_ROUND_COMPLETE, sizeof(RoundCompleteMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_ROUND_COMPLETE, sizeof(RoundCompleteMessage_t), &message);
 
 	// set locally
 	onSetRoundComplete(message.GameTime, message.Outcome, message.RoundDuration, message.Teams);
@@ -75,7 +75,7 @@ void sendPlayerStats(int playerId)
 	// send out
 	message.PlayerId = playerId;
 	memcpy(&message.Stats, &State.PlayerStates[playerId].Stats, sizeof(struct PayloadPlayerStats));
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SetPlayerStatsMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SetPlayerStatsMessage_t), &message);
 }
 
 //--------------------------------------------------------------------------
@@ -107,7 +107,7 @@ void sendTeamScore(void)
 		}
 	}
 	
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SEND_TEAM_SCORE, sizeof(SetTeamScoreMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SEND_TEAM_SCORE, sizeof(SetTeamScoreMessage_t), &message);
 }
 
 //--------------------------------------------------------------------------
@@ -133,7 +133,7 @@ void sendPayloadState(enum PayloadMobyState state, int pathIndex, float time)
 	message.State = state;
 	message.PathIndex = pathIndex;
 	message.Time = time;
-	netBroadcastCustomAppMessage(netGetDmeServerConnection(), CUSTOM_MSG_SEND_PAYLOAD_STATE, sizeof(SetPayloadStateMessage_t), &message);
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SEND_PAYLOAD_STATE, sizeof(SetPayloadStateMessage_t), &message);
 }
 
 void netHookMessages(void)
