@@ -843,7 +843,7 @@ void processPlayer(int pIndex)
 			hud->Flags.Weapons = 0;
 
 			// 
-			playerSetWeapon(player, WEAPON_ID_WRENCH);
+			playerEquipWeapon(player, WEAPON_ID_WRENCH);
 
 			//vector_copy(player->CameraPos, Config.PayloadDeliveredCameraPos);
 			*(u32*)0x005EBB6C = 0xC60D00B0;

@@ -162,7 +162,7 @@ void processPlayer(Player * player)
 		// Force wrench
 		if (player->WeaponHeldId != WEAPON_ID_WRENCH &&
 			player->WeaponHeldId != WEAPON_ID_SWINGSHOT)
-			playerSetWeapon(player, WEAPON_ID_WRENCH);
+			playerEquipWeapon(player, WEAPON_ID_WRENCH);
 	}
 	// If the player is already on the infected team
 	// or if they've died

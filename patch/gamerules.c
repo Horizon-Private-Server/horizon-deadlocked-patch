@@ -307,15 +307,17 @@ void rotatingWeaponsLogic(void)
 			// set slot and weapon
 			if (player->IsLocal) {
 
+				// hide slots 2 and 3
+				playerSetLocalEquipslot(player->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
+				playerSetLocalEquipslot(player->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
+
+				// force equip if not holding correct weapon
 				if (player->WeaponHeldId != WEAPON_ID_WRENCH &&
 						player->WeaponHeldId != WEAPON_ID_SWINGSHOT &&
 						player->WeaponHeldId != MOBY_ID_HACKER_RAY &&
 						player->WeaponHeldId != RotatingWeaponsActiveId)
 				{
-					playerSetLocalEquipslot(player->LocalPlayerIndex, 0, RotatingWeaponsActiveId);
-					playerSetLocalEquipslot(player->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
-					playerSetLocalEquipslot(player->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
-					playerSetWeapon(player, RotatingWeaponsActiveId);
+					playerEquipWeapon(player, RotatingWeaponsActiveId);
 				}
 			}
 		}
@@ -667,7 +669,7 @@ void grGameStart(void)
 		grInitialize();
 
 		// convert weather id to game value
-		WeatherOverrideId = gameConfig.grWeatherId;
+		WeatherOverrideId = gameConfig.prWeatherId;
 
 		// random weather
 		if (WeatherOverrideId == 1)
@@ -706,7 +708,7 @@ void grGameStart(void)
 	if (gameConfig.grNoV2s)
 		cheatsApplyNoV2s();
 
-	if (gameConfig.grMirrorWorld)
+	if (gameConfig.prWeatherId)
 		cheatsApplyMirrorWorld(1);
 
 	if (gameConfig.grNoHealthBoxes && !HasDisabledHealthboxes)

@@ -585,10 +585,9 @@ void resetRoundState(void)
 			if (playerIsLocal(p))
 			{
 				// remove weapons from equipment slots
-				playerSetLocalEquipslot(p->LocalPlayerIndex, 0, WEAPON_ID_EMPTY);
 				playerSetLocalEquipslot(p->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
 				playerSetLocalEquipslot(p->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
-				playerSetWeapon(p, WEAPON_ID_WRENCH);
+				playerEquipWeapon(p, WEAPON_ID_WRENCH);
 
 				// disable hud
 				PlayerHUDFlags * hudFlags = hudGetPlayerFlags(p->LocalPlayerIndex);

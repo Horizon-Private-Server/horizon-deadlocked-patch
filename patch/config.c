@@ -247,7 +247,7 @@ MenuElem_ListData_t dataPlayerSize = {
 
 // weather override list item
 MenuElem_ListData_t dataWeather = {
-    &gameConfig.grWeatherId,
+    &gameConfig.prWeatherId,
     NULL,
     17,
     {
@@ -301,17 +301,17 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Half time", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHalfTime },
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
   { "Healthboxes", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoHealthBoxes },
-  { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grMirrorWorld },
   { "Nametags", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoNames },
   { "V2s", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoV2s },
   { "Vampire", listActionHandler, menuStateAlwaysEnabledHandler, &dataVampire },
   { "Weapon packs", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPacks },
-  { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather },
 
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Headbutt", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbutt },
+  { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prMirrorWorld },
   { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
   { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons },
-  { "Headbutt", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbutt },
+  { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather },
 };
 
 // custom map tab menu items

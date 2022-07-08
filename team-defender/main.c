@@ -191,12 +191,11 @@ void processPlayer(PlayerState_t * playerState)
 	{
 		if (playerIsLocal(player))
 		{
-			playerSetLocalEquipslot(player->LocalPlayerIndex, 0, activeGunId);
 			playerSetLocalEquipslot(player->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
 			playerSetLocalEquipslot(player->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
 		}
 
-		playerSetWeapon(player, activeGunId);
+		playerEquipWeapon(player, activeGunId);
 	}
 }
 

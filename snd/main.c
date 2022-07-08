@@ -920,7 +920,7 @@ void onSetBombOutcome(int nodeIndex, int team, int playerId, int gameTime)
 
 				// unequip hacker ray if equipped
 				if (p->Player->WeaponHeldGun == WEAPON_ID_HACKER_RAY)
-					playerSetWeapon(p->Player, WEAPON_ID_WRENCH);
+					playerEquipWeapon(p->Player, WEAPON_ID_WRENCH);
 			}
 		}
 
