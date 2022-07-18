@@ -186,6 +186,10 @@ enum CustomMessageId
      */
     CUSTOM_MSG_ID_SET_GAME_START_TIME_REQUEST = 32,
 
+    /*
+     * Sent from the server to the client with the patch config for another client in the current lobby.
+     */
+    CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST = 33,
 
 
 

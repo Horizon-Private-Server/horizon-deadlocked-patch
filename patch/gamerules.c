@@ -23,8 +23,11 @@
 #include <libdl/dl.h>
 #include <libdl/sha1.h>
 #include <libdl/spawnpoint.h>
+#include <libdl/collision.h>
 #include <libdl/graphics.h>
 #include <libdl/random.h>
+#include <libdl/camera.h>
+#include <libdl/math3d.h>
 #include <libdl/net.h>
 #include "module.h"
 #include "messageid.h"
@@ -34,6 +37,7 @@
 
 #define ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN					(TIME_SECOND * 15)
 #define ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX					(TIME_SECOND * 45)
+#define HEADBUTT_COOLDOWN_TICKS												(4)
 
 typedef struct RotatingWeaponsChangedMessage
 {
@@ -76,6 +80,9 @@ extern PatchConfig_t config;
 // game config
 extern PatchGameConfig_t gameConfig;
 
+// lobby clients patch config
+extern PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
+
 /*
  *
  */
@@ -115,6 +122,11 @@ float VampireHealRate[] = {
  */
 int RotatingWeaponsActiveId = WEAPON_ID_WRENCH;
 int RotatingWeaponsNextRotationTime = 0;
+
+/*
+ *
+ */
+char HeadbuttHitTimers[GAME_MAX_PLAYERS];
 
 /*
  * Custom hill spawn points
@@ -247,11 +259,11 @@ void rotatingWeaponsLogic(void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_PATCH_IN_GAME_START, &onRotatingWeaponsChangedRemote);
 
 	// determine new weapon from enabled weapons randomly
-	if (gameAmIHost() && gameTime > RotatingWeaponsNextRotationTime)
+	if (gameAmIHost() && (RotatingWeaponsNextRotationTime == 0 || gameTime > RotatingWeaponsNextRotationTime))
 	{
 		GameOptions* gameOptions = gameGetOptions();
 		int r = randRangeInt(0, 8);
-		int slotId = WEAPON_SLOT_WRENCH;
+		int slotId = weaponIdToSlot(RotatingWeaponsActiveId);
 		int iterations = 0;
 		int matches = 0;
 		
@@ -324,6 +336,12 @@ void rotatingWeaponsLogic(void)
 	}
 }
 
+void playerSizeScaleMoby(Moby* moby, float scale)
+{
+	float* mobyDef = *(float**)(0x002495c0 + (4 * moby->MClass));
+	moby->Scale = scale * mobyDef[9];
+}
+
 /*
  * NAME :		playerSizeLogic
  * 
@@ -342,15 +360,48 @@ void playerSizeLogic(void)
 {
 	int i, j;
 	Player** players = playerGetAll();
-	float size = gameConfig.prPlayerSize == 1 ? 1.5 : 0.6666;
+	float size, cameraHeight, tpHeight, moveSpeed = 1;
 	
+	switch (gameConfig.prPlayerSize)
+	{
+		case 1: size = 1.5; cameraHeight = 0.75; tpHeight = 3; moveSpeed = 1.5; break; // large
+		case 2: size = 3; cameraHeight = 2.5; tpHeight = 5; moveSpeed = 3; break; // giant
+		case 3: size = 0.2; cameraHeight = -0.80; tpHeight = 0.3; moveSpeed = 0.5; break; // tiny
+		case 4: size = 0.666; cameraHeight = -0.25; tpHeight = 1.25; moveSpeed = 0.75; break; // small
+	}
+
 	// disable fixed player scale
-	*(u32*)0x005D1580 = 0;
+	//*(u32*)0x005D1580 = 0;
+
+	//
+	float m = 1024 * size;
+	asm (".set noreorder;");
+	*(u16*)0x004f79fc = *(u16*)((u32)&m + 2);
+
+	// chargeboot distance
+	m = 6 * size;
+	asm (".set noreorder;");
+	*(u16*)0x0049A688 = *(u16*)((u32)&m + 2);
+
+	// chargeboot height
+	m = tpHeight;
+	asm (".set noreorder;");
+	*(u16*)0x0049A6B4 = *(u16*)((u32)&m + 2);
+
+	// chargeboot look at height
+	m = tpHeight;
+	asm (".set noreorder;");
+	*(u16*)0x0049a658 = *(u16*)((u32)&m + 2);
+
+	// third person distance and height
+	*(float*)0x002391FC = 4 * size;
+	*(float*)0x00239200 = tpHeight;
+	*(float*)0x00239180 = tpHeight + 0.5;
 
 	// change velocity dampening function's radius
 	// to original so new radius doesn't affect movement physics
-	*(u16*)0x005E72C4 = 0x238;
-	*(u16*)0x005E72C8 = 0x23C;
+	//*(u16*)0x005E72C4 = 0x238;
+	//*(u16*)0x005E72C8 = 0x23C;
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
@@ -358,25 +409,111 @@ void playerSizeLogic(void)
 		if (player) {
 
 			// write original radius and radius squared
-			*(float*)((u32)player + 0x238) = 0.45;
-			*(float*)((u32)player + 0x23C) = 0.45 * 0.45;
+			//*(float*)((u32)player + 0x238) = 0.45;
+			//*(float*)((u32)player + 0x23C) = 0.45 * 0.45;
+
+			// speed
+			//player->Speed = size;
 
 			// update collision size
-			player->PlayerConstants->colRadius = 0.45 * size;
-			player->PlayerConstants->colTop = 1.05 * size;
-			player->PlayerConstants->colBot = 0.70 * size;
-			player->PlayerConstants->colBotFall = 0.50 * size;
+			//player->PlayerConstants->colRadius = 0.45 * size;
+			//player->PlayerConstants->colTop = 1.05 * size;
+			//player->PlayerConstants->colBot = 0.70 * size;
+			//player->PlayerConstants->colBotFall = 0.50 * size;
+
+			if (player->PlayerMoby)
+				player->PlayerMoby->Scale = 0.25 * size;
 
 			// update camera
 			player->CameraOffset[0] = -6 * size;
-			player->CameraOffset[2] = gameConfig.prPlayerSize == 1 ? 1 : -1;
-
-			// update player size
-			for (j = 0; j < 1; ++j) {
-				player->Tweakers[j].scale = size;
-			}
+			player->CameraOffset[2] = cameraHeight;
+			player->CameraElevation = 2 + cameraHeight;
 		}
 	}
+
+	Moby* moby = mobyListGetStart();
+	Moby* mEnd = mobyListGetEnd();
+	while (moby < mEnd)
+	{
+		if (!mobyIsDestroyed(moby)) {
+			switch (moby->OClass)
+			{
+				case MOBY_ID_WRENCH:
+				case MOBY_ID_DUAL_VIPERS:
+				case MOBY_ID_ARBITER:
+				case MOBY_ID_THE_ARBITER:
+				case MOBY_ID_MAGMA_CANNON:
+				case MOBY_ID_FLAIL:
+				case MOBY_ID_FLAIL_HEAD:
+				case MOBY_ID_B6_OBLITERATOR:
+				case MOBY_ID_HOLOSHIELD_LAUNCHER:
+				case MOBY_ID_HOLOSHIELD_SHOT:
+				case MOBY_ID_MINE_LAUNCHER:
+				case MOBY_ID_MINE_LAUNCHER_MINE:
+				case MOBY_ID_FUSION_RIFLE:
+				case MOBY_ID_CHARGE_BOOTS_PLAYER_EQUIP_VERSION:
+				case MOBY_ID_HOVERBIKE:
+				case MOBY_ID_HOVERSHIP:
+				case MOBY_ID_LANDSTALKER:
+				case MOBY_ID_LANDSTALKER_LEG:
+				case MOBY_ID_LANDSTALKER_MID:
+				case MOBY_ID_PUMA:
+				case MOBY_ID_PUMA_TIRE:
+				case MOBY_ID_PLAYER_TURRET:
+				case MOBY_ID_NODE_BASE:
+				case MOBY_ID_CONQUEST_NODE_TURRET:
+				case MOBY_ID_CONQUEST_POWER_TURRET:
+				case MOBY_ID_CONQUEST_ROCKET_TURRET:
+				case MOBY_ID_CONQUEST_TURRET_HOLDER_TRIANGLE_THING:
+				case MOBY_ID_HACKER_ORB:
+				case MOBY_ID_HACKER_ORB_HOLDER:
+				case MOBY_ID_HEALTH_ORB_MULT:
+				case MOBY_ID_HEALTH_BOX_MULT:
+				case MOBY_ID_HEALTH_PAD0:
+				case MOBY_ID_HEALTH_PAD1:
+				case MOBY_ID_BLUE_TEAM_HEALTH_PAD:
+				case MOBY_ID_PICKUP_PAD:
+				case MOBY_ID_WEAPON_PICKUP:
+				case MOBY_ID_CHARGEBOOTS_PICKUP_MODEL:
+				case MOBY_ID_WEAPON_PACK:
+				case MOBY_ID_RED_FLAG:
+				case MOBY_ID_BLUE_FLAG:
+				case MOBY_ID_GREEN_FLAG:
+				case MOBY_ID_ORANGE_FLAG:
+					playerSizeScaleMoby(moby, size);
+					break;
+			}
+		}
+
+		++moby;
+	}
+}
+
+void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damageFlags, VECTOR fromPos, VECTOR t0)
+{
+	Player * sourcePlayer = guberMobyGetPlayerDamager(sourceMoby);
+	Player * hitPlayer = guberMobyGetPlayerDamager(hitMoby);
+	if (sourcePlayer && hitPlayer) {
+
+		// prevent friendly fire
+		if (!gameConfig.prHeadbuttFriendlyFire && playerGetJuggSafeTeam(sourcePlayer) == playerGetJuggSafeTeam(hitPlayer))
+			return;
+
+		// give a cooldown to the headbutt
+		if (HeadbuttHitTimers[hitPlayer->PlayerId] > 0)
+			return;
+
+		// if target is low health, run them over
+		if (hitPlayer->Health <= hitpoints)
+			damageFlags = 0x808;
+		else
+			damageFlags = 0x801;
+
+		HeadbuttHitTimers[hitPlayer->PlayerId] = HEADBUTT_COOLDOWN_TICKS;
+		DPRINTF("damaging %d (health:%f) with %f and %X\n", hitPlayer->PlayerId, hitPlayer->Health, hitpoints, damageFlags);
+	}
+
+	((void (*)(float, Moby*, Moby*, int, VECTOR, VECTOR))0x00503500)(hitpoints, hitMoby, sourceMoby, damageFlags, fromPos, t0);
 }
 
 /*
@@ -395,14 +532,27 @@ void playerSizeLogic(void)
  */
 void headbuttLogic(void)
 {
+	int i;
+
 	// enable for all mobies
 	*(u32*)0x005F98D0 = 0x24020001;
 
-	// set damage flag to allow player damaging
-	*(u16*)0x005F990C = 0x0801;
+	// hook damage so we can consider teams/health
+	*(u32*)0x005f9920 = 0x0C000000 | ((u32)&headbuttDamage >> 2);
 
-	// set damage to 10 (20%)
-	*(u16*)0x005F9918 = 0x4120;
+	// set damage
+	u16 * damageInstr = (u16*)0x005F9918;
+	switch (gameConfig.prHeadbutt)
+	{
+		case 1: *damageInstr = 0x4148; break; // 25%
+		case 2: *damageInstr = 0x41c8; break; // 50%
+		case 3: *damageInstr = 0x4248; break; // 100%
+	}
+
+	// decrement counters
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		if (HeadbuttHitTimers[i] > 0)
+			HeadbuttHitTimers[i]--;
 }
 
 /*
@@ -609,6 +759,70 @@ void invTimerLogic(void)
 	}
 }
 
+#if TWEAKERS
+float tweakerGetPos(char value)
+{
+	// value between 0.75 and 1.25
+	return 0 + ((float)value / 10.0) * 1024 * 2;
+}
+
+float tweakerGetScale(char value)
+{
+	// value between 0.75 and 1.25
+	return 1 + ((float)value / 10.0) * 0.9;
+}
+
+void tweakers(void)
+{
+	int i;
+	Player** players = playerGetAll();
+	GameSettings* gs = gameGetSettings();
+
+	// locally disabled
+	if (config.characterTweakers[CHARACTER_TWEAKER_TOGGLE])
+		return;
+
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		Player * player = players[i];
+
+		if (player) {
+			int clientId = gs->PlayerClients[i];
+			if (clientId >= 0) {
+
+				// use local config if local player
+				PatchConfig_t * patchConfig = &lobbyPlayerConfigs[clientId];
+				if (player->IsLocal)
+					patchConfig = &config;
+
+				// if remote disabled always return normal scale
+				if (patchConfig->characterTweakers[CHARACTER_TWEAKER_TOGGLE])
+					continue;
+
+				// set scale
+				float lowerTorsoScale = tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_SCALE]);
+				float upperTorsoScale = tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_SCALE]);
+				player->Tweakers[3].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_HEAD_SCALE]) / upperTorsoScale; // head
+				player->Tweakers[8].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_SCALE]) / upperTorsoScale; // left arm
+				player->Tweakers[9].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_SCALE]) / upperTorsoScale; // right arm
+				player->Tweakers[6].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_SCALE]); // left leg
+				player->Tweakers[7].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_LEG_SCALE]); // right leg
+				player->Tweakers[1].scale *= lowerTorsoScale; // hips
+				player->Tweakers[15].scale *= upperTorsoScale / lowerTorsoScale; // torso
+
+				// set pos
+				player->Tweakers[3].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_HEAD_POS]); // head
+				player->Tweakers[8].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_POS]); // left arm
+				player->Tweakers[9].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_POS]) ; // right arm
+				player->Tweakers[6].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_POS]); // left leg
+				player->Tweakers[7].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_POS]); // right leg
+				player->Tweakers[1].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_POS]); // lower torso
+				player->Tweakers[15].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_POS]); // upper torso
+			}
+		}
+	}
+}
+#endif
+
 /*
  * NAME :		grInitialize
  * 
@@ -638,6 +852,7 @@ void grInitialize(void)
 	HasDisabledHealthboxes = 0;
 	RotatingWeaponsNextRotationTime = 0;
 	RotatingWeaponsActiveId = WEAPON_ID_WRENCH;
+	memset(HeadbuttHitTimers, 0, sizeof(HeadbuttHitTimers));
 
 	GameRulesInitialized = 1;
 }
@@ -690,16 +905,12 @@ void grGameStart(void)
 	cheatsApplyWeather(WeatherOverrideId);
 
 #if DEBUG
-	dlPreUpdate();
-
 	halftimeLogic();
 	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
 	{
 		htCtfBegin();
 		HalfTimeState = 1;
 	}
-
-	dlPostUpdate();
 #endif
 
 	if (gameConfig.grNoPacks)
@@ -744,6 +955,10 @@ void grGameStart(void)
 
 	if (gameConfig.prHeadbutt)
 		headbuttLogic();
+
+#if TWEAKERS
+	tweakers();
+#endif
 }
 
 /*

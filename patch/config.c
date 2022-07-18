@@ -15,6 +15,7 @@
 #define LINE_HEIGHT         (0.05)
 #define LINE_HEIGHT_3_2     (0.075)
 #define DEFAULT_GAMEMODE    (0)
+#define CHARACTER_TWEAKER_RANGE (10)
 
 // config
 extern PatchConfig_t config;
@@ -48,6 +49,7 @@ const u32 colorButtonBg = 0x80303030;
 const u32 colorButtonFg = 0x80505050;
 const u32 colorText = 0x80FFFFFF;
 const u32 colorOpenBg = 0x20000000;
+const u32 colorRangeBar = 0x80000040;
 
 const float frameX = 0.1;
 const float frameY = 0.15;
@@ -69,6 +71,7 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
 void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
+void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 
@@ -101,9 +104,6 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
 #endif
 
-void tabDefaultStateHandler(TabElem_t* tab, int * state);
-void tabGameSettingsStateHandler(TabElem_t* tab, int * state);
-
 void navMenu(TabElem_t* tab, int direction, int loop);
 void navTab(int direction);
 
@@ -117,6 +117,14 @@ MenuElem_ListData_t dataLevelOfDetail = {
     NULL,
     2,
     { "Low", "Normal", "High" }
+};
+
+// player aggregation time offset range item
+MenuElem_RangeData_t dataPlayerAggTime = {
+    .value = &config.playerAggTime,
+    .stateHandler = NULL,
+    .minValue = -5,
+    .maxValue = 5,
 };
 
 // general tab menu items
@@ -135,7 +143,143 @@ MenuElem_t menuElementsGeneral[] = {
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
+  { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
 };
+
+#if TWEAKERS
+
+// character head size range item
+MenuElem_RangeData_t dataCharacterHead = {
+    .value = &config.characterTweakers[0],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character torso size range item
+MenuElem_RangeData_t dataCharacterTorso = {
+    .value = &config.characterTweakers[1],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character left arm size range item
+MenuElem_RangeData_t dataCharacterLeftArm = {
+    .value = &config.characterTweakers[2],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character right arm size range item
+MenuElem_RangeData_t dataCharacterRightArm = {
+    .value = &config.characterTweakers[3],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character left leg size range item
+MenuElem_RangeData_t dataCharacterLeftLeg = {
+    .value = &config.characterTweakers[4],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character right leg size range item
+MenuElem_RangeData_t dataCharacterRightLeg = {
+    .value = &config.characterTweakers[5],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character hips size range item
+MenuElem_RangeData_t dataCharacterHips = {
+    .value = &config.characterTweakers[7],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character head pos range item
+MenuElem_RangeData_t dataCharacterHeadPos = {
+    .value = &config.characterTweakers[CHARACTER_TWEAKER_HEAD_POS],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character upper torso pos range item
+MenuElem_RangeData_t dataCharacterTorsoPos = {
+    .value = &config.characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_POS],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character lower torso pos range item
+MenuElem_RangeData_t dataCharacterHipsPos = {
+    .value = &config.characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_POS],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character left arm pos range item
+MenuElem_RangeData_t dataCharacterLeftArmPos = {
+    .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_POS],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character right arm pos range item
+MenuElem_RangeData_t dataCharacterRightArmPos = {
+    .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_POS],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character left leg pos range item
+MenuElem_RangeData_t dataCharacterLeftLegPos = {
+    .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_POS],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character right leg pos range item
+MenuElem_RangeData_t dataCharacterRightLegPos = {
+    .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_POS],
+    .stateHandler = NULL,
+    .minValue = -CHARACTER_TWEAKER_RANGE,
+    .maxValue = CHARACTER_TWEAKER_RANGE,
+};
+
+// character tab menu items
+MenuElem_t menuElementsCharacter[] = {
+  { "Hide All", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.characterTweakers[6] },
+  { "Head Scale", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterHead },
+  { "Upper Torso Scale", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterTorso },
+  { "Lower Torso Scale", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterHips },
+  { "Left Arm Scale", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterLeftArm },
+  { "Right Arm Scale", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterRightArm },
+  { "Left Leg Scale", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterLeftLeg },
+  { "Right Leg Scale", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterRightLeg },
+  { "Head Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterHeadPos },
+  { "Upper Torso Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterTorsoPos },
+  { "Lower Torso Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterHipsPos },
+  { "Left Arm Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterLeftArmPos },
+  { "Right Arm Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterRightArmPos },
+  { "Left Leg Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterLeftLegPos },
+  { "Right Leg Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterRightLegPos },
+};
+
+#endif
 
 // map override list item
 MenuElem_ListData_t dataCustomMaps = {
@@ -237,11 +381,26 @@ MenuElem_ListData_t dataSurvivalDifficulty = {
 MenuElem_ListData_t dataPlayerSize = {
     &gameConfig.prPlayerSize,
     NULL,
-    3,
+    5,
     {
       "Normal",
       "Large",
+      "Giant",
+      "Tiny",
       "Small"
+    }
+};
+
+// headbut damage list item
+MenuElem_ListData_t dataHeadbutt = {
+    &gameConfig.prHeadbutt,
+    NULL,
+    4,
+    {
+      "Off",
+      "Low Damage",
+      "Medium Damage",
+      "High Damage"
     }
 };
 
@@ -307,7 +466,8 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Weapon packs", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPacks },
 
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Headbutt", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbutt },
+  { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt },
+  { "Headbutt Friendly Fire", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbuttFriendlyFire },
   { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prMirrorWorld },
   { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
   { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons },
@@ -351,6 +511,9 @@ MenuElem_t menuElementsMapEditor[] = {
 // tab items
 TabElem_t tabElements[] = {
   { "General", tabDefaultStateHandler, menuElementsGeneral, sizeof(menuElementsGeneral)/sizeof(MenuElem_t) },
+#if TWEAKERS
+  { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter)/sizeof(MenuElem_t) },
+#endif
   { "Game Settings", tabGameSettingsStateHandler, menuElementsGameSettings, sizeof(menuElementsGameSettings)/sizeof(MenuElem_t) },
   { "Custom Maps", tabCustomMapStateHandler, menuElementsCustomMap, sizeof(menuElementsCustomMap)/sizeof(MenuElem_t) },
 #if MAPEDITOR
@@ -391,11 +554,13 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
   {
     *state = ELEMENT_VISIBLE;
   }
+#if !DEBUG
   // if game has started or not the host, disable editing
   else if (gameSettings->GameLoadStartTime > 0 || *(u8*)0x00172170 != 0)
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
   }
+#endif
   else
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
@@ -694,6 +859,37 @@ void drawToggleInvertedMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* re
 }
 
 //------------------------------------------------------------------------------
+void drawRangeMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_RangeData_t * rangeData, RECT* rect)
+{
+  char buf[32];
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  float x,y,w,v,h;
+  float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
+  u32 color = colorLerp(colorText, 0, lerp);
+
+  // draw name
+  x = (rect->TopLeft[0] * SCREEN_WIDTH) + 5;
+  y = (rect->TopLeft[1] * SCREEN_HEIGHT) + 5;
+  gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
+
+  // draw box
+  u32 barColor = colorLerp(colorRangeBar, 0, lerp);
+  v = (float)(*rangeData->value - rangeData->minValue) / (float)(rangeData->maxValue - rangeData->minValue);
+  w = (rect->TopRight[0] - rect->TopLeft[0]) * 0.5 * SCREEN_WIDTH;
+  x = (rect->TopRight[0] * SCREEN_WIDTH) - w - 5;
+  h = (rect->BottomRight[1] - rect->TopRight[1]) * SCREEN_HEIGHT;
+  gfxPixelSpaceBox(x, y - 4, w * v, h - 2, barColor);
+
+  // draw name
+  sprintf(buf, "%d", *rangeData->value);
+  x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
+  gfxScreenSpaceText(x, y, 1, 1, color, buf, -1, 2);
+}
+
+//------------------------------------------------------------------------------
 void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, RECT* rect)
 {
   // get element state
@@ -834,6 +1030,67 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     case ACTIONTYPE_DRAW:
     {
       drawLabelMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+{
+  MenuElem_RangeData_t* rangeData = (MenuElem_RangeData_t*)element->userdata;
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  // do nothing if hidden
+  if ((state & ELEMENT_VISIBLE) == 0)
+    return;
+
+  switch (actionType)
+  {
+    case ACTIONTYPE_INCREMENT:
+    case ACTIONTYPE_SELECT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char newValue = *rangeData->value + 1;
+      if (newValue > rangeData->maxValue)
+        newValue = rangeData->minValue;
+
+      *rangeData->value = newValue;
+      break;
+    }
+    case ACTIONTYPE_SELECT_SECONDARY:
+    {
+      *rangeData->value = (rangeData->minValue + rangeData->maxValue) / 2;
+      break;
+    }
+    case ACTIONTYPE_DECREMENT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char newValue = *rangeData->value - 1;
+      if (newValue < rangeData->minValue)
+        newValue = rangeData->maxValue;
+
+      *rangeData->value = newValue;
+      break;
+    }
+    case ACTIONTYPE_GETHEIGHT:
+    {
+      *(float*)actionArg = LINE_HEIGHT;
+      break;
+    }
+    case ACTIONTYPE_DRAW:
+    {
+      drawRangeMenuElement(tab, element, rangeData, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_VALIDATE:
+    {
+      if (rangeData->stateHandler != NULL)
+        rangeData->stateHandler(rangeData, rangeData->value);
       break;
     }
   }
@@ -1139,23 +1396,23 @@ void drawTab(TabElem_t* tab)
     navMenu(tab, 1, 1);
 
   // nav down
-  if (padGetButtonDown(0, PAD_DOWN) > 0)
+  if (padGetButtonUp(0, PAD_DOWN) > 0)
   {
     navMenu(tab, 1, 0);
   }
   // nav page down
-  if (padGetButtonDown(0, PAD_R2) > 0)
+  if (padGetButtonUp(0, PAD_R2) > 0)
   {
     for (i = 0; i < 10; ++i)
       navMenu(tab, 1, 0);
   }
   // nav up
-  else if (padGetButtonDown(0, PAD_UP) > 0)
+  else if (padGetButtonUp(0, PAD_UP) > 0)
   {
     navMenu(tab, -1, 0);
   }
   // nav up
-  else if (padGetButtonDown(0, PAD_L2) > 0)
+  else if (padGetButtonUp(0, PAD_L2) > 0)
   {
     for (i = 0; i < 10; ++i)
       navMenu(tab, -1, 0);
@@ -1166,14 +1423,20 @@ void drawTab(TabElem_t* tab)
     if (state & ELEMENT_EDITABLE)
       currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT, NULL);
   }
+  // nav select secondary
+  else if (padGetButtonDown(0, PAD_SQUARE) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT_SECONDARY, NULL);
+  }
   // nav inc
-  else if (padGetButtonDown(0, PAD_RIGHT) > 0)
+  else if (padGetButtonUp(0, PAD_RIGHT) > 0)
   {
     if (state & ELEMENT_EDITABLE)
       currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
   }
   // nav dec
-  else if (padGetButtonDown(0, PAD_LEFT) > 0)
+  else if (padGetButtonUp(0, PAD_LEFT) > 0)
   {
     if (state & ELEMENT_EDITABLE)
       currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
@@ -1210,17 +1473,17 @@ void onMenuUpdate(int inGame)
     }
 
     // nav tab right
-    if (padGetButtonDown(0, PAD_R1) > 0)
+    if (padGetButtonUp(0, PAD_R1) > 0)
     {
       navTab(1);
     }
     // nav tab left
-    else if (padGetButtonDown(0, PAD_L1) > 0)
+    else if (padGetButtonUp(0, PAD_L1) > 0)
     {
       navTab(-1);
     }
     // close
-    else if (padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonDown(0, PAD_START) > 0)
+    else if (padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
     {
       configMenuDisable();
     }
@@ -1235,7 +1498,7 @@ void onMenuUpdate(int inGame)
     }
 
 		// check for pad input
-		if (padGetButtonDown(0, PAD_START) > 0)
+		if (padGetButtonUp(0, PAD_START) > 0)
 		{
       configMenuEnable();
 		}

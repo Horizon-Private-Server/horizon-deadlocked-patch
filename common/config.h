@@ -12,6 +12,11 @@ typedef struct PatchConfig
   char enableAutoMaps;
   char enableFpsCounter;
   char disableCircleToHackerRay;
+  char playerAggTime;
+  
+#if TWEAKERS
+  char characterTweakers[1 + 7*2];
+#endif
 } PatchConfig_t;
 
 typedef struct SurvivalConfig
@@ -37,8 +42,31 @@ typedef struct PatchGameConfig
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;
+  char prHeadbuttFriendlyFire;
   SurvivalConfig_t survivalConfig;
 } PatchGameConfig_t;
+
+enum CHARACTER_TWEAKER_ID
+{
+  CHARACTER_TWEAKER_HEAD_SCALE,
+  CHARACTER_TWEAKER_UPPER_TORSO_SCALE,
+  CHARACTER_TWEAKER_LEFT_ARM_SCALE,
+  CHARACTER_TWEAKER_RIGHT_ARM_SCALE,
+  CHARACTER_TWEAKER_LEFT_LEG_SCALE,
+  CHARACTER_TWEAKER_RIGHT_LEG_SCALE,
+  CHARACTER_TWEAKER_TOGGLE,
+  CHARACTER_TWEAKER_LOWER_TORSO_SCALE,
+
+  CHARACTER_TWEAKER_HEAD_POS,
+  CHARACTER_TWEAKER_UPPER_TORSO_POS,
+  CHARACTER_TWEAKER_LOWER_TORSO_POS,
+  CHARACTER_TWEAKER_LEFT_ARM_POS,
+  CHARACTER_TWEAKER_RIGHT_ARM_POS,
+  CHARACTER_TWEAKER_LEFT_LEG_POS,
+  CHARACTER_TWEAKER_RIGHT_POS,
+
+  CHARACTER_TWEAKER_COUNT
+};
 
 enum CUSTOM_MAP_ID
 {

@@ -161,12 +161,12 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 
     if (playerToSpectate->Vehicle)
     {
-        Moby * vehicleMoby = playerToSpectate->Vehicle->VehicleMoby;
-        int isPassenger = playerToSpectate->Vehicle->PassengerPlayer == playerToSpectate;
+        Moby * vehicleMoby = playerToSpectate->Vehicle->pMoby;
+        int isPassenger = playerToSpectate->Vehicle->pPassenger == playerToSpectate;
         cameraT = 1 - powf(MATH_E, -(isPassenger ? CAMERA_ROTATION_SHARPNESS : VEHICLE_CAMERA_ROTATION_SHARPNESS) * MATH_DT);
 
         // Grab rotation
-        float yaw = playerToSpectate->Vehicle->VehicleYaw;
+        float yaw = playerToSpectate->Vehicle->netUpdatedRot[2];
         float pitch = 0.08;
         float distance = 0;
         float elevation = 0;
@@ -188,8 +188,8 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 
                 if (isPassenger)
                 {
-                    yaw = playerToSpectate->Vehicle->PassengerYaw;
-                    pitch = playerToSpectate->Vehicle->PassengerPitch + (float)0.08;
+                    yaw = playerToSpectate->Vehicle->netUpdatedPassengerRot[2];
+                    pitch = playerToSpectate->Vehicle->netUpdatedPassengerRot[1] + (float)0.08;
                 }
                 break;
             }
@@ -200,15 +200,15 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 
                 if (isPassenger)
                 {
-                    yaw = playerToSpectate->Vehicle->PassengerYaw;
-                    pitch = playerToSpectate->Vehicle->PassengerPitch;
+                    yaw = playerToSpectate->Vehicle->netUpdatedPassengerRot[2];
+                    pitch = playerToSpectate->Vehicle->netUpdatedPassengerRot[1];
                 }
                 break;
             }
             case MOBY_ID_HOVERSHIP:
             {
-                pitch = playerToSpectate->Vehicle->VehiclePitch;
-                yaw = playerToSpectate->Vehicle->VehicleYaw;
+                pitch = playerToSpectate->Vehicle->netUpdatedRot[1];
+                yaw = playerToSpectate->Vehicle->netUpdatedRot[2];
                 distance = VEHICLE_DISTANCE[6 + isPassenger];
                 elevation = VEHICLE_ELEVATION[6 + isPassenger];
 
@@ -229,7 +229,7 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
         
         // Generate target based off distance and elevation
         VECTOR target;
-        vector_copy(target, playerToSpectate->Vehicle->VehicleMoby->Position);
+        vector_copy(target, playerToSpectate->Vehicle->pMoby->Position);
         target[0] -= cosf(spectateData->LastCameraYaw) * distance;
         target[1] -= sinf(spectateData->LastCameraYaw) * distance;
         target[2] += (sinf(spectateData->LastCameraPitch) * distance) + elevation;

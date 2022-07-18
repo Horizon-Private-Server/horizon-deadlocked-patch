@@ -536,8 +536,8 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 	playerGiveWeapon(p, weaponId, level);
 	gBox->Gadgets[weaponId].Level = level;
 	gBox->Gadgets[weaponId].Ammo = ((short (*)(GadgetBox*, int))0x00626FB8)(gBox, weaponId);
-	if (p->GadgetMoby && p->WeaponSwitchLastWeaponHeldId == weaponId)
-		customBangelizeWeapons(p->GadgetMoby, weaponId, level);
+	if (p->Gadgets[0].pMoby && p->Gadgets[0].id == weaponId)
+		customBangelizeWeapons(p->Gadgets[0].pMoby, weaponId, level);
 
 	if (p->IsLocal) {
 		gBox->ModBasic[alphaMod-1]++;

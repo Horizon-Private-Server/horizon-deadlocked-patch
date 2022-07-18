@@ -159,6 +159,11 @@ typedef struct ChangeTeamRequest {
 	char Pool[GAME_MAX_PLAYERS];
 } ChangeTeamRequest_t;
 
+typedef struct SetLobbyClientPatchConfigRequest {
+	int PlayerId;
+	PatchConfig_t Config;
+} SetLobbyClientPatchConfigRequest_t;
+
 //
 enum PlayerStateConditionType
 {
@@ -213,16 +218,20 @@ const PlayerStateCondition_t stateForceRemoteConditions[] = {
 
 // 
 PatchConfig_t config __attribute__((section(".config"))) = {
-	0,
-	0,
-	0,
-	0,
-	1,
-	0,
-	0
+	.disableFramelimiter = 0,
+	.enableGamemodeAnnouncements = 0,
+	.enableSpectate = 0,
+	.enableSingleplayerMusic = 0,
+	.levelOfDetail = 1,
+	.enablePlayerStateSync = 0,
+	.enableAutoMaps = 0,
+	.enableFpsCounter = 0,
+	.disableCircleToHackerRay = 0,
+	.playerAggTime = 0,
 };
 
 // 
+PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 PatchGameConfig_t gameConfig;
 PatchGameConfig_t gameConfigHostBackup;
 
@@ -638,6 +647,21 @@ void patchVoiceUpdate()
 	}
 }
 
+void patchAggTime(void)
+{
+	int aggTime = 30 + (config.playerAggTime * 5);
+	u16* currentAggTime = (u16*)0x0015ac04;
+
+	// only update on change
+	if (*currentAggTime == aggTime)
+		return;
+
+	*currentAggTime = aggTime;
+	void * connection = netGetDmeServerConnection();
+	if (connection)
+		netSetSendAggregationInterval(connection, 0, aggTime);
+}
+
 /*
  * NAME :		patchFrameSkip
  * 
@@ -757,6 +781,62 @@ void patchStateUpdate(void)
 {
 	if (*(u32*)0x0060eb80 == 0x0C18784C)
 		*(u32*)0x0060eb80 = 0x0C000000 | ((u32)&patchStateUpdate_Hook >> 2);
+}
+
+/*
+ * NAME :		runCorrectPlayerChargebootRotation
+ * 
+ * DESCRIPTION :
+ * 			Forces all remote player's rotations while chargebooting to be in the direction of their velocity.
+ * 			This fixes some movement lag caused when a player's rotation is desynced from their chargeboot direction.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runCorrectPlayerChargebootRotation(void)
+{
+	int i;
+	VECTOR t;
+	Player** players = playerGetAll();
+
+	if (!isInGame())
+		return;
+
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		Player* p = players[i];
+
+		// only apply to remote players chargebooting
+		if (p && !p->IsLocal && p->PlayerState == PLAYER_STATE_CHARGE) {
+
+			// get horizontal velocity
+			vector_copy(t, p->Velocity);
+			t[2] = 0;
+			float speed = vector_length(t);
+
+			// apply threshold to prevent small velocity from affecting rotation
+			if (speed > 0.05) {
+
+				// convert velocity to yaw
+				float yaw = atan2f(t[1] / speed, t[0] / speed);
+
+				// get delta between angles
+				float dt = clampAngle(yaw - p->PlayerRotation[2]);
+				
+				// if delta is small, ignore
+				if (fabsf(dt) > 0.001) {
+
+					// apply delta rotation to hero turn function
+					// at interpolation speed of 1/5 second
+					((void (*)(Player*, float, float, float))0x005e4850)(p, 0, 0, dt * 0.01666 * 5);
+				}
+			}
+		}
+	}
 }
 
 /*
@@ -1623,6 +1703,39 @@ int onSetTeams(void * connection, void * data)
 }
 
 /*
+ * NAME :		onSetLobbyClientPatchConfig
+ * 
+ * DESCRIPTION :
+ * 			Called when the server broadcasts a lobby client's patch config.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onSetLobbyClientPatchConfig(void * connection, void * data)
+{
+	int i;
+  SetLobbyClientPatchConfigRequest_t request;
+	GameSettings* gs = gameGetSettings();
+
+	// move message payload into local
+	memcpy(&request, data, sizeof(SetLobbyClientPatchConfigRequest_t));
+
+	if (request.PlayerId >= 0 && request.PlayerId < GAME_MAX_PLAYERS) {
+		DPRINTF("recieved %d config\n", request.PlayerId);
+
+		
+		memcpy(&lobbyPlayerConfigs[request.PlayerId], &request.Config, sizeof(PatchConfig_t));
+	}
+
+	return sizeof(SetLobbyClientPatchConfigRequest_t);
+}
+
+/*
  * NAME :		onSetRanks
  * 
  * DESCRIPTION :
@@ -1740,6 +1853,7 @@ void onOnlineMenu(void)
 	{
 		padEnableInput();
 		onConfigInitialize();
+		memset(lobbyPlayerConfigs, 0, sizeof(lobbyPlayerConfigs));
 		hasInitialized = 1;
 	}
 
@@ -1854,16 +1968,20 @@ void dot(void)
 
 	if (isSampling) {
 		if (sampleCount >= SAMPLE_SIZE) {
+			if (isSampling < 200) {
+				isSampling++;
+				return;
+			}
 			isSampling = 0;
 
 			float avgDt = (float)deltaTotal / (float)deltaCount;
 			int minDt = (int)avgDt;
 			int maxDt = (int)avgDt;
 			for (i = 0; i < 200; ++i) {
-				if (counts[i] < minDt && counts[i] > 0)
-					minDt = counts[i];
-				if (counts[i] > maxDt)
-					maxDt = counts[i];
+				if (i < minDt && counts[i] > 0)
+					minDt = i;
+				if (i > maxDt && counts[i] > 0)
+					maxDt = i;
 			}
 
 			printf("received %d samples with average latency %f, min:%d max:%d\n", deltaCount, avgDt, minDt, maxDt);
@@ -1936,6 +2054,7 @@ int main (void)
 
 	// install net handlers
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_REQUEST_TEAM_CHANGE, &onSetTeams);
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST, &onSetLobbyClientPatchConfig);
 	//netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
 
 	// Run map loader
@@ -1956,6 +2075,9 @@ int main (void)
 
 	// Run sync player state
 	runPlayerStateSync();
+
+	// 
+	runCorrectPlayerChargebootRotation();
 
 	// 
 	runFpsCounter();
@@ -2000,6 +2122,9 @@ int main (void)
 	//patchWideStats();
 
 	// 
+	patchAggTime();
+
+	// 
 	patchStateContainer.UpdateCustomGameStats = processSendGameData();
 
 	// 
@@ -2013,6 +2138,13 @@ int main (void)
 	{
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
+
+	#if DEBUG
+		if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
+		{
+			gameEnd(0);
+		}
+	#endif
 
 		//
 		grGameStart();

@@ -6,6 +6,7 @@ enum ActionType
   ACTIONTYPE_DRAW,
   ACTIONTYPE_GETHEIGHT,
   ACTIONTYPE_SELECT,
+  ACTIONTYPE_SELECT_SECONDARY,
   ACTIONTYPE_INCREMENT,
   ACTIONTYPE_DECREMENT,
   ACTIONTYPE_VALIDATE
@@ -33,6 +34,7 @@ typedef void (*ActionHandler)(struct TabElem* tab, struct MenuElem* element, int
 typedef void (*ButtonSelectHandler)(struct TabElem* tab, struct MenuElem* element);
 typedef void (*MenuElementStateHandler)(struct TabElem* tab, struct MenuElem* element, int * state);
 typedef int (*MenuElementListStateHandler)(struct MenuElem_ListData* listData, char* value);
+typedef int (*MenuElementRangeStateHandler)(struct MenuElem_RangeData* listData, char* value);
 typedef void (*TabStateHandler)(struct TabElem* tab, int * state);
 
 typedef struct MenuElem
@@ -50,6 +52,15 @@ typedef struct MenuElem_ListData
   int count;
   char * items[];
 } MenuElem_ListData_t;
+
+typedef struct MenuElem_RangeData
+{
+  char * value;
+  MenuElementRangeStateHandler stateHandler;
+  char minValue;
+  char maxValue;
+  char stepValue;
+} MenuElem_RangeData_t;
 
 typedef struct TabElem
 {
