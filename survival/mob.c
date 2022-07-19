@@ -252,6 +252,8 @@ void mobDamage(Moby* source, Moby* target, float amount, int damageFlags)
 	in.Flags = 1;
 	in.DamageHp = amount;
 
+	DPRINTF("%08X do %f damage to %08X\n", (u32)source, amount, (u32)target);
+
 	mobyCollDamageDirect(target, &in);
 }
 
