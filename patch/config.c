@@ -464,6 +464,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "V2s", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoV2s },
   { "Vampire", listActionHandler, menuStateAlwaysEnabledHandler, &dataVampire },
   { "Weapon packs", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPacks },
+  { "Weapon pickups", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPickups },
 
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt },

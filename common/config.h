@@ -39,6 +39,7 @@ typedef struct PatchGameConfig
   char grHealthBars;
   char grNoNames;
   char grNoInvTimer;
+  char grNoPickups;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;

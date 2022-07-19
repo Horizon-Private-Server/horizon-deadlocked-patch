@@ -119,6 +119,7 @@ void onMapEditorGameUpdate(void);
 // gamerules
 void grGameStart(void);
 void grLobbyStart(void);
+void grLoadStart(void);
 
 // 
 int hasInitialized = 0;
@@ -1280,6 +1281,9 @@ u64 hookedProcessLevel()
 	{
 		// Start at the first game module
 		GameModule * module = GLOBAL_GAME_MODULES_START;
+
+		// call gamerules level load
+		grLoadStart();
 	
 		// pass event to modules
 		while (module->GameEntrypoint || module->LobbyEntrypoint)

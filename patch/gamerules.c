@@ -27,6 +27,7 @@
 #include <libdl/graphics.h>
 #include <libdl/random.h>
 #include <libdl/camera.h>
+#include <libdl/gameplay.h>
 #include <libdl/math3d.h>
 #include <libdl/net.h>
 #include "module.h"
@@ -336,6 +337,23 @@ void rotatingWeaponsLogic(void)
 	}
 }
 
+/*
+ * NAME :		playerSizeScaleMoby
+ * 
+ * DESCRIPTION :
+ * 			Scales the given moby by the given scale.
+ * 			Uses the moby scale table to pull the default moby scale
+ * 			and then multiplies that by the given multiplier so that
+ * 			it can be called multiple times without compounding the scale multiplier.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
 void playerSizeScaleMoby(Moby* moby, float scale)
 {
 	float* mobyDef = *(float**)(0x002495c0 + (4 * moby->MClass));
@@ -489,6 +507,20 @@ void playerSizeLogic(void)
 	}
 }
 
+/*
+ * NAME :		headbuttDamage
+ * 
+ * DESCRIPTION :
+ * 			Intercepts headbutt damage to handle friendly fire and running over players.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
 void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damageFlags, VECTOR fromPos, VECTOR t0)
 {
 	Player * sourcePlayer = guberMobyGetPlayerDamager(sourceMoby);
@@ -553,6 +585,70 @@ void headbuttLogic(void)
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		if (HeadbuttHitTimers[i] > 0)
 			HeadbuttHitTimers[i]--;
+}
+
+/*
+ * NAME :		onGameplayLoadRemoveWeaponPickups
+ * 
+ * DESCRIPTION :
+ * 			Trigger right before processing the gameplay file.
+ * 			Removes weapon pickups from gameplay file and map.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onGameplayLoadRemoveWeaponPickups(GameplayHeaderDef_t * gameplay)
+{
+	int i;
+	GameplayMobyHeaderDef_t * mobyInstancesHeader = (GameplayMobyHeaderDef_t*)((u32)gameplay + gameplay->MobyInstancesOffset);
+
+	if (!gameConfig.grNoPickups)
+		return;
+		
+	// iterate each moby, moving all pickups to below the map
+	for (i = 0; i < mobyInstancesHeader->StaticCount; ++i) {
+		GameplayMobyDef_t* mobyDef = &mobyInstancesHeader->MobyInstances[i];
+		if (mobyDef->OClass == MOBY_ID_WEAPON_PICKUP) {
+			mobyDef->PosZ = -100;
+		}
+	}
+}
+
+/*
+ * NAME :		onGameplayLoadRemoveWeaponPickups
+ * 
+ * DESCRIPTION :
+ * 			Trigger right before processing the gameplay file.
+ * 			Removes weapon pickups from gameplay file and map.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onGameplayLoad(void * gameplayMobies, void * a1, void * a2)
+{
+	GameplayHeaderDef_t * gameplay;
+
+	// pointer to gameplay data is stored in $s1
+	asm volatile (
+		"move %0, $s1"
+		: : "r" (gameplay)
+	);
+
+	// call base
+	((void (*)(void*, void*, void*))0x004ecea0)(gameplayMobies, a1, a2);
+
+	// 
+	onGameplayLoadRemoveWeaponPickups(gameplay);
 }
 
 /*
@@ -989,4 +1085,27 @@ void grLobbyStart(void)
 
 	// Reset mirror world in lobby
 	cheatsApplyMirrorWorld(0);
+}
+
+
+/*
+ * NAME :		grLoadStart
+ * 
+ * DESCRIPTION :
+ * 			Gamerules load logic entrypoint.
+ * 
+ * NOTES :
+ * 			This is called only when the game has finished reading the level from the disc and before it has started processing the data.
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void grLoadStart(void)
+{
+	// Hook load gameplay file
+	if (*(u32*)0x004EE648 == 0x0C13B3A8)
+		*(u32*)0x004EE648 = 0x0C000000 | (u32)&onGameplayLoad / 4;
 }
