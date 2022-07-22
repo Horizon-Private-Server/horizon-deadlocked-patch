@@ -92,6 +92,11 @@ int GameRulesInitialized = 0;
 /*
  *
  */
+int FirstPass = 1;
+
+/*
+ *
+ */
 int BetterHillsInitialized = 0;
 
 /*
@@ -588,6 +593,49 @@ void headbuttLogic(void)
 }
 
 /*
+ * NAME :		alwaysV2sLogic
+ * 
+ * DESCRIPTION :
+ * 			Enables spawning with a v2.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void alwaysV2sLogic(void)
+{
+	int i, j = 0;
+	Player** players = NULL;
+	Player* player = NULL;
+
+	// force v2 on give weapon
+	*(u32*)0x005F0504 = 0x24100001;
+
+	// set all player weapons to v2
+	if (FirstPass)
+	{
+		players = playerGetAll();
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		{
+			player = players[i];
+			if (player && player->GadgetBox)
+			{
+				for (j = 0; j < 8; ++j)
+				{
+					struct GadgetEntry *gadget = &player->GadgetBox->Gadgets[weaponSlotToId(j + 1)];
+					if (gadget->Level == 0)
+						gadget->Level = 1;
+				}
+			}
+		}
+	}
+}
+
+/*
  * NAME :		onGameplayLoadRemoveWeaponPickups
  * 
  * DESCRIPTION :
@@ -1012,8 +1060,10 @@ void grGameStart(void)
 	if (gameConfig.grNoPacks)
 		cheatsApplyNoPacks();
 
-	if (gameConfig.grNoV2s)
+	if (gameConfig.grV2s == 2)
 		cheatsApplyNoV2s();
+	else if (gameConfig.grV2s == 1)
+		alwaysV2sLogic();
 
 	if (gameConfig.prWeatherId)
 		cheatsApplyMirrorWorld(1);
@@ -1055,6 +1105,8 @@ void grGameStart(void)
 #if TWEAKERS
 	tweakers();
 #endif
+
+	FirstPass = 0;
 }
 
 /*
@@ -1082,6 +1134,7 @@ void grLobbyStart(void)
 
 	// Reset
 	GameRulesInitialized = 0;
+	FirstPass = 1;
 
 	// Reset mirror world in lobby
 	cheatsApplyMirrorWorld(0);

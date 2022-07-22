@@ -443,6 +443,18 @@ MenuElem_ListData_t dataVampire = {
     }
 };
 
+// v2s list item
+MenuElem_ListData_t dataV2s = {
+    &gameConfig.grV2s,
+    NULL,
+    3,
+    {
+      "On",
+      "Always",
+      "Off",
+    }
+};
+
 // game settings tab menu items
 MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
@@ -461,7 +473,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
   { "Healthboxes", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoNames },
-  { "V2s", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoV2s },
+  { "V2s", listActionHandler, menuStateAlwaysEnabledHandler, &dataV2s },
   { "Vampire", listActionHandler, menuStateAlwaysEnabledHandler, &dataVampire },
   { "Weapon packs", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPacks },
   { "Weapon pickups", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPickups },

@@ -30,7 +30,7 @@ typedef struct PatchGameConfig
   char customModeId;
   char prWeatherId;
   char grNoPacks;
-  char grNoV2s;
+  char grV2s;
   char prMirrorWorld;
   char grNoHealthBoxes;
   char grVampire;
