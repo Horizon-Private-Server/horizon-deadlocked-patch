@@ -34,7 +34,7 @@ const float CAMERA_POSITION_SHARPNESS = 50;
  * How sharp/snappy the camera rotation interpolation.
  * Higher is more sharp.
  */
-const float CAMERA_ROTATION_SHARPNESS = 5;
+const float CAMERA_ROTATION_SHARPNESS = 30;
 
 /*
  * How sharp/snappy the camera rotation interpolation is in vehicle.
@@ -127,6 +127,7 @@ void enableSpectate(Player * player, struct PlayerSpectateData * data)
     *((u8*)0x00171DE0 + player->PlayerId) = 1;
     *(u32*)0x004DB88C = 0;
     *(u32*)0x005542D8 = 0x10000017; // allow min/max map when dead
+    *(u32*)0x005F4198 = 0; // disables weird camera yaw when spectated player respawns
 
     *(u32*)0x0054F46C = hookv; // healthbar
     *(u32*)0x00541708 = hookv; // get current gadget
@@ -154,6 +155,7 @@ void disableSpectate(Player * player, struct PlayerSpectateData * data)
     *((u8*)0x00171DE0 + player->PlayerId) = 0;
     *(u32*)0x004DB88C = 0xA48200E0;
     *(u32*)0x005542D8 = 0x45010182; // disable min/max map when dead
+    *(u32*)0x005F4198 = 0x3042FFFD; // re-enable weird camera yaw when spectated player respawns
 
     data->Enabled = 0;
     hudGetPlayerFlags(player->LocalPlayerIndex)->Flags.Weapons = 1;

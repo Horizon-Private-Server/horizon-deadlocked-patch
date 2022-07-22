@@ -1153,7 +1153,7 @@ void runPlayerStateSync(void)
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
 		Player* p = players[i];
-		if (p && !playerIsLocal(p))
+		if (p && !playerIsLocal(p) && !playerIsDead(p))
 		{
 			// get remote state
 			int localState = p->PlayerState;
