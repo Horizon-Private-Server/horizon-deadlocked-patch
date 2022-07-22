@@ -31,7 +31,9 @@
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
 #include <libdl/sha1.h>
+#include <libdl/utils.h>
 #include <libdl/music.h>
+#include <libdl/color.h>
 
 /*
  * Array of game modules.
