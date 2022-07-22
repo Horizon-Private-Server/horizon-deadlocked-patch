@@ -40,7 +40,7 @@ const float CAMERA_ROTATION_SHARPNESS = 5;
  * How sharp/snappy the camera rotation interpolation is in vehicle.
  * Higher is more sharp.
  */
-const float VEHICLE_CAMERA_ROTATION_SHARPNESS = 0.3;
+const float VEHICLE_CAMERA_ROTATION_SHARPNESS = 3;
 
 // config
 extern PatchConfig_t config;
@@ -94,6 +94,24 @@ const float VEHICLE_ELEVATION[] =
 };
 
 /*
+ * NAME :		playerGetFromSlot_Hook
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+Player* playerGetFromSlot_Hook(int i)
+{
+    if (SpectateData[i].Enabled) {
+        Player** players = playerGetAll();
+        return players[SpectateData[i].Index];
+    } else {
+        return playerGetFromSlot(i);
+    }
+}
+
+/*
  * NAME :		enableSpectate
  * 
  * DESCRIPTION :
@@ -103,13 +121,24 @@ const float VEHICLE_ELEVATION[] =
  */
 void enableSpectate(Player * player, struct PlayerSpectateData * data)
 {
+    u32 hookv = 0x0C000000 | ((u32)&playerGetFromSlot_Hook >> 2);
+
     // Fixes void fall bug
     *((u8*)0x00171DE0 + player->PlayerId) = 1;
     *(u32*)0x004DB88C = 0;
+    *(u32*)0x005542D8 = 0x10000017; // allow min/max map when dead
+
+    *(u32*)0x0054F46C = hookv; // healthbar
+    *(u32*)0x00541708 = hookv; // get current gadget
+    *(u32*)0x005418c4 = hookv; // get gadget version name
+    *(u32*)0x00541f3c = hookv; // get player hud team
+    *(u32*)0x0054209c = hookv; // get gadget color
+    *(u32*)0x00552bd0 = hookv; // ammo update ammo
+    *(u32*)0x00555904 = hookv; // radar update map
+    *(u32*)0x0055615c = hookv; // radar update blip
 
     data->Enabled = 1;
     hudGetPlayerFlags(player->LocalPlayerIndex)->Flags.Weapons = 0;
-    hudGetPlayerFlags(player->LocalPlayerIndex)->Flags.Healthbar = 0;
 }
 
 /*
@@ -124,10 +153,10 @@ void disableSpectate(Player * player, struct PlayerSpectateData * data)
 {
     *((u8*)0x00171DE0 + player->PlayerId) = 0;
     *(u32*)0x004DB88C = 0xA48200E0;
+    *(u32*)0x005542D8 = 0x45010182; // disable min/max map when dead
 
     data->Enabled = 0;
     hudGetPlayerFlags(player->LocalPlayerIndex)->Flags.Weapons = 1;
-    hudGetPlayerFlags(player->LocalPlayerIndex)->Flags.Healthbar = 1;
 }
 
 /*
