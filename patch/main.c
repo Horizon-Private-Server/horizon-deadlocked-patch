@@ -135,6 +135,7 @@ int lastCrazyMode = 0;
 char mapOverrideResponse = 1;
 char showNoMapPopup = 0;
 const char * patchConfigStr = "PATCH CONFIG";
+char weaponOrderBackup[2][3] = { {0,0,0}, {0,0,0} };
 //char hasSetRanks = 0;
 //ServerSetRanksRequest_t lastSetRanksRequest;
 
@@ -310,6 +311,115 @@ void patchAnnouncements()
 		ANNOUNCEMENTS_CHECK_PATCH = 0x241E0000;
 	else if (!config.enableGamemodeAnnouncements && addrValue == 0x241E0000)
 		ANNOUNCEMENTS_CHECK_PATCH = 0x907E01A9;
+}
+
+/*
+ * NAME :		patchResurrectWeaponOrdering_HookWeaponStripMe
+ * 
+ * DESCRIPTION :
+ * 			Invoked during the resurrection process, when the game wishes to remove all weapons from the given player.
+ * 			Before we continue to remove the player's weapons, we backup the list of equipped weapons.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchResurrectWeaponOrdering_HookWeaponStripMe(Player * player)
+{
+	// backup currently equipped weapons
+	if (player->IsLocal) {
+		weaponOrderBackup[player->LocalPlayerIndex][0] = playerGetLocalEquipslot(player->LocalPlayerIndex, 0);
+		weaponOrderBackup[player->LocalPlayerIndex][1] = playerGetLocalEquipslot(player->LocalPlayerIndex, 1);
+		weaponOrderBackup[player->LocalPlayerIndex][2] = playerGetLocalEquipslot(player->LocalPlayerIndex, 2);
+	}
+
+	// call hooked WeaponStripMe function after backup
+	((void (*)(Player*))0x005e2e68)(player);
+}
+
+/*
+ * NAME :		patchResurrectWeaponOrdering_HookGiveMeRandomWeapons
+ * 
+ * DESCRIPTION :
+ * 			Invoked during the resurrection process, when the game wishes to give the given player a random set of weapons.
+ * 			After the weapons are randomly assigned to the player, we check to see if the given weapons are the same as the last equipped weapon backup.
+ * 			If they contain the same list of weapons (regardless of order), then we force the order of the new set of weapons to match the backup.
+ * 
+ * 			Consider the scenario:
+ * 				Player dies with 								Fusion, B6, Magma Cannon
+ * 				Player is assigned 							B6, Fusion, Magma Cannon
+ * 				Player resurrects with  				Fusion, B6, Magma Cannon
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchResurrectWeaponOrdering_HookGiveMeRandomWeapons(Player* player, int weaponCount)
+{
+	int i, j, matchCount = 0;
+
+	// call hooked GiveMeRandomWeapons function first
+	((void (*)(Player*, int))0x005f7510)(player, weaponCount);
+
+	// then try and overwrite given weapon order if weapons match equipped weapons before death
+	if (player->IsLocal) {
+
+		// restore backup if they match (regardless of order) newly assigned weapons
+		for (i = 0; i < 3; ++i) {
+			int backedUpSlotValue = weaponOrderBackup[player->LocalPlayerIndex][i];
+			for (j = 0; j < 3; ++j) {
+				if (backedUpSlotValue == playerGetLocalEquipslot(player->LocalPlayerIndex, j)) {
+					matchCount++;
+					DPRINTF("WEAPON ORDERING MATCH %d (backup:%d => new:%d)\n", backedUpSlotValue, i, j);
+				}
+			}
+		}
+
+		// if we found a match, set
+		if (matchCount == 3) {
+			DPRINTF("RESTORING BACKED UP WEAPON ORDER\n");
+
+			// set equipped weapon in order
+			for (i = 0; i < 3; ++i) {
+				playerSetLocalEquipslot(player->LocalPlayerIndex, i, weaponOrderBackup[player->LocalPlayerIndex][i]);
+			}
+
+			// equip first slot weapon
+			playerEquipWeapon(player, weaponOrderBackup[player->LocalPlayerIndex][0]);
+		}
+	}
+}
+
+/*
+ * NAME :		patchResurrectWeaponOrdering
+ * 
+ * DESCRIPTION :
+ * 			Installs necessary hooks such that when respawning with same weapons,
+ * 			they are equipped in the same order.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchResurrectWeaponOrdering(void)
+{
+	if (!isInGame())
+		return;
+
+	*(u32*)0x005e2b2c = 0x0C000000 | ((u32)&patchResurrectWeaponOrdering_HookWeaponStripMe >> 2);
+	*(u32*)0x005e2b48 = 0x0C000000 | ((u32)&patchResurrectWeaponOrdering_HookGiveMeRandomWeapons >> 2);
 }
 
 /*
@@ -2121,6 +2231,9 @@ int main (void)
 
 	// Patch voice update
 	patchVoiceUpdate();
+
+	// Patch resurrect weapon ordering
+	patchResurrectWeaponOrdering();
 
 	// 
 	//patchWideStats();
