@@ -635,7 +635,10 @@ void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
   configMenuDisable();
 
   // 
-  mapsPromptEnableCustomMaps();
+  if (mapsPromptEnableCustomMaps() < 0)
+  {
+    uiShowOkDialog("Custom Maps", "Error. Not enough memory.");
+  }
 }
 
 // 

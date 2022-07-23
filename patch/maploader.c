@@ -1,8 +1,6 @@
 #include <libdl/stdio.h>
+#include <libdl/stdlib.h>
 #include <libdl/net.h>
-#include "rpc.h"
-#include "messageid.h"
-#include "config.h"
 #include <libdl/mc.h>
 #include <libdl/string.h>
 #include <libdl/ui.h>
@@ -11,6 +9,9 @@
 #include <libdl/gamesettings.h>
 #include <libdl/game.h>
 #include "include/config.h"
+#include "rpc.h"
+#include "messageid.h"
+#include "config.h"
 
 #include <sifcmd.h>
 #include <iopheap.h>
@@ -26,9 +27,11 @@
 #define LOAD_MODULES_RESULT                     (*(u8*)0x000CFFF1)
 #define HAS_LOADED_MODULES                      (LOAD_MODULES_STATE == 100)
 
-#define USB_FS_ID                               (*(u8*)0x000CFFF4)
-#define USB_SRV_ID                              (*(u8*)0x000CFFF8)
+#define USB_FS_ID                               (*(u8*)0x000CFFF2)
+#define USB_SRV_ID                              (*(u8*)0x000CFFF3)
 
+#define USB_FS_MODULE_PTR												(*(void**)0x000CFFF8)
+#define USB_SRV_MODULE_PTR											(*(void**)0x000CFFFC)
 
 void hook(void);
 void loadModules(void);
@@ -36,9 +39,7 @@ void loadModules(void);
 int readLevelVersion(char * name, int * version);
 int readGlobalVersion(int * version);
 
-void * usbFsModuleStart = (void*)0x000D0000;
 int usbFsModuleSize = 0;
-void * usbSrvModuleStart = (void*)0x000DD000;
 int usbSrvModuleSize = 0;
 
 // patch config
@@ -383,8 +384,8 @@ void loadModules(void)
 		SifInitRpc(0);
 
 		// Load modules
-		USB_FS_ID = SifExecModuleBuffer(usbFsModuleStart, usbFsModuleSize, 0, NULL, &mod_res);
-		USB_SRV_ID = SifExecModuleBuffer(usbSrvModuleStart, usbSrvModuleSize, 0, NULL, &mod_res);
+		USB_FS_ID = SifExecModuleBuffer(USB_FS_MODULE_PTR, usbFsModuleSize, 0, NULL, &mod_res);
+		USB_SRV_ID = SifExecModuleBuffer(USB_SRV_MODULE_PTR, usbSrvModuleSize, 0, NULL, &mod_res);
 
 		DPRINTF("Loading MASS: %d\n", USB_FS_ID);
 		DPRINTF("Loading USBSERV: %d\n", USB_SRV_ID);
@@ -880,14 +881,35 @@ int mapsDownloadingModules(void)
 }
 
 //------------------------------------------------------------------------------
+int mapsAllocateModuleBuffer(void)
+{
+	if (!USB_FS_MODULE_PTR)
+		USB_FS_MODULE_PTR = malloc(36800);
+	if (!USB_SRV_MODULE_PTR)
+		USB_SRV_MODULE_PTR = malloc(4100);
+
+	DPRINTF("fs:%08X srv:%08x\n", (u32)USB_FS_MODULE_PTR, (u32)USB_SRV_MODULE_PTR);
+
+	if (!USB_FS_MODULE_PTR)
+		return 0;
+	if (!USB_SRV_MODULE_PTR)
+		return 0;
+
+	return 1;
+}
+
+//------------------------------------------------------------------------------
 int mapsPromptEnableCustomMaps(void)
 {
 	MapClientRequestModulesMessage request = { 0, 0 };
 	if (uiShowYesNoDialog("Enable Custom Maps", "Are you sure?") == 1)
 	{
+		if (!mapsAllocateModuleBuffer())
+			return -1;
+
 		// request irx modules from server
-		request.Module1Start = (u32)usbFsModuleStart;
-		request.Module2Start = (u32)usbSrvModuleStart;
+		request.Module1Start = (u32)USB_FS_MODULE_PTR;
+		request.Module2Start = (u32)USB_SRV_MODULE_PTR;
 		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
 		actionState = ACTION_DOWNLOADING_MODULES;
 		return 1;
@@ -980,10 +1002,16 @@ void onMapLoaderOnlineMenu(void)
 #endif
 	else if (initialized == 2)
 	{
+		if (!mapsAllocateModuleBuffer())
+		{
+			printf("failed to allocation module buffers\n");
+			initialized = 1;
+		}
+
 		// request irx modules from server
 		MapClientRequestModulesMessage request = { 0, 0 };
-		request.Module1Start = (u32)usbFsModuleStart;
-		request.Module2Start = (u32)usbSrvModuleStart;
+		request.Module1Start = (u32)USB_FS_MODULE_PTR;
+		request.Module2Start = (u32)USB_SRV_MODULE_PTR;
 		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_MAP_IRX_MODULES, sizeof(MapClientRequestModulesMessage), &request);
 		actionState = ACTION_DOWNLOADING_MODULES;
 		initialized = 1;
