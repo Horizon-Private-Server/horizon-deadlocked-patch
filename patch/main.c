@@ -109,6 +109,10 @@ void configMenuEnable(void);
 void configMenuDisable(void);
 void configTrySendGameConfig(void);
 
+#if FREECAM
+void processFreecam(void);
+#endif
+
 #if COMP
 void runCompMenuLogic(void);
 void runCompLogic(void);
@@ -2182,7 +2186,7 @@ int main (void)
 #endif
 
 	//dot();
-
+	
 	// 
 	runCheckGameMapInstalled();
 
@@ -2458,6 +2462,10 @@ int main (void)
 	// Process spectate
 	if (config.enableSpectate)
 		processSpectate();
+
+#if FREECAM
+	processFreecam();
+#endif
 
 	// Process game modules
 	processGameModules();

@@ -49,4 +49,12 @@ void writeDrawFunctionPatch(u32 addr1, u32 addr2, u32 value)
 	POKE_U16(addr1, (u16)(value >> 16));
 	POKE_U16(addr2, (u16)value);
 }
+
+void patchTeamColoredShots(void)
+{
+	if (!isInGame())
+		return;
+
+	writeDrawFunctionPatch(0x003fdc88, 0x003fdc9c, &FusionShotDrawFunction);
+}
 ```

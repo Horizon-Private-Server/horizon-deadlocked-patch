@@ -12,6 +12,12 @@ EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 #EE_DEFS += -DMAPEDITOR
 #EE_DEFS += -DSCR_PRINT
 #EE_DEFS += -DMAPDOWNLOADER
+#EE_DEFS += -DFREECAM
+
+# build freecam if defined
+ifneq (,$(findstring -DFREECAM,$(EE_DEFS)))
+    EE_OBJS += freecam.o
+endif
 
 all: $(EE_BIN) clean copy
 
