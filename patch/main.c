@@ -424,8 +424,8 @@ void patchResurrectWeaponOrdering(void)
 	if (!isInGame())
 		return;
 
-	*(u32*)0x005e2b2c = 0x0C000000 | ((u32)&patchResurrectWeaponOrdering_HookWeaponStripMe >> 2);
-	*(u32*)0x005e2b48 = 0x0C000000 | ((u32)&patchResurrectWeaponOrdering_HookGiveMeRandomWeapons >> 2);
+	HOOK_JAL(0x005e2b2c, &patchResurrectWeaponOrdering_HookWeaponStripMe);
+	HOOK_JAL(0x005e2b48, &patchResurrectWeaponOrdering_HookGiveMeRandomWeapons);
 }
 
 /*
@@ -741,10 +741,10 @@ void patchKillStealing()
 }
 
 /*
- * NAME :		patchVoiceUpdate
+ * NAME :		patchAggTime
  * 
  * DESCRIPTION :
- * 			Removes voice update logic.
+ * 			Sets agg time to user configured value.
  * 
  * NOTES :
  * 
@@ -754,16 +754,6 @@ void patchKillStealing()
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void patchVoiceUpdate()
-{
-	// 
-	if (*VOICE_UPDATE_FUNC == 0x27BDFFB0)
-	{
-		*VOICE_UPDATE_FUNC = 0x03E00008;
-		*(VOICE_UPDATE_FUNC+1) = 0;
-	}
-}
-
 void patchAggTime(void)
 {
 	int aggTime = 30 + (config.playerAggTime * 5);
@@ -2146,6 +2136,14 @@ int main (void)
 		lastMenuInvokedTime = 0;
 	}
 
+	//
+	if (!hasInitialized)
+	{
+		DPRINTF("patch loaded\n");
+		onConfigInitialize();
+		hasInitialized = 1;
+	}
+
 	// invoke exception display installer
 	if (*(u32*)EXCEPTION_DISPLAY_ADDR != 0)
 	{
@@ -2235,9 +2233,6 @@ int main (void)
 	// Patch kill stealing
 	patchKillStealing();
 
-	// Patch voice update
-	patchVoiceUpdate();
-
 	// Patch resurrect weapon ordering
 	patchResurrectWeaponOrdering();
 
@@ -2293,14 +2288,6 @@ int main (void)
 		// close config menu on transition to lobby
 		if (lastGameState != 1)
 			configMenuDisable();
-
-		//
-		if (!hasInitialized)
-		{
-			DPRINTF("patch loaded\n");
-			onConfigInitialize();
-			hasInitialized = 1;
-		}
 
 		// patch lod
 		if (*(u32*)0x005930B8 == 0x02C3B020)
@@ -2376,7 +2363,7 @@ int main (void)
 		if (gameSettings && gameSettings->GameLoadStartTime < 0)
 		{
 			// if host and just entered staging, send patch game config
-			if (*(u8*)0x00172170 == 0 && !isInStaging)
+			if (gameAmIHost() && !isInStaging)
 			{
 				// copy over last game config as host
 				memcpy(&gameConfig, &gameConfigHostBackup, sizeof(PatchGameConfig_t));
@@ -2432,6 +2419,7 @@ int main (void)
 		}
 
 		// patch server hostname
+		/*
 		if (0)
 		{
 			char * muisServerHostname = (char*)0x001B1ECD;
@@ -2447,6 +2435,7 @@ int main (void)
 				}
 			}
 		}
+		*/
 
 		// patch red and brown as last two color codes
 		*(u32*)0x004C8A68 = COLOR_CODE_EX1;

@@ -215,7 +215,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	//
 	int init = rpcInit = rpcUSBInit();
 
-	DPRINTF("rpcUSBInit: %d, %08X:%d, %08X:%d\n", init, (u32)usbFsModuleStart, usbFsModuleSize, (u32)usbSrvModuleStart, usbSrvModuleSize);
+	DPRINTF("rpcUSBInit: %d, %08X:%d, %08X:%d\n", init, (u32)USB_FS_MODULE_PTR, usbFsModuleSize, (u32)USB_SRV_MODULE_PTR, usbSrvModuleSize);
 	
 	//
 	if (init < 0)

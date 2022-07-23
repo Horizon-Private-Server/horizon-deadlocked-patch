@@ -34,18 +34,22 @@ const int patches[][3] = {
 	{ 0, 0x0072C3FC, 0x0C1CBBDE }, // GAMESETTINGS_LOAD_PATCH
 	{ 0, 0x004B882C, 0x00712BF0 }, // GAMESETTINGS_BUILD_PTR
 	{ 0, 0x0072E5B4, 0x0C1C2D50 }, // GAMESETTINGS_CREATE_PATCH
+	{ 0, 0x00759580, 0x0C1D5D98 }, // start game hook
 	{ -1, 0x01EAAB10, 0x03E00008 }, // GET_MEDIUS_APP_HANDLER_HOOK
 	{ -1, 0x00211E64, 0x00000000 }, // net global callbacks ptr
 	{ -1, 0x00212164, 0x00000000 }, // dme callback table custom msg handler ptr
 	{ -1, 0x00157D38, 0x0C055E68 }, // process level jal
+	{ -1, 0x0015C0EC, 0x03E00008 }, // MediusGetLadderStatsWide hook
 	// maploader
 	{ 0, 0x005CFB48, 0x0C058E10 }, // hookLoadAddr
 	{ 0, 0x00705554, 0x0C058E02 }, // hookLoadingScreenAddr
 	{ -1, 0x00163814, 0x0C058E10 }, // hookLoadCdvdAddr
 	{ 0, 0x005CF9B0, 0x0C058E4A }, // hookCheckAddr
 	{ -1, 0x00159B20, 0x0C056680 }, // hookTableAddr
-	{ -1, 0x00159B20, 0x0C056680 }, // hookTableAddr
+	{ 1, 0x00557580, 0x0C058E02 }, // hookMapAddr
+	{ 1, 0x0053F970, 0x0C058E02 }, // hookAudioAddr
 	{ 0, 0x007055B4, 0x0C046A7B }, // hook loading screen map name strcpy
+	{ 0, 0x0070583C, 0x0C046A7B }, // hook loading screen map name strcpy
 	// comp
 	{ 0, 0x004BD1B8, 0x0073BA08 }, // end game scoreboard vtable function
 	{ 0, 0x004BB6C8, 0x007280F0 }, // clan room menu vtable function
@@ -58,6 +62,12 @@ const int patches[][3] = {
 	{ 0, 0x00763DC0, 0x24020004 }, // enable changing team in staging
 	// in game
 	{ 1, 0x005930B8, 0x02C3B020 }, // lod patch
+	{ 1, 0x005605D4, 0x0C15803E }, // start menu back callback
+	{ 1, 0x0060eb80, 0x0C18784C }, // player state update
+	{ 1, 0x005E07C8, 0x0C177FC2 }, // who hit me hook (kill steal patch)
+	{ 1, 0x005E11B0, 0x0C177FC2 }, // who hit me hook #2
+	{ 1, 0x005e2b2c, 0x0C178B9A }, // resurrect WeaponStripMe hook
+	{ 1, 0x005e2b48, 0x0C17DD44 }, // resurrect GiveMeRandomWeapons hook
 };
 
 const int clears[][2] = {
