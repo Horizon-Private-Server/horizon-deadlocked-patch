@@ -44,6 +44,7 @@ typedef struct PatchGameConfig
   char prRotatingWeapons;
   char prHeadbutt;
   char prHeadbuttFriendlyFire;
+  char prChargebootForever;
   SurvivalConfig_t survivalConfig;
 } PatchGameConfig_t;
 

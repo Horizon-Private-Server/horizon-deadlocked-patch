@@ -180,37 +180,51 @@ enum PlayerStateConditionType
 	PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS
 };
 
+typedef struct PlayerStateRemoteHistory
+{
+	int CurrentRemoteState;
+	int TimeRemoteStateLastChanged;
+	int TimeLastRemoteStateForced;
+} PlayerStateRemoteHistory_t;
+
+PlayerStateRemoteHistory_t RemoteStateTimeStart[GAME_MAX_PLAYERS];
+
 typedef struct PlayerStateCondition
 {
 	enum PlayerStateConditionType Type;
-	int TimeSince;
+	int TicksSince;
 	int StateId;
+	int MaxTicks; // number of ticks since start of the remote state before state is ignored
 } PlayerStateCondition_t;
 
 //
 const PlayerStateCondition_t stateSkipRemoteConditions[] = {
 	{	// skip when player is swinging
-		PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
-		0,
-		PLAYER_STATE_SWING
+		.Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+		.TicksSince = 0,
+		.StateId = PLAYER_STATE_SWING,
+		.MaxTicks = 0
 	},
 	{	// skip when player is drowning
-		PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
-		0,
-		PLAYER_STATE_DROWN
+		.Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+		.TicksSince = 0,
+		.StateId = PLAYER_STATE_DROWN,
+		.MaxTicks = 0
 	},
 	{	// skip when player is falling into death void
-		PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
-		0,
-		PLAYER_STATE_DEATH_FALL
+		.Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+		.TicksSince = 0,
+		.StateId = PLAYER_STATE_DEATH_FALL,
+		.MaxTicks = 0
 	},
 };
 
 const PlayerStateCondition_t stateForceRemoteConditions[] = {
 	{ // force chargebooting
-		PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
-		0,
-		PLAYER_STATE_CHARGE
+		.Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+		.TicksSince = 15,
+		.StateId = PLAYER_STATE_CHARGE,
+		.MaxTicks = 60
 	},
 	// { // force remote if local is still wrenching
 	// 	PLAYERSTATECONDITION_LOCAL_EQUALS,
@@ -866,6 +880,11 @@ int patchStateUpdate_Hook(void * a0, void * a1)
 		// set to 1 to force full state update
 		*(u8*)((u32)p + 0x31cf) = 1;
 	}
+	else
+	{
+		// set to 1 to force full state update
+		*(u8*)((u32)p + 0x31cf) = 1;
+	}
 
 	return v0;
 }
@@ -1249,7 +1268,7 @@ void runPlayerStateSync(void)
 {
 	const int stateForceCount = sizeof(stateForceRemoteConditions) / sizeof(PlayerStateCondition_t);
 	const int stateSkipCount = sizeof(stateSkipRemoteConditions) / sizeof(PlayerStateCondition_t);
-
+	int gameTime = gameGetTime();
 	Player ** players = playerGetAll();
 	int i,j;
 
@@ -1259,15 +1278,21 @@ void runPlayerStateSync(void)
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
 		Player* p = players[i];
-		if (p && !playerIsLocal(p) && !playerIsDead(p))
+		if (p && !playerIsLocal(p))
 		{
 			// get remote state
 			int localState = p->PlayerState;
 			int remoteState = *(int*)((u32)p + 0x3a80);
+			if (RemoteStateTimeStart[i].CurrentRemoteState != remoteState)
+			{
+				RemoteStateTimeStart[i].CurrentRemoteState = remoteState;
+				RemoteStateTimeStart[i].TimeRemoteStateLastChanged = gameTime;
+			}
+			int remoteStateTicks = ((gameTime - RemoteStateTimeStart[i].TimeRemoteStateLastChanged) / 1000) * 60;
 
 			// force onto local state
 			PlayerVTable* vtable = playerGetVTable(p);
-			if (vtable && remoteState != localState)
+			if (!playerIsDead(p) && vtable && remoteState != localState)
 			{
 				int pStateTimer = p->timers.state;
 				int skip = 0;
@@ -1277,7 +1302,7 @@ void runPlayerStateSync(void)
 				for (j = 0; j < stateSkipCount; ++j)
 				{
 					const PlayerStateCondition_t* condition = &stateSkipRemoteConditions[j];
-					if (pStateTimer >= condition->TimeSince)
+					if (pStateTimer >= condition->TicksSince)
 					{
 						if (checkStateCondition(condition, localState, remoteState))
 						{
@@ -1297,12 +1322,21 @@ void runPlayerStateSync(void)
 				for (j = 0; j < stateForceCount; ++j)
 				{
 					const PlayerStateCondition_t* condition = &stateForceRemoteConditions[j];
-					if (pStateTimer >= condition->TimeSince)
+					if (pStateTimer >= condition->TicksSince
+							&& (condition->MaxTicks <= 0 || remoteStateTicks < condition->MaxTicks)
+							&& (gameTime - RemoteStateTimeStart[i].TimeLastRemoteStateForced) > 500)
 					{
 						if (checkStateCondition(condition, localState, remoteState))
 						{
-							DPRINTF("%d changing remote player %08x (%d) state to %d (from %d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, localState, pStateTimer);
-							vtable->UpdateState(p, remoteState, 1, 1, 1);
+							if (condition->MaxTicks > 0 && remoteState != condition->StateId) {
+								DPRINTF("%d changing remote player %08x (%d) state ticks to %d (from %d) state:%d\n", j, (u32)p, p->PlayerId, condition->MaxTicks, p->timers.state, localState);
+								p->timers.state = condition->MaxTicks;
+							} else {
+								DPRINTF("%d changing remote player %08x (%d) state to %d (from %d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, localState, pStateTimer);
+								vtable->UpdateState(p, remoteState, 1, 1, 1);
+								p->timers.state = remoteStateTicks;
+							}
+							RemoteStateTimeStart[i].TimeLastRemoteStateForced = gameTime;
 							break;
 						}
 					}
@@ -1968,7 +2002,7 @@ void onOnlineMenu(void)
 	}
 
 	// 
-	if (hasInitialized == 1 && uiGetActive() == UI_ID_ONLINE_MAIN_MENU)
+	if (hasInitialized == 1)
 	{
 		uiShowOkDialog("System", "Patch has been successfully loaded.");
 		hasInitialized = 2;
@@ -2142,6 +2176,11 @@ int main (void)
 		DPRINTF("patch loaded\n");
 		onConfigInitialize();
 		hasInitialized = 1;
+
+		if (isInGame()) {
+			uiShowPopup(0, "Patch has been successfully loaded.");
+			hasInitialized = 2;
+		}
 	}
 
 	// invoke exception display installer

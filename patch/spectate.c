@@ -105,10 +105,12 @@ Player* playerGetFromSlot_Hook(int i)
 {
     if (SpectateData[i].Enabled) {
         Player** players = playerGetAll();
-        return players[SpectateData[i].Index];
-    } else {
-        return playerGetFromSlot(i);
+        Player* player = players[SpectateData[i].Index];
+        if (player)
+            return player;
     }
+    
+    return playerGetFromSlot(i);
 }
 
 /*
@@ -130,6 +132,7 @@ void enableSpectate(Player * player, struct PlayerSpectateData * data)
     *(u32*)0x005F4198 = 0; // disables weird camera yaw when spectated player respawns
 
     *(u32*)0x0054F46C = hookv; // healthbar
+    *(u32*)0x0054f898 = hookv; // healthbar widgets
     *(u32*)0x00541708 = hookv; // get current gadget
     *(u32*)0x005418c4 = hookv; // get gadget version name
     *(u32*)0x00541f3c = hookv; // get player hud team

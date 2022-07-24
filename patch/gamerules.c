@@ -636,6 +636,38 @@ void alwaysV2sLogic(void)
 }
 
 /*
+ * NAME :		unlimitedChargebootLogic
+ * 
+ * DESCRIPTION :
+ * 			Keeps the player chargebooting while holding L2.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void unlimitedChargebootLogic(void)
+{
+	int i;
+	Player** players = playerGetAll();
+
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+	{
+		Player * p = players[i];
+		if (!p)
+			continue;
+		
+		// if player is cbooting, holding l2, and about to end cboot state
+		// then force state to not reach end (keep chargebooting)
+		if (p->PlayerState == PLAYER_STATE_CHARGE && playerPadGetButton(p, PAD_L2) > 0 && p->timers.state > 55)
+			p->timers.state = 55;
+	}
+}
+
+/*
  * NAME :		onGameplayLoadRemoveWeaponPickups
  * 
  * DESCRIPTION :
@@ -1101,6 +1133,9 @@ void grGameStart(void)
 
 	if (gameConfig.prHeadbutt)
 		headbuttLogic();
+
+	if (gameConfig.prChargebootForever)
+		unlimitedChargebootLogic();
 
 #if TWEAKERS
 	tweakers();

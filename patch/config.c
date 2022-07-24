@@ -479,6 +479,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Weapon pickups", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPickups },
 
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Chargeboot Forever", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prChargebootForever },
   { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt },
   { "Headbutt Friendly Fire", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbuttFriendlyFire },
   { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prMirrorWorld },

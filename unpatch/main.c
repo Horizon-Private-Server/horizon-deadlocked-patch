@@ -68,6 +68,16 @@ const int patches[][3] = {
 	{ 1, 0x005E11B0, 0x0C177FC2 }, // who hit me hook #2
 	{ 1, 0x005e2b2c, 0x0C178B9A }, // resurrect WeaponStripMe hook
 	{ 1, 0x005e2b48, 0x0C17DD44 }, // resurrect GiveMeRandomWeapons hook
+	// spectator
+	{ 1, 0x0054F46C, 0x0C1734F4 }, // healthbar
+	{ 1, 0x0054f898, 0x0C1734F4 }, // healthbar
+	{ 1, 0x00541708, 0x0C1734F4 }, // get current gadget
+	{ 1, 0x005418c4, 0x0C1734F4 }, // get gadget version name
+	{ 1, 0x00541f3c, 0x0C1734F4 }, // get player hud team
+	{ 1, 0x0054209c, 0x0C1734F4 }, // get gadget color
+	{ 1, 0x00552bd0, 0x0C1734F4 }, // ammo update ammo
+	{ 1, 0x00555904, 0x0C1734F4 }, // radar update map
+	{ 1, 0x0055615c, 0x0C1734F4 }, // radar update blip
 };
 
 const int clears[][2] = {
