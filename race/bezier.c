@@ -161,12 +161,19 @@ float bezierMovePath(float* time, int* index, BezierPoint_t* vertices, int verte
 			}
 		}
 
-		// move along vertex by leftover distance
 		float dist = 0;
-		if (backwards)
-			dist = bezierMove(&t, &vertices[i+1], &vertices[i], distance);
-		else
-			dist = bezierMove(&t, &vertices[i], &vertices[i+1], distance);
+		if (vertices[i].Disconnected) {
+			// if disconnected, jump to the next point
+			t = 1;
+			dist = 0.0001;
+		} else {
+			// move along vertex by leftover distance
+			if (backwards) {
+				dist = bezierMove(&t, &vertices[i+1], &vertices[i], distance);
+			} else {
+				dist = bezierMove(&t, &vertices[i], &vertices[i+1], distance);
+			}
+		}
 
 		if (dist < 0.0001)
 			break;
@@ -217,6 +224,10 @@ float bezierGetClosestPointOnPath(VECTOR out, VECTOR position, BezierPoint_t* ve
 	bestDistSqr = -1;
   while (i < (bestCtrlIdx+2) && i < lastVertex)
 	{
+		// skip disconnected segments
+		if (vertices[i].Disconnected)
+			continue;
+			
 		t = 0;
 
 		// get first position

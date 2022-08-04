@@ -10,6 +10,8 @@ typedef struct BezierPoint
 	VECTOR HandleIn;
 	VECTOR ControlPoint;
 	VECTOR HandleOut;
+	char Disconnected;
+	char Padding[15];
 } BezierPoint_t;
 
 void bezierGetPosition(VECTOR out, BezierPoint_t * a, BezierPoint_t * b, float t);

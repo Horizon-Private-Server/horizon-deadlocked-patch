@@ -29,6 +29,8 @@ int isConfigMenuActive = 0;
 int selectedTabItem = 0;
 u32 padPointer = 0;
 
+char fixWeaponLagToggle = 1;
+
 //
 int dlBytesReceived = 0;
 int dlTotalBytes = 0;
@@ -144,6 +146,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
   { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
+//  { "Fix Weapon Lag", toggleActionHandler, menuStateAlwaysEnabledHandler, &fixWeaponLagToggle },
 };
 
 #if TWEAKERS
@@ -277,6 +280,28 @@ MenuElem_t menuElementsCharacter[] = {
   { "Right Arm Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterRightArmPos },
   { "Left Leg Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterLeftLegPos },
   { "Right Leg Pos", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataCharacterRightLegPos },
+};
+
+#endif
+
+#if FREECAM
+
+extern FreecamSettings_t freecamSettings;
+
+// player fov range item
+MenuElem_RangeData_t dataFieldOfView = {
+    .value = &config.playerFov,
+    .stateHandler = NULL,
+    .minValue = -10,
+    .maxValue = 10,
+};
+
+// character tab menu items
+MenuElem_t menuElementsFreecam[] = {
+  { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
+  { "Airwalk", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.airwalk },
+  { "Lock Position", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.lockPosition },
+  { "Lock Animation", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.lockStateToggle },
 };
 
 #endif
@@ -469,6 +494,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Better hills", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterHills },
   { "Damage cooldown", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoInvTimer },
+  { "Fix Wallsniping", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grFusionShotsAlwaysHit },
   { "Half time", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHalfTime },
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
   { "Healthboxes", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoHealthBoxes },
@@ -525,6 +551,9 @@ MenuElem_t menuElementsMapEditor[] = {
 // tab items
 TabElem_t tabElements[] = {
   { "General", tabDefaultStateHandler, menuElementsGeneral, sizeof(menuElementsGeneral)/sizeof(MenuElem_t) },
+#if FREECAM
+  { "Free Cam", tabDefaultStateHandler, menuElementsFreecam, sizeof(menuElementsFreecam)/sizeof(MenuElem_t) },
+#endif
 #if TWEAKERS
   { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter)/sizeof(MenuElem_t) },
 #endif

@@ -29,6 +29,7 @@
 #include <libdl/camera.h>
 #include <libdl/gameplay.h>
 #include <libdl/math3d.h>
+#include <libdl/utils.h>
 #include <libdl/net.h>
 #include "module.h"
 #include "messageid.h"
@@ -667,6 +668,62 @@ void unlimitedChargebootLogic(void)
 	}
 }
 
+
+/*
+ * NAME :		fusionShotsAlwaysHitLogic_Hook
+ * 
+ * DESCRIPTION :
+ * 			Checks if the given shot has already been determined to have hit a moby.
+ * 			If true, it sets the hitFlag to ignore non-player colliders.
+ * 
+ * 			Unsure if shots can still be blocked in another player is in the way on the remote client's screen.
+ * 			Probably a rare edge case.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int fusionShotsAlwaysHitLogic_Hook(VECTOR from, VECTOR to, Moby* shotMoby, Moby* moby, u64 t0)
+{
+	u64 hitFlag = 0;
+
+	if (shotMoby && shotMoby->PVar)
+	{
+		Moby * hitMoby = *(Moby**)((u32)shotMoby->PVar + 0x68);
+		if (hitMoby) {
+			Player * hitPlayer = guberGetObjectByMoby(hitMoby);
+			if (hitPlayer)
+				hitFlag = 1;
+		}
+	}
+
+	return CollLine_Fix(from, to, hitFlag, moby, t0);
+}
+
+/*
+ * NAME :		fusionShotsAlwaysHitLogic
+ * 
+ * DESCRIPTION :
+ * 			Patches fusion shot collision raycast to other colliders when it has already been determined that the shot has collided with a guber (networked moby).
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void fusionShotsAlwaysHitLogic(void)
+{
+	HOOK_JAL(0x003FC66C, &fusionShotsAlwaysHitLogic_Hook);
+	POKE_U32(0x003FC670, 0x0240302D);
+}
+
 /*
  * NAME :		onGameplayLoadRemoveWeaponPickups
  * 
@@ -1080,15 +1137,6 @@ void grGameStart(void)
 	// Apply weather
 	cheatsApplyWeather(WeatherOverrideId);
 
-#if DEBUG
-	halftimeLogic();
-	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
-	{
-		htCtfBegin();
-		HalfTimeState = 1;
-	}
-#endif
-
 	if (gameConfig.grNoPacks)
 		cheatsApplyNoPacks();
 
@@ -1136,6 +1184,9 @@ void grGameStart(void)
 
 	if (gameConfig.prChargebootForever)
 		unlimitedChargebootLogic();
+
+	if (gameConfig.grFusionShotsAlwaysHit)
+		fusionShotsAlwaysHitLogic();
 
 #if TWEAKERS
 	tweakers();

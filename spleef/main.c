@@ -521,7 +521,7 @@ void resetRoundState(void)
 			{
 				// delete old one
 				int boxId = (k * SPLEEF_BOARD_DIMENSION * SPLEEF_BOARD_DIMENSION) + (i * SPLEEF_BOARD_DIMENSION) + j;
-				if (!SpleefBox[boxId] || SpleefBox[boxId]->OClass != MOBY_ID_NODE_BOLT_GUARD || !SpleefBox[boxId]->PChain)
+				if (!SpleefBox[boxId] || SpleefBox[boxId]->OClass != MOBY_ID_NODE_BOLT_GUARD || mobyIsDestroyed(SpleefBox[boxId]))
 				{
 					// spawn
 					SpleefBox[boxId] = hbMoby = mobySpawn(MOBY_ID_NODE_BOLT_GUARD, 0);

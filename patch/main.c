@@ -24,6 +24,7 @@
 #include "include/config.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
+#include <libdl/collision.h>
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
 #include <libdl/dialog.h>
@@ -144,6 +145,8 @@ const char * patchConfigStr = "PATCH CONFIG";
 char weaponOrderBackup[2][3] = { {0,0,0}, {0,0,0} };
 //char hasSetRanks = 0;
 //ServerSetRanksRequest_t lastSetRanksRequest;
+
+extern char fixWeaponLagToggle;
 
 // 
 struct GameDataBlock
@@ -782,6 +785,32 @@ void patchAggTime(void)
 	if (connection)
 		netSetSendAggregationInterval(connection, 0, aggTime);
 }
+
+/*
+ * NAME :		patchFov
+ * 
+ * DESCRIPTION :
+ * 			Sets player's fov.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+#if FREECAM
+void patchFov(void)
+{
+	if (!isInGame())
+		return;
+
+	float fov = 1.11003 + (config.playerFov / 10.0) * 1;
+
+	((void (*)(int, int, int, float, float, float, float))0x004AEA90)(0, 0, 3, fov, 0.05, 0.2, 0);
+}
+#endif
 
 /*
  * NAME :		patchFrameSkip
@@ -1818,10 +1847,11 @@ int onSetTeams(void * connection, void * data)
 
 						// get pool index from rng
 						int teamPoolIndex = seed % request.PoolSize;
-						DPRINTF("pool info pid:%d poolIndex:%d poolSize:%d\n", i, teamPoolIndex, request.PoolSize);
 
 						// set team
 						teamId = request.Pool[teamPoolIndex];
+
+						DPRINTF("pool info pid:%d poolIndex:%d poolSize:%d team:%d\n", i, teamPoolIndex, request.PoolSize, teamId);
 
 						// remove element from pool
 						if (request.PoolSize > 0)
@@ -1829,6 +1859,13 @@ int onSetTeams(void * connection, void * data)
 							for (j = teamPoolIndex+1; j < request.PoolSize; ++j)
 								request.Pool[j-1] = request.Pool[j];
 							request.PoolSize -= 1;
+
+#if DEBUG
+							printf("pool after shift ");
+							for (j = 0; j < request.PoolSize; ++j)
+								printf("%d=%d ", j, request.Pool[j]);
+							printf("\n");
+#endif
 						}
 					}
 
@@ -2143,6 +2180,164 @@ void dot(void)
 */
 
 /*
+u128 aaa_fusionhook(Player* p, u64 a1, u128 from, u128 to, u64 t0, u64 t1)
+{
+	//t0 |= 1;
+	u128 r = ((u128 (*)(Player*, u64, u128, u128, u64, u64))0x003f9fc0)(p, a1, from, to, t0, t1);
+
+	VECTOR dir, playerPos = {0,0,1,0};
+	vector_add(playerPos, playerPos, p->PlayerPosition);
+	vector_write(dir, from);
+	vector_subtract(dir, playerPos, dir);
+	vector_normalize(dir, dir);
+
+	return r; //vector_read(dir);
+}
+HOOK_JAL(0x003FA5C8, &aaa_fusionhook);
+*/
+
+void h2(Player* player, char a1, int a2, short a3, char t0, struct tNW_GadgetEventMessage * message)
+{
+	if (player && message && message->GadgetEventType == 8) {
+		int delta = a2 - gameGetTime();
+
+		if (player->Gadgets[0].id != message->GadgetId) {
+			DPRINTF("remote gadgetevent %d from weapon %d but player holding %d\n", message->GadgetEventType, message->GadgetId, player->Gadgets[0].id);
+			playerEquipWeapon(player, message->GadgetId);
+		}
+
+		DPRINTF("remote gadgetevent %d spawned with delay %d", message->GadgetEventType, delta);
+		if (player->Gadgets[0].id == message->GadgetId && delta > 0) {
+			a2 = gameGetTime();
+			DPRINTF("... fixed");
+		}
+		if (delta > TIME_SECOND) {
+			//DPRINTF("\nwe must be lagging.... trying to fix");
+			int rto = gameGetPing() / 2;
+			//POKE_U32(0x01eabd60, 0);
+			//POKE_U32(0x00168BA8, a2 + rto);
+			//((void (*)(int, int))0x01eabce0)(rto, a2);
+			//POKE_U32(0x01eabd60, 0x14600003);
+			DPRINTF("delta=%X (%X)", *(int*)0x00168BA8, a2);
+		}
+
+		DPRINTF("\n");
+	}
+
+	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, a1, a2, a3, t0, message);
+}
+
+int aaa_tick = 0;
+int aaa_active = 0;
+VECTOR aaa_pos;
+VECTOR aaa_rot;
+
+int r(void)
+{
+	if (aaa_active == 3) {
+		*(int*)0x00172378 = *(int*)0x00172378 + (TIME_SECOND * 1.1);
+	}
+
+	return 0;
+}
+
+void copyposstateupdatehook(void * dest, void * src, int size)
+{
+	if (aaa_active == 4) {
+		memcpy(dest, aaa_pos, size);
+	} else {
+		memcpy(dest, src, size);
+	}
+}
+
+void aaa()
+{
+	VECTOR t;
+	if (!isInGame())
+		return;
+
+	HOOK_J(0x0015B290, &r);
+	HOOK_JAL(0x0060ed9c, &copyposstateupdatehook);
+
+	Player * p = playerGetFromSlot(0);
+	vector_write(t, 0);
+
+	// toggle
+	if (padGetButtonDown(0, PAD_L3) > 0) {
+		aaa_active = 0;
+		DPRINTF("deactivated\n");
+	}
+
+	// toggle
+	if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+		aaa_active = 1;
+		DPRINTF("activated\n");
+		aaa_tick = 0;
+		vector_copy(aaa_pos, p->PlayerPosition);
+		aaa_rot[0] = p->PlayerYaw;
+		aaa_rot[1] = p->CameraPitch.Value;
+		aaa_rot[2] = p->CameraYaw.Value;
+	}
+
+	// toggle
+	if (padGetButtonDown(0, PAD_L1 | PAD_LEFT) > 0) {
+		aaa_active = 2;
+		DPRINTF("activated\n");
+		aaa_tick = 0;
+		vector_copy(aaa_pos, p->PlayerPosition);
+		aaa_rot[0] = p->PlayerYaw;
+		aaa_rot[1] = p->CameraPitch.Value;
+		aaa_rot[2] = p->CameraYaw.Value;
+	}
+
+	// toggle
+	if (padGetButtonDown(0, PAD_L1 | PAD_DOWN) > 0) {
+		aaa_active = 3;
+		DPRINTF("activated\n");
+		aaa_tick = 0;
+	}
+
+	// toggle
+	if (padGetButtonDown(0, PAD_L1 | PAD_RIGHT) > 0) {
+		aaa_active = 4;
+		DPRINTF("activated\n");
+		aaa_tick = 0;
+		vector_copy(aaa_pos, p->PlayerPosition);
+	}
+
+	if (!aaa_active || gameIsStartMenuOpen() || isConfigMenuActive)
+		return;
+
+	if (aaa_active == 1) {
+		if (aaa_tick > 200) {
+			// reset
+			t[2] = aaa_rot[0];
+			playerSetPosRot(p, aaa_pos, t);
+			p->CameraPitch.Value = aaa_rot[1];
+			p->CameraYaw.Value = aaa_rot[2];
+			aaa_tick = 0;
+		} else if (aaa_tick < 4) {
+			// first few frames try and jump
+			p->Paddata->btns &= ~PAD_L1;
+		} else if (aaa_tick >= 30 && aaa_tick < 33) {
+			// then try and shoot
+			p->Paddata->btns &= ~PAD_R1;
+		}
+	} else if (aaa_active == 2) {
+		if (aaa_tick > 100) {
+			p->Paddata->btns &= ~PAD_R1;
+			aaa_tick = 0;
+		}
+	} else if (aaa_tick == 3) {
+		//*(int*)0x00172378 = *(int*)0x00172378 + (TIME_SECOND);
+	} else if (aaa_tick == 4) {
+		POKE_U32(0x0034AA94, 0x007F007F);
+		POKE_U32(0x0034AA98, 0x007F007F);
+	}
+	++aaa_tick;
+}
+
+/*
  * NAME :		main
  * 
  * DESCRIPTION :
@@ -2223,7 +2418,20 @@ int main (void)
 #endif
 
 	//dot();
-	
+	//aaa();
+
+	/*
+	int pp = 0;
+	((void (*)(int*))0x01eabda0)(&pp);
+	if (pp == 0) {
+		POKE_U32(0x01eabd60, 0);
+	}	else {
+		POKE_U32(0x01eabd60, 0x14600003);
+	}
+	*/
+
+	POKE_U32(0x01eabd60, 0);
+
 	// 
 	runCheckGameMapInstalled();
 
@@ -2305,6 +2513,16 @@ int main (void)
 
 		//
 		grGameStart();
+
+		// patches fusion shot so that remote shots aren't given additional "shake"
+		// ie, remote shots go in the same direction that is sent by the source client
+		POKE_U32(0x003FA28C, 0);
+
+		// 
+		if (fixWeaponLagToggle)
+			HOOK_JAL(0x0062ac60, &h2);
+		else
+			POKE_U32(0x0062AC60, 0x0C17C0C6);
 
 		// this lets guber events that are < 5 seconds old be processed (original is 1.2 seconds)
 		//GADGET_EVENT_MAX_TLL = 5 * TIME_SECOND;
@@ -2492,6 +2710,7 @@ int main (void)
 		processSpectate();
 
 #if FREECAM
+	patchFov();
 	processFreecam();
 #endif
 

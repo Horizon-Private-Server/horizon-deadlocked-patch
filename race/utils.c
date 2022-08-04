@@ -92,18 +92,15 @@ void drawRoundMessage(const char * message, float scale)
 //--------------------------------------------------------------------------
 void drawRing(float yaw, VECTOR position, float scale0, float scale1, u32 color)
 {
-	float d = sinf(gameGetTime() / 1000.0) * MATH_PI * 0.5;
+	MATRIX m;
 
-	VECTOR q1;
-	MATRIX m1;
-	VECTOR e1 = {MATH_PI / 2,yaw - (MATH_PI * 0.5),0,0};
-
-	quaternion_fromeuler(q1, e1);
-	matrix_fromquaternion(m1, q1);
+	matrix_unit(m);
+	matrix_rotate_y(m, m, MATH_PI / 2);
+	matrix_rotate_z(m, m, -yaw);
 
   // draw
   ((void (*)(void*, u128, float, float, int, int, int, int))0x00420c80)(
-    m1,
+    m,
     vector_read(position),
     scale0,
     scale1,

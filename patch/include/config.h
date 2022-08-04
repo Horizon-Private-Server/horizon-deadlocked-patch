@@ -72,4 +72,13 @@ typedef struct TabElem
   int menuOffset;
 } TabElem_t;
 
+typedef struct FreecamSettings
+{
+  char lockPosition;
+  char airwalk;
+  char lockStateToggle;
+} FreecamSettings_t;
+
+extern int isConfigMenuActive;
+
 #endif // __PATCH_CONFIG_H__

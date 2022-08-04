@@ -14,6 +14,10 @@ typedef struct PatchConfig
   char disableCircleToHackerRay;
   char playerAggTime;
   
+#if FREECAM
+  char playerFov;
+#endif
+  
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
 #endif
@@ -40,6 +44,7 @@ typedef struct PatchGameConfig
   char grNoNames;
   char grNoInvTimer;
   char grNoPickups;
+  char grFusionShotsAlwaysHit;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;

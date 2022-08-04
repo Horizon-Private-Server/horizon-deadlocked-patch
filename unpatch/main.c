@@ -29,6 +29,8 @@
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
 
+int selfDestruct __attribute__((section(".config"))) = 0;
+
 const int patches[][3] = {
 	// patch
 	{ 0, 0x0072C3FC, 0x0C1CBBDE }, // GAMESETTINGS_LOAD_PATCH
@@ -40,6 +42,7 @@ const int patches[][3] = {
 	{ -1, 0x00212164, 0x00000000 }, // dme callback table custom msg handler ptr
 	{ -1, 0x00157D38, 0x0C055E68 }, // process level jal
 	{ -1, 0x0015C0EC, 0x03E00008 }, // MediusGetLadderStatsWide hook
+	{ 0, 0x00594CB8, 0x0C1C1FCA }, // menu loop hook
 	// maploader
 	{ 0, 0x005CFB48, 0x0C058E10 }, // hookLoadAddr
 	{ 0, 0x00705554, 0x0C058E02 }, // hookLoadingScreenAddr
@@ -68,6 +71,9 @@ const int patches[][3] = {
 	{ 1, 0x005E11B0, 0x0C177FC2 }, // who hit me hook #2
 	{ 1, 0x005e2b2c, 0x0C178B9A }, // resurrect WeaponStripMe hook
 	{ 1, 0x005e2b48, 0x0C17DD44 }, // resurrect GiveMeRandomWeapons hook
+	{ 1, 0x003FC66C, 0x0C12DF94 }, // fusion shot collision check hook
+	{ 1, 0x003fc670, 0x0000302D }, // fusion shot collision check a2 arg
+	{ 1, 0x0062ac60, 0x0C17C0C6 }, // weapon shot timebase delay hook
 	// spectator
 	{ 1, 0x0054F46C, 0x0C1734F4 }, // healthbar
 	{ 1, 0x0054f898, 0x0C1734F4 }, // healthbar
@@ -78,12 +84,16 @@ const int patches[][3] = {
 	{ 1, 0x00552bd0, 0x0C1734F4 }, // ammo update ammo
 	{ 1, 0x00555904, 0x0C1734F4 }, // radar update map
 	{ 1, 0x0055615c, 0x0C1734F4 }, // radar update blip
+	// debug
+	{ 1, 0x0015B290, 0x03E00008 }, 
+	{ 1, 0x0060ed9c, 0x0C135C12 },
 };
 
 const int clears[][2] = {
 	{ 0x000D0000, 0x00020000 }, // patch
 	{ 0x000F0000, 0x0000F000 }, // game mode
 	{ 0x000CF000, 0x00000800 }, // module definitions
+	{ 0x000CFFD0, 0x00000020 }, // patch hash
 };
 
 int hasClearedMemory = 0;
@@ -195,6 +205,11 @@ int main (void)
 		{
 			memset((void*)clears[i][0], 0, clears[i][1]);
 		}
+	}
+
+	// just clear if selfDestruct is true
+	if (selfDestruct) {
+		return;
 	}
 
 	// 

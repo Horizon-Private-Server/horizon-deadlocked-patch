@@ -18,6 +18,7 @@
 #define CHECKPOINT_REACHED_FADE_TICKS					(20)
 #define CHECKPOINT_REACHED_FADE_MAX_SCALE			(5)
 #define CHECKPOINT_RADIUS											(5)
+#define CHECKPOINT_HIT_RADIUS									(10)
 #define CHECKPOINT_HIT_DEPTH									(2.5)
 
 #define MIN_FLOAT_MAGNITUDE										(0.0001)
