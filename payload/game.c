@@ -424,13 +424,13 @@ void setPayloadState(enum PayloadMobyState state)
 		{
 			pvar->ExplodeTicks = PAYLOAD_EXPLOSION_COUNTDOWN_TICKS;
 			playTimerTickSound();
+			State.PayloadDeliveredTime = gameGetTime();
 			break;
 		}
 		case PAYLOAD_STATE_EXPLODED:
 		{
 			payloadExplode(State.PayloadMoby, pvar);
 			State.PayloadDeliveredEndRoundTicks = 30;
-			State.PayloadDeliveredTime = gameGetTime();
 			break;
 		}
 	}
@@ -906,7 +906,7 @@ void payloadUpdate(Moby *payload)
 			if (pvar->State < PAYLOAD_STATE_DELIVERED) {
 				setPayloadState(PAYLOAD_STATE_DELIVERED);
 				sendPayloadState(pvar->State, pvar->PathIndex, pvar->Time);
-			} else if (explode == 0 && State.PayloadDeliveredTime == 0 && pvar->State != PAYLOAD_STATE_EXPLODED) {
+			} else if (explode == 0 && pvar->State != PAYLOAD_STATE_EXPLODED) {
 				setPayloadState(PAYLOAD_STATE_EXPLODED);
 				sendPayloadState(pvar->State, pvar->PathIndex, pvar->Time);
 			}
@@ -1204,7 +1204,13 @@ void processPlayer(int pIndex)
 
 	// draw round timer
 	if (player->LocalPlayerIndex == 0 && State.RoundDuration > 0) {
-		float secondsLeft = (State.RoundDuration - (gameGetTime() - State.RoundStartTime)) / (float)TIME_SECOND;
+
+		// lock time to payload delivered time
+		int nowTime = gameGetTime();
+		if (State.PayloadDeliveredTime)
+			nowTime = State.PayloadDeliveredTime;
+
+		float secondsLeft = (State.RoundDuration - (nowTime - State.RoundStartTime)) / (float)TIME_SECOND;
 		if (secondsLeft < 0)
 			secondsLeft = 0;
 		int secondsLeftInt = (int)secondsLeft;
@@ -1297,7 +1303,6 @@ void gameTick(void)
 	char buffer[32];
 	int gameTime = gameGetTime();
 
-	int lastaaa = aaa;
 #if DEBUG
 	if (State.IsHost) {
 		if (padGetButtonDown(0, PAD_L3 | PAD_UP) > 0) {
@@ -1346,24 +1351,6 @@ void gameTick(void)
 	}
 #endif
 
-	if (lastaaa != aaa) {
-		static int lastHandle = 0;
-		static SoundDef sd = {
-			.BankIndex = 3,
-			.Index = 0,
-			.Flags = 2,
-			.Loop = 1,
-			.MaxVolume = 1000,
-			.MaxRange = 100,
-		};
-
-		sd.Index = aaa;
-
-		soundKillByHandle(lastHandle);
-		int sId = soundPlay(&sd, 4, playerGetFromSlot(0)->PlayerMoby, 0, 0x400);
-		lastHandle = soundCreateHandle(sId);
-	}
-
 	// 
 	if (State.RoundDuration > 0)
   	gameData->TimeEnd = (State.RoundStartTime - gameData->TimeStart) + State.RoundDuration;
@@ -1374,7 +1361,11 @@ void gameTick(void)
 	if (State.PayloadMoby) {
 		struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
 		State.Teams[1].Score = pvar->Distance * 10;
-		State.Teams[1].Time = gameTime - State.RoundStartTime;
+
+		if (State.PayloadDeliveredTime)
+			State.Teams[1].Time = State.PayloadDeliveredTime - State.RoundStartTime;
+		else
+			State.Teams[1].Time = gameTime - State.RoundStartTime;
 
 		// if delivered, fix score to path length
 		if (pvar->State >= PAYLOAD_STATE_DELIVERED)
@@ -1430,7 +1421,13 @@ void gameTick(void)
 		{
 			if (State.PayloadDeliveredEndRoundTicks == 1)
 			{
-				setRoundComplete(CUSTOM_MSG_ROUND_PAYLOAD_DELIVERED, (State.PayloadDeliveredTime - State.RoundStartTime));
+				// next round time is either time if took first team to reach payload
+				// or (if they go into OT) just the first rounds duration
+				int nextRoundDuration = State.PayloadDeliveredTime - State.RoundStartTime;
+				if (State.RoundDuration > 0 && nextRoundDuration > State.RoundDuration)
+					nextRoundDuration = State.RoundDuration;
+
+				setRoundComplete(CUSTOM_MSG_ROUND_PAYLOAD_DELIVERED, nextRoundDuration);
 				State.PayloadDeliveredEndRoundTicks = 0;
 			}
 			else
@@ -1445,11 +1442,11 @@ void gameTick(void)
 	// overtime is not counted towards time
 	// and teams with same time and distance tie
 	if (State.Teams[0].Score == State.Teams[1].Score) {
-		if (State.RoundFirstDuration > 0 && State.Teams[1].Time > State.RoundFirstDuration && State.Teams[0].Time > State.RoundFirstDuration)
-			State.WinningTeam = -1; // draw if both teams go into overtime
-		if (State.Teams[1].Time < State.Teams[0].Time)
+		if (State.RoundDuration > 0 && State.Teams[1].Time >= State.RoundDuration)
+			State.WinningTeam = -1; // draw if attacking team goes into OT
+		else if (State.Teams[1].Time < State.Teams[0].Time)
 			State.WinningTeam = State.Teams[1].TeamId; // attackers win if they get there in shorter time
-		if (State.Teams[0].Time < State.Teams[1].Time)
+		else if (State.Teams[0].Time < State.Teams[1].Time)
 			State.WinningTeam = State.Teams[0].TeamId; // defenders win if they get there in shorter time
 		else
 			State.WinningTeam = -1; // draw (same time)

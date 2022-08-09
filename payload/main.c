@@ -72,9 +72,6 @@ float computePlayerRank(int playerIdx)
 
 int updateHook(void)
 {
-	dlPreUpdate();
-	gameTick();
-	dlPostUpdate();
 
 	return ((int (*)(void))0x005986A8)();
 }
@@ -89,6 +86,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	char buffer[32];
 	int gameTime = gameGetTime();
 
+	//
+	dlPreUpdate();
 
 	// 
 	updateGameState(gameState);
@@ -107,7 +106,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	}
 
 	// hook nwUpdate (runs each game tick)
-	HOOK_JAL(0x005986C8, &updateHook);
+	//HOOK_JAL(0x005986C8, &updateHook);
 
 	//
 	if (!State.GameOver)
@@ -124,6 +123,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 		// handle frame tick
 		frameTick();
+		gameTick();
 	}
 	else
 	{
@@ -136,6 +136,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		}
 	}
 
+	dlPostUpdate();
 	return;
 }
 

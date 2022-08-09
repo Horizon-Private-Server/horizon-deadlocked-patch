@@ -29,27 +29,8 @@
 #include <libdl/net.h>
 #include "module.h"
 #include "messageid.h"
+#include "include/game.h"
 
-
-/*
- * When non-zero, it refreshes the in-game scoreboard.
- */
-#define GAME_SCOREBOARD_REFRESH_FLAG        (*(u32*)0x00310248)
-
-/*
- * Target scoreboard value.
- */
-#define GAME_SCOREBOARD_TARGET              (*(u32*)0x002FA084)
-
-/*
- * Collection of scoreboard items.
- */
-#define GAME_SCOREBOARD_ARRAY               ((ScoreboardItem**)0x002FA04C)
-
-/*
- * Number of items in the scoreboard.
- */
-#define GAME_SCOREBOARD_ITEM_COUNT          (*(u32*)0x002F9FCC)
 
 #define SPLEEF_BOARD_DIMENSION							(10)
 #define SPLEEF_BOARD_LEVELS									(2)
@@ -69,20 +50,10 @@ const char * SPLEEF_ROUND_LOSS = "Better luck next time!";
  */
 int Initialized = 0;
 
-struct SpleefState
-{
-	int RoundNumber;
-	int RoundStartTicks;
-	int RoundEndTicks;
-	char RoundResult[4];
-	char RoundPlayerState[GAME_MAX_PLAYERS];
-	short PlayerKills[GAME_MAX_PLAYERS];
-	int PlayerBoxesDestroyed[GAME_MAX_PLAYERS];
-	int RoundInitialized;
-	int GameOver;
-	int WinningTeam;
-	int IsHost;
-} SpleefState;
+/*
+ *
+ */
+SpleefState_t SpleefState;
 
 /*
  *
@@ -126,16 +97,6 @@ enum GameNetMessage
 /*
  *
  */
-ScoreboardItem PlayerScores[GAME_MAX_PLAYERS];
-
-/*
- *
- */
-ScoreboardItem * SortedPlayerScores[GAME_MAX_PLAYERS];
-
-/*
- *
- */
 Moby* SpleefBox[SPLEEF_BOARD_DIMENSION * SPLEEF_BOARD_DIMENSION * SPLEEF_BOARD_LEVELS];
 
 /*
@@ -163,82 +124,14 @@ VECTOR StartUNK_80 = {
 	62013.9
 };
 
+void initializeScoreboard(void);
 
 // forwards
 void onSetRoundOutcome(char outcome[4]);
 int onSetRoundOutcomeRemote(void * connection, void * data);
 void setRoundOutcome(int first, int second, int third);
 
-/*
- * NAME :		sortScoreboard
- * 
- * DESCRIPTION :
- * 			Sorts the scoreboard by value.
- * 
- * NOTES :
- * 
- * ARGS : 
- * 		player			:		Target player's player object.
- * 		playerState 	:		Target player's gun game state.
- * 		playerWepStats 	:		Target player's weapon stats.
- * 
- * RETURN :
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-void sortScoreboard(int dontLockLocal)
-{
-	int i = 0;
-	int j = 0;
-
-	// bubble sort
-	for (j = GAME_MAX_PLAYERS - 1; j > 0; --j)
-	{
-		for (i = 0; i < j; ++i)
-		{
-			// Swap
-			if (SortedPlayerScores[i]->TeamId < 0 ||
-				((dontLockLocal || SortedPlayerScores[i]->UNK != 1) &&
-				 (SortedPlayerScores[i]->Value < SortedPlayerScores[i+1]->Value || 
-				 (SortedPlayerScores[i+1]->UNK == 1 && !dontLockLocal))))
-			{
-				ScoreboardItem * temp = SortedPlayerScores[i];
-				SortedPlayerScores[i] = SortedPlayerScores[i+1];
-				SortedPlayerScores[i+1] = temp;
-			}
-		}
-	}
-}
-
-/*
- * NAME :		updateScoreboard
- * 
- * DESCRIPTION :
- * 			Updates the in game scoreboard.
- * 
- * NOTES :
- * 
- * ARGS : 
- * 
- * RETURN :
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-void updateScoreboard(void)
-{
-	int i;
-	// Correct scoreboard
-	for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
-	{
-		// Force scoreboard to custom scoreboard values
-		if (GAME_SCOREBOARD_ARRAY[i] != SortedPlayerScores[i])
-		{
-			GAME_SCOREBOARD_ARRAY[i] = SortedPlayerScores[i];
-			GAME_SCOREBOARD_REFRESH_FLAG = 1;
-		}
-	}
-}
-
+//--------------------------------------------------------------------------
 void getWinningPlayer(int * winningPlayerId, int * winningPlayerScore)
 {
 	int i;
@@ -247,10 +140,10 @@ void getWinningPlayer(int * winningPlayerId, int * winningPlayerScore)
 	Player ** players = playerGetAll();
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
-		if (PlayerScores[i].Value > pScore)
+		if (SpleefState.PlayerPoints[i] > pScore)
 		{
 			pId = i;
-			pScore = PlayerScores[i].Value;
+			pScore = SpleefState.PlayerPoints[i];
 		}
 	}
 
@@ -258,12 +151,14 @@ void getWinningPlayer(int * winningPlayerId, int * winningPlayerScore)
 	*winningPlayerId = pId;
 }
 
+//--------------------------------------------------------------------------
 void onSetRoundOutcome(char outcome[4])
 {
 	memcpy(SpleefState.RoundResult, outcome, 4);
 	DPRINTF("outcome set to %d,%d,%d,%d\n", outcome[0], outcome[1], outcome[2], outcome[3]);
 }
 
+//--------------------------------------------------------------------------
 int onSetRoundOutcomeRemote(void * connection, void * data)
 {
 	SpleefOutcomeMessage_t * message = (SpleefOutcomeMessage_t*)data;
@@ -272,6 +167,7 @@ int onSetRoundOutcomeRemote(void * connection, void * data)
 	return sizeof(SpleefOutcomeMessage_t);
 }
 
+//--------------------------------------------------------------------------
 void setRoundOutcome(int first, int second, int third)
 {
 	SpleefOutcomeMessage_t message;
@@ -295,13 +191,16 @@ void setRoundOutcome(int first, int second, int third)
 	onSetRoundOutcome(message.Outcome);
 }
 
+//--------------------------------------------------------------------------
 void onDestroyBox(int id, int playerId)
 {
 	Moby* box = SpleefBox[id];
-	if (box && box->OClass == MOBY_ID_NODE_BOLT_GUARD && box->PChain)
+	if (box && box->OClass == MOBY_ID_NODE_BOLT_GUARD && !mobyIsDestroyed(box))
 	{
 		mobyDestroy(box);
 	}
+
+	SpleefBox[id] = NULL;
 
 	// 
 	if (playerId >= 0)
@@ -310,6 +209,7 @@ void onDestroyBox(int id, int playerId)
 	DPRINTF("box destroyed %d by %d\n", id, playerId);
 }
 
+//--------------------------------------------------------------------------
 int onDestroyBoxRemote(void * connection, void * data)
 {
 	SpleefDestroyBoxMessage_t * message = (SpleefDestroyBoxMessage_t*)data;
@@ -321,6 +221,7 @@ int onDestroyBoxRemote(void * connection, void * data)
 	return sizeof(SpleefDestroyBoxMessage_t);
 }
 
+//--------------------------------------------------------------------------
 void destroyBox(int id, int playerId)
 {
 	SpleefDestroyBoxMessage_t message;
@@ -337,6 +238,23 @@ void destroyBox(int id, int playerId)
 	DPRINTF("sent destroy box %d\n", id);
 }
 
+//--------------------------------------------------------------------------
+int gameGetTeamScore(int team, int score)
+{
+	int i = 0;
+	int totalScore = 0;
+	Player** players = playerGetAll();
+
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		if (players[i] && players[i]->Team == team) {
+			totalScore += SpleefState.PlayerPoints[i];
+		}
+	}
+	
+  return totalScore;
+}
+
+//--------------------------------------------------------------------------
 void changeBoxCollisionIds(void * modelPtr)
 {
 	int i = 0;
@@ -351,6 +269,7 @@ void changeBoxCollisionIds(void * modelPtr)
 	}
 }
 
+//--------------------------------------------------------------------------
 void boxUpdate(Moby* moby)
 {
 	int i;
@@ -379,9 +298,13 @@ void boxUpdate(Moby* moby)
 				if (SpleefBox[i] == moby)
 				{
 					destroyBox(i, playerId);
+					mobyDestroy(moby);
+					SpleefBox[i] = NULL;
 					return;
 				}
 			}
+
+			return;
 		}
 
 		// remove damage
@@ -392,6 +315,7 @@ void boxUpdate(Moby* moby)
 	((void (*)(Moby*))0x00427450)(moby);
 }
 
+//--------------------------------------------------------------------------
 void drawRoundMessage(const char * message, float scale)
 {
 	GameSettings * gameSettings = gameGetSettings();
@@ -428,7 +352,7 @@ void drawRoundMessage(const char * message, float scale)
 	}
 }
 
-
+//--------------------------------------------------------------------------
 void updateGameState(PatchStateContainer_t * gameState)
 {
 	int i,j;
@@ -450,12 +374,13 @@ void updateGameState(PatchStateContainer_t * gameState)
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
 			DPRINTF("%d: %d points %d boxes\n", i, PlayerScores[i].Value, SpleefState.PlayerBoxesDestroyed[i]);
-			sGameData->Points[i] = PlayerScores[i].Value;
+			sGameData->Points[i] = SpleefState.PlayerPoints[i];
 			sGameData->BoxesDestroyed[i] = SpleefState.PlayerBoxesDestroyed[i];
 		}
 	}
 }
 
+//--------------------------------------------------------------------------
 void resetRoundState(void)
 {
 	GameSettings * gameSettings = gameGetSettings();
@@ -583,6 +508,7 @@ void resetRoundState(void)
 	#endif
 }
 
+//--------------------------------------------------------------------------
 int whoKilledMeHook(void)
 {
 	return 0;
@@ -636,22 +562,16 @@ void initialize(void)
 	memset(SpleefBox, 0, sizeof(SpleefBox));
 
 	// Initialize scoreboard
+	initializeScoreboard();
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
 		Player * p = players[i];
-		PlayerScores[i].TeamId = p ? i : -1;
-		PlayerScores[i].UNK = playerIsLocal(p);
-		PlayerScores[i].Value = 0;
-		SortedPlayerScores[i] = &PlayerScores[i];
+		SpleefState.PlayerPoints[i] = 0;
 	}
 
 	// patch who killed me to prevent damaging others
 	*(u32*)0x005E07C8 = 0x0C000000 | ((u32)&whoKilledMeHook >> 2);
 	*(u32*)0x005E11B0 = *(u32*)0x005E07C8;
-
-	//
-	sortScoreboard(0);
-	updateScoreboard();
 
 	// initialize state
 	SpleefState.GameOver = 0;
@@ -747,14 +667,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				{
 					int playerIndex = SpleefState.RoundResult[i];
 					if (playerIndex >= 0) {
-						PlayerScores[playerIndex].Value += 4 - i;
-						DPRINTF("player %d score %d\n", playerIndex, PlayerScores[playerIndex].Value);
+						SpleefState.PlayerPoints[playerIndex] += 4 - i;
+						DPRINTF("player %d score %d\n", playerIndex, SpleefState.PlayerPoints[playerIndex]);
 					}
 				}
-
-				// update scoreboard
-				sortScoreboard(0);
-				GAME_SCOREBOARD_REFRESH_FLAG = 1;
 
 				// set when next round starts
 				SpleefState.RoundEndTicks = gameGetTime() + (TIME_SECOND * 5);
@@ -858,9 +774,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			playerSetHealth(p, 0);
 	}
 
-	// 
-	updateScoreboard();
-
 	return;
 }
 
@@ -908,44 +821,6 @@ float computePlayerRank(int playerIdx)
 	// don't compute new rank for base gamemode
 	return (float)currentRank;
 	//return ((float (*)(int))0x0077AB98)(playerIdx);
-}
-
-void setEndGameScoreboard(void)
-{
-	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
-	int i;
-	char buf[24];
-
-	// reset buf
-	memset(buf, 0, sizeof(buf));
-
-	// sort scoreboard again
-	sortScoreboard(1);
-
-	// names start at 6
-	// column headers start at 17
-	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
-	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
-	strncpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
-
-	// rows
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		int pid = SortedPlayerScores[i]->TeamId;
-		if (pid >= 0)
-		{
-			// set points
-			sprintf(buf, "%d", SortedPlayerScores[i]->Value);
-			strncpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
-
-			// moves deaths over
-			strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 8);
-			
-			// set kills
-			sprintf(buf, "%d", SpleefState.PlayerKills[pid]);
-			strncpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), buf, strlen(buf) + 1);
-		}
-	}
 }
 
 /*

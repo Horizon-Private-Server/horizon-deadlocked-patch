@@ -1,7 +1,7 @@
 
 EE_ELF = spleef-11184.elf
 EE_BIN = spleef-11184.bin
-EE_OBJS = main.o
+EE_OBJS = main.o scoreboard.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common -I../libdl/include

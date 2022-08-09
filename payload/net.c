@@ -182,7 +182,7 @@ void sendPlayerNearPayload(int playerId, int isNearPayload)
 	message.PlayerId = playerId;
 	message.IsNearPayload = isNearPayload;
 	message.Time = gameGetTime();
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_NEAR_PAYLOAD, sizeof(SetPlayerNearPayloadMessage_t), &message);
+	netBroadcastCustomAppMessage(0, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_NEAR_PAYLOAD, sizeof(SetPlayerNearPayloadMessage_t), &message);
 
 	// set cooldown
 	playerSendCooldown[playerId] = PLAYER_NEAR_PAYLOAD_SEND_EVERY_TICKS;
