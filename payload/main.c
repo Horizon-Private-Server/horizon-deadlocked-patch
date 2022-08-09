@@ -27,6 +27,7 @@
 #include <libdl/net.h>
 #include <libdl/sound.h>
 #include <libdl/dl.h>
+#include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
 #include "include/game.h"
@@ -40,6 +41,7 @@ void resetRoundState(void);
 void initialize(PatchGameConfig_t* gameConfig);
 void updateGameState(PatchStateContainer_t * gameState);
 void gameTick(void);
+void frameTick(void);
 void setLobbyGameOptions(void);
 void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
@@ -68,6 +70,15 @@ float computePlayerRank(int playerIdx)
 	//return ((float (*)(int))0x0077AB98)(playerIdx);
 }
 
+int updateHook(void)
+{
+	dlPreUpdate();
+	gameTick();
+	dlPostUpdate();
+
+	return ((int (*)(void))0x005986A8)();
+}
+
 //--------------------------------------------------------------------------
 void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
@@ -78,8 +89,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	char buffer[32];
 	int gameTime = gameGetTime();
 
-	// first
-	dlPreUpdate();
 
 	// 
 	updateGameState(gameState);
@@ -97,6 +106,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		return;
 	}
 
+	// hook nwUpdate (runs each game tick)
+	HOOK_JAL(0x005986C8, &updateHook);
+
 	//
 	if (!State.GameOver)
 	{
@@ -110,13 +122,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				State.GameOver = 1;
 		}
 
-		// 
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-			processPlayer(i);
-		}
-
-		// handle game tick
-		gameTick();
+		// handle frame tick
+		frameTick();
 	}
 	else
 	{
@@ -129,8 +136,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		}
 	}
 
-	// last
-	dlPostUpdate();
 	return;
 }
 
@@ -139,13 +144,14 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 {
 	int i;
 	int activeId = uiGetActive();
+	Player** players = playerGetAll();
 	static int initializedScoreboard = 0;
 
 	// send final player stats to others
 	if (Initialized == 1) {
 		if (State.IsHost) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				if (State.PlayerStates[i].Player) {
+				if (players[i]) {
 					sendPlayerStats(i);
 				}
 			}

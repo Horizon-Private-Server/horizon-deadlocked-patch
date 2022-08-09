@@ -1095,10 +1095,18 @@ void runMapLoader(void)
 		State.CheckState = 0;
 
 		// install on login
-		//if (config.enableAutoMaps && LOAD_MODULES_RESULT == 0)
-		//{
-		//	initialized = 2;
-		//}
+#if DEBUG
+		// always install on login if debug mode
+		if (LOAD_MODULES_RESULT == 0)
+		{
+			initialized = 2;
+		}
+#else
+		if (config.enableAutoMaps && LOAD_MODULES_RESULT == 0)
+		{
+			initialized = 2;
+		}
+#endif
 	}
 
 	// force map id to current map override if in staging

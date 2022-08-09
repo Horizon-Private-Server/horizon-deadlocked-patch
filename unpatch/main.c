@@ -43,6 +43,9 @@ const int patches[][3] = {
 	{ -1, 0x00157D38, 0x0C055E68 }, // process level jal
 	{ -1, 0x0015C0EC, 0x03E00008 }, // MediusGetLadderStatsWide hook
 	{ 0, 0x00594CB8, 0x0C1C1FCA }, // menu loop hook
+	{ 0, 0x0015b290, 0x03E00008 }, // nwUpdate hook
+	{ 1, 0x004C3A94, 0x0C130C90 }, // draw hook
+	{ 1, 0x004a84b0, 0x0C1661AC }, // update hook
 	// maploader
 	{ 0, 0x005CFB48, 0x0C058E10 }, // hookLoadAddr
 	{ 0, 0x00705554, 0x0C058E02 }, // hookLoadingScreenAddr

@@ -7,18 +7,13 @@
 #define SERVER_HOSTNAME               ((char*)0x004BF4F0)
 #define SERVER_SWITCH_LAST_VALUE     	(*(u8*)0x000CFFF4)
 #define MAX_UNIVERSES									(4)
-
-const char* servers[] = {
-  "Modded (NTSC Only)",
-  "Vanilla (PAL & NTSC)",
-  "Queue (NTSC Only)"
-};
+#define UNIVERSE_STORAGE_ADDRESS			(0x000B0000)
 
 void getSelectedUniverseOffset(u32 stack)
 {
 	int universeCount = 0;
 	char* universeNames[MAX_UNIVERSES];
-	u32 universesPtr = 0x000C0000;
+	u32 universesPtr = UNIVERSE_STORAGE_ADDRESS;
 
 	while (universeCount < MAX_UNIVERSES)
 	{
@@ -45,9 +40,9 @@ void getSelectedUniverseOffset(u32 stack)
 	SERVER_SWITCH_LAST_VALUE = (u8)selected;
 
 	// copy selected universe to first in output list
-	memcpy((void*)(stack + 0x80), (void*)(0x000C0000 + 0x3C0 * selected), 0x3C0);
+	memcpy((void*)(stack + 0x80), (void*)(UNIVERSE_STORAGE_ADDRESS + 0x3C0 * selected), 0x3C0);
 	if (selected > 0) {
-		memcpy((void*)0x000C0000, (void*)(0x000C0000 + 0x3C0 * selected), 0x3C0);
+		memcpy((void*)UNIVERSE_STORAGE_ADDRESS, (void*)(UNIVERSE_STORAGE_ADDRESS + 0x3C0 * selected), 0x3C0);
 	}
 
 	// to make sure program flow returns as normal
@@ -75,7 +70,7 @@ void getSelectedUniverseOffset(u32 stack)
 int main (void)
 {
 	//POKE_U16(0x007555f0, -0x10D0);
-	POKE_U32(0x007556B4, 0x3C05000C);
+	POKE_U32(0x007556B4, 0x3C050000 | (UNIVERSE_STORAGE_ADDRESS >> 16));
 	POKE_U16(0x007556c4, MAX_UNIVERSES);
 	HOOK_JAL(0x00755790, &getSelectedUniverseOffset);
 	//POKE_U32(0x00755790, 0x27A40080);

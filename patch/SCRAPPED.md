@@ -81,8 +81,12 @@ POKE_U32(0x01eabd60, 0);
 
 ```
 
+This does stuff like
+ - Spam server with packets to simulate bandwidth constraints on PS2.
+ - Simulate client inputs on a loop to help test certain cases
+ - Send false position to remote clients
+ - Offset game time by some number of seconds to simulate timebase desync
 ```cpp
-
 
 /*
 int sampleCount = 0;
@@ -174,54 +178,6 @@ void dot(void)
 	}
 }
 */
-
-/*
-u128 aaa_fusionhook(Player* p, u64 a1, u128 from, u128 to, u64 t0, u64 t1)
-{
-	//t0 |= 1;
-	u128 r = ((u128 (*)(Player*, u64, u128, u128, u64, u64))0x003f9fc0)(p, a1, from, to, t0, t1);
-
-	VECTOR dir, playerPos = {0,0,1,0};
-	vector_add(playerPos, playerPos, p->PlayerPosition);
-	vector_write(dir, from);
-	vector_subtract(dir, playerPos, dir);
-	vector_normalize(dir, dir);
-
-	return r; //vector_read(dir);
-}
-HOOK_JAL(0x003FA5C8, &aaa_fusionhook);
-*/
-
-void h2(Player* player, char a1, int a2, short a3, char t0, struct tNW_GadgetEventMessage * message)
-{
-	if (player && message && message->GadgetEventType == 8) {
-		int delta = a2 - gameGetTime();
-
-		if (player->Gadgets[0].id != message->GadgetId) {
-			DPRINTF("remote gadgetevent %d from weapon %d but player holding %d\n", message->GadgetEventType, message->GadgetId, player->Gadgets[0].id);
-			playerEquipWeapon(player, message->GadgetId);
-		}
-
-		DPRINTF("remote gadgetevent %d spawned with delay %d", message->GadgetEventType, delta);
-		if (player->Gadgets[0].id == message->GadgetId && delta > 0) {
-			a2 = gameGetTime();
-			DPRINTF("... fixed");
-		}
-		if (delta > TIME_SECOND) {
-			//DPRINTF("\nwe must be lagging.... trying to fix");
-			int rto = gameGetPing() / 2;
-			//POKE_U32(0x01eabd60, 0);
-			//POKE_U32(0x00168BA8, a2 + rto);
-			//((void (*)(int, int))0x01eabce0)(rto, a2);
-			//POKE_U32(0x01eabd60, 0x14600003);
-			DPRINTF("delta=%X (%X)", *(int*)0x00168BA8, a2);
-		}
-
-		DPRINTF("\n");
-	}
-
-	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, a1, a2, a3, t0, message);
-}
 
 int aaa_tick = 0;
 int aaa_active = 0;
@@ -333,5 +289,28 @@ void aaa()
 	}
 	++aaa_tick;
 }
+
+```
+
+This intercepts the fusion shot direction processing to force all shots that hit to aim in the exact direction of the player.
+This is a predecessor of one of the fusion shot lag fixes that removes the shot direction variance on the remote client.
+Which happens even if the shot hit on the source client's screen.
+```cpp
+
+u128 aaa_fusionhook(Player* p, u64 a1, u128 from, u128 to, u64 t0, u64 t1)
+{
+	//t0 |= 1;
+	u128 r = ((u128 (*)(Player*, u64, u128, u128, u64, u64))0x003f9fc0)(p, a1, from, to, t0, t1);
+
+	VECTOR dir, playerPos = {0,0,1,0};
+	vector_add(playerPos, playerPos, p->PlayerPosition);
+	vector_write(dir, from);
+	vector_subtract(dir, playerPos, dir);
+	vector_normalize(dir, dir);
+
+	return r; //vector_read(dir);
+}
+
+HOOK_JAL(0x003FA5C8, &aaa_fusionhook);
 
 ```

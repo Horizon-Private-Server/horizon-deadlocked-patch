@@ -128,7 +128,7 @@ typedef struct SNDNodeState
  */
 typedef struct SNDPlayerState
 {
-	Player * Player;
+	int PlayerIndex;
 	int IsBombCarrier;
 	int IsDead;
 	short BombsPlanted;
@@ -672,14 +672,7 @@ void SNDWeaponPackEventHandler(Moby * moby, GuberEvent * event, MobyEventHandler
 
 				// set bomb carrier
 				SNDState.BombCarrier = p;
-				for (j = 0; j < GAME_MAX_PLAYERS; ++j)
-				{
-					if (SNDState.Players[j].Player == p)
-					{
-						SNDState.Players[j].IsBombCarrier = 1;
-						break;
-					}
-				}
+				SNDState.Players[i].IsBombCarrier = 1;
 				break;
 			}
 			++players;
@@ -806,7 +799,9 @@ void drawRoundMessage(const char * message, float scale)
 
 void onSetRoundOutcome(int outcome, int gameTime)
 {
+	Player** players = playerGetAll();
 	int i = 0;
+
 	if (outcome == SND_OUTCOME_BOMB_DETONATED && SNDState.BombPlantSiteIndex >= 0)
 	{
 		// get plantsite
@@ -823,11 +818,11 @@ void onSetRoundOutcome(int outcome, int gameTime)
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
 			SNDPlayerState_t * player = &SNDState.Players[i];
-			if (player->Player)
+			if (players[i])
 			{
-				if (player->Player->Team == SNDState.DefenderTeamId)
+				if (players[i]->Team == SNDState.DefenderTeamId)
 				{
-					player->Player->timers.explodeTimer = 1;
+					players[i]->timers.explodeTimer = 1;
 				}
 			}
 		}
@@ -884,6 +879,7 @@ void setRoundOutcome(int outcome)
 void onSetBombOutcome(int nodeIndex, int team, int playerId, int gameTime)
 {
 	int i;
+	Player** players = playerGetAll();
 
 	// capture node
 	nodeCapture(SNDState.Nodes[nodeIndex].OrbGuberMoby, team);
@@ -905,22 +901,23 @@ void onSetBombOutcome(int nodeIndex, int team, int playerId, int gameTime)
 		// remove hacker ray from bomb holder
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
-			SNDPlayerState_t * p = &SNDState.Players[i];
-			if (p && p->Player && p->IsBombCarrier)
+			SNDPlayerState_t * playerState = &SNDState.Players[i];
+			Player* p = players[i];
+			if (p && playerState->IsBombCarrier)
 			{
 				DPRINTF("bomb planted %d, carrier %d\n", playerId, i);
 				if (i == playerId) {
-					p->BombsPlanted++;
+					playerState->BombsPlanted++;
 				}
 
-				p->IsBombCarrier = 0;
-				GadgetBox* gBox = p->Player->GadgetBox;
+				playerState->IsBombCarrier = 0;
+				GadgetBox* gBox = p->GadgetBox;
 				if (gBox)
 					gBox->Gadgets[WEAPON_ID_HACKER_RAY].Level = -1;
 
 				// unequip hacker ray if equipped
-				if (p->Player->WeaponHeldGun == WEAPON_ID_HACKER_RAY)
-					playerEquipWeapon(p->Player, WEAPON_ID_WRENCH);
+				if (p->WeaponHeldGun == WEAPON_ID_HACKER_RAY)
+					playerEquipWeapon(p, WEAPON_ID_WRENCH);
 			}
 		}
 
@@ -940,7 +937,8 @@ void onSetBombOutcome(int nodeIndex, int team, int playerId, int gameTime)
 			// check if ninja
 			int attackerAlive = 0;
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				if (SNDState.Players[i].Player && !SNDState.Players[i].IsDead && SNDState.Players[i].Player->Team == SNDState.AttackerTeamId) {
+				Player* p = players[i];
+				if (p && !SNDState.Players[i].IsDead && p->Team == SNDState.AttackerTeamId) {
 					attackerAlive = 1;
 					break;
 				}
@@ -1035,8 +1033,8 @@ void bombTimerLogic()
 
 void playerLogic(SNDPlayerState_t * playerState)
 {
-	Player * localPlayer = (Player*)0x00347AA0;
-	Player * player = playerState->Player;
+	Player * localPlayer = playerGetFromSlot(0);
+	Player * player = playerGetAll()[playerState->PlayerIndex];
 	
 	if (!player)
 	{
@@ -1081,7 +1079,7 @@ void playerLogic(SNDPlayerState_t * playerState)
 					)
 					vector_copy(SNDState.SpawnPackAt, PackSpawnPoint);
 				else
-					vector_copy(SNDState.SpawnPackAt, playerState->Player->PlayerPosition);
+					vector_copy(SNDState.SpawnPackAt, player->PlayerPosition);
 
 				SNDState.SpawnPackAt[3] = 1;
 			}
@@ -1131,7 +1129,7 @@ void resetRoundState(void)
 		player = players[i];
 		
 		// update state
-		SNDState.Players[i].Player = player;
+		SNDState.Players[i].PlayerIndex = i;
 		SNDState.Players[i].IsDead = 0;
 		SNDState.Players[i].IsBombCarrier = 0;
 
@@ -1657,9 +1655,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			// set bomb carrier as another objective if attacking team
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 			{
-				if (SNDState.Players[i].Player)
+				Player* p = players[i];
+				if (p)
 				{
-					int blipId = radarGetBlipIndex(SNDState.Players[i].Player->PlayerMoby);
+					int blipId = radarGetBlipIndex(p->PlayerMoby);
 					if (blipId >= 0)
 					{
 						RadarBlip * blip = radarGetBlips() + blipId;
@@ -1672,7 +1671,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			int hasAttackers = 0, hasDefenders = 0;
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 			{
-				Player * p = SNDState.Players[i].Player = players[i];
+				Player * p = players[i];
 				playerLogic(&SNDState.Players[i]);
 
 				if (p)
@@ -1890,7 +1889,10 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  */
 void loadStart(void)
 {
-	DPRINTF("LEVEL LOAD\n");
+	// only handle when loading level
+	GameSettings* gs = gameGetSettings();
+	if (!gs || gs->GameStartTime >= 0)
+		return;
 
 	// Hook load gameplay file
 	if (*(u32*)0x004EE664 == 0x0C13B3DC)

@@ -1145,7 +1145,7 @@ void grGameStart(void)
 	else if (gameConfig.grV2s == 1)
 		alwaysV2sLogic();
 
-	if (gameConfig.prWeatherId)
+	if (gameConfig.prMirrorWorld)
 		cheatsApplyMirrorWorld(1);
 
 	if (gameConfig.grNoHealthBoxes && !HasDisabledHealthboxes)
@@ -1244,6 +1244,11 @@ void grLobbyStart(void)
  */
 void grLoadStart(void)
 {
+	// only handle when loading level
+	GameSettings* gs = gameGetSettings();
+	if (!gs || gs->GameStartTime >= 0)
+		return;
+
 	// Hook load gameplay file
 	if (*(u32*)0x004EE648 == 0x0C13B3A8)
 		*(u32*)0x004EE648 = 0x0C000000 | (u32)&onGameplayLoad / 4;

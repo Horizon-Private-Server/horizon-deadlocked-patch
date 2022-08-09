@@ -143,10 +143,41 @@ char mapOverrideResponse = 1;
 char showNoMapPopup = 0;
 const char * patchConfigStr = "PATCH CONFIG";
 char weaponOrderBackup[2][3] = { {0,0,0}, {0,0,0} };
+float lastFps = 0;
+int renderTimeMs = 0;
+float averageRenderTimeMs = 0;
+int updateTimeMs = 0;
+float averageUpdateTimeMs = 0;
 //char hasSetRanks = 0;
 //ServerSetRanksRequest_t lastSetRanksRequest;
 
 extern char fixWeaponLagToggle;
+
+int lastLodLevel = 2;
+const int lodPatchesPotato[][2] = {
+	{ 0x0050e318, 0x03E00008 }, // disable corn
+	{ 0x0050e31c, 0x00000000 },
+	{ 0x0041d400, 0x03E00008 }, // disable small weapon explosion
+	{ 0x0041d404, 0x00000000 },
+	{ 0x003F7154, 0x00000000 }, // disable b6 ball shadow
+	{ 0x003A18F0, 0x24020000 }, // disable b6 particles
+	{ 0x0042EA50, 0x24020000 }, // disable mag particles
+	{ 0x0043C150, 0x24020000 }, // disable mag shells
+	{ 0x003A18F0, 0x24020000 }, // disable fusion shot particles
+};
+
+const int lodPatchesNormal[][2] = {
+	{ 0x0050e318, 0x27BDFE40 }, // disable corn
+	{ 0x0050e31c, 0x7FB40100 },
+	{ 0x0041d400, 0x27BDFF00 }, // disable small weapon explosion
+	{ 0x0041d404, 0x7FB00060 },
+	{ 0x003F7154, 0x0C140F40 }, // disable b6 ball shadow
+	{ 0x003A18F0, 0x0C13DC80 }, // disable b6 particles
+	{ 0x0042EA50, 0x0C13DC80 }, // disable mag particles
+	{ 0x0043C150, 0x0C13DC80 }, // disable mag shells
+	{ 0x003A18F0, 0x0C13DC80 }, // disable fusion shot particles
+};
+
 
 // 
 struct GameDataBlock
@@ -243,11 +274,11 @@ const PlayerStateCondition_t stateForceRemoteConditions[] = {
 
 // 
 PatchConfig_t config __attribute__((section(".config"))) = {
-	.disableFramelimiter = 0,
+	.framelimiter = 0,
 	.enableGamemodeAnnouncements = 0,
 	.enableSpectate = 0,
 	.enableSingleplayerMusic = 0,
-	.levelOfDetail = 1,
+	.levelOfDetail = 2,
 	.enablePlayerStateSync = 0,
 	.enableAutoMaps = 0,
 	.enableFpsCounter = 0,
@@ -443,6 +474,138 @@ void patchResurrectWeaponOrdering(void)
 
 	HOOK_JAL(0x005e2b2c, &patchResurrectWeaponOrdering_HookWeaponStripMe);
 	HOOK_JAL(0x005e2b48, &patchResurrectWeaponOrdering_HookGiveMeRandomWeapons);
+}
+
+/*
+ * NAME :		patchLevelOfDetail
+ * 
+ * DESCRIPTION :
+ * 			Sets the level of detail.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchLevelOfDetail(void)
+{
+	int i = 0;
+
+	// patch lod
+	if (*(u32*)0x005930B8 == 0x02C3B020)
+	{
+		*(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
+	}
+
+	// correct lod
+	int lodChanged = config.levelOfDetail != lastLodLevel;
+	switch (config.levelOfDetail)
+	{
+		case 0: // potato
+		{
+			_lodScale = 0.2;
+			SHRUB_RENDER_DISTANCE = 50;
+			*DRAW_SHADOW_FUNC = 0x03E00008;
+			*(DRAW_SHADOW_FUNC + 1) = 0;
+
+			if (lodChanged)
+			{
+				// set terrain and tie render distance
+				POKE_U16(0x00223158, 120);
+				*(float*)0x002230F0 = 120 * 1024;
+
+				for (i = 0; i < sizeof(lodPatchesPotato) / (2 * sizeof(int)); ++i)
+					POKE_U32(lodPatchesPotato[i][0], lodPatchesPotato[i][1]);
+			}
+			break;
+		}
+		case 1: // low
+		{
+			_lodScale = 0.2;
+			SHRUB_RENDER_DISTANCE = 50;
+			*DRAW_SHADOW_FUNC = 0x03E00008;
+			*(DRAW_SHADOW_FUNC + 1) = 0;
+
+			if (lodChanged)
+			{
+				// set terrain and tie render distance
+				POKE_U16(0x00223158, 480);
+				*(float*)0x002230F0 = 480 * 1024;
+
+				for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+					POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+			}
+			break;
+		}
+		case 2: // normal
+		{
+			_lodScale = 1.0;
+			SHRUB_RENDER_DISTANCE = 500;
+			*DRAW_SHADOW_FUNC = 0x27BDFF90;
+			*(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
+			POKE_U16(0x00223158, 960);
+			*(float*)0x002230F0 = 960 * 1024;
+
+			if (lodChanged)
+			{
+				// set terrain and tie render distance
+				POKE_U16(0x00223158, 960);
+				*(float*)0x002230F0 = 960 * 1024;
+
+				for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+					POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+			}
+			break;
+		}
+		case 3: // high
+		{
+			_lodScale = 10.0;
+			SHRUB_RENDER_DISTANCE = 5000;
+			*DRAW_SHADOW_FUNC = 0x27BDFF90;
+			*(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
+
+			for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+				POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+			break;
+		}
+	}
+
+	// backup lod
+	lastLodLevel = config.levelOfDetail;
+}
+
+/*
+ * NAME :		patchCameraShake
+ * 
+ * DESCRIPTION :
+ * 			Disables camera shake.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchCameraShake(void)
+{
+	if (!isInGame())
+		return;
+
+	if (config.disableCameraShake)
+	{
+		POKE_U32(0x004b14a0, 0x03E00008);
+		POKE_U32(0x004b14a4, 0);
+	}
+	else
+	{
+		POKE_U32(0x004b14a0, 0x34030470);
+		POKE_U32(0x004b14a4, 0x27BDFF70);
+	}
 }
 
 /*
@@ -828,24 +991,51 @@ void patchFov(void)
  */
 void patchFrameSkip()
 {
-	int addrValue = FRAME_SKIP_WRITE0;
+	static int disableByAuto = 0;
+	static int autoDisableDelayTicks = 0;
 	
-	if (config.disableFramelimiter && addrValue == 0xAF848859)
+	int addrValue = FRAME_SKIP_WRITE0;
+	int disableFramelimiter = config.framelimiter == 2;
+	int totalTimeMs = renderTimeMs + updateTimeMs;
+	float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
+
+	if (config.framelimiter == 1) // auto
+	{
+		// already disabled, to re-enable must have instantaneous high total time
+		if (disableByAuto && totalTimeMs > 14.0) {
+			autoDisableDelayTicks = 60; // 2 seconds before can disable again
+			disableByAuto = 0; 
+		}
+		// not disabled, to disable must have average low total time
+		// and must not have just enabled it
+		else if (autoDisableDelayTicks == 0 && !disableByAuto && averageTotalTimeMs < 13.5)
+			disableByAuto = 1;
+
+		// decrement disable delay
+		if (autoDisableDelayTicks > 0)
+			--autoDisableDelayTicks;
+
+		// set framelimiter
+		disableFramelimiter = disableByAuto;
+	}
+
+	// re-enable framelimiter if last fps is really low
+	if (disableFramelimiter && addrValue == 0xAF848859)
 	{
 		FRAME_SKIP_WRITE0 = 0;
 		FRAME_SKIP = 0;
 	}
-	else if (!config.disableFramelimiter && addrValue == 0)
+	else if (!disableFramelimiter && addrValue == 0)
 	{
 		FRAME_SKIP_WRITE0 = 0xAF848859;
 	}
 }
 
 /*
- * NAME :		patchWeaponShotNetSendFlag
+ * NAME :		handleWeaponShotDelayed
  * 
  * DESCRIPTION :
- * 			Patches weapon shot to be sent over TCP instead of UDP.
+ * 			Forces all incoming weapon shot events to happen immediately.
  * 
  * NOTES :
  * 
@@ -855,8 +1045,61 @@ void patchFrameSkip()
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void patchWeaponShotNetSendFlag(void)
+void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0, struct tNW_GadgetEventMessage * message)
 {
+	if (player && message && message->GadgetEventType == 8) {
+		int delta = a2 - gameGetTime();
+
+		// client is not holding correct weapon on our screen
+		// haven't determined a way to fix this yet but
+		if (player->Gadgets[0].id != message->GadgetId) {
+			DPRINTF("remote gadgetevent %d from weapon %d but player holding %d\n", message->GadgetEventType, message->GadgetId, player->Gadgets[0].id);
+			playerEquipWeapon(player, message->GadgetId);
+		}
+
+		// set weapon shot event time to now if its in the future
+		// because the client is probably lagging behind
+		DPRINTF("remote gadgetevent %d spawned with delay %d", message->GadgetEventType, delta);
+		if (player->Gadgets[0].id == message->GadgetId && delta > 0) {
+			a2 = gameGetTime();
+			DPRINTF("... fixed");
+		}
+		
+		// attempt to correct client's timebase by assuming offset from time of shot and now
+		if (0 && delta > TIME_SECOND) {
+			//DPRINTF("\nwe must be lagging.... trying to fix");
+			int rto = gameGetPing() / 2;
+			//POKE_U32(0x01eabd60, 0);
+			//POKE_U32(0x00168BA8, a2 + rto);
+			//((void (*)(int, int))0x01eabce0)(rto, a2);
+			//POKE_U32(0x01eabd60, 0x14600003);
+			DPRINTF("delta=%X (%X)", *(int*)0x00168BA8, a2);
+		}
+
+		DPRINTF("\n");
+	}
+
+	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, a1, a2, a3, t0, message);
+}
+
+/*
+ * NAME :		patchWeaponShotLag
+ * 
+ * DESCRIPTION :
+ * 			Patches weapon shots to be less laggy.
+ * 			This is always a work-in-progress.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchWeaponShotLag(void)
+{
+	// send all shots reliably
 	/*
 	u32* ptr = (u32*)0x00627AB4;
 	if (*ptr == 0x906407F8) {
@@ -869,6 +1112,20 @@ void patchWeaponShotNetSendFlag(void)
 		*(u32*)0x0060F4C4 = 0;
 	}
 	*/
+
+	// patches fusion shot so that remote shots aren't given additional "shake"
+	// ie, remote shots go in the same direction that is sent by the source client
+	POKE_U32(0x003FA28C, 0);
+
+	// patch all weapon shots to be shot on remote as soon as they arrive
+	// instead of waiting for the gametime when they were shot on the remote
+	// since all shots happen immediately (none are sent ahead-of-time)
+	// and this only happens when a client's timebase is desync'd
+	HOOK_JAL(0x0062ac60, &handleWeaponShotDelayed);
+
+	// this disables filtering out fusion shots where the player is facing the opposite direction
+	// in other words, a player may appear to shoot behind them but it's just lag/desync
+	FUSION_SHOT_BACKWARDS_BRANCH = 0x1000005F;
 
 	// send fusion shot reliably
 	if (*(u32*)0x003FCE8C == 0x910407F8)
@@ -1444,24 +1701,19 @@ u64 hookedProcessLevel()
 {
 	u64 r = ((u64 (*)(void))0x001579A0)();
 
-	// ensure that the game is loading and not exiting
-	GameSettings * gs = gameGetSettings();
-	if (gs && gs->GameStartTime < 0)
+	// Start at the first game module
+	GameModule * module = GLOBAL_GAME_MODULES_START;
+
+	// call gamerules level load
+	grLoadStart();
+
+	// pass event to modules
+	while (module->GameEntrypoint || module->LobbyEntrypoint)
 	{
-		// Start at the first game module
-		GameModule * module = GLOBAL_GAME_MODULES_START;
+		if (module->State > GAMEMODULE_OFF && module->LoadEntrypoint)
+			module->LoadEntrypoint(module, &config, &gameConfig, &patchStateContainer);
 
-		// call gamerules level load
-		grLoadStart();
-	
-		// pass event to modules
-		while (module->GameEntrypoint || module->LobbyEntrypoint)
-		{
-			if (module->State > GAMEMODULE_OFF && module->LoadEntrypoint)
-				module->LoadEntrypoint(module, &config, &gameConfig, &patchStateContainer);
-
-			++module;
-		}
+		++module;
 	}
 
 	return r;
@@ -1631,16 +1883,15 @@ int processSendGameData(void)
  */
 void runFpsCounter(void)
 {
-	char buf[16];
+	char buf[64];
 	static int lastGameTime = 0;
 	static int tickCounter = 0;
-	static float lastFps = 0;
 
 	// initialize time
 	if (tickCounter == 0 && lastGameTime == 0)
 		lastGameTime = gameGetTime();
 	
-	// update fps every 60 ticks/frames
+	// update fps every 60 frames
 	++tickCounter;
 	if (tickCounter >= 60)
 	{
@@ -1652,8 +1903,13 @@ void runFpsCounter(void)
 
 	// render if enabled
 	if (config.enableFpsCounter)
-	{			
-		snprintf(buf, 16, "%.2f", lastFps);
+	{
+		if (averageRenderTimeMs > 0) {
+			snprintf(buf, 64, "EE: %.1fms GS: %.1fms FPS: %.2f", averageUpdateTimeMs, averageRenderTimeMs, lastFps);
+		} else {
+			snprintf(buf, 64, "FPS: %.2f", lastFps);
+		}
+		
 		gfxScreenSpaceText(SCREEN_WIDTH - 5, 5, 0.75, 0.75, 0x80FFFFFF, buf, -1, 2);
 	}
 }
@@ -2007,6 +2263,84 @@ void handleScrPrint(void)
 #endif
 
 /*
+ * NAME :		drawHook
+ * 
+ * DESCRIPTION :
+ * 			Logs time it takes to render a frame.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void drawHook(u64 a0)
+{
+	static int renderTimeCounterMs = 0;
+	static int frames = 0;
+	static long ticksIntervalStarted = 0;
+
+	long t0 = timerGetSystemTime();
+	((void (*)(u64))0x004c3240)(a0);
+	long t1 = timerGetSystemTime();
+
+	renderTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
+
+	renderTimeCounterMs += renderTimeMs;
+	frames++;
+
+	// update every 500 ms
+	if ((t1 - ticksIntervalStarted) > (SYSTEM_TIME_TICKS_PER_MS * 500))
+	{
+		averageRenderTimeMs = renderTimeCounterMs / (float)frames;
+		renderTimeCounterMs = 0;
+		frames = 0;
+		ticksIntervalStarted = t1;
+	}
+}
+
+/*
+ * NAME :		updateHook
+ * 
+ * DESCRIPTION :
+ * 			Logs time it takes to run an update.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void updateHook(void)
+{
+	static int updateTimeCounterMs = 0;
+	static int frames = 0;
+	static long ticksIntervalStarted = 0;
+
+	long t0 = timerGetSystemTime();
+	((void (*)(void))0x005986b0)();
+	long t1 = timerGetSystemTime();
+
+	updateTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
+
+	updateTimeCounterMs += updateTimeMs;
+	frames++;
+
+	// update every 500 ms
+	if ((t1 - ticksIntervalStarted) > (SYSTEM_TIME_TICKS_PER_MS * 500))
+	{
+		averageUpdateTimeMs = updateTimeCounterMs / (float)frames;
+		updateTimeCounterMs = 0;
+		frames = 0;
+		ticksIntervalStarted = t1;
+	}
+}
+
+/*
  * NAME :		onOnlineMenu
  * 
  * DESCRIPTION :
@@ -2089,255 +2423,6 @@ void onOnlineMenu(void)
 }
 
 /*
-int sampleCount = 0;
-int isSampling = 0;
-int deltaTotal = 0;
-int deltaCount = 0;
-int counts[200];
-const int SAMPLE_SIZE = 250;
-
-int dot_callback(void * connection, void * data)
-{
-	int time = *(int*)data;
-	int delta = gameGetTime() - time;
-
-	//printf("delta %d\n", delta);
-	counts[delta]++;
-	deltaTotal += delta;
-	deltaCount++;
-
-	return sizeof(int);
-}
-
-int dot_callback2(void * connection, void * data)
-{
-	int time = *(int*)data;
-	int delta = gameGetTime() - time;
-
-	printf("delta %d\n", delta);
-
-	return sizeof(int);
-}
-
-void dot(void)
-{
-
-	netInstallCustomMsgHandler(101, &dot_callback);
-	netInstallCustomMsgHandler(102, &dot_callback2);
-
-	int i = 0;
-	int gameTime = gameGetTime();
-	GameSettings* gs = gameGetSettings();
-	if (!gs)
-		return;
-
-	void * dmeConnection = netGetDmeServerConnection();
-	if (!dmeConnection)
-		return;
-
-	if (!isSampling && padGetButtonDown(0, PAD_L1) > 0) {
-		printf("sending %d samples\n", SAMPLE_SIZE);
-		isSampling = 1;
-		sampleCount = 0;
-		deltaCount = 0;
-		deltaTotal = 0;
-		memset(counts, 0, sizeof(counts));
-	}
-	else if (!isSampling && padGetButtonDown(0, PAD_R1) > 0) {
-		netBroadcastCustomAppMessage(NET_LATENCY_CRITICAL, dmeConnection, 102, sizeof(gameTime), &gameTime);
-	}
-
-	if (isSampling) {
-		if (sampleCount >= SAMPLE_SIZE) {
-			if (isSampling < 200) {
-				isSampling++;
-				return;
-			}
-			isSampling = 0;
-
-			float avgDt = (float)deltaTotal / (float)deltaCount;
-			int minDt = (int)avgDt;
-			int maxDt = (int)avgDt;
-			for (i = 0; i < 200; ++i) {
-				if (i < minDt && counts[i] > 0)
-					minDt = i;
-				if (i > maxDt && counts[i] > 0)
-					maxDt = i;
-			}
-
-			printf("received %d samples with average latency %f, min:%d max:%d\n", deltaCount, avgDt, minDt, maxDt);
-			for (i = 0; i < 200; ++i) {
-				if (counts[i] > 0) {
-					printf("\t%d: %d\n", i, counts[i]);
-				}
-			}
-		} else {
-			netBroadcastCustomAppMessage(NET_LATENCY_CRITICAL, dmeConnection, 101, sizeof(gameTime), &gameTime);
-			++sampleCount;
-		}
-	}
-}
-*/
-
-/*
-u128 aaa_fusionhook(Player* p, u64 a1, u128 from, u128 to, u64 t0, u64 t1)
-{
-	//t0 |= 1;
-	u128 r = ((u128 (*)(Player*, u64, u128, u128, u64, u64))0x003f9fc0)(p, a1, from, to, t0, t1);
-
-	VECTOR dir, playerPos = {0,0,1,0};
-	vector_add(playerPos, playerPos, p->PlayerPosition);
-	vector_write(dir, from);
-	vector_subtract(dir, playerPos, dir);
-	vector_normalize(dir, dir);
-
-	return r; //vector_read(dir);
-}
-HOOK_JAL(0x003FA5C8, &aaa_fusionhook);
-*/
-
-void h2(Player* player, char a1, int a2, short a3, char t0, struct tNW_GadgetEventMessage * message)
-{
-	if (player && message && message->GadgetEventType == 8) {
-		int delta = a2 - gameGetTime();
-
-		if (player->Gadgets[0].id != message->GadgetId) {
-			DPRINTF("remote gadgetevent %d from weapon %d but player holding %d\n", message->GadgetEventType, message->GadgetId, player->Gadgets[0].id);
-			playerEquipWeapon(player, message->GadgetId);
-		}
-
-		DPRINTF("remote gadgetevent %d spawned with delay %d", message->GadgetEventType, delta);
-		if (player->Gadgets[0].id == message->GadgetId && delta > 0) {
-			a2 = gameGetTime();
-			DPRINTF("... fixed");
-		}
-		if (delta > TIME_SECOND) {
-			//DPRINTF("\nwe must be lagging.... trying to fix");
-			int rto = gameGetPing() / 2;
-			//POKE_U32(0x01eabd60, 0);
-			//POKE_U32(0x00168BA8, a2 + rto);
-			//((void (*)(int, int))0x01eabce0)(rto, a2);
-			//POKE_U32(0x01eabd60, 0x14600003);
-			DPRINTF("delta=%X (%X)", *(int*)0x00168BA8, a2);
-		}
-
-		DPRINTF("\n");
-	}
-
-	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, a1, a2, a3, t0, message);
-}
-
-int aaa_tick = 0;
-int aaa_active = 0;
-VECTOR aaa_pos;
-VECTOR aaa_rot;
-
-int r(void)
-{
-	if (aaa_active == 3) {
-		*(int*)0x00172378 = *(int*)0x00172378 + (TIME_SECOND * 1.1);
-	}
-
-	return 0;
-}
-
-void copyposstateupdatehook(void * dest, void * src, int size)
-{
-	if (aaa_active == 4) {
-		memcpy(dest, aaa_pos, size);
-	} else {
-		memcpy(dest, src, size);
-	}
-}
-
-void aaa()
-{
-	VECTOR t;
-	if (!isInGame())
-		return;
-
-	HOOK_J(0x0015B290, &r);
-	HOOK_JAL(0x0060ed9c, &copyposstateupdatehook);
-
-	Player * p = playerGetFromSlot(0);
-	vector_write(t, 0);
-
-	// toggle
-	if (padGetButtonDown(0, PAD_L3) > 0) {
-		aaa_active = 0;
-		DPRINTF("deactivated\n");
-	}
-
-	// toggle
-	if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
-		aaa_active = 1;
-		DPRINTF("activated\n");
-		aaa_tick = 0;
-		vector_copy(aaa_pos, p->PlayerPosition);
-		aaa_rot[0] = p->PlayerYaw;
-		aaa_rot[1] = p->CameraPitch.Value;
-		aaa_rot[2] = p->CameraYaw.Value;
-	}
-
-	// toggle
-	if (padGetButtonDown(0, PAD_L1 | PAD_LEFT) > 0) {
-		aaa_active = 2;
-		DPRINTF("activated\n");
-		aaa_tick = 0;
-		vector_copy(aaa_pos, p->PlayerPosition);
-		aaa_rot[0] = p->PlayerYaw;
-		aaa_rot[1] = p->CameraPitch.Value;
-		aaa_rot[2] = p->CameraYaw.Value;
-	}
-
-	// toggle
-	if (padGetButtonDown(0, PAD_L1 | PAD_DOWN) > 0) {
-		aaa_active = 3;
-		DPRINTF("activated\n");
-		aaa_tick = 0;
-	}
-
-	// toggle
-	if (padGetButtonDown(0, PAD_L1 | PAD_RIGHT) > 0) {
-		aaa_active = 4;
-		DPRINTF("activated\n");
-		aaa_tick = 0;
-		vector_copy(aaa_pos, p->PlayerPosition);
-	}
-
-	if (!aaa_active || gameIsStartMenuOpen() || isConfigMenuActive)
-		return;
-
-	if (aaa_active == 1) {
-		if (aaa_tick > 200) {
-			// reset
-			t[2] = aaa_rot[0];
-			playerSetPosRot(p, aaa_pos, t);
-			p->CameraPitch.Value = aaa_rot[1];
-			p->CameraYaw.Value = aaa_rot[2];
-			aaa_tick = 0;
-		} else if (aaa_tick < 4) {
-			// first few frames try and jump
-			p->Paddata->btns &= ~PAD_L1;
-		} else if (aaa_tick >= 30 && aaa_tick < 33) {
-			// then try and shoot
-			p->Paddata->btns &= ~PAD_R1;
-		}
-	} else if (aaa_active == 2) {
-		if (aaa_tick > 100) {
-			p->Paddata->btns &= ~PAD_R1;
-			aaa_tick = 0;
-		}
-	} else if (aaa_tick == 3) {
-		//*(int*)0x00172378 = *(int*)0x00172378 + (TIME_SECOND);
-	} else if (aaa_tick == 4) {
-		POKE_U32(0x0034AA94, 0x007F007F);
-		POKE_U32(0x0034AA98, 0x007F007F);
-	}
-	++aaa_tick;
-}
-
-/*
  * NAME :		main
  * 
  * DESCRIPTION :
@@ -2417,21 +2502,6 @@ int main (void)
 	runCompLogic();
 #endif
 
-	//dot();
-	//aaa();
-
-	/*
-	int pp = 0;
-	((void (*)(int*))0x01eabda0)(&pp);
-	if (pp == 0) {
-		POKE_U32(0x01eabd60, 0);
-	}	else {
-		POKE_U32(0x01eabd60, 0x14600003);
-	}
-	*/
-
-	POKE_U32(0x01eabd60, 0);
-
 	// 
 	runCheckGameMapInstalled();
 
@@ -2468,8 +2538,8 @@ int main (void)
 	// Patch frame skip
 	patchFrameSkip();
 
-	// Patch weapon shot to be sent reliably
-	patchWeaponShotNetSendFlag();
+	// Patch shots to be less laggy
+	patchWeaponShotLag();
 
 	// Patch state update to run more optimized
 	patchStateUpdate();
@@ -2482,6 +2552,9 @@ int main (void)
 
 	// Patch resurrect weapon ordering
 	patchResurrectWeaponOrdering();
+
+	// Patch camera shake
+	patchCameraShake();
 
 	// 
 	//patchWideStats();
@@ -2501,6 +2574,10 @@ int main (void)
 	// in game stuff
 	if (isInGame())
 	{
+		// hook render function
+		HOOK_JAL(0x004C3A94, &drawHook);
+		HOOK_JAL(0x004A84B0, &updateHook);
+		
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
 
@@ -2513,16 +2590,6 @@ int main (void)
 
 		//
 		grGameStart();
-
-		// patches fusion shot so that remote shots aren't given additional "shake"
-		// ie, remote shots go in the same direction that is sent by the source client
-		POKE_U32(0x003FA28C, 0);
-
-		// 
-		if (fixWeaponLagToggle)
-			HOOK_JAL(0x0062ac60, &h2);
-		else
-			POKE_U32(0x0062AC60, 0x0C17C0C6);
 
 		// this lets guber events that are < 5 seconds old be processed (original is 1.2 seconds)
 		//GADGET_EVENT_MAX_TLL = 5 * TIME_SECOND;
@@ -2538,48 +2605,11 @@ int main (void)
 			*(u32*)0x005DE870 = config.disableCircleToHackerRay ? 0x24040000 : 0x00C0202D;
 		}
 
-		// this disables filtering out fusion shots where the player is facing the opposite direction
-		// in other words, a player may appear to shoot behind them but it's just lag/desync
-		FUSION_SHOT_BACKWARDS_BRANCH = 0x1000005F;
-
 		// close config menu on transition to lobby
 		if (lastGameState != 1)
 			configMenuDisable();
 
-		// patch lod
-		if (*(u32*)0x005930B8 == 0x02C3B020)
-		{
-			*(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
-		}
-
-		// correct lod
-		switch (config.levelOfDetail)
-		{
-			case 0: // low
-			{
-				_lodScale = 0.2;
-				SHRUB_RENDER_DISTANCE = 50;
-				*DRAW_SHADOW_FUNC = 0x03E00008;
-				*(DRAW_SHADOW_FUNC + 1) = 0;
-				break;
-			}
-			case 1: // normal
-			{
-				_lodScale = 1.0;
-				SHRUB_RENDER_DISTANCE = 500;
-				*DRAW_SHADOW_FUNC = 0x27BDFF90;
-				*(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
-				break;
-			}
-			case 2: // high
-			{
-				_lodScale = 10.0;
-				SHRUB_RENDER_DISTANCE = 5000;
-				*DRAW_SHADOW_FUNC = 0x27BDFF90;
-				*(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
-				break;
-			}
-		}
+		patchLevelOfDetail();
 
 		// Hook game start menu back callback
 		if (*(u32*)0x005605D4 == 0x0C15803E)
@@ -2608,6 +2638,12 @@ int main (void)
 	}
 	else if (isInMenus())
 	{
+		// render ms isn't important in the menus so assume best case scenario of 0ms
+		renderTimeMs = 0;
+		averageRenderTimeMs = 0;
+		updateTimeMs = 0;
+		averageUpdateTimeMs = 0;
+
 		//
 		grLobbyStart();
 

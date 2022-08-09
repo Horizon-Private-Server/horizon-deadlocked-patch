@@ -90,6 +90,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
 int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -117,8 +118,16 @@ int mapsDownloadingModules(void);
 MenuElem_ListData_t dataLevelOfDetail = {
     &config.levelOfDetail,
     NULL,
-    2,
-    { "Low", "Normal", "High" }
+    3,
+    { "Potato", "Low", "Normal", "High" }
+};
+
+// framelimiter list item
+MenuElem_ListData_t dataFramelimiter = {
+    &config.framelimiter,
+    NULL,
+    3,
+    { "On", "Auto", "Off" }
 };
 
 // player aggregation time offset range item
@@ -135,17 +144,18 @@ MenuElem_t menuElementsGeneral[] = {
   { "Redownload patch", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadPatchSelectHandler },
 #endif
   { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
-  { "Disable framelimiter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableFramelimiter },
-  { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements },
-  { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate },
-  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
-  { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
-  { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
-  { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
-  { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
-  { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
   { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
+  { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements },
+  { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake },
+  { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
+  { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
+  { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
+  { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
+  { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
+  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
+  { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate },
+  { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
 //  { "Fix Weapon Lag", toggleActionHandler, menuStateAlwaysEnabledHandler, &fixWeaponLagToggle },
 };
 
@@ -402,6 +412,18 @@ MenuElem_ListData_t dataSurvivalDifficulty = {
     }
 };
 
+// payload contest mode
+MenuElem_ListData_t dataPayloadContestMode = {
+    &gameConfig.payloadConfig.contestMode,
+    NULL,
+    3,
+    {
+      [PAYLOAD_CONTEST_OFF] "Off",
+      [PAYLOAD_CONTEST_SLOW] "Slow",
+      [PAYLOAD_CONTEST_STOP] "Stop"
+    }
+};
+
 // player size list item
 MenuElem_ListData_t dataPlayerSize = {
     &gameConfig.prPlayerSize,
@@ -488,9 +510,13 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps },
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
 
-  // game mode settings
+  // SURVIVAL SETTINGS
   { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
 
+  // PAYLOAD SETTINGS
+  { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode },
+
+  // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Better hills", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterHills },
   { "Damage cooldown", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoInvTimer },
@@ -504,6 +530,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Weapon packs", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPacks },
   { "Weapon pickups", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPickups },
 
+  // PARTY RULES
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Chargeboot Forever", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prChargebootForever },
   { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt },
@@ -759,7 +786,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
     }
     case CUSTOM_MODE_PAYLOAD:
     {
-      if (v == CUSTOM_MAP_SARATHOS_SP || v == CUSTOM_MAP_DESERT_PRISON)
+      if (v == CUSTOM_MAP_SARATHOS_SP || v == CUSTOM_MAP_DESERT_PRISON || v == CUSTOM_MAP_NONE)
         return 1;
 
       *value = CUSTOM_MAP_DESERT_PRISON;
@@ -849,6 +876,15 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (gameConfig.customModeId != CUSTOM_MODE_PAYLOAD)
     *state = ELEMENT_HIDDEN;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;

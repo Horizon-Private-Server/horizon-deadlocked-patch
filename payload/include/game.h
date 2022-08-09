@@ -4,6 +4,7 @@
 #include <tamtypes.h>
 #include "messageid.h"
 #include "bezier.h"
+#include "config.h"
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 
@@ -13,7 +14,7 @@
 #define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 3)
 
 #define PAYLOAD_PATH_MAX_POINTS								(32)
-#define PAYLOAD_MAX_SPAWNPOINTS								(100)
+#define PAYLOAD_MAX_SPAWNPOINTS								(150)
 #define PAYLOAD_SIZE													(2.5)
 
 #define PAYLOAD_MAX_FORWARD_SPEED							(4)
@@ -33,14 +34,27 @@
 #define PAYLOAD_SPAWN_DISTANCE_FUDGE					(40)
 #define PAYLOAD_SPAWN_NEAR_TEAM_FUDGE					(15)
 
+#define PAYLOAD_SOUND													(224)
+#define PAYLOAD_SOUND_VOLUME									(2000)
+#define PAYLOAD_ELECTRICITY_SOUND							(341)
+#define PAYLOAD_ELECTRICITY_END_SOUND					(342)
+#define PAYLOAD_ELECTRICITY_SOUND_VOLUME			(1250)
+
+#define PLAYER_NEAR_PAYLOAD_SEND_EVERY_TICKS	(15)
+
 #define MIN_FLOAT_MAGNITUDE										(0.0001)
+
+#define TIMER_BASE_COLOR1			(0xFF00B7B7)
+#define TIMER_BASE_COLOR2			(0xFF006767)
+#define TIMER_HIGH_COLOR			(0xFFFFFFFF)
 
 enum GameNetMessage
 {
 	CUSTOM_MSG_ROUND_COMPLETE = CUSTOM_MSG_ID_GAME_MODE_START,
 	CUSTOM_MSG_PLAYER_SET_STATS,
 	CUSTOM_MSG_SEND_PAYLOAD_STATE,
-	CUSTOM_MSG_SEND_TEAM_SCORE
+	CUSTOM_MSG_SEND_TEAM_SCORE,
+	CUSTOM_MSG_PLAYER_NEAR_PAYLOAD
 };
 
 enum RoundOutcome
@@ -58,7 +72,6 @@ enum PayloadMobyState
 	PAYLOAD_STATE_EXPLODED
 };
 
-
 struct PayloadPlayerStats
 {
 	float PointsT;
@@ -71,8 +84,11 @@ struct PayloadPlayerStats
 
 struct PayloadPlayer
 {
-	Player * Player;
+	int PlayerIndex;
 	int IsAttacking;
+	int SoundHandle;
+	int SoundId;
+	int IsNearPayload;
 	struct PayloadPlayerStats Stats;
 };
 
@@ -90,7 +106,10 @@ struct PayloadMobyPVar
 	float Speed;
 	float Levitate;
 	int PathIndex;
-	int PlayerCount;
+	int SoundHandle;
+	int SoundId;
+	int AttackerNearCount;
+	int DefenderNearCount;
 	enum PayloadMobyState State;
 	char IsMaxSpeed;
 	u16 ExplodeTicks;
@@ -98,7 +117,7 @@ struct PayloadMobyPVar
 	u8 RecomputeDistanceTicks;
 };
 
-struct PayloadConfig
+struct PayloadMapConfig
 {
 	int PathVertexCount;
 	int SpawnPointCount;
@@ -115,7 +134,12 @@ struct PayloadState
 	int RoundLimit;
 	int RoundStartTime;
 	int RoundDuration;
+	int RoundFirstDuration;
 	int RoundEndTime;
+	int PayloadDeliveredTime;
+	int PayloadDeliveredEndRoundTicks;
+	int TimerLastPlaySoundSecond;
+	int ShownOvertimeHelpMessage;
 	enum RoundOutcome RoundResult;
 	int InitializedTime;
 	float PathSegmentLengths[PAYLOAD_PATH_MAX_POINTS];
@@ -127,6 +151,7 @@ struct PayloadState
 	int GameOver;
 	int WinningTeam;
 	int IsHost;
+	enum PayloadContestMode ContestMode;
 	Moby* PayloadMoby;
 };
 
@@ -168,6 +193,13 @@ typedef struct SetTeamScoreMessage
 	int TeamRoundTimes[GAME_MAX_PLAYERS];
 } SetTeamScoreMessage_t;
 
+typedef struct SetPlayerNearPayloadMessage
+{
+	int PlayerId;
+	int IsNearPayload;
+	int Time;
+} SetPlayerNearPayloadMessage_t;
+
 extern const char * PAYLOAD_ROUND_COMPLETE;
 
 extern struct PayloadState State;
@@ -176,6 +208,7 @@ void setRoundComplete(enum RoundOutcome outcome, int roundDuration);
 void sendPlayerStats(int playerId);
 void sendPayloadState(enum PayloadMobyState state, int pathIndex, float time);
 void sendTeamScore(void);
+void sendPlayerNearPayload(int playerId, int isNearPayload);
 void netHookMessages(void);
 void updateTeamScore(int team);
 

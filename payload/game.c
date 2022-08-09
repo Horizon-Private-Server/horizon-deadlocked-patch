@@ -14,6 +14,7 @@
 #include <libdl/game.h>
 #include <libdl/gamesettings.h>
 #include <libdl/player.h>
+#include <libdl/camera.h>
 #include <libdl/weapon.h>
 #include <libdl/radar.h>
 #include <libdl/hud.h>
@@ -39,12 +40,22 @@
 
 extern int Initialized;
 
+#define PAYLOAD_MAX_DESTROYED_MOBIES				(64)
+
 #if DEBUG
-int aaa = 0;
+int aaa = 300;
 #endif
 
+
+void initializeScoreboard(void);
+
+//
+int payloadDestroyedMobiesCount = 0;
+Moby* payloadDestroyedMobies[PAYLOAD_MAX_DESTROYED_MOBIES];
+short payloadDestroyedMobiesDrawDist[PAYLOAD_MAX_DESTROYED_MOBIES];
+
 // 
-struct PayloadConfig Config __attribute__((section(".config"))) = {
+struct PayloadMapConfig Config __attribute__((section(".config"))) = {
 	.PayloadDeliveredCameraPos = { 448.10, 521.66, 181, 0 },
 	.PayloadDeliveredCameraRot = { 0.58, 0, -2.796, 0 },
 	.PathVertexCount = 23,
@@ -285,6 +296,48 @@ struct CubicLineEndPoint endpoints[2] = {
 	}
 };
 
+// payload sound
+SoundDef payloadSoundDef = {
+	.BankIndex = 3,
+	.Flags = 0x02,
+	.Index = PAYLOAD_SOUND,
+	.Loop = 1,
+	.MaxPitch = 0,
+	.MinPitch = 0,
+	.MaxVolume = 500,
+	.MinVolume = 1000,
+	.MinRange = 0.0,
+	.MaxRange = 50.0
+};
+
+// 
+SoundDef playerElectricitySoundDef = {
+	.BankIndex = 3,
+	.Flags = 0x02,
+	.Index = PAYLOAD_ELECTRICITY_SOUND,
+	.Loop = 1,
+	.MaxPitch = 0,
+	.MinPitch = 0,
+	.MaxVolume = 750,
+	.MinVolume = 1250,
+	.MinRange = 0.0,
+	.MaxRange = 30.0
+};
+
+// 
+SoundDef playerElectricitySoundEndDef = {
+	.BankIndex = 3,
+	.Flags = 0x10,
+	.Index = PAYLOAD_ELECTRICITY_END_SOUND,
+	.Loop = 0,
+	.MaxPitch = 0,
+	.MinPitch = 0,
+	.MaxVolume = 1024,
+	.MinVolume = 1024,
+	.MinRange = 0.0,
+	.MaxRange = 30.0
+};
+
 //--------------------------------------------------------------------------
 void onSetRoundComplete(int gameTime, enum RoundOutcome outcome, int roundDuration, struct PayloadTeam teams[2])
 {
@@ -338,11 +391,52 @@ void onReceivePayloadState(enum PayloadMobyState state, int pathIndex, float tim
 	if (State.PayloadMoby && State.PayloadMoby->PVar)
 	{
 		struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
-		pvar->State = state;
+		//pvar->State = state;
 		pvar->PathIndex = pathIndex;
 		pvar->Time = time;
 		pvar->RecomputeDistanceTicks = 0;
+
+		setPayloadState(state);
 	}
+}
+
+//--------------------------------------------------------------------------
+void onReceivePlayerNearPayload(int playerId, int isNearPayload)
+{
+	// set is near
+	State.PlayerStates[playerId].IsNearPayload = isNearPayload;
+}
+
+//--------------------------------------------------------------------------
+void setPayloadState(enum PayloadMobyState state)
+{
+	if (!State.PayloadMoby || !State.PayloadMoby->PVar)
+		return;
+	
+	struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
+	if (pvar->State == state)
+		return;
+
+
+	switch (state)
+	{
+		case PAYLOAD_STATE_DELIVERED:
+		{
+			pvar->ExplodeTicks = PAYLOAD_EXPLOSION_COUNTDOWN_TICKS;
+			playTimerTickSound();
+			break;
+		}
+		case PAYLOAD_STATE_EXPLODED:
+		{
+			payloadExplode(State.PayloadMoby, pvar);
+			State.PayloadDeliveredEndRoundTicks = 30;
+			State.PayloadDeliveredTime = gameGetTime();
+			break;
+		}
+	}
+
+	// set
+	pvar->State = state;
 }
 
 //--------------------------------------------------------------------------
@@ -373,6 +467,7 @@ void onOcclusionUpdate()
 void onPlayerKill(char * fragMsg)
 {
 	VECTOR delta;
+	Player** players = playerGetAll();
 
 	// call base function
 	((void (*)(char*))0x00621CF8)(fragMsg);
@@ -388,17 +483,19 @@ void onPlayerKill(char * fragMsg)
 	if (sourcePlayerId >= 0) {
 		struct PayloadPlayer* sourcePlayerData = &State.PlayerStates[sourcePlayerId];
 		struct PayloadPlayer* killedPlayerData = &State.PlayerStates[killedPlayerId];
-		if (sourcePlayerData->Player) {
+		Player* sourcePlayer = players[sourcePlayerData->PlayerIndex];
+		Player* killedPlayer = players[killedPlayerData->PlayerIndex];
+		if (sourcePlayer) {
 			if (sourcePlayerData->IsAttacking) {
 				// if attacking, count kills when player is near the payload
-				vector_subtract(delta, sourcePlayerData->Player->PlayerPosition, State.PayloadMoby->Position);
+				vector_subtract(delta, sourcePlayer->PlayerPosition, State.PayloadMoby->Position);
 				if (vector_sqrmag(delta) < (PAYLOAD_PLAYER_RADIUS*PAYLOAD_PLAYER_RADIUS)) {
 					sourcePlayerData->Stats.KillsWhileHot++;
 					DPRINTF("%d %d kills while hot\n", sourcePlayerId, sourcePlayerData->Stats.KillsWhileHot);
 				}
-			} else if (killedPlayerData->Player) {
+			} else if (killedPlayer) {
 				// if defending, count kills on players near the player
-				vector_subtract(delta, killedPlayerData->Player->PlayerPosition, State.PayloadMoby->Position);
+				vector_subtract(delta, killedPlayer->PlayerPosition, State.PayloadMoby->Position);
 				if (vector_sqrmag(delta) < (PAYLOAD_PLAYER_RADIUS*PAYLOAD_PLAYER_RADIUS)) {
 					sourcePlayerData->Stats.KillsOnHotPlayers++;
 					DPRINTF("%d %d kills on hot players\n", sourcePlayerId, sourcePlayerData->Stats.KillsOnHotPlayers);
@@ -417,7 +514,9 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 	int isAttacking = State.PlayerStates[player->PlayerId].IsAttacking;
 	int selectedPoint = isAttacking;
 	VECTOR delta;
+	VECTOR lookAtPoint;
 	VECTOR spawnHitOffset = {0,0,0.1,0};
+	Player** players = playerGetAll();
 
 	// pass down to game
 	if (!State.PayloadMoby)
@@ -436,9 +535,10 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 	int foundLivingTeammate = -1;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	{
-		if (State.PlayerStates[i].Player && State.PlayerStates[i].Player != player && State.PlayerStates[i].IsAttacking == isAttacking && !playerIsDead(State.PlayerStates[i].Player))
+		Player* p = players[i];
+		if (p && p != player && State.PlayerStates[i].IsAttacking == isAttacking && !playerIsDead(p))
 		{
-			vector_subtract(delta, State.PayloadMoby->Position, State.PlayerStates[i].Player->PlayerPosition);
+			vector_subtract(delta, State.PayloadMoby->Position, p->PlayerPosition);
 			float dist = vector_length(delta);
 			if (dist < nearestTeammateDist) {
 				nearestTeammateDist = dist;
@@ -451,7 +551,7 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 	float maxDist = PAYLOAD_SPAWN_DISTANCE_IDEAL + PAYLOAD_SPAWN_DISTANCE_FUDGE;
 	float minDist = PAYLOAD_SPAWN_DISTANCE_IDEAL - PAYLOAD_SPAWN_DISTANCE_FUDGE;
 	if (foundLivingTeammate >= 0) {
-		nearestTeammateDist = bezierGetClosestPointOnPath(delta, State.PlayerStates[foundLivingTeammate].Player->PlayerPosition, Config.Path, State.PathSegmentLengths, Config.PathVertexCount);
+		nearestTeammateDist = bezierGetClosestPointOnPath(delta, players[foundLivingTeammate]->PlayerPosition, Config.Path, State.PathSegmentLengths, Config.PathVertexCount);
 	}
 	
 	for (i = 0; i < Config.SpawnPointCount && pointCount < 10; ++i)
@@ -516,14 +616,40 @@ set: ;
 	else
 		vector_add(outPos, CollLine_Fix_GetHitPosition(), spawnHitOffset);
 
-	// determine and set yaw
+	// set rotation to face towards curve
+	// unless payload is in sight, then point towards payload
 	vector_write(outRot, 0);
-	if (State.PayloadMoby)
-	{
-		vector_subtract(delta, State.PayloadMoby->Position, outPos);
-		float len = vector_length(delta);
-		outRot[2] = atan2f(delta[1] / len, delta[0] / len);
+	vector_copy(delta, outPos);
+	delta[2] += 2;
+	if (State.PayloadMoby && CollLine_Fix(delta, State.PayloadMoby->Position, 2, NULL, 0) == 0) {
+		vector_copy(lookAtPoint, State.PayloadMoby->Position);
+	} else {
+		// we want to find the point of the closest point of the curve
+		// since the spawn point's fourth component stores its distance along the curve
+		// we can use that to find the index and time of the nearest point on the curve
+		// then we'll move that position a little towards the payload
+		// so that we look in the direction we probably want to go
+		// instead of just at the nearest point of the curve
+		float time = 0;
+		int index = 0;
+		float spDistance = Config.SpawnPoints[selectedPoint][3];
+		if (State.PayloadMoby) {
+			pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
+			if (pvar) {
+				if (pvar->Distance > spDistance)
+					spDistance += 20;
+				else
+					spDistance -= 20;
+			}
+		}
+		bezierMovePath(&time, &index, Config.Path, Config.PathVertexCount, spDistance);
+		bezierGetPosition(lookAtPoint, &Config.Path[index], &Config.Path[index+1], time);
 	}
+
+	// look towards lookAtPoint
+	vector_subtract(delta, lookAtPoint, outPos);
+	float len = vector_length(delta);
+	outRot[2] = atan2f(delta[1] / len, delta[0] / len);
 }
 
 //--------------------------------------------------------------------------
@@ -546,16 +672,27 @@ void payloadExplode(Moby* payload, struct PayloadMobyPVar* pvar)
 	// spawn explosion
 	spawnExplosion(payload->Position, radius);
 
-	// destroy all mobies in vicinity
-	Moby* m = NULL;
-	if (CollMobysSphere_Fix(payload->Position, 2, payload, 0, radius)) {
-		Moby** hits = CollMobysSphere_Fix_GetHitMobies();
-		while ((m = *hits++))
-		{
-			if ((int)guberGetUID(m) <= 0) {
-				m->Rotation[3] = m->DrawDist;
-				m->DrawDist = 0;
-				spawnExplosion(m->Position, 10);
+	if (payloadDestroyedMobiesCount < PAYLOAD_MAX_DESTROYED_MOBIES) {
+
+		// hide payload
+		payloadDestroyedMobies[payloadDestroyedMobiesCount] = payload;
+		payloadDestroyedMobiesDrawDist[payloadDestroyedMobiesCount] = payload->DrawDist;
+		payload->DrawDist = 0;
+		payloadDestroyedMobiesCount++;
+
+		// destroy all mobies in vicinity
+		Moby* m = NULL;
+		if (CollMobysSphere_Fix(payload->Position, 2, payload, 0, radius)) {
+			Moby** hits = CollMobysSphere_Fix_GetHitMobies();
+			while ((m = *hits++))
+			{
+				if ((int)guberGetUID(m) <= 0 && payloadDestroyedMobiesCount < PAYLOAD_MAX_DESTROYED_MOBIES) {
+					payloadDestroyedMobies[payloadDestroyedMobiesCount] = m;
+					payloadDestroyedMobiesDrawDist[payloadDestroyedMobiesCount] = m->DrawDist;
+					m->DrawDist = 0;
+					spawnExplosion(m->Position, 10);
+					payloadDestroyedMobiesCount++;
+				}
 			}
 		}
 	}
@@ -565,6 +702,7 @@ void payloadExplode(Moby* payload, struct PayloadMobyPVar* pvar)
 void payloadPostDraw(Moby* payload)
 {
 	int i;
+	Player** players = playerGetAll();
 	VECTOR delta, playerOffset = {0,0,1,0};
 	if (!payload)
 		return;
@@ -577,13 +715,18 @@ void payloadPostDraw(Moby* payload)
 		return;
 	
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player * player = State.PlayerStates[i].Player;
-		if (player && State.PlayerStates[i].IsAttacking && !playerIsDead(player)) {
-			vector_subtract(delta, player->PlayerPosition, payload->Position);
-			float dist = vector_length(delta);
-			if (dist < PAYLOAD_PLAYER_RADIUS) {
+		Player * player = players[i];
+		if (player && !playerIsDead(player)) {
+
+			// skip if player is defending and contesting is off
+			if (!State.PlayerStates[i].IsAttacking && State.ContestMode == PAYLOAD_CONTEST_OFF)
+				continue;
+
+			if (State.PlayerStates[i].IsNearPayload) {
+				vector_subtract(delta, player->PlayerPosition, payload->Position);
+				float dist = vector_length(delta);
 				float t = clamp(((dist / PAYLOAD_PLAYER_RADIUS) - 0.8) * (1 / 0.2), 0, 1);
-				u32 color = colorLerp(TEAM_COLORS[State.Teams[1].TeamId], 0x40ffffff, t);
+				u32 color = colorLerp(TEAM_COLORS[player->Team], 0x40ffffff, t);
 				endpoints[1].iGlowRGBA = endpoints[0].iGlowRGBA = endpoints[1].iCoreRGBA = endpoints[0].iCoreRGBA = color;
 				vector_add(endpoints[1].vPos, player->PlayerPosition, playerOffset);
 				vector_copy(endpoints[0].vPos, payload->Position);
@@ -600,7 +743,8 @@ void payloadUpdate(Moby *payload)
 	VECTOR from = {0,0,2.5,0};
 	VECTOR to = {0,0,-2.5,0};
 	VECTOR delta;
-	int totalAttackerCount = 0;
+	Player** players = playerGetAll();
+	int totalAttackerCount = 0, totalDefenderCount = 0;
 	static int lastGt = 0;
 	int gameTime = gameGetTime();
 	float dt = (gameTime - lastGt) / (float)TIME_SECOND;
@@ -612,6 +756,9 @@ void payloadUpdate(Moby *payload)
 	if (!pvar)
 		return;
 
+	// pulse glow color
+	State.PayloadMoby->GlowRGBA = colorLerp(0x80787878, 0x800A5F0, 0.25 + sinf(5 * (gameGetTime() / 1000.0)) * 0.25);
+
 	if (State.RoundEndTime || State.GameOver)
 		return;
 
@@ -622,33 +769,45 @@ void payloadUpdate(Moby *payload)
 	u8 recomputeDistance = decTimerU8(&pvar->RecomputeDistanceTicks);
 	int explode = decTimerU16(&pvar->ExplodeTicks);
 
-	// determine number of attacking players in vicinity
-	int lastPCount = pvar->PlayerCount;
-	pvar->PlayerCount = 0;
+	// determine number of players in vicinity
+	pvar->AttackerNearCount = 0;
+	pvar->DefenderNearCount = 0;
 	pvar->IsMaxSpeed = 1;
 	for (i = 0; i < GAME_MAX_PLAYERS; i++)
 	{
-		if (State.PlayerStates[i].Player && State.PlayerStates[i].IsAttacking && !playerIsDead(State.PlayerStates[i].Player))
+		Player* p = players[i];
+		if (p && !playerIsDead(p))
 		{
-			vector_subtract(delta, payload->Position, State.PlayerStates[i].Player->PlayerPosition);
-			if (vector_sqrmag(delta) < (PAYLOAD_PLAYER_RADIUS*PAYLOAD_PLAYER_RADIUS)) {
-				pvar->PlayerCount++;
-				State.PlayerStates[i].Stats.PointsT += dt;
-				if (State.PlayerStates[i].Stats.PointsT > 1) {
-					int pts = (int)State.PlayerStates[i].Stats.PointsT;
-					State.PlayerStates[i].Stats.PointsT -= pts;
-					State.PlayerStates[i].Stats.Points += pts;
+			if (State.PlayerStates[i].IsNearPayload) {
+				if (State.PlayerStates[i].IsAttacking) {
+					pvar->AttackerNearCount++;
+					State.PlayerStates[i].Stats.PointsT += dt;
+					if (State.PlayerStates[i].Stats.PointsT > 1) {
+						int pts = (int)State.PlayerStates[i].Stats.PointsT;
+						State.PlayerStates[i].Stats.PointsT -= pts;
+						State.PlayerStates[i].Stats.Points += pts;
+					}
+				} else {
+					pvar->DefenderNearCount++;
 				}
-			} else {
-				pvar->IsMaxSpeed = 0;
 			}
 
-			++totalAttackerCount;
+			// keep track of number of current attackers and defenders
+			if (State.PlayerStates[i].IsAttacking)
+				++totalAttackerCount;
+			else
+				++totalDefenderCount;
 		}
 	}
 
+	// prevent divide by zeros
+	if (totalDefenderCount == 0)
+		totalDefenderCount = 1;
+	if (totalAttackerCount == 0)
+		totalAttackerCount = 1;
+
 	//
-	if (pvar->PlayerCount == 0)
+	if (pvar->AttackerNearCount == 0)
 	{
 		if (pvar->WithoutPlayerTicks < PAYLOAD_REVERSE_DELAY_TICKS)
 			pvar->WithoutPlayerTicks++;
@@ -663,11 +822,42 @@ void payloadUpdate(Moby *payload)
 		totalAttackerCount = 1;
 
 	// determine speed
-	float targetSpeed = (PAYLOAD_MAX_FORWARD_SPEED * pvar->PlayerCount) / (float)totalAttackerCount;
+	float targetSpeed = 0;
+	pvar->IsMaxSpeed = pvar->AttackerNearCount == totalAttackerCount;
+	
+	// handle adjusting speed based on configured content mode and current state
+	switch (State.ContestMode)
+	{
+		case PAYLOAD_CONTEST_OFF:
+		{
+			targetSpeed = (PAYLOAD_MAX_FORWARD_SPEED * pvar->AttackerNearCount) / (float)totalAttackerCount;
+			break;
+		}
+		case PAYLOAD_CONTEST_SLOW:
+		{
+			targetSpeed = PAYLOAD_MAX_FORWARD_SPEED * ((pvar->AttackerNearCount / (float)totalAttackerCount) - (pvar->DefenderNearCount / (float)totalDefenderCount));
+			if (targetSpeed < 0)
+				targetSpeed = 0;
+			pvar->IsMaxSpeed &= pvar->DefenderNearCount == 0;
+			break;
+		}
+		case PAYLOAD_CONTEST_STOP:
+		{
+			targetSpeed = (PAYLOAD_MAX_FORWARD_SPEED * pvar->AttackerNearCount) / (float)totalAttackerCount;
+			if (pvar->DefenderNearCount > 0)
+				targetSpeed = 0;
+			pvar->IsMaxSpeed &= pvar->DefenderNearCount == 0;
+			break;
+		}
+	}
+
+	// move speed towards target speed
 	pvar->Speed = lerpf(pvar->Speed, targetSpeed, 1 - powf(MATH_E, -PAYLOAD_SPEED_SHARPNESS * MATH_DT));
 	if (pvar->WithoutPlayerTicks >= PAYLOAD_REVERSE_DELAY_TICKS)
 		pvar->Speed = PAYLOAD_MAX_BACKWARD_SPEED;
 	if (pvar->State >= PAYLOAD_STATE_DELIVERED)
+		pvar->Speed = 0;
+	if (State.GameOver)
 		pvar->Speed = 0;
 
 	// move
@@ -712,23 +902,57 @@ void payloadUpdate(Moby *payload)
 
 	// 
 	if (pvar->PathIndex == (Config.PathVertexCount-1)) {
-		if (pvar->State < PAYLOAD_STATE_DELIVERED) {
-			pvar->ExplodeTicks = PAYLOAD_EXPLOSION_COUNTDOWN_TICKS;
-			pvar->State = PAYLOAD_STATE_DELIVERED;
-			playTimerTickSound();
-		} else if (explode == 0 && pvar->State != PAYLOAD_STATE_EXPLODED) {
-			payloadExplode(payload, pvar);
-			pvar->State = PAYLOAD_STATE_EXPLODED;
-			payload->Rotation[3] = payload->DrawDist;
-			payload->DrawDist = 0;
-			setRoundComplete(CUSTOM_MSG_ROUND_PAYLOAD_DELIVERED, (gameTime - State.RoundStartTime));
+		if (State.IsHost) {
+			if (pvar->State < PAYLOAD_STATE_DELIVERED) {
+				setPayloadState(PAYLOAD_STATE_DELIVERED);
+				sendPayloadState(pvar->State, pvar->PathIndex, pvar->Time);
+			} else if (explode == 0 && State.PayloadDeliveredTime == 0 && pvar->State != PAYLOAD_STATE_EXPLODED) {
+				setPayloadState(PAYLOAD_STATE_EXPLODED);
+				sendPayloadState(pvar->State, pvar->PathIndex, pvar->Time);
+			}
 		}
-	} else if (pvar->PlayerCount)
-		pvar->State = PAYLOAD_STATE_MOVING_FORWARD;
+	} else if (pvar->AttackerNearCount && distanceMoved > MIN_FLOAT_MAGNITUDE)
+		setPayloadState(PAYLOAD_STATE_MOVING_FORWARD);
 	else if (distanceMoved < -MIN_FLOAT_MAGNITUDE)
-		pvar->State = PAYLOAD_STATE_MOVING_BACKWARD;
+		setPayloadState(PAYLOAD_STATE_MOVING_BACKWARD);
 	else
-		pvar->State = PAYLOAD_STATE_IDLE;
+		setPayloadState(PAYLOAD_STATE_IDLE);
+
+	// set target volume and pitch
+	int targetVolume = 1000;
+	if (pvar->State == PAYLOAD_STATE_MOVING_BACKWARD || pvar->State == PAYLOAD_STATE_MOVING_FORWARD) {
+		targetVolume = PAYLOAD_SOUND_VOLUME;
+	} else {
+		targetVolume = 500;
+	}
+
+	// adjust volume to target
+	float volumeSharpness = 1 - powf(MATH_E, -100 * MATH_DT);
+	payloadSoundDef.MinVolume = lerpf(payloadSoundDef.MinVolume, targetVolume / 2, volumeSharpness);
+	payloadSoundDef.MaxVolume = lerpf(payloadSoundDef.MaxVolume, targetVolume, volumeSharpness);
+	
+	// spawn sound if not already created
+	if (pvar->SoundId < 0) {
+		pvar->SoundId = soundPlay(&payloadSoundDef, 4, State.PayloadMoby, NULL, 0x400);
+		if (pvar->SoundId >= 0) {
+			pvar->SoundHandle = soundCreateHandle(pvar->SoundId);
+			SoundData* soundData = soundGetData(pvar->SoundId);
+			soundData->oClass = payload->OClass;
+			soundData->pMoby = payload;
+			DPRINTF("%d:%d\n", pvar->SoundId, pvar->SoundHandle);
+		}
+	}
+
+	// update sound data
+	if (pvar->SoundId >= 0) {
+		SoundData* soundData = soundGetData(pvar->SoundId);
+		if (soundData->pMoby != payload) {
+			pvar->SoundId = -1;
+		} else {
+			soundData->volumeMod = targetVolume;
+			vector_copy(soundData->pos, payload->Position);
+		}
+	}
 
 	switch (pvar->State)
 	{
@@ -787,6 +1011,39 @@ void payloadReset(void)
 }
 
 //--------------------------------------------------------------------------
+void payloadUpdateCamera_PostHook(void)
+{
+  int i;
+  MATRIX m, mBackup;
+  VECTOR pBackup;
+  for (i = 0; i < playerGetNumLocals(); ++i)
+  {
+    // get game camera
+    GameCamera * camera = cameraGetGameCamera(i);
+
+    // backup position + rotation
+    vector_copy(pBackup, camera->pos);
+    memcpy(mBackup, camera->uMtx, sizeof(float) * 12);
+
+    // write camera position
+    vector_copy(camera->pos, Config.PayloadDeliveredCameraPos);
+
+    // create and write camera rotation matrix
+		matrix_unit(m);
+		matrix_rotate_y(m, m, Config.PayloadDeliveredCameraRot[0]);
+		matrix_rotate_z(m, m, Config.PayloadDeliveredCameraRot[2]);
+    memcpy(camera->uMtx, m, sizeof(float) * 12);
+
+    // update render camera
+    ((void (*)(int))0x004b2010)(i);
+
+    // restore backup
+    vector_copy(camera->pos, pBackup);
+    memcpy(camera->uMtx, mBackup, sizeof(float) * 12);
+  }
+}
+
+//--------------------------------------------------------------------------
 void processPlayer(int pIndex)
 {
 	VECTOR t;
@@ -795,134 +1052,237 @@ void processPlayer(int pIndex)
 	char strBuf[32];
 
 	struct PayloadPlayer * playerData = &State.PlayerStates[pIndex];
-	Player * player = playerData->Player;
+	Player * player = playerGetAll()[pIndex];
 	Moby* payload = State.PayloadMoby;
 	float pulseTime = 0.5 * (1 + sinf(gameGetTime() / 100.0));
-	int isNearPayload = 0;
-	if (!player || !payload)
+	if (!player || !payload || !player->PlayerMoby || !player->IsLocal)
 		return;
 	struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)payload->PVar;
 	if (!pvar)
 		return;
 
-	if (playerData->IsAttacking && !playerIsDead(player)) {
+	// determine if near payload
+	playerData->IsNearPayload = 0;
+	if (!playerIsDead(player)) {
 		vector_subtract(t, player->PlayerPosition, payload->Position);
 		if (vector_sqrmag(t) < (PAYLOAD_PLAYER_RADIUS*PAYLOAD_PLAYER_RADIUS)) {
-			isNearPayload = 1;
+			playerData->IsNearPayload = 1;
 		}
 	}
 
-	if (player->IsLocal) {
-		gfxSetupGifPaging(0);
+	// send
+	sendPlayerNearPayload(pIndex, playerData->IsNearPayload);
 
-		// draw attacker icons
-		if (playerData->IsAttacking) {
-			// draw player is near payload icon
-			if (isNearPayload) {
-				gfxDrawSprite(380, 16, 16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
-			}
+	gfxSetupGifPaging(0);
 
-			// number of players near payload
-			if (pvar->PlayerCount) {
-				sprintf(strBuf, "x%d", pvar->PlayerCount);
-				gfxDrawSprite(410, 16, 16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(16));
-				gfxScreenSpaceText(410 + 10, 16 + 12, 0.7, 0.7, colorLerp(0x80808080, 0x8000E0E0, pulseTime), strBuf, -1, 0);
-			}
-		}
+	// draw payload moving icon
+	if (pvar->State == PAYLOAD_STATE_MOVING_FORWARD) {
+		gfxDrawSprite(370, 16, 16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
+	} else if (pvar->State == PAYLOAD_STATE_MOVING_BACKWARD) {
+		gfxDrawSprite(370 + 16, 16, -16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
+	}
 
+	// number of attacking players near payload
+	if (pvar->AttackerNearCount) {
+		sprintf(strBuf, "x%d", pvar->AttackerNearCount);
+		u32 color = colorLerp(TEAM_COLORS[State.Teams[1].TeamId], 0x80E0E0E0, pulseTime);
+		gfxDrawSprite(395, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
+		gfxScreenSpaceText(395 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
+	}
 
-		if (pvar->State >= PAYLOAD_STATE_DELIVERED) {
+	// number of defending players near payload
+	if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->DefenderNearCount) {
+		sprintf(strBuf, "x%d", pvar->DefenderNearCount);
+		u32 color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], 0x80E0E0E0, pulseTime);
+		gfxDrawSprite(420, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
+		gfxScreenSpaceText(420 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
+	}
 
-			// fix camera bug
-			patchVoidFallCameraBug(player);
+	if (pvar->State >= PAYLOAD_STATE_DELIVERED) {
 
-			// disable most of the hud
-			PlayerHUDFlags* hud = hudGetPlayerFlags(player->LocalPlayerIndex);
-			hud->Flags.Healthbar = 0;
-			hud->Flags.Minimap = 0;
-			hud->Flags.Weapons = 0;
+		// fix camera bug
+		//patchVoidFallCameraBug(player);
 
-			// 
-			playerEquipWeapon(player, WEAPON_ID_WRENCH);
+		// disable most of the hud
+		PlayerHUDFlags* hud = hudGetPlayerFlags(player->LocalPlayerIndex);
+		hud->Flags.Healthbar = 0;
+		hud->Flags.Minimap = 0;
+		hud->Flags.Weapons = 0;
 
-			//vector_copy(player->CameraPos, Config.PayloadDeliveredCameraPos);
-			*(u32*)0x005EBB6C = 0xC60D00B0;
-			*(u32*)0x005ebbf8 = 0;
-			playerSetPosRot(player, Config.PayloadDeliveredCameraPos, Config.PayloadDeliveredCameraRot);
-			player->CameraYaw.Value = Config.PayloadDeliveredCameraRot[2];
-			player->CameraPitch.Value = Config.PayloadDeliveredCameraRot[0];
-			player->Invisible = 100;
+		// 
+		playerEquipWeapon(player, WEAPON_ID_WRENCH);
 
-		} else {
+		//vector_copy(player->CameraPos, Config.PayloadDeliveredCameraPos);
+		//*(u32*)0x005EBB6C = 0xC60D00B0;
+		//*(u32*)0x005ebbf8 = 0;
+		//playerSetPosRot(player, Config.PayloadDeliveredCameraPos, Config.PayloadDeliveredCameraRot);
+		//player->CameraYaw.Value = Config.PayloadDeliveredCameraRot[2];
+		//player->CameraPitch.Value = Config.PayloadDeliveredCameraRot[0];
+		//player->Invisible = 100;
 
-			// draw world space icon if obstructed
-			if (CollLine_Fix(player->CameraPos, payload->Position, 2, payload, 0)) {
-				vector_copy(t, payload->Position);
-				t[2] += 4;
-				if (gfxWorldSpaceToScreenSpace(t, &x, &y))
+		player->timers.noInput = 5;
+		player->timers.noCamInputTimer = 5;
+
+		
+		HOOK_J(0x004b2428, &payloadUpdateCamera_PostHook);
+
+	} else {
+
+		// draw world space icon if obstructed
+		if (CollLine_Fix(player->CameraPos, payload->Position, 2, payload, 0)) {
+			vector_copy(t, payload->Position);
+			t[2] += 4;
+			if (gfxWorldSpaceToScreenSpace(t, &x, &y))
+			{
+				u32 color = 0x80E0E0E0;
+				switch (pvar->State)
 				{
-					u32 color = 0x80E0E0E0;
-					switch (pvar->State)
+					case PAYLOAD_STATE_MOVING_FORWARD:
 					{
-						case PAYLOAD_STATE_MOVING_FORWARD:
-						{
-							color = TEAM_COLORS[State.Teams[1].TeamId] + 0x40000000;
-							break;
-						}
-						case PAYLOAD_STATE_MOVING_BACKWARD:
-						{
-							color = TEAM_COLORS[State.Teams[0].TeamId] + 0x40000000;
-							break;
-						}
+						color = TEAM_COLORS[State.Teams[1].TeamId] + 0x40000000;
+						break;
 					}
-					gfxDrawSprite(x-12, y-12, 24, 24, 0, 0, 32, 32, colorLerp(0x80808080, color, 0.5 + (pulseTime*0.5)), gfxGetFrameTex(81));
+					case PAYLOAD_STATE_MOVING_BACKWARD:
+					{
+						color = TEAM_COLORS[State.Teams[0].TeamId] + 0x40000000;
+						break;
+					}
 				}
+
+				// if contesting set color as average of two team colors
+				if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->AttackerNearCount && pvar->DefenderNearCount) {
+					color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], TEAM_COLORS[State.Teams[1].TeamId], 0.5);
+				}
+
+				gfxDrawSprite(x-12, y-12, 24, 24, 0, 0, 32, 32, colorLerp(0x80808080, color, 0.5 + (pulseTime*0.5)), gfxGetFrameTex(81));
 			}
 		}
 
-		// draw round timer
-		if (player->LocalPlayerIndex == 0 && State.RoundDuration > 0) {
-			int secondsLeft = (State.RoundDuration - (gameGetTime() - State.RoundStartTime)) / TIME_SECOND;
-			if (secondsLeft < 0)
-				secondsLeft = 0;
-			sprintf(strBuf, "%02d:%02d", secondsLeft/60, secondsLeft%60);
-
-			// 
-			gfxScreenSpaceText(452+1, 16+1, 1, 1, 0x80000000, strBuf, -1, 0);
-			gfxScreenSpaceText(452, 16, 1, 1, 0x80FFFFFF, strBuf, -1, 0);
+		// draw bomb site icon
+		vector_copy(t, Config.Path[Config.PathVertexCount-1].ControlPoint);
+		t[2] += 1;
+		if (CollLine_Fix(player->CameraPos, t, 2, NULL, 0) == 0 && gfxWorldSpaceToScreenSpace(t, &x, &y)) {
+			float opacity = powf(clamp((pvar->Distance / State.PathLength) - 0.5, 0, 0.5) * 2, 3);
+			gfxDrawSprite(x-8, y-8, 16, 16, 0, 0, 32, 32, colorLerp(0x00808080, 0x80FFFFFF, opacity), gfxGetFrameTex(10));
 		}
-
-		// draw progress bar
-		if (player->LocalPlayerIndex == 0) {
-			const float height = 250.0;
-			const float x = 470.0;
-			const float y = 50.0;
-
-			// background
-			gfxPixelSpaceBox(x, y, 10.0, height, 0x80808080);
-			gfxPixelSpaceBox(x+2, y+2, 6.0, height-4, 0x80404040);
-
-			// progress
-			for (i = 0; i < 2; ++i) {
-
-				// bar
-				float t = (State.Teams[i].Score/10.0) / State.PathLength;
-				float h = floorf((height-4.0) * t);
-				float yPos = ((height-4.0) + y + 2.0 - h);
-				u32 color = TEAM_COLORS[State.Teams[i].TeamId] + 0x40000000;
-				gfxPixelSpaceBox(x + 2, yPos, 6.0, h, color);
-
-				// marker
-				if (i == 0 && State.RoundNumber > 0) {
-					gfxPixelSpaceBox(x, yPos, 10.0, 2.0, color);
+		
+		// play electricity sound if near
+		if (playerData->IsNearPayload && (playerData->IsAttacking || State.ContestMode != PAYLOAD_CONTEST_OFF)) {
+			
+			// spawn sound if not already created
+			if (playerData->SoundId < 0) {
+				playerData->SoundId = soundPlay(&playerElectricitySoundDef, 4, player->PlayerMoby, NULL, 0x400);
+				if (playerData->SoundId >= 0) {
+					playerData->SoundHandle = soundCreateHandle(playerData->SoundId);
+					SoundData* soundData = soundGetData(playerData->SoundId);
+					soundData->oClass = player->PlayerMoby->OClass;
+					soundData->pMoby = player->PlayerMoby;
 				}
+			}
 
-				// draw marker icons
-				gfxDrawSprite(x + 20, yPos - 6, 12, 12, 0, 0, 32, 32, color, gfxGetFrameTex(42));
+			// update sound data
+			if (playerData->SoundId >= 0) {
+				SoundData* soundData = soundGetData(playerData->SoundId);
+				if (soundData->pMoby != player->PlayerMoby) {
+					playerData->SoundId = -1;
+				} else {
+					soundData->volumeMod = PAYLOAD_ELECTRICITY_SOUND_VOLUME;
+					vector_copy(soundData->pos, player->PlayerPosition);
+				}
+			}
+		} else if (playerData->SoundHandle != 0) {
+					
+			// kill sound
+			soundKillByHandle(playerData->SoundHandle);
+			playerData->SoundHandle = 0;
+			playerData->SoundId = -1;
+
+			// play electricity broke sound
+			soundPlay(&playerElectricitySoundEndDef, 0, player->PlayerMoby, NULL, 0x400);
+		}
+	}
+
+	// draw round timer
+	if (player->LocalPlayerIndex == 0 && State.RoundDuration > 0) {
+		float secondsLeft = (State.RoundDuration - (gameGetTime() - State.RoundStartTime)) / (float)TIME_SECOND;
+		if (secondsLeft < 0)
+			secondsLeft = 0;
+		int secondsLeftInt = (int)secondsLeft;
+		float timeSecondsRounded = secondsLeftInt;
+		if ((secondsLeft - timeSecondsRounded) > 0.5)
+			timeSecondsRounded += 1;
+		sprintf(strBuf, "%02d:%02d", secondsLeftInt/60, secondsLeftInt%60);
+
+		// 
+		gfxScreenSpaceText(452+1, 16+1, 1, 1, 0x80000000, strBuf, -1, 0);
+		gfxScreenSpaceText(452, 16, 1, 1, 0x80FFFFFF, strBuf, -1, 0);
+
+		// draw end round timer
+		if (!State.RoundEndTime && pvar->State < PAYLOAD_STATE_DELIVERED && secondsLeft <= 3) {
+			
+			// update scale
+			float t = 1-fabsf((int)timeSecondsRounded - secondsLeft);
+			float x = powf(t, 15);
+			float scale = 3 * (1.0 + (0.3 * x));
+
+			// update color
+			u32 color = colorLerp(TIMER_BASE_COLOR1, TIMER_BASE_COLOR2, fabsf(sinf(gameGetTime() * 10)));
+			color = colorLerp(color, TIMER_HIGH_COLOR, x);
+
+			// draw timer
+			sprintf(strBuf, "%d", secondsLeftInt);
+			gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT * 0.15, scale, scale, color, strBuf, -1, 4);
+
+			// tick timer
+			if (secondsLeftInt != State.TimerLastPlaySoundSecond)
+			{
+				State.TimerLastPlaySoundSecond = secondsLeftInt;
+				playTimerTickSound();
 			}
 		}
+	}
 
-		gfxDoGifPaging();
+	// draw progress bar
+	if (player->LocalPlayerIndex == 0) {
+		const float height = 250.0;
+		const float x = 470.0;
+		const float y = 50.0;
+
+		// background
+		gfxPixelSpaceBox(x, y, 10.0, height, 0x80808080);
+		gfxPixelSpaceBox(x+2, y+2, 6.0, height-4, 0x80404040);
+
+		// progress
+		for (i = 0; i < 2; ++i) {
+
+			// bar
+			float t = (State.Teams[i].Score/10.0) / State.PathLength;
+			float h = floorf((height-4.0) * t);
+			float yPos = ((height-4.0) + y + 2.0 - h);
+			u32 color = TEAM_COLORS[State.Teams[i].TeamId] + 0x40000000;
+			gfxPixelSpaceBox(x + 2, yPos, 6.0, h, color);
+
+			// marker
+			if (i == 0 && State.RoundNumber > 0) {
+				gfxPixelSpaceBox(x, yPos, 10.0, 2.0, color);
+			}
+
+			// draw marker icons
+			gfxDrawSprite(x + 20, yPos - 6, 12, 12, 0, 0, 32, 32, color, gfxGetFrameTex(42));
+		}
+	}
+
+	gfxDoGifPaging();
+}
+
+//--------------------------------------------------------------------------
+void frameTick(void)
+{
+	int i = 0;
+
+	// 
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		processPlayer(i);
 	}
 }
 
@@ -937,9 +1297,10 @@ void gameTick(void)
 	char buffer[32];
 	int gameTime = gameGetTime();
 
+	int lastaaa = aaa;
 #if DEBUG
 	if (State.IsHost) {
-		if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0) {
+		if (padGetButtonDown(0, PAD_L3 | PAD_UP) > 0) {
 			setRoundComplete(CUSTOM_MSG_ROUND_OVER, State.RoundDuration);
 		}
 		//else if (padGetButtonDown(0, PAD_UP) > 0) {
@@ -949,20 +1310,26 @@ void gameTick(void)
 		//}
 		else if (padGetButtonDown(0, PAD_LEFT) > 0) {
 			struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
-			if (pvar) {
-				pvar->Time = 0;
+			if (pvar && pvar->State < PAYLOAD_STATE_DELIVERED) {
+				pvar->Time = 1;
 				pvar->PathIndex--;
-				if (pvar->PathIndex < 0)
+				pvar->WithoutPlayerTicks = 0;
+				if (pvar->PathIndex < 0) {
 					pvar->PathIndex = 0;
+					pvar->Time = 0;
+				}
 			}
 		}
 		else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
 			struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
-			if (pvar) {
-				pvar->Time = 1;
+			if (pvar && pvar->State < PAYLOAD_STATE_DELIVERED) {
+				pvar->Time = 0;
 				pvar->PathIndex++;
-				if (pvar->PathIndex > (Config.PathVertexCount-1))
+				pvar->WithoutPlayerTicks = 0;
+				if (pvar->PathIndex >= (Config.PathVertexCount-1)) {
 					pvar->PathIndex = Config.PathVertexCount-2;
+					pvar->Time = 1;
+				}
 			}
 		}
 		else if (padGetButtonDown(0, PAD_L1 | PAD_L2) > 0) {
@@ -974,10 +1341,28 @@ void gameTick(void)
 			DPRINTF("aaa: %d\n", aaa);
 		}
 	}
-	if (padGetButtonDown(0, PAD_L1 | PAD_R1) > 0) {
+	if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
 		playerRespawn(players[0]);
 	}
 #endif
+
+	if (lastaaa != aaa) {
+		static int lastHandle = 0;
+		static SoundDef sd = {
+			.BankIndex = 3,
+			.Index = 0,
+			.Flags = 2,
+			.Loop = 1,
+			.MaxVolume = 1000,
+			.MaxRange = 100,
+		};
+
+		sd.Index = aaa;
+
+		soundKillByHandle(lastHandle);
+		int sId = soundPlay(&sd, 4, playerGetFromSlot(0)->PlayerMoby, 0, 0x400);
+		lastHandle = soundCreateHandle(sId);
+	}
 
 	// 
 	if (State.RoundDuration > 0)
@@ -990,35 +1375,84 @@ void gameTick(void)
 		struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
 		State.Teams[1].Score = pvar->Distance * 10;
 		State.Teams[1].Time = gameTime - State.RoundStartTime;
+
+		// if delivered, fix score to path length
+		if (pvar->State >= PAYLOAD_STATE_DELIVERED)
+			State.Teams[1].Score = State.PathLength * 10;
 	}
 
   // handle round end logic
   if (State.IsHost)
   {
+		VECTOR t;
     int playersAlive = 0;
     int lastAlivePlayer = 0;
+		int attackersOnPayload = 0;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i)
     {
-      if (State.PlayerStates[i].Player && !playerIsDead(State.PlayerStates[i].Player)) {
+			Player* p = players[i];
+      if (p && !playerIsDead(p)) {
         ++playersAlive;
         lastAlivePlayer = i;
+				
+				if (State.PayloadMoby) {
+					struct PayloadPlayer * playerData = &State.PlayerStates[i];
+					if (playerData->IsAttacking && playerData->IsNearPayload) {
+						attackersOnPayload++;
+					}
+				}
       }
     }
 
     if (State.RoundDuration > 0 && (gameTime - State.RoundStartTime) > State.RoundDuration)
     {
-      setRoundComplete(CUSTOM_MSG_ROUND_OVER, State.RoundDuration);
+			struct PayloadMobyPVar* pvar = NULL;
+			if (State.PayloadMoby && State.PayloadMoby->PVar)
+				pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
+
+			// we only want to end the round when no pushers are on the payload
+			if (attackersOnPayload == 0 || !pvar || pvar->State >= PAYLOAD_STATE_DELIVERED) {
+      	setRoundComplete(CUSTOM_MSG_ROUND_OVER, State.RoundDuration);
+			} else if (!State.ShownOvertimeHelpMessage) {
+
+				// show overtime help message to attackers
+				State.ShownOvertimeHelpMessage = 1;
+				Player * localPlayer = playerGetFromSlot(0);
+				if (localPlayer) {
+					struct PayloadPlayer * playerData = &State.PlayerStates[localPlayer->PlayerId];
+					if (playerData->IsAttacking) {
+						uiShowHelpPopup(0, "Protect the payload!", 15 * 30);
+					}
+				}
+			}
     }
+		else if (State.PayloadDeliveredEndRoundTicks > 0)
+		{
+			if (State.PayloadDeliveredEndRoundTicks == 1)
+			{
+				setRoundComplete(CUSTOM_MSG_ROUND_PAYLOAD_DELIVERED, (State.PayloadDeliveredTime - State.RoundStartTime));
+				State.PayloadDeliveredEndRoundTicks = 0;
+			}
+			else
+			{
+				State.PayloadDeliveredEndRoundTicks--;
+			}
+		}
   }
 
-	// set winner
+	// set winner by farthest
+	// then by shortest time
+	// overtime is not counted towards time
+	// and teams with same time and distance tie
 	if (State.Teams[0].Score == State.Teams[1].Score) {
-		if (State.Teams[1].Time > State.Teams[0].Time)
-			State.WinningTeam = State.Teams[0].TeamId;
-		else if (State.Teams[0].Time > State.Teams[1].Time)
-			State.WinningTeam = State.Teams[1].TeamId;
+		if (State.RoundFirstDuration > 0 && State.Teams[1].Time > State.RoundFirstDuration && State.Teams[0].Time > State.RoundFirstDuration)
+			State.WinningTeam = -1; // draw if both teams go into overtime
+		if (State.Teams[1].Time < State.Teams[0].Time)
+			State.WinningTeam = State.Teams[1].TeamId; // attackers win if they get there in shorter time
+		if (State.Teams[0].Time < State.Teams[1].Time)
+			State.WinningTeam = State.Teams[0].TeamId; // defenders win if they get there in shorter time
 		else
-			State.WinningTeam = -1;
+			State.WinningTeam = -1; // draw (same time)
 	}
 	else if (State.Teams[0].Score > State.Teams[1].Score)
 		State.WinningTeam = State.Teams[0].TeamId;
@@ -1036,7 +1470,8 @@ void gameTick(void)
 void resetRoundState(void)
 {
   int i;
-	GameSettings* gameSettings = gameGetSettings();
+	// GameSettings* gameSettings = gameGetSettings();
+	Player** players = playerGetAll();
 	int gameTime = gameGetTime();
 
 	// 
@@ -1044,6 +1479,10 @@ void resetRoundState(void)
 	State.RoundStartTime = gameTime;
 	State.RoundEndTime = 0;
 	State.RoundResult = 0;
+	State.PayloadDeliveredEndRoundTicks = 0;
+	State.PayloadDeliveredTime = 0;
+	State.TimerLastPlaySoundSecond = 0;
+	State.ShownOvertimeHelpMessage = 0;
 
 	// 
 	flipTeams();
@@ -1051,37 +1490,40 @@ void resetRoundState(void)
 	padEnableInput();
 
 	// 
-	*(u32*)0x005ebbf8 = 0x0C135D22;
+	//*(u32*)0x005ebbf8 = 0x0C135D22;
+
+	// unhook post camera update
+	POKE_U32(0x004b2428, 0x03E00008);
 
 	// reset "destroyed" mobies
-	Moby* moby = mobyListGetStart();
-	Moby* mEnd = mobyListGetEnd();
-	while (moby < mEnd)
+	for (i = 0; i < payloadDestroyedMobiesCount; ++i)
 	{
-		if (!mobyIsDestroyed(moby) && moby->Rotation[3] != 0 && moby->DrawDist == 0) {
-			moby->DrawDist = moby->Rotation[3];
-			moby->Rotation[3] = 0;
+		Moby* moby = payloadDestroyedMobies[i];
+		if (moby && !mobyIsDestroyed(moby)) {
+			moby->DrawDist = payloadDestroyedMobiesDrawDist[i];
+			//if (moby->DrawDist <= 0)
+			//	moby->DrawDist = 255;
 		}
-
-		++moby;
 	}
+	payloadDestroyedMobiesCount = 0;
 
   // 
   for (i = 0; i < GAME_MAX_PLAYERS; ++i)
   {
-    Player * p = State.PlayerStates[i].Player;
+    Player * p = players[i];
     if (p) {
 			State.PlayerStates[i].IsAttacking = p->Team == State.Teams[1].TeamId;
+			State.PlayerStates[i].IsNearPayload = 0;
 			if (p->IsLocal && p->PlayerMoby) {
-				unpatchVoidFallCameraBug(p);
+				//unpatchVoidFallCameraBug(p);
 				// disable most of the hud
 				PlayerHUDFlags* hud = hudGetPlayerFlags(p->LocalPlayerIndex);
 				hud->Flags.Healthbar = 1;
 				hud->Flags.Minimap = 1;
 				hud->Flags.Weapons = 1;
 				hud->Flags.NormalScoreboard = 0;
+				playerRespawn(p);
 			}
-      playerRespawn(p);
     }
   }
 
@@ -1095,7 +1537,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	GameSettings* gameSettings = gameGetSettings();
 	Player** players = playerGetAll();
 	GameData* gameData = gameGetData();
-	int i, j;
+	int i;
 
 	// set payload moby to NULL
 	State.PayloadMoby = NULL;
@@ -1129,6 +1571,10 @@ void initialize(PatchGameConfig_t* gameConfig)
 		--startDelay;
 		return;
 	}
+
+	// reset destroyed mobies list
+	memset(payloadDestroyedMobies, 0, sizeof(payloadDestroyedMobies));
+	memset(payloadDestroyedMobiesDrawDist, 0, sizeof(payloadDestroyedMobiesDrawDist));
 
 	// spawn boxes to bridge gap
 	Moby* m = mobySpawn(MOBY_ID_BETA_BOX, 0);
@@ -1187,19 +1633,23 @@ void initialize(PatchGameConfig_t* gameConfig)
 		State.Teams[1].TeamId = (State.Teams[0].TeamId + 1) % 10;
 
 	// randomize initial defend/attack order
+#if !DEBUG
 	if (gameSettings->SpawnSeed % 2) {
 		flipTeams();
 	}
+#endif
 
 	// initialize player states
 	State.LocalPlayerState = NULL;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
-		State.PlayerStates[i].Player = p;
+		State.PlayerStates[i].PlayerIndex = i;
 		State.PlayerStates[i].Stats.Points = 0;
 		State.PlayerStates[i].Stats.PointsT = 0;
 		State.PlayerStates[i].Stats.KillsOnHotPlayers = 0;
 		State.PlayerStates[i].Stats.KillsWhileHot = 0;
+		State.PlayerStates[i].SoundId = -1;
+		State.PlayerStates[i].IsNearPayload = 0;
 
 		// is local
 		if (p) {
@@ -1221,20 +1671,31 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.PayloadMoby->DrawDist = 0x7FFF;
 	State.PayloadMoby->UpdateDist = 0xFF; 
 	State.PayloadMoby->PUpdate = &payloadUpdate;
+
+	// ghost station glow
+	if (gameSettings->GameLevel == 54) {
+		State.PayloadMoby->ModeBits |= 8;
+		State.PayloadMoby->Opacity = 0x40;
+	}
+
 	struct PayloadMobyPVar* pvar = (struct PayloadMobyPVar*)State.PayloadMoby->PVar;
 	pvar->Distance = 0;
 	pvar->Time = 0;
 	pvar->Speed = 0;
+	pvar->SoundHandle = -1;
+	pvar->SoundId = -1;
 	DPRINTF("payload moby: %08X\n", (u32)State.PayloadMoby);
 
 	// initialize state
 	State.GameOver = 0;
 	State.RoundLimit = 2;
 	State.RoundNumber = 0;
+	State.ContestMode = (enum PayloadContestMode)gameConfig->payloadConfig.contestMode;
 	if (gameData->TimeEnd > 0)
 		State.RoundDuration = gameData->TimeEnd / 2;
 	else
 		State.RoundDuration = 0;
+	State.RoundFirstDuration = State.RoundDuration;
 	State.InitializedTime = gameGetTime();
 	resetRoundState();
 
@@ -1244,7 +1705,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 //--------------------------------------------------------------------------
 void updateGameState(PatchStateContainer_t * gameState)
 {
-	int i,j;
+	int i;
 
 	// game state update
 	if (gameState->UpdateGameState)
@@ -1280,7 +1741,7 @@ void setLobbyGameOptions(void)
 {
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
-	GameSettings* gameSettings = gameGetSettings();
+	// GameSettings* gameSettings = gameGetSettings();
 	if (!gameOptions)
 		return;
 	

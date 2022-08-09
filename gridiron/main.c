@@ -567,6 +567,11 @@ void lobbyStart(void)
  */
 void loadStart(void)
 {
+	// only handle when loading level
+	GameSettings* gs = gameGetSettings();
+	if (!gs || gs->GameStartTime >= 0)
+		return;
+
 	// Hook load gameplay file
 	if (*(u32*)0x004EE664 == 0x0C13B3DC)
 		*(u32*)0x004EE664 = 0x0C000000 | (u32)&loadGameplayHook / 4;

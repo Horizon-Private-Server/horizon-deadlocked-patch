@@ -27,6 +27,7 @@
 int onSetRoundCompleteRemote(void * connection, void * data)
 {
 	RoundCompleteMessage_t * message = (RoundCompleteMessage_t*)data;
+	DPRINTF("recv roundcomplete\n");
 	if (isInGame())
 		onSetRoundComplete(message->GameTime, message->Outcome, message->RoundDuration, message->Teams);
 
@@ -61,6 +62,7 @@ void setRoundComplete(enum RoundOutcome outcome, int roundDuration)
 int onSetPlayerStatsRemote(void * connection, void * data)
 {
 	SetPlayerStatsMessage_t * message = (SetPlayerStatsMessage_t*)data;
+	DPRINTF("recv playerstats\n");
 	onSetPlayerStats(message->PlayerId, &message->Stats);
 
 	return sizeof(SetPlayerStatsMessage_t);
@@ -82,6 +84,7 @@ void sendPlayerStats(int playerId)
 int onReceiveTeamScoreRemote(void * connection, void * data)
 {
 	SetTeamScoreMessage_t * message = (SetTeamScoreMessage_t*)data;
+	DPRINTF("recv teamscore\n");
 	onReceiveTeamScore(message->TeamScores, message->TeamRoundTimes);
 
 	return sizeof(SetTeamScoreMessage_t);
@@ -114,6 +117,7 @@ void sendTeamScore(void)
 int onReceivePayloadStateRemote(void * connection, void * data)
 {
 	SetPayloadStateMessage_t * message = (SetPayloadStateMessage_t*)data;
+	DPRINTF("recv payloadstate %d %d %d\n", message->Time, message->State, message->PathIndex);
 	if (isInGame())
 		onReceivePayloadState(message->State, message->PathIndex, message->Time);
 
@@ -136,6 +140,54 @@ void sendPayloadState(enum PayloadMobyState state, int pathIndex, float time)
 	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SEND_PAYLOAD_STATE, sizeof(SetPayloadStateMessage_t), &message);
 }
 
+//--------------------------------------------------------------------------
+int onReceivePlayerNearPayloadRemote(void * connection, void * data)
+{
+	static int playerLastRecvTime[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+	SetPlayerNearPayloadMessage_t message;
+	
+	memcpy(&message, data, sizeof(SetPlayerNearPayloadMessage_t));
+
+	DPRINTF("recv nearpayload %d %d %d\n", message.Time, message.PlayerId, message.IsNearPayload);
+
+	// only accept if in game
+	// and the gametime is greater than the last accepted message
+	// since this is sent unreliable and packets can come in out of order
+	if (isInGame() && message.Time > playerLastRecvTime[message.PlayerId]) {
+		playerLastRecvTime[message.PlayerId] = message.Time;
+		onReceivePlayerNearPayload(message.PlayerId, message.IsNearPayload);
+	}
+
+	return sizeof(SetPlayerNearPayloadMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void sendPlayerNearPayload(int playerId, int isNearPayload)
+{
+	static char playerSendCooldown[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+	int i;
+	SetPlayerNearPayloadMessage_t message;
+
+	if (playerId < 0 || playerId >= GAME_MAX_PLAYERS)
+		return;
+
+	// check cooldown
+	int cooldown = playerSendCooldown[playerId];
+	if (cooldown > 0) {
+		playerSendCooldown[playerId] = (char)(cooldown - 1);
+		return;
+	}
+
+	// send out
+	message.PlayerId = playerId;
+	message.IsNearPayload = isNearPayload;
+	message.Time = gameGetTime();
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_NEAR_PAYLOAD, sizeof(SetPlayerNearPayloadMessage_t), &message);
+
+	// set cooldown
+	playerSendCooldown[playerId] = PLAYER_NEAR_PAYLOAD_SEND_EVERY_TICKS;
+}
+
 void netHookMessages(void)
 {
 	// Hook custom net events
@@ -143,4 +195,5 @@ void netHookMessages(void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_STATS, &onSetPlayerStatsRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_SEND_PAYLOAD_STATE, &onReceivePayloadStateRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_SEND_TEAM_SCORE, &onReceiveTeamScoreRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_NEAR_PAYLOAD, &onReceivePlayerNearPayloadRemote);
 }

@@ -3,7 +3,7 @@
 
 typedef struct PatchConfig
 {
-  char disableFramelimiter;
+  char framelimiter;
   char enableGamemodeAnnouncements;
   char enableSpectate;
   char enableSingleplayerMusic;
@@ -13,6 +13,7 @@ typedef struct PatchConfig
   char enableFpsCounter;
   char disableCircleToHackerRay;
   char playerAggTime;
+  char disableCameraShake;
   
 #if FREECAM
   char playerFov;
@@ -27,6 +28,18 @@ typedef struct SurvivalConfig
 {
 	u8 difficulty;
 } SurvivalConfig_t;
+
+enum PayloadContestMode
+{
+	PAYLOAD_CONTEST_OFF,
+	PAYLOAD_CONTEST_SLOW,
+	PAYLOAD_CONTEST_STOP
+};
+
+typedef struct PayloadConfig
+{
+	u8 contestMode;
+} PayloadConfig_t;
 
 typedef struct PatchGameConfig
 {
@@ -51,6 +64,7 @@ typedef struct PatchGameConfig
   char prHeadbuttFriendlyFire;
   char prChargebootForever;
   SurvivalConfig_t survivalConfig;
+  PayloadConfig_t payloadConfig;
 } PatchGameConfig_t;
 
 enum CHARACTER_TWEAKER_ID
