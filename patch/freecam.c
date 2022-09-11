@@ -116,12 +116,14 @@ void enableFreecam(Player * player, struct PlayerFreecamData * data)
   data->Enabled = 1;
   data->ControlCharacter = 0;
   //data->LockStateId = -1;
-  vector_copy(data->LastCameraPos, player->CameraPos);
+  if (data->LastCameraPos[2] == 0) {
+    vector_copy(data->LastCameraPos, player->CameraPos);
+    data->SpectateCameraPitch = player->CameraPitch.Value;
+    data->SpectateCameraYaw = player->CameraYaw.Value;
+  }
   vector_copy(data->LockedCharacterPosition, player->PlayerPosition);
   data->CharcterCameraPitch = player->CameraPitch.Value;
   data->CharacterCameraYaw = player->CameraYaw.Value;
-  data->SpectateCameraPitch = player->CameraPitch.Value;
-  data->SpectateCameraYaw = player->CameraYaw.Value;
   POKE_U32(0x004C327C, 0);
   POKE_U32(0x004B3970, 0); // disable reticule
   HOOK_J(0x004b2428, &freecamUpdateCamera_PostHook);
@@ -253,7 +255,7 @@ void freecam(Player * currentPlayer)
     currentPlayer->timers.noInput = 0;
 
     // toggle off
-    if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_CIRCLE) > 0) {
+    if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_LEFT) > 0) {
       freecamData->ControlCharacter = 0;
 
       // save character rotation to start
@@ -268,7 +270,7 @@ void freecam(Player * currentPlayer)
   else
   {
     // toggle character mode
-    if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_CIRCLE) > 0) {
+    if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_LEFT) > 0) {
       freecamData->ControlCharacter = 1;
 
       // restore rotation to character
@@ -276,6 +278,10 @@ void freecam(Player * currentPlayer)
       currentPlayer->CameraYaw.Value = freecamData->CharacterCameraYaw;
       return;
     }
+
+    // restore rotation to character
+    //currentPlayer->CameraPitch.Value = freecamData->CharcterCameraPitch;
+    //currentPlayer->CameraYaw.Value = freecamData->CharacterCameraYaw;
 
     // disable character input
     currentPlayer->timers.noInput = 0x7FFF;
@@ -286,17 +292,28 @@ void freecam(Player * currentPlayer)
     float lv = padJoystickSmoothCurve(padJoystickToFloat(pad->rjoy_v));
     float lh = padJoystickSmoothCurve(padJoystickToFloat(pad->rjoy_h));
     float speed = FREECAM_MOVE_SPEED;
+    int lockVertical = padGetButton(currentPlayer->LocalPlayerIndex, PAD_L3) > 0;
 
     if (padGetButton(currentPlayer->LocalPlayerIndex, PAD_L1) > 0)
       speed = FREECAM_FAST_MOVE_SPEED;
 
     // move joystick
     if (fabsf(mv) > 0.001) {
-      vector_scale(t1, rotationMatrix, -mv * speed);
+      vector_copy(t1, rotationMatrix);
+      if (lockVertical) {
+        t1[2] = 0;
+        vector_normalize(t1, t1);
+      }
+      vector_scale(t1, t1, -mv * speed);
       vector_add(freecamData->LastCameraPos, freecamData->LastCameraPos, t1);
     }
     if (fabsf(mh) > 0.001) {
-      vector_scale(t1, &rotationMatrix[4], -mh * speed);
+      vector_copy(t1, &rotationMatrix[4]);
+      if (lockVertical) {
+        t1[2] = 0;
+        vector_normalize(t1, t1);
+      }
+      vector_scale(t1, t1, -mh * speed);
       vector_add(freecamData->LastCameraPos, freecamData->LastCameraPos, t1);
     }
 
@@ -310,7 +327,7 @@ void freecam(Player * currentPlayer)
     float lookSpeed = 0.1;
     if (fabsf(lv) > 0.001) {
       float angle = clampAngle(freecamData->SpectateCameraPitch + lv*lookSpeed);
-      const float limit = 80 * MATH_DEG2RAD;
+      const float limit = 89 * MATH_DEG2RAD;
       if (angle > limit)
         angle = limit;
       else if (angle < -limit)
@@ -382,7 +399,7 @@ void processFreecam(void)
           }
         }
         // Let the player exit spectate by pressing circle
-        else if (playerPadGetButtonDown(player, PAD_TRIANGLE) > 0)
+        else if (playerPadGetButtonDown(player, PAD_L1 | PAD_UP) > 0)
         {
           disableFreecam(player, freecamData);
         }

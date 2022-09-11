@@ -37,6 +37,7 @@ const int patches[][3] = {
 	{ 0, 0x004B882C, 0x00712BF0 }, // GAMESETTINGS_BUILD_PTR
 	{ 0, 0x0072E5B4, 0x0C1C2D50 }, // GAMESETTINGS_CREATE_PATCH
 	{ 0, 0x00759580, 0x0C1D5D98 }, // start game hook
+	{ 0, 0x00123D38, 0x0C049C5A }, // printf hook
 	{ -1, 0x01EAAB10, 0x03E00008 }, // GET_MEDIUS_APP_HANDLER_HOOK
 	{ -1, 0x00211E64, 0x00000000 }, // net global callbacks ptr
 	{ -1, 0x00212164, 0x00000000 }, // dme callback table custom msg handler ptr
@@ -46,6 +47,9 @@ const int patches[][3] = {
 	{ 0, 0x0015b290, 0x03E00008 }, // nwUpdate hook
 	{ 1, 0x004C3A94, 0x0C130C90 }, // draw hook
 	{ 1, 0x004a84b0, 0x0C1661AC }, // update hook
+	{ 1, 0x004a84a8, 0x0C05873C }, // 
+	{ 0, 0x0075AC3C, 0x0C1DEE28 }, // get rank numbers
+	{ 0, 0x0075AC40, 0xC44C0124 }, // get rank numbers
 	// maploader
 	{ 0, 0x005CFB48, 0x0C058E10 }, // hookLoadAddr
 	{ 0, 0x00705554, 0x0C058E02 }, // hookLoadingScreenAddr
@@ -66,6 +70,9 @@ const int patches[][3] = {
 	{ 0, 0x0072862C, 0xAFA70148 }, // clan room logout
 	{ 0, 0x0075A150, 0x11000005 }, // enable add buddy/ignored/kick in staging 
 	{ 0, 0x00763DC0, 0x24020004 }, // enable changing team in staging
+	{ 0, 0x0075a7ec, 0x0C1D6E80 }, // leave staging hook
+	{ 0, 0x00759448, 0x0C1C668A }, // enable Game Cancelled popup
+	{ 0, 0x0071C168, 0x03E00008 }, // reset get return to menu id
 	// in game
 	{ 1, 0x005930B8, 0x02C3B020 }, // lod patch
 	{ 1, 0x005605D4, 0x0C15803E }, // start menu back callback
@@ -88,8 +95,10 @@ const int patches[][3] = {
 	{ 1, 0x00555904, 0x0C1734F4 }, // radar update map
 	{ 1, 0x0055615c, 0x0C1734F4 }, // radar update blip
 	// debug
-	{ 1, 0x0015B290, 0x03E00008 }, 
-	{ 1, 0x0060ed9c, 0x0C135C12 },
+	//{ 1, 0x0015B290, 0x03E00008 }, 
+	//{ 1, 0x0060ed9c, 0x0C135C12 },
+	//{ 1, 0x004189ec, 0x0C105DF2 },
+	//{ 1, 0x005ce330, 0x0C173D64 },
 };
 
 const int clears[][2] = {

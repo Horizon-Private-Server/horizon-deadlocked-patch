@@ -73,7 +73,7 @@ void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (moby->AnimSeqId != animId) {
-		mobyAnimTransition(moby, animId, lerpFrames, 32);
+		mobyAnimTransition(moby, animId, lerpFrames, 0);
 
 		pvars->MobVars.AnimationReset = 1;
 		pvars->MobVars.AnimationLooped = 0;

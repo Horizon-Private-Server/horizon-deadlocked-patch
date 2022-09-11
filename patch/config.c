@@ -24,6 +24,8 @@ extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 extern PatchGameConfig_t gameConfigHostBackup;
 
+extern char aa_value;
+
 // 
 int isConfigMenuActive = 0;
 int selectedTabItem = 0;
@@ -118,7 +120,11 @@ int mapsDownloadingModules(void);
 MenuElem_ListData_t dataLevelOfDetail = {
     &config.levelOfDetail,
     NULL,
+#if DEBUG
+    4,
+#else
     3,
+#endif
     { "Potato", "Low", "Normal", "High" }
 };
 
@@ -128,6 +134,30 @@ MenuElem_ListData_t dataFramelimiter = {
     NULL,
     3,
     { "On", "Auto", "Off" }
+};
+
+// minimap scale list item
+MenuElem_ListData_t dataMinimapScale = {
+    &config.minimapScale,
+    NULL,
+    2,
+    { "Normal", "Half" }
+};
+
+// minimap expanded zoom
+MenuElem_RangeData_t dataMinimapBigZoom = {
+    .value = &config.minimapBigZoom,
+    .stateHandler = NULL,
+    .minValue = 0,
+    .maxValue = 10,
+};
+
+// minimap shrunk zoom
+MenuElem_RangeData_t dataMinimapSmallZoom = {
+    .value = &config.minimapSmallZoom,
+    .stateHandler = NULL,
+    .minValue = 0,
+    .maxValue = 10,
 };
 
 // player aggregation time offset range item
@@ -152,11 +182,13 @@ MenuElem_t menuElementsGeneral[] = {
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
+  { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
+  { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
+  { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
   { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
   { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate },
   { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
-//  { "Fix Weapon Lag", toggleActionHandler, menuStateAlwaysEnabledHandler, &fixWeaponLagToggle },
 };
 
 #if TWEAKERS
@@ -343,6 +375,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Sarathos SP",
       "Shaar SP",
       "Shipment",
+      "Snivelak",
       "Spleef",
       "Torval SP",
       "Tyhrranosis",
@@ -378,6 +411,7 @@ MenuElem_ListData_t dataCustomModes = {
 #if DEV
       "Gridiron",
       "Team Defenders",
+      "Anim Extractor",
 #endif
     }
 };
@@ -393,6 +427,7 @@ const char* CustomModeShortNames[] = {
   NULL,
   NULL,
 #if DEV
+  NULL,
   NULL,
   NULL,
 #endif
@@ -545,7 +580,7 @@ MenuElem_t menuElementsGameSettings[] = {
 MenuElem_t menuElementsCustomMap[] = {
   { "", labelActionHandler, menuStateHandler_InstalledCustomMaps, (void*)LABELTYPE_HEADER },
   { "To play on custom maps you must first go to", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "rac-horizon.com/maps and download the maps.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
+  { "rac-horizon.com and download the maps.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Then install the map files onto a USB drive", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "and insert it into your PS2.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Finally install the custom maps modules here.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
@@ -786,7 +821,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
     }
     case CUSTOM_MODE_PAYLOAD:
     {
-      if (v == CUSTOM_MAP_SARATHOS_SP || v == CUSTOM_MAP_DESERT_PRISON || v == CUSTOM_MAP_NONE)
+      if (v == CUSTOM_MAP_SARATHOS_SP || v == CUSTOM_MAP_DESERT_PRISON || v == CUSTOM_MAP_SNIVELAK || v == CUSTOM_MAP_NONE)
         return 1;
 
       *value = CUSTOM_MAP_DESERT_PRISON;

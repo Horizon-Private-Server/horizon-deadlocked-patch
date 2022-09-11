@@ -956,7 +956,7 @@ void onMapLoaderOnlineMenu(void)
 		// enable input
 		padEnableInput();
 		
-		uiShowOkDialog("Custom Maps", "New updates are available. Please download them at https://rac-horizon.com/maps");
+		uiShowOkDialog("Custom Maps", "New updates are available. Please download them at https://rac-horizon.com");
 		actionState = ACTION_MODULES_INSTALLED;
 		LOAD_MODULES_RESULT = 2;
 	}

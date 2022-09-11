@@ -26,6 +26,7 @@
 #define PAYLOAD_PLAYER_RADIUS									(15)
 #define PAYLOAD_REVERSE_DELAY_TICKS						(TPS * 4)
 #define PAYLOAD_EXPLOSION_COUNTDOWN_TICKS			(60 * 3)
+#define PAYLOAD_HEIGHT_OFFSET									(6.0)
 
 #define PAYLOAD_MOBY_ID												(0x2479)
 
@@ -34,10 +35,7 @@
 #define PAYLOAD_SPAWN_DISTANCE_FUDGE					(40)
 #define PAYLOAD_SPAWN_NEAR_TEAM_FUDGE					(15)
 
-#define PAYLOAD_SOUND													(224)
 #define PAYLOAD_SOUND_VOLUME									(2000)
-#define PAYLOAD_ELECTRICITY_SOUND							(341)
-#define PAYLOAD_ELECTRICITY_END_SOUND					(342)
 #define PAYLOAD_ELECTRICITY_SOUND_VOLUME			(1250)
 
 #define PLAYER_NEAR_PAYLOAD_SEND_EVERY_TICKS	(15)
@@ -101,6 +99,7 @@ struct PayloadTeam
 
 struct PayloadMobyPVar
 {
+	VECTOR PathPosition;
 	float Distance;
 	float Time;
 	float Speed;
@@ -121,6 +120,9 @@ struct PayloadMapConfig
 {
 	int PathVertexCount;
 	int SpawnPointCount;
+	short PayloadMoveSoundId;
+	short PayloadElectricityEnterSoundId;
+	short PayloadElectricityExitSoundId;
 	VECTOR PayloadDeliveredCameraPos;
 	VECTOR PayloadDeliveredCameraRot;
 	BezierPoint_t Path[PAYLOAD_PATH_MAX_POINTS];

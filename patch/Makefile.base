@@ -6,17 +6,23 @@ EE_LIBS += -ldl
 EE_INCS := -I../common -I../libdl/include
 EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
-#EE_DEFS += -DDEBUG
+EE_DEFS += -DDEBUG
 #EE_DEFS += -DTWEAKERS
 #EE_DEFS += -DDEV
 #EE_DEFS += -DMAPEDITOR
-#EE_DEFS += -DSCR_PRINT
+EE_DEFS += -DSCR_PRINT
 #EE_DEFS += -DMAPDOWNLOADER
 #EE_DEFS += -DFREECAM
+#EE_DEFS += -DTEST
 
 # build freecam if defined
 ifneq (,$(findstring -DFREECAM,$(EE_DEFS)))
     EE_OBJS += freecam.o
+endif
+
+# build test if defined
+ifneq (,$(findstring -DTEST,$(EE_DEFS)))
+    EE_OBJS += test.o
 endif
 
 all: $(EE_BIN) clean copy

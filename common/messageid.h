@@ -191,7 +191,15 @@ enum CustomMessageId
      */
     CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST = 33,
 
+    /*
+     * Sent from the server to the client containing a message the server wishes to show on the client.
+     */
+    CUSTOM_MSG_ID_SERVER_SHOW_SNACK_MESSAGE_REQUEST = 34,
 
+    /*
+     * Sent from a client to other clients when they pick up the flag.
+     */
+    CUSTOM_MSG_ID_FLAG_PICKED_UP = 35,
 
     /*
      * Start of custom message ids reserved for custom game modes.
@@ -252,6 +260,7 @@ typedef struct ClientDownloadMapChunkResponse
 
 typedef struct ServerSetRanksRequest
 {
+    int Enabled;
     int AccountIds[10];
     float Ranks[10];
 } ServerSetRanksRequest_t;
@@ -278,6 +287,7 @@ typedef struct GetMyQueueResponse
 
 typedef struct ForceJoinGameRequest
 {
+    int DmeWorldId;
     int ChannelWorldId;
     int GameWorldId;
     int PlayerCount;
@@ -288,9 +298,15 @@ typedef struct ForceJoinGameRequest
     char GameFlags[59];
 } ForceJoinGameRequest_t;
 
+typedef struct ForceLeaveGameRequest
+{
+    int Reason;
+} ForceLeaveGameRequest_t;
+
 typedef struct ForceTeamsRequest
 {
     int AccountIds[10];
+    float BaseRanks[10];
     char Teams[10];
 } ForceTeamsRequest_t;
 
@@ -299,9 +315,15 @@ typedef struct ForceMapRequest
     int Level;
 } ForceMapRequest_t;
 
+typedef struct ServerShowSnackMessage
+{
+    char Message[64];
+} ServerShowSnackMessage_t;
+
 enum VoteContext
 {
-    VOTE_CONTEXT_GAME_SKIP_MAP
+    VOTE_CONTEXT_GAME_SKIP_MAP,
+    VOTE_CONTEXT_GAME_NEW_TEAMS
 };
 
 typedef struct VoteRequest
@@ -314,6 +336,13 @@ typedef struct SetGameStartTimeRequest
 {
     int SecondsUntilStart;
 } SetGameStartTimeRequest_t;
+
+typedef struct ClientPickedUpFlag
+{
+    int GameTime;
+    int PlayerId;
+    int FlagClass;
+} ClientPickedUpFlag_t;
 
 
 #endif // _MESSAGEID_H_

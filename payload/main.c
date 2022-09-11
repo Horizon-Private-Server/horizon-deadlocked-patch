@@ -45,35 +45,22 @@ void frameTick(void);
 void setLobbyGameOptions(void);
 void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
-//--------------------------------------------------------------------------
-float computePlayerRank(int playerIdx)
+int getTeamCount(void)
 {
-	// current stats are stored in the calling function's stack
-	int * sp;
-	int * gameOverData = (int*)0x001E0D78;
+	int i;
+	int count = 0;
+	char teams[GAME_MAX_PLAYERS];
+	Player** players = playerGetAll();
 
-	asm __volatile__ (
-		"move %0, $sp"
-		: : "r" (sp)
-	);
+	memset(teams, 0, sizeof(teams));
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		if (players[i] && !teams[players[i]->Team]) {
+			++count;
+			teams[players[i]->Team] = 1;
+		}
+	}
 
-	// get index of gamemode rank's stat in widestats
-	// and return that as a float
-	int currentRank = sp[8 + ((int (*)(int))0x0077a8f8)(gameOverData[2])];
-
-	// uninstall hook
-	*(u32*)0x0077b0d4 = 0x0C1DEAE6;
-
-	// return current rank
-	// don't compute new rank for base gamemode
-	return (float)currentRank;
-	//return ((float (*)(int))0x0077AB98)(playerIdx);
-}
-
-int updateHook(void)
-{
-
-	return ((int (*)(void))0x005986A8)();
+	return count;
 }
 
 //--------------------------------------------------------------------------
@@ -85,6 +72,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	int i;
 	char buffer[32];
 	int gameTime = gameGetTime();
+	static int teamsAtStart = 0;
 
 	//
 	dlPreUpdate();
@@ -102,15 +90,19 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	if (!Initialized)
 	{
 		initialize(gameConfig);
+		teamsAtStart = getTeamCount();
 		return;
 	}
-
-	// hook nwUpdate (runs each game tick)
-	//HOOK_JAL(0x005986C8, &updateHook);
 
 	//
 	if (!State.GameOver)
 	{
+		// end if all but one team left
+		int teamsLeft = getTeamCount();
+		if (teamsLeft <= 1 && teamsLeft < teamsAtStart)
+			State.GameOver = 1;
+
+		// handle round switching and game over
 		if (State.RoundEndTime && gameTime > State.RoundEndTime)
 		{
 			State.RoundNumber++;
@@ -175,8 +167,8 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 			setEndGameScoreboard(gameConfig);
 			initializedScoreboard = 1;
 
-			// hook compute rank
-			*(u32*)0x0077b0d4 = 0x0C000000 | ((u32)&computePlayerRank >> 2);
+			// patch rank computation to keep rank unchanged for base mode
+			POKE_U32(0x0077ACE4, 0x4600BB06);
 			break;
 		}
 		case UI_ID_GAME_LOBBY:

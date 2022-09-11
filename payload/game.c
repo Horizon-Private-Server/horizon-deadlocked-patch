@@ -300,7 +300,7 @@ struct CubicLineEndPoint endpoints[2] = {
 SoundDef payloadSoundDef = {
 	.BankIndex = 3,
 	.Flags = 0x02,
-	.Index = PAYLOAD_SOUND,
+	.Index = 0,
 	.Loop = 1,
 	.MaxPitch = 0,
 	.MinPitch = 0,
@@ -314,7 +314,7 @@ SoundDef payloadSoundDef = {
 SoundDef playerElectricitySoundDef = {
 	.BankIndex = 3,
 	.Flags = 0x02,
-	.Index = PAYLOAD_ELECTRICITY_SOUND,
+	.Index = 0,
 	.Loop = 1,
 	.MaxPitch = 0,
 	.MinPitch = 0,
@@ -328,7 +328,7 @@ SoundDef playerElectricitySoundDef = {
 SoundDef playerElectricitySoundEndDef = {
 	.BankIndex = 3,
 	.Flags = 0x10,
-	.Index = PAYLOAD_ELECTRICITY_END_SOUND,
+	.Index = 0,
 	.Loop = 0,
 	.MaxPitch = 0,
 	.MinPitch = 0,
@@ -508,7 +508,7 @@ void onPlayerKill(char * fragMsg)
 //--------------------------------------------------------------------------
 void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
 {
-	char possiblePoints[10];
+	char possiblePoints[PAYLOAD_MAX_SPAWNPOINTS];
 	int pointCount = 0;
 	int i = 0;
 	int isAttacking = State.PlayerStates[player->PlayerId].IsAttacking;
@@ -554,7 +554,7 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 		nearestTeammateDist = bezierGetClosestPointOnPath(delta, players[foundLivingTeammate]->PlayerPosition, Config.Path, State.PathSegmentLengths, Config.PathVertexCount);
 	}
 	
-	for (i = 0; i < Config.SpawnPointCount && pointCount < 10; ++i)
+	for (i = 0; i < Config.SpawnPointCount && pointCount < PAYLOAD_MAX_SPAWNPOINTS; ++i)
 	{
 		float spawnDist = Config.SpawnPoints[i][3];
 		int isOnTeamSide = spawnDist > pvar->Distance;
@@ -565,7 +565,7 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 		float distToTeammate = fabsf(nearestTeammateDist - spawnDist);
 
 		// evaluate spawn point based on distance to payload or nearest living teammate
-		if (foundLivingTeammate >= 0 && distToTeammate < PAYLOAD_SPAWN_NEAR_TEAM_FUDGE && isAttacking != isOnTeamSide && isAttacking != spawnDist > nearestTeammateDist)
+		if (foundLivingTeammate >= 0 && distToTeammate < PAYLOAD_SPAWN_NEAR_TEAM_FUDGE && distToPayload > PAYLOAD_SPAWN_NEAR_TEAM_FUDGE && isAttacking != isOnTeamSide && isAttacking != spawnDist > nearestTeammateDist)
 		{
 			isValid = 1;
 		}
@@ -723,7 +723,7 @@ void payloadPostDraw(Moby* payload)
 				continue;
 
 			if (State.PlayerStates[i].IsNearPayload) {
-				vector_subtract(delta, player->PlayerPosition, payload->Position);
+				vector_subtract(delta, player->PlayerPosition, pvar->PathPosition);
 				float dist = vector_length(delta);
 				float t = clamp(((dist / PAYLOAD_PLAYER_RADIUS) - 0.8) * (1 / 0.2), 0, 1);
 				u32 color = colorLerp(TEAM_COLORS[player->Team], 0x40ffffff, t);
@@ -876,7 +876,8 @@ void payloadUpdate(Moby *payload)
 	}
 
 	// oscilate
-	float offset = 3.0 + (1 + sinf(PAYLOAD_LEVITATE_SPEED * (gameGetTime() / 1000.0))) * 0.5 * PAYLOAD_LEVITATE_HEIGHT;
+	float offset = (1 + sinf(PAYLOAD_LEVITATE_SPEED * (gameGetTime() / 1000.0))) * 0.5 * PAYLOAD_LEVITATE_HEIGHT;
+	offset += lerpf(3.0, PAYLOAD_HEIGHT_OFFSET, powf(clamp((State.PathLength - pvar->Distance) / 30.0, 0, 1), 2));
 
 	// periodically recompute distance from start of path
 	// this is to ensure consistent readings
@@ -898,6 +899,7 @@ void payloadUpdate(Moby *payload)
 		sendPayloadState(pvar->State, pvar->PathIndex, pvar->Time);
 	}
 
+	vector_copy(pvar->PathPosition, payload->Position);
 	payload->Position[2] += offset + pvar->Levitate;
 
 	// 
@@ -932,7 +934,7 @@ void payloadUpdate(Moby *payload)
 	payloadSoundDef.MaxVolume = lerpf(payloadSoundDef.MaxVolume, targetVolume, volumeSharpness);
 	
 	// spawn sound if not already created
-	if (pvar->SoundId < 0) {
+	if (pvar->SoundId < 0 && payloadSoundDef.Index > 0) {
 		pvar->SoundId = soundPlay(&payloadSoundDef, 4, State.PayloadMoby, NULL, 0x400);
 		if (pvar->SoundId >= 0) {
 			pvar->SoundHandle = soundCreateHandle(pvar->SoundId);
@@ -1064,7 +1066,7 @@ void processPlayer(int pIndex)
 	// determine if near payload
 	playerData->IsNearPayload = 0;
 	if (!playerIsDead(player)) {
-		vector_subtract(t, player->PlayerPosition, payload->Position);
+		vector_subtract(t, player->PlayerPosition, pvar->PathPosition);
 		if (vector_sqrmag(t) < (PAYLOAD_PLAYER_RADIUS*PAYLOAD_PLAYER_RADIUS)) {
 			playerData->IsNearPayload = 1;
 		}
@@ -1170,7 +1172,7 @@ void processPlayer(int pIndex)
 		if (playerData->IsNearPayload && (playerData->IsAttacking || State.ContestMode != PAYLOAD_CONTEST_OFF)) {
 			
 			// spawn sound if not already created
-			if (playerData->SoundId < 0) {
+			if (playerData->SoundId < 0 && playerElectricitySoundDef.Index > 0) {
 				playerData->SoundId = soundPlay(&playerElectricitySoundDef, 4, player->PlayerMoby, NULL, 0x400);
 				if (playerData->SoundId >= 0) {
 					playerData->SoundHandle = soundCreateHandle(playerData->SoundId);
@@ -1198,7 +1200,9 @@ void processPlayer(int pIndex)
 			playerData->SoundId = -1;
 
 			// play electricity broke sound
-			soundPlay(&playerElectricitySoundEndDef, 0, player->PlayerMoby, NULL, 0x400);
+			if (playerElectricitySoundEndDef.Index > 0) {
+				soundPlay(&playerElectricitySoundEndDef, 0, player->PlayerMoby, NULL, 0x400);
+			}
 		}
 	}
 
@@ -1453,7 +1457,7 @@ void gameTick(void)
 	}
 	else if (State.Teams[0].Score > State.Teams[1].Score)
 		State.WinningTeam = State.Teams[0].TeamId;
-	else if (State.Teams[1].Score > State.Teams[0].Score)
+	else
 		State.WinningTeam = State.Teams[1].TeamId;
 
 	// send score to others at end
@@ -1573,6 +1577,11 @@ void initialize(PatchGameConfig_t* gameConfig)
 	memset(payloadDestroyedMobies, 0, sizeof(payloadDestroyedMobies));
 	memset(payloadDestroyedMobiesDrawDist, 0, sizeof(payloadDestroyedMobiesDrawDist));
 
+	// setup sound ids
+	payloadSoundDef.Index = Config.PayloadMoveSoundId;
+	playerElectricitySoundDef.Index = Config.PayloadElectricityEnterSoundId;
+	playerElectricitySoundEndDef.Index = Config.PayloadElectricityExitSoundId;
+
 	// spawn boxes to bridge gap
 	Moby* m = mobySpawn(MOBY_ID_BETA_BOX, 0);
 	m->Position[0] = 177.6;
@@ -1668,6 +1677,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.PayloadMoby->DrawDist = 0x7FFF;
 	State.PayloadMoby->UpdateDist = 0xFF; 
 	State.PayloadMoby->PUpdate = &payloadUpdate;
+	State.PayloadMoby->Scale *= 0.35;
 
 	// ghost station glow
 	if (gameSettings->GameLevel == 54) {

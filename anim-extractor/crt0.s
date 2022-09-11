@@ -17,9 +17,13 @@
 
 	.ent _start
 _start:
-	jal main
+	j gameStart
 	nop
-	jal 0x001384e0
+
+_lobbyStart:
+	j lobbyStart
 	nop
-	j 0x00138d84
+
+_loadStart:
+	j loadStart
 	nop

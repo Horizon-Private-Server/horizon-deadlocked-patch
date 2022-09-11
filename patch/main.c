@@ -119,6 +119,10 @@ void runCompMenuLogic(void);
 void runCompLogic(void);
 #endif
 
+#if TEST
+void runTestLogic(void);
+#endif
+
 #if MAPEDITOR
 void onMapEditorGameUpdate(void);
 #endif
@@ -148,10 +152,9 @@ int renderTimeMs = 0;
 float averageRenderTimeMs = 0;
 int updateTimeMs = 0;
 float averageUpdateTimeMs = 0;
-//char hasSetRanks = 0;
-//ServerSetRanksRequest_t lastSetRanksRequest;
-
-extern char fixWeaponLagToggle;
+int timeLocalPlayerPickedUpFlag[2] = {0,0};
+int localPlayerHasFlag[2] = {0,0};
+ServerSetRanksRequest_t lastSetRanksRequest;
 
 int lastLodLevel = 2;
 const int lodPatchesPotato[][2] = {
@@ -273,6 +276,7 @@ const PlayerStateCondition_t stateForceRemoteConditions[] = {
 };
 
 // 
+int isUnloading __attribute__((section(".config"))) = 0;
 PatchConfig_t config __attribute__((section(".config"))) = {
 	.framelimiter = 0,
 	.enableGamemodeAnnouncements = 0,
@@ -432,15 +436,12 @@ void patchResurrectWeaponOrdering_HookGiveMeRandomWeapons(Player* player, int we
 			for (j = 0; j < 3; ++j) {
 				if (backedUpSlotValue == playerGetLocalEquipslot(player->LocalPlayerIndex, j)) {
 					matchCount++;
-					DPRINTF("WEAPON ORDERING MATCH %d (backup:%d => new:%d)\n", backedUpSlotValue, i, j);
 				}
 			}
 		}
 
 		// if we found a match, set
 		if (matchCount == 3) {
-			DPRINTF("RESTORING BACKED UP WEAPON ORDER\n");
-
 			// set equipped weapon in order
 			for (i = 0; i < 3; ++i) {
 				playerSetLocalEquipslot(player->LocalPlayerIndex, i, weaponOrderBackup[player->LocalPlayerIndex][i]);
@@ -493,6 +494,12 @@ void patchResurrectWeaponOrdering(void)
 void patchLevelOfDetail(void)
 {
 	int i = 0;
+
+	// only apply in game
+	if (!isInGame()) {
+		lastLodLevel = -1;
+		return;
+	}
 
 	// patch lod
 	if (*(u32*)0x005930B8 == 0x02C3B020)
@@ -1002,13 +1009,17 @@ void patchFrameSkip()
 	if (config.framelimiter == 1) // auto
 	{
 		// already disabled, to re-enable must have instantaneous high total time
-		if (disableByAuto && totalTimeMs > 14.0) {
+		if (disableByAuto && totalTimeMs > 15.0) {
+			autoDisableDelayTicks = 30; // 1 seconds before can disable again
+			disableByAuto = 0; 
+		} else if (disableByAuto && averageTotalTimeMs > 14.0) {
 			autoDisableDelayTicks = 60; // 2 seconds before can disable again
 			disableByAuto = 0; 
 		}
+
 		// not disabled, to disable must have average low total time
 		// and must not have just enabled it
-		else if (autoDisableDelayTicks == 0 && !disableByAuto && averageTotalTimeMs < 13.5)
+		else if (autoDisableDelayTicks == 0 && !disableByAuto && averageTotalTimeMs < 12.5)
 			disableByAuto = 1;
 
 		// decrement disable delay
@@ -1053,33 +1064,440 @@ void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0,
 		// client is not holding correct weapon on our screen
 		// haven't determined a way to fix this yet but
 		if (player->Gadgets[0].id != message->GadgetId) {
-			DPRINTF("remote gadgetevent %d from weapon %d but player holding %d\n", message->GadgetEventType, message->GadgetId, player->Gadgets[0].id);
+			//DPRINTF("remote gadgetevent %d from weapon %d but player holding %d\n", message->GadgetEventType, message->GadgetId, player->Gadgets[0].id);
 			playerEquipWeapon(player, message->GadgetId);
 		}
 
 		// set weapon shot event time to now if its in the future
 		// because the client is probably lagging behind
-		DPRINTF("remote gadgetevent %d spawned with delay %d", message->GadgetEventType, delta);
-		if (player->Gadgets[0].id == message->GadgetId && delta > 0) {
+		if (player->Gadgets[0].id == message->GadgetId && (delta > 0 || delta < -TIME_SECOND)) {
 			a2 = gameGetTime();
-			DPRINTF("... fixed");
 		}
-		
-		// attempt to correct client's timebase by assuming offset from time of shot and now
-		if (0 && delta > TIME_SECOND) {
-			//DPRINTF("\nwe must be lagging.... trying to fix");
-			int rto = gameGetPing() / 2;
-			//POKE_U32(0x01eabd60, 0);
-			//POKE_U32(0x00168BA8, a2 + rto);
-			//((void (*)(int, int))0x01eabce0)(rto, a2);
-			//POKE_U32(0x01eabd60, 0x14600003);
-			DPRINTF("delta=%X (%X)", *(int*)0x00168BA8, a2);
-		}
-
-		DPRINTF("\n");
 	}
 
 	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, a1, a2, a3, t0, message);
+}
+
+/*
+ * NAME :		getFusionShotDirection
+ * 
+ * DESCRIPTION :
+ * 			Ensures that the fusion shot will hit its target.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+u128 getFusionShotDirection(Player* target, int a1, u128 vFrom, u128 vTo, Moby* targetMoby)
+{
+  VECTOR from, to;
+
+	// move from registers to memory
+  vector_write(from, vFrom);
+  vector_write(to, vTo);
+
+  // if we have a valid player target
+	// then we want to check that the given to from will hit
+	// if it doesn't then we want to force it to hit
+  if (target)
+  {
+    // if the shot didn't hit the target then we want to force the shot to hit the target
+    int hit = CollLine_Fix(from, to, 2, NULL, 0);
+    if (!hit || CollLine_Fix_GetHitMoby() != target->PlayerMoby) {
+      vTo = ((u128 (*)(Moby*, Player*))0x003f7968)(targetMoby, target);
+    }
+  }
+
+	// call base get direction
+  return ((u128 (*)(Player*, int, u128, u128, float))0x003f9fc0)(target, a1, vFrom, vTo, 0.0);
+}
+
+struct FlagPVars
+{
+	VECTOR BasePosition;
+	short CarrierIdx;
+	short LastCarrierIdx;
+	short Team;
+	char UNK_16[6];
+	int TimeFlagDropped;
+};
+
+void customFlagLogic(Moby* flagMoby)
+{
+	VECTOR t;
+	int i;
+	Player** players = playerGetAll();
+	int gameTime = gameGetTime();
+	GameOptions* gameOptions = gameGetOptions();
+	if (!isInGame())
+		return;
+		
+	// validate flag
+	if (!flagMoby)
+		return;
+
+	// get pvars
+	struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
+	if (!pvars)
+		return;
+
+	// somehow a player is holding the flag without being the carrier
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		Player* player = players[i];
+		if (player && player->HeldMoby == flagMoby && pvars->CarrierIdx != player->PlayerId) {
+			player->HeldMoby = 0;
+		}
+	}
+	
+	// 
+	if (flagMoby->State != 1)
+		return;
+
+	// flag is currently returning
+	if (flagIsReturning(flagMoby))
+		return;
+
+	// flag is currently being picked up
+	if (flagIsBeingPickedUp(flagMoby))
+		return;
+	
+	// return to base if flag has been idle for 40 seconds
+	if ((pvars->TimeFlagDropped + (TIME_SECOND * 40)) < gameTime && !flagIsAtBase(flagMoby)) {
+		flagReturnToBase(flagMoby, 0, 0xFF);
+		return;
+	}
+
+	// return to base if flag landed on bad ground
+	if (!flagIsOnSafeGround(flagMoby)) {
+		flagReturnToBase(flagMoby, 0, 0xFF);
+		return;
+	}
+
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		Player* player = players[i];
+		if (!player || !player->IsLocal)
+			continue;
+
+		// wait 3 seconds for last carrier to be able to pick up again
+		if ((pvars->TimeFlagDropped + 3*TIME_SECOND) > gameTime && i == pvars->LastCarrierIdx)
+			continue;
+
+		// only allow actions by living players
+		if (playerIsDead(player) || player->Health <= 0)
+			continue;
+
+		// something to do with vehicles
+		// not sure exactly when this case is true
+		if (((int (*)(Player*))0x00619b58)(player))
+			continue;
+
+		// skip player if they've only been alive for < 3 seconds
+		if (player->timers.timeAlive <= 180)
+			continue;
+
+		// skip player if in vehicle
+		if (player->Vehicle)
+			continue;
+
+		// skip if player state is in vehicle and critterMode is on
+		if (player->Camera && player->PlayerState == PLAYER_STATE_VEHICLE && player->Camera->camHeroData.critterMode)
+			continue;
+
+		// skip if player is on teleport pad
+		if (player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_TELEPORT_PAD)
+			continue;
+		
+		// player must be within 2 units of flag
+		vector_subtract(t, flagMoby->Position, player->PlayerPosition);
+		float sqrDistance = vector_sqrmag(t);
+		if (sqrDistance > (2*2))
+			continue;
+
+		// player is on different team than flag and player isn't already holding flag
+		if (player->Team != pvars->Team) {
+			if (!player->HeldMoby) {
+				flagPickup(flagMoby, i);
+				player->HeldMoby = flagMoby;
+				return;
+			}
+		}
+		// player is on same team so attempt to return flag
+		else if (gameOptions->GameFlags.MultiplayerGameFlags.FlagReturn) {
+			vector_subtract(t, pvars->BasePosition, flagMoby->Position);
+			float sqrDistanceToBase = vector_sqrmag(t);
+			if (sqrDistanceToBase > 0.1) {
+				flagReturnToBase(flagMoby, 0, i);
+				return;
+			}
+		}
+	}
+
+	//0x00619b58
+}
+
+/*
+ * NAME :		onRemoteClientPickedUpFlag
+ * 
+ * DESCRIPTION :
+ * 			Handles when a remote client sends the CUSTOM_MSG_ID_FLAG_PICKED_UP message.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onRemoteClientPickedUpFlag(void * connection, void * data)
+{
+	int i;
+	ClientPickedUpFlag_t msg;
+	memcpy(&msg, data, sizeof(msg));
+
+	// ignore if not in game
+	if (!isInGame())
+		return;
+
+	// get remote player or ignore message
+	Player* remotePlayer = playerGetAll()[msg.PlayerId];
+	if (!remotePlayer)
+		return;
+
+	// check if client picked up our flag
+	DPRINTF("remote player %d picked up flag %X at %d\n", msg.PlayerId, msg.FlagClass, msg.GameTime);
+	for (i = 0; i < 2; ++i) {
+		Player* localPlayer = playerGetFromSlot(i);
+		if (localPlayer && localPlayer->HeldMoby && localPlayer->HeldMoby->OClass == msg.FlagClass) {
+
+			// drop if they picked up before us
+			if (msg.GameTime > timeLocalPlayerPickedUpFlag[i]) {
+				playerDropFlag(localPlayer, 0);
+			}
+			// drop if they picked up at same time but are earlier player id
+			// we need some kind of priority ordering for this case
+			else if (msg.GameTime == timeLocalPlayerPickedUpFlag[i] && msg.PlayerId < localPlayer->PlayerId) {
+				playerDropFlag(localPlayer, 0);
+			}
+		}
+	}
+
+	return sizeof(ClientPickedUpFlag_t);
+}
+
+/*
+ * NAME :		runFlagPickupFix
+ * 
+ * DESCRIPTION :
+ * 			Ensures that player's don't "lag through" the flag.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runFlagPickupFix(void)
+{
+	VECTOR t;
+	int i = 0;
+	Player** players = playerGetAll();
+
+	if (!isInGame()) {
+		// reset and exit
+		timeLocalPlayerPickedUpFlag[0] = timeLocalPlayerPickedUpFlag[1] = 0;
+		localPlayerHasFlag[0] = localPlayerHasFlag[1] = 0;
+		return;
+	}
+
+	// issue with this fix is that now two people can pick up the flag
+	// at the same time, causing both of them to hold the flag (one is invis)
+	// so to fix this we have to broadcast when we pick the flag up, with the game time
+	// and if a client receives this message and it tells them another person picked up the flag before them
+	// then we drop our flag
+	void * dmeConnection = netGetDmeServerConnection();
+	if (dmeConnection && 0) {
+
+		netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_PICKED_UP, &onRemoteClientPickedUpFlag);
+
+		// update local player(s) flag time and picked up status
+		for (i = 0; i < 2; ++i) {
+			Player* localPlayer = playerGetFromSlot(i);
+			if (localPlayer) {
+				if (localPlayer->HeldMoby) {
+					short heldMobyOClass = localPlayer->HeldMoby->OClass;
+					if (heldMobyOClass == MOBY_ID_BLUE_FLAG || heldMobyOClass == MOBY_ID_RED_FLAG || heldMobyOClass == MOBY_ID_GREEN_FLAG || heldMobyOClass == MOBY_ID_ORANGE_FLAG) {
+						
+						// just picked up flag
+						if (!localPlayerHasFlag[i]) {
+							timeLocalPlayerPickedUpFlag[i] = gameGetTime();
+
+							DPRINTF("local player %d picked up flag %X at %d\n", localPlayer->PlayerId, localPlayer->HeldMoby->OClass, gameGetTime());
+
+							// broadcast to other clients
+							ClientPickedUpFlag_t msg;
+							msg.GameTime = gameGetTime();
+							msg.PlayerId = localPlayer->PlayerId;
+							msg.FlagClass = localPlayer->HeldMoby->OClass;
+							netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, CUSTOM_MSG_ID_FLAG_PICKED_UP, sizeof(ClientPickedUpFlag_t), &msg);
+						}
+						
+						localPlayerHasFlag[i] = 1;
+					}
+					else {
+						localPlayerHasFlag[i] = 0;
+					}
+				}
+				else {
+					localPlayerHasFlag[i] = 0;
+				}
+			}
+		}
+	}
+
+  // set pickup cooldown to 0.5 seconds
+  //POKE_U16(0x00418aa0, 500);
+
+	// disable normal flag update code
+	POKE_U32(0x00418858, 0x03E00008);
+	POKE_U32(0x0041885C, 0x0000102D);
+
+	// run custom flag update on flags
+	GuberMoby* gm = guberMobyGetFirst();
+  while (gm)
+  {
+    if (gm->Moby)
+    {
+      switch (gm->Moby->OClass)
+      {
+        case MOBY_ID_BLUE_FLAG:
+        case MOBY_ID_RED_FLAG:
+        case MOBY_ID_GREEN_FLAG:
+        case MOBY_ID_ORANGE_FLAG:
+        {
+					customFlagLogic(gm->Moby);
+					break;
+				}
+			}
+		}
+    gm = (GuberMoby*)gm->Guber.Prev;
+	}
+
+	return;
+	/*
+	// iterate guber mobies
+	// finding each flag
+	// we want to check if we're the master
+	// if we're not and within some reasonable distance then 
+	// just run the flag update manually
+  GuberMoby* gm = guberMobyGetFirst();
+  while (gm)
+  {
+    if (gm->Moby)
+    {
+      switch (gm->Moby->OClass)
+      {
+        case MOBY_ID_BLUE_FLAG:
+        case MOBY_ID_RED_FLAG:
+        case MOBY_ID_GREEN_FLAG:
+        case MOBY_ID_ORANGE_FLAG:
+        {
+					int flagUpdateRan = 0;
+
+					// ensure no one is master
+					void * master = masterGet(gm->Guber.Id.UID);
+					if (master)
+						masterDelete(master);
+
+					// detect if flag is currently held
+					for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+						Player* player = players[i];
+						if (player && player->HeldMoby == gm->Moby) {
+							flagUpdateRan = 1;
+							break;
+						}
+					}
+
+					if (!flagUpdateRan) {
+						for (i = 0; i < 2; ++i) {
+							// get local player
+							Player* localPlayer = playerGetFromSlot(i);
+							if (localPlayer) {
+								// get distance from local player to flag
+								vector_subtract(t, gm->Moby->Position, localPlayer->PlayerPosition);
+								float sqrDist = vector_sqrmag(t);
+
+								if (sqrDist < (5 * 5))
+								{
+									// run update
+									((void (*)(Moby*, u32))0x00418858)(gm->Moby, 0);
+									flagUpdateRan = 1;
+
+									// we only need to run it once per client
+									// even if both locals are near the flag
+									break;
+								}
+							}
+						}
+					}
+
+					// run flag update as host if no one else is nearby
+					if (gameAmIHost() && !flagUpdateRan) {
+						((void (*)(Moby*, u32))0x00418858)(gm->Moby, 0);
+					}
+          break;
+        }
+      }
+    }
+    gm = (GuberMoby*)gm->Guber.Prev;
+  }
+	*/
+}
+
+/*
+ * NAME :		runFixB6EatOnDownSlope
+ * 
+ * DESCRIPTION :
+ * 			B6 shots are supposed to do full damage when a player is hit on the ground.
+ * 			But the ground detection fails when walking/cbooting down slopes.
+ * 			This allows players to take only partial damage in some circumstances.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runFixB6EatOnDownSlope(void)
+{
+  int i = 0;
+
+  while (i < 2)
+  {
+    Player* p = playerGetFromSlot(i);
+    if (p) {
+      // determine height delta of player from ground
+      // player is grounded if "onGood" or height delta from ground is less than 0.3 units
+      float hDelta = p->PlayerPosition[2] - *(float*)((u32)p + 0x250 + 0x78);
+      int grounded = hDelta < 0.3 || *(int*)((u32)p + 0x250 + 0xA0) != 0;
+
+      // store grounded in unused part of player data
+      POKE_U32((u32)p + 0x30C, grounded);
+    }
+
+    ++i;
+  }
+
+  // patch b6 grounded damage check to read our isGrounded state
+  POKE_U16(0x003B56E8, 0x30C);
 }
 
 /*
@@ -1099,6 +1517,9 @@ void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0,
  */
 void patchWeaponShotLag(void)
 {
+	if (!isInGame())
+		return;
+
 	// send all shots reliably
 	/*
 	u32* ptr = (u32*)0x00627AB4;
@@ -1117,6 +1538,11 @@ void patchWeaponShotLag(void)
 	// ie, remote shots go in the same direction that is sent by the source client
 	POKE_U32(0x003FA28C, 0);
 
+	// patches function that converts fusion shot start and end positions
+	// to a direction to always hit target player if there is a target
+	POKE_U32(0x003fa5c0, 0x0240402D);
+	HOOK_JAL(0x003fa5c8, &getFusionShotDirection);
+
 	// patch all weapon shots to be shot on remote as soon as they arrive
 	// instead of waiting for the gametime when they were shot on the remote
 	// since all shots happen immediately (none are sent ahead-of-time)
@@ -1130,6 +1556,60 @@ void patchWeaponShotLag(void)
 	// send fusion shot reliably
 	if (*(u32*)0x003FCE8C == 0x910407F8)
 		*(u32*)0x003FCE8C = 0x24040040;
+		
+	// fix b6 eating on down slope
+	runFixB6EatOnDownSlope();
+}
+
+/*
+ * NAME :		patchRadarScale
+ * 
+ * DESCRIPTION :
+ * 			Changes the radar scale and zoom.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchRadarScale(void)
+{
+	u32 frameSizeValue = 0;
+	u32 minimapBorderColor = 0;
+	u32 minimapTeamBorderColorInstruction = 0x0000282D;
+	float scale = 1;
+	if (!isInGame())
+		return;
+
+	// adjust expanded frame size
+	if (!config.minimapScale) {
+		frameSizeValue = 0x460C6300;
+		minimapBorderColor = 0x80969696;
+		minimapTeamBorderColorInstruction = 0x0200282D;
+	}
+	
+	// read expanded animation time (0=shrunk, 1=expanded)
+	float frameExpandedT = *(float*)0x0030F750;
+	float smallScale = 1 + (config.minimapSmallZoom / 5.0);
+	float bigScale = 1 + (config.minimapBigZoom / 5.0);
+	scale = lerpf(smallScale, bigScale, frameExpandedT);
+	
+	// set radar frame size during animation
+	POKE_U32(0x00556900, frameSizeValue);
+	// remove border 
+	POKE_U32(0x00278C90, minimapBorderColor);
+	// remove team border
+	POKE_U32(0x00556D08, minimapTeamBorderColorInstruction);
+
+	// set minimap scale
+	*(float*)0x0038A320 = 500 * scale; // when idle
+	*(float*)0x0038A324 = 800 * scale; // when moving
+
+	// set blip scale
+	*(float*)0x0038A300 = 0.04 / scale;
 }
 
 /*
@@ -1887,6 +2367,9 @@ void runFpsCounter(void)
 	static int lastGameTime = 0;
 	static int tickCounter = 0;
 
+	if (!isInGame())
+		return;
+
 	// initialize time
 	if (tickCounter == 0 && lastGameTime == 0)
 		lastGameTime = gameGetTime();
@@ -2186,18 +2669,74 @@ int onSetLobbyClientPatchConfig(void * connection, void * data)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-/*
 int onSetRanks(void * connection, void * data)
 {
 	int i, j;
 
 	// move message payload into local
 	memcpy(&lastSetRanksRequest, data, sizeof(ServerSetRanksRequest_t));
-	hasSetRanks = -1;
 
 	return sizeof(ServerSetRanksRequest_t);
 }
-*/
+
+/*
+ * NAME :		getCustomGamemodeRankNumber
+ * 
+ * DESCRIPTION :
+ * 			Returns the player rank number for the given player based off the current gamemode or custom gamemode.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int getCustomGamemodeRankNumber(int offset)
+{
+	GameSettings* gs = gameGetSettings();
+	int pid = offset / 4;
+	float rank = gs->PlayerRanks[pid];
+	int i;
+
+	if (gameConfig.customModeId != CUSTOM_MODE_NONE && lastSetRanksRequest.Enabled)
+	{
+		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+		{
+			if (lastSetRanksRequest.AccountIds[i] == gs->PlayerAccountIds[pid])
+			{
+				rank = lastSetRanksRequest.Ranks[i];
+				break;
+			}
+		}
+	}
+
+	return ((int (*)(float))0x0077B8A0)(rank);
+}
+
+/*
+ * NAME :		patchStagingRankNumber
+ * 
+ * DESCRIPTION :
+ * 			Patches the staging menu's player rank menu elements to read the rank from our custom function.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchStagingRankNumber(void)
+{
+	if (!isInMenus())
+		return;
+	
+	HOOK_JAL(0x0075AC3C, &getCustomGamemodeRankNumber);
+	POKE_U32(0x0075AC40, 0x0060202D);
+}
 
 /*
  */
@@ -2492,7 +3031,7 @@ int main (void)
 	// install net handlers
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_REQUEST_TEAM_CHANGE, &onSetTeams);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST, &onSetLobbyClientPatchConfig);
-	//netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
 
 	// Run map loader
 	runMapLoader();
@@ -2500,6 +3039,11 @@ int main (void)
 #if COMP
 	// run comp patch logic
 	runCompLogic();
+#endif
+
+#if TEST
+	// run test patch logic
+	runTestLogic();
 #endif
 
 	// 
@@ -2541,8 +3085,14 @@ int main (void)
 	// Patch shots to be less laggy
 	patchWeaponShotLag();
 
+	// Ensures that player's don't lag through the flag
+	runFlagPickupFix();
+
 	// Patch state update to run more optimized
 	patchStateUpdate();
+
+	// Patch radar scale
+	patchRadarScale();
 
 	// Patch process level call
 	patchProcessLevel();
@@ -2562,6 +3112,9 @@ int main (void)
 	// 
 	patchAggTime();
 
+	//
+	patchLevelOfDetail();
+
 	// 
 	patchStateContainer.UpdateCustomGameStats = processSendGameData();
 
@@ -2575,9 +3128,9 @@ int main (void)
 	if (isInGame())
 	{
 		// hook render function
-		HOOK_JAL(0x004C3A94, &drawHook);
 		HOOK_JAL(0x004A84B0, &updateHook);
-		
+		HOOK_JAL(0x004C3A94, &drawHook);
+
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
 
@@ -2608,8 +3161,6 @@ int main (void)
 		// close config menu on transition to lobby
 		if (lastGameState != 1)
 			configMenuDisable();
-
-		patchLevelOfDetail();
 
 		// Hook game start menu back callback
 		if (*(u32*)0x005605D4 == 0x0C15803E)
@@ -2646,6 +3197,9 @@ int main (void)
 
 		//
 		grLobbyStart();
+
+		// 
+		patchStagingRankNumber();
 
 		// Hook menu loop
 		if (*(u32*)0x00594CBC == 0)

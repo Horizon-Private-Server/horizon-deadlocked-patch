@@ -14,7 +14,9 @@ typedef struct PatchConfig
   char disableCircleToHackerRay;
   char playerAggTime;
   char disableCameraShake;
-  
+  char minimapScale;
+  char minimapBigZoom;
+  char minimapSmallZoom;
 #if FREECAM
   char playerFov;
 #endif
@@ -112,6 +114,7 @@ enum CUSTOM_MAP_ID
   CUSTOM_MAP_SARATHOS_SP,
   CUSTOM_MAP_SHAAR_SP,
   CUSTOM_MAP_SHIPMENT,
+  CUSTOM_MAP_SNIVELAK,
   CUSTOM_MAP_SPLEEF,
   CUSTOM_MAP_TORVAL_SP,
   CUSTOM_MAP_TYHRRANOSIS,
@@ -141,6 +144,7 @@ enum CUSTOM_MODE_ID
 #if DEV
   CUSTOM_MODE_GRIDIRON,
   CUSTOM_MODE_TEAM_DEFENDER,
+  CUSTOM_MODE_ANIM_EXTRACTOR,
 #endif
 
   // always at the end to indicate how many items there are

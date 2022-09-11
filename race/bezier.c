@@ -225,8 +225,10 @@ float bezierGetClosestPointOnPath(VECTOR out, VECTOR position, BezierPoint_t* ve
   while (i < (bestCtrlIdx+2) && i < lastVertex)
 	{
 		// skip disconnected segments
-		if (vertices[i].Disconnected)
+		if (vertices[i].Disconnected) {
+			++i;
 			continue;
+		}
 			
 		t = 0;
 
