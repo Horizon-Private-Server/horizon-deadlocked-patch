@@ -10,6 +10,10 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
+void setFreeze(int isActive);
+void setDoublePointsForTeam(int team, int isActive);
+void playerRevive(Player* player, int fromPlayerId);
+short playerGetWeaponAmmo(Player* player, int weaponId);
 int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod);
 Moby * spawnExplosion(VECTOR position, float size);
 void playUpgradeSound(Player* player);

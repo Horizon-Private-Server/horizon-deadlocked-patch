@@ -45,3 +45,8 @@ Send mutators to everyone at start of each round (in case host leaves midgame)
 Fix mob order not working correctly when spectating
 ++Add difficulty to end game scoreboard text
 ++Change respawn button to not overlap with upgrading weapon
+++Adjust weapon pickup spawn rate to scale with number of players
+++Replace chargeboot pickup with weapon pickup if chargeboots Always or Off
+++Increase damage cooldown for lower difficulties
+++Decrease chargeboot into wall stunlock time for lower difficulties
+++Add random drop pickups for Ammo, Nuke, Slow, and Double Points

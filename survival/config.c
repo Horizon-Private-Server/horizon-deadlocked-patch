@@ -34,6 +34,19 @@ const float DIFFICULTY_MAP[] = {
 	1.50,			// Exterminator
 };
 
+extern const short WEAPON_RESPAWN_TIMES[] = {
+	30, // 1 player (vanilla is 30)
+	30, // 2 players
+	25, // 3 players
+	20, // 4 players
+	18, // 5 players
+	16, // 6 players
+	14, // 7 players
+	12, // 8 players
+	9, // 9 players
+	6, // 10 players
+};
+
 SurvivalBakedConfig_t BakedConfig __attribute__((section(".config"))) = {
 	1.0
 };

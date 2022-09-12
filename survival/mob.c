@@ -1,4 +1,5 @@
 #include "include/mob.h"
+#include "include/drop.h"
 #include "include/utils.h"
 #include "include/game.h"
 #include <string.h>
@@ -897,7 +898,7 @@ void mobUpdate(Moby* moby)
 	}
 
 	// 
-	if (ambientSoundCooldownTicks == 0) {
+	if (!State.Freeze && ambientSoundCooldownTicks == 0) {
 		mobPlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS, ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS);
 	}
@@ -906,16 +907,18 @@ void mobUpdate(Moby* moby)
 	mobHandleDraw(moby);
 
 	// 
-	mobDoAction(moby);
+	if (!State.Freeze)
+		mobDoAction(moby);
 
 	// 
 	mobyUpdateFlash(moby, 0);
 
 	// 
-	mobHandleStuck(moby);
+	if (!State.Freeze)
+		mobHandleStuck(moby);
 
 	//
-	if (isOwner) {
+	if (isOwner && !State.Freeze) {
 		// set next state
 		if (pvars->MobVars.NextAction >= 0 && pvars->MobVars.ActionCooldownTicks == 0) {
 			if (nextActionTicks == 0) {
@@ -954,11 +957,16 @@ void mobUpdate(Moby* moby)
 		moby->Opacity = opacity;
 	}
 
+	if (State.Freeze) {
+		moby->AnimSpeed = 0;
+	}
+
 	// update armor
 	moby->Bangles = mobGetArmor(pvars);
 
 	// move system update
-	mobyMoveSystemUpdate(moby);
+	if (!State.Freeze)
+		mobyMoveSystemUpdate(moby);
 
 	// process damage
 	int damageIndex = moby->CollDamage;
@@ -1020,7 +1028,7 @@ void mobUpdate(Moby* moby)
 
 struct GuberMoby* mobGetGuber(Moby* moby)
 {
-	if (moby->OClass == 0x20F6 && moby->PVar)
+	if (moby->OClass == ZOMBIE_MOBY_OCLASS && moby->PVar)
 		return moby->GuberMoby;
 	
 	return 0;
@@ -1186,6 +1194,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 {
 	char killedByPlayerId, weaponId;
 	int i;
+	Player** players = playerGetAll();
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (!pvars || pvars->MobVars.Destroyed)
 		return 0;
@@ -1196,22 +1205,36 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 	int bolts = pvars->MobVars.Config.Bolts;
 
+#if DROPS
+	if (killedByPlayerId >= 0 && gameAmIHost()) {
+		Player * killedByPlayer = players[killedByPlayerId];
+		if (killedByPlayer) {
+			float randomValue = randRange(0.0, 1.0);
+			if (randomValue < ZOMBIE_HAS_DROP_PROBABILITY) {
+				dropCreate(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
+			}
+		}
+	}
+#endif
+
 #if SHARED_BOLTS
 	if (killedByPlayerId >= 0) {
-		Player * killedByPlayer = State.PlayerStates[killedByPlayerId].Player;
+		Player * killedByPlayer = players[killedByPlayerId];
 		if (killedByPlayer) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				if (State.PlayerStates[i].Player && !playerIsDead(State.PlayerStates[i].Player) && State.PlayerStates[i].Player->Team == killedByPlayer->Team) {
-					State.PlayerStates[i].State.Bolts += bolts;
-					State.PlayerStates[i].State.TotalBolts += bolts;
+					int multiplier = State.PlayerStates[i].IsDoublePoints ? 2 : 1;
+					State.PlayerStates[i].State.Bolts += bolts * multiplier;
+					State.PlayerStates[i].State.TotalBolts += bolts * multiplier;
 				}
 			}
 		}
 	}
 #else
 	if (killedByPlayerId >= 0) {
-		State.PlayerStates[(int)killedByPlayerId].State.Bolts += bolts;
-		State.PlayerStates[(int)killedByPlayerId].State.TotalBolts += bolts;
+		int multiplier = State.PlayerStates[killedByPlayerId].IsDoublePoints ? 2 : 1;
+		State.PlayerStates[(int)killedByPlayerId].State.Bolts += bolts * multiplier;
+		State.PlayerStates[(int)killedByPlayerId].State.TotalBolts += bolts * multiplier;
 	}
 #endif
 
@@ -1393,7 +1416,7 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-	if (isInGame() && moby->OClass == 0x20F6 && pvars) {
+	if (isInGame() && moby->OClass == ZOMBIE_MOBY_OCLASS && pvars) {
 		u32 mobEvent = event->NetEvent.EventID;
 		int isFromHost = gameIsHost(event->NetEvent.OriginClientIdx);
 		if (!isFromHost && mobEvent != MOB_EVENT_SPAWN && mobEvent != MOB_EVENT_DAMAGE && mobEvent != MOB_EVENT_DESTROY && pvars->MobVars.Owner != event->NetEvent.OriginClientIdx)
@@ -1467,6 +1490,31 @@ void mobInitialize(void)
 
 	// 
 	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
+}
+
+void mobFreeze(int durationMs)
+{
+	
+}
+
+void mobNuke(int killedByPlayerId)
+{
+	int i;
+	Player** players = playerGetAll();
+	u32 playerUid = 0;
+	if (killedByPlayerId >= 0 && killedByPlayerId < GAME_MAX_PLAYERS) {
+		Player* p = players[killedByPlayerId];
+		if (p) {
+			playerUid = p->Guber.Id.UID;
+		}
+	}
+
+	for (i = 0; i < MAX_MOBS_SPAWNED; ++i) {
+		Moby* m = AllMobsSorted[i];
+		if (m) {
+			mobDestroy(m, playerUid);
+		}
+	}
 }
 
 void mobTick(void)

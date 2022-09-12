@@ -251,6 +251,7 @@ enum MobEvent
 };
 
 
+void mobNuke(int killedByPlayerId);
 void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);
 int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 void mobInitialize(void);

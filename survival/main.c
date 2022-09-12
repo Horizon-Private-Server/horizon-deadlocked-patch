@@ -35,6 +35,7 @@
 #include "module.h"
 #include "messageid.h"
 #include "include/mob.h"
+#include "include/drop.h"
 #include "include/game.h"
 #include "include/utils.h"
 
@@ -65,6 +66,14 @@ const char * DIFFICULTY_NAMES[] = {
 	"Gladiator",
 	"Hero",
 	"Exterminator"
+};
+
+const u8 DIFFICULTY_HITINVTIMERS[] = {
+	[0] 180,
+	[1] 120,
+	[2] 80,
+	[3] 47,
+	[4] 40,
 };
 
 const u8 UPGRADEABLE_WEAPONS[] = {
@@ -525,6 +534,12 @@ void customMineMobyUpdate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+short playerGetWeaponAmmo(Player* player, int weaponId)
+{
+	return ((short (*)(GadgetBox*, int))0x00626FB8)(player->GadgetBox, weaponId);
+}
+
+//--------------------------------------------------------------------------
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 {
 	int i;
@@ -536,7 +551,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 	GadgetBox* gBox = p->GadgetBox;
 	playerGiveWeapon(p, weaponId, level);
 	gBox->Gadgets[weaponId].Level = level;
-	gBox->Gadgets[weaponId].Ammo = ((short (*)(GadgetBox*, int))0x00626FB8)(gBox, weaponId);
+	gBox->Gadgets[weaponId].Ammo = playerGetWeaponAmmo(p, weaponId);
 	if (p->Gadgets[0].pMoby && p->Gadgets[0].id == weaponId)
 		customBangelizeWeapons(p->Gadgets[0].pMoby, weaponId, level);
 
@@ -740,6 +755,98 @@ void sendPlayerStats(int playerId)
 }
 
 //--------------------------------------------------------------------------
+void onSetPlayerDoublePoints(char isActive[GAME_MAX_PLAYERS], int timeOfDoublePoints[GAME_MAX_PLAYERS])
+{
+	int i;
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		State.PlayerStates[i].IsDoublePoints = isActive[i];
+		State.PlayerStates[i].TimeOfDoublePoints = timeOfDoublePoints[i];
+	}
+}
+
+//--------------------------------------------------------------------------
+int onSetPlayerDoublePointsRemote(void * connection, void * data)
+{
+	SurvivalSetPlayerDoublePointsMessage_t * message = (SurvivalSetPlayerDoublePointsMessage_t*)data;
+	onSetPlayerDoublePoints(message->IsActive, message->TimeOfDoublePoints);
+
+	return sizeof(SurvivalSetPlayerDoublePointsMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void sendDoublePoints(void)
+{
+	int i;
+	SurvivalSetPlayerDoublePointsMessage_t message;
+
+	// build active list
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		message.IsActive[i] = State.PlayerStates[i].IsDoublePoints;
+		message.TimeOfDoublePoints[i] = State.PlayerStates[i].TimeOfDoublePoints;
+	}
+
+	// send out
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS, sizeof(SurvivalSetPlayerDoublePointsMessage_t), &message);
+}
+
+//--------------------------------------------------------------------------
+void setDoublePointsForTeam(int team, int isActive)
+{
+	int i;
+	SurvivalSetPlayerDoublePointsMessage_t message;
+	Player** players = playerGetAll();
+
+	// build active list
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		Player* p = players[i];
+		if (p && p->Team == team) {
+			State.PlayerStates[i].TimeOfDoublePoints = gameGetTime();
+			State.PlayerStates[i].IsDoublePoints = isActive;
+		}
+
+		message.IsActive[i] = State.PlayerStates[i].IsDoublePoints;
+		message.TimeOfDoublePoints[i] = State.PlayerStates[i].TimeOfDoublePoints;
+	}
+
+	// send out
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS, sizeof(SurvivalSetPlayerDoublePointsMessage_t), &message);
+
+	// locally
+	onSetPlayerDoublePoints(message.IsActive, message.TimeOfDoublePoints);
+}
+
+//--------------------------------------------------------------------------
+void onSetFreeze(char isActive)
+{
+	State.Freeze = isActive;
+	if (isActive)
+		State.TimeOfFreeze = gameGetTime();
+}
+
+//--------------------------------------------------------------------------
+int onSetFreezeRemote(void * connection, void * data)
+{
+	SurvivalSetFreezeMessage_t * message = (SurvivalSetFreezeMessage_t*)data;
+	onSetFreeze(message->IsActive);
+
+	return sizeof(SurvivalSetFreezeMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void setFreeze(int isActive)
+{
+	int i;
+	SurvivalSetFreezeMessage_t message;
+
+	// send out
+	message.IsActive = isActive;
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_FREEZE, sizeof(SurvivalSetFreezeMessage_t), &message);
+
+	// locally
+	onSetFreeze(isActive);
+}
+
+//--------------------------------------------------------------------------
 int canUpgradeWeapon(Player * player, enum WEAPON_IDS weaponId) {
 	if (!player)
 		return 0;
@@ -825,6 +932,13 @@ void processPlayer(int pIndex) {
 				gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
 			}
 		}
+	}
+
+	// adjust speed of chargeboot stun
+	if (player->PlayerState == 121) {
+		*(float*)((u32)player + 0x25C4) = 1.0 / State.Difficulty;
+	} else {
+		*(float*)((u32)player + 0x25C4) = 1.0;
 	}
 	
 	if (player->IsLocal && !player->timers.noInput) {
@@ -1155,7 +1269,7 @@ void randomizeWeaponPickups(void)
 	if (gameOptions->WeaponFlags.B6) { wepEnabled[7] = 1; pickupOptionCount++; DPRINTF("b6\n"); }
 	if (gameOptions->WeaponFlags.Holoshield) { wepEnabled[16] = 1; pickupOptionCount++; DPRINTF("shields\n"); }
 	if (gameOptions->WeaponFlags.Flail) { wepEnabled[12] = 1; pickupOptionCount++; DPRINTF("flail\n"); }
-	if (gameOptions->WeaponFlags.Chargeboots) { wepEnabled[13] = 1; pickupOptionCount++; DPRINTF("cboots\n"); }
+	if (gameOptions->WeaponFlags.Chargeboots && gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots == 0) { wepEnabled[13] = 1; pickupOptionCount++; DPRINTF("cboots\n"); }
 
 	if (pickupOptionCount > 0) {
 		Moby* moby = mobyListGetStart();
@@ -1177,6 +1291,7 @@ void randomizeWeaponPickups(void)
 						--j;
 				} while (j >= 0);
 
+				// set pickup
 				DPRINTF("setting pickup at %08X to %d\n", (u32)moby, i);
 				((void (*)(Moby*, int))0x0043A370)(moby, i);
 
@@ -1185,6 +1300,25 @@ void randomizeWeaponPickups(void)
 
 			++moby;
 		}
+	}
+}
+
+//--------------------------------------------------------------------------
+void setWeaponPickupRespawnTime(void)
+{
+	GameSettings* gameSettings = gameGetSettings();
+
+	// compute pickup respawn time in ms
+	int respawnTime = WEAPON_RESPAWN_TIMES[(gameSettings->PlayerCountAtStart <= 0 ? 1 : gameSettings->PlayerCountAtStart) - 1];
+
+	Moby* moby = mobyListGetStart();
+	Moby* mEnd = mobyListGetEnd();
+
+	while (moby < mEnd) {
+		if (moby->OClass == MOBY_ID_WEAPON_PICKUP && moby->PVar) {
+			POKE_U32((u32)moby->PVar + 0x0C, respawnTime * TIME_SECOND);
+		}
+		++moby;
 	}
 }
 
@@ -1232,7 +1366,7 @@ void resetRoundState(void)
 	static int accum = 0;
 	accum += State.RoundNumber * BUDGET_START_ACCUM * State.Difficulty;
 	State.RoundBudget = BUDGET_START + accum + 
-					(State.RoundNumber * gameSettings->PlayerCountAtStart * gameSettings->PlayerCountAtStart * (int)(State.Difficulty * BUDGET_PLAYER_WEIGHT));
+					(State.RoundNumber * gameSettings->PlayerCountAtStart * (int)(State.Difficulty * BUDGET_PLAYER_WEIGHT));
 	State.RoundMaxMobCount = MAX_MOBS_BASE + (MAX_MOBS_ROUND_WEIGHT * State.RoundNumber * gameSettings->PlayerCountAtStart);
 	State.RoundInitialized = 0;
 	State.RoundStartTime = gameTime;
@@ -1304,6 +1438,10 @@ void initialize(PatchGameConfig_t* gameConfig)
 	*(u32*)0x005F8A84 = 0x0000102D;
 	*(u32*)0x005F8A88 = 0x24440001;
 
+	// custom damage cooldown time
+	POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
+	POKE_U16(0x0060582C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
+
 	//WeaponDefsData* wepDefs = weaponGetGunLevelDefs();
 	//wepDefs[WEAPON_ID_MAGMA_CANNON].Entries[9].Damage[2] = 80.0;
 
@@ -1315,6 +1453,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_DIED, &onSetPlayerDeadRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_WEAPON_MODS, &onSetPlayerWeaponModsRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_STATS, &onSetPlayerStatsRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS, &onSetPlayerDoublePointsRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_FREEZE, &onSetFreezeRemote);
 
 	// set game over string (replaces "Draw!")
 	strncpy((char*)0x015A00AA, SURVIVAL_GAME_OVER, 12);
@@ -1344,6 +1484,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 	// 
 	mobInitialize();
+	dropInitialize();
 
 	// initialize player states
 	State.LocalPlayerState = NULL;
@@ -1363,6 +1504,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 		State.PlayerStates[i].MinSqrDistFromMob = 0;
 		State.PlayerStates[i].MaxSqrDistFromMob = 0;
 		State.PlayerStates[i].IsLocal = 0;
+		State.PlayerStates[i].IsDoublePoints = 0;
+		State.PlayerStates[i].TimeOfDoublePoints = 0;
 		memset(State.PlayerStates[i].State.AlphaMods, 0, sizeof(State.PlayerStates[i].State.AlphaMods));
 		memset(State.PlayerStates[i].State.BestWeaponLevel, 0, sizeof(State.PlayerStates[i].State.BestWeaponLevel));
 
@@ -1424,6 +1567,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.MobsDrawnCurrent = 0;
 	State.MobsDrawnLast = 0;
 	State.MobsDrawGameTime = 0;
+	State.Freeze = 0;
+	State.TimeOfFreeze = 0;
 	State.InitializedTime = gameGetTime();
 	State.Difficulty = DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 	resetRoundState();
@@ -1432,7 +1577,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	for (i = 0; i < defaultSpawnParamsCount; ++i)
 	{
 		struct MobConfig* config = &defaultSpawnParams[i].Config;
-		config->Bolts /= State.Difficulty;
+		//config->Bolts /= State.Difficulty;
 		config->MaxHealth *= State.Difficulty;
 		config->Health *= State.Difficulty;
 		config->Damage *= State.Difficulty;
@@ -1478,6 +1623,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
 	Player ** players = playerGetAll();
+	Player* localPlayer = playerGetFromSlot(0);
 	int i;
 	char buffer[32];
 	int gameTime = gameGetTime();
@@ -1500,6 +1646,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		return;
 	}
 
+	// force weapon pickup respawn times
+	setWeaponPickupRespawnTime();
+
 #if LOG_STATS
 	static int statsTicker = 0;
 	if (statsTicker <= 0) {
@@ -1516,15 +1665,32 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #endif
 
 #if MANUAL_SPAWN
-	Player * localPlayer = (Player*)0x00347AA0;
-	if (padGetButtonDown(0, PAD_DOWN) > 0) {
-		static int manSpawnMobId = 0;
-		manSpawnMobId = defaultSpawnParamsCount - 1;
-		VECTOR t;
-		vector_copy(t, localPlayer->PlayerPosition);
-		t[0] += 1;
+	{
+		Player * localPlayer = (Player*)0x00347AA0;
+		if (padGetButtonDown(0, PAD_DOWN) > 0) {
+			static int manSpawnMobId = 0;
+			manSpawnMobId = defaultSpawnParamsCount - 1;
+			VECTOR t;
+			vector_copy(t, localPlayer->PlayerPosition);
+			t[0] += 1;
 
-		mobCreate(t, 0, -1, &defaultSpawnParams[(manSpawnMobId++ % defaultSpawnParamsCount)].Config);
+			mobCreate(t, 0, -1, &defaultSpawnParams[(manSpawnMobId++ % defaultSpawnParamsCount)].Config);
+		}
+	}
+#endif
+
+#if MANUAL_DROP_SPAWN
+	{
+		Player * localPlayer = (Player*)0x00347AA0;
+		if (padGetButtonDown(0, PAD_UP) > 0) {
+			static int manSpawnDropId = 0;
+			manSpawnDropId = (manSpawnDropId + 1) % 5;
+			VECTOR t;
+			vector_copy(t, localPlayer->PlayerPosition);
+			t[0] += 5;
+
+			dropCreate(t, (enum DropType)manSpawnDropId, gameGetTime() + (30 * TIME_SECOND), localPlayer->Team);
+		}
 	}
 #endif
 
@@ -1536,6 +1702,12 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	gfxScreenSpaceText(481, 292, 1, 1, 0x40000000, buffer, -1, 1);
 	gfxScreenSpaceText(480, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
+	// draw double points
+	if (localPlayer && State.PlayerStates[localPlayer->PlayerId].IsDoublePoints) {
+		gfxScreenSpaceText(381, 48, 1, 1, 0x40000000, "x2", -1, 1);
+		gfxScreenSpaceText(380, 47, 1, 1, 0x8029E5E6, "x2", -1, 1);
+	}
+
 	// draw number of mobs spawned
 	sprintf(buffer, "%d", State.RoundMobCount);
 	gfxScreenSpaceText(481, 58, 1, 1, 0x40000000, buffer, -1, 1);
@@ -1543,6 +1715,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 	// mob tick
 	mobTick();
+
+	// drop tick
+	dropTick();
 
 	if (!State.GameOver)
 	{
@@ -1565,6 +1740,29 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 		// replace normal scoreboard with bolt counter
 		forcePlayerHUD();
+
+		// handle freeze and double points
+		if (State.IsHost) {
+			int dblPointsChanged = 0;
+
+			// disable double points for players
+			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+				if (State.PlayerStates[i].IsDoublePoints && gameTime >= (State.PlayerStates[i].TimeOfDoublePoints + DOUBLE_POINTS_DURATION)) {
+					State.PlayerStates[i].IsDoublePoints = 0;
+					dblPointsChanged = 1;
+					DPRINTF("setting player %d dbl points to 0\n", i);
+				}
+			}
+
+			// disable freeze
+			if (State.Freeze && gameTime >= (State.TimeOfFreeze + FREEZE_DROP_DURATION)) {
+				DPRINTF("disabling freeze\n");
+				setFreeze(0);
+			}
+
+			if (dblPointsChanged)
+				sendDoublePoints();
+		}
 
 		// handle game over
 		if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
@@ -1662,7 +1860,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			{
 				// handle spawning
 				if (State.RoundSpawnTicker == 0) {
-					if (State.RoundMobCount < MAX_MOBS_SPAWNED) {
+					if (State.RoundMobCount < MAX_MOBS_SPAWNED && !State.Freeze) {
 						if (State.RoundBudget >= State.MinMobCost && State.RoundMobSpawnedCount < State.RoundMaxMobCount) {
 							if (spawnRandomMob()) {
 								++State.RoundMobSpawnedCount;

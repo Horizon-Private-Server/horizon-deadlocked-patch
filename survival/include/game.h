@@ -79,6 +79,12 @@
 
 #define JACKPOT_BOLTS													(50)
 
+#define DROP_DURATION													(30 * TIME_SECOND)
+#define DOUBLE_POINTS_DURATION								(15 * TIME_SECOND)
+#define FREEZE_DROP_DURATION									(15 * TIME_SECOND)
+#define ZOMBIE_HAS_DROP_PROBABILITY						(0.01)
+#define DROP_MAX_SPAWNED											(4)
+
 #define PLAYER_BASE_REVIVE_COST								(5000)
 #define PLAYER_REVIVE_COST_PER_ROUND					(0)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
@@ -101,7 +107,9 @@ enum GameNetMessage
 	CUSTOM_MSG_REVIVE_PLAYER,
 	CUSTOM_MSG_PLAYER_DIED,
 	CUSTOM_MSG_PLAYER_SET_WEAPON_MODS,
-	CUSTOM_MSG_PLAYER_SET_STATS
+	CUSTOM_MSG_PLAYER_SET_STATS,
+	CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS,
+	CUSTOM_MSG_PLAYER_SET_FREEZE,
 };
 
 typedef struct SurvivalBakedConfig
@@ -126,12 +134,14 @@ struct SurvivalPlayer
 	float MinSqrDistFromMob;
 	float MaxSqrDistFromMob;
 	struct SurvivalPlayerState State;
+	int TimeOfDoublePoints;
 	u16 ReviveCooldownTicks;
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;
 	char IsLocal;
 	char IsDead;
 	char IsInWeaponsMenu;
+	char IsDoublePoints;
 };
 
 struct SurvivalState
@@ -161,6 +171,8 @@ struct SurvivalState
 	int WinningTeam;
 	int IsHost;
 	float Difficulty;
+	int TimeOfFreeze;
+	char Freeze;
 	char NumTeams;
 };
 
@@ -221,9 +233,21 @@ typedef struct SurvivalSetPlayerStatsMessage
 	struct SurvivalPlayerState Stats;
 } SurvivalSetPlayerStatsMessage_t;
 
+typedef struct SurvivalSetPlayerDoublePointsMessage
+{
+	int TimeOfDoublePoints[GAME_MAX_PLAYERS];
+	char IsActive[GAME_MAX_PLAYERS];
+} SurvivalSetPlayerDoublePointsMessage_t;
+
+typedef struct SurvivalSetFreezeMessage
+{
+	char IsActive;
+} SurvivalSetFreezeMessage_t;
+
 extern const int UPGRADE_COST[];
 extern const float BOLT_TAX[];
 extern const float DIFFICULTY_MAP[];
+extern const short WEAPON_RESPAWN_TIMES[];
 extern SurvivalBakedConfig_t BakedConfig;
 
 #endif // SURVIVAL_GAME_H

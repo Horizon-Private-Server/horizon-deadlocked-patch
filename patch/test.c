@@ -526,11 +526,79 @@ void runAnimJointThing(void)
   }
 }
 
+//--------------------------------------------------------------------------
+void dropPostDraw(Moby* moby)
+{
+	struct QuadDef quad;
+	MATRIX m2;
+	VECTOR t;
+  
+	// determine color
+	u32 color = 0x70FFFFFF;
+
+	// set draw args
+	matrix_unit(m2);
+
+	// init
+  gfxResetQuad(&quad);
+
+	// color of each corner?
+	quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
+  quad.VertexUVs[0] = (struct UV){0,0};
+  quad.VertexUVs[1] = (struct UV){1,0};
+  quad.VertexUVs[2] = (struct UV){0,1};
+  quad.VertexUVs[3] = (struct UV){1,1};
+	quad.Clamp = 0;
+	quad.Tex0 = gfxGetFrameTex(43);
+	quad.Tex1 = gfxGetFrameTex(44); //0xFF9000000260;
+	quad.Alpha = 0x8000000044;
+
+	// position
+	memcpy(&m2[12], moby->Position, sizeof(VECTOR));
+	m2[14] += 2;
+
+	// draw
+	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
+}
+
+void drawQuadTestMobyUpdate(Moby* moby)
+{
+  moby->Opacity = 0;
+  gfxRegisterDrawFunction((void**)0x0022251C, &dropPostDraw, TestMoby);
+}
+
+void runDrawQuad(void)
+{
+  if (isInGame()) {
+    Player* localPlayer = playerGetFromSlot(0);
+    VECTOR off = {0,0,-10,0};
+
+    if (!TestMoby && padGetButtonDown(0, PAD_LEFT) > 0) {
+      Moby *m = TestMoby = mobySpawn(0x1F5, 0);
+      //m->Scale = 1;
+      vector_copy(m->Position, localPlayer->PlayerPosition);
+      DPRINTF("spawned moby at %08X\n", (u32)m);
+    }
+
+    if (isUnloading && TestMoby) {
+      TestMoby->PUpdate = 0;
+    }
+    else if (TestMoby && localPlayer) {
+      TestMoby->DrawDist = 0xFF;
+      TestMoby->UpdateDist = 0xFF;
+      TestMoby->PUpdate = &drawQuadTestMobyUpdate;
+    }
+  }
+}
+
 void runTestLogic(void)
 {
   //runHitmarkerLogic();
 
   if (isInGame()) {
-    runAnimJointThing();
+    //runAnimJointThing();
+    runDrawQuad();
+  } else {
+    TestMoby = NULL;
   }
 }
