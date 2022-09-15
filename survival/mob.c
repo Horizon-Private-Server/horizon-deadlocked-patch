@@ -6,6 +6,7 @@
 #include <libdl/stdio.h>
 #include <libdl/game.h>
 #include <libdl/collision.h>
+#include <libdl/graphics.h>
 #include <libdl/moby.h>
 #include <libdl/random.h>
 #include <libdl/radar.h>
@@ -767,6 +768,54 @@ void mobHandleStuck(Moby* moby)
 	}
 }
 
+//--------------------------------------------------------------------------
+void mobPostDrawQuad(Moby* moby)
+{
+	struct QuadDef quad;
+	MATRIX m2;
+	VECTOR t;
+	VECTOR pTL = {0,0.5,0.5,1};
+	VECTOR pTR = {0,-0.5,0.5,1};
+	VECTOR pBL = {0,0.5,-0.5,1};
+	VECTOR pBR = {0,-0.5,-0.5,1};
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	if (!pvars)
+		return;
+
+	u32 color = (moby->GlowRGBA & 0xFFFFFF) | (moby->Opacity << 24);
+
+	// set draw args
+	matrix_unit(m2);
+
+	// init
+  gfxResetQuad(&quad);
+
+	// color of each corner?
+	vector_copy(quad.VertexPositions[0], pTL);
+	vector_copy(quad.VertexPositions[1], pTR);
+	vector_copy(quad.VertexPositions[2], pBL);
+	vector_copy(quad.VertexPositions[3], pBR);
+	quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
+  quad.VertexUVs[0] = (struct UV){0,0};
+  quad.VertexUVs[1] = (struct UV){1,0};
+  quad.VertexUVs[2] = (struct UV){0,1};
+  quad.VertexUVs[3] = (struct UV){1,1};
+	quad.Clamp = 1;
+	quad.Tex0 = gfxGetFrameTex(127);
+	quad.Tex1 = 0xFF9000000260;
+	quad.Alpha = 0x8000000044;
+
+	GameCamera* camera = cameraGetGameCamera(0);
+	if (!camera)
+		return;
+	
+	// set world matrix by joint
+	mobyGetJointMatrix(moby, 1, m2);
+
+	// draw
+	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
+}
+
 void mobHandleDraw(Moby* moby)
 {
 	int i;
@@ -788,19 +837,20 @@ void mobHandleDraw(Moby* moby)
 	}
 
 	int order = pvars->MobVars.Order;
+	moby->DrawDist = 128;
 	if (order >= 0) {
-		float rank = 1 - clamp(order / (float)State.RoundMobCount, 0, 1);
-		float rankCubed = rank*rank*rank;
-		if (State.RoundMobCount > 20) {
-			moby->DrawDist = 4 + (128 - 4)*rankCubed;
-			pvars->MobVars.MoveStep = 1 + (u8)((12-1)*(1-(rankCubed*rankCubed)));
+		float rank = 1 - clamp(order / (float)MAX_MOBS_SPAWNED, 0, 1);
+		float rankCurve = powf(rank, 2);
+		
+		pvars->MobVars.MoveStep = 1 + (u8)((12-1)*(1-rankCurve));
+		if (State.RoundMobCount > 40) {
+			if (rankCurve < 0.5) {
+				gfxRegisterDrawFunction((void**)0x0022251C, &mobPostDrawQuad, moby);
+				moby->DrawDist = 0;
+			}
 		}
-		else {
-			moby->DrawDist = 128;
-			pvars->MobVars.MoveStep = 1;
-		}
-	} else {
-		moby->DrawDist = 128;
+	}
+	else {
 		pvars->MobVars.MoveStep = 1;
 	}
 
@@ -959,13 +1009,15 @@ void mobUpdate(Moby* moby)
 
 	if (State.Freeze) {
 		moby->AnimSpeed = 0;
+	} else if (moby->AnimSpeed == 0) {
+		moby->AnimSpeed = 1;
 	}
 
 	// update armor
 	moby->Bangles = mobGetArmor(pvars);
 
 	// move system update
-	if (!State.Freeze)
+	if (!State.Freeze && moveStepCooldownTicks == 0)
 		mobyMoveSystemUpdate(moby);
 
 	// process damage
@@ -1222,7 +1274,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		Player * killedByPlayer = players[killedByPlayerId];
 		if (killedByPlayer) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				if (State.PlayerStates[i].Player && !playerIsDead(State.PlayerStates[i].Player) && State.PlayerStates[i].Player->Team == killedByPlayer->Team) {
+				Player* p = players[i];
+				if (p && !playerIsDead(p) && p->Team == killedByPlayer->Team) {
 					int multiplier = State.PlayerStates[i].IsDoublePoints ? 2 : 1;
 					State.PlayerStates[i].State.Bolts += bolts * multiplier;
 					State.PlayerStates[i].State.TotalBolts += bolts * multiplier;
@@ -1239,12 +1292,13 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 #endif
 
 	if (killedByPlayerId >= 0) {
+		Player * killedByPlayer = players[killedByPlayerId];
 		struct SurvivalPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
 		GameData * gameData = gameGetData();
 
 		// handle weapon jackpot
-		if (weaponId > 1 && pState->Player) {
-			int jackpotCount = playerGetWeaponAlphaModCount(pState->Player, weaponId, ALPHA_MOD_JACKPOT);
+		if (weaponId > 1 && killedByPlayer) {
+			int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer, weaponId, ALPHA_MOD_JACKPOT);
 
 			pState->State.Bolts += jackpotCount * JACKPOT_BOLTS;
 			pState->State.TotalBolts += jackpotCount * JACKPOT_BOLTS;

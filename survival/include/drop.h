@@ -27,16 +27,34 @@ enum DropEventType {
 	DROP_EVENT_PICKUP
 };
 
+struct PartInstance {	
+	char IClass;
+	char Type;
+	char Tex;
+	char Alpha;
+	u32 RGBA;
+	char Rot;
+	char DrawDist;
+	short Timer;
+	float Scale;
+	VECTOR Position;
+	int Update[8];
+};
+
 struct DropPVar {
 	enum DropType Type;
 	int DestroyAtTime;
 	int Team;
 	char Owner;
+	struct PartInstance* Particles[4];
 };
 
 struct DropSpawnEventArgs
 {
-	struct DropPVar PvarData;
+	enum DropType Type;
+	int DestroyAtTime;
+	int Team;
+	char Owner;
 };
 
 struct DropDestroyedEventArgs

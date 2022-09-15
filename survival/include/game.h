@@ -16,7 +16,7 @@
 
 #define MAX_MOBS_BASE													(30)
 #define MAX_MOBS_ROUND_WEIGHT									(10)
-#define MAX_MOBS_SPAWNED											(70)
+#define MAX_MOBS_SPAWNED											(60)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
 #define ROUND_START_DELAY_MS									(TIME_SECOND * 1)
@@ -79,13 +79,16 @@
 
 #define JACKPOT_BOLTS													(50)
 
+#define DROP_COOLDOWN_TICKS_MIN								(TPS * 10)
+#define DROP_COOLDOWN_TICKS_MAX								(TPS * 60)
 #define DROP_DURATION													(30 * TIME_SECOND)
-#define DOUBLE_POINTS_DURATION								(15 * TIME_SECOND)
-#define FREEZE_DROP_DURATION									(15 * TIME_SECOND)
+#define DOUBLE_POINTS_DURATION								(20 * TIME_SECOND)
+#define FREEZE_DROP_DURATION									(10 * TIME_SECOND)
 #define ZOMBIE_HAS_DROP_PROBABILITY						(0.01)
 #define DROP_MAX_SPAWNED											(4)
 
 #define PLAYER_BASE_REVIVE_COST								(5000)
+#define PLAYER_REVIVE_COST_PER_PLAYER					(1000)
 #define PLAYER_REVIVE_COST_PER_ROUND					(0)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
 #define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
@@ -130,7 +133,6 @@ struct SurvivalPlayerState
 
 struct SurvivalPlayer
 {
-	Player * Player;
 	float MinSqrDistFromMob;
 	float MaxSqrDistFromMob;
 	struct SurvivalPlayerState State;
@@ -169,9 +171,11 @@ struct SurvivalState
 	struct SurvivalPlayer* LocalPlayerState;
 	int GameOver;
 	int WinningTeam;
+	int ActivePlayerCount;
 	int IsHost;
 	float Difficulty;
 	int TimeOfFreeze;
+	short DropCooldownTicks;
 	char Freeze;
 	char NumTeams;
 };
@@ -247,7 +251,8 @@ typedef struct SurvivalSetFreezeMessage
 extern const int UPGRADE_COST[];
 extern const float BOLT_TAX[];
 extern const float DIFFICULTY_MAP[];
-extern const short WEAPON_RESPAWN_TIMES[];
+extern const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[];
+extern const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[];
 extern SurvivalBakedConfig_t BakedConfig;
 
 #endif // SURVIVAL_GAME_H

@@ -34,17 +34,29 @@ const float DIFFICULTY_MAP[] = {
 	1.50,			// Exterminator
 };
 
-extern const short WEAPON_RESPAWN_TIMES[] = {
-	30, // 1 player (vanilla is 30)
-	30, // 2 players
-	25, // 3 players
-	20, // 4 players
-	18, // 5 players
-	16, // 6 players
-	14, // 7 players
-	12, // 8 players
-	9, // 9 players
-	6, // 10 players
+// vanilla is 30 for each
+const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[] = {
+	30, // VIPER
+	30, // MAGMA
+	30, // ARBITER
+	45, // FUSION
+	35, // MINES
+	30, // B6
+	35, // FLAIL
+	30, // SHIELD
+};
+
+const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[] = {
+	0, // 1 player
+	0, // 2 players
+	5, // 3 players
+	10, // 4 players
+	12, // 5 players
+	14, // 6 players
+	16, // 7 players
+	18, // 8 players
+	21, // 9 players
+	24, // 10 players
 };
 
 SurvivalBakedConfig_t BakedConfig __attribute__((section(".config"))) = {

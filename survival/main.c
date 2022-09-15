@@ -543,7 +543,7 @@ short playerGetWeaponAmmo(Player* player, int weaponId)
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 {
 	int i;
-	Player* p = State.PlayerStates[playerId].Player;
+	Player* p = playerGetAll()[playerId];
 	State.PlayerStates[playerId].State.AlphaMods[alphaMod]++;
 	if (!p)
 		return;
@@ -615,7 +615,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 	
 	State.PlayerStates[playerId].IsDead = 0;
 	State.PlayerStates[playerId].State.TimesRevived++;
-	Player* player = State.PlayerStates[playerId].Player;
+	Player* player = playerGetAll()[playerId];
 	if (!player)
 		return;
 
@@ -630,6 +630,8 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 		vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
 	playerSetHealth(player, 50);
 	playerSetPosRot(player, deadPos, deadRot);
+	player->timers.acidTimer = 0;
+	player->timers.freezeTimer = 0;
 }
 
 //--------------------------------------------------------------------------
@@ -690,7 +692,7 @@ void setPlayerDead(Player* player, char isDead)
 void onSetPlayerWeaponMods(int playerId, int weaponId, u8* mods)
 {
 	int i;
-	Player* p = State.PlayerStates[playerId].Player;
+	Player* p = playerGetAll()[playerId];
 	if (!p)
 		return;
 
@@ -903,7 +905,7 @@ int getPlayerReviveCost(Player * player) {
 		return 0;
 
 	GameData * gameData = gameGetData();
-	return gameData->PlayerStats.Deaths[player->PlayerId] * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber));
+	return gameData->PlayerStats.Deaths[player->PlayerId] * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber));
 }
 
 //--------------------------------------------------------------------------
@@ -911,9 +913,10 @@ void processPlayer(int pIndex) {
 	VECTOR t;
 	int i = 0, localPlayerIndex, heldWeapon, hasMessage = 0;
 	char strBuf[32];
-
+	Player** players = playerGetAll();
+	Player* player = players[pIndex];
 	struct SurvivalPlayer * playerData = &State.PlayerStates[pIndex];
-	Player * player = playerData->Player;
+
 	if (!player)
 		return;
 
@@ -941,7 +944,7 @@ void processPlayer(int pIndex) {
 		*(float*)((u32)player + 0x25C4) = 1.0;
 	}
 	
-	if (player->IsLocal && !player->timers.noInput) {
+	if (player->IsLocal) {
 		
 		GadgetBox* gBox = player->GadgetBox;
 		localPlayerIndex = player->LocalPlayerIndex;
@@ -974,6 +977,17 @@ void processPlayer(int pIndex) {
 			setPlayerDead(player, 0);
 		}
 
+		// force to last good position
+		if (isDeadState && player->timers.state > TPS) {
+			vector_subtract(t, player->PlayerPosition, player->Ground.lastGoodPos);
+			if (vector_sqrmag(t) > 1) {
+				player->Health = 0;
+				player->PlayerState = PLAYER_STATE_DEATH;
+				playerSetPosRot(player, player->Ground.lastGoodPos, player->PlayerRotation);
+				//vector_copy(player->PlayerPosition, player->Ground.lastGoodPos);
+			}
+		}
+
 		// set experience to min of level and max level 
 		for (i = WEAPON_ID_VIPERS; i <= WEAPON_ID_FLAIL; ++i) {
 			if (gBox->Gadgets[i].Level >= 0) {
@@ -998,7 +1012,7 @@ void processPlayer(int pIndex) {
 		}
 
 		//
-		if (actionCooldownTicks > 0)
+		if (actionCooldownTicks > 0 || player->timers.noInput)
 			return;
 
 		// handle closing weapons menu
@@ -1069,7 +1083,7 @@ void processPlayer(int pIndex) {
 
 					// ensure player exists, is dead, and is on the same team
 					struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
-					Player * otherPlayer = otherPlayerData->Player;
+					Player * otherPlayer = players[i];
 					if (otherPlayer && otherPlayerData->IsDead && otherPlayerData->ReviveCooldownTicks > 0 && otherPlayer->Team == player->Team) {
 
 						// check distance
@@ -1279,21 +1293,26 @@ void randomizeWeaponPickups(void)
 			if (moby->OClass == MOBY_ID_WEAPON_PICKUP && moby->PVar) {
 				
 				int target = pickupCount / pickupOptionCount;
-				do { j = rand(pickupOptionCount); } while (wepCounts[j] != target);
+				int gadgetId = 1;
+				if (target < 2) {
+					do { j = rand(pickupOptionCount); } while (wepCounts[j] != target);
 
-				++wepCounts[j];
-				
-				i = -1;
-				do
-				{
-					++i;
-					if (wepEnabled[i])
-						--j;
-				} while (j >= 0);
+					++wepCounts[j];
+
+					i = -1;
+					do
+					{
+						++i;
+						if (wepEnabled[i])
+							--j;
+					} while (j >= 0);
+
+					gadgetId = i;
+				}
 
 				// set pickup
-				DPRINTF("setting pickup at %08X to %d\n", (u32)moby, i);
-				((void (*)(Moby*, int))0x0043A370)(moby, i);
+				DPRINTF("setting pickup at %08X to %d\n", (u32)moby, gadgetId);
+				((void (*)(Moby*, int))0x0043A370)(moby, gadgetId);
 
 				++pickupCount;
 			}
@@ -1309,14 +1328,28 @@ void setWeaponPickupRespawnTime(void)
 	GameSettings* gameSettings = gameGetSettings();
 
 	// compute pickup respawn time in ms
-	int respawnTime = WEAPON_RESPAWN_TIMES[(gameSettings->PlayerCountAtStart <= 0 ? 1 : gameSettings->PlayerCountAtStart) - 1];
+	int respawnTimeOffset = WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[(gameSettings->PlayerCountAtStart <= 0 ? 1 : gameSettings->PlayerCountAtStart) - 1];
 
 	Moby* moby = mobyListGetStart();
 	Moby* mEnd = mobyListGetEnd();
 
 	while (moby < mEnd) {
 		if (moby->OClass == MOBY_ID_WEAPON_PICKUP && moby->PVar) {
-			POKE_U32((u32)moby->PVar + 0x0C, respawnTime * TIME_SECOND);
+
+			// hide if wrench
+			// wrenches are set as pickup id when we've reached the max number of
+			// pickups per gadget
+			int gadgetId = *(int*)moby->PVar;
+			int slotId = weaponIdToSlot(gadgetId) - 1;
+			if (gadgetId == 1) {
+				moby->Position[2] = 0;
+			}
+			else if (slotId >= 0 && slotId < 8) {
+				int weaponBaseRespawnTime = WEAPON_PICKUP_BASE_RESPAWN_TIMES[slotId];
+
+				// otherwise set cooldown by configuration
+				POKE_U32((u32)moby->PVar + 0x0C, (weaponBaseRespawnTime - respawnTimeOffset) * TIME_SECOND);
+			}
 		}
 		++moby;
 	}
@@ -1489,6 +1522,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	// initialize player states
 	State.LocalPlayerState = NULL;
 	State.NumTeams = 0;
+	State.ActivePlayerCount = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
 		State.PlayerStates[i].State.Bolts = 0;
@@ -1496,7 +1530,6 @@ void initialize(PatchGameConfig_t* gameConfig)
 		State.PlayerStates[i].State.Kills = 0;
 		State.PlayerStates[i].State.Revives = 0;
 		State.PlayerStates[i].State.TimesRevived = 0;
-		State.PlayerStates[i].Player = p;
 		State.PlayerStates[i].ActionCooldownTicks = 0;
 		State.PlayerStates[i].ReviveCooldownTicks = 0;
 		State.PlayerStates[i].MessageCooldownTicks = 0;
@@ -1524,6 +1557,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 				State.NumTeams++;
 				hasTeam[p->Team] = 1;
 			}
+
+			++State.ActivePlayerCount;
 		}
 	}
 
@@ -1569,6 +1604,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.MobsDrawGameTime = 0;
 	State.Freeze = 0;
 	State.TimeOfFreeze = 0;
+	State.DropCooldownTicks = 0;
 	State.InitializedTime = gameGetTime();
 	State.Difficulty = DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 	resetRoundState();
@@ -1669,7 +1705,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		Player * localPlayer = (Player*)0x00347AA0;
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
-			manSpawnMobId = defaultSpawnParamsCount - 1;
+			manSpawnMobId = 1; // defaultSpawnParamsCount - 1;
 			VECTOR t;
 			vector_copy(t, localPlayer->PlayerPosition);
 			t[0] += 1;
@@ -1684,12 +1720,15 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		Player * localPlayer = (Player*)0x00347AA0;
 		if (padGetButtonDown(0, PAD_UP) > 0) {
 			static int manSpawnDropId = 0;
+			static int manSpawnDropIdx = 0;
 			manSpawnDropId = (manSpawnDropId + 1) % 5;
 			VECTOR t;
 			vector_copy(t, localPlayer->PlayerPosition);
 			t[0] += 5;
 
+			State.DropCooldownTicks = 0;
 			dropCreate(t, (enum DropType)manSpawnDropId, gameGetTime() + (30 * TIME_SECOND), localPlayer->Team);
+			++manSpawnDropIdx;
 		}
 	}
 #endif
@@ -1724,17 +1763,18 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		*LocalBoltCount = 0;
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
-			// update player refs
-			State.PlayerStates[i].Player = players[i];
-
 			// update bolt counter
 			// since there is only one bolt count just show the sum of each local client's bolts
-			if (State.PlayerStates[i].Player && State.PlayerStates[i].Player->IsLocal)
+			if (players[i] && players[i]->IsLocal)
 				*LocalBoltCount += State.PlayerStates[i].State.Bolts;
 		}
 
 		// 
+		State.ActivePlayerCount = 0;
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+			if (players[i])
+				State.ActivePlayerCount++;
+
 			processPlayer(i);
 		}
 
@@ -1822,7 +1862,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
 
 					// handle skip
-					if (!State.LocalPlayerState->Player->timers.noInput && padGetButtonDown(0, PAD_UP) > 0) {
+					if (!localPlayer->timers.noInput && padGetButtonDown(0, PAD_UP) > 0) {
 						setRoundStart(1);
 					}
 				}

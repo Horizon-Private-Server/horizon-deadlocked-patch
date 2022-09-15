@@ -5,6 +5,7 @@
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
+#include <libdl/color.h>
 #include <libdl/collision.h>
 #include <libdl/moby.h>
 #include <libdl/ui.h>
@@ -13,6 +14,7 @@
 #include <libdl/radar.h>
 
 extern struct SurvivalState State;
+extern SoundDef BaseSoundDef;
 
 int dropCount = 0;
 int dropThisFrame = 0;
@@ -22,17 +24,9 @@ GuberEvent* dropCreateEvent(Moby* moby, u32 eventType);
 char DropTexIds[] = {
 	[DROP_AMMO] 90,
 	[DROP_HEALTH] 94,
-	[DROP_NUKE] 96,
+	[DROP_NUKE] 19,
 	[DROP_FREEZE] 43,
 	[DROP_DOUBLE_POINTS] 3,
-};
-
-u32 DropColors[] = {
-	[DROP_AMMO] 0x70FFFFFF,
-	[DROP_HEALTH] 0x708080FF,
-	[DROP_NUKE] 0x8040C0C0,
-	[DROP_FREEZE] 0x80FF8080,
-	[DROP_DOUBLE_POINTS] 0x8040C040,
 };
 
 //--------------------------------------------------------------------------
@@ -42,25 +36,14 @@ int dropAmIOwner(Moby* moby)
 	return gameGetMyClientId() == pvars->Owner;
 }
 
-/*
-void mobPlayHitSound(Moby* moby)
+int aaa = 0;
+
+//--------------------------------------------------------------------------
+void dropPlayPickupSound(Moby* moby)
 {
-	BaseSoundDef.Index = 0x17D;
+	BaseSoundDef.Index = 101;
 	soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
 }	
-
-void mobPlayAmbientSound(Moby* moby)
-{
-	BaseSoundDef.Index = AmbientSoundIds[rand(AmbientSoundIdsCount)];
-	soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
-}
-
-void mobPlayDeathSound(Moby* moby)
-{
-	BaseSoundDef.Index = 0x171;
-	soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
-}
-*/
 
 //--------------------------------------------------------------------------
 void dropDestroy(Moby* moby)
@@ -89,12 +72,16 @@ void dropPostDraw(Moby* moby)
 	struct QuadDef quad;
 	MATRIX m2;
 	VECTOR t;
+	VECTOR pTL = {0.5,0,0.5,1};
+	VECTOR pTR = {-0.5,0,0.5,1};
+	VECTOR pBL = {0.5,0,-0.5,1};
+	VECTOR pBR = {-0.5,0,-0.5,1};
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
 	if (!pvars)
 		return;
 
 	// determine color
-	u32 color = DropColors[pvars->Type];
+	u32 color = 0x70FFFFFF;
 
 	// fade as we approach destruction
 	int timeUntilDestruction = (pvars->DestroyAtTime - gameGetTime()) / TIME_SECOND;
@@ -105,7 +92,7 @@ void dropPostDraw(Moby* moby)
 		float speed = timeUntilDestruction < 3 ? 20.0 : 3.0;
 		float pulse = (1 + sinf((gameGetTime() / 1000.0) * speed)) * 0.5;
 		int opacity = 32 + (pulse * 96);
-		color = (opacity << 24) | (color & 0xFFFFFF);
+		//color = (opacity << 24) | (color & 0xFFFFFF);
 	}
 
 	// set draw args
@@ -115,12 +102,16 @@ void dropPostDraw(Moby* moby)
   gfxResetQuad(&quad);
 
 	// color of each corner?
+	vector_copy(quad.VertexPositions[0], pTL);
+	vector_copy(quad.VertexPositions[1], pTR);
+	vector_copy(quad.VertexPositions[2], pBL);
+	vector_copy(quad.VertexPositions[3], pBR);
 	quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
   quad.VertexUVs[0] = (struct UV){0,0};
   quad.VertexUVs[1] = (struct UV){1,0};
   quad.VertexUVs[2] = (struct UV){0,1};
   quad.VertexUVs[3] = (struct UV){1,1};
-	quad.Clamp = 0;
+	quad.Clamp = 1;
 	quad.Tex0 = gfxGetFrameTex(DropTexIds[pvars->Type]);
 	quad.Tex1 = 0xFF9000000260;
 	quad.Alpha = 0x8000000044;
@@ -128,29 +119,46 @@ void dropPostDraw(Moby* moby)
 	GameCamera* camera = cameraGetGameCamera(0);
 	if (!camera)
 		return;
-	
-	// get right vector
+
+	// get forward vector
 	vector_subtract(t, camera->pos, moby->Position);
 	t[2] = 0;
-	vector_normalize(&m2[0], t);
+	vector_normalize(&m2[4], t);
 
 	// up vector
-	m2[10] = 1;
+	m2[8 + 2] = 1;
 
 	// right vector
-	vector_outerproduct(&m2[4], &m2[0], &m2[8]);
+	vector_outerproduct(&m2[0], &m2[4], &m2[8]);
 
 	// position
 	memcpy(&m2[12], moby->Position, sizeof(VECTOR));
-	m2[14] += 1.5;
 
 	// draw
 	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
 }
 
+struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx)
+{
+	u32 a3 = *(u32*)0x002218E8;
+	u32 t0 = *(u32*)0x002218E4;
+	float f12 = *(float*)0x002218DC;
+	float f1 = *(float*)0x002218E0;
+
+	return ((struct PartInstance* (*)(VECTOR, u32, char, u32, u32, int, int, int, float))0x00533308)(position, color, opacity, a3, t0, -1, 0, 0, f12 + (f1 * idx));
+}
+
+void destroyParticle(struct PartInstance* particle)
+{
+	((void (*)(struct PartInstance*))0x005284d8)(particle);
+}
+
 //--------------------------------------------------------------------------
 void dropUpdate(Moby* moby)
 {
+	const float rotSpeeds[] = { 0.05, 0.02, -0.03, -0.1 };
+	const int opacities[] = { 64, 32, 44, 51 };
+
 	VECTOR t;
 	int i;
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
@@ -163,6 +171,21 @@ void dropUpdate(Moby* moby)
 
 	// register draw event
 	gfxRegisterDrawFunction((void**)0x0022251C, &dropPostDraw, moby);
+
+	// handle particles
+	u32 color = colorLerp(0, TEAM_COLORS[pvars->Team], 1.0 / 4);
+	color |= 0x40000000;
+	for (i = 0; i < 4; ++i) {
+		struct PartInstance * particle = pvars->Particles[i];
+		if (!particle) {
+			pvars->Particles[i] = particle = spawnParticle(moby->Position, color, opacities[i], i);
+		}
+
+		// update
+		if (particle) {
+			particle->Rot = (int)((gameGetTime() + (i * 100)) / (TIME_SECOND * rotSpeeds[i])) & 0xFF;
+		}
+	}
 
 	if (!isOwner)
 		return;
@@ -181,7 +204,7 @@ void dropUpdate(Moby* moby)
 
 	// handle auto destruct
 	if (gameGetTime() > pvars->DestroyAtTime) {
-		dropDestroy(moby);
+		//dropDestroy(moby);
 	}
 }
 
@@ -213,19 +236,20 @@ int dropHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	VECTOR p;
 	int i;
 	struct DropSpawnEventArgs args;
+	VECTOR offset = {0,0,1.5,0};
 
 	// read event
 	guberEventRead(event, p, 12);
 	guberEventRead(event, &args, sizeof(struct DropSpawnEventArgs));
 
 	// set position
-	vector_copy(moby->Position, p);
+	vector_add(moby->Position, p, offset);
 
 	// set update
 	moby->PUpdate = &dropUpdate;
 
 	// 
-	moby->ModeBits |= 0x30;
+	//moby->ModeBits |= 0x30;
 	//moby->GlowRGBA = MobSecondaryColors[(int)args.MobType];
 	//moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
 	moby->CollData = NULL;
@@ -234,12 +258,16 @@ int dropHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// update pvars
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
-	memcpy(pvars, &args.PvarData, sizeof(struct DropPVar));
+	pvars->Type = args.Type;
+	pvars->Team = args.Team;
+	pvars->DestroyAtTime = args.DestroyAtTime;
+	pvars->Owner = args.Owner;
+	memset(pvars->Particles, 0, sizeof(pvars->Particles));
 
 	// set team
 	Guber* guber = guberGetObjectByMoby(moby);
 	if (guber)
-		((GuberMoby*)guber)->TeamNum = args.PvarData.Team;
+		((GuberMoby*)guber)->TeamNum = args.Team;
 	
 	// 
 	++dropCount;
@@ -258,6 +286,14 @@ int dropHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
 	if (!pvars)
 		return 0;
+
+	// destroy particles
+	for (i = 0; i < 4; ++i) {
+		if (pvars->Particles[i]) {
+			destroyParticle(pvars->Particles[i]);
+			pvars->Particles[i] = 0;
+		}
+	}
 
 	guberMobyDestroy(moby);
 	--dropCount;
@@ -308,7 +344,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 					if (!playerIsDead(p)) {
 						playerSetHealth(p, 50);
 					}
-					else {
+					else if (State.PlayerStates[i].ReviveCooldownTicks) {
 						playerRevive(p, args.PickedUpByPlayerId);
 					}
 
@@ -341,6 +377,17 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 			break;
 		}
 	}
+
+	// destroy particles
+	for (i = 0; i < 4; ++i) {
+		if (pvars->Particles[i]) {
+			destroyParticle(pvars->Particles[i]);
+			pvars->Particles[i] = 0;
+		}
+	}
+
+	// play pickup sound
+	dropPlayPickupSound(moby);
 
 	guberMobyDestroy(moby);
 	--dropCount;
@@ -380,12 +427,14 @@ int dropHandleEvent(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int dropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int team)
 {
-	// prevent too many from spawning
-	if (dropCount > DROP_MAX_SPAWNED)
+	if (State.DropCooldownTicks > 0)
 		return 0;
 
 	GameSettings* gs = gameGetSettings();
 	struct DropSpawnEventArgs args;
+
+	// set cooldown
+	State.DropCooldownTicks = randRangeInt(DROP_COOLDOWN_TICKS_MIN, DROP_COOLDOWN_TICKS_MAX);
 
 	// create guber object
 	GuberEvent * guberEvent = 0;
@@ -393,10 +442,10 @@ int dropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int t
 	if (guberEvent)
 	{
 		// owner is always host
-		args.PvarData.Owner = gameGetHostId();
-		args.PvarData.Type = dropType;
-		args.PvarData.DestroyAtTime = destroyAtTime;
-		args.PvarData.Team = team;
+		args.Owner = gameGetHostId();
+		args.Type = dropType;
+		args.DestroyAtTime = destroyAtTime;
+		args.Team = team;
 		
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &args, sizeof(struct DropSpawnEventArgs));
@@ -429,5 +478,17 @@ void dropInitialize(void)
 //--------------------------------------------------------------------------
 void dropTick(void)
 {
+	if (padGetButtonDown(0, PAD_LEFT) > 0) {
+		--aaa;
+		DPRINTF("%d\n", aaa);
+	}
+	else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+		++aaa;
+		DPRINTF("%d\n", aaa);
+	}
+
 	dropThisFrame = 0;
+
+	if (State.DropCooldownTicks > 0)
+		--State.DropCooldownTicks;
 }
