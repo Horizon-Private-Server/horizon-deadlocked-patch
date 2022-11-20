@@ -46,6 +46,7 @@ struct DropPVar {
 	int DestroyAtTime;
 	int Team;
 	char Owner;
+	char Destroyed;
 	struct PartInstance* Particles[4];
 };
 

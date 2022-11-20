@@ -8,6 +8,69 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
+enum ZombieAnimId
+{
+	ZOMBIE_ANIM_UNDERGROUND,
+	ZOMBIE_ANIM_IDLE,
+	ZOMBIE_ANIM_2,
+	ZOMBIE_ANIM_WALK,
+	ZOMBIE_ANIM_AGGRO_WALK,
+	ZOMBIE_ANIM_RUN,
+	ZOMBIE_ANIM_JUMP,
+	ZOMBIE_ANIM_CROUCH,
+	ZOMBIE_ANIM_ELECTROCUTED,
+	ZOMBIE_ANIM_CRAWL_OUT_OF_GROUND,
+	ZOMBIE_ANIM_FLINCH,
+	ZOMBIE_ANIM_THROW_HEAD,
+	ZOMBIE_ANIM_TAUNT,
+	ZOMBIE_ANIM_CAT_PASS,
+	ZOMBIE_ANIM_BIG_FLINCH,
+	ZOMBIE_ANIM_SLAP,
+	ZOMBIE_ANIM_IDLE_2
+};
+
+enum MobAction
+{
+	MOB_ACTION_SPAWN,
+	MOB_ACTION_IDLE,
+	MOB_ACTION_JUMP,
+	MOB_ACTION_WALK,
+	MOB_ACTION_FLINCH,
+	MOB_ACTION_LOOK_AT_TARGET,
+	MOB_ACTION_ATTACK,
+	MOB_ACTION_TIME_BOMB,
+};
+
+enum MobType
+{
+	MOB_NORMAL,
+	MOB_FREEZE,
+	MOB_ACID,
+	MOB_EXPLODE,
+	MOB_GHOST,
+	MOB_TANK
+};
+
+enum MobSpecialMutationType
+{
+	MOB_SPECIAL_MUTATION_NONE = 0,
+	MOB_SPECIAL_MUTATION_FREEZE,
+	MOB_SPECIAL_MUTATION_ACID,
+	MOB_SPECIAL_MUTATION_GHOST,
+	MOB_SPECIAL_MUTATION_COUNT
+};
+
+enum MobEvent
+{
+	MOB_EVENT_SPAWN,
+	MOB_EVENT_DESTROY,
+	MOB_EVENT_DAMAGE,
+	MOB_EVENT_STATE_UPDATE,
+	MOB_EVENT_TARGET_UPDATE,
+	MOB_EVENT_OWNER_UPDATE,
+};
+
+
 enum MobMutateAttribute {
 	MOB_MUTATE_DAMAGE,
 	MOB_MUTATE_SPEED,
@@ -35,6 +98,27 @@ enum ZombieBangles {
 	ZOMBIE_BANGLE_HIDE_BODY =	(1 << 15)
 };
 
+// ordered from least to most probable
+enum MobSpawnParamIds {
+	MOB_SPAWN_PARAM_TITAN = 0,
+	MOB_SPAWN_PARAM_GHOST = 1,
+	MOB_SPAWN_PARAM_EXPLOSION = 2,
+	MOB_SPAWN_PARAM_ACID = 3,
+	MOB_SPAWN_PARAM_FREEZE = 4,
+	MOB_SPAWN_PARAM_RUNNER = 5,
+	MOB_SPAWN_PARAM_NORMAL = 6,
+	MOB_SPAWN_PARAM_COUNT
+};
+
+// what kind of spawn a mob can have
+enum MobSpawnType {
+	SPAWN_TYPE_DEFAULT_RANDOM = 0,
+	SPAWN_TYPE_SEMI_NEAR_PLAYER = 1,
+	SPAWN_TYPE_NEAR_PLAYER = 2,
+	SPAWN_TYPE_ON_PLAYER = 4,
+	SPAWN_TYPE_NEAR_HEALTHBOX = 8,
+};
+
 struct MobConfig {
 	int MobType;
 	int Bolts;
@@ -50,12 +134,16 @@ struct MobConfig {
 	u8 MaxCostMutation;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
+	char MobSpecialMutation;
 };
 
 struct MobSpawnParams {
 	int Cost;
 	int MinRound;
+	int CooldownTicks;
 	float Probability;
+	enum MobSpawnType SpawnType;
+	char Name[32];
 	struct MobConfig Config;
 };
 
@@ -72,6 +160,7 @@ struct MobVars {
 	int NextAction;
 	float Health;
 	float ClosestDist;
+	float LastSpeed;
 	Moby * Target;
 	int LastHitBy;
 	u16 LastHitByOClass;
@@ -86,11 +175,11 @@ struct MobVars {
 	u16 TimeBombTicks;
 	u16 StuckTicks;
 	u16 MovingTicks;
+	u16 TimeLastGroundedTicks;
 	u8 ActionId;
 	u8 LastActionId;
 	u8 MoveStep;
 	u8 MoveStepCooldownTicks;
-	char HasSpeed;
 	char Owner;
 	char IsTraversing;
 	char AnimationLooped;
@@ -101,6 +190,7 @@ struct MobVars {
 	char Dirty;
 	char Destroyed;
 	char Order;
+	char Random;
 };
 
 // warning: multiple differing types with the same name, only one recovered
@@ -190,6 +280,7 @@ struct MobSpawnEventArgs
 	u16 StartHealth;
 	u16 Bangles;
 	char MobType;
+	char MobSpecialMutation;
 	u8 Damage;
 	u8 AttackRadiusEighths;
 	u8 HitRadiusEighths;
@@ -197,59 +288,6 @@ struct MobSpawnEventArgs
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 };
-
-enum ZombieAnimId
-{
-	ZOMBIE_ANIM_UNDERGROUND,
-	ZOMBIE_ANIM_IDLE,
-	ZOMBIE_ANIM_2,
-	ZOMBIE_ANIM_WALK,
-	ZOMBIE_ANIM_AGGRO_WALK,
-	ZOMBIE_ANIM_RUN,
-	ZOMBIE_ANIM_JUMP,
-	ZOMBIE_ANIM_CROUCH,
-	ZOMBIE_ANIM_ELECTROCUTED,
-	ZOMBIE_ANIM_CRAWL_OUT_OF_GROUND,
-	ZOMBIE_ANIM_FLINCH,
-	ZOMBIE_ANIM_THROW_HEAD,
-	ZOMBIE_ANIM_TAUNT,
-	ZOMBIE_ANIM_CAT_PASS,
-	ZOMBIE_ANIM_BIG_FLINCH,
-	ZOMBIE_ANIM_SLAP,
-	ZOMBIE_ANIM_IDLE_2
-};
-
-enum MobAction
-{
-	MOB_ACTION_SPAWN,
-	MOB_ACTION_IDLE,
-	MOB_ACTION_JUMP,
-	MOB_ACTION_WALK,
-	MOB_ACTION_FLINCH,
-	MOB_ACTION_LOOK_AT_TARGET,
-	MOB_ACTION_ATTACK,
-	MOB_ACTION_TIME_BOMB,
-};
-
-enum MobType
-{
-	MOB_NORMAL,
-	MOB_FREEZE,
-	MOB_ACID,
-	MOB_EXPLODE,
-	MOB_GHOST
-};
-
-enum MobEvent
-{
-	MOB_EVENT_SPAWN,
-	MOB_EVENT_DESTROY,
-	MOB_EVENT_DAMAGE,
-	MOB_EVENT_STATE_UPDATE,
-	MOB_EVENT_TARGET_UPDATE,
-	MOB_EVENT_OWNER_UPDATE,
-};
-
 
 void mobNuke(int killedByPlayerId);
 void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);

@@ -10,8 +10,11 @@
 #include <libdl/moby.h>
 #include <libdl/random.h>
 #include <libdl/radar.h>
+#include <libdl/color.h>
 
 int mobInMobMove = 0;
+Moby* mobFirstInList = 0;
+Moby* mobLastInList = 0;
 
 /* 
  * 
@@ -45,6 +48,7 @@ u32 MobPrimaryColors[] = {
 	[MOB_ACID] 		0x00464443,
 	[MOB_EXPLODE] 0x00202080,
 	[MOB_GHOST] 	0x00464443,
+	[MOB_TANK]		0x00464443,
 };
 
 u32 MobSecondaryColors[] = {
@@ -53,11 +57,38 @@ u32 MobSecondaryColors[] = {
 	[MOB_ACID] 		0x8000FF00,
 	[MOB_EXPLODE] 0x000040C0,
 	[MOB_GHOST] 	0x80202020,
+	[MOB_TANK]		0x80202020,
+};
+
+u32 MobSpecialMutationColors[] = {
+	[MOB_SPECIAL_MUTATION_FREEZE] 0xFFFF2000,
+	[MOB_SPECIAL_MUTATION_ACID] 	0xFF00FF00,
+};
+
+u32 MobLODColors[] = {
+	[MOB_NORMAL] 	0x00808080,
+	[MOB_FREEZE] 	0x00F08000,
+	[MOB_ACID] 		0x0000F000,
+	[MOB_EXPLODE] 0x004040F0,
+	[MOB_GHOST] 	0x00464443,
+	[MOB_TANK]		0x00808080,
+};
+
+short MoveStepMaxByClientCount[GAME_MAX_PLAYERS] = {
+	12,
+	24,
+	32,
+	48,
+	64,
+	72,
+	96,
+	128,
+	128,
+	128
 };
 
 Moby* AllMobsSorted[MAX_MOBS_SPAWNED];
 int AllMobsSortedFreeSpots = MAX_MOBS_SPAWNED;
-void * mobCollData = NULL;
 
 extern struct SurvivalState State;
 
@@ -254,22 +285,19 @@ void mobDamage(Moby* source, Moby* target, float amount, int damageFlags)
 	in.Flags = 1;
 	in.DamageHp = amount;
 
-	DPRINTF("%08X do %f damage to %08X\n", (u32)source, amount, (u32)target);
+	//DPRINTF("%08X do %f damage to %08X\n", (u32)source, amount, (u32)target);
 
 	mobyCollDamageDirect(target, &in);
 }
 
-void mobDoDamage(Moby* moby, float offset, float radius, float amount, int damageFlags, int friendlyFire)
+void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
 	VECTOR p;
-
-	// determine hit center
-	if (offset < 0)
-		offset = 0;
-	vector_fromyaw(p, moby->Rotation[2]);
-	vector_scale(p, p, offset);
-	p[2] = 0.75;
-	vector_add(p, p, moby->Position);
+	MATRIX jointMtx;
+	
+	// get position of right hand joint
+	mobyGetJointMatrix(moby, 2, jointMtx);
+	vector_copy(p, &jointMtx[12]);
 
 	// 
 	if (CollMobysSphere_Fix(p, 2, moby, 0, radius) > 0) {
@@ -321,7 +349,8 @@ void mobForceLocalAction(Moby* moby, int action)
 	{
 		case MOB_EVENT_SPAWN:
 		{
-			moby->CollData = mobCollData;
+			// enable collision
+			moby->CollActive = 0;
 			break;
 		}
 	}
@@ -331,7 +360,8 @@ void mobForceLocalAction(Moby* moby, int action)
 	{
 		case MOB_ACTION_SPAWN:
 		{
-			moby->CollData = NULL;
+			// disable collision
+			moby->CollActive = 1;
 			break;
 		}
 		case MOB_ACTION_WALK:
@@ -342,31 +372,35 @@ void mobForceLocalAction(Moby* moby, int action)
 		case MOB_ACTION_ATTACK:
 		{
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
-			
 
 			switch (pvars->MobVars.Config.MobType)
 			{
-				case MOB_FREEZE:
-				{
-					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00881801, 0);
-					break;
-				}
 				case MOB_EXPLODE:
 				{
-					spawnExplosion(moby->Position, pvars->MobVars.Config.HitRadius);
-					mobDoDamage(moby, 0, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00008801, 1);
+					u32 damageFlags = 0x00008801;
+					u32 color = 0x003064FF;
+
+					// special mutation settings
+					switch (pvars->MobVars.Config.MobSpecialMutation)
+					{
+						case MOB_SPECIAL_MUTATION_FREEZE:
+						{
+							color = 0x00FF6430;
+							damageFlags |= 0x00800000;
+							break;
+						}
+						case MOB_SPECIAL_MUTATION_ACID:
+						{
+							color = 0x0064FF30;
+							damageFlags |= 0x00000080;
+							break;
+						}
+					}
+			
+					spawnExplosion(moby->Position, pvars->MobVars.Config.HitRadius, color);
+					mobDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 1);
 					pvars->MobVars.Destroy = 1;
 					pvars->MobVars.LastHitBy = -1;
-					break;
-				}
-				case MOB_ACID:
-				{
-					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00081881, 0);
-					break;
-				}
-				default:
-				{
-					mobDoDamage(moby, pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, 0x00081801, 0);
 					break;
 				}
 			}
@@ -375,7 +409,7 @@ void mobForceLocalAction(Moby* moby, int action)
 		case MOB_ACTION_TIME_BOMB:
 		{
 			pvars->MobVars.OpacityFlickerDirection = 4;
-			pvars->MobVars.TimeBombTicks = ZOMBIE_TIMEBOMB_TICKS;
+			pvars->MobVars.TimeBombTicks = ZOMBIE_TIMEBOMB_TICKS / clamp(State.Difficulty, 0.5, 2);
 			break;
 		}
 		case MOB_ACTION_FLINCH:
@@ -393,6 +427,7 @@ void mobForceLocalAction(Moby* moby, int action)
 	// 
 	pvars->MobVars.Action = action;
 	pvars->MobVars.ActionCooldownTicks = ZOMBIE_ACTION_COOLDOWN_TICKS;
+	pvars->MobVars.MoveStepCooldownTicks = 0;
 }
 
 int mobIsAttacking(struct MobPVar* pvars) {
@@ -411,8 +446,9 @@ int mobHasVelocity(struct MobPVar* pvars) {
 	VECTOR t;
 	vector_copy(t, pvars->MoveVars.passThruNormal);
 	t[2] = 0;
-	return vector_sqrmag(t) > (pvars->MobVars.Config.Speed * pvars->MobVars.Config.Speed * 0.5)
-				&& vector_sqrmag(pvars->MoveVars.vel) > 0.001;
+	float minSqrSpeed = pvars->MobVars.LastSpeed * pvars->MobVars.LastSpeed * 0.25;
+	return vector_sqrmag(t) >= minSqrSpeed;
+				//&& vector_sqrmag(pvars->MoveVars.vel) >= minSqrSpeed;
 }
 
 int mobGetLostArmorBangle(short armorStart, short armorEnd)
@@ -442,7 +478,7 @@ Moby* mobGetNextTarget(Moby* moby)
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = *players;
-		if (p && !playerIsDead(p)) {
+		if (p && !playerIsDead(p) && p->Health > 0) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
 			float distSqr = vector_sqrmag(delta);
 
@@ -518,37 +554,74 @@ int colHotspot(int colId)
 	return colId;
 }
 
-void mobMove(Moby* moby, u128 to, float speed)
+void mobAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
+{
+	VECTOR up = {0,0,1,0};
+	
+	vector_outerproduct(out, forward, up);
+	vector_normalize(out, out);
+	vector_scale(out, out, amount);
+}
+
+void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
+{
+	// apply velocity
+	VECTOR oldPos, newPos;
+	VECTOR preOff = {0,0,0.1,0};
+	VECTOR hitOff = {0,0,0.01,0};
+	VECTOR gravity = {0,0,-0.5,0};
+
+	vector_add(oldPos, moby->Position, preOff);
+	vector_add(newPos, moby->Position, pvars->MoveVars.vel);
+
+	if (CollLine_Fix(oldPos, newPos, 2, moby, 0)) {
+		vector_add(moby->Position, CollLine_Fix_GetHitPosition(), hitOff);
+		pvars->MoveVars.vel[2] = 0;
+	}
+	else {
+		vector_copy(moby->Position, newPos);
+		vector_add(pvars->MoveVars.vel, pvars->MoveVars.vel, gravity);
+	}
+
+	vector_scale(pvars->MoveVars.vel, pvars->MoveVars.vel, 0.95);
+}
+
+void mobMove(Moby* moby, u128 to, float speed, int forceSimple)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
 	if (pvars->MobVars.MoveStepCooldownTicks == 0)
 	{
 		// move
-		mobInMobMove = 1;
-		mobyMove(moby, to, speed);
-		mobInMobMove = 0;
-
-		// calculate delta position
-		vector_subtract(pvars->MoveVars.passThruNormal, moby->Position, pvars->MoveVars.passThruPoint);
-		vector_copy(pvars->MoveVars.passThruPoint, moby->Position);
+		if (!forceSimple) {
+			mobInMobMove = 1;
+			mobyMove(moby, to, speed);
+			mobInMobMove = 0;
+		}
+		else {
+			mobMoveSimple(moby, pvars);
+		}
 
 		//
 		pvars->MobVars.MoveStepCooldownTicks = pvars->MobVars.MoveStep;
 	}
-	else if (speed > 0)
+	else
 	{
-		// apply velocity
-		vector_add(moby->Position, moby->Position, pvars->MoveVars.vel);
+		mobMoveSimple(moby, pvars);
 	}
 }
 
 void mobStand(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	vector_write(pvars->MoveVars.passThruNormal, 0);
-	vector_copy(pvars->MoveVars.passThruPoint, moby->Position);
-	mobyStand(moby);
+	
+	if (pvars->MobVars.MoveStepCooldownTicks == 0) {
+		mobyStand(moby);
+		pvars->MobVars.MoveStepCooldownTicks = pvars->MobVars.MoveStep;
+	}
+	else {
+		mobMoveSimple(moby, pvars);
+	}
 }
 
 void mobDoAction(Moby* moby)
@@ -560,7 +633,9 @@ void mobDoAction(Moby* moby)
 	VECTOR t, t2;
 
 	// turn on holos so we can collide with them
-	weaponTurnOnHoloshields(-1);
+	// optimization to only turn on for first mob in moby list (this is expensive)
+	if (mobFirstInList == moby)
+		weaponTurnOnHoloshields(-1);
 
 	switch (pvars->MobVars.Action)
 	{
@@ -610,7 +685,15 @@ void mobDoAction(Moby* moby)
 					vector_add(t2, moby->Position, t);
 
 					// move
-					mobMove(moby, vector_read(t2), speed * speedMult);
+					if (vector_sqrmag(pvars->MoveVars.vel) < 0.0001) {
+						vector_scale(t, t, 1.0 / TPS);
+						vector_copy(pvars->MoveVars.vel, t);
+						speed = vector_length(t);
+						mobMove(moby, vector_read(t2), speed * speedMult, 1);
+					}
+					else {
+						mobMove(moby, vector_read(t2), speed * speedMult, 0);
+					}
 					mobTransAnim(moby, ZOMBIE_ANIM_JUMP);
 					
 					if (0 && pvars->MobVars.IsTraversing && pvars->MoveVars.onGround && pvars->MobVars.StuckTicks > 200) {
@@ -633,18 +716,22 @@ void mobDoAction(Moby* moby)
 			speed = 0;
 		case MOB_ACTION_WALK:
 		{
-			
 			if (target) {
+
+				float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+
 				// determine next position
 				vector_copy(t, target->Position);
 				vector_subtract(t, t, moby->Position);
 				float dist = vector_length(t);
+				mobAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+				vector_add(t, t, t2);
 				vector_scale(t, t, (1 * speedMult) / dist);
 				vector_add(t, moby->Position, t);
 
 				// slow down as they near their target
 				float slowDownFar = pvars->MobVars.Config.AttackRadius * 1.0;
-				float slowDownNear = pvars->MobVars.Config.AttackRadius * 0.5;
+				float slowDownNear = pvars->MobVars.Config.AttackRadius * 0.35;
 				if (dist < slowDownFar) {
 					float slowDown = ((dist - slowDownNear) / (slowDownFar - slowDownNear)) - 0.0;
 					if (slowDown < 0.1)
@@ -653,7 +740,7 @@ void mobDoAction(Moby* moby)
 				}
 
 				// move
-				mobMove(moby, vector_read(t), speed * speedMult);
+				mobMove(moby, vector_read(t), speed * speedMult, 0);
 			} else {
 				// stand
 				speed = 0;
@@ -701,17 +788,89 @@ void mobDoAction(Moby* moby)
 		}
 		case MOB_ACTION_ATTACK:
 		{
-			speed = 0;
 			mobTransAnim(moby, ZOMBIE_ANIM_SLAP);
+			int swingAttackReady = moby->AnimSeqId == ZOMBIE_ANIM_SLAP && moby->AnimSeqT >= 11 && moby->AnimSeqT < 14;
+			u32 damageFlags = 0x00081801;
+			float speedMult = (moby->AnimSeqId == ZOMBIE_ANIM_SLAP && moby->AnimSeqT < 5) ? (State.Difficulty * 2) : 1; //powf(clamp(10 - moby->AnimSeqT, 1, 10), 0.5);
+			if (speedMult < 1)
+				speedMult = 1;
+
+			if (target) {
+				// determine next position
+				vector_copy(t, target->Position);
+				vector_subtract(t, t, moby->Position);
+				float dist = vector_length(t);
+				vector_scale(t, t, (1 * speedMult) / dist);
+				vector_add(t, moby->Position, t);
+
+				// slow down as they near their target
+				float slowDownFar = (moby->Scale + target->Scale) * 3.0;
+				float slowDownNear = target->Scale * 2.0;
+				if (dist < slowDownFar) {
+					float slowDown = ((dist - slowDownNear) / (slowDownFar - slowDownNear)) - 0.0;
+					if (slowDown < 0.1)
+						slowDown = 0;
+					speed *= slowDown;
+				}
+
+				// move
+				pvars->MoveVars.runSpeed = speed*speedMult;
+				mobMove(moby, vector_read(t), speed * speedMult, 0);
+			} else {
+				// stand
+				speed = 0;
+				mobStand(moby);
+			}
+
+			switch (pvars->MobVars.Config.MobType)
+			{
+				case MOB_FREEZE:
+				{
+					damageFlags = 0x00881801;
+					break;
+				}
+				case MOB_ACID:
+				{
+					damageFlags = 0x00081881;
+					break;
+				}
+				case MOB_EXPLODE:
+				{
+					// explode is handled on action (once)
+					damageFlags = 0;
+					break;
+				}
+			}
+
+			// special mutation settings
+			switch (pvars->MobVars.Config.MobSpecialMutation)
+			{
+				case MOB_SPECIAL_MUTATION_FREEZE:
+				{
+					damageFlags |= 0x00800000;
+					break;
+				}
+				case MOB_SPECIAL_MUTATION_ACID:
+				{
+					damageFlags |= 0x00000080;
+					break;
+				}
+			}
+			
+			if (swingAttackReady && damageFlags) {
+				mobDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);
+			}
 			break;
 		}
 	}
 
 	// turn off holos for everyone else
-	weaponTurnOffHoloshields();
+	// optimization to only turn off for last mob in moby list (this is expensive)
+	if (mobLastInList == moby)
+		weaponTurnOffHoloshields();
 
 	// update if we've attempted to move
-	pvars->MobVars.HasSpeed = speed > 0.001;
+	pvars->MobVars.LastSpeed = speed;
 }
 
 void mobHandleStuck(Moby* moby)
@@ -719,6 +878,7 @@ void mobHandleStuck(Moby* moby)
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Moby* target = pvars->MobVars.Target;
 	int hasVelocity = mobHasVelocity(pvars);
+	int hasSpeed = pvars->MobVars.LastSpeed > 0.001 && fabsf(pvars->MoveVars.bodyFacing - pvars->MoveVars.desiredFacing) < 1.5;
 
 	// increment ticks stuck
 	if (hasVelocity) {
@@ -727,7 +887,7 @@ void mobHandleStuck(Moby* moby)
 			pvars->MobVars.StuckTicks = 0;
 	}
 	else {
-		if (pvars->MobVars.HasSpeed)
+		if (hasSpeed)
 			pvars->MobVars.StuckTicks += 1;
 		else
 			pvars->MobVars.StuckTicks = 0;
@@ -772,17 +932,18 @@ void mobHandleStuck(Moby* moby)
 void mobPostDrawQuad(Moby* moby)
 {
 	struct QuadDef quad;
+	float size = moby->Scale * 2;
 	MATRIX m2;
 	VECTOR t;
-	VECTOR pTL = {0,0.5,0.5,1};
-	VECTOR pTR = {0,-0.5,0.5,1};
-	VECTOR pBL = {0,0.5,-0.5,1};
-	VECTOR pBR = {0,-0.5,-0.5,1};
+	VECTOR pTL = {0,size,size,1};
+	VECTOR pTR = {0,-size,size,1};
+	VECTOR pBL = {0,size,-size,1};
+	VECTOR pBR = {0,-size,-size,1};
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (!pvars)
 		return;
 
-	u32 color = (moby->GlowRGBA & 0xFFFFFF) | (moby->Opacity << 24);
+	u32 color = MobLODColors[pvars->MobVars.Config.MobType] | (moby->Opacity << 24);
 
 	// set draw args
 	matrix_unit(m2);
@@ -830,7 +991,7 @@ void mobHandleDraw(Moby* moby)
 				AllMobsSorted[i] = moby;
 				pvars->MobVars.Order = i;
 				--AllMobsSortedFreeSpots;
-				DPRINTF("set %08X to order %d (free %d)\n", (u32)moby, i, AllMobsSortedFreeSpots);
+				//DPRINTF("set %08X to order %d (free %d)\n", (u32)moby, i, AllMobsSortedFreeSpots);
 				break;
 			}
 		}
@@ -839,12 +1000,12 @@ void mobHandleDraw(Moby* moby)
 	int order = pvars->MobVars.Order;
 	moby->DrawDist = 128;
 	if (order >= 0) {
-		float rank = 1 - clamp(order / (float)MAX_MOBS_SPAWNED, 0, 1);
-		float rankCurve = powf(rank, 2);
+		float rank = 1 - clamp(order / (float)State.RoundMaxSpawnedAtOnce, 0, 1);
+		float rankCurve = powf(rank, 6);
 		
-		pvars->MobVars.MoveStep = 1 + (u8)((12-1)*(1-rankCurve));
-		if (State.RoundMobCount > 40) {
-			if (rankCurve < 0.5) {
+		pvars->MobVars.MoveStep = 1 + (u8)((MoveStepMaxByClientCount[State.ActivePlayerCount-1]-1)*(1-rankCurve));
+		if (State.RoundMobCount > 20) {
+			if (rank < 0.75) {
 				gfxRegisterDrawFunction((void**)0x0022251C, &mobPostDrawQuad, moby);
 				moby->DrawDist = 0;
 			}
@@ -890,7 +1051,7 @@ void mobUpdate(Moby* moby)
 	int isOwner;
 
 	// handle radar
-	if (pvars->MobVars.Config.MobType != MOB_GHOST && pvars->MobVars.Action != MOB_ACTION_SPAWN && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
+	if (pvars->MobVars.Config.MobType != MOB_GHOST && pvars->MobVars.Config.MobSpecialMutation != MOB_SPECIAL_MUTATION_GHOST && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
 	{
 		if (gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips == 1 || pvars->MobVars.ClosestDist < (20 * 20))
 		{
@@ -943,8 +1104,9 @@ void mobUpdate(Moby* moby)
 	// change owner to target
 	if (isOwner && pvars->MobVars.Target) {
 		Player * targetPlayer = (Player*)guberGetObjectByMoby(pvars->MobVars.Target);
-		if (targetPlayer && targetPlayer->Guber.Id.GID.HostId != pvars->MobVars.Owner)
+		if (targetPlayer && targetPlayer->Guber.Id.GID.HostId != pvars->MobVars.Owner) {
 			mobSendOwnerUpdate(moby, targetPlayer->Guber.Id.GID.HostId);
+		}
 	}
 
 	// 
@@ -961,11 +1123,23 @@ void mobUpdate(Moby* moby)
 		mobDoAction(moby);
 
 	// 
-	mobyUpdateFlash(moby, 0);
+	if (pvars->FlashVars.type)
+		mobyUpdateFlash(moby, 0);
 
 	// 
 	if (!State.Freeze)
 		mobHandleStuck(moby);
+
+	// count ticks since last grounded
+	if (pvars->MoveVars.onGround)
+		pvars->MobVars.TimeLastGroundedTicks = 0;
+	else
+		pvars->MobVars.TimeLastGroundedTicks++;
+
+	// auto destruct after 15 seconds of falling
+	if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
+		pvars->MobVars.Respawn = 1;
+	}
 
 	//
 	if (isOwner && !State.Freeze) {
@@ -997,8 +1171,9 @@ void mobUpdate(Moby* moby)
 	}
 
 	// 
-	if (pvars->MobVars.Config.MobType == MOB_GHOST) {
-		u8 targetOpacity = pvars->MobVars.Action > MOB_ACTION_WALK ? 0x80 : 0x10;
+	if (pvars->MobVars.Config.MobType == MOB_GHOST || pvars->MobVars.Config.MobSpecialMutation == MOB_SPECIAL_MUTATION_GHOST) {
+		u8 defaultOpacity = pvars->MobVars.Config.MobSpecialMutation ? 0xFF : 0x80;
+		u8 targetOpacity = pvars->MobVars.Action > MOB_ACTION_WALK ? defaultOpacity : 0x10;
 		u8 opacity = moby->Opacity;
 		if (opacity < targetOpacity)
 			opacity = targetOpacity;
@@ -1007,18 +1182,24 @@ void mobUpdate(Moby* moby)
 		moby->Opacity = opacity;
 	}
 
+	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / ZOMBIE_BASE_SPEED);
 	if (State.Freeze) {
 		moby->AnimSpeed = 0;
-	} else if (moby->AnimSpeed == 0) {
-		moby->AnimSpeed = 1;
+	} else {
+		moby->AnimSpeed = animSpeed;
 	}
 
 	// update armor
 	moby->Bangles = mobGetArmor(pvars);
 
 	// move system update
-	if (!State.Freeze && moveStepCooldownTicks == 0)
+	if (!State.Freeze && moveStepCooldownTicks == 0) {
 		mobyMoveSystemUpdate(moby);
+
+		// calculate delta position
+		vector_subtract(pvars->MoveVars.passThruNormal, moby->Position, pvars->MoveVars.passThruPoint);
+		vector_copy(pvars->MoveVars.passThruPoint, moby->Position);
+	}
 
 	// process damage
 	int damageIndex = moby->CollDamage;
@@ -1058,10 +1239,10 @@ void mobUpdate(Moby* moby)
 			if (spawnGetRandomPoint(p)) {
 				memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
 				mobCreate(p, 0, guberGetUID(moby), &config);
-			}
+			}	
 
 			pvars->MobVars.Respawn = 0;
-			pvars->MobVars.Destroyed = 1;
+			pvars->MobVars.Destroyed = 2;
 		}
 
 		// destroy
@@ -1105,12 +1286,14 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	float yaw;
 	int i;
 	int spawnFromUID;
+	char random;
 	struct MobSpawnEventArgs args;
 
 	// read event
 	guberEventRead(event, p, 12);
 	guberEventRead(event, &yaw, 4);
 	guberEventRead(event, &spawnFromUID, 4);
+	guberEventRead(event, &random, 1);
 	guberEventRead(event, &args, sizeof(struct MobSpawnEventArgs));
 
 	// set position and rotation
@@ -1126,11 +1309,8 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	moby->ModeBits |= 0x30;
 	moby->GlowRGBA = MobSecondaryColors[(int)args.MobType];
 	moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
-
-	// update reference to moby collision
-	if (!mobCollData)
-		mobCollData = moby->CollData;
-	moby->CollData = NULL;
+	moby->Opacity = args.MobSpecialMutation ? 0xFF : 0x80;
+	moby->CollActive = 1;
 
 
 	// update pvars
@@ -1143,6 +1323,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	
 	// initialize mob vars
 	pvars->MobVars.Config.MobType = args.MobType;
+	pvars->MobVars.Config.MobSpecialMutation = args.MobSpecialMutation;
 	pvars->MobVars.Config.Bolts = args.Bolts;
 	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth;
 	pvars->MobVars.Config.Health = (float)args.StartHealth;
@@ -1155,12 +1336,15 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
 	pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
 	pvars->MobVars.Order = -1;
+	pvars->MobVars.TimeLastGroundedTicks = 0;
+	pvars->MobVars.Random = random;
 #if MOB_NO_MOVE
 	pvars->MobVars.Config.Speed = 0;
 #endif
 #if MOB_NO_DAMAGE
 	pvars->MobVars.Config.Damage = 0;
 #endif
+	//pvars->MobVars.Config.Health = pvars->MobVars.Health = 1;
 
 	// initialize target vars
 	pvars->TargetVars.hitPoints = pvars->MobVars.Health;
@@ -1220,6 +1404,35 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 			pvars->ReactVars.deathType = 2; // explosion
 			break;
 		}
+		case MOB_TANK:
+		{
+			pvars->ReactVars.deathType = 0; // normal
+			moby->Scale = 0.6;
+			pvars->TargetVars.targetHeight = 2.5;
+			break;
+		}
+	}
+
+	// special mutation settings
+	switch (pvars->MobVars.Config.MobSpecialMutation)
+	{
+		case MOB_SPECIAL_MUTATION_FREEZE:
+		{
+			moby->GlowRGBA = MobSpecialMutationColors[(int)pvars->MobVars.Config.MobSpecialMutation];
+			break;
+		}
+		case MOB_SPECIAL_MUTATION_ACID:
+		{
+			moby->GlowRGBA = MobSpecialMutationColors[(int)pvars->MobVars.Config.MobSpecialMutation];
+			break;
+		}
+		case MOB_SPECIAL_MUTATION_GHOST:
+		{
+			// disable targeting
+			pvars->ReactVars.deathType = 0; // normal
+			moby->ModeBits &= ~0x1000;
+			break;
+		}
 	}
 
 	// 
@@ -1230,9 +1443,12 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	// destroy spawn from
 	if (spawnFromUID != -1) {
 		GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(spawnFromUID);
-		if (gm && gm->Moby && gm->Moby->PVar) {
-			guberMobyDestroy(gm->Moby);
-			State.RoundMobCount--;
+		if (gm && gm->Moby && gm->Moby->PVar && !mobyIsDestroyed(gm->Moby) && gm->Moby->OClass == ZOMBIE_MOBY_OCLASS) {
+			struct MobPVar* spawnFromPVars = (struct MobPVar*)gm->Moby->PVar;
+			if (spawnFromPVars->MobVars.Destroyed != 1) {
+				guberMobyDestroy(gm->Moby);
+				State.RoundMobCount--;
+			}
 		}
 	}
 	
@@ -1372,7 +1588,7 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 
 	// destroy
 	if (newHp <= 0) {
-		if (pvars->MobVars.Action == MOB_ACTION_TIME_BOMB) {
+		if (pvars->MobVars.Action == MOB_ACTION_TIME_BOMB && moby->AnimSeqId == ZOMBIE_ANIM_CROUCH && moby->AnimSeqT > 3) {
 			// explode
 			mobForceLocalAction(moby, MOB_ACTION_ATTACK);
 		} else {
@@ -1392,7 +1608,8 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	if (mobAmIOwner(moby))
 	{
 		// flinch
-		if ((args.Knockback.Power > 0 || damage >= 10) && canFlinch)
+		float damageRatio = damage / pvars->MobVars.Config.Health;
+		if ((((args.Knockback.Power + 1) * damageRatio) > 0.25) && canFlinch)
 			mobSetAction(moby, MOB_ACTION_FLINCH);
 
 		// set target
@@ -1461,6 +1678,10 @@ int mobHandleEvent_OwnerUpdate(Moby* moby, GuberEvent* event)
 
 	// 
 	pvars->MobVars.Owner = newOwner;
+
+	if (gameGetMyClientId() == newOwner) {
+		pvars->MobVars.NextAction = -1; // indicate we have no new action since we just became owner
+	}
 	
 	//DPRINTF("mob owner update event %08X, %08X, %d\n", (u32)moby, (u32)event, newOwner);
 	return 0;
@@ -1518,10 +1739,14 @@ int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
 		args.SpeedHundredths = (u8)(config->Speed * 100);
 		args.ReactionTickCount = (u8)config->ReactionTickCount;
 		args.AttackCooldownTickCount = (u8)config->AttackCooldownTickCount;
+		args.MobSpecialMutation = config->MobSpecialMutation;
+
+		u8 random = (u8)rand(100);
 
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &yaw, 4);
 		guberEventWrite(guberEvent, &spawnFromUID, 4);
+		guberEventWrite(guberEvent, &random, 1);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
 	}
 	else
@@ -1544,11 +1769,6 @@ void mobInitialize(void)
 
 	// 
 	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
-}
-
-void mobFreeze(int durationMs)
-{
-	
 }
 
 void mobNuke(int killedByPlayerId)
@@ -1578,10 +1798,20 @@ void mobTick(void)
 	Player* locals[] = { playerGetFromSlot(0), playerGetFromSlot(1) };
 	int localsCount = playerGetNumLocals();
 
+	if (mobFirstInList && (mobyIsDestroyed(mobFirstInList) || mobFirstInList->OClass != ZOMBIE_MOBY_OCLASS))
+		mobFirstInList = NULL;
+	if (mobLastInList && (mobyIsDestroyed(mobLastInList) || mobLastInList->OClass != ZOMBIE_MOBY_OCLASS))
+		mobLastInList = NULL;
+	
 	// run single pass on sort
 	for (i = 0; i < MAX_MOBS_SPAWNED; ++i)
 	{
 		Moby* m = AllMobsSorted[i];
+
+		if (m && (!mobFirstInList || m < mobFirstInList))
+			mobFirstInList = m;
+		if (m && (!mobLastInList || m > mobLastInList))
+			mobLastInList = m;
 
 		// remove invalid moby ref
 		if (m && (mobyIsDestroyed(m) || !m->PVar || m->OClass != ZOMBIE_MOBY_OCLASS)) {

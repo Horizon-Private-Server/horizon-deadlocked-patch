@@ -30,8 +30,13 @@
 #define ROUND_BASE_BOLT_BONUS									(100)
 #define ROUND_MAX_BOLT_BONUS									(10000)
 
-#define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 		(0.5)
-#define MOB_SPAWN_AT_PLAYER_PROBABILITY 			(0.01)
+#define ROUND_SPECIAL_EVERY										(5)
+#define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
+
+#define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(0.5)
+#define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)
+#define MOB_SPAWN_AT_PLAYER_PROBABILITY 					(0.01)
+#define MOB_SPAWN_NEAR_HEALTHBOX_PROBABILITY 			(0.1)
 
 #define MOB_SPAWN_BURST_MIN_DELAY							(1 * 60)
 #define MOB_SPAWN_BURST_MAX_DELAY							(2 * 60)
@@ -49,19 +54,23 @@
 #define ZOMBIE_BASE_HEALTH										(40)
 #define ZOMBIE_HEALTH_MUTATE									(0.02)
 
+#define ZOMBIE_SPECIAL_MUTATION_PROBABILITY		(0.005)
+#define ZOMBIE_SPECIAL_MUTATION_BASE_COST			(200)
+#define ZOMBIE_SPECIAL_MUTATION_REL_COST			(1.0)
+
 #define ZOMBIE_BASE_REACTION_TICKS						(0.25 * TPS)
 #define ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS			(2 * TPS)
 #define ZOMBIE_BASE_EXPLODE_RADIUS						(5)
-#define ZOMBIE_MELEE_HIT_RADIUS								(1)
+#define ZOMBIE_MELEE_HIT_RADIUS								(1.75)
 #define ZOMBIE_EXPLODE_HIT_RADIUS							(5)
-#define ZOMBIE_MELEE_ATTACK_RADIUS						(2.5)
+#define ZOMBIE_MELEE_ATTACK_RADIUS						(5)
 
 #define ZOMBIE_BASE_STEP_HEIGHT								(2)
 #define ZOMBIE_MAX_STEP_UP										(100)
 #define ZOMBIE_MAX_STEP_DOWN									(300)
 
 #define ZOMBIE_ANIM_ATTACK_TICKS							(30)
-#define ZOMBIE_TIMEBOMB_TICKS									(60 * 3)
+#define ZOMBIE_TIMEBOMB_TICKS									(60 * 2)
 #define ZOMBIE_FLINCH_COOLDOWN_TICKS					(60 * 7)
 #define ZOMBIE_ACTION_COOLDOWN_TICKS					(30)
 #define ZOMBIE_RESPAWN_AFTER_TICKS						(60 * 30)
@@ -156,9 +165,12 @@ struct SurvivalState
 	int RoundMobCount;
 	int RoundMobSpawnedCount;
 	int RoundMaxMobCount;
+	int RoundMaxSpawnedAtOnce;
 	int RoundSpawnTicker;
 	int RoundSpawnTickerCounter;
 	int RoundNextSpawnTickerCounter;
+	int RoundIsSpecial;
+	int RoundSpecialIdx;
 	int InitializedTime;
 	int MinMobCost;
 	int MobsDrawnCurrent;
@@ -178,6 +190,15 @@ struct SurvivalState
 	short DropCooldownTicks;
 	char Freeze;
 	char NumTeams;
+	char RoundSpecialSpawnableZombies[2];
+};
+
+struct SurvivalSpecialRoundParam
+{
+	int SpawnParamCount;
+	int MaxSpawnedAtOnce;
+	char SpawnParamIds[4];
+	char Name[32];
 };
 
 struct SurvivalGameData

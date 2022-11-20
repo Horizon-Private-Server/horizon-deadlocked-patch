@@ -15,7 +15,7 @@ void setDoublePointsForTeam(int team, int isActive);
 void playerRevive(Player* player, int fromPlayerId);
 short playerGetWeaponAmmo(Player* player, int weaponId);
 int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod);
-Moby * spawnExplosion(VECTOR position, float size);
+Moby * spawnExplosion(VECTOR position, float size, u32 color);
 void playUpgradeSound(Player* player);
 int getWeaponIdFromOClass(short oclass);
 u8 decTimerU8(u8* timeValue);

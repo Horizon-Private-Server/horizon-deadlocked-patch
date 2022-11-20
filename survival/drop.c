@@ -36,8 +36,6 @@ int dropAmIOwner(Moby* moby)
 	return gameGetMyClientId() == pvars->Owner;
 }
 
-int aaa = 0;
-
 //--------------------------------------------------------------------------
 void dropPlayPickupSound(Moby* moby)
 {
@@ -58,7 +56,7 @@ void dropDestroy(Moby* moby)
 void dropPickup(Moby* moby, int pickedUpByPlayerId)
 {
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
-
+	
 	// create event
 	GuberEvent * guberEvent = dropCreateEvent(moby, DROP_EVENT_PICKUP);
 	if (guberEvent) {
@@ -92,7 +90,7 @@ void dropPostDraw(Moby* moby)
 		float speed = timeUntilDestruction < 3 ? 20.0 : 3.0;
 		float pulse = (1 + sinf((gameGetTime() / 1000.0) * speed)) * 0.5;
 		int opacity = 32 + (pulse * 96);
-		//color = (opacity << 24) | (color & 0xFFFFFF);
+		color = (opacity << 24) | (color & 0xFFFFFF);
 	}
 
 	// set draw args
@@ -203,8 +201,8 @@ void dropUpdate(Moby* moby)
 	}
 
 	// handle auto destruct
-	if (gameGetTime() > pvars->DestroyAtTime) {
-		//dropDestroy(moby);
+	if (pvars->DestroyAtTime && gameGetTime() > pvars->DestroyAtTime) {
+		dropDestroy(moby);
 	}
 }
 
@@ -262,6 +260,7 @@ int dropHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->Team = args.Team;
 	pvars->DestroyAtTime = args.DestroyAtTime;
 	pvars->Owner = args.Owner;
+	pvars->Destroyed = 0;
 	memset(pvars->Particles, 0, sizeof(pvars->Particles));
 
 	// set team
@@ -274,7 +273,7 @@ int dropHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// 
 	mobySetState(moby, 0, -1);
-	printf("drop spawned at %08X type:%d team:%d destroyAt:%d\n", (u32)moby, pvars->Type, pvars->Team, pvars->DestroyAtTime);
+	DPRINTF("drop spawned at %08X type:%d team:%d destroyAt:%d\n", (u32)moby, pvars->Type, pvars->Team, pvars->DestroyAtTime);
 	return 0;
 }
 
@@ -284,7 +283,7 @@ int dropHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	char killedByPlayerId, weaponId;
 	int i;
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
-	if (!pvars)
+	if (!pvars || pvars->Destroyed)
 		return 0;
 
 	// destroy particles
@@ -295,6 +294,7 @@ int dropHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		}
 	}
 
+	//pvars->Destroyed = 1;
 	guberMobyDestroy(moby);
 	--dropCount;
 	return 0;
@@ -308,7 +308,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 	Player** players = playerGetAll();
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
 
-	if (!pvars)
+	if (!pvars || pvars->Destroyed)
 		return 0;
 
 	// read event
@@ -341,7 +341,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				Player * p = players[i];
 				if (p && p->Team == pvars->Team) {
-					if (!playerIsDead(p)) {
+					if (!playerIsDead(p) && p->Health > 0) {
 						playerSetHealth(p, 50);
 					}
 					else if (State.PlayerStates[i].ReviveCooldownTicks) {
@@ -389,6 +389,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 	// play pickup sound
 	dropPlayPickupSound(moby);
 
+	//pvars->Destroyed = 1;
 	guberMobyDestroy(moby);
 	--dropCount;
 	return 0;
@@ -478,15 +479,6 @@ void dropInitialize(void)
 //--------------------------------------------------------------------------
 void dropTick(void)
 {
-	if (padGetButtonDown(0, PAD_LEFT) > 0) {
-		--aaa;
-		DPRINTF("%d\n", aaa);
-	}
-	else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-		++aaa;
-		DPRINTF("%d\n", aaa);
-	}
-
 	dropThisFrame = 0;
 
 	if (State.DropCooldownTicks > 0)

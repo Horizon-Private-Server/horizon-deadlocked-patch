@@ -8,6 +8,7 @@
 #include <libdl/string.h>
 #include <libdl/game.h>
 #include <libdl/map.h>
+#include <libdl/utils.h>
 #include "messageid.h"
 #include "config.h"
 #include "include/config.h"
@@ -25,6 +26,7 @@ extern PatchGameConfig_t gameConfig;
 extern PatchGameConfig_t gameConfigHostBackup;
 
 extern char aa_value;
+extern int redownloadCustomModeBinaries;
 
 // 
 int isConfigMenuActive = 0;
@@ -36,6 +38,7 @@ char fixWeaponLagToggle = 1;
 //
 int dlBytesReceived = 0;
 int dlTotalBytes = 0;
+int dlIsActive = 0;
 
 
 // constants
@@ -105,6 +108,7 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state);
 // list select handlers
 void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
 void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
+
 #ifdef DEBUG
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
 #endif
@@ -377,6 +381,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Shipment",
       "Snivelak",
       "Spleef",
+      "Torval Lost Factory",
       "Torval SP",
       "Tyhrranosis",
       // -- SURVIVAL MAPS --
@@ -1759,6 +1764,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
 	ServerDownloadDataRequest_t* request = (ServerDownloadDataRequest_t*)data;
 
 	// copy bytes to target
+  dlIsActive = request->Id;
 	dlTotalBytes = request->TotalSize;
 	dlBytesReceived += request->DataSize;
 	memcpy((void*)request->TargetAddress, request->Data, request->DataSize);
@@ -1778,6 +1784,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
   {
     dlTotalBytes = 0;
     dlBytesReceived = 0;
+    dlIsActive = 0;
     *(u32*)0x00167F54 = 1000 * 3;
   }
   else
@@ -1791,8 +1798,18 @@ int onServerDownloadDataRequest(void * connection, void * data)
 //------------------------------------------------------------------------------
 int onSetGameConfig(void * connection, void * data)
 {
+  PatchGameConfig_t config;
+
+  // move to temporary object
+  memcpy(&config, data, sizeof(PatchGameConfig_t));
+
+  // check for changes
+  int mapChanged = config.customMapId != gameConfig.customMapId;
+  redownloadCustomModeBinaries |= config.customModeId != gameConfig.customModeId;
+
   // copy it over
   memcpy(&gameConfig, data, sizeof(PatchGameConfig_t));
+
   return sizeof(PatchGameConfig_t);
 }
 

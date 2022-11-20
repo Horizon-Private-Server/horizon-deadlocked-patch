@@ -39,10 +39,10 @@ const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[] = {
 	30, // VIPER
 	30, // MAGMA
 	30, // ARBITER
-	45, // FUSION
-	35, // MINES
+	30, // FUSION
+	30, // MINES
 	30, // B6
-	35, // FLAIL
+	30, // FLAIL
 	30, // SHIELD
 };
 

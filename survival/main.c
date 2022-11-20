@@ -109,14 +109,106 @@ SoundDef TestSoundDef =
 	3			  // Bank
 };
 
+struct SurvivalSpecialRoundParam specialRoundParams[] = {
+	// ROUND 5
+	{
+		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+		.SpawnParamCount = 2,
+		.SpawnParamIds = {
+			MOB_SPAWN_PARAM_RUNNER,
+			MOB_SPAWN_PARAM_GHOST,
+			-1, -1
+		},
+		.Name = "Ghost Runner Round"
+	},
+	// ROUND 10
+	{
+		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+		.SpawnParamCount = 3,
+		.SpawnParamIds = {
+			MOB_SPAWN_PARAM_EXPLOSION,
+			MOB_SPAWN_PARAM_ACID,
+			MOB_SPAWN_PARAM_FREEZE,
+			-1
+		},
+		.Name = "Elemental Round"
+	},
+	// ROUND 15
+	{
+		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+		.SpawnParamCount = 2,
+		.SpawnParamIds = {
+			MOB_SPAWN_PARAM_RUNNER,
+			MOB_SPAWN_PARAM_FREEZE,
+			-1
+		},
+		.Name = "Freeze Runner Round"
+	},
+	// ROUND 20
+	{
+		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+		.SpawnParamCount = 3,
+		.SpawnParamIds = {
+			MOB_SPAWN_PARAM_GHOST,
+			MOB_SPAWN_PARAM_EXPLOSION,
+			MOB_SPAWN_PARAM_RUNNER,
+			-1
+		},
+		.Name = "Evade Round"
+	},
+	// ROUND 25
+	{
+		.MaxSpawnedAtOnce = 10,
+		.SpawnParamCount = 1,
+		.SpawnParamIds = {
+			MOB_SPAWN_PARAM_TITAN,
+			-1
+		},
+		.Name = "Titan Round"
+	},
+};
+
+const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct SurvivalSpecialRoundParam);
+
 // NOTE
 // These must be ordered from least probable to most probable
 struct MobSpawnParams defaultSpawnParams[] = {
+	// titan zombie
+	[MOB_SPAWN_PARAM_TITAN]
+	{
+		.Cost = 1000,
+		.MinRound = 10,
+		.CooldownTicks = TPS * 10,
+		.Probability = 0.01,
+		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
+		.Name = "Titan",
+		.Config = {
+			.MobType = MOB_TANK,
+			.Bangles = ZOMBIE_BANGLE_HEAD_3 | ZOMBIE_BANGLE_TORSO_3,
+			.Damage = ZOMBIE_BASE_DAMAGE * 2.5,
+			.MaxDamage = ZOMBIE_BASE_DAMAGE * 5,
+			.Speed = ZOMBIE_BASE_SPEED * 0.85,
+			.MaxSpeed = ZOMBIE_BASE_SPEED * 1.0,
+			.Health = ZOMBIE_BASE_HEALTH * 50.0,
+			.MaxHealth = 0,
+			.Bolts = ZOMBIE_BASE_BOLTS * 10,
+			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS * 1.5,
+			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS * 1.5,
+			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS * 0.35,
+			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS * 1.5,
+			.MaxCostMutation = 10,
+			.MobSpecialMutation = 0
+		}
+	},
 	// ghost zombie
+	[MOB_SPAWN_PARAM_GHOST]
 	{
 		.Cost = 10,
 		.MinRound = 4,
+		.CooldownTicks = TPS * 1,
 		.Probability = 0.05,
+		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM | SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
+		.Name = "Ghost",
 		.Config = {
 			.MobType = MOB_GHOST,
 			.Bangles = ZOMBIE_BANGLE_HEAD_2 | ZOMBIE_BANGLE_TORSO_2,
@@ -131,14 +223,19 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2
+			.MaxCostMutation = 2,
+			.MobSpecialMutation = 0
 		}
 	},
 	// explode zombie
+	[MOB_SPAWN_PARAM_EXPLOSION]
 	{
 		.Cost = 10,
 		.MinRound = 6,
+		.CooldownTicks = TPS * 2,
 		.Probability = 0.08,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_ON_PLAYER,
+		.Name = "Explosion",
 		.Config = {
 			.MobType = MOB_EXPLODE,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
@@ -153,14 +250,19 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.HitRadius = ZOMBIE_EXPLODE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2
+			.MaxCostMutation = 2,
+			.MobSpecialMutation = 0
 		}
 	},
 	// acid zombie
+	[MOB_SPAWN_PARAM_ACID]
 	{
 		.Cost = 20,
 		.MinRound = 10,
 		.Probability = 0.09,
+		.CooldownTicks = TPS * 1,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
+		.Name = "Acid",
 		.Config = {
 			.MobType = MOB_ACID,
 			.Bangles = ZOMBIE_BANGLE_HEAD_4 | ZOMBIE_BANGLE_TORSO_4,
@@ -169,19 +271,25 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Speed = ZOMBIE_BASE_SPEED * 1.0,
 			.MaxSpeed = ZOMBIE_BASE_SPEED * 1.8,
 			.Health = ZOMBIE_BASE_HEALTH * 1.0,
+			.Bolts = ZOMBIE_BASE_BOLTS * 1.2,
 			.MaxHealth = 0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2
+			.MaxCostMutation = 2,
+			.MobSpecialMutation = 0
 		}
 	},
 	// freeze zombie
+	[MOB_SPAWN_PARAM_FREEZE]
 	{
 		.Cost = 20,
 		.MinRound = 8,
+		.CooldownTicks = TPS * 1,
 		.Probability = 0.1,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
+		.Name = "Freeze",
 		.Config = {
 			.MobType = MOB_FREEZE,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
@@ -196,14 +304,19 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2
+			.MaxCostMutation = 2,
+			.MobSpecialMutation = 0
 		}
 	},
 	// runner zombie
+	[MOB_SPAWN_PARAM_RUNNER]
 	{
 		.Cost = 10,
 		.MinRound = 0,
+		.CooldownTicks = 0,
 		.Probability = 0.2,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
+		.Name = "Runner",
 		.Config = {
 			.MobType = MOB_NORMAL,
 			.Bangles = ZOMBIE_BANGLE_HEAD_5,
@@ -218,14 +331,19 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2
+			.MaxCostMutation = 2,
+			.MobSpecialMutation = 0
 		}
 	},
 	// normal zombie
+	[MOB_SPAWN_PARAM_NORMAL]
 	{
 		.Cost = 5,
 		.MinRound = 0,
+		.CooldownTicks = 0,
 		.Probability = 1.0,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
+		.Name = "Zombie",
 		.Config = {
 			.MobType = MOB_NORMAL,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
@@ -240,16 +358,17 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2
+			.MaxCostMutation = 2,
+			.MobSpecialMutation = 0
 		}
 	},
 };
 
 const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct MobSpawnParams);
-
+int defaultSpawnParamsCooldowns[MOB_SPAWN_PARAM_COUNT];
 
 //--------------------------------------------------------------------------
-void drawRoundMessage(const char * message, float scale)
+void drawRoundMessage(const char * message, float scale, int yPixelsOffset)
 {
 	int fw = gfxGetFontWidth(message, -1, scale);
 	float x = 0.5;
@@ -258,7 +377,7 @@ void drawRoundMessage(const char * message, float scale)
 	// draw message
 	y *= SCREEN_HEIGHT;
 	x *= SCREEN_WIDTH;
-	gfxScreenSpaceText(x, y + 5, scale, scale * 1.5, 0x80FFFFFF, message, -1, 1);
+	gfxScreenSpaceText(x, y + 5 + yPixelsOffset, scale, scale * 1.5, 0x80FFFFFF, message, -1, 1);
 }
 
 //--------------------------------------------------------------------------
@@ -273,6 +392,27 @@ void openWeaponsMenu(int localPlayerIndex)
 }
 
 //--------------------------------------------------------------------------
+Moby * mobyGetRandomHealthbox(void)
+{
+	Moby* results[10];
+	int count = 0;
+	Moby* start = mobyListGetStart();
+	Moby* end = mobyListGetEnd();
+
+	while (start < end && count < 10) {
+		if (start->OClass == MOBY_ID_HEALTH_BOX_MULT && !mobyIsDestroyed(start))
+			results[count++] = start;
+
+		++start;
+	}
+
+	if (count > 0)
+		return results[rand(count)];
+
+	return NULL;
+}
+
+//--------------------------------------------------------------------------
 Player * playerGetRandom(void)
 {
 	int r = rand(GAME_MAX_PLAYERS);
@@ -280,7 +420,7 @@ Player * playerGetRandom(void)
 	Player ** players = playerGetAll();
 
 	do {
-		if (players[i] && !playerIsDead(players[i]))
+		if (players[i] && !playerIsDead(players[i]) && players[i]->Health > 0)
 			++c;
 		
 		++i;
@@ -324,7 +464,7 @@ int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 }
 
 //--------------------------------------------------------------------------
-int spawnGetRandomPoint(VECTOR out) {
+int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
 	// larger the map, better chance mob spawns near you
 	// harder difficulty, better chance mob spawns near you
 	float r = randRange(0, 1) / (BakedConfig.MapSize * State.Difficulty);
@@ -334,7 +474,7 @@ int spawnGetRandomPoint(VECTOR out) {
 #endif
 
 	// spawn on player
-	if (r <= MOB_SPAWN_AT_PLAYER_PROBABILITY) {
+	if (r <= MOB_SPAWN_AT_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_ON_PLAYER)) {
 		Player * targetPlayer = playerGetRandom();
 		if (targetPlayer) {
 			vector_write(out, randVectorRange(-1, 1));
@@ -344,11 +484,25 @@ int spawnGetRandomPoint(VECTOR out) {
 		}
 	}
 
+	// spawn near healthbox
+	if (r <= MOB_SPAWN_NEAR_HEALTHBOX_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_NEAR_HEALTHBOX)) {
+		Moby* hb = mobyGetRandomHealthbox();
+		if (hb)
+			return spawnPointGetNearestTo(hb->Position, out, 10);
+	}
+
 	// spawn near player
-	if (r <= MOB_SPAWN_NEAR_PLAYER_PROBABILITY) {
+	if (r <= MOB_SPAWN_NEAR_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_NEAR_PLAYER)) {
 		Player * targetPlayer = playerGetRandom();
 		if (targetPlayer)
 			return spawnPointGetNearestTo(targetPlayer->PlayerPosition, out, 5);
+	}
+
+	// spawn semi near player
+	if (r <= MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_SEMI_NEAR_PLAYER)) {
+		Player * targetPlayer = playerGetRandom();
+		if (targetPlayer)
+			return spawnPointGetNearestTo(targetPlayer->PlayerPosition, out, 20);
 	}
 
 	// spawn randomly
@@ -371,23 +525,34 @@ int spawnCanSpawnMob(struct MobSpawnParams* mob)
 }
 
 //--------------------------------------------------------------------------
-struct MobSpawnParams* spawnGetRandomMobParams(void)
+struct MobSpawnParams* spawnGetRandomMobParams(int * mobIdx)
 {
-	int i;
+	int i,j;
+
+	if (State.RoundIsSpecial) {
+		struct SurvivalSpecialRoundParam* params = &specialRoundParams[State.RoundSpecialIdx];
+		i = rand(params->SpawnParamCount);
+		if (mobIdx)
+			*mobIdx = (int)params->SpawnParamIds[i];
+		return &defaultSpawnParams[(int)params->SpawnParamIds[i]];
+	}
+
 	if (State.RoundBudget < State.MinMobCost)
 		return NULL;
 
 	for (i = 0; i < defaultSpawnParamsCount; ++i) {
 		struct MobSpawnParams* mob = &defaultSpawnParams[i];
-		if (spawnCanSpawnMob(mob) && randRange(0,1) <= mob->Probability)
+		if (spawnCanSpawnMob(mob) && randRange(0,1) <= mob->Probability) {
+			if (mobIdx)
+				*mobIdx = i;
 			return mob;
+		}
 	}
 
 	for (i = 0; i < defaultSpawnParamsCount; ++i) {
 		struct MobSpawnParams* mob = &defaultSpawnParams[i];
-		DPRINTF("CANT SPAWN budget:%d round:%d mobIdx:%d mobMinRound:%d mobCost:%d mobProb:%f\n", State.RoundBudget, State.RoundNumber, i, mob->MinRound, mob->Cost, mob->Probability);
+		DPRINTF("CANT SPAWN budget:%ld round:%d mobIdx:%d mobMinRound:%d mobCost:%d mobProb:%f\n", State.RoundBudget, State.RoundNumber, i, mob->MinRound, mob->Cost, mob->Probability);
 	}
-	
 	
 	return NULL;
 }
@@ -395,17 +560,44 @@ struct MobSpawnParams* spawnGetRandomMobParams(void)
 //--------------------------------------------------------------------------
 int spawnRandomMob(void) {
 	VECTOR sp;
-	if (spawnGetRandomPoint(sp)) {
-		struct MobSpawnParams* mob = spawnGetRandomMobParams();
-		if (mob) {
+	int mobIdx = 0;
+	struct MobSpawnParams* mob = spawnGetRandomMobParams(&mobIdx);
+	char bakedSpecialMutation = mob->Config.MobSpecialMutation;
+	if (mob) {
+		int cost = mob->Cost;
+
+		// skip if cooldown not 0
+		int cooldown = defaultSpawnParamsCooldowns[mobIdx];
+		if (cooldown > 0) {
+			return 1;
+		}
+		else {
+			defaultSpawnParamsCooldowns[mobIdx] = mob->CooldownTicks;
+		}
+
+		// try and get special mutation
+		float r = randRange(0, 1);
+		if (!bakedSpecialMutation && r < ZOMBIE_SPECIAL_MUTATION_PROBABILITY) {
+			int newCost = cost + ZOMBIE_SPECIAL_MUTATION_BASE_COST + (ZOMBIE_SPECIAL_MUTATION_REL_COST * mob->Cost);
+			if (newCost < State.RoundBudget) {
+				mob->Config.MobSpecialMutation = rand(MOB_SPECIAL_MUTATION_COUNT - 1) + 1;
+				cost = newCost;
+				DPRINTF("spawning %s with special mutation %d\n", mob->Name, mob->Config.MobSpecialMutation);
+			}
+		}
+
+		// try and spawn
+		if (spawnGetRandomPoint(sp, mob)) {
 			if (mobCreate(sp, 0, -1, &mob->Config)) {
-				State.RoundBudget -= mob->Cost;
+				mob->Config.MobSpecialMutation = bakedSpecialMutation;
+				State.RoundBudget -= cost;
 				return 1;
 			} else { DPRINTF("failed to create mob\n"); }
-		} else { DPRINTF("failed to get random mob params %f\n", randRange(0, 1)); }
-	} else { DPRINTF("failed to get random spawn point\n"); }
+		} else { DPRINTF("failed to get random spawn point\n"); }
+	} else { DPRINTF("failed to get random mob params\n"); }
 
 	// no more budget left
+	mob->Config.MobSpecialMutation = bakedSpecialMutation;
 	return 0;
 }
 
@@ -630,8 +822,10 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 		vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
 	playerSetHealth(player, 50);
 	playerSetPosRot(player, deadPos, deadRot);
+
 	player->timers.acidTimer = 0;
-	player->timers.freezeTimer = 0;
+	player->timers.freezeTimer = 1; // triggers the game to handle resetting movement speed on 0
+	player->timers.postHitInvinc = TPS * 3;
 }
 
 //--------------------------------------------------------------------------
@@ -920,7 +1114,7 @@ void processPlayer(int pIndex) {
 	if (!player)
 		return;
 
-	int isDeadState = playerIsDead(player);
+	int isDeadState = playerIsDead(player) || player->Health == 0;
 	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
 	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
 	int reviveCooldownTicks = decTimerU16(&playerData->ReviveCooldownTicks);
@@ -981,10 +1175,9 @@ void processPlayer(int pIndex) {
 		if (isDeadState && player->timers.state > TPS) {
 			vector_subtract(t, player->PlayerPosition, player->Ground.lastGoodPos);
 			if (vector_sqrmag(t) > 1) {
+				playerSetPosRot(player, player->Ground.lastGoodPos, player->PlayerRotation);
 				player->Health = 0;
 				player->PlayerState = PLAYER_STATE_DEATH;
-				playerSetPosRot(player, player->Ground.lastGoodPos, player->PlayerRotation);
-				//vector_copy(player->PlayerPosition, player->Ground.lastGoodPos);
 			}
 		}
 
@@ -1121,11 +1314,12 @@ void processPlayer(int pIndex) {
 //--------------------------------------------------------------------------
 int getRoundBonus(int roundNumber, int numPlayers)
 {
+	int multiplier = State.RoundIsSpecial ? ROUND_SPECIAL_BONUS_MULTIPLIER : 1;
 	int bonus = State.RoundNumber * ROUND_BASE_BOLT_BONUS * numPlayers;
 	if (bonus > ROUND_MAX_BOLT_BONUS)
-		return ROUND_MAX_BOLT_BONUS;
+		return ROUND_MAX_BOLT_BONUS * multiplier;
 
-	return bonus;
+	return bonus * multiplier;
 }
 
 //--------------------------------------------------------------------------
@@ -1187,6 +1381,8 @@ void onSetRoundStart(int roundNumber, int gameTime)
 	// 
 	State.RoundNumber = roundNumber;
 	State.RoundEndTime = gameTime;
+	State.RoundIsSpecial = ((roundNumber + 1) % ROUND_SPECIAL_EVERY) == 0;
+	State.RoundSpecialIdx = (roundNumber / ROUND_SPECIAL_EVERY) % specialRoundParamsCount;
 
 	DPRINTF("round start %d\n", roundNumber);
 }
@@ -1397,10 +1593,12 @@ void resetRoundState(void)
 
 	// 
 	static int accum = 0;
+	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
 	accum += State.RoundNumber * BUDGET_START_ACCUM * State.Difficulty;
 	State.RoundBudget = BUDGET_START + accum + 
-					(State.RoundNumber * gameSettings->PlayerCountAtStart * (int)(State.Difficulty * BUDGET_PLAYER_WEIGHT));
-	State.RoundMaxMobCount = MAX_MOBS_BASE + (MAX_MOBS_ROUND_WEIGHT * State.RoundNumber * gameSettings->PlayerCountAtStart);
+					(State.RoundNumber * (int)(State.Difficulty * BUDGET_PLAYER_WEIGHT * playerCountMultiplier));
+	State.RoundMaxMobCount = MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(State.RoundNumber * playerCountMultiplier, 0.75)));
+	State.RoundMaxSpawnedAtOnce = MAX_MOBS_SPAWNED;
 	State.RoundInitialized = 0;
 	State.RoundStartTime = gameTime;
 	State.RoundCompleteTime = 0;
@@ -1411,6 +1609,11 @@ void resetRoundState(void)
 	State.RoundSpawnTickerCounter = 0;
 	State.RoundNextSpawnTickerCounter = 0;
 	State.MinMobCost = getMinMobCost();
+
+	// 
+	if (State.RoundIsSpecial) {
+		State.RoundMaxSpawnedAtOnce = specialRoundParams[State.RoundSpecialIdx].MaxSpawnedAtOnce;
+	}
 
 	// 
 	State.RoundInitialized = 1;
@@ -1475,6 +1678,9 @@ void initialize(PatchGameConfig_t* gameConfig)
 	POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
 	POKE_U16(0x0060582C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
 
+	// disable vampire
+	gameConfig->grVampire = 0;
+
 	//WeaponDefsData* wepDefs = weaponGetGunLevelDefs();
 	//wepDefs[WEAPON_ID_MAGMA_CANNON].Entries[9].Damage[2] = 80.0;
 
@@ -1514,6 +1720,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 		--startDelay;
 		return;
 	}
+
+	memset(defaultSpawnParamsCooldowns, 0, sizeof(defaultSpawnParamsCooldowns));
 
 	// 
 	mobInitialize();
@@ -1596,6 +1804,9 @@ void initialize(PatchGameConfig_t* gameConfig)
 	DPRINTF("vendor %08X\n", (u32)State.Vendor);
 	DPRINTF("big al %08X\n", (u32)State.BigAl);
 
+	// special
+	memset(State.RoundSpecialSpawnableZombies, -1, sizeof(State.RoundSpecialSpawnableZombies));
+
 	// initialize state
 	State.GameOver = 0;
 	State.RoundNumber = 0;
@@ -1604,7 +1815,9 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.MobsDrawGameTime = 0;
 	State.Freeze = 0;
 	State.TimeOfFreeze = 0;
-	State.DropCooldownTicks = 0;
+	State.RoundIsSpecial = 0;
+	State.RoundSpecialIdx = 0;
+	State.DropCooldownTicks = DROP_COOLDOWN_TICKS_MAX; // try and stop drops from spawning immediately
 	State.InitializedTime = gameGetTime();
 	State.Difficulty = DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 	resetRoundState();
@@ -1661,7 +1874,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	Player ** players = playerGetAll();
 	Player* localPlayer = playerGetFromSlot(0);
 	int i;
-	char buffer[32];
+	char buffer[64];
 	int gameTime = gameGetTime();
 
 	// first
@@ -1702,10 +1915,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 #if MANUAL_SPAWN
 	{
-		Player * localPlayer = (Player*)0x00347AA0;
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
-			manSpawnMobId = 1; // defaultSpawnParamsCount - 1;
+			//manSpawnMobId = defaultSpawnParamsCount - 1;
 			VECTOR t;
 			vector_copy(t, localPlayer->PlayerPosition);
 			t[0] += 1;
@@ -1717,7 +1929,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 #if MANUAL_DROP_SPAWN
 	{
-		Player * localPlayer = (Player*)0x00347AA0;
 		if (padGetButtonDown(0, PAD_UP) > 0) {
 			static int manSpawnDropId = 0;
 			static int manSpawnDropIdx = 0;
@@ -1815,7 +2026,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			// determine number of players alive
 			// and if one or more teams are left alive
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				if (players[i] && !playerIsDead(players[i])) {
+				if (players[i] && !playerIsDead(players[i]) && players[i]->Health > 0) {
 					isAnyPlayerAlive = 1;
 					if (lastTeam != players[i]->Team) {
 						if (lastTeam >= 0)
@@ -1845,7 +2056,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			// draw round complete message
 			if (gameTime < (State.RoundCompleteTime + ROUND_MESSAGE_DURATION_MS)) {
 				sprintf(buffer, SURVIVAL_ROUND_COMPLETE_MESSAGE, State.RoundNumber);
-				drawRoundMessage(buffer, 1.5);
+				drawRoundMessage(buffer, 1.5, 0);
 			}
 
 			if (State.RoundEndTime)
@@ -1891,16 +2102,29 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			// draw round start message
 			if (gameTime < (State.RoundStartTime + ROUND_MESSAGE_DURATION_MS)) {
 				sprintf(buffer, SURVIVAL_ROUND_START_MESSAGE, State.RoundNumber+1);
-				drawRoundMessage(buffer, 1.5);
+				drawRoundMessage(buffer, 1.5, 0);
+				if (State.RoundIsSpecial) {
+					drawRoundMessage(specialRoundParams[State.RoundSpecialIdx].Name, 1, 35);
+				}
 			}
 
 #if !defined(DISABLE_SPAWNING)
 			// host specific logic
 			if (State.IsHost && (gameTime - State.RoundStartTime) > ROUND_START_DELAY_MS)
 			{
+				// decrement mob cooldowns
+				for (i = 0; i < defaultSpawnParamsCount; ++i) {
+					if (defaultSpawnParamsCooldowns[i]) {
+						defaultSpawnParamsCooldowns[i] -= 1;
+					}
+				}
+
+				// reduce count per player to reduce lag
+				int maxSpawn = State.RoundMaxSpawnedAtOnce - State.ActivePlayerCount;
+
 				// handle spawning
 				if (State.RoundSpawnTicker == 0) {
-					if (State.RoundMobCount < MAX_MOBS_SPAWNED && !State.Freeze) {
+					if (State.RoundMobCount < maxSpawn && !State.Freeze) {
 						if (State.RoundBudget >= State.MinMobCost && State.RoundMobSpawnedCount < State.RoundMaxMobCount) {
 							if (spawnRandomMob()) {
 								++State.RoundMobSpawnedCount;

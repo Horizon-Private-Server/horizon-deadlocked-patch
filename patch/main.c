@@ -154,7 +154,10 @@ int updateTimeMs = 0;
 float averageUpdateTimeMs = 0;
 int timeLocalPlayerPickedUpFlag[2] = {0,0};
 int localPlayerHasFlag[2] = {0,0};
+int redownloadCustomModeBinaries = 0;
 ServerSetRanksRequest_t lastSetRanksRequest;
+
+extern int dlIsActive;
 
 int lastLodLevel = 2;
 const int lodPatchesPotato[][2] = {
@@ -1986,6 +1989,10 @@ void runGameStartMessager(void)
 				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
 			}
 			
+#if DEBUG
+			redownloadCustomModeBinaries = 1;
+#endif
+
 			sentGameStart = 1;
 		}
 	}
@@ -2879,6 +2886,51 @@ void updateHook(void)
 	}
 }
 
+int onCustomModeDownloadInitiated(void * connection, void * data)
+{
+	DPRINTF("requested mode binaries started %d\n", dlIsActive);
+	redownloadCustomModeBinaries = 0;
+	return 0;
+}
+
+void runPayloadDownloadRequester(void)
+{
+	GameModule * module = GLOBAL_GAME_MODULES_START;
+	GameSettings* gs = gameGetSettings();
+	if (!gs || isInGame())
+		return;
+
+	// don't make any requests when the config menu is active
+	if (gameAmIHost() && isConfigMenuActive)
+		return;
+
+	if (!dlIsActive) {
+		// redownload when set mode doesn't match downloaded one
+		if (!redownloadCustomModeBinaries && gameConfig.customModeId && (module->State == 0 || module->ModeId != gameConfig.customModeId)) {
+			redownloadCustomModeBinaries = 1;
+			DPRINTF("mode id %d != %d\n", gameConfig.customModeId, module->ModeId);
+		}
+
+		// redownload when set map doesn't match downloaded one
+		if (!redownloadCustomModeBinaries && module->State && module->MapId != gameConfig.customMapId) {
+			redownloadCustomModeBinaries = 1;
+			DPRINTF("map id %d != %d\n", gameConfig.customMapId, module->MapId);
+		}
+
+		// disable when module id doesn't match mode
+		if (redownloadCustomModeBinaries == 1 || (module->State && !gameConfig.customModeId)) {
+			module->State = 0;
+			memset((void*)0x000F0000, 0, 0xF000);
+		}
+
+		if (redownloadCustomModeBinaries == 1) {
+			netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_REQUEST_CUSTOM_MODE_PATCH, 0, &dlIsActive);
+			redownloadCustomModeBinaries = 2;
+			DPRINTF("requested mode binaries\n");
+		}
+	}
+}
+
 /*
  * NAME :		onOnlineMenu
  * 
@@ -3032,6 +3084,7 @@ int main (void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_REQUEST_TEAM_CHANGE, &onSetTeams);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST, &onSetLobbyClientPatchConfig);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
+	netInstallCustomMsgHandler(CUSTOM_MSG_RESPONSE_CUSTOM_MODE_PATCH, &onCustomModeDownloadInitiated);
 
 	// Run map loader
 	runMapLoader();
@@ -3063,6 +3116,9 @@ int main (void)
 
 	// Run add singleplayer music
 	runEnableSingleplayerMusic();
+
+	// detects when to download a new custom mode patch
+	runPayloadDownloadRequester();
 
 	// Patch camera speed
 	patchCameraSpeed();

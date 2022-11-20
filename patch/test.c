@@ -527,6 +527,67 @@ void runAnimJointThing(void)
 }
 
 //--------------------------------------------------------------------------
+void drawEffectQuad(VECTOR position, int texId, float scale)
+{
+	struct QuadDef quad;
+	MATRIX m2;
+	VECTOR t;
+	VECTOR pTL = {0.5,0,0.5,1};
+	VECTOR pTR = {-0.5,0,0.5,1};
+	VECTOR pBL = {0.5,0,-0.5,1};
+	VECTOR pBR = {-0.5,0,-0.5,1};
+  
+	// determine color
+	u32 color = 0x80FFFFFF;
+
+	// set draw args
+	matrix_unit(m2);
+
+	// init
+  gfxResetQuad(&quad);
+
+	// color of each corner?
+	vector_copy(quad.VertexPositions[0], pTL);
+	vector_copy(quad.VertexPositions[1], pTR);
+	vector_copy(quad.VertexPositions[2], pBL);
+	vector_copy(quad.VertexPositions[3], pBR);
+	quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
+  quad.VertexUVs[0] = (struct UV){0,0};
+  quad.VertexUVs[1] = (struct UV){1,0};
+  quad.VertexUVs[2] = (struct UV){0,1};
+  quad.VertexUVs[3] = (struct UV){1,1};
+	quad.Clamp = 0;
+	quad.Tex0 = gfxGetEffectTex(texId, 1);
+	quad.Tex1 = 0xFF9000000260;
+	quad.Alpha = 0x8000000044;
+
+	GameCamera* camera = cameraGetGameCamera(0);
+	if (!camera)
+		return;
+
+	// get forward vector
+	vector_subtract(t, camera->pos, position);
+	t[2] = 0;
+	vector_normalize(&m2[4], t);
+
+	// up vector
+	m2[8 + 2] = 1;
+
+	// right vector
+	vector_outerproduct(&m2[0], &m2[4], &m2[8]);
+
+  t[0] = t[1] = t[2] = scale;
+  t[3] = 1;
+  matrix_scale(m2, m2, t);
+
+	// position
+	memcpy(&m2[12], position, sizeof(VECTOR));
+
+	// draw
+	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
+}
+
+//--------------------------------------------------------------------------
 void dropPostDraw(Moby* moby)
 {
 	struct QuadDef quad;
@@ -591,13 +652,177 @@ void runDrawQuad(void)
   }
 }
 
+void runCameraHeight(void)
+{
+  char buf[32];
+
+  GameCamera* camera = cameraGetGameCamera(0);
+  if (camera) {
+
+    sprintf(buf, "%f\n", camera->pos[2]);
+    gfxScreenSpaceText(15, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, buf, -1, 0);
+  }
+}
+
+static inline void nopdelay(void)
+{
+    int i = 0xfffff;
+
+    do {
+        __asm__("nop\nnop\nnop\nnop\nnop\n");
+    } while (i-- != -1);
+}
+
+void runSystemTime(void)
+{
+  static int aaa = 0;
+  static int d = 0;
+  char buf[32];
+
+  long t = timerGetSystemTime();
+	long tMs = t / SYSTEM_TIME_TICKS_PER_MS;
+
+  sprintf(buf, "%d: %.2f\n", aaa, (int)tMs / 1000.0);
+  gfxScreenSpaceText(15, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, buf, -1, 0);
+
+  if (padGetButton(0, PAD_LEFT) > 0) {
+    if (!d) {
+      --aaa;
+      if (aaa < 0)
+        aaa = 0;
+    }
+    d = 1;
+  }
+  else if (padGetButton(0, PAD_RIGHT) > 0) {
+    if (!d) {
+      ++aaa;
+    }
+    d = 1;
+  }
+  else if (padGetButton(0, PAD_DOWN) > 0) {
+    if (!d) {
+      POKE_U32(0x0021df60, *(int*)0x0021df60 == 60 ? 30 : 60);
+    }
+    d = 1;
+  }
+  else {
+    d = 0;
+  }
+
+  int i = 0;
+  while (i) {
+    nopdelay();
+    --i;
+  }
+}
+
+void drawCBoot(Moby* moby)
+{
+  MATRIX m;
+  int i = 0;
+  int x,y;
+  char buf[12];
+
+  matrix_unit(m);
+  vector_copy(&m[12], moby->Position);
+  m[12 + 0] += 2;
+  m[12 + 2] += 0;
+
+  for (i = 0; i < 0x40; ++i) {
+    vector_copy(&m[12], moby->Position);
+    m[12 + 0] += 2 * (i / 0x10);
+    m[12 + 1] += 2 * (i % 0x10);
+
+    float gt = (gameGetTime() % 1000) / 1000.0f;
+    ((void (*)(float, u32, MATRIX, u32, u64, int, int))0x004CCF98)(gt, 0x002225A8, m, i, 0xFFFFFFFF97396BC0, 5, 2);
+    if (gfxWorldSpaceToScreenSpace(&m[12], &x, &y)) {
+      sprintf(buf, "%d", i);
+      gfxScreenSpaceText(x, y, 1, 1, 0xFFFFFFFF, buf, -1, 4);
+    }
+
+    drawEffectQuad(&m[12], i, 1);
+  }
+}
+
+void drawCollider(Moby* moby)
+{
+  VECTOR pos,t,o = {0,0,0.7,0};
+  int i,j = 0;
+  int x,y;
+  char buf[12];
+  Player * p = playerGetFromSlot(0);
+
+  const int steps = 10 * 2;
+  const float radius = 2;
+
+  for (i = 0; i < steps; ++i) {
+    for (j = 0; j < steps; ++j) {
+      float theta = (i / (float)steps) * MATH_TAU;
+      float omega = (j / (float)steps) * MATH_TAU;
+
+      vector_copy(pos, p->PlayerPosition);
+      pos[0] += radius * sinf(theta) * cosf(omega);
+      pos[1] += radius * sinf(theta) * sinf(omega);
+      pos[2] += radius * cosf(theta);
+
+      vector_add(t, p->PlayerPosition, o);
+
+      if (CollLine_Fix(pos, t, 1, NULL, 0)) {
+        vector_copy(t, CollLine_Fix_GetHitPosition());
+        drawEffectQuad(t, 21, 0.1);
+      }
+
+    }
+
+  }
+}
+
+renderCBootPUpdate(Moby* m)
+{
+  gfxRegisterDrawFunction((void**)0x0022251C, &drawCollider, m);
+}
+
+void runRenderCboot(void)
+{
+  VECTOR off = {0,0,2,0};
+
+  if (isUnloading) {
+    if (TestMoby) {
+      mobyDestroy(TestMoby);
+      TestMoby = NULL;
+    }
+    return;
+  }
+
+  if (!TestMoby) {
+    Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
+    m->Scale *= 0.1;
+    m->PUpdate = &renderCBootPUpdate;
+    m->CollActive = 0;
+    vector_add(m->Position, playerGetFromSlot(0)->PlayerPosition, off);
+  }
+
+  TestMoby->DrawDist = 0xFF;
+  TestMoby->UpdateDist = 0xFF;
+}
+
 void runTestLogic(void)
 {
   //runHitmarkerLogic();
 
+  //runSystemTime();
   if (isInGame()) {
     //runAnimJointThing();
-    runDrawQuad();
+    //runDrawQuad();
+    //runCameraHeight();
+    runRenderCboot();
+
+    if (padGetButton(0, PAD_L1 | PAD_CIRCLE) > 0) {
+      *(float*)0x00347BD8 = 0.125;
+    }
+    else if (padGetButton(0, PAD_L1 | PAD_R1 | PAD_TRIANGLE) > 0) {
+      playerGetFromSlot(0)->Health = 0;
+    }
   } else {
     TestMoby = NULL;
   }

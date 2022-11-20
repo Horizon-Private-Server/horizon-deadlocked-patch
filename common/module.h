@@ -91,7 +91,17 @@ typedef struct GameModule
     /*
      * State of the module.
      */
-    GameModuleState State;
+    char State;
+
+    /*
+     * Respective custom game mode id.
+     */
+    char ModeId;
+
+    /*
+     * Respective custom map id.
+     */
+    char MapId;
 
     /*
      * Entrypoint of module to be invoked when in game.

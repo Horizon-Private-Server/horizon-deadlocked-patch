@@ -202,6 +202,16 @@ enum CustomMessageId
     CUSTOM_MSG_ID_FLAG_PICKED_UP = 35,
 
     /*
+     * Sent from a client to the server when they want the custom gamemode binary sent to them.
+     */
+    CUSTOM_MSG_REQUEST_CUSTOM_MODE_PATCH = 36,
+
+    /*
+     * Sent from the server to the client after the the custom gamemode binary download has initiated.
+     */
+    CUSTOM_MSG_RESPONSE_CUSTOM_MODE_PATCH = 37,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
