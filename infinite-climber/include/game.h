@@ -17,6 +17,7 @@ typedef struct MobyDef
 	float ObjectScale;
 
 	u16 OClass;
+	char SpawnNormal;
 } MobyDef;
 
 struct State
