@@ -33,9 +33,9 @@
 #include "module.h"
 #include "include/game.h"
 
-#define MAX_MAP_MOBY_DEFS		(10)
-#define MAX_WATER_RATE			(0.03)
-#define MAX_SPAWN_RATE			(TIME_SECOND * 0.5)
+#define MAX_MAP_MOBY_DEFS		(20)
+#define MAX_WATER_RATE			(0.02)
+#define MAX_SPAWN_RATE			(TIME_SECOND * 1.1)
 
 
 /*
@@ -70,7 +70,6 @@ int BranchDialogs[] = { DIALOG_ID_CLANK_YOU_HAVE_A_CHOICE_OF_2_PATHS, DIALOG_ID_
 int StartDialogs[] = { DIALOG_ID_TEAM_DEADSTAR, DIALOG_ID_DALLAS_SHOWTIME, DIALOG_ID_DALLAS_RATCHET_LAST_WILL_AND_TESTAMENT, DIALOG_ID_DALLAS_WHO_PACKED_YOUR_PARACHUTE, };
 int IncrementalDialogs[] = { DIALOG_ID_PLEASE_TAKE_YOUR_TIME, DIALOG_ID_DALLAS_SHOWOFF, DIALOG_ID_JUANITA_MORON, DIALOG_ID_JUANITA_I_CANT_BEAR_TO_LOOK_YES_I_CAN, DIALOG_ID_DALLAS_CARNAGE_LAST_RELATIONSHIP, DIALOG_ID_DALLAS_LOOK_AT_THAT_LITTLE_GUY_GO,  };
 
-
 struct ClimbChain
 {
 	int Active;
@@ -95,25 +94,49 @@ VECTOR StartUNK_80 = {
 	62013.9
 };
 
+VECTOR VECTOR_M0 = { 1, 0, 0, 0 };
+VECTOR VECTOR_M1 = { 0, 1, 0, 0 };
+VECTOR VECTOR_M2 = { 0, 0, 1, 0 };
+
 int MapMobyDefsCount = 0;
 MobyDef * MapMobyDefs[MAX_MAP_MOBY_DEFS];
 
+MobyDef MobyDefs2[] = {
+	{ 3, 0.8, 0.5, MOBY_ID_TELEPORT_PAD, 0 },
+};
+
 MobyDef MobyDefs[] = {
 	
-	//{ 5, 0.85, 1, MOBY_ID_PART_CATACROM_BRIDGE },
-	{ 5, 0.8, 1, MOBY_ID_SARATHOS_BRIDGE },
+	{ 5, 0.85, 1, MOBY_ID_PART_CATACROM_BRIDGE, 0 },
 
-	{ 5, 0.85, 1, MOBY_ID_SARATHOS_BRIDGE },
-	{ 5, 0.85, 1, MOBY_ID_OTHER_PART_FOR_SARATHOS_BRIDGE },
+	{ 5, 0.85, 1, MOBY_ID_SARATHOS_BRIDGE, 1 },
+	{ 5, 0.85, 1, MOBY_ID_OTHER_PART_FOR_SARATHOS_BRIDGE, 1 },
+	{ 7, 0.85, 1, MOBY_ID_GLASS_FROM_LEVIATHANS_LAIR, 1 },
+	{ 4, 0.5, 0.5, MOBY_ID_CIRCLE_BARRICADE, 0 },
 
-	{ 5, 0.8, 1, MOBY_ID_DARK_CATHEDRAL_SECRET_PLATFORM },
+	{ 5, 0.8, 1, MOBY_ID_DARK_CATHEDRAL_SECRET_PLATFORM, 1 },
+	{ 5, 0.8, 1, MOBY_ID_POSSIBLY_THE_BOTTOM_TO_THE_BATTLE_BOT_PRISON_CONTAINER, 0 },
 
 	
-	//{ 5, 0.8, 0.5, MOBY_ID_TURRET_SHIELD_UPGRADE }, //this freezes ps2, need to fix sometime
-	{ 3, 0.5, 0.5, MOBY_ID_BETA_BOX },
-	{ 5, 0.85, 1, MOBY_ID_VEHICLE_PAD },
-	{ 3, 0.8, 0.5, MOBY_ID_TELEPORT_PAD },
-	//{ 3, 0.8, 0.5, MOBY_ID_PICKUP_PAD }
+	
+	{ 3, 0.5, 0.5, MOBY_ID_BETA_BOX, 0 },
+	{ 5, 0.85, 1, MOBY_ID_VEHICLE_PAD, 0 },
+	{ 3, 0.8, 0.5, MOBY_ID_TELEPORT_PAD, 0 },
+	{ 5, 0.8, 0.7, MOBY_ID_CONQUEST_TURRET_HOLDER_TRIANGLE_THING, 0 },
+	{ 3, 0.8, 0.5, MOBY_ID_PICKUP_PAD, 0 },
+
+	{ 3, 1, 0.7, MOBY_ID_SMALL_RED_CIRCULAR_PLATFORM, 0 },
+	{ 4, 0.5, 0.7, MOBY_ID_BOT_GRIND_CABLE_LAUNCH_PAD, 0 },
+	{ 7, 0.8, 3, MOBY_ID_INTERPLANETARY_TRANSPORT_SHIP, 0 },
+	{ 4, 1, 0.5, MOBY_ID_BATTLEDOME_INTERACTIVE_PLATFORM_RED_LIGHTS_ON_THE_SIDE, 0 },
+	{ 3, 0.8, 2, MOBY_ID_BLUE_FLOORLIGHT_OBJECT_CONTAINMENT_SUITE_THINGS, 0 },
+	{ 2, 0.5, 0.5, MOBY_ID_DREADZONE_SATELLITE, 0 },
+	{ 4, 1, 1, MOBY_ID_DREADZONE_EMBLEM, 0 },
+	{ 5, 0.3, 0.5, MOBY_ID_MARAXUS_BOX, 0 },
+	{ 7, 1, 1, MOBY_ID_TORVAL_PLATFORM, 0 },
+	{ 3, 0.5, 3, MOBY_ID_TORVAL_STREET_LIGHT, 0 },
+	{ 4, 0.8, 3, MOBY_ID_RED_DREADZONE_LIFT, 0 },
+	{ 3, 1, 1.2, MOBY_ID_TURRET_SHIELD_UPGRADE, 0 }
 };
 
 //--------------------------------------------------------------------------
@@ -135,14 +158,20 @@ int gameGetTeamScore(int team, int score)
 	return score;
 }
 
+void * GetMobyClassPtr(int oClass)
+{
+    int mClass = *(u8*)(0x0024a110 + oClass);
+    return *(u32*)(0x002495c0 + mClass*4);
+}
+
 Moby * spawnWithPVars(int OClass)
 {
 	switch (OClass)
 	{
-		case MOBY_ID_VEHICLE_PAD: return mobySpawn(OClass, 0x60);
-		case MOBY_ID_PICKUP_PAD: return mobySpawn(OClass, 0x90);
-		case MOBY_ID_TELEPORT_PAD: return mobySpawn(OClass, 0xD0);
-		case MOBY_ID_TURRET_SHIELD_UPGRADE: return mobySpawn(OClass, 0xD0);
+		// case MOBY_ID_VEHICLE_PAD: return mobySpawn(OClass, 0x60);
+		// case MOBY_ID_PICKUP_PAD: return mobySpawn(OClass, 0x90);
+		// case MOBY_ID_TELEPORT_PAD: return mobySpawn(OClass, 0xD0);
+		// case MOBY_ID_TURRET_SHIELD_UPGRADE: return mobySpawn(OClass, 0xD0);
 		default: return mobySpawn(OClass, 0);
 	}
 }
@@ -151,10 +180,31 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 {
 	Moby * sourceBox;
 
-	// Spawn box so we know the correct model and collision pointers
-	sourceBox = spawnWithPVars(def->OClass);
-	if (!sourceBox)
-		return 0;
+	// Some models are buggy when spawned from a beta box template, so spawn them the old way.
+	// On the other hand, some models can only be spawned using a beta box template.
+	if(def->SpawnNormal) {
+		// Spawn box so we know the correct model and collision pointers
+		sourceBox = spawnWithPVars(def->OClass);
+		if (!sourceBox)
+			return 0;
+
+	} else {
+		sourceBox = mobySpawn(MOBY_ID_BETA_BOX, 0);
+		if (!sourceBox)
+			return 0;
+
+		void* mobyClass = GetMobyClassPtr(def->OClass);
+
+		if(!mobyClass) {
+			mobyDestroy(sourceBox);
+			return 0;
+		}
+
+		sourceBox->OClass = def->OClass;
+		sourceBox->PClass = mobyClass;
+		sourceBox->CollData = *(int*) ((u32)mobyClass + 0x10);
+		sourceBox->MClass = *(u8*)(0x0024a110 + def->OClass);
+	}
 
 	// 
 	position[3] = sourceBox->Position[3];
@@ -166,18 +216,23 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 	sourceBox->UpdateDist = 0xFF;
 	sourceBox->Drawn = 0x01;
 	sourceBox->DrawDist = 0x0080;
-	sourceBox->Opacity = 0x7E;
-	sourceBox->State = 1;
+	sourceBox->Opacity = 0x80;
+	sourceBox->State = 0;
+	sourceBox->ModeBits = 0x0050;
+	sourceBox->GlowRGBA = 0x808C8C8C;
 
-	sourceBox->Scale = (float)0.11 * scale * def->ObjectScale;
-	sourceBox->Lights = 0x202;
+
+ 	sourceBox->Scale = (float)0.11 * scale * def->ObjectScale;
+	sourceBox->Lights = 0x303;
 	sourceBox->GuberMoby = 0;
 
 	// For this model the vector here is copied to 0x80 in the moby
 	// This fixes the occlusion bug
 	vector_copy(sourceBox->LSphere, StartUNK_80);
 
-	// 
+	// attempt to fix texture bugging
+	sourceBox->BSphere[3] = 0x79900000;
+ 
 	DPRINTF("source: %08x\n", (u32)sourceBox);
 
 	return sourceBox;
@@ -186,7 +241,7 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 struct ClimbChain * GetFreeChain(void)
 {
 	int i = 0;
-	for (; i < 4; ++i)
+	for (; i < 2; ++i)
 		if (!Chains[i].Active)
 			return &Chains[i];
 
@@ -238,6 +293,8 @@ void GenerateNext(struct ClimbChain * chain, MobyDef * currentItem, float scale)
 	chain->NextItem = RandomRangeShort(0, MapMobyDefsCount);
 	MobyDef * nextItem = MapMobyDefs[chain->NextItem];
 
+	DPRINTF("Moby class: %04x %08x\n", nextItem->OClass, GetMobyClassPtr(nextItem->OClass));
+
 	// Adjust scale by current item
 	if (currentItem)
 		scale *= (currentItem->ScaleHorizontal + nextItem->ScaleHorizontal) / 2;
@@ -273,7 +330,6 @@ void onReceiveSpawn(u16 seed, int gameTime)
 		rot[2] = RandomRange(-1, 1);
 		MobyDef * currentItem = MapMobyDefs[chain->NextItem];
 
-		// Spawn
 		spawn(currentItem, chain->CurrentPosition, rot, scale);
 
 		// Branch
@@ -364,7 +420,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 		{
 			sGameData->BestScore[i] = State.PlayerBestHeight[i];
 			sGameData->FinalScore[i] = State.PlayerFinalHeight[i];
-			DPRINTF("%d: best:%f final:%f\n", i, sGameData->BestScore[i], sGameData->FinalScore[i]);
+			//DPRINTF("%d: best:%f final:%f\n", i, sGameData->BestScore[i], sGameData->FinalScore[i]);
 		}
 	}
 }
@@ -426,7 +482,7 @@ void initialize(void)
 		WaterMoby->UpdateDist = 0xFF;
 		memcpy(WaterMoby->PVar, WaterPVars, sizeof(WaterPVars));
 	}
-	DPRINTF("water: %08X\n", (u32)WaterMoby);
+	//DPRINTF("water: %08X\n", (u32)WaterMoby);
 
 	// find random start place that isn't underneath something
 	int count = 0;
@@ -434,7 +490,7 @@ void initialize(void)
 	{
 		int spIdx = RandomRangeShort(0, spawnPointGetCount());
 		if (!spawnPointIsPlayer(spIdx)) {
-			DPRINTF("skipping nonplayer sp %d\n", spIdx)
+			//DPRINTF("skipping nonplayer sp %d\n", spIdx)
 			continue;
 		}
 
@@ -446,7 +502,7 @@ void initialize(void)
 			to[2] += 100;
 		}
 		if (CollLine_Fix(startPos, to, 2, NULL, 0) == 0) {
-			DPRINTF("selected spidx:%d\n", spIdx);
+			//DPRINTF("selected spidx:%d\n", spIdx);
 			break;
 		}
 
@@ -454,7 +510,7 @@ void initialize(void)
 	}
 	
 	// 
-	WaterHeight = startPos[2] - 15;
+	WaterHeight = startPos[2] - 25;
 	State.StartTime = gameGetTime();
 	State.StartHeight = startPos[2];
 	State.EndTime = 0;
