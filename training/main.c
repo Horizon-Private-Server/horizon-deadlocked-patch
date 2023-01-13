@@ -88,6 +88,16 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			gameSetWinner(State.WinningTeam, 1);
 			gameEnd(4);
 			State.GameOver = 2;
+
+			// fix game over data
+			// for some reason adding fake players messes up the data
+			// so we need to write the local player's name back and remove all the other names
+			u32 gameOverDataAddr = 0x001e0d78;
+
+			strncpy((char*)(gameOverDataAddr + 0x410), gameSettings->PlayerNames[0], 16);
+			for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
+				*(u32*)(gameOverDataAddr + 0x410 + (i * 0x10)) = 0;
+			}
 		}
 	}
 

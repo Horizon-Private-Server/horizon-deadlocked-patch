@@ -106,7 +106,6 @@ struct TrainingTargetMobyPVar
 	VECTOR Velocity;
 	int State;
 	u32 LifeTicks;
-
 	int TimeCreated;
 	float Jitter;
 	float StrafeSpeed;
@@ -123,14 +122,15 @@ struct TrainingState
 {
 	int InitializedTime;
 	int Points;
+	int Kills;
+	int Hits;
+	int ShotsFired;
 	int TargetsDestroyed;
 	int GameOver;
 	int WinningTeam;
 	int IsHost;
 	enum TrainingType TrainingType;
 	int TargetLastSpawnIdx;
-	int TargetLastSpawnedTime;
-	int TargetLastDestroyedTime;
 };
 
 struct TrainingGameData
@@ -138,6 +138,9 @@ struct TrainingGameData
 	u32 Version;
 	int Points;
 	int Time;
+	int Kills;
+	int Hits;
+	int Misses;
 };
 
 extern struct TrainingState State;
