@@ -43,6 +43,11 @@ typedef struct PayloadConfig
 	u8 contestMode;
 } PayloadConfig_t;
 
+typedef struct TrainingConfig
+{
+	u8 type;
+} TrainingConfig_t;
+
 typedef struct PatchGameConfig
 {
   char customMapId;
@@ -67,6 +72,7 @@ typedef struct PatchGameConfig
   char prChargebootForever;
   SurvivalConfig_t survivalConfig;
   PayloadConfig_t payloadConfig;
+  TrainingConfig_t trainingConfig;
 } PatchGameConfig_t;
 
 enum CHARACTER_TWEAKER_ID
@@ -141,6 +147,7 @@ enum CUSTOM_MODE_ID
   CUSTOM_MODE_SEARCH_AND_DESTROY,
   CUSTOM_MODE_SURVIVAL,
   CUSTOM_MODE_1000_KILLS,
+  CUSTOM_MODE_TRAINING,
   
 #if DEV
   CUSTOM_MODE_GRIDIRON,

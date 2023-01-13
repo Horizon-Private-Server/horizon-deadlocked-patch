@@ -96,6 +96,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -413,6 +414,7 @@ MenuElem_ListData_t dataCustomModes = {
       "Search and Destroy",
       "Survival",
       "1000 Kills",
+      "Training",
 #if DEV
       "Gridiron",
       "Team Defenders",
@@ -429,6 +431,7 @@ const char* CustomModeShortNames[] = {
   "Climber",
   NULL,
   "SND",
+  NULL,
   NULL,
   NULL,
 #if DEV
@@ -464,6 +467,18 @@ MenuElem_ListData_t dataPayloadContestMode = {
     }
 };
 
+// training type
+MenuElem_ListData_t dataTrainingType = {
+    &gameConfig.trainingConfig.type,
+    NULL,
+    1,
+    {
+      "Fusion",
+      "B6",
+      "Cycle",
+    }
+};
+
 // player size list item
 MenuElem_ListData_t dataPlayerSize = {
     &gameConfig.prPlayerSize,
@@ -478,7 +493,7 @@ MenuElem_ListData_t dataPlayerSize = {
     }
 };
 
-// headbut damage list item
+// headbutt damage list item
 MenuElem_ListData_t dataHeadbutt = {
     &gameConfig.prHeadbutt,
     NULL,
@@ -555,6 +570,9 @@ MenuElem_t menuElementsGameSettings[] = {
 
   // PAYLOAD SETTINGS
   { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode },
+
+  // TRAINING SETTINGS
+  { "Training Type", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingType },
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -925,6 +943,15 @@ void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* el
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   if (gameConfig.customModeId != CUSTOM_MODE_PAYLOAD)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (gameConfig.customModeId != CUSTOM_MODE_TRAINING)
     *state = ELEMENT_HIDDEN;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;

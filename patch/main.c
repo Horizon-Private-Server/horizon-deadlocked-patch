@@ -145,6 +145,9 @@ int lastRespawnTime = 5;
 int lastCrazyMode = 0;
 char mapOverrideResponse = 1;
 char showNoMapPopup = 0;
+char showMiscPopup = 0;
+char miscPopupTitle[32];
+char miscPopupBody[64];
 const char * patchConfigStr = "PATCH CONFIG";
 char weaponOrderBackup[2][3] = { {0,0,0}, {0,0,0} };
 float lastFps = 0;
@@ -1503,6 +1506,12 @@ void runFixB6EatOnDownSlope(void)
   POKE_U16(0x003B56E8, 0x30C);
 }
 
+void * GetMobyClassPtr(int oClass)
+{
+	int mClass = *(u8*)(0x0024a110 + oClass);
+	return *(u32*)(0x002495c0 + mClass*4);
+}
+
 /*
  * NAME :		patchWeaponShotLag
  * 
@@ -2406,14 +2415,28 @@ void runFpsCounter(void)
 
 int hookCheckHostStartGame(void* a0)
 {
+	GameSettings* gs = gameGetSettings();
+
 	// call base
 	int v0 = ((int (*)(void*))0x00757660)(a0);
 
-	if (v0 && mapOverrideResponse < 0)
-	{
-		v0 = 0;
-		showNoMapPopup = 1;
-		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+	// success
+	if (v0) {
+
+		// verify we have map
+		if (mapOverrideResponse < 0) {
+			showNoMapPopup = 1;
+			netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+			return 0;
+		}
+
+		// if training, verify we're the only player in the lobby
+		if (gameConfig.customModeId == CUSTOM_MODE_TRAINING && gs && gs->PlayerCount != 1) {
+			showMiscPopup = 1;
+			strncpy(miscPopupTitle, "Training", 32);
+			strncpy(miscPopupBody, "Too many players to start.", 64);
+			return 0;
+		}
 	}
 
 	return v0;
@@ -2918,9 +2941,11 @@ void runPayloadDownloadRequester(void)
 		}
 
 		// disable when module id doesn't match mode
-		if (redownloadCustomModeBinaries == 1 || (module->State && !gameConfig.customModeId)) {
+		// unless mode is forced (negative mode)
+		if (redownloadCustomModeBinaries == 1 || (module->State && !gameConfig.customModeId && module->ModeId >= 0)) {
+			DPRINTF("disabling module map:%d mode:%d\n", module->MapId, module->ModeId);
 			module->State = 0;
-			memset((void*)0x000F0000, 0, 0xF000);
+			memset((void*)(u32)0x000F0000, 0, 0xF000);
 		}
 
 		if (redownloadCustomModeBinaries == 1) {
@@ -3010,6 +3035,12 @@ void onOnlineMenu(void)
 		}
 
 		showNoMapPopup = 0;
+	}
+
+	if (showMiscPopup)
+	{
+		uiShowOkDialog(miscPopupTitle, miscPopupBody);
+		showMiscPopup = 0;
 	}
 }
 
