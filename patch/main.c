@@ -1785,6 +1785,7 @@ int runSendGameUpdate(void)
 	// construct
 	patchStateContainer.GameStateUpdate.RoundNumber = 0;
 	patchStateContainer.GameStateUpdate.TeamsEnabled = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
+	patchStateContainer.GameStateUpdate.Version = 1;
 
 	// copy over client ids
 	memcpy(patchStateContainer.GameStateUpdate.ClientIds, gameSettings->PlayerClients, sizeof(patchStateContainer.GameStateUpdate.ClientIds));
@@ -2542,6 +2543,10 @@ void processGameModules()
 		else if (module->State == GAMEMODULE_TEMP_ON)
 		{
 			module->State = GAMEMODULE_OFF;
+
+			// clear custom game mode
+			if (module->ModeId)
+				memset((void*)(u32)0x000F0000, 0, 0xF000);
 		}
 		else if (module->State == GAMEMODULE_ALWAYS_ON)
 		{

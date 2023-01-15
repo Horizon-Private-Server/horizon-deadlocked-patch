@@ -122,9 +122,11 @@ typedef struct GameModule
 
 
 typedef struct UpdateGameStateRequest {
-	int TeamsEnabled;
+	char TeamsEnabled;
+    char PADDING;
+    short Version;
 	int RoundNumber;
-	short TeamScores[GAME_MAX_PLAYERS];
+	int TeamScores[GAME_MAX_PLAYERS];
 	char ClientIds[GAME_MAX_PLAYERS];
 	char Teams[GAME_MAX_PLAYERS];
 } UpdateGameStateRequest_t;

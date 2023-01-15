@@ -45,14 +45,26 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig);
 void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
 //--------------------------------------------------------------------------
+void correctEndGameData(void)
+{
+	GameSettings * gameSettings = gameGetSettings();
+	int i;
+
+	// fix game over data
+	// for some reason adding fake players messes up the data
+	// so we need to write the local player's name back and remove all the other names
+	u32 gameOverDataAddr = 0x001e0d78;
+
+	strncpy((char*)(gameOverDataAddr + 0x410), gameSettings->PlayerNames[0], 16);
+	for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
+		*(u32*)(gameOverDataAddr + 0x410 + (i * 0x10)) = 0;
+	}
+}
+
+//--------------------------------------------------------------------------
 void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
-	Player ** players = playerGetAll();
-	int i;
-	char buffer[32];
-	int gameTime = gameGetTime();
 
 	//
 	dlPreUpdate();
@@ -88,18 +100,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			gameSetWinner(State.WinningTeam, 1);
 			gameEnd(4);
 			State.GameOver = 2;
-
-			// fix game over data
-			// for some reason adding fake players messes up the data
-			// so we need to write the local player's name back and remove all the other names
-			u32 gameOverDataAddr = 0x001e0d78;
-
-			strncpy((char*)(gameOverDataAddr + 0x410), gameSettings->PlayerNames[0], 16);
-			for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
-				*(u32*)(gameOverDataAddr + 0x410 + (i * 0x10)) = 0;
-			}
 		}
 	}
+
+	if (gameHasEnded())
+		correctEndGameData();
 
 	dlPostUpdate();
 	return;

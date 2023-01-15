@@ -14,6 +14,7 @@ all:
 	$(MAKE) -C thousand-kills
 	$(MAKE) -C survival
 	$(MAKE) -C payload
+	$(MAKE) -C training
 	
 clean:
 	$(MAKE) -C patch clean
@@ -29,4 +30,5 @@ clean:
 	$(MAKE) -C thousand-kills clean
 	$(MAKE) -C survival clean
 	$(MAKE) -C payload clean
+	$(MAKE) -C training clean
 

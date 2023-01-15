@@ -30,6 +30,7 @@
 #include <libdl/net.h>
 #include <libdl/sound.h>
 #include <libdl/color.h>
+#include <libdl/pad.h>
 #include <libdl/dl.h>
 #include <libdl/utils.h>
 #include "module.h"
@@ -44,20 +45,22 @@ extern int Initialized;
 int aaa = 300;
 #endif
 
-#define TARGET_GOAL								(20)
-#define MAX_SPAWNED_TARGETS				(2)
-#define TARGET_INIT_SPAWN_DELAY		(TIME_SECOND * 2)
-#define TARGET_RESPAWN_DELAY			(TIME_SECOND * 1)
-#define TARGET_LIFETIME_TICKS			(TPS * 20)
-#define SIZEOF_PLAYER_OBJECT			(0x31F0)
+#define MAX_SPAWNED_TARGETS							(3)
+#define TARGET_INIT_SPAWN_DELAY_TICKS		(TPS * 1)
+#define TARGET_RESPAWN_DELAY						(TIME_SECOND * 1)
+#define TARGET_POINTS_LIFETIME					(TIME_SECOND * 20)
+#define TARGET_LIFETIME_TICKS						(TPS * 60)
+#define TICKS_TO_RESPAWN								(TPS * 0.5)
+#define TIMELIMIT_MINUTES								(5)
+#define SIZEOF_PLAYER_OBJECT						(0x31F0)
 
 void initializeScoreboard(void);
+void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx);
 
 int * LocalBoltCount = (int*)0x00171B40;
 
-const char* NAMES[] = {"Chivas Joker", "BooKooKiLLa", "Sunny D", "Poten-TiaL", "//Who Cares", "FlagCapper-Lag", "VeRNoN", "D34DLY", "aAsdf", "Star Killer", "-Chidori-", "Flailer*", "Red Pirate", "Djabsolut121", "Hothead2005", "thepimp", "Thorax", "Undeadghost", "CANADIAN--KID", "_GuNNeR_", "InfiniteDragon", "-RePubLiC-", "HopesandFears", "Blind Falcon", "GdOgS4122", ":--:iCe:--:", "-mexico-", "f!r3*", "Silent Kid:']", "Sapphire Medal", "=):::::::::::::>", "}{ole of death", "}{alf Glitch", "sTaLe FisH", "-Xz Death zX-", "u s a #1", "FatBlack", "Quabbi", "Wemsrox", "PrO StAtUs", "GoT MiLK? O_o", "Canada Ftw", "-EnsLaveD-", "cArMeL-GirL", "-FreaKaZoiD-", "Major Nuke", "-:ZeRo:-", "dRuiD", "K.O", "rawr.<3", "FrostPrincess", "DeviN982", "`dUaLiTy`", "Lucci", "-French-", "ArmbaR", "ThePac", "Texasboy", "iNtent To harM", "XsV", "-Advanced-", "reDFlag", "Certain Death", "Army-Gunz", "Tek No", "bLaH!!!!", ".nEw YoRk.", "[_-BoT-LeG-_]", "omega3", "Mr.Snowman7", "My1lastfate", "riT", "Man In A Suit", "DGK", "Mr.$un$hIn3", "EviL DoN", "-xTc-", "KreeD", "Kiku", "-eXo-", "KyLe1234", "-shortii-", "BAD GAS", "Nonkeyboii", "-ShotGunStyle-", "FLuFFy PiLLoW", "G.i. Reaper", "}{itMaN", "inmate", "First Place", "Sasori", "Q.w.e.r.t.y", "VoLcoM.", "Boj", "Shadowchamp", "Flying Tomato", "KillaseasoN", "*wast3d*", "Ryno Mikey", "-J1D M4N-"};
-
-const int NAMES_COUNT = sizeof(NAMES) / sizeof(char*);
+int last_names_idx = 0;
+int waiting_for_sniper_shot = 0;
 
 // 
 struct TrainingMapConfig Config __attribute__((section(".config"))) = {
@@ -71,40 +74,53 @@ struct TrainingMapConfig Config __attribute__((section(".config"))) = {
 	.PlayerSpawnPoint = { 415.0349, 182.1122, 108.3381, 26 },
 };
 
-// target destroy sound
-SoundDef targetDestroySoundDef = {
-	.BankIndex = 3,
-	.Flags = 0x02,
-	.Index = 0,
-	.Loop = 1,
-	.MaxPitch = 0,
-	.MinPitch = 0,
-	.MaxVolume = 500,
-	.MinVolume = 1000,
-	.MinRange = 0.0,
-	.MaxRange = 500.0
-};
-
-
-typedef struct SimulatedPlayer {
-	struct PAD Pad;
-	struct TrainingTargetMobyPVar Vars;
-	Player* Player;
-	int TargetLastSpawnedTime;
-	int TargetLastDestroyedTime;
-	int Idx;
-	char Created;
-	char Active;
-} SimulatedPlayer_t;
-
 SimulatedPlayer_t SimPlayers[MAX_SPAWNED_TARGETS];
-
-u128 SIM_PLAYER_BUFFER[MAX_SPAWNED_TARGETS * (SIZEOF_PLAYER_OBJECT / sizeof(u128))];
 
 //--------------------------------------------------------------------------
 int gameGetTeamScore(int team, int score)
 {
 	return State.Points;
+}
+
+//--------------------------------------------------------------------------
+float getComboMultiplier(void) {
+	return State.ComboCounter * 0.25;
+}
+
+//--------------------------------------------------------------------------
+int getJumpTicks(void) {
+	if (rand(2))
+		return randRangeInt(TPS * 2, TPS * 5);
+
+	return randRangeInt(5, TPS * 1);
+}
+
+//--------------------------------------------------------------------------
+int getGadgetIdFromMoby(Moby* moby) {
+	if (!moby)
+		return -1;
+
+	switch (moby->OClass)
+	{
+		case MOBY_ID_DUAL_VIPER_SHOT: return WEAPON_ID_VIPERS; break;
+		case MOBY_ID_MAGMA_CANNON: return WEAPON_ID_MAGMA_CANNON; break;
+		case MOBY_ID_ARBITER_ROCKET0: return WEAPON_ID_ARBITER; break;
+		case MOBY_ID_FUSION_RIFLE:
+		case MOBY_ID_FUSION_SHOT: return WEAPON_ID_FUSION_RIFLE; break;
+		case MOBY_ID_MINE_LAUNCHER_MINE: return WEAPON_ID_MINE_LAUNCHER; break;
+		case MOBY_ID_B6_BOMB_EXPLOSION: return WEAPON_ID_B6; break;
+		case MOBY_ID_FLAIL: return WEAPON_ID_FLAIL; break;
+		case MOBY_ID_HOLOSHIELD_LAUNCHER: return WEAPON_ID_OMNI_SHIELD; break;
+		case MOBY_ID_WRENCH: return WEAPON_ID_WRENCH; break;
+		default: return -1;
+	}
+}
+
+//--------------------------------------------------------------------------
+void incCombo(void) {
+	State.ComboCounter += 1;
+	if (State.ComboCounter > State.BestCombo)
+		State.BestCombo = State.ComboCounter;
 }
 
 //--------------------------------------------------------------------------
@@ -124,12 +140,6 @@ void forcePlayerHUD(void)
 }
 
 //--------------------------------------------------------------------------
-void * GetMobyClassPtr(int oClass)
-{
-    int mClass = *(u8*)(0x0024a110 + oClass);
-    return *(u32*)(0x002495c0 + mClass*4);
-}
-
 void queueGadgetEventHooked(u64 a0, u64 a1, u64 a2, u64 a3, u64 t0, u64 t1, u64 t2, u64 t3, u64 t4, u64 t5)
 {
 	int type = a1;
@@ -142,8 +152,14 @@ void queueGadgetEventHooked(u64 a0, u64 a1, u64 a2, u64 a3, u64 t0, u64 t1, u64 
 		{
 			case TRAINING_TYPE_FUSION:
 			{
-				if (gadgetId == WEAPON_ID_FUSION_RIFLE)
+				if (gadgetId == WEAPON_ID_FUSION_RIFLE) {
 					State.ShotsFired += 1;
+					waiting_for_sniper_shot = 10;
+				}
+				break;
+			}
+			default:
+			{
 				break;
 			}
 		}
@@ -154,11 +170,11 @@ void queueGadgetEventHooked(u64 a0, u64 a1, u64 a2, u64 a3, u64 t0, u64 t1, u64 
 }
 
 //--------------------------------------------------------------------------
-void simPlayerKill(SimulatedPlayer_t* target, int givePoints)
+void simPlayerKill(SimulatedPlayer_t* target, MobyColDamage* colDamage)
 {
-	const float radius = 3;
 	VECTOR delta = {0,0,0,0};
 	struct TrainingTargetMobyPVar* pvar = &target->Vars;
+	Player* lPlayer = playerGetFromSlot(0);
 
 	// spawn explosion
 	//spawnExplosion(target->Player->PlayerPosition, radius);
@@ -170,15 +186,71 @@ void simPlayerKill(SimulatedPlayer_t* target, int givePoints)
 	//playerSetPosRot(target->Player, delta, delta);
 	target->Player->Health = 0;
 
-	// give points
-	if (pvar && givePoints) {
-		State.Points += pvar->LifeTicks;
-		State.Kills += 1;
-		State.Hits += 1;
-	}
+	if (colDamage) { DPRINTF("target hit by %08X : %04X\n", (u32)colDamage->Damager, colDamage->Damager ? colDamage->Damager->OClass : -1); }
 
+	// give points
+	if (pvar && colDamage && !gameHasEnded()) {
+		int givePoints = 0;
+		int gadgetId = getGadgetIdFromMoby(colDamage->Damager);
+		float pointMultiplier = 1;
+
+		switch (State.TrainingType)
+		{
+			case TRAINING_TYPE_FUSION:
+			{
+				givePoints = gadgetId == WEAPON_ID_FUSION_RIFLE;
+
+				break;
+			}
+			default:
+			{
+				givePoints = 0;
+				break;
+			}
+		}
+
+		if (givePoints) {
+
+			// add combo multiplier
+			pointMultiplier += getComboMultiplier();
+
+			// handle special sniper point bonuses
+			if (gadgetId == WEAPON_ID_FUSION_RIFLE) {
+				
+				if (waiting_for_sniper_shot) {
+					incCombo();
+					waiting_for_sniper_shot = 0;
+				}
+
+				// give bonus by distance
+				vector_subtract(delta, target->Player->PlayerPosition, lPlayer->PlayerPosition);
+				float distance = vector_length(delta);
+				pointMultiplier = pointMultiplier + clamp(powf((distance - 35) / 120, 1.5), 0, 3);
+
+				// give bonus if jump snipe
+				if (lPlayer->PlayerState == PLAYER_STATE_JUMP || lPlayer->PlayerState == PLAYER_STATE_RUN_JUMP)
+					pointMultiplier += 0.5;
+				if (lPlayer->PlayerState == PLAYER_STATE_FLIP_JUMP)
+					pointMultiplier += 1.0;
+			}
+
+			int timeToKillMs = (timerGetSystemTime() - State.TimeLastKill) / SYSTEM_TIME_TICKS_PER_MS;
+			int points = (TPS*(TARGET_POINTS_LIFETIME - timeToKillMs)) / TIME_SECOND;
+			if (points < 250)
+				points = 250;
+
+			DPRINTF("hit %d -> %d (%.2f x)\n", points, (int)(points * pointMultiplier), pointMultiplier);
+
+			// give points
+			State.Points += (int)(points * pointMultiplier);
+			State.Kills += 1;
+			State.Hits += 1;
+			State.TimeLastKill = timerGetSystemTime();
+		}
+	}
+	
 	// 
-	target->TargetLastDestroyedTime = gameGetTime();
+	target->TicksToRespawn = TICKS_TO_RESPAWN;
 	State.TargetsDestroyed += 1;
 	
 	// deactivate
@@ -188,15 +260,10 @@ void simPlayerKill(SimulatedPlayer_t* target, int givePoints)
 //--------------------------------------------------------------------------
 void targetUpdate(SimulatedPlayer_t *sPlayer)
 {
-	int i = 0;
 	Player* player = playerGetFromSlot(0);
-	VECTOR delta;
-	static int lastGt = 0;
-	int gameTime = gameGetTime();
+	VECTOR delta, targetPos;
 	int isOwner = gameAmIHost();
-	float dt = (gameTime - lastGt) / (float)TIME_SECOND;
-	lastGt = gameTime;
-	if (!sPlayer || !player)
+	if (!sPlayer || !player || !sPlayer->Active)
 		return;
 
 	Player* target = sPlayer->Player;
@@ -208,11 +275,19 @@ void targetUpdate(SimulatedPlayer_t *sPlayer)
 	if (State.GameOver)
 		return;
 
+	struct padButtonStatus* pad = (struct padButtonStatus*)sPlayer->Pad.rdata;
+
+	u32 lifeTicks = decTimerU32(&pvar->LifeTicks);
+	u32 jumpTicks = decTimerU32(&sPlayer->TicksToJump);
+	u32 jumpTicksFor = decTimerU32(&sPlayer->TicksToJumpFor);
+	u32 strafeSwitchTicks = decTimerU32(&sPlayer->TicksToStrafeSwitch);
+	u32 strafeStopTicks = decTimerU32(&sPlayer->TicksToStrafeStop);
+	u32 strafeStopTicksFor = decTimerU32(&sPlayer->TicksToStrafeStopFor);
+	
 	// register post draw function
 	//gfxRegisterDrawFunction((void**)0x0022251C, &targetPostDraw, target);
 
 	// timers
-	u32 lifeTicks = decTimerU32(&pvar->LifeTicks);
 #if !DEBUG
 	if (!lifeTicks)
 	{
@@ -233,11 +308,56 @@ void targetUpdate(SimulatedPlayer_t *sPlayer)
 	target->PlayerYaw = yaw;
 	//vector_copy(target->CameraDir, delta);
 
-	// handle strafing
-	if (pvar->State & TARGET_STATE_STRAFING)
-	{
+	// reset pad
+	pad->btns = 0xFFFF;
 
+	// 
+	if (!jumpTicks) {
+
+		// next jump
+		sPlayer->TicksToJump = getJumpTicks();
+		sPlayer->TicksToJumpFor = randRangeInt(0, 5);
 	}
+
+	// jump
+	if (jumpTicksFor) {
+		pad->btns &= ~PAD_CROSS;
+	}
+
+
+	// determine current strafe target
+	vector_fromyaw(targetPos, yaw + MATH_PI/2);
+	vector_scale(targetPos, targetPos, (sPlayer->StrafeDir ? -1 : 1) * 5);
+	vector_add(targetPos, pvar->SpawnPos, targetPos);
+
+	// get distance to target
+	vector_subtract(delta, targetPos, target->PlayerPosition);
+	delta[3] = delta[2] = 0;
+	float distanceToTargetPos = vector_length(delta);
+	if (distanceToTargetPos < 0.5 || !strafeSwitchTicks) {
+		sPlayer->StrafeDir = !sPlayer->StrafeDir;
+		sPlayer->TicksToStrafeSwitch = randRangeInt(15, TPS * 1);
+	}
+
+	// move to target
+	MATRIX m;
+	matrix_unit(m);
+	//matrix_rotate_z(m, m, -yaw);
+	vector_apply(delta, delta, m);
+	delta[3] = delta[2] = 0;
+	vector_normalize(delta, delta);
+
+	if (!strafeStopTicks) {
+		sPlayer->TicksToStrafeStop = randRangeInt(TPS * 2, TPS * 5);
+		sPlayer->TicksToStrafeStopFor = randRangeInt(5, 30);
+	}
+
+	if (strafeStopTicksFor) {
+		delta[0] = delta[1] = 0;
+	}
+
+	pad->ljoy_h = (u8)(((clamp(-delta[1] * 1.5, -1, 1) + 1) / 2) * 255);
+	pad->ljoy_v = (u8)(((clamp(-delta[0] * 1.5, -1, 1) + 1) / 2) * 255);
 
 	// process damage
 	int damageIndex = targetMoby->CollDamage;
@@ -254,9 +374,9 @@ void targetUpdate(SimulatedPlayer_t *sPlayer)
 	if (colDamage && damage > 0) {
 		Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
 		if (damager && (isOwner || playerIsLocal(damager))) {
-			simPlayerKill(sPlayer, 1);
+			simPlayerKill(sPlayer, colDamage);
 		} else if (isOwner) {
-			simPlayerKill(sPlayer, 1);	
+			simPlayerKill(sPlayer, colDamage);	
 		}
 
 		// 
@@ -273,8 +393,8 @@ int getBestSpawnPointIdx(void)
 	if (!player)
 		return 0;
 
-	float minDistanceSqr = TARGET_MIN_SPAWN_DISTANCE[(int)State.TrainingType] * TARGET_MIN_SPAWN_DISTANCE[(int)State.TrainingType];
-	float idealDistanceSqr = TARGET_IDEAL_SPAWN_DISTANCE[(int)State.TrainingType] * TARGET_IDEAL_SPAWN_DISTANCE[(int)State.TrainingType];
+	//float minDistanceSqr = TARGET_MIN_SPAWN_DISTANCE[(int)State.TrainingType] * TARGET_MIN_SPAWN_DISTANCE[(int)State.TrainingType];
+	//float idealDistanceSqr = TARGET_IDEAL_SPAWN_DISTANCE[(int)State.TrainingType] * TARGET_IDEAL_SPAWN_DISTANCE[(int)State.TrainingType];
 	float bufferDistanceSqr = TARGET_BUFFER_SPAWN_DISTANCE[(int)State.TrainingType] * TARGET_BUFFER_SPAWN_DISTANCE[(int)State.TrainingType];
 
 	float bestIdxScores[3] = {-1,-1,-1};
@@ -321,7 +441,7 @@ int getBestSpawnPointIdx(void)
 	}
 
 	// pick random from best
-	int pick = rand(3);
+	int pick = rand(2);
 	DPRINTF("selected sp %d (score %f)\n", bestIdxs[pick], bestIdxScores[pick]);
 	return bestIdxs[pick];
 }
@@ -329,8 +449,6 @@ int getBestSpawnPointIdx(void)
 //--------------------------------------------------------------------------
 void spawnTarget(SimulatedPlayer_t* sPlayer)
 {
-	VECTOR targetSpawnOffset;
-	VECTOR finalSpawnPosition;
 	GameSettings* gs = gameGetSettings();
 
 	if (!sPlayer)
@@ -358,10 +476,17 @@ void spawnTarget(SimulatedPlayer_t* sPlayer)
 	sPlayer->Player->PlayerMoby->ModeBits |= 0x1030;
 	sPlayer->Player->PlayerMoby->ModeBits &= ~0x100;
 	playerRespawn(sPlayer->Player);
+	vector_copy(pvar->SpawnPos, sPlayer->Player->PlayerPosition);
+	sPlayer->TicksToJump = getJumpTicks();
 	sPlayer->Player->Health = 1;
 	sPlayer->Active = 1;
 
-	strncpy(gs->PlayerNames[sPlayer->Player->PlayerId], NAMES[rand(NAMES_COUNT)], 16);
+	last_names_idx = (last_names_idx + 1 + rand(NAMES_COUNT)) % NAMES_COUNT;
+	strncpy(gs->PlayerNames[sPlayer->Player->PlayerId], NAMES[last_names_idx], 16);
+
+#if DEBUG
+	sprintf(gs->PlayerNames[sPlayer->Player->PlayerId], "%d", sPlayer->Idx);
+#endif
 }
 
 //--------------------------------------------------------------------------
@@ -385,7 +510,7 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 			vector_normalize(targetSpawnOffset, targetSpawnOffset);
 			vector_scale(targetSpawnOffset, targetSpawnOffset, randRange(0, 1));
 			State.TargetLastSpawnIdx = targetSpawnIdx;
-			sPlayer->TargetLastSpawnedTime = gameGetTime();
+			sPlayer->TicksToRespawn = TICKS_TO_RESPAWN;
 
 			vector_scale(targetSpawnOffset, targetSpawnOffset, Config.SpawnPoints[targetSpawnIdx][3]);
 			vector_add(targetSpawnOffset, Config.SpawnPoints[targetSpawnIdx], targetSpawnOffset);
@@ -420,6 +545,9 @@ void frameTick(void)
 {
 	int i = 0;
 	char buf[32];
+	int nowTime = gameGetTime();
+	GameData* gameData = gameGetData();
+	GameOptions* gameOptions = gameGetOptions();
 
 	// 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -427,42 +555,62 @@ void frameTick(void)
 	}
 
 	// draw counter
-	snprintf(buf, 32, "%d/%d", State.TargetsDestroyed, TARGET_GOAL);
-	gfxScreenSpaceText(15, SCREEN_HEIGHT - 15, 1, 1, 0x80FFFFFF, buf, -1, 6);
+	//snprintf(buf, 32, "%d/%d", State.TargetsDestroyed, TARGET_GOAL);
+	//gfxScreenSpaceText(15, SCREEN_HEIGHT - 15, 1, 1, 0x80FFFFFF, buf, -1, 6);
+
+	// compute time left
+	float secondsLeft = ((gameOptions->GameFlags.MultiplayerGameFlags.Timelimit * TIME_MINUTE) - (nowTime - gameData->TimeStart)) / (float)TIME_SECOND;
+	if (secondsLeft < 0)
+		secondsLeft = 0;
+	int secondsLeftInt = (int)secondsLeft;
+	float timeSecondsRounded = secondsLeftInt;
+	if ((secondsLeft - timeSecondsRounded) > 0.5)
+		timeSecondsRounded += 1;
+
+	// draw timer
+	sprintf(buf, "%02d:%02d", secondsLeftInt/60, secondsLeftInt%60);
+	gfxScreenSpaceText(479+1, 57+1, 0.8, 0.8, 0x80000000, buf, -1, 1);
+	gfxScreenSpaceText(479, 57, 0.8, 0.8, 0x80FFFFFF, buf, -1, 1);
+
+	// draw combo
+	if (State.ComboCounter) {
+		float multiplier = 1 + getComboMultiplier();
+		snprintf(buf, 32, "x%.2f", multiplier);
+		gfxScreenSpaceText(32+1, 130+1, 1, 1, 0x40000000, buf, -1, 1);
+		gfxScreenSpaceText(32, 130, 1, 1, 0x8029E5E6, buf, -1, 1);
+	}
 }
 
 //--------------------------------------------------------------------------
 void gameTick(void)
 {
-	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
-  GameData * gameData = gameGetData();
-	Player ** players = playerGetAll();
 	int i;
-	char buffer[32];
-	int gameTime = gameGetTime();
-
+	
 	*LocalBoltCount = State.Points;
 
   // handle game end logic
   if (State.IsHost)
   {
-		if (State.TargetsDestroyed >= TARGET_GOAL)
+		// keep spawning
+		for (i = 0; i < MAX_SPAWNED_TARGETS; ++i)
 		{
-			State.GameOver = 1;
-		}
-		else
-		{
-			// keep spawning
-			for (i = 0; i < MAX_SPAWNED_TARGETS; ++i)
+			if (!SimPlayers[i].Active || playerIsDead(SimPlayers[i].Player))
 			{
-				if ((!SimPlayers[i].Active || playerIsDead(SimPlayers[i].Player)) && (gameTime - SimPlayers[i].TargetLastDestroyedTime) > TARGET_RESPAWN_DELAY && (gameTime - SimPlayers[i].TargetLastSpawnedTime) > TARGET_RESPAWN_DELAY)
-				{
+				u32 timer = decTimerU32(&SimPlayers[i].TicksToRespawn);
+				if (!timer) {
 					spawnTarget(&SimPlayers[i]);
 				}
 			}
 		}
   }
+
+	if (waiting_for_sniper_shot) {
+		--waiting_for_sniper_shot;
+		
+		if (!waiting_for_sniper_shot) {
+			State.ComboCounter = 0;
+		}
+	}
 }
 
 //--------------------------------------------------------------------------
@@ -483,9 +631,7 @@ void onSimulateHeros(void)
 
 	// update remote clients
 	for (i = 0; i < MAX_SPAWNED_TARGETS; ++i) {
-		if (SimPlayers[i].Active && SimPlayers[i].Player) {
-			PlayerVTable* pVTable = playerGetVTable(SimPlayers[i].Player);
-			int forceTeleportToPos = 0;
+		if (SimPlayers[i].Player) {
 
 			// process input
 			//((void (*)(struct PAD*))0x00527e08)(&SimPlayers[i].Pad);
@@ -496,11 +642,27 @@ void onSimulateHeros(void)
 			((void (*)(struct PAD*, void*, int))0x00527510)(&SimPlayers[i].Pad, SimPlayers[i].Pad.rdata, 0x14);
 
 			// run game's hero update
-			pVTable->Update(SimPlayers[i].Player);
+			//pVTable->Update(SimPlayers[i].Player);
 		}
 	}
 
 	POKE_U32(0x0060FCD0, 0x7E022CE0); // enable camera controls
+}
+
+//--------------------------------------------------------------------------
+void fixSimPlayerNetPlayerPtr(u64 pIdx, u64 a1, u64 a2, u64 a3, u64 t0, u64 t1, u64 t2, u64 t3, u64 t4)
+{
+	// call base
+	((void (*)(u64, u64, u64, u64, u64, u64, u64, u64, u64))0x0015fa68)(pIdx, a1, a2, a3, t0, t1, t2, t3, t4);
+
+	Player* newPlayer = playerGetAll()[pIdx];
+	Player* p2 = playerGetFromSlot(1);
+
+	// if the player has been found without a pointer to the NetPlayer object
+	// then copy the pointer from player 2
+	if (newPlayer && !newPlayer->pNetPlayer && p2) {
+		newPlayer->pNetPlayer = p2->pNetPlayer;
+	}
 }
 
 //--------------------------------------------------------------------------
@@ -510,14 +672,15 @@ void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx)
 	GameSettings* gameSettings = gameGetSettings();
 	Player** players = playerGetAll();
 	
+	HOOK_JAL(0x00610e38, &fixSimPlayerNetPlayerPtr);
+
 	// reset
 	memset(sPlayer, 0, sizeof(SimulatedPlayer_t));
 	
 	// spawn player
 	memcpy(&sPlayer->Pad, players[0]->Paddata, sizeof(struct PAD));
 	POKE_U32((u32)sPlayer + 0x98 + 0x130, (u32)sPlayer);
-	sPlayer->Player = (Player*)((u32)SIM_PLAYER_BUFFER + (SIZEOF_PLAYER_OBJECT * idx)); //(Player*)0x0034AC90; // player 2 (local)
-
+	
 	sPlayer->Pad.rdata[7] = 0x7F;
 	sPlayer->Pad.rdata[6] = 0x7F;
 	sPlayer->Pad.rdata[5] = 0x7F;
@@ -528,24 +691,25 @@ void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx)
 	gameSettings->PlayerSkins[id] = 0;
 	gameSettings->PlayerTeams[id] = 10;
 
-	POKE_U32(0x0021DDDC, &sPlayer->Pad);
+	POKE_U32(0x0021DDDC + (4 * idx), (u32)&sPlayer->Pad);
 	//POKE_U16(0x006103DC, 0x000B);
 	//POKE_U16(0x00610410, 0x000B);
 
-	Player* lastP2 = players[1];
-	((void (*)(int))0x006103d0)(1); // local hero
-	players[1] = lastP2;
+	((void (*)(int))0x006103d0)(id); // local hero
+	Player* newPlayer = players[id];
+	sPlayer->Player = newPlayer;
 
 	players[id] = sPlayer->Player;
-	memcpy(sPlayer->Player, (void*)0x0034AC90, SIZEOF_PLAYER_OBJECT);
+	//memcpy(sPlayer->Player, (void*)newPlayer, SIZEOF_PLAYER_OBJECT);
 
+	POKE_U32(0x0021DDDC + (4 * idx), 0);
 	//POKE_U32(0x0034C730, sPlayer->Player);
 
-	memset((void*)0x0034AC90, 0, SIZEOF_PLAYER_OBJECT);
+	//memset((void*)newPlayer, 0, SIZEOF_PLAYER_OBJECT);
 
 	//POKE_U32(0x00344C3C, 0); // ensure player list only has first local player
 
-	sPlayer->Player->Paddata = &sPlayer->Pad;
+	sPlayer->Player->Paddata = (void*)&sPlayer->Pad;
 	sPlayer->Player->PlayerId = id;
 	sPlayer->Player->MpIndex = id;
 	sPlayer->Player->Team = 10;
@@ -565,10 +729,7 @@ void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx)
 //--------------------------------------------------------------------------
 void initialize(PatchGameConfig_t* gameConfig)
 {
-	GameSettings* gameSettings = gameGetSettings();
-	GameOptions* gameOptions = gameGetOptions();
 	Player** players = playerGetAll();
-	GameData* gameData = gameGetData();
 	int i;
 
 	// set target moby to NULL
@@ -576,9 +737,11 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
-	*(u32*)0x00620F54 = 0;	// time end (1)
 	*(u32*)0x00621568 = 0;	// kills reached (2)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
+#if DEBUG
+	*(u32*)0x00620F54 = 0;	// time end (1)
+#endif
 
 	// point get resurrect point to ours
 	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
@@ -594,8 +757,13 @@ void initialize(PatchGameConfig_t* gameConfig)
 	HOOK_JAL(0x005f037c, &queueGadgetEventHooked);
 
 	// disable ADS
+#if !DEBUG
 	POKE_U16(0x00528320, 0x000F);
 	POKE_U16(0x00528326, 0);
+#endif
+
+	// set bolt count to 0
+	*LocalBoltCount = 0;
 
 	// hook messages
 	netHookMessages();
@@ -610,45 +778,22 @@ void initialize(PatchGameConfig_t* gameConfig)
 	// 
 	forcePlayerHUD();
 
-	// force weapons
-	switch (State.TrainingType)
-	{
-		case TRAINING_TYPE_FUSION:
-		{
-			gameOptions->WeaponFlags.DualVipers = 0;
-			gameOptions->WeaponFlags.MagmaCannon = 0;
-			gameOptions->WeaponFlags.Arbiter = 0;
-			gameOptions->WeaponFlags.FusionRifle = 1;
-			gameOptions->WeaponFlags.MineLauncher = 0;
-			gameOptions->WeaponFlags.B6 = 0;
-			gameOptions->WeaponFlags.Holoshield = 0;
-			gameOptions->WeaponFlags.Flail = 0;
-			break;
-		}
-	}
-
 	// set default settings
 
-	// give a 1 second delay before finalizing the initialization.
+	// give a small delay before finalizing the initialization.
 	// this helps prevent the slow loaders from desyncing
-	static int startDelay = 60 * 1;
+	static int startDelay = 60;
 	if (startDelay > 0) {
 		--startDelay;
 		return;
 	}
 
 	memset(SimPlayers, 0, sizeof(SimPlayers));
+	memset(&State, 0, sizeof(State));
 
 	// initialize state
-	State.GameOver = 0;
-	State.WinningTeam = 0;
 	State.TrainingType = (enum TrainingType)gameConfig->trainingConfig.type;
-	State.Points = 0;
-	State.Kills = 0;
-	State.Hits = 0;
-	State.ShotsFired = 0;
-	State.TargetsDestroyed = 0;
-	State.TargetLastSpawnIdx = 0;
+	State.TimeLastKill = timerGetSystemTime();
 	State.InitializedTime = gameGetTime();
 
 	// respawn player
@@ -660,10 +805,11 @@ void initialize(PatchGameConfig_t* gameConfig)
 	}
 
 	HOOK_JAL(0x005CE320, onSimulateHeros);
+	//POKE_U32(0x005CE350, 0x10000011);
 
 	for (i = 0; i < MAX_SPAWNED_TARGETS; ++i) {
 		SimPlayers[i].Idx = i;
-		SimPlayers[i].TargetLastSpawnedTime = gameGetTime() + (TARGET_INIT_SPAWN_DELAY * i);
+		SimPlayers[i].TicksToRespawn = TARGET_INIT_SPAWN_DELAY_TICKS * i;
 	}
 
 	Initialized = 1;
@@ -672,8 +818,6 @@ void initialize(PatchGameConfig_t* gameConfig)
 //--------------------------------------------------------------------------
 void updateGameState(PatchStateContainer_t * gameState)
 {
-	int i;
-
 	// game state update
 	if (gameState->UpdateGameState)
 	{
@@ -688,11 +832,12 @@ void updateGameState(PatchStateContainer_t * gameState)
 	if (gameState->UpdateCustomGameStats)
 	{
 		struct TrainingGameData* sGameData = (struct TrainingGameData*)gameState->CustomGameStats.Payload;
-		sGameData->Version = 0x00000001;
+		sGameData->Version = 0x00000002;
 		sGameData->Points = State.Points;
 		sGameData->Kills = State.Kills;
 		sGameData->Hits = State.Hits;
 		sGameData->Misses = State.ShotsFired - State.Hits;
+		sGameData->BestCombo = State.BestCombo;
 		sGameData->Time = gameGetTime() - State.InitializedTime;
 	}
 }
@@ -716,8 +861,9 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 20;
+	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
 	
 	switch (gameConfig->trainingConfig.type)
 	{

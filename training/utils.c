@@ -93,7 +93,7 @@ u32 decTimerU32(u32* timeValue)
 //--------------------------------------------------------------------------
 void drawRoundMessage(const char * message, float scale)
 {
-	int fw = gfxGetFontWidth(message, -1, scale);
+	//int fw = gfxGetFontWidth(message, -1, scale);
 	float x = 0.5;
 	float y = 0.16;
 

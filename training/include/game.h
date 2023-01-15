@@ -125,13 +125,32 @@ struct TrainingState
 	int Kills;
 	int Hits;
 	int ShotsFired;
+	int BestCombo;
 	int TargetsDestroyed;
 	int GameOver;
 	int WinningTeam;
 	int IsHost;
 	enum TrainingType TrainingType;
 	int TargetLastSpawnIdx;
+	int ComboCounter;
+	long TimeLastKill;
 };
+
+typedef struct SimulatedPlayer {
+	struct PAD Pad;
+	struct TrainingTargetMobyPVar Vars;
+	Player* Player;
+	u32 TicksToRespawn;
+	u32 TicksToJump;
+	u32 TicksToJumpFor;
+	u32 TicksToStrafeSwitch;
+	u32 TicksToStrafeStop;
+	u32 TicksToStrafeStopFor;
+	int StrafeDir;
+	int Idx;
+	char Created;
+	char Active;
+} SimulatedPlayer_t;
 
 struct TrainingGameData
 {
@@ -141,6 +160,7 @@ struct TrainingGameData
 	int Kills;
 	int Hits;
 	int Misses;
+	int BestCombo;
 };
 
 extern struct TrainingState State;
@@ -149,6 +169,9 @@ extern struct TrainingState State;
 extern const float TARGET_MIN_SPAWN_DISTANCE[TRAINING_TYPE_MAX];
 extern const float TARGET_IDEAL_SPAWN_DISTANCE[TRAINING_TYPE_MAX];
 extern const float TARGET_BUFFER_SPAWN_DISTANCE[TRAINING_TYPE_MAX];
+
+extern const char* NAMES[];
+extern const int NAMES_COUNT;
 
 void updateTeamScore(int team);
 

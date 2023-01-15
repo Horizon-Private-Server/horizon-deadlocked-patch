@@ -34,6 +34,8 @@
 
 extern int Initialized;
 
+int gameGetTeamScore(int team, int score);
+
 //--------------------------------------------------------------------------
 void setTeamScore(int team, int score)
 {
@@ -58,7 +60,10 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 	int i;
 	
 	// column headers start at 17
-	strncpy((char*)(uiElements[20] + 0x60), "POINTS", 7);
+	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
+	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
+	strncpy((char*)(uiElements[20] + 0x60), "ACCURACY", 9);
+	strncpy((char*)(uiElements[21] + 0x60), "COMBO", 6);
 
 	// first team score
 	sprintf((char*)(uiElements[1] + 0x60), "%d", State.Points);
@@ -73,7 +78,14 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		if (pid != 0 || name[0] == 0)
 			continue;
 
+		float accuracy = 0;
+		if (State.ShotsFired > 0)
+			accuracy = 100 * (State.Hits / (float)State.ShotsFired);
+
 		// set points
-		sprintf((char*)(uiElements[22 + (i*4) + 2] + 0x60), "%d", State.Points);
+		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", State.Points);
+		sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%d", State.Kills);
+		sprintf((char*)(uiElements[22 + (i*4) + 2] + 0x60), "%.2f%%", accuracy);
+		sprintf((char*)(uiElements[22 + (i*4) + 3] + 0x60), "%d", State.BestCombo);
 	}
 }
