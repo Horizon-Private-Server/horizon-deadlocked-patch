@@ -84,7 +84,7 @@ int gameGetTeamScore(int team, int score)
 
 //--------------------------------------------------------------------------
 float getComboMultiplier(void) {
-	return State.ComboCounter * 0.25;
+	return State.ComboCounter * 0.1;
 }
 
 //--------------------------------------------------------------------------
@@ -193,6 +193,7 @@ void simPlayerKill(SimulatedPlayer_t* target, MobyColDamage* colDamage)
 		int givePoints = 0;
 		int gadgetId = getGadgetIdFromMoby(colDamage->Damager);
 		float pointMultiplier = 1;
+		int pointAdditive = 0;
 
 		switch (State.TrainingType)
 		{
@@ -222,22 +223,26 @@ void simPlayerKill(SimulatedPlayer_t* target, MobyColDamage* colDamage)
 					waiting_for_sniper_shot = 0;
 				}
 
-				// give bonus by distance
-				vector_subtract(delta, target->Player->PlayerPosition, lPlayer->PlayerPosition);
-				float distance = vector_length(delta);
-				pointMultiplier = pointMultiplier + clamp(powf((distance - 35) / 120, 1.5), 0, 3);
-
 				// give bonus if jump snipe
 				if (lPlayer->PlayerState == PLAYER_STATE_JUMP || lPlayer->PlayerState == PLAYER_STATE_RUN_JUMP)
 					pointMultiplier += 0.5;
 				if (lPlayer->PlayerState == PLAYER_STATE_FLIP_JUMP)
 					pointMultiplier += 1.0;
+
+				// give bonus by distance
+				vector_subtract(delta, target->Player->PlayerPosition, lPlayer->PlayerPosition);
+				float distance = vector_length(delta);
+				pointMultiplier *= 1 + clamp(powf(maxf(distance - 35, 0) / 40, 2), 0, 3);
+				pointAdditive += (int)(distance * 5);
 			}
 
 			int timeToKillMs = (timerGetSystemTime() - State.TimeLastKill) / SYSTEM_TIME_TICKS_PER_MS;
-			int points = (TPS*(TARGET_POINTS_LIFETIME - timeToKillMs)) / TIME_SECOND;
+			float timeToKillR = powf(clamp((timeToKillMs - (TIME_SECOND * 1)) / (float)TARGET_POINTS_LIFETIME, 0, 1), 0.5);
+
+			int points = 2000 * (1 - timeToKillR);
 			if (points < 250)
 				points = 250;
+			points += pointAdditive;
 
 			DPRINTF("hit %d -> %d (%.2f x)\n", points, (int)(points * pointMultiplier), pointMultiplier);
 
@@ -387,6 +392,10 @@ void targetUpdate(SimulatedPlayer_t *sPlayer)
 //--------------------------------------------------------------------------
 int getBestSpawnPointIdx(void)
 {
+	int pick = rand(Config.SpawnPointCount);
+	return pick;
+
+	/*
 	int i,j;
 	VECTOR delta;
 	Player* player = playerGetFromSlot(0);
@@ -444,6 +453,7 @@ int getBestSpawnPointIdx(void)
 	int pick = rand(2);
 	DPRINTF("selected sp %d (score %f)\n", bestIdxs[pick], bestIdxScores[pick]);
 	return bestIdxs[pick];
+	*/
 }
 
 //--------------------------------------------------------------------------
@@ -473,8 +483,6 @@ void spawnTarget(SimulatedPlayer_t* sPlayer)
 	pvar->StrafeSpeed = 5;
 	vector_write(pvar->Velocity, 0);
 
-	sPlayer->Player->PlayerMoby->ModeBits |= 0x1030;
-	sPlayer->Player->PlayerMoby->ModeBits &= ~0x100;
 	playerRespawn(sPlayer->Player);
 	vector_copy(pvar->SpawnPos, sPlayer->Player->PlayerPosition);
 	sPlayer->TicksToJump = getJumpTicks();
@@ -575,7 +583,7 @@ void frameTick(void)
 	// draw combo
 	if (State.ComboCounter) {
 		float multiplier = 1 + getComboMultiplier();
-		snprintf(buf, 32, "x%.2f", multiplier);
+		snprintf(buf, 32, "x%.1f", multiplier);
 		gfxScreenSpaceText(32+1, 130+1, 1, 1, 0x40000000, buf, -1, 1);
 		gfxScreenSpaceText(32, 130, 1, 1, 0x8029E5E6, buf, -1, 1);
 	}
@@ -632,6 +640,7 @@ void onSimulateHeros(void)
 	// update remote clients
 	for (i = 0; i < MAX_SPAWNED_TARGETS; ++i) {
 		if (SimPlayers[i].Player) {
+			PlayerVTable* pVTable = playerGetVTable(SimPlayers[i].Player);
 
 			// process input
 			//((void (*)(struct PAD*))0x00527e08)(&SimPlayers[i].Pad);
@@ -642,7 +651,7 @@ void onSimulateHeros(void)
 			((void (*)(struct PAD*, void*, int))0x00527510)(&SimPlayers[i].Pad, SimPlayers[i].Pad.rdata, 0x14);
 
 			// run game's hero update
-			//pVTable->Update(SimPlayers[i].Player);
+			pVTable->Update(SimPlayers[i].Player);
 		}
 	}
 
@@ -679,12 +688,13 @@ void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx)
 	
 	// spawn player
 	memcpy(&sPlayer->Pad, players[0]->Paddata, sizeof(struct PAD));
-	POKE_U32((u32)sPlayer + 0x98 + 0x130, (u32)sPlayer);
 	
 	sPlayer->Pad.rdata[7] = 0x7F;
 	sPlayer->Pad.rdata[6] = 0x7F;
 	sPlayer->Pad.rdata[5] = 0x7F;
 	sPlayer->Pad.rdata[4] = 0x7F;
+	sPlayer->Pad.rdata[3] = 0xFF;
+	sPlayer->Pad.rdata[2] = 0xFF;
 	
 	// create hero
 	gameSettings->PlayerClients[id] = 0;
@@ -700,6 +710,7 @@ void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx)
 	sPlayer->Player = newPlayer;
 
 	players[id] = sPlayer->Player;
+
 	//memcpy(sPlayer->Player, (void*)newPlayer, SIZEOF_PLAYER_OBJECT);
 
 	POKE_U32(0x0021DDDC + (4 * idx), 0);
@@ -746,6 +757,11 @@ void initialize(PatchGameConfig_t* gameConfig)
 	// point get resurrect point to ours
 	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
 	*(u32*)0x005e2d44 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
+
+	// disable default update for targets
+	// we update manually inside of onSimulateHeros
+	POKE_U32(0x005CD458, 0);
+	POKE_U32(0x005CD464, 0x90822FEA);
 
 	// set vtable callbacks
 	//*(u32*)0x003A0BC4 = (u32)&targetGetGuber;
