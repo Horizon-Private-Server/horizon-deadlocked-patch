@@ -2431,6 +2431,14 @@ int hookCheckHostStartGame(void* a0)
 			return 0;
 		}
 
+		// wait for download to finish
+		if (dlIsActive) {
+			showMiscPopup = 1;
+			strncpy(miscPopupTitle, "System", 32);
+			strncpy(miscPopupBody, "Please wait for the download to finish.", 64);
+			return 0;
+		}
+
 		// if training, verify we're the only player in the lobby
 		if (gameConfig.customModeId == CUSTOM_MODE_TRAINING && gs && gs->PlayerCount != 1) {
 			showMiscPopup = 1;
