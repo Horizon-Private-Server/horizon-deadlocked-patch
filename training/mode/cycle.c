@@ -49,7 +49,7 @@
 #define COMBO_MAX_TIME_OUT_HILL_MS			(TIME_SECOND * 3)
 #define MAX_B6_BALL_RING_SIZE						(5)
 #define TARGET_B6_JUMP_REACTION_TIME		(TPS * 0.25)
-#define TARGET_TEAM											(9)
+#define TARGET_TEAM											(TEAM_PURPLE)
 
 //--------------------------------------------------------------------------
 //-------------------------- FORWARD DECLARATIONS --------------------------

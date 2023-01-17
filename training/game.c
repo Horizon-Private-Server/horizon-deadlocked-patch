@@ -156,12 +156,12 @@ void targetUpdate(SimulatedPlayer_t *sPlayer)
 
 	if (colDamage && damage > 0) {
 		Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
-		
-		if (damage >= target->Health)
-			modeOnTargetKilled(sPlayer, colDamage);
-		else
-			modeOnTargetHit(sPlayer, colDamage);
-
+		if (damager && damager == player) {
+			if (damage >= target->Health)
+				modeOnTargetKilled(sPlayer, colDamage);
+			else
+				modeOnTargetHit(sPlayer, colDamage);
+		}
 		// 
 		//targetMoby->CollDamage = -1;
 	}
