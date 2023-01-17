@@ -165,3 +165,24 @@ int spawnGetRandomPoint(VECTOR out) {
 
 	return 0;
 }
+
+//--------------------------------------------------------------------------
+int getGadgetIdFromMoby(Moby* moby) {
+	if (!moby)
+		return -1;
+
+	switch (moby->OClass)
+	{
+		case MOBY_ID_DUAL_VIPER_SHOT: return WEAPON_ID_VIPERS; break;
+		case MOBY_ID_MAGMA_CANNON: return WEAPON_ID_MAGMA_CANNON; break;
+		case MOBY_ID_ARBITER_ROCKET0: return WEAPON_ID_ARBITER; break;
+		case MOBY_ID_FUSION_RIFLE:
+		case MOBY_ID_FUSION_SHOT: return WEAPON_ID_FUSION_RIFLE; break;
+		case MOBY_ID_MINE_LAUNCHER_MINE: return WEAPON_ID_MINE_LAUNCHER; break;
+		case MOBY_ID_B6_BOMB_EXPLOSION: return WEAPON_ID_B6; break;
+		case MOBY_ID_FLAIL: return WEAPON_ID_FLAIL; break;
+		case MOBY_ID_HOLOSHIELD_LAUNCHER: return WEAPON_ID_OMNI_SHIELD; break;
+		case MOBY_ID_WRENCH: return WEAPON_ID_WRENCH; break;
+		default: return -1;
+	}
+}

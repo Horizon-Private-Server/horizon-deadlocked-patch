@@ -16,14 +16,6 @@
 
 #define MIN_FLOAT_MAGNITUDE										(0.0001)
 
-enum TrainingType
-{
-	TRAINING_TYPE_FUSION,
-	TRAINING_TYPE_B6,
-	TRAINING_TYPE_CYCLE,
-	TRAINING_TYPE_MAX
-};
-
 enum TargetState
 {
 	TARGET_STATE_IDLE = 0,
@@ -130,7 +122,7 @@ struct TrainingState
 	int GameOver;
 	int WinningTeam;
 	int IsHost;
-	enum TrainingType TrainingType;
+	enum TRAINING_TYPE TrainingType;
 	int TargetLastSpawnIdx;
 	int ComboCounter;
 	long TimeLastKill;
@@ -146,8 +138,14 @@ typedef struct SimulatedPlayer {
 	u32 TicksToStrafeSwitch;
 	u32 TicksToStrafeStop;
 	u32 TicksToStrafeStopFor;
+	u32 TicksToFire;
+	u32 TicksFireDelay;
+	u32 TicksToCycle;
 	int StrafeDir;
 	int Idx;
+	int CycleIdx;
+	int Points;
+	float Yaw;
 	char Created;
 	char Active;
 } SimulatedPlayer_t;

@@ -93,6 +93,7 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -470,12 +471,12 @@ MenuElem_ListData_t dataPayloadContestMode = {
 // training type
 MenuElem_ListData_t dataTrainingType = {
     &gameConfig.trainingConfig.type,
-    NULL,
-    1,
+    menuStateHandler_SelectedTrainingTypeOverride,
+    2,
     {
       "Fusion",
-      "B6",
       "Cycle",
+      "B6",
     }
 };
 
@@ -913,6 +914,14 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
         *value = CUSTOM_MODE_NONE;
         return 0;
       }
+      case CUSTOM_MODE_TRAINING:
+      {
+        if (gs->GameRules == GAMERULE_DM || gs->GameRules == GAMERULE_KOTH)
+          return 1;
+
+        *value = CUSTOM_MODE_NONE;
+        return 0;
+      }
 #if DEV
       case CUSTOM_MODE_GRIDIRON:
       case CUSTOM_MODE_TEAM_DEFENDER:
@@ -928,6 +937,41 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
   }
 
   return 1;
+}
+
+// 
+int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value)
+{
+  if (!value)
+    return 0;
+
+  GameSettings* gs = gameGetSettings();
+  char v = *value;
+
+  if (gs)
+  {
+    switch (gs->GameRules)
+    {
+      case GAMERULE_DM:
+      {
+        if (v == TRAINING_TYPE_FUSION)
+          return 1;
+
+        *value = TRAINING_TYPE_FUSION;
+        return 0;
+      }
+      case GAMERULE_KOTH:
+      {
+        if (v == TRAINING_TYPE_CYCLE)
+          return 1;
+
+        *value = TRAINING_TYPE_CYCLE;
+        return 0;
+      }
+    }
+  }
+
+  return 0;
 }
 
 // 
@@ -951,6 +995,8 @@ void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* ele
 // 
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
+  GameSettings* gs = gameGetSettings();
+
   if (gameConfig.customModeId != CUSTOM_MODE_TRAINING)
     *state = ELEMENT_HIDDEN;
   else

@@ -1,0 +1,7 @@
+
+#EE_DEFS = -DCOMP
+EE_OBJS = mode/fusion.o
+EE_ELF = training-fusionrifle-11184.elf
+EE_BIN = training-fusionrifle-11184.bin
+
+include ${CURDIR}/Makefile.base

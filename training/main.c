@@ -41,8 +41,8 @@ void initialize(PatchGameConfig_t* gameConfig);
 void updateGameState(PatchStateContainer_t * gameState);
 void gameTick(void);
 void frameTick(void);
-void setLobbyGameOptions(PatchGameConfig_t * gameConfig);
-void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
+void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig);
+void modeSetEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
 //--------------------------------------------------------------------------
 void correctEndGameData(void)
@@ -59,6 +59,9 @@ void correctEndGameData(void)
 	for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
 		*(u32*)(gameOverDataAddr + 0x410 + (i * 0x10)) = 0;
 	}
+
+	POKE_U32(gameOverDataAddr + 0x1c, 0);
+	POKE_U32(gameOverDataAddr + 0x20, 0);
 }
 
 //--------------------------------------------------------------------------
@@ -142,7 +145,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 			if (initializedScoreboard)
 				break;
 
-			setEndGameScoreboard(gameConfig);
+			modeSetEndGameScoreboard(gameConfig);
 			initializedScoreboard = 1;
 
 			// patch rank computation to keep rank unchanged for base mode
@@ -151,7 +154,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions(gameConfig);
+			modeSetLobbyGameOptions(gameConfig);
 			break;
 		}
 	}

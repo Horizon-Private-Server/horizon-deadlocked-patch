@@ -48,44 +48,8 @@ void updateTeamScore(int team)
 	setTeamScore(team, 0);
 }
 
+//--------------------------------------------------------------------------
 void initializeScoreboard(void)
 {
 	*(u32*)0x005404f0 = 0x0C000000 | ((u32)&setTeamScore >> 2);
-}
-
-//--------------------------------------------------------------------------
-void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
-{
-	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
-	int i;
-	
-	// column headers start at 17
-	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
-	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
-	strncpy((char*)(uiElements[20] + 0x60), "ACCURACY", 9);
-	strncpy((char*)(uiElements[21] + 0x60), "COMBO", 6);
-
-	// first team score
-	sprintf((char*)(uiElements[1] + 0x60), "%d", State.Points);
-
-	// rows
-	int* pids = (int*)(uiElements[0] - 0x9C);
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		// match scoreboard player row to their respective dme id
-		int pid = pids[i];
-		char* name = (char*)(uiElements[7 + i] + 0x18);
-		if (pid != 0 || name[0] == 0)
-			continue;
-
-		float accuracy = 0;
-		if (State.ShotsFired > 0)
-			accuracy = 100 * (State.Hits / (float)State.ShotsFired);
-
-		// set points
-		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", State.Points);
-		sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%d", State.Kills);
-		sprintf((char*)(uiElements[22 + (i*4) + 2] + 0x60), "%.2f%%", accuracy);
-		sprintf((char*)(uiElements[22 + (i*4) + 3] + 0x60), "%d", State.BestCombo);
-	}
 }
