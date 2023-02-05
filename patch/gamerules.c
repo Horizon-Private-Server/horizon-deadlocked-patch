@@ -61,7 +61,7 @@ enum BETTER_HILL_PTS
 	DC_17 = 9,
 	SHAAR_14 = 10,
 	SHAAR_17 = 11,
-	VALIX_01 = 24,
+	//VALIX_01 = 24,
 	VALIX_13 = 12,
 	VALIX_16 = 13,
 	MF_20 = 14,
@@ -212,8 +212,11 @@ SpawnPoint BetterHillPoints[] = {
 	{ { 27.499998, 47.6314, 0, 0, -47.6314, 27.499998, 0, 0, 0, 0, 10, 0, 452, 443, 100.828125, 1 }, { 0.009090908, 0.015745917, 0, 0, -0.015745917, 0.009090908, 0, 0, 0, 0, 0.1, 0, 452, 443, 100.828125, 1 } },
 
 	// VALIX CTF SPAWN POINT 01
-	{ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 } },
+	//{ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 } },
 };
+
+
+void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay);
 
 /*
  * NAME :		onRotatingWeaponsChangedRemote
@@ -781,11 +784,13 @@ void onGameplayLoad(void * gameplayMobies, void * a1, void * a2)
 		: : "r" (gameplay)
 	);
 
-	// call base
-	((void (*)(void*, void*, void*))0x004ecea0)(gameplayMobies, a1, a2);
-
 	// 
 	onGameplayLoadRemoveWeaponPickups(gameplay);
+	onGameplayLoadBetterFlags(gameplay);
+
+	// call base
+	((void (*)())0x004ec720)();
+
 }
 
 /*
@@ -878,7 +883,7 @@ void betterHillsLogic(void)
 		}
 		case MAP_ID_VALIX: 
 		{
-			spawnPointSet(&BetterHillPoints[VALIX_01], 0x01);
+			//spawnPointSet(&BetterHillPoints[VALIX_01], 0x01);
 			spawnPointSet(&BetterHillPoints[VALIX_13], 0x0D);
 			spawnPointSet(&BetterHillPoints[VALIX_16], 0x10);
 			break;
@@ -913,6 +918,285 @@ void betterHillsLogic(void)
 		case MAP_ID_TORVAL:
 		{
 			spawnPointSet(&BetterHillPoints[TORVAL_13], 0x13);
+			break;
+		}
+	}
+}
+
+void setFlag(GameplayMobyDef_t * flag, u32 * mpInitPVarData, float pX, float pY, float pZ, int sp1, int sp2, int sp3)
+{
+	if (flag) {
+		flag->PosX = pX;
+		flag->PosY = pY;
+		flag->PosZ = pZ;
+	}
+	mpInitPVarData[0] = sp1;
+	mpInitPVarData[1] = sp2;
+	mpInitPVarData[2] = sp3;
+}
+
+void addFlagRef(GameplayMobyDef_t** flags, GameplayMobyDef_t* flag, int team) {
+	flags[team] = flag;
+}
+
+/*
+ * NAME :		onGameplayLoadBetterFlags
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
+{
+	const int BLUE_SPAWN_OFF = 0;
+	const int RED_SPAWN_OFF = 3;
+	const int GREEN_SPAWN_OFF = 90;
+	const int ORANGE_SPAWN_OFF = 93;
+	int i,j,k;
+
+	// better flags disabled
+	// or we loaded a custom map
+	if (!gameConfig.grBetterFlags || gameConfig.customMapId)
+		return;
+
+	GameSettings* gameSettings = gameGetSettings();
+	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
+		return;
+
+	GameplayMobyHeaderDef_t * mobyInstancesHeader = (GameplayMobyHeaderDef_t*)((u32)gameplay + gameplay->MobyInstancesOffset);
+	GameplayCuboidHeaderDef_t * cuboidsHeader = (GameplayCuboidHeaderDef_t*)((u32)gameplay + gameplay->CuboidsOffset);
+	GameplayPVarDef_t* pvarTable = (GameplayPVarDef_t*)((u32)gameplay + gameplay->PVarTableOffset);
+	GameplayMobyDef_t* flags[4] = {0,0,0,0};
+	u32* mpInitPVarData = NULL;
+	
+	// find mp initialization moby
+	// then grab pointer to its pvar data so we can configure spawns
+	for (i = 0; i < mobyInstancesHeader->StaticCount; ++i) {
+		GameplayMobyDef_t* mobyDef = &mobyInstancesHeader->MobyInstances[i];
+		if (mobyDef->OClass == 0x106A) {
+			mpInitPVarData = pvarTable[mobyDef->PVarIndex].Offset + gameplay->PVarDataOffset + (u32)gameplay;
+		} else if (mobyDef->OClass == 0x266E) {
+			addFlagRef(flags, mobyDef, *(u8*)(pvarTable[mobyDef->PVarIndex].Offset + gameplay->PVarDataOffset + (u32)gameplay));
+		}
+	}
+
+	DPRINTF("BETTER FLAGS\n\t SPAWN DATA: %08X\n\tBLUE: %08X\n\t RED: %08X\n\t GREEN: %08X\n\t ORANGE: %08X\n"
+		, (u32)mpInitPVarData, (u32)flags[0], (u32)flags[1], (u32)flags[2], (u32)flags[3]);
+
+	// 
+	switch (gameGetSettings()->GameLevel)
+	{
+		case MAP_ID_CATACROM:
+		{
+			
+			break;
+		}
+		case MAP_ID_SARATHOS:
+		{
+			setFlag(flags[TEAM_BLUE], mpInitPVarData + BLUE_SPAWN_OFF, 412.28, 144, 105.34, 9, 3, 1);
+			setFlag(flags[TEAM_RED], mpInitPVarData + RED_SPAWN_OFF, 272.392, 141.32, 103.578, 8, 2, 21);
+
+			// blue
+			cuboidsHeader->CuboidInstances[3].M1[14] = 3;
+			cuboidsHeader->CuboidInstances[9].M1[14] = 2.800651073;
+			break;
+		}
+		case MAP_ID_DC:
+		{
+			
+			break;
+		}
+		case MAP_ID_SHAAR: 
+		{
+			setFlag(flags[TEAM_GREEN], mpInitPVarData + GREEN_SPAWN_OFF, 459.802887, 623.1619263, 515.546875, 24, 5, 11);
+			setFlag(flags[TEAM_ORANGE], mpInitPVarData + ORANGE_SPAWN_OFF, 629.8687134, 623.0216064, 515.546875, 6, 29, 12);
+			break;
+		}
+		case MAP_ID_VALIX: 
+		{
+			setFlag(NULL, mpInitPVarData + BLUE_SPAWN_OFF, 0, 0, 0, 30, 3, 31);
+			setFlag(NULL, mpInitPVarData + RED_SPAWN_OFF, 0, 0, 0, 32, 26, 23);
+			setFlag(flags[TEAM_GREEN], mpInitPVarData + GREEN_SPAWN_OFF, 363.7347717, 379.4525452, 324.90625, 3, 7, 31);
+			setFlag(NULL, mpInitPVarData + ORANGE_SPAWN_OFF, 0, 0, 0, 27, 33, 1);
+
+			// flip rotation of red spawns to face towards enemies
+			cuboidsHeader->CuboidInstances[26].M1[14] = -2.147533894;
+			cuboidsHeader->CuboidInstances[23].M1[14] = -2.147533894;
+			break;
+		}
+		case MAP_ID_MF:
+		{
+			setFlag(flags[TEAM_BLUE], mpInitPVarData + BLUE_SPAWN_OFF, 389.5552979, 544.1446533, 436.609375, 28, 32, 31);
+			setFlag(flags[TEAM_RED], mpInitPVarData + RED_SPAWN_OFF, 431.5018311, 658.2387085, 436.609375, 5, 3, 27);
+
+			// red faces blue
+			cuboidsHeader->CuboidInstances[27].M1[14] = -1.884955525;
+
+			// fix blue spawn 31
+			cuboidsHeader->CuboidInstances[31].M0[14] = 436.5242615;
+			cuboidsHeader->CuboidInstances[31].M1[14] = 0;
+			break;
+		}
+		case MAP_ID_TORVAL:
+		{
+			setFlag(NULL, mpInitPVarData + BLUE_SPAWN_OFF, 0, 0, 0, 30, 6, 5);
+			setFlag(flags[TEAM_RED], mpInitPVarData + RED_SPAWN_OFF, 362.494873, 328.1200562, 100.9532166, 17, 1, 31);
+			setFlag(NULL, mpInitPVarData + GREEN_SPAWN_OFF, 0, 0, 0, 16, 29, 18);
+			setFlag(flags[TEAM_ORANGE], mpInitPVarData + ORANGE_SPAWN_OFF, 249.1906128, 315.3877563, 107, 24, 7, 23);
+
+			// blue
+			cuboidsHeader->CuboidInstances[30].M1[14] = -0.579;
+			cuboidsHeader->CuboidInstances[6].M1[14] = -1.663;
+			cuboidsHeader->CuboidInstances[5].M1[14] = -0.2587194443;
+			cuboidsHeader->CuboidInstances[5].M0[12] = 243.4924011;
+			cuboidsHeader->CuboidInstances[5].M0[13] = 426.7238464;
+			cuboidsHeader->CuboidInstances[5].M0[14] = 100.8027878;
+
+			// red
+			cuboidsHeader->CuboidInstances[17].M1[14] = 2.303834438;
+			cuboidsHeader->CuboidInstances[1].M1[14] = 2.38907218;
+			cuboidsHeader->CuboidInstances[31].M1[14] = -3.05;
+
+			// green
+			cuboidsHeader->CuboidInstances[18].M1[14] = -2.469;
+
+			// orange
+			cuboidsHeader->CuboidInstances[23].M0[12] = 241.0805054;
+			cuboidsHeader->CuboidInstances[23].M0[13] = 295.0596619;
+			cuboidsHeader->CuboidInstances[23].M0[14] = 106.4130402;
+			cuboidsHeader->CuboidInstances[23].M1[14] = 0.9511685371;
+			break;
+		}
+		case MAP_ID_TEMPUS:
+		{
+			setFlag(flags[TEAM_BLUE], mpInitPVarData + BLUE_SPAWN_OFF, 490.5864563, 424.5765991, 100.828125, 6, 30, 13);
+			setFlag(NULL, mpInitPVarData + GREEN_SPAWN_OFF, 0, 0, 0, 11, 12, 3);
+			break;
+		}
+		case MAP_ID_MARAXUS: 
+		{
+			setFlag(flags[TEAM_GREEN], mpInitPVarData + GREEN_SPAWN_OFF, 443.7589417, 645.3409424, 101.6640625, 8, 7, 12);
+			setFlag(NULL, mpInitPVarData + ORANGE_SPAWN_OFF, 629.8687134, 623.0216064, 515.546875, 20, 21, 5);
+
+			// green
+			cuboidsHeader->CuboidInstances[12].M1[14] = 0.234;
+
+			// orange
+			cuboidsHeader->CuboidInstances[21].M1[14] = -1.432;
+
+			// if green team is spawned
+			// then move jump pads to sides of center
+			if (gameSettings) {
+				int hasGreenTeam = 0;
+				for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+					if (gameSettings->PlayerTeams[i] == TEAM_GREEN) {
+						hasGreenTeam = 1;
+						break;
+					}
+				}
+
+				if (hasGreenTeam) {
+					const VECTOR jumpPadPositions[2] = {
+						{ 523.5441895, 707.2131958, 100.321991, 3.14159 },
+						{ 446.6223145, 707.5969238, 101.7734146, 0 }
+					};
+					j = 0;
+					for (i = 0; i < mobyInstancesHeader->StaticCount; ++i) {
+						GameplayMobyDef_t* mobyDef = &mobyInstancesHeader->MobyInstances[i];
+						if (mobyDef->OClass == MOBY_ID_JUMP_PAD) {
+							mobyDef->PosX = jumpPadPositions[j][0];
+							mobyDef->PosY = jumpPadPositions[j][1];
+							mobyDef->PosZ = jumpPadPositions[j][2];
+							mobyDef->RotZ = jumpPadPositions[j][3];
+							mobyDef->UNK_54 = 0xFFFF;
+							++j;
+
+							if (j >= 2)
+								break;
+						}
+					}
+				}
+			}
+			break;
+		}
+		case MAP_ID_GS:
+		{
+			setFlag(flags[TEAM_BLUE], mpInitPVarData + BLUE_SPAWN_OFF, 688.0098267, 654.5703125, 100, 3, 8, 7);
+			setFlag(flags[TEAM_RED], mpInitPVarData + RED_SPAWN_OFF, 637.3128662, 424.7201538, 103, 14, 10, 42);
+			setFlag(flags[TEAM_GREEN], mpInitPVarData + GREEN_SPAWN_OFF, 583.1230469, 647.1530151, 100, 41, 16, 1);
+			setFlag(flags[TEAM_ORANGE], mpInitPVarData + ORANGE_SPAWN_OFF, 676.170166, 512.2599487, 103, 13, 12, 35);
+
+			// blue
+			cuboidsHeader->CuboidInstances[8].M1[14] = -2.978070736;
+			cuboidsHeader->CuboidInstances[7].M0[12] = 678.3733521;
+			cuboidsHeader->CuboidInstances[7].M0[13] = 606.1663208;
+			cuboidsHeader->CuboidInstances[7].M0[14] = 100;
+			cuboidsHeader->CuboidInstances[7].M1[14] = -0.75;
+
+			// red
+			cuboidsHeader->CuboidInstances[42].M1[14] = 1.78639555;
+
+			// green
+			cuboidsHeader->CuboidInstances[1].M0[12] = 584.913208;
+			cuboidsHeader->CuboidInstances[1].M0[13] = 626.6487427;
+			cuboidsHeader->CuboidInstances[1].M0[14] = 100;
+			cuboidsHeader->CuboidInstances[1].M1[14] = 0.8007981777;
+
+			// orange
+			cuboidsHeader->CuboidInstances[35].M0[12] = 704.8323975;
+			cuboidsHeader->CuboidInstances[35].M0[13] = 530.9304199;
+			cuboidsHeader->CuboidInstances[35].M0[14] = 101.421875;
+			cuboidsHeader->CuboidInstances[35].M1[14] = 1.195036888;
+
+			// move hb into center of blue/green
+			// move three swingshots
+			j = 0; k = 0;
+			for (i = 0; i < mobyInstancesHeader->StaticCount; ++i) {
+				GameplayMobyDef_t* mobyDef = &mobyInstancesHeader->MobyInstances[i];
+				if (mobyDef->OClass == MOBY_ID_HEALTH_BOX_MULT) {
+					
+					if (j == 4) {
+						mobyDef->PosX = 637.5065918;
+						mobyDef->PosY = 647.1673584;
+						mobyDef->PosZ = 99;
+						mobyDef->UNK_54 = 0xFFFF;
+					} else if (j == 5) {
+						mobyDef->PosX = 692.2220459;
+						mobyDef->PosY = 473.4746704;
+						mobyDef->PosZ = 103;
+						mobyDef->UNK_54 = 0xFFFF;
+					}
+
+					++j;
+				}
+				else if (mobyDef->OClass == MOBY_ID_SWINGSHOT_ORB) {
+					if (k == 7) {
+						mobyDef->PosX = 645;
+						mobyDef->PosY = 543.118;
+						mobyDef->PosZ = 109.441;
+						mobyDef->UNK_54 = 0xFFFF;
+					} else if (k == 2) {
+						mobyDef->PosX = 645;
+						mobyDef->PosY = 560.5831;
+						mobyDef->PosZ = 108.3354;
+						mobyDef->UNK_54 = 0xFFFF;
+					} else if (k == 1) {
+						mobyDef->PosX = 645;
+						mobyDef->PosY = 578.0481;
+						mobyDef->PosZ = 107.2299;
+						mobyDef->UNK_54 = 0xFFFF;
+					}
+
+					++k;
+				}
+			}
 			break;
 		}
 	}
@@ -1250,6 +1534,6 @@ void grLoadStart(void)
 		return;
 
 	// Hook load gameplay file
-	if (*(u32*)0x004EE648 == 0x0C13B3A8)
-		*(u32*)0x004EE648 = 0x0C000000 | (u32)&onGameplayLoad / 4;
+	if (*(u32*)0x004EE598 == 0x0C13B1C8)
+		*(u32*)0x004EE598 = 0x0C000000 | (u32)&onGameplayLoad / 4;
 }

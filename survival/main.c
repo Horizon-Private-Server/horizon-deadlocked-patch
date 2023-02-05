@@ -562,9 +562,9 @@ int spawnRandomMob(void) {
 	VECTOR sp;
 	int mobIdx = 0;
 	struct MobSpawnParams* mob = spawnGetRandomMobParams(&mobIdx);
-	char bakedSpecialMutation = mob->Config.MobSpecialMutation;
 	if (mob) {
 		int cost = mob->Cost;
+		char bakedSpecialMutation = mob->Config.MobSpecialMutation;
 
 		// skip if cooldown not 0
 		int cooldown = defaultSpawnParamsCooldowns[mobIdx];
@@ -594,10 +594,12 @@ int spawnRandomMob(void) {
 				return 1;
 			} else { DPRINTF("failed to create mob\n"); }
 		} else { DPRINTF("failed to get random spawn point\n"); }
+
+		// reset special mutation back to original if failed to spawn
+		mob->Config.MobSpecialMutation = bakedSpecialMutation;
 	} else { DPRINTF("failed to get random mob params\n"); }
 
 	// no more budget left
-	mob->Config.MobSpecialMutation = bakedSpecialMutation;
 	return 0;
 }
 
@@ -807,6 +809,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 	
 	State.PlayerStates[playerId].IsDead = 0;
 	State.PlayerStates[playerId].State.TimesRevived++;
+	State.PlayerStates[playerId].State.TimesRevivedSinceLastFullDeath++;
 	Player* player = playerGetAll()[playerId];
 	if (!player)
 		return;
@@ -1099,7 +1102,7 @@ int getPlayerReviveCost(Player * player) {
 		return 0;
 
 	GameData * gameData = gameGetData();
-	return gameData->PlayerStats.Deaths[player->PlayerId] * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber));
+	return (State.PlayerStates[player->PlayerId].State.TimesRevivedSinceLastFullDeath + 1) * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber));
 }
 
 //--------------------------------------------------------------------------
@@ -1738,6 +1741,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 		State.PlayerStates[i].State.Kills = 0;
 		State.PlayerStates[i].State.Revives = 0;
 		State.PlayerStates[i].State.TimesRevived = 0;
+		State.PlayerStates[i].State.TimesRevivedSinceLastFullDeath = 0;
 		State.PlayerStates[i].ActionCooldownTicks = 0;
 		State.PlayerStates[i].ReviveCooldownTicks = 0;
 		State.PlayerStates[i].MessageCooldownTicks = 0;

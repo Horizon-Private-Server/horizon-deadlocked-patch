@@ -161,7 +161,9 @@ void disableSpectate(Player * player, struct PlayerSpectateData * data)
     *(u32*)0x005F4198 = 0x3042FFFD; // re-enable weird camera yaw when spectated player respawns
 
     data->Enabled = 0;
-    hudGetPlayerFlags(player->LocalPlayerIndex)->Flags.Weapons = 1;
+    PlayerHUDFlags* pHUD = hudGetPlayerFlags(player->LocalPlayerIndex);
+    if (pHUD)
+        pHUD->Flags.Weapons = 1;
 }
 
 /*

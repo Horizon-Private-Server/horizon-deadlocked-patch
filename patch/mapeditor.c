@@ -126,7 +126,9 @@ void mapEditorDo(void)
   Player * localPlayer = (Player*)0x347AA0;
   int count = spawnPointGetCount();
   int i = 0;
+  int x, y;
   int highlightedPoint = -1;
+  char buf[32];
   VECTOR temp = {0,0,0,0};
   VECTOR temp2 = {0,0,0,0};
 
@@ -154,15 +156,19 @@ void mapEditorDo(void)
     temp[2] += 1.0;
     drawRing(sp->M0, temp, 2.0, 1.0, color);
 
+    // draw id
+    if (gfxWorldSpaceToScreenSpace(&sp->M0[12], &x, &y)) {
+      sprintf(buf, "%d", i);
+      gfxScreenSpaceText(x, y + 3, 1, 1, 0x80FFFF00, buf, -1, 4);
+    }
+
     // draw
     temp[0] += cosf(sp->M1[14]) * 2.5;
     temp[1] += sinf(sp->M1[14]) * 2.5;
     vector_subtract(temp2, temp, localPlayer->CameraPos);
-    if (vector_innerproduct(temp2, localPlayer->CameraDir) > 0 && vector_length(temp2) < 100.0)
+    if (gfxWorldSpaceToScreenSpace(temp, &x, &y) && vector_length(temp2) < 100.0)
     {
       float scale = clamp(10.0 / vector_length(temp2), 0, 1);
-      int x, y;
-      gfxWorldSpaceToScreenSpace(temp, &x, &y);
       gfxScreenSpaceText(x, y, scale, scale, color, "+", -1, 4);
     }
   }

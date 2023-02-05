@@ -133,8 +133,8 @@ typedef struct UpdateGameStateRequest {
 
 typedef struct CustomGameModeStats
 {
-  u8 Payload[484];
-} CustomGameModeStats_t;
+  u8 Payload[480];
+} __attribute__((aligned(16))) CustomGameModeStats_t;
 
 typedef struct PatchStateContainer
 {

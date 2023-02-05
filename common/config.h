@@ -60,6 +60,7 @@ typedef struct PatchGameConfig
   char grVampire;
   char grHalfTime;
   char grBetterHills;
+  char grBetterFlags;
   char grHealthBars;
   char grNoNames;
   char grNoInvTimer;
@@ -100,6 +101,7 @@ enum CHARACTER_TWEAKER_ID
 enum CUSTOM_MAP_ID
 {
   CUSTOM_MAP_NONE = 0,
+  CUSTOM_MAP_ACE_HARDLIGHT_SUITE,
   CUSTOM_MAP_ANNIHILATION_NATION,
   CUSTOM_MAP_BAKISI_ISLES,
   CUSTOM_MAP_BATTLEDOME_SP,

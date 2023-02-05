@@ -50,10 +50,16 @@ Fix mob order not working correctly when spectating
 ++Increase damage cooldown for lower difficulties
 ++Decrease chargeboot into wall stunlock time for lower difficulties
 ++Add random drop pickups for Ammo, Nuke, Slow, and Double Points
-Add special rounds
+++Add special rounds
 ++Fix freeze staying forever after dying with freeze and being revived
 ++Fix zombies being immune while spawning
 ++Add tank zombies (rare)
 ++Adjust multiple player budget curve (change to level out after 3-4 players)
 ++Change zombie damage to be tied to animation and hand joint position
 ++Give revived players a damage cooldown
+Add permanent health upgrade pickup
+Add random weapon mod pickup
+Add mystery box that drops random pickup
+Revive cost resets when you fully die
+Get a reward for reviving (ammo/health)
+Add 

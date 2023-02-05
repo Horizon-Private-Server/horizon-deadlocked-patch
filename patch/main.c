@@ -70,6 +70,8 @@
 #define GAMESETTINGS_SURVIVOR						(*(u8*)0x00173806)
 #define GAMESETTINGS_CRAZYMODE					(*(u8*)0x0017381F)
 
+#define PASSWORD_BUFFER									((char*)0x0017233C)
+
 #define KILL_STEAL_WHO_HIT_ME_PATCH				(*(u32*)0x005E07C8)
 #define KILL_STEAL_WHO_HIT_ME_PATCH2			(*(u32*)0x005E11B0)
 
@@ -173,18 +175,20 @@ const int lodPatchesPotato[][2] = {
 	{ 0x0042EA50, 0x24020000 }, // disable mag particles
 	{ 0x0043C150, 0x24020000 }, // disable mag shells
 	{ 0x003A18F0, 0x24020000 }, // disable fusion shot particles
+	{ 0x0042608C, 0x00000000 }, // disable jump pad blur effect
 };
 
 const int lodPatchesNormal[][2] = {
-	{ 0x0050e318, 0x27BDFE40 }, // disable corn
+	{ 0x0050e318, 0x27BDFE40 }, // enable corn
 	{ 0x0050e31c, 0x7FB40100 },
-	{ 0x0041d400, 0x27BDFF00 }, // disable small weapon explosion
+	{ 0x0041d400, 0x27BDFF00 }, // enable small weapon explosion
 	{ 0x0041d404, 0x7FB00060 },
-	{ 0x003F7154, 0x0C140F40 }, // disable b6 ball shadow
-	{ 0x003A18F0, 0x0C13DC80 }, // disable b6 particles
-	{ 0x0042EA50, 0x0C13DC80 }, // disable mag particles
-	{ 0x0043C150, 0x0C13DC80 }, // disable mag shells
-	{ 0x003A18F0, 0x0C13DC80 }, // disable fusion shot particles
+	{ 0x003F7154, 0x0C140F40 }, // enable b6 ball shadow
+	{ 0x003A18F0, 0x0C13DC80 }, // enable b6 particles
+	{ 0x0042EA50, 0x0C13DC80 }, // enable mag particles
+	{ 0x0043C150, 0x0C13DC80 }, // enable mag shells
+	{ 0x003A18F0, 0x0C13DC80 }, // enable fusion shot particles
+	{ 0x0042608C, 0x0C131194 }, // enable jump pad blur effect
 };
 
 
@@ -550,6 +554,9 @@ void patchLevelOfDetail(void)
 
 				for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
 					POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+
+				// disable jump pad blur
+				POKE_U32(0x0042608C, 0);
 			}
 			break;
 		}
@@ -640,6 +647,32 @@ void patchCameraShake(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
+int patchGameSettings_OpenPasswordInputDialog(void * a0, char * title, char * value, int a3, int maxLength, int t1, int t2, int t3, int t4)
+{
+	strncpy((char*)value, PASSWORD_BUFFER, maxLength);
+
+	return internal_uiInputDialog(a0, title, value, a3, maxLength, t1, t2, t3, t4);
+}
+
+/*
+ * NAME :		patchGameSettingsLoad_Save
+ * 
+ * DESCRIPTION :
+ * 			Saves the given value to the respective game setting.
+ * 			I think this does validation depending on the input type then saves.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 			a0:					Points to the general settings area
+ * 			offset0:			Offset to game setting
+ * 			offset1:			Offset to game setting input type handler?
+ * 			value:				Value to save
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
 void patchGameSettingsLoad_Save(void * a0, int offset0, int offset1, int value)
 {
 	u32 step1 = *(u32*)((u32)a0 + offset0);
@@ -689,6 +722,22 @@ void patchGameSettingsLoad_Hook(void * a0, void * a1)
 			patchGameSettingsLoad_Save(a0, 0x10C, 0xA4, !lastCrazyMode);
 			break;
 		}
+	}
+
+	// enable pw input prompt when password is true
+	POKE_U32(0x0072E4A0, 0x0000182D);
+	HOOK_JAL(0x0072e510, &patchGameSettings_OpenPasswordInputDialog);
+	
+	// allow user to enable/disable password
+	POKE_U32(0x0072C408, 0x0000282D);
+	
+
+	// password
+	if (strlen(PASSWORD_BUFFER) > 0) {
+
+		// set default to on
+		patchGameSettingsLoad_Save(a0, 0xC4, 0xA4, 1);
+		DPRINTF("pw %s\n", PASSWORD_BUFFER);
 	}
 
 	if (gamemode != GAMERULE_CQ)
@@ -2469,7 +2518,7 @@ void runCheckGameMapInstalled(void)
 {
 	int i;
 	GameSettings* gs = gameGetSettings();
-	if (!gs || isInGame())
+	if (!gs || !isInMenus())
 		return;
 
 	// install start game hook
@@ -2551,10 +2600,6 @@ void processGameModules()
 		else if (module->State == GAMEMODULE_TEMP_ON)
 		{
 			module->State = GAMEMODULE_OFF;
-
-			// clear custom game mode
-			if (module->ModeId)
-				memset((void*)(u32)0x000F0000, 0, 0xF000);
 		}
 		else if (module->State == GAMEMODULE_ALWAYS_ON)
 		{
@@ -2933,7 +2978,7 @@ void runPayloadDownloadRequester(void)
 {
 	GameModule * module = GLOBAL_GAME_MODULES_START;
 	GameSettings* gs = gameGetSettings();
-	if (!gs || isInGame())
+	if (!gs || !isInMenus())
 		return;
 
 	// don't make any requests when the config menu is active

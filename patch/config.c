@@ -361,6 +361,7 @@ MenuElem_ListData_t dataCustomMaps = {
     CUSTOM_MAP_COUNT,
     {
       "None",
+      "Ace Hardlight's Suite",
       "Annihilation Nation",
       "Bakisi Isles",
       "Battledome SP",
@@ -577,6 +578,7 @@ MenuElem_t menuElementsGameSettings[] = {
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Better flags", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterFlags },
   { "Better hills", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterHills },
   { "Damage cooldown", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoInvTimer },
   { "Fix Wallsniping", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grFusionShotsAlwaysHit },
@@ -1858,11 +1860,11 @@ int onServerDownloadDataRequest(void * connection, void * data)
     dlTotalBytes = 0;
     dlBytesReceived = 0;
     dlIsActive = 0;
-    *(u32*)0x00167F54 = 1000 * 3;
+    //*(u32*)0x00167F54 = 1000 * 3;
   }
   else
   {
-    *(u32*)0x00167F54 = 1000 * 15;
+    //*(u32*)0x00167F54 = 1000 * 15;
   }
 
 	return sizeof(ServerDownloadDataRequest_t) - sizeof(request->Data) + request->DataSize;

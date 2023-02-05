@@ -266,7 +266,7 @@ void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attri
 	{
 		case MOB_MUTATE_DAMAGE: if (spawnParams->Config.Damage < spawnParams->Config.MaxDamage) { spawnParams->Config.Damage += ZOMBIE_DAMAGE_MUTATE * ZOMBIE_BASE_DAMAGE * State.Difficulty; break; } 
 		case MOB_MUTATE_SPEED: if (spawnParams->Config.Speed < spawnParams->Config.MaxSpeed) { spawnParams->Config.Speed += ZOMBIE_SPEED_MUTATE * ZOMBIE_BASE_SPEED * State.Difficulty; break; } 
-		case MOB_MUTATE_HEALTH: if (spawnParams->Config.MaxHealth <= 0 || spawnParams->Config.Health < spawnParams->Config.MaxHealth) { spawnParams->Config.Health += ZOMBIE_HEALTH_MUTATE * ZOMBIE_BASE_HEALTH * State.Difficulty; } break;
+		case MOB_MUTATE_HEALTH: if (spawnParams->Config.MaxHealth <= 0 || spawnParams->Config.Health < spawnParams->Config.MaxHealth) { spawnParams->Config.Health += ZOMBIE_HEALTH_MUTATE * ZOMBIE_BASE_HEALTH * maxf(0.5, State.Difficulty); } break;
 		case MOB_MUTATE_COST: spawnParams->Cost += rand(spawnParams->Config.MaxCostMutation); break;
 		default: break;
 	}

@@ -880,13 +880,32 @@ int mapsDownloadingModules(void)
 	return actionState == ACTION_DOWNLOADING_MODULES;
 }
 
+//--------------------------------------------------------------------------
+int align(int addr, int align)
+{
+	if (addr % align)
+		return addr + (align - (addr % align));
+	
+	return addr;
+}
+
 //------------------------------------------------------------------------------
 int mapsAllocateModuleBuffer(void)
 {
-	if (!USB_FS_MODULE_PTR)
-		USB_FS_MODULE_PTR = malloc(36800);
-	if (!USB_SRV_MODULE_PTR)
-		USB_SRV_MODULE_PTR = malloc(4100);
+	if (!USB_FS_MODULE_PTR) {
+		USB_FS_MODULE_PTR = malloc(41100);
+		if (USB_FS_MODULE_PTR) {
+			USB_FS_MODULE_PTR = (void*)align((int)USB_FS_MODULE_PTR, 0x10);
+			memset(USB_FS_MODULE_PTR, 0, 41100);
+		}
+	}
+	if (!USB_SRV_MODULE_PTR) {
+		USB_SRV_MODULE_PTR = malloc(8800);
+		if (USB_SRV_MODULE_PTR) {
+			USB_SRV_MODULE_PTR = (void*)align((int)USB_SRV_MODULE_PTR, 0x10);
+			memset(USB_SRV_MODULE_PTR, 0, 8800);
+		}
+	}
 
 	DPRINTF("fs:%08X srv:%08x\n", (u32)USB_FS_MODULE_PTR, (u32)USB_SRV_MODULE_PTR);
 

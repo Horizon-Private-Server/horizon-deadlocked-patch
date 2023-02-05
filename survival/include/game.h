@@ -136,6 +136,7 @@ struct SurvivalPlayerState
 	int Kills;
 	int Revives;
 	int TimesRevived;
+	int TimesRevivedSinceLastFullDeath;
 	short AlphaMods[8];
 	char BestWeaponLevel[9];
 };

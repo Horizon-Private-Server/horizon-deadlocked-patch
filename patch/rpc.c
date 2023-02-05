@@ -10,7 +10,7 @@
 
 #define RPCCLIENT_INITED (*(int*)0x000CFF00)
 
-#define USBSERV_BUFSIZE (1024 * 8)
+#define USBSERV_BUFSIZE (1024 * 6)
 
 static SifRpcClientData_t * rpcclient = (SifRpcClientData_t*)0x000CFF10;
 static int Rpc_Buffer[16] 			__attribute__((aligned(64)));

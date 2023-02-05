@@ -125,6 +125,7 @@ struct TrainingState
 	enum TRAINING_TYPE TrainingType;
 	int TargetLastSpawnIdx;
 	int ComboCounter;
+	long TimeLastSpawn;
 	long TimeLastKill;
 };
 
@@ -136,16 +137,30 @@ typedef struct SimulatedPlayer {
 	u32 TicksToJump;
 	u32 TicksToJumpFor;
 	u32 TicksToStrafeSwitch;
+	u32 TicksToStrafeQuickSwitchFor;
 	u32 TicksToStrafeStop;
 	u32 TicksToStrafeStopFor;
+	u32 TicksToStrafeStoppedFor;
 	u32 TicksToFire;
 	u32 TicksFireDelay;
 	u32 TicksToCycle;
+	u32 TicksToAimYaw;
+	u32 TicksToAimPitch;
+	u32 TicksToTbag;
+	u32 TicksAimNearPlayer;
+	int SniperFireStopForTicks;
 	int StrafeDir;
 	int Idx;
 	int CycleIdx;
 	int Points;
+	float YawOff;
 	float Yaw;
+	float YawVel;
+	float YawAcc;
+	float PitchOff;
+	float Pitch;
+	float PitchVel;
+	float PitchAcc;
 	char Created;
 	char Active;
 } SimulatedPlayer_t;

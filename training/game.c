@@ -138,6 +138,20 @@ void targetUpdate(SimulatedPlayer_t *sPlayer)
 	pad->btns = 0xFFFF;
 	pad->ljoy_h = 0x7F;
 	pad->ljoy_v = 0x7F;
+	pad->circle_p = 0;
+	pad->cross_p = 0;
+	pad->square_p = 0;
+	pad->triangle_p = 0;
+	pad->down_p = 0;
+	pad->left_p = 0;
+	pad->right_p = 0;
+	pad->up_p = 0;
+	pad->l1_p = 0;
+	pad->l2_p = 0;
+	pad->r1_p = 0;
+	pad->r2_p = 0;
+	
+
 
 	// send to mode for custom logic
 	modeUpdateTarget(sPlayer);
@@ -267,10 +281,10 @@ void onSimulateHeros(void)
 		if (SimPlayers[i].Player) {
 			PlayerVTable* pVTable = playerGetVTable(SimPlayers[i].Player);
 
-			// process input
-			//((void (*)(struct PAD*))0x00527e08)(&SimPlayers[i].Pad);
-
 			targetUpdate(&SimPlayers[i]);
+
+			// process input
+			((void (*)(struct PAD*))0x00527e08)(&SimPlayers[i].Pad);
 
 			// update pad
 			((void (*)(struct PAD*, void*, int))0x00527510)(&SimPlayers[i].Pad, SimPlayers[i].Pad.rdata, 0x14);
@@ -320,6 +334,9 @@ void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx)
 	sPlayer->Pad.rdata[4] = 0x7F;
 	sPlayer->Pad.rdata[3] = 0xFF;
 	sPlayer->Pad.rdata[2] = 0xFF;
+	sPlayer->Pad.port = 10;
+	sPlayer->Pad.slot = 10;
+	sPlayer->Pad.id = id;
 	
 	// create hero
 	gameSettings->PlayerClients[id] = 0;
@@ -408,7 +425,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 	// give a small delay before finalizing the initialization.
 	// this helps prevent the slow loaders from desyncing
-	static int startDelay = 60;
+	static int startDelay = 15;
 	if (startDelay > 0) {
 		--startDelay;
 		return;

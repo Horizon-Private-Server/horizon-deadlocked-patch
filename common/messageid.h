@@ -230,7 +230,7 @@ typedef struct ServerDownloadDataRequest
     int TotalSize;
     int DataOffset;
     short DataSize;
-    char Data[2048];
+    char Data[1362];
 } ServerDownloadDataRequest_t;
 
 typedef struct ClientDownloadDataResponse
