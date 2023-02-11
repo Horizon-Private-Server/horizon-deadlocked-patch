@@ -29,4 +29,7 @@ void destroyParticle(struct PartInstance* particle);
 int intArrayContains(int* list, int count, int value);
 int charArrayContains(char* list, int count, char value);
 
+void vectorProjectOnVertical(VECTOR output, VECTOR input0);
+void vectorProjectOnHorizontal(VECTOR output, VECTOR input0);
+
 #endif // SURVIVAL_UTILS_H

@@ -2446,15 +2446,15 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 0;
 
 	// enable all weapons
-  gameOptions->WeaponFlags.Chargeboots = 1;
-  gameOptions->WeaponFlags.DualVipers = 1;
-  gameOptions->WeaponFlags.MagmaCannon = 1;
-  gameOptions->WeaponFlags.Arbiter = 1;
-  gameOptions->WeaponFlags.FusionRifle = 1;
-  gameOptions->WeaponFlags.MineLauncher = 1;
-  gameOptions->WeaponFlags.B6 = 1;
-  gameOptions->WeaponFlags.Holoshield = 1;
-  gameOptions->WeaponFlags.Flail = 1;
+	gameOptions->WeaponFlags.Chargeboots = 1;
+	gameOptions->WeaponFlags.DualVipers = 1;
+	gameOptions->WeaponFlags.MagmaCannon = 1;
+	gameOptions->WeaponFlags.Arbiter = 1;
+	gameOptions->WeaponFlags.FusionRifle = 1;
+	gameOptions->WeaponFlags.MineLauncher = 1;
+	gameOptions->WeaponFlags.B6 = 1;
+	gameOptions->WeaponFlags.Holoshield = 1;
+	gameOptions->WeaponFlags.Flail = 1;
 
 	// force everyone to same team as host
 	for (i = 1; i < GAME_MAX_PLAYERS; ++i) {

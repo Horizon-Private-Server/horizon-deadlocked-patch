@@ -49,7 +49,7 @@
 #define ZOMBIE_BASE_DAMAGE										(15)
 #define ZOMBIE_DAMAGE_MUTATE									(0.02)
 
-#define ZOMBIE_BASE_SPEED											(0.08)
+#define ZOMBIE_BASE_SPEED											(2)
 #define ZOMBIE_SPEED_MUTATE										(0.001)
 
 #define ZOMBIE_BASE_HEALTH										(40)
@@ -80,6 +80,8 @@
 #define ZOMBIE_AUTO_DIRTY_COOLDOWN_TICKS			(60 * 5)
 #define ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS    	(60 * 2)
 #define ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS    	(60 * 3)
+
+#define ZOMBIE_MOVE_ACCELERATION              (25)
 
 #if PAYDAY
 #define ZOMBIE_BASE_BOLTS											(1000000)
