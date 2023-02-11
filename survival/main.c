@@ -47,6 +47,13 @@ const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x1c Revive [\x0E%d\x08]";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
+const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
+	[UPGRADE_HEALTH] "\x11 Health Upgrade",
+	[UPGRADE_SPEED] "\x11 Speed Upgrade",
+	[UPGRADE_DAMAGE] "\x11 Damage Upgrade",
+	[UPGRADE_MEDIC] "\x11 Medic Upgrade",
+	[UPGRADE_VENDOR] "\x11 Vendor Discount",
+};
 
 const char * ALPHA_MODS[] = {
 	"",
@@ -184,6 +191,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.Name = "Titan",
 		.Config = {
 			.MobType = MOB_TANK,
+			.Xp = 250,
 			.Bangles = ZOMBIE_BANGLE_HEAD_3 | ZOMBIE_BANGLE_TORSO_3,
 			.Damage = ZOMBIE_BASE_DAMAGE * 2.5,
 			.MaxDamage = ZOMBIE_BASE_DAMAGE * 5,
@@ -211,6 +219,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.Name = "Ghost",
 		.Config = {
 			.MobType = MOB_GHOST,
+			.Xp = 25,
 			.Bangles = ZOMBIE_BANGLE_HEAD_2 | ZOMBIE_BANGLE_TORSO_2,
 			.Damage = ZOMBIE_BASE_DAMAGE * 1.0,
 			.MaxDamage = ZOMBIE_BASE_DAMAGE * 1.3,
@@ -238,6 +247,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.Name = "Explosion",
 		.Config = {
 			.MobType = MOB_EXPLODE,
+			.Xp = 40,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = ZOMBIE_BASE_DAMAGE * 2.0,
 			.MaxDamage = ZOMBIE_BASE_DAMAGE * 10.0,
@@ -265,6 +275,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.Name = "Acid",
 		.Config = {
 			.MobType = MOB_ACID,
+			.Xp = 50,
 			.Bangles = ZOMBIE_BANGLE_HEAD_4 | ZOMBIE_BANGLE_TORSO_4,
 			.Damage = ZOMBIE_BASE_DAMAGE * 1.0,
 			.MaxDamage = ZOMBIE_BASE_DAMAGE * 1.0,
@@ -292,6 +303,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.Name = "Freeze",
 		.Config = {
 			.MobType = MOB_FREEZE,
+			.Xp = 50,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = ZOMBIE_BASE_DAMAGE * 1.0,
 			.MaxDamage = ZOMBIE_BASE_DAMAGE * 1.6,
@@ -319,6 +331,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.Name = "Runner",
 		.Config = {
 			.MobType = MOB_NORMAL,
+			.Xp = 15,
 			.Bangles = ZOMBIE_BANGLE_HEAD_5,
 			.Damage = ZOMBIE_BASE_DAMAGE * 0.6,
 			.MaxDamage = ZOMBIE_BASE_DAMAGE * 0.9,
@@ -346,6 +359,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.Name = "Zombie",
 		.Config = {
 			.MobType = MOB_NORMAL,
+			.Xp = 10,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = ZOMBIE_BASE_DAMAGE * 1.0,
 			.MaxDamage = ZOMBIE_BASE_DAMAGE * 1.3,
@@ -366,6 +380,35 @@ struct MobSpawnParams defaultSpawnParams[] = {
 
 const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct MobSpawnParams);
 int defaultSpawnParamsCooldowns[MOB_SPAWN_PARAM_COUNT];
+
+//--------------------------------------------------------------------------
+struct GuberMoby* getGuber(Moby* moby)
+{
+	if (moby->OClass == UPGRADE_MOBY_OCLASS && moby->PVar)
+		return moby->GuberMoby;
+	if (moby->OClass == DROP_MOBY_OCLASS && moby->PVar)
+		return moby->GuberMoby;
+	if (moby->OClass == ZOMBIE_MOBY_OCLASS && moby->PVar)
+		return moby->GuberMoby;
+	
+	return 0;
+}
+
+//--------------------------------------------------------------------------
+int handleEvent(Moby* moby, GuberEvent* event)
+{
+	if (!moby || !event || !isInGame())
+		return 0;
+
+	switch (moby->OClass)
+	{
+		case ZOMBIE_MOBY_OCLASS: return mobHandleEvent(moby, event);
+		case DROP_MOBY_OCLASS: return dropHandleEvent(moby, event);
+		case UPGRADE_MOBY_OCLASS: return upgradeHandleEvent(moby, event);
+	}
+
+	return 0;
+}
 
 //--------------------------------------------------------------------------
 void drawRoundMessage(const char * message, float scale, int yPixelsOffset)
@@ -823,7 +866,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 	PlayerVTable* vtable = playerGetVTable(player);
 	if (vtable)
 		vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
-	playerSetHealth(player, 50);
+	playerSetHealth(player, player->MaxHealth);
 	playerSetPosRot(player, deadPos, deadRot);
 
 	player->timers.acidTimer = 0;
@@ -1077,7 +1120,10 @@ int getUpgradeCost(Player * player, enum WEAPON_IDS weaponId) {
 	if (level < 0 || level >= VENDOR_MAX_WEAPON_LEVEL)
 		return 0;
 		
-	return UPGRADE_COST[level];
+	// determine discount rate
+	float rate = clamp(1 - (0.05 * State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_VENDOR]), 0, 1);
+
+	return ceilf(UPGRADE_COST[level] * rate);
 }
 
 //--------------------------------------------------------------------------
@@ -1088,6 +1134,7 @@ void respawnDeadPlayers(void) {
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
 		if (p && p->IsLocal && playerIsDead(p)) {
+			State.PlayerStates[i].State.TimesRevivedSinceLastFullDeath = 0;
 			playerRespawn(p);
 		}
 		
@@ -1097,12 +1144,16 @@ void respawnDeadPlayers(void) {
 }
 
 //--------------------------------------------------------------------------
-int getPlayerReviveCost(Player * player) {
-	if (!player)
+int getPlayerReviveCost(Player * fromPlayer, Player * player) {
+	if (!player || !fromPlayer)
 		return 0;
 
 	GameData * gameData = gameGetData();
-	return (State.PlayerStates[player->PlayerId].State.TimesRevivedSinceLastFullDeath + 1) * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber));
+
+	// determine discount rate
+	float rate = clamp(1 - (0.05 * State.PlayerStates[fromPlayer->PlayerId].State.Upgrades[UPGRADE_MEDIC]), 0, 1);
+
+	return ceilf(rate * ((State.PlayerStates[player->PlayerId].State.TimesRevivedSinceLastFullDeath + 1) * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber))));
 }
 
 //--------------------------------------------------------------------------
@@ -1134,6 +1185,30 @@ void processPlayer(int pIndex) {
 		}
 	}
 
+	// set max health
+	player->MaxHealth = 50 + (5 * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_HEALTH]);
+
+	// set speed
+	player->Speed = 1 + (0.05 * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED]);
+	//DPRINTF("speed:%f\n", player->Speed);
+
+	if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
+		State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED] += 1;
+	}
+	else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
+		State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED] -= 1;
+	}
+
+	sprintf(strBuf, "%d", State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED]);
+	gfxScreenSpaceText(5, SCREEN_HEIGHT - 40, 1, 1, 0x80FFFFFF, strBuf, -1, 0);
+
+	// set max xp
+	if (player->IsLocal) {
+		u32 xp = playerData->State.XP;
+		u32 nextXp = getXpForNextToken(playerData->State.TotalTokens);
+		setPlayerEXP(i, xp / (float)nextXp);
+	}
+	
 	// adjust speed of chargeboot stun
 	if (player->PlayerState == 121) {
 		*(float*)((u32)player + 0x25C4) = 1.0 / State.Difficulty;
@@ -1272,6 +1347,30 @@ void processPlayer(int pIndex) {
 			}
 		}
 
+		// handle upgrade logic
+		for (i = 0; i < UPGRADE_COUNT; ++i) {
+			Moby* upgradeMoby = State.UpgradeMobies[i];
+			if (!playerData->ActionCooldownTicks && upgradeMoby && playerData->State.Upgrades[i] < UpgradeMax[i]) {
+				vector_subtract(t, player->PlayerPosition, upgradeMoby->Position);
+				if (vector_sqrmag(t) < (UPGRADE_PICKUP_RADIUS * UPGRADE_PICKUP_RADIUS)) {
+					
+					// draw help popup
+					sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_BUY_UPGRADE_MESSAGES[i]);
+					uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+					hasMessage = 1;
+					playerData->MessageCooldownTicks = 2;
+
+					// handle pad input
+					if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens >= UPGRADE_TOKEN_COST) {
+						playerData->State.CurrentTokens -= UPGRADE_TOKEN_COST;
+						playerData->ActionCooldownTicks = PLAYER_UPGRADE_COOLDOWN_TICKS;
+						upgradePickup(upgradeMoby, pIndex);
+					}
+					break;
+				}
+			}
+		}
+
 		// handle revive logic
 		if (!isDeadState) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -1287,7 +1386,7 @@ void processPlayer(int pIndex) {
 						if (vector_sqrmag(t) < (PLAYER_REVIVE_MAX_DIST * PLAYER_REVIVE_MAX_DIST)) {
 							
 							// get revive cost
-							int cost = getPlayerReviveCost(otherPlayer);
+							int cost = getPlayerReviveCost(player, otherPlayer);
 
 							// draw help popup
 							sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_REVIVE_MESSAGE, cost);
@@ -1306,6 +1405,18 @@ void processPlayer(int pIndex) {
 				}
 			}
 		}
+
+		/*
+		static int aaa = 0;
+		if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
+			aaa += 1;
+			DPRINTF("%d\n", aaa);
+		}
+		else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
+			aaa -= 1;
+			DPRINTF("%d\n", aaa);
+		}
+		*/
 
 		// hide message right away
 		if (!hasMessage && messageCooldownTicks > 0) {
@@ -1427,6 +1538,40 @@ void setRoundStart(int skip)
 }
 
 //--------------------------------------------------------------------------
+void setPlayerEXP(int localPlayerIndex, float expPercent)
+{
+	Player* player = playerGetFromSlot(localPlayerIndex);
+	if (!player)
+		return;
+
+	u32 canvasId = hudGetCurrentCanvas() + localPlayerIndex;
+	void* canvas = hudGetCanvas(canvasId);
+	if (!canvas)
+		return;
+
+	struct HUDWidgetRectangleObject* expBar = hudCanvasGetObject(canvas, 0xF000010A);
+	if (!expBar)
+		return;
+	
+	// set exp bar
+	expBar->iFrame.ScaleX = 0.2275 * expPercent;
+	expBar->iFrame.PositionX = 0.406 + (expBar->iFrame.ScaleX / 2);
+	expBar->iFrame.PositionY = 0.0546875;
+	expBar->iFrame.Color = hudGetTeamColor(player->Team, 2);
+	expBar->Color1 = hudGetTeamColor(player->Team, 0);
+	expBar->Color2 = hudGetTeamColor(player->Team, 2);
+	expBar->Color3 = hudGetTeamColor(player->Team, 0);
+
+	struct HUDWidgetTextObject* healthText = hudCanvasGetObject(canvas, 0xF000010E);
+	if (!healthText)
+		return;
+	
+	// set health string
+	snprintf(State.PlayerStates[player->PlayerId].HealthBarStrBuf, sizeof(State.PlayerStates[player->PlayerId].HealthBarStrBuf), "%d/%d", (int)player->Health, (int)player->MaxHealth);
+	healthText->ExternalStringMemory = State.PlayerStates[player->PlayerId].HealthBarStrBuf;
+}
+
+//--------------------------------------------------------------------------
 void forcePlayerHUD(void)
 {
 	int i;
@@ -1440,6 +1585,9 @@ void forcePlayerHUD(void)
 			hudFlags->Flags.NormalScoreboard = 0;
 		}
 	}
+
+	// show exp
+	POKE_U32(0x0054ffc0, 0x0000102D);
 }
 
 //--------------------------------------------------------------------------
@@ -1589,6 +1737,64 @@ Moby* FindMobyOrSpawnBox(int oclass, int defaultToSpawnpointId)
 }
 
 //--------------------------------------------------------------------------
+void spawnUpgrades(void)
+{
+	VECTOR pos,rot;
+	int i,j;
+	int r;
+	int bakedUpgradeSpawnpointCount = 0;
+	char upgradeBakedSpawnpointIdx[UPGRADE_COUNT];
+
+	// initialize spawnpoint idx to -1
+	// and set moby ref to NULL
+	for (i = 0; i < UPGRADE_COUNT; ++i) {
+		upgradeBakedSpawnpointIdx[i] = -1;
+		State.UpgradeMobies[i] = NULL;
+	}
+
+	// count number of baked spawnpoints used for upgrade
+	for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
+		if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_UPGRADE)
+			++bakedUpgradeSpawnpointCount;
+	}
+
+	// find free baked spawn idx
+	for (i = 0; i < UPGRADE_COUNT; ++i) {
+
+		// if no more free spawnpoints then exit
+		if (!bakedUpgradeSpawnpointCount)
+			break;
+
+		// randomly select point
+		r = 1 + rand(BAKED_SPAWNPOINT_COUNT);
+		j = 0;
+		while (r) {
+			j = (j + 1) % BAKED_SPAWNPOINT_COUNT;
+			if (BakedConfig.BakedSpawnPoints[j].Type == BAKED_SPAWNPOINT_UPGRADE && !charArrayContains(upgradeBakedSpawnpointIdx, UPGRADE_COUNT, j))
+				--r;
+		}
+
+		// assign point to this upgrade
+		// decrement list
+		upgradeBakedSpawnpointIdx[i] = j;
+		--bakedUpgradeSpawnpointCount;
+	}
+
+	// spawn
+	for (i = 0; i < UPGRADE_COUNT; ++i) {
+		int bakedSpIdx = upgradeBakedSpawnpointIdx[i];
+		if (bakedSpIdx < 0)
+			continue;
+
+		SurvivalBakedSpawnpoint_t* sp = &BakedConfig.BakedSpawnPoints[bakedSpIdx];
+		memcpy(pos, sp->Position, sizeof(float)*3);
+		memcpy(rot, sp->Rotation, sizeof(float)*3);
+
+		upgradeCreate(pos, rot, i);
+	}
+}
+
+//--------------------------------------------------------------------------
 void resetRoundState(void)
 {
 	GameSettings* gameSettings = gameGetSettings();
@@ -1628,6 +1834,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	char hasTeam[10] = {0,0,0,0,0,0,0,0,0,0};
 	Player** players = playerGetAll();
 	int i, j;
+	VECTOR t;
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
@@ -1729,6 +1936,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	// 
 	mobInitialize();
 	dropInitialize();
+	upgradeInitialize();
 
 	// initialize player states
 	State.LocalPlayerState = NULL;
@@ -1736,23 +1944,11 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.ActivePlayerCount = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
-		State.PlayerStates[i].State.Bolts = 0;
-		State.PlayerStates[i].State.TotalBolts = 0;
-		State.PlayerStates[i].State.Kills = 0;
-		State.PlayerStates[i].State.Revives = 0;
-		State.PlayerStates[i].State.TimesRevived = 0;
-		State.PlayerStates[i].State.TimesRevivedSinceLastFullDeath = 0;
-		State.PlayerStates[i].ActionCooldownTicks = 0;
-		State.PlayerStates[i].ReviveCooldownTicks = 0;
-		State.PlayerStates[i].MessageCooldownTicks = 0;
-		State.PlayerStates[i].IsDead = 0;
-		State.PlayerStates[i].MinSqrDistFromMob = 0;
-		State.PlayerStates[i].MaxSqrDistFromMob = 0;
-		State.PlayerStates[i].IsLocal = 0;
-		State.PlayerStates[i].IsDoublePoints = 0;
-		State.PlayerStates[i].TimeOfDoublePoints = 0;
-		memset(State.PlayerStates[i].State.AlphaMods, 0, sizeof(State.PlayerStates[i].State.AlphaMods));
-		memset(State.PlayerStates[i].State.BestWeaponLevel, 0, sizeof(State.PlayerStates[i].State.BestWeaponLevel));
+		memset(&State.PlayerStates[i], 0, sizeof(struct SurvivalPlayer));
+
+#if DEBUG
+		State.PlayerStates[i].State.CurrentTokens = 100;
+#endif
 
 		if (p) {
 
@@ -1804,6 +2000,9 @@ void initialize(PatchGameConfig_t* gameConfig)
 #else
 	State.BigAl = FindMobyOrSpawnBox(0, 2);
 #endif
+
+	// spawn upgrades
+	spawnUpgrades();
 
 	DPRINTF("vendor %08X\n", (u32)State.Vendor);
 	DPRINTF("big al %08X\n", (u32)State.BigAl);
@@ -1963,15 +2162,29 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	}
 
 	// draw number of mobs spawned
+	char* enemiesStr = "ENEMIES";
+	gfxScreenSpaceText(481, 241, 0.7, 0.7, 0x40000000, enemiesStr, -1, 1);
+	gfxScreenSpaceText(480, 240, 0.7, 0.7, 0x80E0E0E0, enemiesStr, -1, 1);
 	sprintf(buffer, "%d", State.RoundMobCount);
-	gfxScreenSpaceText(481, 58, 1, 1, 0x40000000, buffer, -1, 1);
-	gfxScreenSpaceText(480, 57, 1, 1, 0x80B0B0E0, buffer, -1, 1);
+	gfxScreenSpaceText(481, 252, 1, 1, 0x40000000, buffer, -1, 1);
+	gfxScreenSpaceText(480, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
-	// mob tick
+	// draw dread tokens
+	for (i = 0; i < 2; ++i) {
+		Player* p = playerGetFromSlot(i);
+		if (p && p->PlayerMoby) {
+			float y = 57 + (i * 0.5 * SCREEN_HEIGHT);
+			snprintf(buffer, 32, "%d", State.PlayerStates[p->PlayerId].State.CurrentTokens);
+			gfxScreenSpaceText(457+2, y+8+2, 1, 1, 0x40000000, buffer, -1, 2);
+			gfxScreenSpaceText(457,   y+8,   1, 1, 0x80C0C0C0, buffer, -1, 2);
+			drawDreadTokenIcon(462, y, 32);
+		}
+	}
+
+	// ticks
 	mobTick();
-
-	// drop tick
 	dropTick();
+	upgradeTick();
 
 	if (!State.GameOver)
 	{
@@ -2204,14 +2417,51 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 //--------------------------------------------------------------------------
 void setLobbyGameOptions(void)
 {
+	int i;
+
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
-	if (!gameOptions)
+	GameSettings* gameSettings = gameGetSettings();
+	if (!gameOptions || gameSettings->GameLoadStartTime <= 0)
 		return;
-	
+
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
+
+#if !DEBUG
+	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+#endif
+
+	// no vehicles
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_0D = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 0;
+
+	// enable all weapons
+  gameOptions->WeaponFlags.Chargeboots = 1;
+  gameOptions->WeaponFlags.DualVipers = 1;
+  gameOptions->WeaponFlags.MagmaCannon = 1;
+  gameOptions->WeaponFlags.Arbiter = 1;
+  gameOptions->WeaponFlags.FusionRifle = 1;
+  gameOptions->WeaponFlags.MineLauncher = 1;
+  gameOptions->WeaponFlags.B6 = 1;
+  gameOptions->WeaponFlags.Holoshield = 1;
+  gameOptions->WeaponFlags.Flail = 1;
+
+	// force everyone to same team as host
+	for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
+		if (gameSettings->PlayerTeams[i] >= 0) {
+			gameSettings->PlayerTeams[i] = gameSettings->PlayerTeams[0];
+		}
+	}
 }
 
 //--------------------------------------------------------------------------
@@ -2300,5 +2550,5 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 //--------------------------------------------------------------------------
 void loadStart(void)
 {
-	
+	setLobbyGameOptions();
 }

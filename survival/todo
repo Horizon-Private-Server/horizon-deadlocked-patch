@@ -57,9 +57,23 @@ Fix mob order not working correctly when spectating
 ++Adjust multiple player budget curve (change to level out after 3-4 players)
 ++Change zombie damage to be tied to animation and hand joint position
 ++Give revived players a damage cooldown
-Add permanent health upgrade pickup
-Add random weapon mod pickup
-Add mystery box that drops random pickup
-Revive cost resets when you fully die
+++Add health/speed/damage upgrades (persists between deaths)
+++Add upgrade that lowers the cost of reviving other players
+++Add upgrade that gives discount on vendor
+++Add token system based on XP from killing mobs
+Add mystery box (pay 10000 bolts)
+  - Teddy bear (respawn random location)
+  - Random weapon mod
+  - Dread token
+  - Totem that auto revives when you die (releases explosion with high damage; you don't get points for kills)
+  - Turn power on for X minutes
+  - Item that, when activated, makes you invisible to zombies
+  - Item that, when activated, acid jumps you high
+  - Upgrade weapon
+  - Chance of being frozen for 1 minute
+  - Can't use random weapon
+  - Foggy vision for 1 minute
+++Revive cost resets when you fully die
 Get a reward for reviving (ammo/health)
-Add 
+Add path finding
+++Force game settings on start

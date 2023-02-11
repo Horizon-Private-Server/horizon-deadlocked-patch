@@ -1,0 +1,349 @@
+#include "include/upgrade.h"
+#include "include/drop.h"
+#include "include/mob.h"
+#include "include/utils.h"
+#include "include/game.h"
+#include <string.h>
+#include <libdl/stdio.h>
+#include <libdl/game.h>
+#include <libdl/color.h>
+#include <libdl/collision.h>
+#include <libdl/moby.h>
+#include <libdl/ui.h>
+#include <libdl/graphics.h>
+#include <libdl/random.h>
+#include <libdl/radar.h>
+
+extern struct SurvivalState State;
+extern SoundDef BaseSoundDef;
+
+GuberEvent* upgradeCreateEvent(Moby* moby, u32 eventType);
+
+char UpgradeTexIds[] = {
+	[UPGRADE_HEALTH] 94,
+	[UPGRADE_SPEED] 52,
+	[UPGRADE_DAMAGE] 9,
+	[UPGRADE_MEDIC] 16,
+	[UPGRADE_VENDOR] 46,
+};
+
+int UpgradeMax[] = {
+	[UPGRADE_HEALTH] 1000,
+	[UPGRADE_SPEED] 10,
+	[UPGRADE_DAMAGE] 100,
+	[UPGRADE_MEDIC] 16,
+	[UPGRADE_VENDOR] 16,
+};
+
+//--------------------------------------------------------------------------
+void upgradePlayPickupSound(Moby* moby)
+{
+	BaseSoundDef.Index = 101;
+	soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
+}	
+
+//--------------------------------------------------------------------------
+void upgradeDestroy(Moby* moby)
+{
+	// create event
+	GuberEvent * guberEvent = upgradeCreateEvent(moby, UPGRADE_EVENT_DESTROY);
+}
+
+//--------------------------------------------------------------------------
+void upgradePickup(Moby* moby, int pickedUpByPlayerId)
+{
+	// create event
+	GuberEvent * guberEvent = upgradeCreateEvent(moby, UPGRADE_EVENT_PICKUP);
+	if (guberEvent) {
+		guberEventWrite(guberEvent, &pickedUpByPlayerId, sizeof(int));
+	}
+}
+
+//--------------------------------------------------------------------------
+void upgradePostDraw(Moby* moby)
+{
+	struct QuadDef quad;
+	MATRIX m2;
+	VECTOR t;
+	VECTOR pTL = {0.5,0,0.5,1};
+	VECTOR pTR = {-0.5,0,0.5,1};
+	VECTOR pBL = {0.5,0,-0.5,1};
+	VECTOR pBR = {-0.5,0,-0.5,1};
+	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
+	if (!pvars)
+		return;
+
+	// determine color
+	u32 color = 0x70FFFFFF;
+
+	// set draw args
+	matrix_unit(m2);
+
+	// init
+  	gfxResetQuad(&quad);
+
+	// color of each corner?
+	vector_copy(quad.VertexPositions[0], pTL);
+	vector_copy(quad.VertexPositions[1], pTR);
+	vector_copy(quad.VertexPositions[2], pBL);
+	vector_copy(quad.VertexPositions[3], pBR);
+	quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
+	quad.VertexUVs[0] = (struct UV){0,0};
+	quad.VertexUVs[1] = (struct UV){1,0};
+	quad.VertexUVs[2] = (struct UV){0,1};
+	quad.VertexUVs[3] = (struct UV){1,1};
+	quad.Clamp = 1;
+	quad.Tex0 = gfxGetFrameTex(UpgradeTexIds[pvars->Type]);
+	quad.Tex1 = 0xFF9000000260;
+	quad.Alpha = 0x8000000044;
+
+	// copy from moby
+	memcpy(m2, moby->M0_03, sizeof(VECTOR)*3);
+	memcpy(&m2[12], moby->Position, sizeof(VECTOR));
+
+	// draw
+	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
+}
+
+//--------------------------------------------------------------------------
+void upgradeUpdate(Moby* moby)
+{
+	const float rotSpeeds[] = { 0.05, 0.02, -0.03, -0.1 };
+	const int opacities[] = { 64, 32, 44, 51 };
+
+	VECTOR t;
+	int i;
+	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
+	GameOptions* gameOptions = gameGetOptions();
+	Player** players = playerGetAll();
+	if (!pvars)
+		return;
+
+	// register draw event
+	gfxRegisterDrawFunction((void**)0x0022251C, &upgradePostDraw, moby);
+
+	return;
+
+	// handle particles
+	u32 color = 0x80C0C0C0;
+	for (i = 0; i < 4; ++i) {
+		struct PartInstance * particle = pvars->Particles[i];
+		if (!particle) {
+			pvars->Particles[i] = particle = spawnParticle(moby->Position, color, opacities[i], i);
+		}
+
+		// update
+		if (particle) {
+			particle->Rot = (int)((gameGetTime() + (i * 100)) / (TIME_SECOND * rotSpeeds[i])) & 0xFF;
+		}
+	}
+}
+
+//--------------------------------------------------------------------------
+GuberEvent* upgradeCreateEvent(Moby* moby, u32 eventType)
+{
+	GuberEvent * event = NULL;
+
+	// create guber object
+	Guber* guber = guberGetObjectByMoby(moby);
+	if (guber)
+		event = guberEventCreateEvent(guber, eventType, 0, 0);
+
+	return event;
+}
+
+//--------------------------------------------------------------------------
+int upgradeHandleEvent_Spawn(Moby* moby, GuberEvent* event)
+{
+	VECTOR p,r;
+	int i;
+	struct UpgradeSpawnEventArgs args;
+
+	// read event
+	guberEventRead(event, p, 12);
+	guberEventRead(event, r, 12);
+	guberEventRead(event, &args, sizeof(struct UpgradeSpawnEventArgs));
+
+	// set position
+	vector_copy(moby->Position, p);
+	vector_copy(moby->Rotation, r);
+
+	// set update
+	moby->PUpdate = &upgradeUpdate;
+
+	// 
+	//moby->ModeBits |= 0x30;
+	//moby->GlowRGBA = MobSecondaryColors[(int)args.MobType];
+	//moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
+	moby->CollData = NULL;
+	moby->DrawDist = 0;
+	//moby->PClass = NULL;
+
+	// update pvars
+	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
+	pvars->Type = args.Type;
+	memset(pvars->Particles, 0, sizeof(pvars->Particles));
+
+	// set team
+	Guber* guber = guberGetObjectByMoby(moby);
+	if (guber)
+		((GuberMoby*)guber)->TeamNum = 10;
+	
+	// set reference in state
+	State.UpgradeMobies[args.Type] = moby;
+
+	// 
+	mobySetState(moby, 0, -1);
+	DPRINTF("upgrade spawned at %08X type:%d\n", (u32)moby, pvars->Type);
+	return 0;
+}
+
+//--------------------------------------------------------------------------
+int upgradeHandleEvent_Destroy(Moby* moby, GuberEvent* event)
+{
+	char killedByPlayerId, weaponId;
+	int i;
+	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
+	if (!pvars)
+		return 0;
+
+	// destroy particles
+	for (i = 0; i < 4; ++i) {
+		if (pvars->Particles[i]) {
+			destroyParticle(pvars->Particles[i]);
+			pvars->Particles[i] = 0;
+		}
+	}
+
+	guberMobyDestroy(moby);
+	return 0;
+}
+
+//--------------------------------------------------------------------------
+int upgradeHandleEvent_Pickup(Moby* moby, GuberEvent* event)
+{
+	struct UpgradePickupEventArgs args;
+	int i,j;
+	Player** players = playerGetAll();
+	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
+
+	if (!pvars)
+		return 0;
+
+	// read event
+	guberEventRead(event, &args, sizeof(struct UpgradePickupEventArgs));
+
+	Player* targetPlayer = players[args.PickedUpByPlayerId];
+	if (!targetPlayer)
+		return 0;
+
+	// give
+	State.PlayerStates[args.PickedUpByPlayerId].State.Upgrades[pvars->Type] += 1;
+
+	// handle effect
+	if (targetPlayer->IsLocal) {
+		switch (pvars->Type)
+		{
+			case UPGRADE_HEALTH:
+			{
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Health upgraded!");
+				break;
+			}
+			case UPGRADE_SPEED:
+			{
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Speed upgraded!");
+				break;
+			}
+			case UPGRADE_DAMAGE:
+			{
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Damage upgraded!");
+				break;
+			}
+			case UPGRADE_MEDIC:
+			{
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Medic upgraded!");
+				break;
+			}
+			case UPGRADE_VENDOR:
+			{
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Vendor discount!");
+				break;
+			}
+		}
+	}
+	
+	// play pickup sound
+	upgradePlayPickupSound(moby);
+	return 0;
+}
+
+//--------------------------------------------------------------------------
+int upgradeHandleEvent(Moby* moby, GuberEvent* event)
+{
+	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
+
+	if (isInGame() && !mobyIsDestroyed(moby) && moby->OClass == UPGRADE_MOBY_OCLASS && pvars) {
+		u32 upgradeEvent = event->NetEvent.EventID;
+
+		switch (upgradeEvent)
+		{
+			case UPGRADE_EVENT_SPAWN: return upgradeHandleEvent_Spawn(moby, event);
+			case UPGRADE_EVENT_DESTROY: return upgradeHandleEvent_Destroy(moby, event);
+			case UPGRADE_EVENT_PICKUP: return upgradeHandleEvent_Pickup(moby, event);
+			default:
+			{
+				DPRINTF("unhandle upgrade event %d\n", upgradeEvent);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
+//--------------------------------------------------------------------------
+int upgradeCreate(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType)
+{
+	GameSettings* gs = gameGetSettings();
+	struct UpgradeSpawnEventArgs args;
+
+	// create guber object
+	GuberEvent * guberEvent = 0;
+	guberMobyCreateSpawned(UPGRADE_MOBY_OCLASS, sizeof(struct UpgradePVar), &guberEvent, NULL);
+	if (guberEvent)
+	{
+		args.Type = upgradeType;
+		
+		guberEventWrite(guberEvent, position, 12);
+		guberEventWrite(guberEvent, rotation, 12);
+		guberEventWrite(guberEvent, &args, sizeof(struct UpgradeSpawnEventArgs));
+	}
+	else
+	{
+		DPRINTF("failed to guberevent upgrade\n");
+	}
+  
+  return guberEvent != NULL;
+}
+
+//--------------------------------------------------------------------------
+void upgradeInitialize(void)
+{
+	Moby* testMoby = mobySpawn(UPGRADE_MOBY_OCLASS, 0);
+	if (testMoby) {
+		u32 mobyFunctionsPtr = (u32)mobyGetFunctions(testMoby);
+		if (mobyFunctionsPtr) {
+			// set vtable callbacks
+			*(u32*)(mobyFunctionsPtr + 0x04) = (u32)&getGuber;
+			*(u32*)(mobyFunctionsPtr + 0x14) = (u32)&handleEvent;
+		}
+
+		mobyDestroy(testMoby);
+	}
+}
+
+//--------------------------------------------------------------------------
+void upgradeTick(void)
+{
+	
+}

@@ -5,6 +5,7 @@
 #include "messageid.h"
 #include <libdl/player.h>
 #include <libdl/math3d.h>
+#include "upgrade.h"
 
 #define TPS																		(60)
 
@@ -24,7 +25,7 @@
 #if QUICK_SPAWN
 #define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 0)
 #else
-#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 20)
+#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 30)
 #endif
 
 #define ROUND_BASE_BOLT_BONUS									(100)
@@ -110,6 +111,8 @@
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
+#define BAKED_SPAWNPOINT_COUNT							(16)
+
 enum GameNetMessage
 {
 	CUSTOM_MSG_ROUND_COMPLETE = CUSTOM_MSG_ID_GAME_MODE_START,
@@ -124,19 +127,38 @@ enum GameNetMessage
 	CUSTOM_MSG_PLAYER_SET_FREEZE,
 };
 
+enum BakedSpawnpointType
+{
+	BAKED_SPAWNPOINT_NONE = 0,
+	BAKED_SPAWNPOINT_UPGRADE = 1,
+};
+
+typedef struct SurvivalBakedSpawnpoint
+{
+	enum BakedSpawnpointType Type;
+	int Params;
+	float Position[3];
+	float Rotation[3];
+} SurvivalBakedSpawnpoint_t;
+
 typedef struct SurvivalBakedConfig
 {
 	float MapSize;
+	SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];
 } SurvivalBakedConfig_t;
 
 struct SurvivalPlayerState
 {
-	int Bolts;
 	u64 TotalBolts;
+	u32 XP;
+	int Bolts;
 	int Kills;
 	int Revives;
 	int TimesRevived;
 	int TimesRevivedSinceLastFullDeath;
+	int TotalTokens;
+	int CurrentTokens;
+	int Upgrades[UPGRADE_COUNT];
 	short AlphaMods[8];
 	char BestWeaponLevel[9];
 };
@@ -154,6 +176,7 @@ struct SurvivalPlayer
 	char IsDead;
 	char IsInWeaponsMenu;
 	char IsDoublePoints;
+	char HealthBarStrBuf[8];
 };
 
 struct SurvivalState
@@ -181,6 +204,7 @@ struct SurvivalState
 	int RoundInitialized;
 	Moby* Vendor;
 	Moby* BigAl;
+	Moby* UpgradeMobies[UPGRADE_COUNT];
 	struct SurvivalPlayer* LocalPlayerState;
 	int GameOver;
 	int WinningTeam;
@@ -276,5 +300,8 @@ extern const float DIFFICULTY_MAP[];
 extern const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[];
 extern const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[];
 extern SurvivalBakedConfig_t BakedConfig;
+
+struct GuberMoby* getGuber(Moby* moby);
+int handleEvent(Moby* moby, GuberEvent* event);
 
 #endif // SURVIVAL_GAME_H

@@ -1215,6 +1215,10 @@ void mobUpdate(Moby* moby)
 
 	if (colDamage && damage > 0) {
 		Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
+		if (damager) {
+			damage *= 1 + (0.05 * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
+		}
+
 		if (damager && (isOwner || playerIsLocal(damager))) {
 			mobSendDamageEvent(moby, damager->PlayerMoby, colDamage->Damager, damage, colDamage->DamageFlags);	
 		} else if (isOwner) {
@@ -1257,14 +1261,6 @@ void mobUpdate(Moby* moby)
 			pvars->MobVars.AutoDirtyCooldownTicks = ZOMBIE_AUTO_DIRTY_COOLDOWN_TICKS;
 		}
 	}
-}
-
-struct GuberMoby* mobGetGuber(Moby* moby)
-{
-	if (moby->OClass == ZOMBIE_MOBY_OCLASS && moby->PVar)
-		return moby->GuberMoby;
-	
-	return 0;
 }
 
 GuberEvent* mobCreateEvent(Moby* moby, u32 eventType)
@@ -1325,6 +1321,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.MobType = args.MobType;
 	pvars->MobVars.Config.MobSpecialMutation = args.MobSpecialMutation;
 	pvars->MobVars.Config.Bolts = args.Bolts;
+	pvars->MobVars.Config.Xp = args.Xp;
 	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth;
 	pvars->MobVars.Config.Health = (float)args.StartHealth;
 	pvars->MobVars.Config.Bangles = args.Bangles;
@@ -1472,6 +1469,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &weaponId, sizeof(weaponId));
 
 	int bolts = pvars->MobVars.Config.Bolts;
+	int xp = pvars->MobVars.Config.Xp;
 
 #if DROPS
 	if (killedByPlayerId >= 0 && gameAmIHost()) {
@@ -1511,6 +1509,24 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		Player * killedByPlayer = players[killedByPlayerId];
 		struct SurvivalPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
 		GameData * gameData = gameGetData();
+
+		// give xp
+		pState->State.XP += xp;
+		u64 targetForNextToken = getXpForNextToken(pState->State.TotalTokens);
+		DPRINTF("xp is %d\n", pState->State.XP);
+
+		// give tokens
+		while (pState->State.XP >= targetForNextToken)
+		{
+			pState->State.XP -= targetForNextToken;
+			pState->State.TotalTokens += 1;
+			pState->State.CurrentTokens += 1;
+			targetForNextToken = getXpForNextToken(pState->State.TotalTokens);
+
+			if (killedByPlayer->IsLocal) {
+				sendPlayerStats(killedByPlayerId);
+			}
+		} 
 
 		// handle weapon jackpot
 		if (weaponId > 1 && killedByPlayer) {
@@ -1730,6 +1746,7 @@ int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
 	if (guberEvent)
 	{
 		args.Bolts = (config->Bolts + randRangeInt(-50, 50)) * BOLT_TAX[(int)gs->PlayerCount];
+		args.Xp = config->Xp;
 		args.StartHealth = (u16)config->Health;
 		args.Bangles = (u16)config->Bangles;
 		args.MobType = (char)config->MobType;
@@ -1760,8 +1777,8 @@ int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
 void mobInitialize(void)
 {
 	// set vtable callbacks
-	*(u32*)0x003A0A84 = (u32)&mobGetGuber;
-	*(u32*)0x003A0A94 = (u32)&mobHandleEvent;
+	*(u32*)0x003A0A84 = (u32)&getGuber;
+	*(u32*)0x003A0A94 = (u32)&handleEvent;
 
 	// collision hit type
 	*(u32*)0x004bd1f0 = 0x08000000 | ((u32)&colHotspot / 4);

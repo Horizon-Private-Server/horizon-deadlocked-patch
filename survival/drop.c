@@ -136,21 +136,6 @@ void dropPostDraw(Moby* moby)
 	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
 }
 
-struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx)
-{
-	u32 a3 = *(u32*)0x002218E8;
-	u32 t0 = *(u32*)0x002218E4;
-	float f12 = *(float*)0x002218DC;
-	float f1 = *(float*)0x002218E0;
-
-	return ((struct PartInstance* (*)(VECTOR, u32, char, u32, u32, int, int, int, float))0x00533308)(position, color, opacity, a3, t0, -1, 0, 0, f12 + (f1 * idx));
-}
-
-void destroyParticle(struct PartInstance* particle)
-{
-	((void (*)(struct PartInstance*))0x005284d8)(particle);
-}
-
 //--------------------------------------------------------------------------
 void dropUpdate(Moby* moby)
 {
@@ -191,7 +176,7 @@ void dropUpdate(Moby* moby)
 	// handle pickup
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * player = players[i];
-		if (player && pvars->Team == player->Team) {
+		if (player && pvars->Team == player->Team && !playerIsDead(player)) {
 			vector_subtract(t, player->PlayerPosition, moby->Position);
 			if (vector_sqrmag(t) < (DROP_PICKUP_RADIUS * DROP_PICKUP_RADIUS)) {
 				dropPickup(moby, i);
@@ -204,15 +189,6 @@ void dropUpdate(Moby* moby)
 	if (pvars->DestroyAtTime && gameGetTime() > pvars->DestroyAtTime) {
 		dropDestroy(moby);
 	}
-}
-
-//--------------------------------------------------------------------------
-struct GuberMoby* dropGetGuber(Moby* moby)
-{
-	if (moby->OClass == DROP_MOBY_OCLASS && moby->PVar)
-		return moby->GuberMoby;
-	
-	return 0;
 }
 
 //--------------------------------------------------------------------------
@@ -357,6 +333,8 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 		case DROP_DOUBLE_POINTS:
 		{
 			DPRINTF("giving double points to all players on %d team\n", pvars->Team);
+			uiShowPopup(0, "Double points!");
+			uiShowPopup(1, "Double points!");
 			setDoublePointsForTeam(pvars->Team, 1);
 			break;
 		}
@@ -468,8 +446,8 @@ void dropInitialize(void)
 		u32 mobyFunctionsPtr = (u32)mobyGetFunctions(testMoby);
 		if (mobyFunctionsPtr) {
 			// set vtable callbacks
-			*(u32*)(mobyFunctionsPtr + 0x04) = (u32)&dropGetGuber;
-			*(u32*)(mobyFunctionsPtr + 0x14) = (u32)&dropHandleEvent;
+			*(u32*)(mobyFunctionsPtr + 0x04) = (u32)&getGuber;
+			*(u32*)(mobyFunctionsPtr + 0x14) = (u32)&handleEvent;
 		}
 
 		mobyDestroy(testMoby);

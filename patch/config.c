@@ -839,6 +839,9 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
   {
     case CUSTOM_MODE_SURVIVAL:
     {
+#if DEBUG
+      return 1;
+#endif
       if (v >= CUSTOM_MAP_SURVIVAL_START && v <= CUSTOM_MAP_SURVIVAL_END)
         return 1;
 

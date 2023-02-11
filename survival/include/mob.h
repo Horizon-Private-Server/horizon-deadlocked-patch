@@ -131,6 +131,7 @@ struct MobConfig {
 	float AttackRadius;
 	float HitRadius;
 	u16 Bangles;
+	u8 Xp;
 	u8 MaxCostMutation;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
@@ -281,6 +282,7 @@ struct MobSpawnEventArgs
 	u16 Bangles;
 	char MobType;
 	char MobSpecialMutation;
+	u8 Xp;
 	u8 Damage;
 	u8 AttackRadiusEighths;
 	u8 HitRadiusEighths;

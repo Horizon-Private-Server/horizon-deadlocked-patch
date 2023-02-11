@@ -6,6 +6,7 @@
 #include <libdl/moby.h>
 #include <libdl/sound.h>
 #include <libdl/random.h>
+#include <libdl/graphics.h>
 
 /* 
  * Explosion sound def
@@ -130,4 +131,65 @@ u32 decTimerU32(u32* timeValue)
 
 	*timeValue = --value;
 	return value;
+}
+
+//--------------------------------------------------------------------------
+u32 getXpForNextToken(int counter)
+{
+	return (u32)(250 * powf(1.05, counter));
+}
+
+//--------------------------------------------------------------------------
+void drawDreadTokenIcon(float x, float y, float scale)
+{
+	float small = scale * 0.75;
+	float delta = (scale - small) / 2;
+
+	gfxSetupGifPaging(0);
+	u64 dreadzoneSprite = gfxGetFrameTex(32);
+	gfxDrawSprite(x+2, y+2, scale, scale, 0, 0, 32, 32, 0x40000000, dreadzoneSprite);
+	gfxDrawSprite(x,   y,   scale, scale, 0, 0, 32, 32, 0x80C0C0C0, dreadzoneSprite);
+	gfxDrawSprite(x+delta, y+delta, small, small, 0, 0, 32, 32, 0x80000040, dreadzoneSprite);
+	gfxDoGifPaging();
+}
+
+//--------------------------------------------------------------------------
+struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx)
+{
+	u32 a3 = *(u32*)0x002218E8;
+	u32 t0 = *(u32*)0x002218E4;
+	float f12 = *(float*)0x002218DC;
+	float f1 = *(float*)0x002218E0;
+
+	return ((struct PartInstance* (*)(VECTOR, u32, char, u32, u32, int, int, int, float))0x00533308)(position, color, opacity, a3, t0, -1, 0, 0, f12 + (f1 * idx));
+}
+
+//--------------------------------------------------------------------------
+void destroyParticle(struct PartInstance* particle)
+{
+	((void (*)(struct PartInstance*))0x005284d8)(particle);
+}
+
+//--------------------------------------------------------------------------
+int intArrayContains(int* list, int count, int value)
+{
+	int i;
+
+	for (i = 0; i < count; ++i)
+		if (list[i] == value)
+			return 1;
+
+	return 0;
+}
+
+//--------------------------------------------------------------------------
+int charArrayContains(char* list, int count, char value)
+{
+	int i;
+
+	for (i = 0; i < count; ++i)
+		if (list[i] == value)
+			return 1;
+
+	return 0;
 }
