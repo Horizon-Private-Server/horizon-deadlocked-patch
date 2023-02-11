@@ -154,9 +154,19 @@ struct Knockback {
 	u8 Ticks;
 };
 
+struct MobMoveVars {
+  VECTOR LastPosition;
+  VECTOR Velocity;
+  float WallSlope;
+  char Grounded;
+  char HitWall;
+};
+
 struct MobVars {
 	struct MobConfig Config;
 	struct Knockback Knockback;
+  struct MobMoveVars MoveVars;
+  VECTOR TargetPosition;
 	int Action;
 	int NextAction;
 	float Health;
@@ -238,18 +248,17 @@ struct ReactVars {
 };
 
 struct MobPVar {
-  struct TargetVars * TargetVarsPtr;
+	struct TargetVars * TargetVarsPtr;
 	char _pad0[0x0C];
 	struct ReactVars * ReactVarsPtr;
 	char _pad1[0x08];
   struct MoveVars_V2 * MoveVarsPtr;
 	char _pad2[0x14];
-  struct FlashVars * FlashVarsPtr;
+ 	struct FlashVars * FlashVarsPtr;
 	char _pad3[0x18];
 
 	struct TargetVars TargetVars;
 	struct ReactVars ReactVars;
-	struct MoveVars_V2 MoveVars;
 	struct FlashVars FlashVars;
 	struct MobVars MobVars;
 };
