@@ -202,6 +202,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Bolts = ZOMBIE_BASE_BOLTS * 10,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS * 1.5,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS * 1.5,
+      .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 4,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS * 0.35,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS * 1.5,
 			.MaxCostMutation = 10,
@@ -230,6 +231,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.5,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
+      .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
@@ -258,6 +260,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_EXPLODE_HIT_RADIUS,
+      .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
@@ -286,6 +289,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MaxHealth = 0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
+      .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
@@ -314,6 +318,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.2,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
+      .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
@@ -342,6 +347,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
+      .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
@@ -370,6 +376,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Bolts = ZOMBIE_BASE_BOLTS * 1.0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
+      .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
@@ -2128,6 +2135,21 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			mobCreate(t, 0, -1, &defaultSpawnParams[(manSpawnMobId++ % defaultSpawnParamsCount)].Config);
 		}
 	}
+#endif
+
+#if BENCHMARK
+  {
+    static int manSpawnMobId = 0;
+    if (manSpawnMobId < MAX_MOBS_SPAWNED)
+    {
+      VECTOR t = {396,606,434,0};
+      
+      t[0] += (manSpawnMobId % 8) * 2;
+      t[1] += (manSpawnMobId / 8) * 2;
+
+      mobCreate(t, 0, -1, &defaultSpawnParams[(manSpawnMobId++ % defaultSpawnParamsCount)].Config);
+    }
+  }
 #endif
 
 #if MANUAL_DROP_SPAWN

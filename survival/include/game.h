@@ -81,6 +81,7 @@
 #define ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS    	(60 * 2)
 #define ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS    	(60 * 3)
 
+#define ZOMBIE_TURN_RADIANS_PER_SEC           (7.5 * MATH_DEG2RAD)
 #define ZOMBIE_MOVE_ACCELERATION              (25)
 
 #if PAYDAY
@@ -106,6 +107,7 @@
 #define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
 #define PLAYER_KNOCKBACK_BASE_POWER						(0.05)
 #define PLAYER_KNOCKBACK_BASE_TICKS						(3)
+#define PLAYER_COLL_RADIUS          					(0.5)
 
 #define BIG_AL_MAX_DIST												(5)
 #define WEAPON_VENDOR_MAX_DIST								(3)
