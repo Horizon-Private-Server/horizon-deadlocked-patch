@@ -567,18 +567,26 @@ void mobAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
 	vector_scale(out, out, amount);
 }
 
-void vector_rotateTowards(VECTOR output, VECTOR input0, VECTOR input1, float radians)
+void vector_rotateTowardsHorizontal(VECTOR output, VECTOR input0, VECTOR input1, float radians)
 {
-  VECTOR up;
+  VECTOR nInput0, nInput1;
+  MATRIX mRot;
 
-  vector_outerproduct(up, input0, input1);
+  vectorProjectOnHorizontal(nInput0, input0);
+  vectorProjectOnHorizontal(nInput1, input1);
+  vector_normalize(nInput0, nInput0);
+  vector_normalize(nInput1, nInput1);
+
+  float angleBetween = atan2f(0, vector_innerproduct(nInput0, nInput1));
+  float rotateAmount = clamp(angleBetween, -radians, radians);
   
-  float angleBetween = acosf(vector_innerproduct(input0, input1));
-  float lerpT = clamp(angleBetween, -radians, radians) / angleBetween;
-
-  vector_lerp(output, input0, input1, lerpT);
-  vector_normalize(output, output);
-  vector_scale(output, output, vector_length(input0));
+  if (rotateAmount < 0.01) {
+    vector_copy(output, nInput1);
+  } else {
+    matrix_unit(mRot);
+    matrix_rotate_z(mRot, mRot, rotateAmount);
+    vector_apply(output, nInput0, mRot);
+  }
 }
 
 void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
@@ -630,7 +638,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
   float angle;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (!pvars)
-    return;
+    return 0;
 
   up[2] = pvars->MobVars.Config.CollRadius;
 
@@ -681,10 +689,13 @@ void mobMove(Moby* moby)
   VECTOR normalizedTargetDirection, planarTargetDirection;
   VECTOR targetVelocity;
   VECTOR nextPos;
+  VECTOR temp;
   VECTOR groundCheckFrom, groundCheckTo;
   int isMovingDown = 0;
   const VECTOR up = {0,0,1,0};
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
 
   // indicate we're in the process of a mob move
   mobInMobMove = 1;
@@ -740,6 +751,33 @@ void mobMove(Moby* moby)
   if (pvars->MobVars.MoveVars.Velocity[2] < -10 * MATH_DT)
     pvars->MobVars.MoveVars.Velocity[2] = -10 * MATH_DT;
 
+  // check if stuck by seeing if the sum horizontal delta position over the last second
+  // is less than 1 in magnitude
+  if (!stuckCheckTicks) {
+    pvars->MobVars.MoveVars.StuckCheckTicks = 60;
+    pvars->MobVars.MoveVars.IsStuck = pvars->MobVars.MoveVars.HitWall && vector_sqrmag(pvars->MobVars.MoveVars.SumPositionDelta) < (pvars->MobVars.MoveVars.SumSpeedOver * TPS * 0.25);
+    if (!pvars->MobVars.MoveVars.IsStuck) {
+      pvars->MobVars.MoveVars.StuckJumpCount = 0;
+      pvars->MobVars.MoveVars.StuckTicks = 0;
+    }
+
+    DPRINTF("last moved %f %d %d %f\n", vector_sqrmag(pvars->MobVars.MoveVars.SumPositionDelta), pvars->MobVars.MoveVars.IsStuck, pvars->MobVars.MoveVars.StuckJumpCount, pvars->MobVars.MoveVars.SumSpeedOver);
+    
+    // reset counters
+    vector_write(pvars->MobVars.MoveVars.SumPositionDelta, 0);
+    pvars->MobVars.MoveVars.SumSpeedOver = 0;
+  }
+
+  if (pvars->MobVars.MoveVars.IsStuck) {
+    pvars->MobVars.MoveVars.StuckTicks++;
+  }
+  
+  // add horizontal delta position to sum
+  vector_subtract(temp, moby->Position, pvars->MobVars.MoveVars.LastPosition);
+  vectorProjectOnHorizontal(temp, temp);
+  vector_add(pvars->MobVars.MoveVars.SumPositionDelta, pvars->MobVars.MoveVars.SumPositionDelta, temp);
+  pvars->MobVars.MoveVars.SumSpeedOver += vector_sqrmag(temp);
+
   // done moving
   mobInMobMove = 0;
   //vector_copy(moby->Position, pvars->MobVars.MoveVars.LastPosition);
@@ -756,13 +794,21 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   if (!pvars)
     return;
 
+  float collRadius = pvars->MobVars.Config.CollRadius;
+  
   // stop when at target
   if (pvars->MobVars.Target) {
     vector_subtract(temp, pvars->MobVars.Target->Position, from);
     float sqrDistance = vector_sqrmag(temp);
-    if (sqrDistance < ((pvars->MobVars.Config.CollRadius+PLAYER_COLL_RADIUS)*(pvars->MobVars.Config.CollRadius+PLAYER_COLL_RADIUS))) {
+    if (sqrDistance < ((collRadius+PLAYER_COLL_RADIUS)*(collRadius+PLAYER_COLL_RADIUS))) {
       targetSpeed = 0;
     }
+  }
+
+  // give starting velocity
+  if (targetSpeed > 0 && !mobHasVelocity(pvars)) {
+    vector_fromyaw(velocity, moby->Rotation[2]);
+    vector_scale(velocity, velocity, targetSpeed * 0.01);
   }
 
   // get velocity
@@ -770,13 +816,11 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   vector_normalize(normalizedTargetDirection, normalizedTargetDirection);
 
   // rotate current velocity towards target
-  vector_rotateTowards(targetVelocity, velocity, normalizedTargetDirection, ZOMBIE_TURN_RADIANS_PER_SEC * MATH_DT);
-
-  // get planar velocity
-  vectorProjectOnHorizontal(targetVelocity, targetVelocity);
+  vector_rotateTowardsHorizontal(targetVelocity, velocity, normalizedTargetDirection, ZOMBIE_TURN_RADIANS_PER_SEC * pvars->MobVars.Config.Speed * MATH_DT);
+  //vectorProjectOnHorizontal(targetVelocity, normalizedTargetDirection);
 
   // acclerate velocity towards target velocity
-  vector_normalize(targetVelocity, targetVelocity);
+  //vector_normalize(targetVelocity, targetVelocity);
   vector_scale(targetVelocity, targetVelocity, targetSpeed);
 
   vector_subtract(temp, targetVelocity, velocity);
@@ -846,6 +890,22 @@ void mobDoAction(Moby* moby)
 
         if (pvars->MobVars.MoveVars.WallSlope > (40 * MATH_DEG2RAD) && pvars->MobVars.MoveVars.Grounded) {
 			    mobTransAnim(moby, ZOMBIE_ANIM_JUMP);
+
+          // check if we're near last jump pos
+          // if so increment StuckJumpCount
+          if (pvars->MobVars.MoveVars.IsStuck) {
+            if (pvars->MobVars.MoveVars.StuckJumpCount < 255)
+              pvars->MobVars.MoveVars.StuckJumpCount++;
+          }
+
+          // vector_subtract(t, moby->Position, pvars->MobVars.MoveVars.LastJumpPosition);
+          // if (vector_sqrmag(t) < (1*1)) {
+          //   if (pvars->MobVars.MoveVars.StuckJumpCount < 255)
+          //     pvars->MobVars.MoveVars.StuckJumpCount++;
+          // } else {
+          //   vector_copy(pvars->MobVars.MoveVars.LastJumpPosition, moby->Position);
+          //   pvars->MobVars.MoveVars.StuckJumpCount = 0;
+          // }
 
           // use delta height between target as base of jump speed
           // with min speed
