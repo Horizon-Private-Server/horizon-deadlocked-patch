@@ -1206,9 +1206,6 @@ void processPlayer(int pIndex) {
 		State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED] -= 1;
 	}
 
-	sprintf(strBuf, "%d", State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED]);
-	gfxScreenSpaceText(5, SCREEN_HEIGHT - 40, 1, 1, 0x80FFFFFF, strBuf, -1, 0);
-
 	// set max xp
 	if (player->IsLocal) {
 		u32 xp = playerData->State.XP;
@@ -1548,17 +1545,19 @@ void setRoundStart(int skip)
 void setPlayerEXP(int localPlayerIndex, float expPercent)
 {
 	Player* player = playerGetFromSlot(localPlayerIndex);
-	if (!player)
+	if (!player || !player->PlayerMoby)
 		return;
 
-	u32 canvasId = hudGetCurrentCanvas() + localPlayerIndex;
+	u32 canvasId = localPlayerIndex; //hudGetCurrentCanvas() + localPlayerIndex;
 	void* canvas = hudGetCanvas(canvasId);
 	if (!canvas)
 		return;
 
 	struct HUDWidgetRectangleObject* expBar = hudCanvasGetObject(canvas, 0xF000010A);
-	if (!expBar)
-		return;
+	if (!expBar) {
+		DPRINTF("no exp bar %d canvas:%d\n", localPlayerIndex, canvasId);
+    return;
+  }
 	
 	// set exp bar
 	expBar->iFrame.ScaleX = 0.2275 * expPercent;
@@ -1570,8 +1569,10 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
 	expBar->Color3 = hudGetTeamColor(player->Team, 0);
 
 	struct HUDWidgetTextObject* healthText = hudCanvasGetObject(canvas, 0xF000010E);
-	if (!healthText)
-		return;
+	if (!healthText) {
+		DPRINTF("no health text %d\n", localPlayerIndex);
+    return;
+  }
 	
 	// set health string
 	snprintf(State.PlayerStates[player->PlayerId].HealthBarStrBuf, sizeof(State.PlayerStates[player->PlayerId].HealthBarStrBuf), "%d/%d", (int)player->Health, (int)player->MaxHealth);
@@ -1591,10 +1592,13 @@ void forcePlayerHUD(void)
 			hudFlags->Flags.BoltCounter = 1;
 			hudFlags->Flags.NormalScoreboard = 0;
 		}
+
+    setPlayerEXP(i, 0);
 	}
 
 	// show exp
 	POKE_U32(0x0054ffc0, 0x0000102D);
+  POKE_U16(0x00550054, 0);
 }
 
 //--------------------------------------------------------------------------
