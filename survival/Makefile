@@ -24,11 +24,13 @@ BUILD_CONFIG := DEBUG
 #		QUICK_SPAWN						When set will spawn zombies as quickly as possible near the player.
 #		LOG_STATS							With DEBUG enabled, will output game state information to the console.
 #		MANUAL_SPAWN					When enabled, allows player to spawn mob at feet by pressing DPAD DOWN.
+#		DROPS									When enabled, randomly spawns special drops when a mob is killed.
+#		UPGRADES							When enabled, spawns the player upgrade mobies around the map.
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DDISABLE_SPAWNING -DBENCHMARK1 -DMANUAL_DROP_SPAWN -DDROPS -DMOB_NO_DAMAGE -DMOB_NO_MOVE1 -DPAYDAY  -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DMANUAL_SPAWN -DSHARED_BOLTS -DLOG_STATS2
+EE_DEFS := -DDEBUG -DDISABLE_SPAWNING -DBENCHMARK1 -DMANUAL_DROP_SPAWN -DDROPS -DUPGRADES -DMOB_NO_DAMAGE -DMOB_NO_MOVE1 -DPAYDAY  -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DMANUAL_SPAWN -DSHARED_BOLTS -DLOG_STATS2
 else ifeq ($(BUILD_CONFIG),RELEASE)
-EE_DEFS := -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DSHARED_BOLTS -DDROPS
+EE_DEFS := -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DSHARED_BOLTS -DDROPS -DUPGRADES
 endif
 
 all: $(EE_BIN) clean copy

@@ -1172,7 +1172,7 @@ void processPlayer(int pIndex) {
 	Player* player = players[pIndex];
 	struct SurvivalPlayer * playerData = &State.PlayerStates[pIndex];
 
-	if (!player)
+	if (!player || !player->PlayerMoby)
 		return;
 
 	int isDeadState = playerIsDead(player) || player->Health == 0;
@@ -1206,13 +1206,6 @@ void processPlayer(int pIndex) {
 		State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED] -= 1;
 	}
 
-	// set max xp
-	if (player->IsLocal) {
-		u32 xp = playerData->State.XP;
-		u32 nextXp = getXpForNextToken(playerData->State.TotalTokens);
-		setPlayerEXP(i, xp / (float)nextXp);
-	}
-	
 	// adjust speed of chargeboot stun
 	if (player->PlayerState == 121) {
 		*(float*)((u32)player + 0x25C4) = 1.0 / State.Difficulty;
@@ -1225,6 +1218,11 @@ void processPlayer(int pIndex) {
 		GadgetBox* gBox = player->GadgetBox;
 		localPlayerIndex = player->LocalPlayerIndex;
 		heldWeapon = player->WeaponHeldId;
+
+	  // set max xp
+		u32 xp = playerData->State.XP;
+		u32 nextXp = getXpForNextToken(playerData->State.TotalTokens);
+		setPlayerEXP(localPlayerIndex, xp / (float)nextXp);
 
 		// find closest mob
 		playerData->MinSqrDistFromMob = 1000000;
@@ -1559,6 +1557,8 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
     return;
   }
 	
+  printf("exp (%d):%f\n", localPlayerIndex, expPercent);
+
 	// set exp bar
 	expBar->iFrame.ScaleX = 0.2275 * expPercent;
 	expBar->iFrame.PositionX = 0.406 + (expBar->iFrame.ScaleX / 2);
@@ -1592,8 +1592,6 @@ void forcePlayerHUD(void)
 			hudFlags->Flags.BoltCounter = 1;
 			hudFlags->Flags.NormalScoreboard = 0;
 		}
-
-    setPlayerEXP(i, 0);
 	}
 
 	// show exp
@@ -1927,6 +1925,8 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 	// change hud
 	forcePlayerHUD();
+  setPlayerEXP(0, 0);
+  setPlayerEXP(1, 0);
 
 	// set bolts to 0
 	*LocalBoltCount = 0;
@@ -2012,8 +2012,10 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.BigAl = FindMobyOrSpawnBox(0, 2);
 #endif
 
+#if UPGRADES
 	// spawn upgrades
 	spawnUpgrades();
+#endif
 
 	DPRINTF("vendor %08X\n", (u32)State.Vendor);
 	DPRINTF("big al %08X\n", (u32)State.BigAl);

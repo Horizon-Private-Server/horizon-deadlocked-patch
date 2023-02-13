@@ -166,6 +166,7 @@ struct MobMoveVars {
   char Grounded;
   char HitWall;
   char IsStuck;
+  u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
 };
@@ -303,7 +304,7 @@ struct MobSpawnEventArgs
 	u8 AttackRadiusEighths;
 	u8 HitRadiusEighths;
   u8 CollRadiusEighths;
-	u8 SpeedHundredths;
+	u8 SpeedEighths;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 };

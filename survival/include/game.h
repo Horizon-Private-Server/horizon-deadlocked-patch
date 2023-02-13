@@ -11,13 +11,15 @@
 
 #define ZOMBIE_MOBY_OCLASS										(0x20F6)
 
+#define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
+
 #define BUDGET_START													(200)
 #define BUDGET_START_ACCUM										(100)
 #define BUDGET_PLAYER_WEIGHT									(100)
 
 #define MAX_MOBS_BASE													(30)
 #define MAX_MOBS_ROUND_WEIGHT									(10)
-#define MAX_MOBS_SPAWNED											(60)
+#define MAX_MOBS_SPAWNED											(50)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
 #define ROUND_START_DELAY_MS									(TIME_SECOND * 1)

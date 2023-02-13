@@ -593,11 +593,12 @@ void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
 {
 	// apply velocity
 	VECTOR oldPos, newPos;
-	VECTOR preOff = {0,0,0.1,0};
+	VECTOR preOff = {0,0,0.2,0};
 	VECTOR hitOff = {0,0,0.01,0};
-	VECTOR gravity = {0,0,-0.5 * MATH_DT,0};
+	VECTOR gravity = {0,0,-GRAVITY_MAGNITUDE * MATH_DT,0};
   VECTOR delta;
   VECTOR horizontalDelta;
+  VECTOR hitNormal;
   VECTOR newPosEx;
 
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -609,16 +610,20 @@ void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
   vector_subtract(delta, newPos, oldPos);
   vector_normalize(newPosEx, delta);
   vector_scale(newPosEx, newPosEx, pvars->MobVars.Config.CollRadius);
-  vector_add(newPos, newPos, newPosEx);
+  vector_add(newPosEx, newPos, newPosEx);
   vectorProjectOnHorizontal(horizontalDelta, delta);
 
   pvars->MobVars.MoveVars.Grounded = 0;
-	if (CollLine_Fix(oldPos, newPos, 2, moby, 0)) {
+	if (CollLine_Fix(oldPos, newPosEx, 2, moby, 0)) {
     
     //pvars->MobVars.MoveVars.WallSlope = acosf(vector_innerproduct(horizontalDelta, CollLine_Fix_GetHitNormal())) - MATH_PI/2;
     //pvars->MobVars.MoveVars.HitWall = 1;
 
-    vector_add(moby->Position, CollLine_Fix_GetHitPosition(), preOff);
+    vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
+    //vector_reflect(hitNormal, delta, hitNormal);
+    vector_scale(hitNormal, hitNormal, 0.01);
+    vector_add(moby->Position, CollLine_Fix_GetHitPosition(), hitNormal);
+    moby->Position[2] += 0.01;
 		vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
     pvars->MobVars.MoveVars.Grounded = 1;
 	} else {
@@ -695,7 +700,9 @@ void mobMove(Moby* moby)
   const VECTOR up = {0,0,1,0};
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
+	u16 moveStepCooldownTicks = decTimerU8(&pvars->MobVars.MoveStepCooldownTicks);
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
+  u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
 
   // indicate we're in the process of a mob move
   mobInMobMove = 1;
@@ -707,7 +714,10 @@ void mobMove(Moby* moby)
   if (mobHasVelocity(pvars))
     moby->Rotation[2] = atan2f(pvars->MobVars.MoveVars.Velocity[1], pvars->MobVars.MoveVars.Velocity[0]);
 
-  if (pvars->MobVars.MoveStepCooldownTicks) {
+  if (0) {
+    pvars->MobVars.MoveVars.Grounded = 1;
+  }
+  else if (moveStepCooldownTicks) {
     mobMoveSimple(moby, pvars);
   } else {
 
@@ -725,7 +735,7 @@ void mobMove(Moby* moby)
     isMovingDown = vector_innerproduct(pvars->MobVars.MoveVars.Velocity, up) < 0;
     if (isMovingDown) {
       vector_copy(groundCheckFrom, nextPos);
-      groundCheckFrom[2] = moby->Position[2] + pvars->MobVars.Config.CollRadius;
+      groundCheckFrom[2] = maxf(moby->Position[2], nextPos[2]) + ZOMBIE_BASE_STEP_HEIGHT;
       vector_copy(groundCheckTo, nextPos);
       groundCheckTo[2] -= 0.5;
       if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
@@ -747,7 +757,7 @@ void mobMove(Moby* moby)
   }
 
   // add gravity to velocity with clamp on downwards speed
-  pvars->MobVars.MoveVars.Velocity[2] -= 0.5 * MATH_DT;
+  pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT;
   if (pvars->MobVars.MoveVars.Velocity[2] < -10 * MATH_DT)
     pvars->MobVars.MoveVars.Velocity[2] = -10 * MATH_DT;
 
@@ -761,8 +771,6 @@ void mobMove(Moby* moby)
       pvars->MobVars.MoveVars.StuckTicks = 0;
     }
 
-    DPRINTF("last moved %f %d %d %f\n", vector_sqrmag(pvars->MobVars.MoveVars.SumPositionDelta), pvars->MobVars.MoveVars.IsStuck, pvars->MobVars.MoveVars.StuckJumpCount, pvars->MobVars.MoveVars.SumSpeedOver);
-    
     // reset counters
     vector_write(pvars->MobVars.MoveVars.SumPositionDelta, 0);
     pvars->MobVars.MoveVars.SumSpeedOver = 0;
@@ -880,14 +888,14 @@ void mobDoAction(Moby* moby)
 		}
 		case MOB_ACTION_JUMP:
 			{
+        // move
         if (target) {
           mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, pvars->MobVars.Config.Speed);
         } else {
-          vector_write(pvars->MobVars.MoveVars.Velocity, 0);
+          mobStand(moby);
         }
 
-        //printf("slope:%f grounded:%d\n", pvars->MobVars.MoveVars.WallSlope * MATH_RAD2DEG, pvars->MobVars.MoveVars.Grounded);
-
+        // handle jumping
         if (pvars->MobVars.MoveVars.WallSlope > (40 * MATH_DEG2RAD) && pvars->MobVars.MoveVars.Grounded) {
 			    mobTransAnim(moby, ZOMBIE_ANIM_JUMP);
 
@@ -898,24 +906,15 @@ void mobDoAction(Moby* moby)
               pvars->MobVars.MoveVars.StuckJumpCount++;
           }
 
-          // vector_subtract(t, moby->Position, pvars->MobVars.MoveVars.LastJumpPosition);
-          // if (vector_sqrmag(t) < (1*1)) {
-          //   if (pvars->MobVars.MoveVars.StuckJumpCount < 255)
-          //     pvars->MobVars.MoveVars.StuckJumpCount++;
-          // } else {
-          //   vector_copy(pvars->MobVars.MoveVars.LastJumpPosition, moby->Position);
-          //   pvars->MobVars.MoveVars.StuckJumpCount = 0;
-          // }
-
           // use delta height between target as base of jump speed
           // with min speed
-          float jumpSpeed = 6;
+          float jumpSpeed = 4;
           if (target) {
-            float heightDif = maxf(4, target->Position[2] - moby->Position[2]);
-            jumpSpeed = 3 + heightDif;
+            jumpSpeed = clamp((target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 8);
           }
 
-          pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT * fabsf(pvars->MobVars.MoveVars.WallSlope * 2);
+          pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
+          pvars->MobVars.MoveVars.Grounded = 0;
         }
 				break;
 			}
@@ -931,17 +930,15 @@ void mobDoAction(Moby* moby)
 				float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
 
 				// determine next position
-        /*
 				vector_copy(t, target->Position);
 				vector_subtract(t, t, moby->Position);
 				float dist = vector_length(t);
 				mobAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
 				vector_add(t, t, t2);
-				vector_scale(t, t, (1 * speedMult) / dist);
+				vector_scale(t, t, 1 / dist);
 				vector_add(t, moby->Position, t);
-        */
 
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, pvars->MobVars.Config.Speed);
+        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed);
 			} else {
         // stand
         mobStand(moby);
@@ -1211,12 +1208,11 @@ void mobUpdate(Moby* moby)
 	decTimerU16(&pvars->MobVars.TimeBombTicks);
 	u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
 	u16 ambientSoundCooldownTicks = decTimerU16(&pvars->MobVars.AmbientSoundCooldownTicks);
-	u16 moveStepCooldownTicks = decTimerU8(&pvars->MobVars.MoveStepCooldownTicks);
 	decTimerU8(&pvars->MobVars.Knockback.Ticks);
   
 	// validate owner
 	Player * ownerPlayer = playerGetAll()[(int)pvars->MobVars.Owner];
-	if (!ownerPlayer) {
+	if (!ownerPlayer || !ownerPlayer->PlayerMoby) {
 		pvars->MobVars.Owner = gameGetHostId(); // default as host
 		//mobSendOwnerUpdate(moby, pvars->MobVars.Owner);
 	}
@@ -1249,10 +1245,6 @@ void mobUpdate(Moby* moby)
 	if (pvars->FlashVars.type)
 		mobyUpdateFlash(moby, 0);
 
-	// 
-	//if (!State.Freeze)
-	//	mobHandleStuck(moby);
-
 	// count ticks since last grounded
 	if (pvars->MobVars.MoveVars.Grounded)
 		pvars->MobVars.TimeLastGroundedTicks = 0;
@@ -1263,6 +1255,10 @@ void mobUpdate(Moby* moby)
 	if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
 		pvars->MobVars.Respawn = 1;
 	}
+
+  // move
+  if (!State.Freeze)
+    mobMove(moby);
 
 	//
 	if (isOwner && !State.Freeze) {
@@ -1316,36 +1312,32 @@ void mobUpdate(Moby* moby)
 	moby->Bangles = mobGetArmor(pvars);
 
 	// process damage
-	int damageIndex = moby->CollDamage;
-	MobyColDamage* colDamage = NULL;
-	float damage = 0.0;
+  int damageIndex = moby->CollDamage;
+  MobyColDamage* colDamage = NULL;
+  float damage = 0.0;
 
-	if (damageIndex >= 0) {
-		colDamage = mobyGetDamage(moby, 0x400C00, 0);
-		if (colDamage)
-			damage = colDamage->DamageHp;
-	}
-	((void (*)(Moby*, float*, MobyColDamage*))0x005184d0)(moby, &damage, colDamage);
+  if (damageIndex >= 0) {
+    colDamage = mobyGetDamage(moby, 0x400C00, 0);
+    if (colDamage)
+      damage = colDamage->DamageHp;
+  }
+  ((void (*)(Moby*, float*, MobyColDamage*))0x005184d0)(moby, &damage, colDamage);
 
-	if (colDamage && damage > 0) {
-		Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
-		if (damager) {
-			damage *= 1 + (0.05 * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
-		}
+  if (colDamage && damage > 0) {
+    Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
+    if (damager) {
+      damage *= 1 + (0.05 * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
+    }
 
-		if (damager && (isOwner || playerIsLocal(damager))) {
-			mobSendDamageEvent(moby, damager->PlayerMoby, colDamage->Damager, damage, colDamage->DamageFlags);	
-		} else if (isOwner) {
-			mobSendDamageEvent(moby, colDamage->Damager, colDamage->Damager, damage, colDamage->DamageFlags);	
-		}
+    if (damager && (isOwner || playerIsLocal(damager))) {
+      mobSendDamageEvent(moby, damager->PlayerMoby, colDamage->Damager, damage, colDamage->DamageFlags);	
+    } else if (isOwner) {
+      mobSendDamageEvent(moby, colDamage->Damager, colDamage->Damager, damage, colDamage->DamageFlags);	
+    }
 
-		// 
-		moby->CollDamage = -1;
-	}
-
-  // move
-  if (!State.Freeze)
-    mobMove(moby);
+    // 
+    moby->CollDamage = -1;
+  }
 
 	// handle death stuff
 	if (isOwner) {
@@ -1447,7 +1439,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.AttackRadius = (float)args.AttackRadiusEighths / 8.0;
 	pvars->MobVars.Config.HitRadius = (float)args.HitRadiusEighths / 8.0;
 	pvars->MobVars.Config.CollRadius = (float)args.CollRadiusEighths / 8.0;
-	pvars->MobVars.Config.Speed = (float)args.SpeedHundredths / 100.0;
+	pvars->MobVars.Config.Speed = (float)args.SpeedEighths / 8.0;
 	pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount;
 	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
 	pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
@@ -1873,7 +1865,7 @@ int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
 		args.AttackRadiusEighths = (u8)(config->AttackRadius * 8);
 		args.HitRadiusEighths = (u8)(config->HitRadius * 8);
 		args.CollRadiusEighths = (u8)(config->CollRadius * 8);
-		args.SpeedHundredths = (u8)(config->Speed * 100);
+		args.SpeedEighths = (u8)(config->Speed * 8);
 		args.ReactionTickCount = (u8)config->ReactionTickCount;
 		args.AttackCooldownTickCount = (u8)config->AttackCooldownTickCount;
 		args.MobSpecialMutation = config->MobSpecialMutation;
