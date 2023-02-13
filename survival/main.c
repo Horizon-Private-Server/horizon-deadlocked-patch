@@ -1557,8 +1557,6 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
     return;
   }
 	
-  printf("exp (%d):%f\n", localPlayerIndex, expPercent);
-
 	// set exp bar
 	expBar->iFrame.ScaleX = 0.2275 * expPercent;
 	expBar->iFrame.PositionX = 0.406 + (expBar->iFrame.ScaleX / 2);
