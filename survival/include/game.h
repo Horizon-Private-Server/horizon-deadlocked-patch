@@ -137,6 +137,7 @@ enum BakedSpawnpointType
 {
 	BAKED_SPAWNPOINT_NONE = 0,
 	BAKED_SPAWNPOINT_UPGRADE = 1,
+	BAKED_SPAWNPOINT_PLAYER_START = 2,
 };
 
 typedef struct SurvivalBakedSpawnpoint

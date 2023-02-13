@@ -485,6 +485,24 @@ Player * playerGetRandom(void)
 }
 
 //--------------------------------------------------------------------------
+void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
+{
+	int i;
+
+  // spawn at player start
+  for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
+    if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_PLAYER_START) {
+      memcpy(outPos, BakedConfig.BakedSpawnPoints[i].Position, 12);
+      memcpy(outRot, BakedConfig.BakedSpawnPoints[i].Rotation, 12);
+      return;
+    }
+  }
+
+  // pass to base if we don't have a player start
+  playerGetSpawnpoint(player, outPos, outRot, firstRes);
+}
+
+//--------------------------------------------------------------------------
 int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 {
 	VECTOR t;
@@ -2574,7 +2592,11 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 }
 
 //--------------------------------------------------------------------------
-void loadStart(void)
+void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	setLobbyGameOptions();
+  
+	// point get resurrect point to ours
+	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
+	*(u32*)0x005e2d44 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
 }
