@@ -21,6 +21,7 @@
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
 #include <libdl/dialog.h>
+#include <libdl/sound.h>
 #include <libdl/patch.h>
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
@@ -28,6 +29,61 @@
 int State = 0;
 Moby* hackerOrbMoby = NULL;
 Moby* hiddenMoby = NULL;
+
+#if DEBUG
+
+// 44 
+
+SoundDef BaseSoundDef =
+{
+	0.0,	  // MinRange
+	45.0,	  // MaxRange
+	0,		  // MinVolume
+	1228,		// MaxVolume
+	-635,			// MinPitch
+	635,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	0x17D,		// Index
+	3			  // Bank
+};
+
+void playSound(int id)
+{
+  static short sHandle = 0;
+
+  if (sHandle != 0) {
+    soundKillByHandle(sHandle);
+    sHandle = 0;
+  }
+
+	BaseSoundDef.Index = id;
+	short sId = soundPlay(&BaseSoundDef, 0, hiddenMoby, 0, 0x400);
+  if (sId >= 0) {
+    sHandle = soundCreateHandle(sId);
+  }
+}
+
+void sound(void)
+{
+  static int soundId = 0;
+
+  dlPreUpdate();
+
+  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+    --soundId;
+    playSound(soundId);
+    DPRINTF("sound id %d\n", soundId);
+  }
+  else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+    ++soundId;
+    playSound(soundId);
+    DPRINTF("sound id %d\n", soundId);
+  }
+
+  dlPostUpdate();
+}
+#endif
 
 /*
  * NAME :		activate
@@ -116,6 +172,10 @@ int main (void)
     activate();
     State = 2;
   }
+
+#if DEBUG
+  sound();
+#endif
 
 	return 0;
 }
