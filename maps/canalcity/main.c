@@ -30,12 +30,7 @@ int State = 0;
 Moby* hackerOrbMoby = NULL;
 Moby* hiddenMoby = NULL;
 
-#if DEBUG
-
-// 44 
-
-SoundDef BaseSoundDef =
-{
+SoundDef baseSoundDef = {
 	0.0,	  // MinRange
 	45.0,	  // MaxRange
 	0,		  // MinVolume
@@ -48,21 +43,7 @@ SoundDef BaseSoundDef =
 	3			  // Bank
 };
 
-void playSound(int id)
-{
-  static short sHandle = 0;
-
-  if (sHandle != 0) {
-    soundKillByHandle(sHandle);
-    sHandle = 0;
-  }
-
-	BaseSoundDef.Index = id;
-	short sId = soundPlay(&BaseSoundDef, 0, hiddenMoby, 0, 0x400);
-  if (sId >= 0) {
-    sHandle = soundCreateHandle(sId);
-  }
-}
+#if DEBUG
 
 void sound(void)
 {
@@ -72,18 +53,49 @@ void sound(void)
 
   if (padGetButtonDown(0, PAD_LEFT) > 0) {
     --soundId;
-    playSound(soundId);
+    playSound(hackerOrbMoby, soundId);
     DPRINTF("sound id %d\n", soundId);
   }
   else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
     ++soundId;
-    playSound(soundId);
+    playSound(hackerOrbMoby, soundId);
     DPRINTF("sound id %d\n", soundId);
   }
 
   dlPostUpdate();
 }
+
 #endif
+
+/*
+ * NAME :		playSound
+ * 
+ * DESCRIPTION :
+ * 			Plays the given sound id from the given moby.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void playSound(Moby* moby, int id)
+{
+  static short sHandle = 0;
+
+  if (sHandle != 0) {
+    soundKillByHandle(sHandle);
+    sHandle = 0;
+  }
+
+	baseSoundDef.Index = id;
+	short sId = soundPlay(&baseSoundDef, 0, moby, 0, 0x400);
+  if (sId >= 0) {
+    sHandle = soundCreateHandle(sId);
+  }
+}
 
 /*
  * NAME :		activate
@@ -169,6 +181,7 @@ int main (void)
   }
 
   if (State == 1 && hackerOrbMoby && hackerOrbMoby->State == 4) {
+    playSound(hackerOrbMoby, 386);
     activate();
     State = 2;
   }
