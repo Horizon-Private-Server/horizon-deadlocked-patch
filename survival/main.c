@@ -488,12 +488,19 @@ Player * playerGetRandom(void)
 void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
 {
 	int i;
+  VECTOR t;
 
   // spawn at player start
   for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
     if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_PLAYER_START) {
+
       memcpy(outPos, BakedConfig.BakedSpawnPoints[i].Position, 12);
       memcpy(outRot, BakedConfig.BakedSpawnPoints[i].Rotation, 12);
+
+      float theta = player->PlayerId / (float)GAME_MAX_PLAYERS;
+      vector_fromyaw(t, theta * MATH_PI * 2);
+      vector_scale(t, t, 2.5);
+      vector_add(outPos, outPos, t);
       return;
     }
   }

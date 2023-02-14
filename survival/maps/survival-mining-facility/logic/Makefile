@@ -1,5 +1,5 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o
+EE_OBJS = main.o gate.o gas.o
 EE_ELF = logic.elf
 EE_BIN = logic.bin
 EE_INCS := -I../../../../common
