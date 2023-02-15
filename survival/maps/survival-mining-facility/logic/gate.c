@@ -88,8 +88,8 @@ void gateDrawQuad(Moby* moby, float direction)
   float uOff = direction * (gameGetTime() / 4000.0);
   float vOff = 0;
 
-	float u0 = uOff*uScale;
-	float u1 = (1+uOff)*uScale;
+	float u0 = fastmodf(uOff*uScale, 1);
+	float u1 = uScale + u0;
 	float v0 = vOff*vScale;
 	float v1 = (1+vOff)*vScale;
 

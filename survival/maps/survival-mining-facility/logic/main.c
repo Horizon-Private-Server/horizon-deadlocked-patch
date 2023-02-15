@@ -71,6 +71,9 @@ int main (void)
   // init
   initialize();
 
+  // disable jump pad effect
+  POKE_U32(0x0042608C, 0);
+
 #if DEBUG
   dlPreUpdate();
   if (padGetButtonDown(0, PAD_LEFT) > 0) {
@@ -86,4 +89,26 @@ int main (void)
 
   gasTick();
 	return 0;
+}
+
+void nodeUpdate(Moby* moby)
+{
+  static int initialized = 0;
+  if (!initialized) {
+    DPRINTF("node %08X\n", (u32)moby);
+    initialized = 1;
+  }
+  
+  // enable cq
+  GameOptions* gameOptions = gameGetOptions();
+  if (gameOptions) {
+    gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
+    //gameOptions->GameFlags.MultiplayerGameFlags.Lockdown = 1;
+    gameOptions->GameFlags.MultiplayerGameFlags.UNK_09 = 1;
+  }
+
+  POKE_U32(0x003D16DC, 0x1000001D);
+
+  // call base node base update
+  ((void (*)(Moby*))0x003D13C0)(moby);
 }

@@ -16,6 +16,10 @@ int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
 Moby* mobLastInList = 0;
 
+#if FIXEDTARGET
+extern Moby* FIXEDTARGETMOBY;
+#endif
+
 /* 
  * 
  */
@@ -467,6 +471,9 @@ short mobGetArmor(struct MobPVar* pvars) {
 
 Moby* mobGetNextTarget(Moby* moby)
 {
+#if FIXEDTARGET
+  return FIXEDTARGETMOBY;
+#endif
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Player ** players = playerGetAll();
 	int i;
@@ -523,7 +530,7 @@ int mobGetPreferredAction(Moby* moby)
 		return -1;
 
   // jump if we've hit a slope and are grounded
-  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.WallSlope > (40 * MATH_DEG2RAD)) {
+  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.WallSlope > ZOMBIE_MAX_WALKABLE_SLOPE) {
     return MOB_ACTION_JUMP;
   }
 
@@ -589,16 +596,16 @@ void vector_rotateTowardsHorizontal(VECTOR output, VECTOR input0, VECTOR input1,
   }
 }
 
-void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
+void mobMoveSimple2(Moby* moby, struct MobPVar* pvars)
 {
 	// apply velocity
 	VECTOR oldPos, newPos;
-	VECTOR preOff = {0,0,0.2,0};
+	VECTOR preOff = {0,0,0.5,0};
 	VECTOR hitOff = {0,0,0.01,0};
 	VECTOR gravity = {0,0,-GRAVITY_MAGNITUDE * MATH_DT,0};
-  VECTOR delta;
+  VECTOR delta, reflectedDelta;
   VECTOR horizontalDelta;
-  VECTOR hitNormal;
+  VECTOR hitNormal, hitDelta;
   VECTOR newPosEx;
 
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -608,30 +615,107 @@ void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
 	vector_add(oldPos, moby->Position, preOff);
 	vector_add(newPos, moby->Position, pvars->MobVars.MoveVars.Velocity);
   vector_subtract(delta, newPos, oldPos);
-  vector_normalize(newPosEx, delta);
+  vectorProjectOnHorizontal(newPosEx, delta);
   vector_scale(newPosEx, newPosEx, pvars->MobVars.Config.CollRadius);
+  newPosEx[2] = delta[2];
   vector_add(newPosEx, newPos, newPosEx);
   vectorProjectOnHorizontal(horizontalDelta, delta);
 
   pvars->MobVars.MoveVars.Grounded = 0;
 	if (CollLine_Fix(oldPos, newPosEx, 2, moby, 0)) {
     
-    //pvars->MobVars.MoveVars.WallSlope = acosf(vector_innerproduct(horizontalDelta, CollLine_Fix_GetHitNormal())) - MATH_PI/2;
-    //pvars->MobVars.MoveVars.HitWall = 1;
-
     vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
-    //vector_reflect(hitNormal, delta, hitNormal);
-    vector_scale(hitNormal, hitNormal, 0.01);
-    vector_add(moby->Position, CollLine_Fix_GetHitPosition(), hitNormal);
-    moby->Position[2] += 0.01;
-		vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+    vector_outerproduct(hitDelta, horizontalDelta, hitNormal);
+    pvars->MobVars.MoveVars.WallSlope = atan2f(hitDelta[2], vector_innerproduct(horizontalDelta, hitNormal)) - MATH_PI/2;
+    pvars->MobVars.MoveVars.HitWall = 1;
+    DPRINTF("slope:%f\n", pvars->MobVars.MoveVars.WallSlope * MATH_RAD2DEG);
+
+    if (pvars->MobVars.MoveVars.WallSlope > ZOMBIE_MAX_WALKABLE_SLOPE) {
+      
+      vector_subtract(hitDelta, CollLine_Fix_GetHitPosition(), moby->Position);
+      float dist = vector_length(hitDelta);
+
+      vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
+      vector_reflect(reflectedDelta, delta, hitNormal);
+
+      vector_normalize(reflectedDelta, reflectedDelta);
+      vector_scale(reflectedDelta, reflectedDelta, dist);
+
+      //vector_add(moby->Position, newPos, reflectedDelta);
+      //moby->Position[2] = CollLine_Fix_GetHitPosition()[2] + 0.01;
+
+      if (pvars->MobVars.MoveVars.CorrectionTicks == 0) {
+        //vector_normalize(reflectedDelta, reflectedDelta);
+        //vector_scale(pvars->MobVars.MoveVars.Velocity, reflectedDelta, vector_length(pvars->MobVars.MoveVars.Velocity));
+        vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+        pvars->MobVars.MoveVars.CorrectionTicks = 0;
+      }
+    } else {
+      
+		  vector_copy(moby->Position, CollLine_Fix_GetHitPosition());
+      moby->Position[2] += 0.01;
+      vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+      pvars->MobVars.MoveVars.CorrectionTicks = 0;
+    }
+
     pvars->MobVars.MoveVars.Grounded = 1;
 	} else {
 		vector_copy(moby->Position, newPos);
+    pvars->MobVars.MoveVars.CorrectionTicks = 0;
 		//vector_add(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity, gravity);
 	}
 
 	//vector_scale(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity, 0.95);
+}
+
+void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
+{
+	// apply velocity
+	VECTOR oldPos, newPos;
+	VECTOR preOff = {0,0,0.5,0};
+	VECTOR hitOff = {0,0,0.01,0};
+	VECTOR gravity = {0,0,-GRAVITY_MAGNITUDE * MATH_DT,0};
+  VECTOR delta, reflectedDelta;
+  VECTOR horizontalDelta;
+  VECTOR hitNormal, hitDelta;
+  VECTOR newPosEx;
+
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (!pvars)
+    return;
+
+	vector_add(oldPos, moby->Position, preOff);
+	vector_add(newPos, moby->Position, pvars->MobVars.MoveVars.Velocity);
+  vector_subtract(delta, newPos, oldPos);
+  vectorProjectOnHorizontal(horizontalDelta, delta);
+  vector_scale(newPosEx, horizontalDelta, 1 + pvars->MobVars.Config.CollRadius);
+  newPosEx[2] = delta[2];
+  vector_add(newPosEx, newPos, newPosEx);
+
+	if (CollLine_Fix(oldPos, newPosEx, 2, moby, 0)) {
+    
+    vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
+    pvars->MobVars.MoveVars.WallSlope = getSignedSlope(horizontalDelta, hitNormal);
+    pvars->MobVars.MoveVars.HitWall = 1;
+
+
+    // 
+    vector_copy(newPos, CollLine_Fix_GetHitPosition());
+    newPos[2] += 0.01;
+    if (CollLine_Fix(oldPos, newPos, 2, moby, 0)) {
+      vector_copy(newPos, CollLine_Fix_GetHitPosition());
+      newPos[2] += 0.01;
+    }
+    
+		vector_copy(moby->Position, newPos);
+    vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+    pvars->MobVars.MoveVars.CorrectionTicks = 0;
+
+    pvars->MobVars.MoveVars.Grounded = 1;
+	} else {
+		vector_copy(moby->Position, newPos);
+    pvars->MobVars.MoveVars.CorrectionTicks = 0;
+	}
 }
 
 int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
@@ -672,7 +756,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
 
     // compute wall slope
-    pvars->MobVars.MoveVars.WallSlope = acosf(vector_innerproduct(horizontalDelta, hitNormal)) - MATH_PI/2;
+    pvars->MobVars.MoveVars.WallSlope = getSignedSlope(horizontalDelta, hitNormal); //atan2f(1, vector_innerproduct(horizontalDelta, hitNormal)) - MATH_PI/2;
     pvars->MobVars.MoveVars.HitWall = 1;
 
     // reflect velocity on hit normal and add back to starting position
@@ -681,7 +765,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     if (reflectedDelta[2] > delta[2])
       reflectedDelta[2] = delta[2];
 
-    vector_add(outputPos, from, reflectedDelta);
+    vector_add(outputPos, to, reflectedDelta);
     return 1;
   }
 
@@ -703,6 +787,7 @@ void mobMove(Moby* moby)
 	u16 moveStepCooldownTicks = decTimerU8(&pvars->MobVars.MoveStepCooldownTicks);
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
   u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
+  u8 correctionTicks = decTimerU8(&pvars->MobVars.MoveVars.CorrectionTicks);
 
   // indicate we're in the process of a mob move
   mobInMobMove = 1;
@@ -710,9 +795,18 @@ void mobMove(Moby* moby)
   // save last position
   vector_copy(pvars->MobVars.MoveVars.LastPosition, moby->Position);
 
+  // force correct
+  if (correctionTicks)
+    vector_copy(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.CorrectionVelocity);
+
   // set rotation to planar velocity
   if (mobHasVelocity(pvars))
     moby->Rotation[2] = atan2f(pvars->MobVars.MoveVars.Velocity[1], pvars->MobVars.MoveVars.Velocity[0]);
+
+  // reset state
+  pvars->MobVars.MoveVars.Grounded = 0;
+  pvars->MobVars.MoveVars.WallSlope = 0;
+  pvars->MobVars.MoveVars.HitWall = 0;
 
   if (0) {
     pvars->MobVars.MoveVars.Grounded = 1;
@@ -725,13 +819,10 @@ void mobMove(Moby* moby)
     vector_add(nextPos, moby->Position, pvars->MobVars.MoveVars.Velocity);
 
     // move physics check twice to prevent clipping walls
-    pvars->MobVars.MoveVars.WallSlope = 0;
-    pvars->MobVars.MoveVars.HitWall = 0;
     if (mobMoveCheck(moby, nextPos, moby->Position, nextPos))
       mobMoveCheck(moby, nextPos, moby->Position, nextPos);
 
-    // check ground
-    pvars->MobVars.MoveVars.Grounded = 0;
+    // check ground or ceiling
     isMovingDown = vector_innerproduct(pvars->MobVars.MoveVars.Velocity, up) < 0;
     if (isMovingDown) {
       vector_copy(groundCheckFrom, nextPos);
@@ -748,6 +839,19 @@ void mobMove(Moby* moby)
 
         // remove vertical velocity from velocity
         vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+      }
+    } else {
+      vector_copy(groundCheckFrom, nextPos);
+      groundCheckFrom[2] = moby->Position[2];
+      vector_copy(groundCheckTo, nextPos);
+      //groundCheckTo[2] += ZOMBIE_BASE_STEP_HEIGHT;
+      if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
+        // force position to below ceiling
+        vector_copy(nextPos, CollLine_Fix_GetHitPosition());
+        nextPos[2] -= 0.01;
+
+        // remove vertical velocity from velocity
+        //vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
       }
     }
 
@@ -779,6 +883,9 @@ void mobMove(Moby* moby)
   if (pvars->MobVars.MoveVars.IsStuck) {
     pvars->MobVars.MoveVars.StuckTicks++;
   }
+
+  if (correctionTicks)
+    vector_copy(pvars->MobVars.MoveVars.CorrectionVelocity, pvars->MobVars.MoveVars.Velocity);
   
   // add horizontal delta position to sum
   vector_subtract(temp, moby->Position, pvars->MobVars.MoveVars.LastPosition);
@@ -896,7 +1003,7 @@ void mobDoAction(Moby* moby)
         }
 
         // handle jumping
-        if (pvars->MobVars.MoveVars.WallSlope > (40 * MATH_DEG2RAD) && pvars->MobVars.MoveVars.Grounded) {
+        if (pvars->MobVars.MoveVars.WallSlope > ZOMBIE_MAX_WALKABLE_SLOPE && pvars->MobVars.MoveVars.Grounded) {
 			    mobTransAnim(moby, ZOMBIE_ANIM_JUMP);
 
           // check if we're near last jump pos
@@ -910,7 +1017,7 @@ void mobDoAction(Moby* moby)
           // with min speed
           float jumpSpeed = 4;
           if (target) {
-            jumpSpeed = clamp((target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 8);
+            jumpSpeed = clamp((target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
           }
 
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
@@ -1302,7 +1409,7 @@ void mobUpdate(Moby* moby)
 	}
 
 	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / ZOMBIE_BASE_SPEED);
-	if (State.Freeze) {
+	if (State.Freeze || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
 		moby->AnimSpeed = animSpeed;

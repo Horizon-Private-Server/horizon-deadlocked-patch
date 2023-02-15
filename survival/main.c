@@ -94,6 +94,10 @@ const u8 UPGRADEABLE_WEAPONS[] = {
 	WEAPON_ID_FLAIL
 };
 
+#if FIXEDTARGET
+Moby* FIXEDTARGETMOBY = NULL;
+#endif
+
 char LocalPlayerStrBuffer[2][48];
 
 int * LocalBoltCount = (int*)0x00171B40;
@@ -2071,6 +2075,12 @@ void initialize(PatchGameConfig_t* gameConfig)
 		config->Damage *= State.Difficulty;
 	}
 
+#if FIXEDTARGET
+  FIXEDTARGETMOBY = mobySpawn(0xE7D, 0);
+  FIXEDTARGETMOBY->Position[0] = 460.46;
+  FIXEDTARGETMOBY->Position[1] = 664.84;
+  FIXEDTARGETMOBY->Position[2] = 435.1;
+#endif
 
 	Initialized = 1;
 }

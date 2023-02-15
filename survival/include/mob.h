@@ -158,6 +158,7 @@ struct Knockback {
 struct MobMoveVars {
   VECTOR LastPosition;
   VECTOR Velocity;
+  VECTOR CorrectionVelocity;
   VECTOR LastJumpPosition;
   VECTOR SumPositionDelta;
   float SumSpeedOver;
@@ -166,6 +167,7 @@ struct MobMoveVars {
   char Grounded;
   char HitWall;
   char IsStuck;
+  u8 CorrectionTicks;
   u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;

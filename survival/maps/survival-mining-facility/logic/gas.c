@@ -154,10 +154,10 @@ void drawGasQuad(VECTOR position, float yaw, float width, float height, u32 colo
 	VECTOR pBR = {-0.5,0,-0.5,1};
 	VECTOR scale = {width,1,height,0};
 
-	float u0 = uOff*uScale;
-	float u1 = (1+uOff)*uScale;
-	float v0 = vOff*vScale;
-	float v1 = (1+vOff)*vScale;
+	float u0 = fastmodf(uOff*uScale, 1);
+	float u1 = uScale + u0;
+	float v0 = fastmodf(vOff*vScale, 1);
+	float v1 = vScale + v0;
 
 	// init
   gfxResetQuad(&quad);

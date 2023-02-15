@@ -227,3 +227,13 @@ void vectorProjectOnHorizontal(VECTOR output, VECTOR input0)
     : : "r" (output), "r" (input0)
   );
 }
+
+//--------------------------------------------------------------------------
+float getSignedSlope(VECTOR forward, VECTOR normal)
+{
+  VECTOR up, hForward;
+
+  vectorProjectOnHorizontal(hForward, forward);
+  vector_outerproduct(up, hForward, normal);
+  return atan2f(up[2], vector_innerproduct(hForward, normal)) - MATH_PI/2;
+}

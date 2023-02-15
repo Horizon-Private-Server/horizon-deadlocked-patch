@@ -31,5 +31,6 @@ int charArrayContains(char* list, int count, char value);
 
 void vectorProjectOnVertical(VECTOR output, VECTOR input0);
 void vectorProjectOnHorizontal(VECTOR output, VECTOR input0);
+float getSignedSlope(VECTOR forward, VECTOR normal);
 
 #endif // SURVIVAL_UTILS_H

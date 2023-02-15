@@ -13,7 +13,7 @@ logic: setup
 
 	# payload and definition
 	cp $(CURDIR)/logic/logic.bin $(CURDIR)/bin/code.0009.bin
-	bin2codedef $(CURDIR)/bin/code.0009.bin 01BFF000 $(CURDIR)/bin/code.0009.def 004A7D98
+	bin2codedef $(CURDIR)/bin/code.0009.bin 01E60000 $(CURDIR)/bin/code.0009.def 004A7D98
 
 
 data: setup
