@@ -22,8 +22,6 @@ struct GatePVar
   float Opacity;
   int Cost;
   int Dirty;
-  int A;
-  int Handle;
 };
 
 enum GateEventType {

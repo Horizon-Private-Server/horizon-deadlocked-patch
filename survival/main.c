@@ -1427,51 +1427,55 @@ void processPlayer(int pIndex) {
 		// handle upgrade logic
 		for (i = 0; i < UPGRADE_COUNT; ++i) {
 			Moby* upgradeMoby = State.UpgradeMobies[i];
-			if (!playerData->ActionCooldownTicks && upgradeMoby && playerData->State.Upgrades[i] < UpgradeMax[i]) {
-				vector_subtract(t, player->PlayerPosition, upgradeMoby->Position);
-				if (vector_sqrmag(t) < (UPGRADE_PICKUP_RADIUS * UPGRADE_PICKUP_RADIUS)) {
-					
-					// draw help popup
-					sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_BUY_UPGRADE_MESSAGES[i]);
-					uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-					hasMessage = 1;
-					playerData->MessageCooldownTicks = 2;
+      if (upgradeMoby) {
+        if (!playerData->ActionCooldownTicks && playerData->State.Upgrades[i] < UpgradeMax[i]) {
+          vector_subtract(t, player->PlayerPosition, upgradeMoby->Position);
+          if (vector_sqrmag(t) < (UPGRADE_PICKUP_RADIUS * UPGRADE_PICKUP_RADIUS)) {
+            
+            // draw help popup
+            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_BUY_UPGRADE_MESSAGES[i]);
+            uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+            hasMessage = 1;
+            playerData->MessageCooldownTicks = 2;
 
-					// handle pad input
-					if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens >= UPGRADE_TOKEN_COST) {
-						playerData->State.CurrentTokens -= UPGRADE_TOKEN_COST;
-						playerData->ActionCooldownTicks = PLAYER_UPGRADE_COOLDOWN_TICKS;
-						upgradePickup(upgradeMoby, pIndex);
-            playPaidSound(player);
-					}
-					break;
-				}
-			}
+            // handle pad input
+            if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens >= UPGRADE_TOKEN_COST) {
+              playerData->State.CurrentTokens -= UPGRADE_TOKEN_COST;
+              playerData->ActionCooldownTicks = PLAYER_UPGRADE_COOLDOWN_TICKS;
+              upgradePickup(upgradeMoby, pIndex);
+              playPaidSound(player);
+            }
+            break;
+          }
+        }
+      }
 		}
 
 		// handle gate logic
 		for (i = 0; i < GATE_MAX_COUNT; ++i) {
 			Moby* gateMoby = State.GateMobies[i];
-      struct GatePVar* gatePVars = (struct GatePVar*)gateMoby->PVar;
-			if (!playerData->ActionCooldownTicks && gateMoby && gateMoby->State == GATE_STATE_ACTIVATED && gatePVars && gatePVars->Cost > 0) {
-				if (gateCanInteract(gateMoby, player->PlayerPosition)) {
-					
-					// draw help popup
-					sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_BUY_GATE_MESSAGE, gatePVars->Cost);
-					uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-					hasMessage = 1;
-					playerData->MessageCooldownTicks = 2;
+      if (gateMoby) {
+        struct GatePVar* gatePVars = (struct GatePVar*)gateMoby->PVar;
+        if (!playerData->ActionCooldownTicks && gateMoby->State == GATE_STATE_ACTIVATED && gatePVars && gatePVars->Cost > 0) {
+          if (gateCanInteract(gateMoby, player->PlayerPosition)) {
+            
+            // draw help popup
+            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_BUY_GATE_MESSAGE, gatePVars->Cost);
+            uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+            hasMessage = 1;
+            playerData->MessageCooldownTicks = 2;
 
-					// handle pad input
-					if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens > 0) {
-						playerData->State.CurrentTokens -= 1;
-						playerData->ActionCooldownTicks = PLAYER_GATE_COOLDOWN_TICKS;
-						gatePayToken(gateMoby);
-            playPaidSound(player);
-					}
-					break;
-				}
-			}
+            // handle pad input
+            if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens > 0) {
+              playerData->State.CurrentTokens -= 1;
+              playerData->ActionCooldownTicks = PLAYER_GATE_COOLDOWN_TICKS;
+              gatePayToken(gateMoby);
+              playPaidSound(player);
+            }
+            break;
+          }
+        }
+      }
 		}
 
 		// handle revive logic
@@ -1853,6 +1857,10 @@ void spawnUpgrades(void)
 	int r;
 	int bakedUpgradeSpawnpointCount = 0;
 	char upgradeBakedSpawnpointIdx[UPGRADE_COUNT];
+
+  // only spawn if host
+  if (!gameAmIHost())
+    return;
 
 	// initialize spawnpoint idx to -1
 	// and set moby ref to NULL

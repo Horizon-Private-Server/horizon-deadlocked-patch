@@ -101,6 +101,9 @@ void nodeUpdate(Moby* moby)
     initialized = 1;
   }
   
+  // init
+  initialize();
+
   // enable cq
   GameOptions* gameOptions = gameGetOptions();
   if (gameOptions) {
@@ -111,6 +114,9 @@ void nodeUpdate(Moby* moby)
 
   // disable deleting node if not CQ
   POKE_U32(0x003D16DC, 0x1000001D);
+
+  // fix capturing node hiding random moby
+  POKE_U32(0x003d27a4, 0x1000001D);
 
   // disable node captured popup
   POKE_U32(0x003D2E6C, 0);

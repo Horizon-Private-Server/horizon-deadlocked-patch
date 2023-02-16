@@ -6,7 +6,7 @@ EE_INCS := -I../../../../common -I../../../include
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := DEBUG
+BUILD_CONFIG := RELEASE
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
