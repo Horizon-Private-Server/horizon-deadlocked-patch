@@ -6,6 +6,7 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 #include "upgrade.h"
+#include "gate.h"
 
 #define TPS																		(60)
 
@@ -119,7 +120,8 @@
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
-#define BAKED_SPAWNPOINT_COUNT							(16)
+#define BAKED_SPAWNPOINT_COUNT							  (16)
+
 
 enum GameNetMessage
 {
@@ -214,6 +216,7 @@ struct SurvivalState
 	Moby* Vendor;
 	Moby* BigAl;
 	Moby* UpgradeMobies[UPGRADE_COUNT];
+  Moby* GateMobies[GATE_MAX_COUNT];
 	struct SurvivalPlayer* LocalPlayerState;
 	int GameOver;
 	int WinningTeam;

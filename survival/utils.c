@@ -42,6 +42,23 @@ SoundDef UpgradeSoundDef =
 	3			  // Bank
 };
 
+/* 
+ * paid sound def
+ */
+SoundDef PaidSoundDef =
+{
+	0.0,	// MinRange
+	20.0,	// MaxRange
+	100,		// MinVolume
+	2000,		// MaxVolume
+	0,			// MinPitch
+	0,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	32,		  // Index
+	3			  // Bank
+};
+
 Moby * spawnExplosion(VECTOR position, float size, u32 color)
 {
 	// SpawnMoby_5025
@@ -60,6 +77,11 @@ Moby * spawnExplosion(VECTOR position, float size, u32 color)
 void playUpgradeSound(Player* player)
 {	
 	soundPlay(&UpgradeSoundDef, 0, player->PlayerMoby, 0, 0x400);
+}
+
+void playPaidSound(Player* player)
+{
+  soundPlay(&PaidSoundDef, 0, player->PlayerMoby, 0, 0x400);
 }
 
 int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod)

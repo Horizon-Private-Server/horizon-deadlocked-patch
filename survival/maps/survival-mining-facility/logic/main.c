@@ -21,6 +21,7 @@
 #include <libdl/string.h>
 #include <libdl/math.h>
 #include <libdl/math3d.h>
+#include <libdl/collision.h>
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
 #include <libdl/dialog.h>
@@ -31,10 +32,11 @@
 #include <libdl/utils.h>
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
+void powerNodeUpdate(Moby* moby);
 void gateInit(void);
 void gasTick(void);
 
-long aaa = 28;
+int aaa = 2;
 
 void initialize(void)
 {
@@ -107,7 +109,14 @@ void nodeUpdate(Moby* moby)
     gameOptions->GameFlags.MultiplayerGameFlags.UNK_09 = 1;
   }
 
+  // disable deleting node if not CQ
   POKE_U32(0x003D16DC, 0x1000001D);
+
+  // disable node captured popup
+  POKE_U32(0x003D2E6C, 0);
+
+  //
+  powerNodeUpdate(moby);
 
   // call base node base update
   ((void (*)(Moby*))0x003D13C0)(moby);

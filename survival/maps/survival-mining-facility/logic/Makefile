@@ -1,8 +1,8 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o gate.o gas.o
+EE_OBJS = main.o gate.o gas.o power.o
 EE_ELF = logic.elf
 EE_BIN = logic.bin
-EE_INCS := -I../../../../common
+EE_INCS := -I../../../../common -I../../../include
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE

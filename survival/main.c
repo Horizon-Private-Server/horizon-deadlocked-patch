@@ -38,6 +38,7 @@
 #include "include/drop.h"
 #include "include/game.h"
 #include "include/utils.h"
+#include "include/gate.h"
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
@@ -47,6 +48,7 @@ const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x1c Revive [\x0E%d\x08]";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
+const char * SURVIVAL_BUY_GATE_MESSAGE = "\x11 %d Tokens to Open";
 const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
 	[UPGRADE_HEALTH] "\x11 Health Upgrade",
 	[UPGRADE_SPEED] "\x11 Speed Upgrade",
@@ -464,6 +466,49 @@ Moby * mobyGetRandomHealthbox(void)
 		return results[rand(count)];
 
 	return NULL;
+}
+
+//--------------------------------------------------------------------------
+void gatePayToken(Moby* moby)
+{
+	// create event
+	GuberEvent * guberEvent = upgradeCreateEvent(moby, GATE_EVENT_PAY_TOKEN);
+}
+
+//--------------------------------------------------------------------------
+int gateCanInteract(Moby* gate, VECTOR point)
+{
+  VECTOR delta, gateTangent, gateClosestToPoint;
+  if (!gate || !gate->PVar)
+    return 0;
+
+  struct GatePVar* pvars = (struct GatePVar*)gate->PVar;
+
+  // get delta from center of gate to point
+  vector_subtract(delta, point, gate->Position);
+
+  // outside vertical range
+  if (fabsf(delta[2]) > (pvars->Height/2))
+    return 0;
+
+  // get closest point on gate to point
+  vector_subtract(gateTangent, pvars->To, pvars->From);
+  float gateLength = vector_length(gateTangent);
+  vector_scale(gateTangent, gateTangent, 1 / gateLength);
+
+  vector_subtract(delta, point, pvars->From);
+  float dot = vector_innerproduct_unscaled(delta, gateTangent);
+  if (dot < -GATE_INTERACT_CAP_RADIUS)
+    return 0;
+
+  if (dot > (gateLength + GATE_INTERACT_CAP_RADIUS))
+    return 0;
+
+  vector_scale(gateClosestToPoint, gateTangent, dot);
+  vector_add(gateClosestToPoint, gateClosestToPoint, pvars->From);
+  vector_subtract(delta, point, gateClosestToPoint);
+  vectorProjectOnHorizontal(delta, delta);
+  return vector_sqrmag(delta) < (GATE_INTERACT_RADIUS*GATE_INTERACT_RADIUS);
 }
 
 //--------------------------------------------------------------------------
@@ -1351,6 +1396,7 @@ void processPlayer(int pIndex) {
 							playerData->State.Bolts -= cost;
 							playerUpgradeWeapon(player, heldWeapon);
 							uiShowPopup(localPlayerIndex, uiMsgString(0x2330));
+              playPaidSound(player);
 							playerData->ActionCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
 						}
 					}
@@ -1396,6 +1442,32 @@ void processPlayer(int pIndex) {
 						playerData->State.CurrentTokens -= UPGRADE_TOKEN_COST;
 						playerData->ActionCooldownTicks = PLAYER_UPGRADE_COOLDOWN_TICKS;
 						upgradePickup(upgradeMoby, pIndex);
+            playPaidSound(player);
+					}
+					break;
+				}
+			}
+		}
+
+		// handle gate logic
+		for (i = 0; i < GATE_MAX_COUNT; ++i) {
+			Moby* gateMoby = State.GateMobies[i];
+      struct GatePVar* gatePVars = (struct GatePVar*)gateMoby->PVar;
+			if (!playerData->ActionCooldownTicks && gateMoby && gateMoby->State == GATE_STATE_ACTIVATED && gatePVars && gatePVars->Cost > 0) {
+				if (gateCanInteract(gateMoby, player->PlayerPosition)) {
+					
+					// draw help popup
+					sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_BUY_GATE_MESSAGE, gatePVars->Cost);
+					uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+					hasMessage = 1;
+					playerData->MessageCooldownTicks = 2;
+
+					// handle pad input
+					if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens > 0) {
+						playerData->State.CurrentTokens -= 1;
+						playerData->ActionCooldownTicks = PLAYER_GATE_COOLDOWN_TICKS;
+						gatePayToken(gateMoby);
+            playPaidSound(player);
 					}
 					break;
 				}
@@ -1430,6 +1502,7 @@ void processPlayer(int pIndex) {
 								playerData->State.Bolts -= cost;
 								playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
 								playerRevive(otherPlayer, player->PlayerId);
+                playPaidSound(player);
 							}
 						}
 					}
@@ -1635,7 +1708,7 @@ void destroyOmegaPads(void)
 	{
 		Moby* moby = gm->Moby;
 		if (moby && moby->OClass == MOBY_ID_PICKUP_PAD && moby->PVar) {
-			if (*(int*)moby->PVar == 5) {
+			if (*(u8*)moby->PVar == 5) {
 				guberMobyDestroy(moby);
 				++c;
 			}
@@ -1942,7 +2015,7 @@ void initialize(PatchGameConfig_t* gameConfig)
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_FREEZE, &onSetFreezeRemote);
 
 	// set game over string (replaces "Draw!")
-	strncpy((char*)0x015A00AA, SURVIVAL_GAME_OVER, 12);
+	strncpy((char*)0x0197B3AA, SURVIVAL_GAME_OVER, 12);
 	strncpy(uiMsgString(0x3152), SURVIVAL_UPGRADE_MESSAGE, strlen(SURVIVAL_UPGRADE_MESSAGE));
 	strncpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE));
 
@@ -2038,6 +2111,13 @@ void initialize(PatchGameConfig_t* gameConfig)
 #else
 	State.BigAl = FindMobyOrSpawnBox(0, 2);
 #endif
+
+  // find gates
+  Moby* mStart = mobyListGetStart();
+  for (i = 0; i < GATE_MAX_COUNT && mStart; ++i) {
+    State.GateMobies[i] = mStart = mobyFindNextByOClass(mStart + 1, GATE_OCLASS);
+    DPRINTF("gate found %08X\n", (u32)mStart);
+  }
 
 #if UPGRADES
 	// spawn upgrades
@@ -2490,6 +2570,7 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickupsRandom = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;

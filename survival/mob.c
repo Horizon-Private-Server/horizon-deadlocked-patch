@@ -781,6 +781,7 @@ void mobMove(Moby* moby)
   VECTOR temp;
   VECTOR groundCheckFrom, groundCheckTo;
   int isMovingDown = 0;
+  int i;
   const VECTOR up = {0,0,1,0};
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
@@ -807,6 +808,20 @@ void mobMove(Moby* moby)
   pvars->MobVars.MoveVars.Grounded = 0;
   pvars->MobVars.MoveVars.WallSlope = 0;
   pvars->MobVars.MoveVars.HitWall = 0;
+
+  if (mobFirstInList == moby) {
+
+    // turn on holos so we can collide with them
+    // optimization to only turn on for first mob in moby list (this is expensive)
+    weaponTurnOnHoloshields(-1);
+
+    // disable colliding with gates
+    for (i = 0; i < GATE_MAX_COUNT; ++i) {
+      if (State.GateMobies[i]) {
+        State.GateMobies[i]->CollActive = -1;
+      }
+    }
+  }
 
   if (0) {
     pvars->MobVars.MoveVars.Grounded = 1;
@@ -895,7 +910,20 @@ void mobMove(Moby* moby)
 
   // done moving
   mobInMobMove = 0;
-  //vector_copy(moby->Position, pvars->MobVars.MoveVars.LastPosition);
+
+  // re-enable colliding with gates
+  if (mobLastInList == moby) {
+
+    // turn off holos for everyone else
+    // optimization to only turn off for last mob in moby list (this is expensive)
+    weaponTurnOffHoloshields();
+
+    for (i = 0; i < GATE_MAX_COUNT; ++i) {
+      if (State.GateMobies[i] && State.GateMobies[i]->State == 1) {
+        State.GateMobies[i]->CollActive = 0;
+      }
+    }
+  }
 }
 
 void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed)
@@ -959,11 +987,7 @@ void mobDoAction(Moby* moby)
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t, t2;
-
-	// turn on holos so we can collide with them
-	// optimization to only turn on for first mob in moby list (this is expensive)
-	if (mobFirstInList == moby)
-		weaponTurnOnHoloshields(-1);
+  int i;
 
 	switch (pvars->MobVars.Action)
 	{
@@ -1148,11 +1172,6 @@ void mobDoAction(Moby* moby)
 			break;
 		}
 	}
-
-	// turn off holos for everyone else
-	// optimization to only turn off for last mob in moby list (this is expensive)
-	if (mobLastInList == moby)
-		weaponTurnOffHoloshields();
 }
 
 //--------------------------------------------------------------------------

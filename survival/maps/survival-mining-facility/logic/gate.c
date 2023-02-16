@@ -1,9 +1,8 @@
 /***************************************************
- * FILENAME :		logic.c
+ * FILENAME :		gate.c
  * 
  * DESCRIPTION :
- * 		Custom map logic for Survival V2's Mining Facility.
- * 		Handles logic for gaseous part of map.
+ * 		Handles logic for the gates.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -16,6 +15,7 @@
 #include <libdl/time.h>
 #include <libdl/net.h>
 #include "module.h"
+#include "../../../include/gate.h"
 #include "messageid.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
@@ -24,44 +24,37 @@
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
 #include <libdl/dialog.h>
+#include <libdl/sound.h>
 #include <libdl/patch.h>
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
 #include <libdl/color.h>
 #include <libdl/utils.h>
 
-#define GATE_OCLASS             (0x1F6)
-
-struct GatePVar
+SoundDef BaseSoundDef =
 {
-  VECTOR From;
-  VECTOR To;
-  float Height;
-  float Opacity;
-  int Dirty;
-};
-
-enum GateEventType {
-	GATE_EVENT_SPAWN,
-  GATE_EVENT_ACTIVATE,
-  GATE_EVENT_DEACTIVATE
-};
-
-enum GateState {
-	GATE_STATE_DEACTIVATED,
-	GATE_STATE_ACTIVATED,
+	0.0,	  // MinRange
+	25.0,	  // MaxRange
+	0,		  // MinVolume
+	1200,		// MaxVolume
+	-635,			// MinPitch
+	635,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	0x17D,		// Index
+	3			  // Bank
 };
 
 VECTOR GateLocations[] = {
-  { 383.47, 564.51, 430.44, 6.5 }, { 383.47, 550.51, 430.44, 0 },
-  { 425.35, 564.51, 430.44, 6.5 }, { 425.35, 550.51, 430.44, 0 },
-  { 425.46, 652.23, 430.44, 6.5 }, { 425.46, 638.23, 430.44, 0 },
-  { 383.24, 652.23, 430.44, 6.5 }, { 383.24, 638.23, 430.44, 0 },
-  { 359.28, 614.63, 430.44, 6.5 }, { 373.28, 614.63, 430.44, 0 },
-  { 359.28, 576.26, 430.44, 6.5 }, { 373.28, 576.26, 430.44, 0 },
-  { 470.88, 607.19, 439.14, 9 }, { 470.88, 593.19, 439.14, 0 },
-  { 488.89, 523.54, 430.11, 6.5 }, { 488.89, 509.54, 430.11, 0 },
-  { 488.89, 690.17, 430.11, 6.5 }, { 488.89, 676.17, 430.11, 0 },
+  { 383.47, 564.51, 430.44, 6.5 }, { 383.47, 550.51, 430.44, 1 },
+  { 425.35, 564.51, 430.44, 6.5 }, { 425.35, 550.51, 430.44, 2 },
+  { 425.46, 652.23, 430.44, 6.5 }, { 425.46, 638.23, 430.44, 3 },
+  { 383.24, 652.23, 430.44, 6.5 }, { 383.24, 638.23, 430.44, 3 },
+  { 359.28, 614.63, 430.44, 6.5 }, { 373.28, 614.63, 430.44, 2 },
+  { 359.28, 576.26, 430.44, 6.5 }, { 373.28, 576.26, 430.44, 1 },
+  { 470.88, 607.19, 439.14, 9 }, { 470.88, 593.19, 439.14, 4 },
+  { 488.89, 523.54, 430.11, 6.5 }, { 488.89, 509.54, 430.11, 4 },
+  { 488.89, 690.17, 430.11, 6.5 }, { 488.89, 676.17, 430.11, 4 },
   { 553.5787, 618.6273, 430.11, 6.5 }, { 563.3413, 608.5927, 430.11, 0 },
   { 587.5181, 599.4265, 430.11, 6.5 }, { 598.042, 590.1935, 430.11, 0 },
 };
@@ -131,6 +124,13 @@ void gateDraw(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void gatePlayOpenSound(Moby* moby)
+{
+  BaseSoundDef.Index = 204;
+  soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
+}
+
+//--------------------------------------------------------------------------
 void gateUpdate(Moby* moby)
 {
   VECTOR delta;
@@ -181,11 +181,14 @@ void gateUpdate(Moby* moby)
     moby->ModeBits |= 4;
   }
 
+#if DEBUG
   if (padGetButton(0, PAD_UP) > 0) {
     mobySetState(moby, GATE_STATE_ACTIVATED, -1);
   } else if (padGetButton(0, PAD_DOWN) > 0) {
     mobySetState(moby, GATE_STATE_DEACTIVATED, -1);
+    gatePlayOpenSound(moby);
   }
+#endif
 
   // force BSphere radius to something larger so that entire collision registers
   moby->BSphere[3] = 14444;
@@ -205,6 +208,7 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 	guberEventRead(event, pvars->From, 12);
 	guberEventRead(event, pvars->To, 12);
 	guberEventRead(event, &pvars->Height, 4);
+	guberEventRead(event, &pvars->Cost, 4);
 
 	// set update
 	moby->PUpdate = &gateUpdate;
@@ -217,6 +221,29 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 
   // set default state
 	mobySetState(moby, GATE_STATE_ACTIVATED, -1);
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
+{
+	int i;
+  
+  DPRINTF("gate token paid: %08X\n", (u32)moby);
+  struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
+  if (!pvars)
+    return 0;
+  
+  // reduce cost by 1
+  // open gate if cost reduced to 0
+  if (pvars->Cost > 0 && moby->State == GATE_STATE_ACTIVATED) {
+    pvars->Cost -= 1;
+    if (pvars->Cost == 0) {
+      mobySetState(moby, GATE_STATE_DEACTIVATED, -1);
+      gatePlayOpenSound(moby);
+    }
+  }
+
   return 0;
 }
 
@@ -242,7 +269,8 @@ int gateHandleEvent(Moby* moby, GuberEvent* event)
 		{
 			case GATE_EVENT_SPAWN: return gateHandleEvent_Spawned(moby, event);
       case GATE_EVENT_ACTIVATE: { mobySetState(moby, GATE_STATE_ACTIVATED, -1); return 0; }
-      case GATE_EVENT_DEACTIVATE: { mobySetState(moby, GATE_STATE_DEACTIVATED, -1); return 0; }
+      case GATE_EVENT_DEACTIVATE: { mobySetState(moby, GATE_STATE_DEACTIVATED, -1); gatePlayOpenSound(moby); return 0; }
+			case GATE_EVENT_PAY_TOKEN: return gateHandleEvent_PayToken(moby, event);
 			default:
 			{
 				DPRINTF("unhandle gate event %d\n", upgradeEvent);
@@ -255,7 +283,7 @@ int gateHandleEvent(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-int gateCreate(VECTOR start, VECTOR end, float height)
+int gateCreate(VECTOR start, VECTOR end, float height, int cost)
 {
 	// create guber object
 	GuberEvent * guberEvent = 0;
@@ -265,6 +293,7 @@ int gateCreate(VECTOR start, VECTOR end, float height)
 		guberEventWrite(guberEvent, start, 12);
 		guberEventWrite(guberEvent, end, 12);
     guberEventWrite(guberEvent, &height, 4);
+    guberEventWrite(guberEvent, &cost, 4);
 	}
 	else
 	{
@@ -293,7 +322,7 @@ void gateInit(void)
   // create gates
   if (gameAmIHost()) {
     for (i = 0; i < GateLocationsCount; i += 2) {
-      gateCreate(GateLocations[i], GateLocations[i+1], GateLocations[i][3]);
+      gateCreate(GateLocations[i], GateLocations[i+1], GateLocations[i][3], (int)GateLocations[i+1][3]);
     }
   }
 }

@@ -17,6 +17,7 @@ short playerGetWeaponAmmo(Player* player, int weaponId);
 int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod);
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
 void playUpgradeSound(Player* player);
+void playPaidSound(Player* player);
 int getWeaponIdFromOClass(short oclass);
 u8 decTimerU8(u8* timeValue);
 u16 decTimerU16(u16* timeValue);

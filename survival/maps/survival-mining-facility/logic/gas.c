@@ -245,7 +245,8 @@ int gasTick(void)
 			);
 
 		// damage player if in gas
-		if (0 && !playerIsDead(p) && isPlayerInGasArea(p)) {
+#if !DEBUG
+		if (!playerIsDead(p) && isPlayerInGasArea(p)) {
 			
 			if (gasDamageTicker) {
 				--gasDamageTicker;
@@ -260,6 +261,7 @@ int gasTick(void)
 		} else {
 			gasDamageTicker = GAS_DAMAGE_TICKRATE;
 		}
+#endif
 	}
 
 	return 0;
