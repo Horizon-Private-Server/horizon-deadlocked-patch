@@ -137,6 +137,7 @@ void activate(void)
  */
 void initialize(void)
 {
+  GameOptions* gameOptions = gameGetOptions();
   Moby* moby = mobyListGetStart();
   Moby* mEnd = mobyListGetEnd();
   while (moby < mEnd)
@@ -155,6 +156,11 @@ void initialize(void)
     }
 
     ++moby;
+  }
+
+  if (gameOptions) {
+    // enable mini turret
+    gameOptions->WeaponFlags.UNK_09 = 1;
   }
 }
 
