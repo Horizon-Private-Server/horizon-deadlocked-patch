@@ -1202,7 +1202,7 @@ int getUpgradeCost(Player * player, enum WEAPON_IDS weaponId) {
 		return 0;
 		
 	// determine discount rate
-	float rate = clamp(1 - (0.05 * State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_VENDOR]), 0, 1);
+	float rate = clamp(1 - (0.025 * State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_VENDOR]), 0, 1);
 
 	return ceilf(UPGRADE_COST[level] * rate);
 }
