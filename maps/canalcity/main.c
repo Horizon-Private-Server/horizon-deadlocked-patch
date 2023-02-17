@@ -113,25 +113,20 @@ void playSound(Moby* moby, int id)
  */
 void activate(void)
 {
-  if (hiddenMoby)
+  if (!hiddenMoby)
     return;
 
-  hiddenMoby = mobySpawn(MOBY_ID_WEAPON_PICKUP, 0x50);
-  if (!hiddenMoby || !hiddenMoby->PVar)
-    return;
-
-  u32* pvars = (u32*)hiddenMoby->PVar;
-  pvars[0] = 9;
-  pvars[2] = 0x0001FFFF;
-  pvars[3] = 0;
-  pvars[6] = 1;
-  pvars[7] = 0x41F00000;
-
-  hiddenMoby->Position[0] = 275.511;
-  hiddenMoby->Position[1] = 178.558;
-  hiddenMoby->Position[2] = 51.25;
-
+  hiddenMoby->UpdateDist = 64;
   hiddenMoby->DrawDist = 64;
+  hiddenMoby->CollActive = 0;
+  mobySetState(hiddenMoby, 1, -1);
+
+  if (hiddenMoby->PVar) {
+    Moby* gadgetMoby = *(Moby**)((u32)hiddenMoby->PVar + 0x18);
+    if (gadgetMoby) {
+      gadgetMoby->DrawDist = 64;
+    }
+  }
 }
 
 /*
@@ -160,13 +155,20 @@ void initialize(void)
       State = 1;
       DPRINTF("found hacker orb moby at %08X\n", (u32)moby);
     }
-    // else if (moby->OClass == 0x10C3 && !mobyIsDestroyed(moby) && moby->UID == 0x95) {
-    //   hiddenMoby = moby;
-    //   mobySetState(moby, 2, -1);
-    //   moby->DrawDist = 0;
-    //   moby->CollActive = -1;
-    //   DPRINTF("found hidden moby at %08X\n", (u32)moby);
-    // }
+    else if (moby->OClass == 0x261F && !mobyIsDestroyed(moby) && moby->UID == 0x95) {
+      hiddenMoby = moby;
+      moby->UpdateDist = 0;
+      moby->DrawDist = 0;
+      moby->CollActive = -1;
+
+      if (moby->PVar) {
+        Moby* gadgetMoby = *(Moby**)((u32)moby->PVar + 0x18);
+        if (gadgetMoby) {
+          gadgetMoby->DrawDist = 0;
+        }
+      }
+      DPRINTF("found hidden moby at %08X\n", (u32)moby);
+    }
 
     ++moby;
   }
@@ -196,10 +198,9 @@ int main (void)
   if (!State)
   {
     initialize();
-    return 0;
+    return;
   }
 
-  activate();
   if (State == 1 && hackerOrbMoby && hackerOrbMoby->State == 4) {
     playSound(hackerOrbMoby, 386);
     activate();

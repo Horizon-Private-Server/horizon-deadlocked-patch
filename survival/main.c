@@ -32,6 +32,7 @@
 #include <libdl/sound.h>
 #include <libdl/dl.h>
 #include <libdl/utils.h>
+#include <libdl/collision.h>
 #include "module.h"
 #include "messageid.h"
 #include "include/mob.h"
@@ -939,16 +940,27 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 		return;
 
 	// backup current position/rotation
-	VECTOR deadPos, deadRot;
+	VECTOR deadPos, deadPosDown, deadRot;
 	vector_copy(deadPos, player->PlayerPosition);
+	vector_copy(deadPosDown, player->PlayerPosition);
 	vector_copy(deadRot, player->PlayerRotation);
+  deadPos[2] += 0.5;
+  deadPosDown[2] -= 1;
 
 	// respawn
 	PlayerVTable* vtable = playerGetVTable(player);
 	if (vtable)
 		vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
+  getResurrectPoint(player, player->PlayerPosition, player->PlayerRotation, 0);
+  playerSetPosRot(player, player->PlayerPosition, player->PlayerRotation);
 	playerSetHealth(player, player->MaxHealth);
-	playerSetPosRot(player, deadPos, deadRot);
+
+  // only reset back to dead pos if player died on ground
+  if (CollLine_Fix(deadPos, deadPosDown, 2, player->PlayerMoby, 0)) {
+    int colId = CollLine_Fix_GetHitCollisionId() & 0xF;
+    if (colId == 0xF || colId == 0x7 || colId == 0x9 || colId == 0xA)
+	    playerSetPosRot(player, deadPos, deadRot);
+  }
 
 	player->timers.acidTimer = 0;
 	player->timers.freezeTimer = 1; // triggers the game to handle resetting movement speed on 0
@@ -1319,14 +1331,14 @@ void processPlayer(int pIndex) {
 		}
 
 		// force to last good position
-		if (isDeadState && player->timers.state > TPS) {
-			vector_subtract(t, player->PlayerPosition, player->Ground.lastGoodPos);
-			if (vector_sqrmag(t) > 1) {
-				playerSetPosRot(player, player->Ground.lastGoodPos, player->PlayerRotation);
-				player->Health = 0;
-				player->PlayerState = PLAYER_STATE_DEATH;
-			}
-		}
+		// if (isDeadState && player->timers.state > TPS) {
+		// 	vector_subtract(t, player->PlayerPosition, player->Ground.lastGoodPos);
+		// 	if (vector_sqrmag(t) > 1) {
+		// 		playerSetPosRot(player, player->Ground.lastGoodPos, player->PlayerRotation);
+		// 		player->Health = 0;
+		// 		player->PlayerState = PLAYER_STATE_DEATH;
+		// 	}
+		// }
 
 		// set experience to min of level and max level 
 		for (i = WEAPON_ID_VIPERS; i <= WEAPON_ID_FLAIL; ++i) {
