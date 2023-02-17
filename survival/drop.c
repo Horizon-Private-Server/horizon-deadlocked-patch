@@ -223,7 +223,7 @@ int dropHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	moby->PUpdate = &dropUpdate;
 
 	// 
-	//moby->ModeBits |= 0x30;
+	moby->ModeBits &= ~2;
 	//moby->GlowRGBA = MobSecondaryColors[(int)args.MobType];
 	//moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
 	moby->CollData = NULL;

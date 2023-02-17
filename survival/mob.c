@@ -1750,7 +1750,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		// give xp
 		pState->State.XP += xp;
 		u64 targetForNextToken = getXpForNextToken(pState->State.TotalTokens);
-		DPRINTF("xp is %d\n", pState->State.XP);
 
 		// give tokens
 		while (pState->State.XP >= targetForNextToken)

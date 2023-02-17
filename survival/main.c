@@ -2247,7 +2247,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	{
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
-			//manSpawnMobId = defaultSpawnParamsCount - 1;
+			manSpawnMobId = defaultSpawnParamsCount - 1;
 			VECTOR t;
 			vector_copy(t, localPlayer->PlayerPosition);
 			t[0] += 1;
