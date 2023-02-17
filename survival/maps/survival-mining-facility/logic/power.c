@@ -99,7 +99,7 @@ void powerNodeUpdate(Moby* moby)
     timePowerOn = -1;
   } else if (timePowerOn >= 0) {
     int timeSincePowerOn = gameGetTime() - timePowerOn;
-    if (timeSincePowerOn > (TIME_SECOND * 60)) {
+    if (timeSincePowerOn > (TIME_SECOND * 90)) {
       *team = 10;
       uiShowPopup(0, "Power's out!");
       powerUpdateMobies(0);

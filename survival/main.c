@@ -1273,13 +1273,6 @@ void processPlayer(int pIndex) {
 	player->Speed = 1 + (0.05 * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED]);
 	//DPRINTF("speed:%f\n", player->Speed);
 
-	if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
-		State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED] += 1;
-	}
-	else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
-		State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED] -= 1;
-	}
-
 	// adjust speed of chargeboot stun
 	if (player->PlayerState == 121) {
 		*(float*)((u32)player + 0x25C4) = 1.0 / State.Difficulty;
@@ -2582,6 +2575,7 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
 
 #if !DEBUG
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;

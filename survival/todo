@@ -73,7 +73,15 @@ Add mystery box (pay 10000 bolts)
   - Chance of being frozen for 1 minute
   - Can't use random weapon
   - Foggy vision for 1 minute
+  - Reset gates with 1 token to open
 ++Revive cost resets when you fully die
 Get a reward for reviving (ammo/health)
 Add path finding
 ++Force game settings on start
+Fix knockback throwing mobs into air
+Fix mobs clipping through walls
+Have power move around the map randomly
+Balance vendor discount
+Fix drops not spawning
+Fix drowning in acid
+Make power longer to turn on (6 turns)

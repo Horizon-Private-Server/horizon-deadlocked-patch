@@ -34,6 +34,7 @@
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
 void powerNodeUpdate(Moby* moby);
 void gateInit(void);
+void gateSpawn(void);
 void gasTick(void);
 
 int aaa = 2;
@@ -100,10 +101,10 @@ void nodeUpdate(Moby* moby)
     DPRINTF("node %08X\n", (u32)moby);
     initialized = 1;
   }
-  
+
   // init
   initialize();
-
+  
   // enable cq
   GameOptions* gameOptions = gameGetOptions();
   if (gameOptions) {
@@ -112,18 +113,17 @@ void nodeUpdate(Moby* moby)
     gameOptions->GameFlags.MultiplayerGameFlags.UNK_09 = 1;
   }
 
+  //
+  powerNodeUpdate(moby);
+
   // disable deleting node if not CQ
   POKE_U32(0x003D16DC, 0x1000001D);
-
-  // fix capturing node hiding random moby
-  POKE_U32(0x003d27a4, 0x1000001D);
 
   // disable node captured popup
   POKE_U32(0x003D2E6C, 0);
 
-  //
-  powerNodeUpdate(moby);
-
   // call base node base update
   ((void (*)(Moby*))0x003D13C0)(moby);
+
+  gateSpawn();
 }

@@ -303,6 +303,24 @@ int gateCreate(VECTOR start, VECTOR end, float height, int cost)
   return guberEvent != NULL;
 }
 
+void gateSpawn(void)
+{
+  static int spawned = 0;
+  int i;
+  
+  if (spawned)
+    return;
+
+  // create gates
+  if (gameAmIHost()) {
+    for (i = 0; i < GateLocationsCount; i += 2) {
+      gateCreate(GateLocations[i], GateLocations[i+1], GateLocations[i][3], (int)GateLocations[i+1][3]);
+    }
+  }
+
+  spawned = 1;
+}
+
 void gateInit(void)
 {
   int i;
@@ -318,11 +336,4 @@ void gateInit(void)
     DPRINTF("mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
-  
-  // create gates
-  if (gameAmIHost()) {
-    for (i = 0; i < GateLocationsCount; i += 2) {
-      gateCreate(GateLocations[i], GateLocations[i+1], GateLocations[i][3], (int)GateLocations[i+1][3]);
-    }
-  }
 }
