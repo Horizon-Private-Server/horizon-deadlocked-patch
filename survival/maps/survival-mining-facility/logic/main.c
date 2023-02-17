@@ -122,6 +122,9 @@ void nodeUpdate(Moby* moby)
   // disable node captured popup
   POKE_U32(0x003D2E6C, 0);
 
+  // increase number of turns to turn on power
+  POKE_U32(0x003D2530, 0x3C014000);
+
   // call base node base update
   ((void (*)(Moby*))0x003D13C0)(moby);
 
