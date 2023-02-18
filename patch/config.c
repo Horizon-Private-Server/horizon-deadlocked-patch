@@ -367,6 +367,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Battledome SP",
       "Blackwater City",
       "Blackwater Docks",
+      "Canal City",
       "Containment Suite",
       "Dark Cathedral Interior",
       "Desert Prison",
