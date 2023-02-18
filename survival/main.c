@@ -2170,9 +2170,9 @@ void initialize(PatchGameConfig_t* gameConfig)
 
 #if FIXEDTARGET
   FIXEDTARGETMOBY = mobySpawn(0xE7D, 0);
-  FIXEDTARGETMOBY->Position[0] = 460.46;
-  FIXEDTARGETMOBY->Position[1] = 664.84;
-  FIXEDTARGETMOBY->Position[2] = 435.1;
+  FIXEDTARGETMOBY->Position[0] = 329.03;
+  FIXEDTARGETMOBY->Position[1] = 564.35;
+  FIXEDTARGETMOBY->Position[2] = 436.14;
 #endif
 
 	Initialized = 1;
@@ -2266,6 +2266,16 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 			mobCreate(t, 0, -1, &defaultSpawnParams[(manSpawnMobId++ % defaultSpawnParamsCount)].Config);
 		}
+    else if (padGetButtonDown(0, PAD_L1 | PAD_RIGHT) > 0) {
+      State.Freeze = 1;
+      State.TimeOfFreeze = 0x6FFFFFFF;
+      DPRINTF("freeze\n");
+    }
+    else if (padGetButtonDown(0, PAD_L1 | PAD_LEFT) > 0) {
+      State.Freeze = 0;
+      State.TimeOfFreeze = 0;
+      DPRINTF("unfreeze\n");
+    }
 	}
 #endif
 

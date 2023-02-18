@@ -120,7 +120,7 @@
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
-#define BAKED_SPAWNPOINT_COUNT							  (16)
+#define BAKED_SPAWNPOINT_COUNT							  (24)
 
 
 enum GameNetMessage

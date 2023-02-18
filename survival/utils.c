@@ -256,6 +256,16 @@ float getSignedSlope(VECTOR forward, VECTOR normal)
   VECTOR up, hForward;
 
   vectorProjectOnHorizontal(hForward, forward);
+  vector_normalize(hForward, hForward);
   vector_outerproduct(up, hForward, normal);
-  return atan2f(up[2], vector_innerproduct(hForward, normal)) - MATH_PI/2;
+  float slope = atan2f(vector_length(up), vector_innerproduct(hForward, normal)) - MATH_PI/2;
+
+  /*if (fabsf(slope) > 40*MATH_DEG2RAD) {
+    DPRINTF("getSignedSlope:\n\tup:%.2f,%.2f,%.2f\n\thF:%.2f,%.2f,%.2f\n\tn:%.2f,%.2f,%.2f\n\tslope:%f\n"
+      , up[0], up[1], up[2]
+      , hForward[0], hForward[1], hForward[2]
+      , normal[0], normal[1], normal[2]
+      , slope * MATH_RAD2DEG);
+  }*/
+  return slope;
 }

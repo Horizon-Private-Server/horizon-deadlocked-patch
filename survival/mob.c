@@ -106,11 +106,11 @@ int mobAmIOwner(Moby* moby)
 	return gameGetMyClientId() == pvars->MobVars.Owner;
 }
 
-void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames)
+void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (moby->AnimSeqId != animId) {
-		mobyAnimTransition(moby, animId, lerpFrames, 0);
+		mobyAnimTransition(moby, animId, lerpFrames, startOff);
 
 		pvars->MobVars.AnimationReset = 1;
 		pvars->MobVars.AnimationLooped = 0;
@@ -129,9 +129,9 @@ void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames)
 	}
 }
 
-void mobTransAnim(Moby* moby, int animId)
+void mobTransAnim(Moby* moby, int animId, float startOff)
 {
-	mobTransAnimLerp(moby, animId, 10);
+	mobTransAnimLerp(moby, animId, 10, startOff);
 }
 
 void mobPlayHitSound(Moby* moby)
@@ -471,6 +471,9 @@ short mobGetArmor(struct MobPVar* pvars) {
 
 Moby* mobGetNextTarget(Moby* moby)
 {
+#if BENCHMARK
+  return NULL;
+#endif
 #if FIXEDTARGET
   return FIXEDTARGETMOBY;
 #endif
@@ -576,7 +579,7 @@ void mobAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
 
 void vector_rotateTowardsHorizontal(VECTOR output, VECTOR input0, VECTOR input1, float radians)
 {
-  VECTOR nInput0, nInput1;
+  VECTOR nInput0, nInput1, up;
   MATRIX mRot;
 
   vectorProjectOnHorizontal(nInput0, input0);
@@ -584,10 +587,11 @@ void vector_rotateTowardsHorizontal(VECTOR output, VECTOR input0, VECTOR input1,
   vector_normalize(nInput0, nInput0);
   vector_normalize(nInput1, nInput1);
 
-  float angleBetween = atan2f(0, vector_innerproduct(nInput0, nInput1));
+  vector_outerproduct(up, nInput0, nInput1);
+  float angleBetween = atan2f(up[2], vector_innerproduct(nInput0, nInput1));
   float rotateAmount = clamp(angleBetween, -radians, radians);
   
-  if (rotateAmount < 0.01) {
+  if (fabsf(rotateAmount) < 0.01) {
     vector_copy(output, nInput1);
   } else {
     matrix_unit(mRot);
@@ -688,7 +692,7 @@ void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
 	vector_add(newPos, moby->Position, pvars->MobVars.MoveVars.Velocity);
   vector_subtract(delta, newPos, oldPos);
   vectorProjectOnHorizontal(horizontalDelta, delta);
-  vector_scale(newPosEx, horizontalDelta, 1 + pvars->MobVars.Config.CollRadius);
+  vector_scale(newPosEx, horizontalDelta, 1 + (pvars->MobVars.Config.CollRadius / vector_length(horizontalDelta)));
   newPosEx[2] = delta[2];
   vector_add(newPosEx, newPos, newPosEx);
 
@@ -698,20 +702,76 @@ void mobMoveSimple(Moby* moby, struct MobPVar* pvars)
     pvars->MobVars.MoveVars.WallSlope = getSignedSlope(horizontalDelta, hitNormal);
     pvars->MobVars.MoveVars.HitWall = 1;
 
-
     // 
-    vector_copy(newPos, CollLine_Fix_GetHitPosition());
+    // vector_reflect(reflectedDelta, delta, hitNormal);
+    // vector_add(moby->Position, CollLine_Fix_GetHitPosition(), reflectedDelta);
+    // moby->Position[2] += 0.01;
+    // if (CollLine_Fix(oldPos, moby->Position, 2, moby, 0)) {
+    //   vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
+    //   vector_reflect(reflectedDelta, delta, hitNormal);
+    //   vector_add(moby->Position, CollLine_Fix_GetHitPosition(), reflectedDelta);
+    //   moby->Position[2] += 0.01;
+    // }
+
+    /*
+    vector_reflect(reflectedDelta, delta, hitNormal);
+    vector_add(newPos, CollLine_Fix_GetHitPosition(), reflectedDelta);
     newPos[2] += 0.01;
-    if (CollLine_Fix(oldPos, newPos, 2, moby, 0)) {
+
+    vector_subtract(delta, newPos, moby->Position);
+    vectorProjectOnHorizontal(horizontalDelta, delta);
+    vector_scale(newPosEx, horizontalDelta, 1 + (pvars->MobVars.Config.CollRadius / vector_length(horizontalDelta)));
+    vector_add(newPosEx, newPosEx, newPos);
+    if (CollLine_Fix(oldPos, newPosEx, 2, moby, 0)) {
+      vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
+      vector_scale(hitDelta, hitNormal, pvars->MobVars.Config.CollRadius);
+      vector_add(moby->Position, CollLine_Fix_GetHitPosition(), hitDelta);
+      moby->Position[2] += 0.01;
+      DPRINTF("a\n");
+    } else {
+      float deltaLen = vector_length(delta);
+      float speed = vector_length(pvars->MobVars.MoveVars.Velocity);
+      if (deltaLen > speed) {
+        vector_scale(delta, delta, speed / deltaLen);
+        DPRINTF("b\n");
+      } else {
+        
+      DPRINTF("c\n");
+      }
+      vector_add(moby->Position, oldPos, delta);
+    }
+    */
+
+    vector_reflect(reflectedDelta, delta, hitNormal);
+    reflectedDelta[2] = 0;
+    vector_add(newPos, CollLine_Fix_GetHitPosition(), reflectedDelta);
+    vector_subtract(delta, newPos, oldPos);
+    float deltaMag = vector_length(delta);
+    float velMag = vector_length(pvars->MobVars.MoveVars.Velocity);
+    if (deltaMag > velMag) {
+      vector_scale(delta, delta, velMag / deltaMag);
+    }
+    vector_add(newPos, oldPos, delta);
+    newPos[2] += 0.01;
+
+    vector_subtract(newPosEx, newPos, preOff);
+    newPosEx[2] = moby->Position[2] - 1;
+    if (CollLine_Fix(newPos, newPosEx, 2, moby, 0)) {
+      //vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
+      //vector_scale(hitDelta, hitNormal, pvars->MobVars.Config.CollRadius);
       vector_copy(newPos, CollLine_Fix_GetHitPosition());
       newPos[2] += 0.01;
+      pvars->MobVars.MoveVars.Grounded = 1;
+      DPRINTF("a\n");
     }
-    
-		vector_copy(moby->Position, newPos);
-    vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
-    pvars->MobVars.MoveVars.CorrectionTicks = 0;
 
-    pvars->MobVars.MoveVars.Grounded = 1;
+		vector_copy(moby->Position, newPos);
+    //vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+    if (pvars->MobVars.MoveVars.Velocity[2] < 0)
+      pvars->MobVars.MoveVars.Velocity[2] = 0;
+
+    pvars->MobVars.MoveVars.CorrectionTicks = 0;
+    //pvars->MobVars.MoveVars.Grounded = 1;
 	} else {
 		vector_copy(moby->Position, newPos);
     pvars->MobVars.MoveVars.CorrectionTicks = 0;
@@ -801,8 +861,9 @@ void mobMove(Moby* moby)
     vector_copy(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.CorrectionVelocity);
 
   // set rotation to planar velocity
-  if (mobHasVelocity(pvars))
+  if (mobHasVelocity(pvars)) {
     moby->Rotation[2] = atan2f(pvars->MobVars.MoveVars.Velocity[1], pvars->MobVars.MoveVars.Velocity[0]);
+  }
 
   // reset state
   pvars->MobVars.MoveVars.Grounded = 0;
@@ -826,7 +887,7 @@ void mobMove(Moby* moby)
   if (0) {
     pvars->MobVars.MoveVars.Grounded = 1;
   }
-  else if (moveStepCooldownTicks) {
+  else if (0 && moveStepCooldownTicks) {
     mobMoveSimple(moby, pvars);
   } else {
 
@@ -937,7 +998,7 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   if (!pvars)
     return;
 
-  float collRadius = pvars->MobVars.Config.CollRadius;
+  float collRadius = pvars->MobVars.Config.CollRadius + 0.5;
   
   // stop when at target
   if (pvars->MobVars.Target) {
@@ -965,7 +1026,6 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   // acclerate velocity towards target velocity
   //vector_normalize(targetVelocity, targetVelocity);
   vector_scale(targetVelocity, targetVelocity, targetSpeed);
-
   vector_subtract(temp, targetVelocity, velocity);
   vectorProjectOnHorizontal(temp, temp);
   vector_scale(temp, temp, ZOMBIE_MOVE_ACCELERATION * MATH_DT);
@@ -993,13 +1053,13 @@ void mobDoAction(Moby* moby)
 	{
 		case MOB_ACTION_SPAWN:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_CRAWL_OUT_OF_GROUND);
+			mobTransAnim(moby, ZOMBIE_ANIM_CRAWL_OUT_OF_GROUND, 0);
       mobStand(moby);
 			break;
 		}
 		case MOB_ACTION_FLINCH:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_BIG_FLINCH);
+			mobTransAnim(moby, ZOMBIE_ANIM_BIG_FLINCH, 0);
       mobStand(moby);
 
 			if (pvars->MobVars.Knockback.Ticks > 0) {
@@ -1013,7 +1073,7 @@ void mobDoAction(Moby* moby)
 		}
 		case MOB_ACTION_IDLE:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_IDLE);
+			mobTransAnim(moby, ZOMBIE_ANIM_IDLE, 0);
       mobStand(moby);
 			break;
 		}
@@ -1028,7 +1088,7 @@ void mobDoAction(Moby* moby)
 
         // handle jumping
         if (pvars->MobVars.MoveVars.WallSlope > ZOMBIE_MAX_WALKABLE_SLOPE && pvars->MobVars.MoveVars.Grounded) {
-			    mobTransAnim(moby, ZOMBIE_ANIM_JUMP);
+			    mobTransAnim(moby, ZOMBIE_ANIM_JUMP, 15);
 
           // check if we're near last jump pos
           // if so increment StuckJumpCount
@@ -1077,14 +1137,14 @@ void mobDoAction(Moby* moby)
 
 			// 
 			if (mobHasVelocity(pvars))
-				mobTransAnim(moby, ZOMBIE_ANIM_RUN);
+				mobTransAnim(moby, ZOMBIE_ANIM_RUN, 0);
 			else
-				mobTransAnim(moby, ZOMBIE_ANIM_IDLE);
+				mobTransAnim(moby, ZOMBIE_ANIM_IDLE, 0);
 			break;
 		}
 		case MOB_ACTION_TIME_BOMB:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_CROUCH);
+			mobTransAnim(moby, ZOMBIE_ANIM_CROUCH, 0);
 
 			if (pvars->MobVars.TimeBombTicks == 0) {
 				moby->Opacity = 0x80;
@@ -1116,7 +1176,7 @@ void mobDoAction(Moby* moby)
 		}
 		case MOB_ACTION_ATTACK:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_SLAP);
+			mobTransAnim(moby, ZOMBIE_ANIM_SLAP, 0);
 
 			int swingAttackReady = moby->AnimSeqId == ZOMBIE_ANIM_SLAP && moby->AnimSeqT >= 11 && moby->AnimSeqT < 14;
 			u32 damageFlags = 0x00081801;
@@ -1364,23 +1424,24 @@ void mobUpdate(Moby* moby)
 	mobHandleDraw(moby);
 
 	// 
-	if (!State.Freeze)
+	if (!State.Freeze) {
 		mobDoAction(moby);
+    
+    // count ticks since last grounded
+    if (pvars->MobVars.MoveVars.Grounded)
+      pvars->MobVars.TimeLastGroundedTicks = 0;
+    else
+      pvars->MobVars.TimeLastGroundedTicks++;
+
+    // auto destruct after 15 seconds of falling
+    if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
+      pvars->MobVars.Respawn = 1;
+    }
+  }
 
 	// 
 	if (pvars->FlashVars.type)
 		mobyUpdateFlash(moby, 0);
-
-	// count ticks since last grounded
-	if (pvars->MobVars.MoveVars.Grounded)
-		pvars->MobVars.TimeLastGroundedTicks = 0;
-	else
-		pvars->MobVars.TimeLastGroundedTicks++;
-
-	// auto destruct after 15 seconds of falling
-	if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
-		pvars->MobVars.Respawn = 1;
-	}
 
   // move
   if (!State.Freeze)
