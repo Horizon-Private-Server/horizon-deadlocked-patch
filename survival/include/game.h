@@ -87,7 +87,9 @@
 #define ZOMBIE_MAX_WALKABLE_SLOPE             (40 * MATH_DEG2RAD)
 
 #define ZOMBIE_TURN_RADIANS_PER_SEC           (90 * MATH_DEG2RAD)
+#define ZOMBIE_TURN_AIR_RADIANS_PER_SEC       (15 * MATH_DEG2RAD)
 #define ZOMBIE_MOVE_ACCELERATION              (25)
+#define ZOMBIE_MOVE_AIR_ACCELERATION          (5)
 
 #if PAYDAY
 #define ZOMBIE_BASE_BOLTS											(1000000)
@@ -110,8 +112,8 @@
 #define PLAYER_REVIVE_COST_PER_ROUND					(0)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
 #define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
-#define PLAYER_KNOCKBACK_BASE_POWER						(0.05)
-#define PLAYER_KNOCKBACK_BASE_TICKS						(3)
+#define PLAYER_KNOCKBACK_BASE_POWER						(0.4)
+#define PLAYER_KNOCKBACK_BASE_TICKS						(5)
 #define PLAYER_COLL_RADIUS          					(0.5)
 
 #define BIG_AL_MAX_DIST												(5)

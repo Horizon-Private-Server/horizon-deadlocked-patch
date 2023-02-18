@@ -2090,6 +2090,17 @@ void initialize(PatchGameConfig_t* gameConfig)
 				hasTeam[p->Team] = 1;
 			}
 
+#if PAYDAY
+      p->GadgetBox->ModBasic[0] = 64;
+      p->GadgetBox->ModBasic[1] = 64;
+      p->GadgetBox->ModBasic[2] = 64;
+      p->GadgetBox->ModBasic[3] = 64;
+      p->GadgetBox->ModBasic[4] = 64;
+      p->GadgetBox->ModBasic[5] = 64;
+      p->GadgetBox->ModBasic[6] = 64;
+      p->GadgetBox->ModBasic[7] = 64;
+#endif
+
 			++State.ActivePlayerCount;
 		}
 	}
