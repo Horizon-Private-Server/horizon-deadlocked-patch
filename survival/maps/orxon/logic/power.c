@@ -29,11 +29,19 @@
 #include <libdl/color.h>
 #include <libdl/utils.h>
 
+int powerTimeOff = -1;
+int powerForcedOn = 0;
+
 //--------------------------------------------------------------------------
 void powerUpdateMobies(int powerOn)
 {
   Moby* m = mobyListGetStart();
   Moby* mEnd = mobyListGetEnd();
+
+  if (powerOn)
+    uiShowPopup(0, "Power activated!");
+  else
+    uiShowPopup(0, "Power's out!");
 
   while (m < mEnd)
   {
@@ -66,7 +74,6 @@ void powerUpdateMobies(int powerOn)
 //--------------------------------------------------------------------------
 void powerNodeUpdate(Moby* moby)
 {
-  static int timePowerOn = -1;
   static int initialized = 0;
   if (!moby || !moby->PVar)
     return;
@@ -96,17 +103,26 @@ void powerNodeUpdate(Moby* moby)
   // otherwise power is active and we want to turn it off after a period of time
   int *team = (int*)((u32)boltCrank->PVar + 4);
   if (*team == 10) {
-    timePowerOn = -1;
-  } else if (timePowerOn >= 0) {
-    int timeSincePowerOn = gameGetTime() - timePowerOn;
-    if (timeSincePowerOn > (TIME_SECOND * 90)) {
+    if (powerForcedOn && powerTimeOff >= 0) {
+      powerUpdateMobies(1);
+      Player* lp = playerGetFromSlot(0);
+      if (lp)
+        *team = lp->Team;
+      else
+        *team = 0;
+    }
+    else {
+      powerTimeOff = -1;
+    }
+  } else if (powerTimeOff >= 0) {
+    int timeSincePowerOn = gameGetTime() - powerTimeOff;
+    if (timeSincePowerOn > 0) {
+      powerForcedOn = 0;
       *team = 10;
-      uiShowPopup(0, "Power's out!");
       powerUpdateMobies(0);
     }
   } else {
-    timePowerOn = gameGetTime();
-    uiShowPopup(0, "Power activated!");
+    powerTimeOff = gameGetTime() + TIME_SECOND*90;
     powerUpdateMobies(1);
   }
 }

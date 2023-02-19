@@ -15,8 +15,6 @@
 #include <libdl/pad.h>
 #include <libdl/time.h>
 #include <libdl/net.h>
-#include "module.h"
-#include "messageid.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
 #include <libdl/math.h>
@@ -30,6 +28,9 @@
 #include <libdl/graphics.h>
 #include <libdl/color.h>
 #include <libdl/utils.h>
+#include "module.h"
+#include "messageid.h"
+#include "../../../include/game.h"
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
 void powerNodeUpdate(Moby* moby);
@@ -39,14 +40,40 @@ void gasTick(void);
 
 int aaa = 2;
 
+
+char LocalPlayerStrBuffer[2][48];
+
+// set by mode
+struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
+	.State = NULL,
+  .BakedConfig = NULL
+};
+
+// gate locations
+VECTOR GateLocations[] = {
+  { 383.47, 564.51, 430.44, 6.5 }, { 383.47, 550.51, 430.44, 1 },
+  { 425.35, 564.51, 430.44, 6.5 }, { 425.35, 550.51, 430.44, 2 },
+  { 425.46, 652.23, 430.44, 6.5 }, { 425.46, 638.23, 430.44, 1 },
+  { 383.24, 652.23, 430.44, 6.5 }, { 383.24, 638.23, 430.44, 2 },
+  { 359.28, 614.63, 430.44, 6.5 }, { 373.28, 614.63, 430.44, 3 },
+  { 359.28, 576.26, 430.44, 6.5 }, { 373.28, 576.26, 430.44, 1 },
+  { 470.88, 607.19, 439.14, 9 }, { 470.88, 593.19, 439.14, 6 },
+  { 488.89, 523.54, 430.11, 6.5 }, { 488.89, 509.54, 430.11, 4 },
+  { 488.89, 690.17, 430.11, 6.5 }, { 488.89, 676.17, 430.11, 4 },
+  { 553.5787, 618.6273, 430.11, 6.5 }, { 563.3413, 608.5927, 430.11, 0 },
+  { 587.5181, 599.4265, 430.11, 6.5 }, { 598.042, 590.1935, 430.11, 0 },
+};
+const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
+
+//--------------------------------------------------------------------------
 void initialize(void)
 {
   static int initialized = 0;
   if (initialized)
     return;
 
-  // create gates
   gateInit();
+  mboxInit();
 
   initialized = 1;
 }
@@ -71,6 +98,8 @@ int main (void)
 	if (!isInGame())
 		return;
 
+  dlPreUpdate();
+
   // init
   initialize();
 
@@ -91,6 +120,7 @@ int main (void)
 #endif
 
   gasTick();
+  dlPostUpdate();
 	return 0;
 }
 
@@ -128,5 +158,6 @@ void nodeUpdate(Moby* moby)
   // call base node base update
   ((void (*)(Moby*))0x003D13C0)(moby);
 
+  mboxSpawn();
   gateSpawn();
 }

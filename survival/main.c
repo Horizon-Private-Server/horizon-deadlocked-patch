@@ -49,7 +49,6 @@ const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x1c Revive [\x0E%d\x08]";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
-const char * SURVIVAL_BUY_GATE_MESSAGE = "\x11 %d Tokens to Open";
 const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
 	[UPGRADE_HEALTH] "\x11 Health Upgrade",
 	[UPGRADE_SPEED] "\x11 Speed Upgrade",
@@ -470,49 +469,6 @@ Moby * mobyGetRandomHealthbox(void)
 }
 
 //--------------------------------------------------------------------------
-void gatePayToken(Moby* moby)
-{
-	// create event
-	GuberEvent * guberEvent = upgradeCreateEvent(moby, GATE_EVENT_PAY_TOKEN);
-}
-
-//--------------------------------------------------------------------------
-int gateCanInteract(Moby* gate, VECTOR point)
-{
-  VECTOR delta, gateTangent, gateClosestToPoint;
-  if (!gate || !gate->PVar)
-    return 0;
-
-  struct GatePVar* pvars = (struct GatePVar*)gate->PVar;
-
-  // get delta from center of gate to point
-  vector_subtract(delta, point, gate->Position);
-
-  // outside vertical range
-  if (fabsf(delta[2]) > (pvars->Height/2))
-    return 0;
-
-  // get closest point on gate to point
-  vector_subtract(gateTangent, pvars->To, pvars->From);
-  float gateLength = vector_length(gateTangent);
-  vector_scale(gateTangent, gateTangent, 1 / gateLength);
-
-  vector_subtract(delta, point, pvars->From);
-  float dot = vector_innerproduct_unscaled(delta, gateTangent);
-  if (dot < -GATE_INTERACT_CAP_RADIUS)
-    return 0;
-
-  if (dot > (gateLength + GATE_INTERACT_CAP_RADIUS))
-    return 0;
-
-  vector_scale(gateClosestToPoint, gateTangent, dot);
-  vector_add(gateClosestToPoint, gateClosestToPoint, pvars->From);
-  vector_subtract(delta, point, gateClosestToPoint);
-  vectorProjectOnHorizontal(delta, delta);
-  return vector_sqrmag(delta) < (GATE_INTERACT_RADIUS*GATE_INTERACT_RADIUS);
-}
-
-//--------------------------------------------------------------------------
 Player * playerGetRandom(void)
 {
 	int r = rand(GAME_MAX_PLAYERS);
@@ -863,7 +819,8 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 {
 	int i;
 	Player* p = playerGetAll()[playerId];
-	State.PlayerStates[playerId].State.AlphaMods[alphaMod]++;
+  if (alphaMod)
+	  State.PlayerStates[playerId].State.AlphaMods[alphaMod]++;
 	if (!p)
 		return;
 
@@ -874,11 +831,12 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 	if (p->Gadgets[0].pMoby && p->Gadgets[0].id == weaponId)
 		customBangelizeWeapons(p->Gadgets[0].pMoby, weaponId, level);
 
-	if (p->IsLocal) {
+	if (p->IsLocal && alphaMod) {
 		gBox->ModBasic[alphaMod-1]++;
 		char* a = uiMsgString(0x2400);
 		sprintf(a, "Got %s", ALPHA_MODS[alphaMod]);
 		((void (*)(int, int, int))0x0054ea30)(p->LocalPlayerIndex, 0x2400, 0);
+    State.PlayerStates[playerId].MessageCooldownTicks = 0;
 	}
 	
 	// stats
@@ -908,7 +866,7 @@ int onPlayerUpgradeWeaponRemote(void * connection, void * data)
 }
 
 //--------------------------------------------------------------------------
-void playerUpgradeWeapon(Player* player, int weaponId)
+void playerUpgradeWeapon(Player* player, int weaponId, int noAlphaMod)
 {
 	SurvivalWeaponUpgradeMessage_t message;
 	GadgetBox* gBox = player->GadgetBox;
@@ -920,10 +878,25 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 	message.Alphamod = rand(6) + 1;
 	if (message.Alphamod == ALPHA_MOD_XP)
 		message.Alphamod++;
+  if (noAlphaMod)
+    message.Alphamod = 0;
 	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_UPGRADE, sizeof(SurvivalWeaponUpgradeMessage_t), &message);
 
 	// set locally
 	onPlayerUpgradeWeapon(message.PlayerId, message.WeaponId, message.Level, message.Alphamod);
+}
+
+//--------------------------------------------------------------------------
+void mapUpgradePlayerWeaponHandler(int playerId, int weaponId, int giveAlphaMod)
+{
+  Player* player = playerGetAll()[playerId];
+  if (!player || !player->PlayerMoby || !player->IsLocal)
+    return;
+  
+  if (!player->GadgetBox || player->GadgetBox->Gadgets[weaponId].Level >= 9)
+    return;
+
+  playerUpgradeWeapon(player, weaponId, !giveAlphaMod);
 }
 
 //--------------------------------------------------------------------------
@@ -1364,8 +1337,12 @@ void processPlayer(int pIndex) {
 		}
 
 		//
-		if (actionCooldownTicks > 0 || player->timers.noInput)
-			return;
+		if (actionCooldownTicks > 0 || player->timers.noInput) {
+			if (messageCooldownTicks) {
+        ((void (*)(int))0x0054e5e8)(localPlayerIndex);
+      }
+      return;
+    }
 
 		// handle closing weapons menu
 		if (playerData->IsInWeaponsMenu) {
@@ -1399,7 +1376,7 @@ void processPlayer(int pIndex) {
 						// handle pad input
 						if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0) {
 							playerData->State.Bolts -= cost;
-							playerUpgradeWeapon(player, heldWeapon);
+							playerUpgradeWeapon(player, heldWeapon, 0);
 							uiShowPopup(localPlayerIndex, uiMsgString(0x2330));
               playPaidSound(player);
 							playerData->ActionCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
@@ -1456,33 +1433,6 @@ void processPlayer(int pIndex) {
       }
 		}
 
-		// handle gate logic
-		for (i = 0; i < GATE_MAX_COUNT; ++i) {
-			Moby* gateMoby = State.GateMobies[i];
-      if (gateMoby) {
-        struct GatePVar* gatePVars = (struct GatePVar*)gateMoby->PVar;
-        if (!playerData->ActionCooldownTicks && gateMoby->State == GATE_STATE_ACTIVATED && gatePVars && gatePVars->Cost > 0) {
-          if (gateCanInteract(gateMoby, player->PlayerPosition)) {
-            
-            // draw help popup
-            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_BUY_GATE_MESSAGE, gatePVars->Cost);
-            uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-            hasMessage = 1;
-            playerData->MessageCooldownTicks = 2;
-
-            // handle pad input
-            if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens > 0) {
-              playerData->State.CurrentTokens -= 1;
-              playerData->ActionCooldownTicks = PLAYER_GATE_COOLDOWN_TICKS;
-              gatePayToken(gateMoby);
-              playPaidSound(player);
-            }
-            break;
-          }
-        }
-      }
-		}
-
 		// handle revive logic
 		if (!isDeadState) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -1531,7 +1481,6 @@ void processPlayer(int pIndex) {
 		}
 		*/
 
-		// hide message right away
 		if (!hasMessage && messageCooldownTicks > 0) {
 			((void (*)(int))0x0054e5e8)(localPlayerIndex);
 		}
@@ -2006,6 +1955,12 @@ void initialize(PatchGameConfig_t* gameConfig)
 	*(u32*)0x005F8A84 = 0x0000102D;
 	*(u32*)0x005F8A88 = 0x24440001;
 
+  // write map config
+  struct SurvivalMapConfig* mapConfig = (struct SurvivalMapConfig*)0x001E60010;
+  mapConfig->State = &State;
+  mapConfig->BakedConfig = &BakedConfig;
+  mapConfig->UpgradePlayerWeaponFunc = &mapUpgradePlayerWeaponHandler;
+
 	// custom damage cooldown time
 	POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
 	POKE_U16(0x0060582C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
@@ -2136,11 +2091,20 @@ void initialize(PatchGameConfig_t* gameConfig)
 	State.BigAl = FindMobyOrSpawnBox(0, 2);
 #endif
 
-  // find gates
+  // find gates and mystery box
   Moby* mStart = mobyListGetStart();
-  for (i = 0; i < GATE_MAX_COUNT && mStart; ++i) {
-    State.GateMobies[i] = mStart = mobyFindNextByOClass(mStart + 1, GATE_OCLASS);
-    DPRINTF("gate found %08X\n", (u32)mStart);
+  Moby* mEnd = mobyListGetEnd();
+  int gateCount = 0;
+  while (mStart < mEnd) {
+    if (mStart->OClass == GATE_OCLASS && gateCount < GATE_MAX_COUNT) {
+      State.GateMobies[gateCount++] = mStart;
+      DPRINTF("gate found %08X\n", (u32)mStart);
+    } else if (mStart->OClass == MYSTERY_BOX_OCLASS) {
+      State.MysteryBoxMoby = mStart;
+      DPRINTF("mbox found %08X\n", (u32)mStart);
+    }
+
+    ++mStart;
   }
 
 #if UPGRADES

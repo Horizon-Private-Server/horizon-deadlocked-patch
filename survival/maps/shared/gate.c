@@ -15,7 +15,6 @@
 #include <libdl/time.h>
 #include <libdl/net.h>
 #include "module.h"
-#include "../../../include/gate.h"
 #include "messageid.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
@@ -30,6 +29,11 @@
 #include <libdl/graphics.h>
 #include <libdl/color.h>
 #include <libdl/utils.h>
+#include "include/maputils.h"
+#include "../../include/gate.h"
+#include "../../include/game.h"
+
+extern struct SurvivalMapConfig MapConfig;
 
 SoundDef BaseSoundDef =
 {
@@ -45,20 +49,8 @@ SoundDef BaseSoundDef =
 	3			  // Bank
 };
 
-VECTOR GateLocations[] = {
-  { 383.47, 564.51, 430.44, 6.5 }, { 383.47, 550.51, 430.44, 1 },
-  { 425.35, 564.51, 430.44, 6.5 }, { 425.35, 550.51, 430.44, 2 },
-  { 425.46, 652.23, 430.44, 6.5 }, { 425.46, 638.23, 430.44, 1 },
-  { 383.24, 652.23, 430.44, 6.5 }, { 383.24, 638.23, 430.44, 2 },
-  { 359.28, 614.63, 430.44, 6.5 }, { 373.28, 614.63, 430.44, 3 },
-  { 359.28, 576.26, 430.44, 6.5 }, { 373.28, 576.26, 430.44, 1 },
-  { 470.88, 607.19, 439.14, 9 }, { 470.88, 593.19, 439.14, 4 },
-  { 488.89, 523.54, 430.11, 6.5 }, { 488.89, 509.54, 430.11, 4 },
-  { 488.89, 690.17, 430.11, 6.5 }, { 488.89, 676.17, 430.11, 4 },
-  { 553.5787, 618.6273, 430.11, 6.5 }, { 563.3413, 608.5927, 430.11, 0 },
-  { 587.5181, 599.4265, 430.11, 6.5 }, { 598.042, 590.1935, 430.11, 0 },
-};
-const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
+extern VECTOR GateLocations[];
+extern const int GateLocationsCount;
 
 //--------------------------------------------------------------------------
 void gateDrawQuad(Moby* moby, float direction)
@@ -131,9 +123,56 @@ void gatePlayOpenSound(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void gatePayToken(Moby* moby, int playerIdx)
+{
+	// create event
+	GuberEvent * guberEvent = guberCreateEvent(moby, GATE_EVENT_PAY_TOKEN);
+  if (guberEvent) {
+    guberEventWrite(guberEvent, &playerIdx, 4);
+  }
+}
+
+//--------------------------------------------------------------------------
+int gateCanInteract(Moby* gate, VECTOR point)
+{
+  VECTOR delta, gateTangent, gateClosestToPoint;
+  if (!gate || !gate->PVar)
+    return 0;
+
+  struct GatePVar* pvars = (struct GatePVar*)gate->PVar;
+
+  // get delta from center of gate to point
+  vector_subtract(delta, point, gate->Position);
+
+  // outside vertical range
+  if (fabsf(delta[2]) > (pvars->Height/2))
+    return 0;
+
+  // get closest point on gate to point
+  vector_subtract(gateTangent, pvars->To, pvars->From);
+  float gateLength = vector_length(gateTangent);
+  vector_scale(gateTangent, gateTangent, 1 / gateLength);
+
+  vector_subtract(delta, point, pvars->From);
+  float dot = vector_innerproduct_unscaled(delta, gateTangent);
+  if (dot < -GATE_INTERACT_CAP_RADIUS)
+    return 0;
+
+  if (dot > (gateLength + GATE_INTERACT_CAP_RADIUS))
+    return 0;
+
+  vector_scale(gateClosestToPoint, gateTangent, dot);
+  vector_add(gateClosestToPoint, gateClosestToPoint, pvars->From);
+  vector_subtract(delta, point, gateClosestToPoint);
+  delta[2] = 0;
+  return vector_sqrmag(delta) < (GATE_INTERACT_RADIUS*GATE_INTERACT_RADIUS);
+}
+
+//--------------------------------------------------------------------------
 void gateUpdate(Moby* moby)
 {
   VECTOR delta;
+  char buf[32];
   if (!moby || !moby->PVar)
     return;
     
@@ -181,7 +220,7 @@ void gateUpdate(Moby* moby)
     moby->ModeBits |= 4;
   }
 
-#if DEBUG
+#if DEBUG1
   if (padGetButton(0, PAD_UP) > 0) {
     mobySetState(moby, GATE_STATE_ACTIVATED, -1);
   } else if (padGetButton(0, PAD_DOWN) > 0) {
@@ -189,6 +228,19 @@ void gateUpdate(Moby* moby)
     gatePlayOpenSound(moby);
   }
 #endif
+
+  // handle interact
+  if (pvars->Cost > 0 && moby->State == GATE_STATE_ACTIVATED) {
+    Player* lp = playerGetFromSlot(0);
+    if (lp) {
+      
+      // draw help popup
+      snprintf(buf, 32, "\x11 %d Tokens to Open", pvars->Cost);
+      if (gateCanInteract(moby, lp->PlayerPosition) && tryPlayerInteract(moby, lp, buf, 0, 1, PLAYER_GATE_COOLDOWN_TICKS, 10000)) {
+        gatePayToken(moby, lp->PlayerId);
+      }
+    }
+  }
 
   // force BSphere radius to something larger so that entire collision registers
   moby->BSphere[3] = 14444;
@@ -228,12 +280,16 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
 {
 	int i;
+  int pIdx;
+  Player** players = playerGetAll();
   
   DPRINTF("gate token paid: %08X\n", (u32)moby);
   struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
   if (!pvars)
     return 0;
   
+  guberEventRead(event, &pIdx, 4);
+
   // reduce cost by 1
   // open gate if cost reduced to 0
   if (pvars->Cost > 0 && moby->State == GATE_STATE_ACTIVATED) {
@@ -242,6 +298,13 @@ int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
       mobySetState(moby, GATE_STATE_DEACTIVATED, -1);
       gatePlayOpenSound(moby);
     }
+
+    // charge player
+    if (MapConfig.State) {
+      MapConfig.State->PlayerStates[pIdx].State.CurrentTokens -= 1;
+    }
+    
+    playPaidSound(players[pIdx]);
   }
 
   return 0;
@@ -259,7 +322,7 @@ struct GuberMoby* gateGetGuber(Moby* moby)
 //--------------------------------------------------------------------------
 int gateHandleEvent(Moby* moby, GuberEvent* event)
 {
-	if (!moby || !event || !isInGame() || moby->OClass != 0x1F6)
+	if (!moby || !event)
 		return 0;
 
 	if (isInGame() && !mobyIsDestroyed(moby) && moby->OClass == GATE_OCLASS && moby->PVar) {
@@ -333,7 +396,7 @@ void gateInit(void)
   if (mobyFunctionsPtr) {
     *(u32*)(mobyFunctionsPtr + 0x04) = (u32)&gateGetGuber;
     *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&gateHandleEvent;
-    DPRINTF("mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
+    DPRINTF("oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
 }

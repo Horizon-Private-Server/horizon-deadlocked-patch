@@ -7,6 +7,7 @@
 #include <libdl/math3d.h>
 #include "upgrade.h"
 #include "gate.h"
+#include "mysterybox.h"
 
 #define TPS																		(60)
 
@@ -144,6 +145,7 @@ enum BakedSpawnpointType
 	BAKED_SPAWNPOINT_NONE = 0,
 	BAKED_SPAWNPOINT_UPGRADE = 1,
 	BAKED_SPAWNPOINT_PLAYER_START = 2,
+	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
 };
 
 typedef struct SurvivalBakedSpawnpoint
@@ -171,6 +173,7 @@ struct SurvivalPlayerState
 	int TimesRevivedSinceLastFullDeath;
 	int TotalTokens;
 	int CurrentTokens;
+  int Item;
 	int Upgrades[UPGRADE_COUNT];
 	short AlphaMods[8];
 	char BestWeaponLevel[9];
@@ -219,6 +222,7 @@ struct SurvivalState
 	Moby* BigAl;
 	Moby* UpgradeMobies[UPGRADE_COUNT];
   Moby* GateMobies[GATE_MAX_COUNT];
+  Moby* MysteryBoxMoby;
 	struct SurvivalPlayer* LocalPlayerState;
 	int GameOver;
 	int WinningTeam;
@@ -230,6 +234,15 @@ struct SurvivalState
 	char Freeze;
 	char NumTeams;
 	char RoundSpecialSpawnableZombies[2];
+};
+
+typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
+
+struct SurvivalMapConfig
+{
+  struct SurvivalState* State;
+  struct SurvivalBakedConfig* BakedConfig;
+  UpgradePlayerWeapon_func UpgradePlayerWeaponFunc;
 };
 
 struct SurvivalSpecialRoundParam

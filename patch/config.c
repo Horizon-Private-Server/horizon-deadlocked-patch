@@ -390,7 +390,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Tyhrranosis",
       // -- SURVIVAL MAPS --
       "Marcadia Palace",
-      "Mining Facility",
+      "Orxon",
       "Veldin"
     }
 };

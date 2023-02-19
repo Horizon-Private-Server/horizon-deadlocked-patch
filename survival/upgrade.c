@@ -23,7 +23,7 @@ char UpgradeTexIds[] = {
 	[UPGRADE_HEALTH] 94,
 	[UPGRADE_SPEED] 52,
 	[UPGRADE_DAMAGE] 9,
-	[UPGRADE_MEDIC] 16,
+	[UPGRADE_MEDIC] 39,
 	[UPGRADE_VENDOR] 46,
 };
 
@@ -60,6 +60,53 @@ void upgradePickup(Moby* moby, int pickedUpByPlayerId)
 }
 
 //--------------------------------------------------------------------------
+void upgradeSpawnNew(enum UpgradeType type)
+{
+  char freeBakedSpawnPointsIdxs[BAKED_SPAWNPOINT_COUNT];
+  int freeBakedSpawnPointsIdxCount = 0;
+  int i,j;
+  VECTOR delta, spPos;
+  int isFree = 0;
+
+  // iterate list of baked spawn points
+  for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
+
+    isFree = 1;
+    
+    // find upgrade spawn points
+    if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_UPGRADE) {
+
+      // check if already in use
+      for (j = 0; j < UPGRADE_COUNT; ++j) {
+        if (State.UpgradeMobies[j]) {
+          memcpy(spPos, BakedConfig.BakedSpawnPoints[i].Position, 12);
+          vector_subtract(delta, State.UpgradeMobies[j]->Position, spPos);
+          if (vector_sqrmag(delta) < 0.1) {
+            isFree = 0;
+            break;
+          }
+        }
+      }
+
+      // 
+      if (isFree) {
+        freeBakedSpawnPointsIdxs[freeBakedSpawnPointsIdxCount++] = i;
+      }
+    }
+  }
+
+  // if no free points then fail
+  if (!freeBakedSpawnPointsIdxCount)
+    return;
+
+  // pick random
+  i = freeBakedSpawnPointsIdxs[randRangeInt(0, 100) % freeBakedSpawnPointsIdxCount];
+
+  // spawn
+  upgradeCreate(BakedConfig.BakedSpawnPoints[i].Position, BakedConfig.BakedSpawnPoints[i].Rotation, type);
+}
+
+//--------------------------------------------------------------------------
 void upgradePostDraw(Moby* moby)
 {
 	struct QuadDef quad;
@@ -74,13 +121,15 @@ void upgradePostDraw(Moby* moby)
 		return;
 
 	// determine color
-	u32 color = 0x70FFFFFF;
+	u32 color = 0x00FFFFFF;
+  float opacity = lerpf(0, 1, pvars->Uses / (float)UPGRADE_MAX_USES);
+  color |= (u8)(0x70 * opacity) << 24;
 
 	// set draw args
 	matrix_unit(m2);
 
 	// init
-  	gfxResetQuad(&quad);
+  gfxResetQuad(&quad);
 
 	// color of each corner?
 	vector_copy(quad.VertexPositions[0], pTL);
@@ -182,6 +231,7 @@ int upgradeHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	// update pvars
 	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
 	pvars->Type = args.Type;
+  pvars->Uses = UPGRADE_MAX_USES;
 	memset(pvars->Particles, 0, sizeof(pvars->Particles));
 
 	// set team
@@ -214,6 +264,10 @@ int upgradeHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 			pvars->Particles[i] = 0;
 		}
 	}
+
+  // remove reference
+  if (State.UpgradeMobies[pvars->Type] == moby)
+    State.UpgradeMobies[pvars->Type] = NULL;
 
 	guberMobyDestroy(moby);
 	return 0;
@@ -274,6 +328,15 @@ int upgradeHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 	
 	// play pickup sound
 	upgradePlayPickupSound(moby);
+
+  // reduce uses
+  // respawn at next spot if used
+  pvars->Uses--;
+  if (!pvars->Uses && gameAmIHost()) {
+    upgradeSpawnNew(pvars->Type);
+    upgradeDestroy(moby);
+  }
+  
 	return 0;
 }
 
@@ -345,5 +408,5 @@ void upgradeInitialize(void)
 //--------------------------------------------------------------------------
 void upgradeTick(void)
 {
-	
+
 }
