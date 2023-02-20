@@ -58,7 +58,10 @@ void gateSetCollision(int collActive)
 
   for (i = 0; i < GATE_MAX_COUNT; ++i) {
     if (GateMobies[i]) {
-      GateMobies[i]->CollActive = collActive ? 0 : -1;
+      if (!collActive)
+        GateMobies[i]->CollActive = -1;
+      else if (GateMobies[i]->State == GATE_STATE_ACTIVATED)
+        GateMobies[i]->CollActive = 0;
     }
   }
 }

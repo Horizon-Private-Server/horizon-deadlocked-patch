@@ -73,6 +73,17 @@ VECTOR GateLocations[] = {
 const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
 
 //--------------------------------------------------------------------------
+void mobForceIntoMapBounds(Moby* moby)
+{
+  if (!moby)
+    return;
+
+  // prevent mob from entering gas zone
+  if (moby->Position[0] > 524.4)
+    moby->Position[0] = 524.4;
+}
+
+//--------------------------------------------------------------------------
 int createMob(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
   switch (config->MobType)

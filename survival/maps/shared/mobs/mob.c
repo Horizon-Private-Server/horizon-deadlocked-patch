@@ -25,6 +25,7 @@
 #include "messageid.h"
 #include "module.h"
 
+void mobForceIntoMapBounds(Moby* moby);
 void gateSetCollision(int collActive);
 
 #if MOB_ZOMBIE
@@ -278,6 +279,7 @@ void mobMove(Moby* moby)
   gateSetCollision(1);
 
   vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
+  mobForceIntoMapBounds(moby);
 }
 
 //--------------------------------------------------------------------------

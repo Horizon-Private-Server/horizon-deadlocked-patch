@@ -345,11 +345,23 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   if (!gs)
     return;
 
+	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
   float damage = config->Damage;
   float speed = config->Speed;
   float health = config->Health;
 
   // scale config by round
+  damage = damage * powf(1 + randRange(0.04, 0.06), State.RoundNumber * State.Difficulty * playerCountMultiplier);
+  speed = speed * powf(1 + randRange(0.04, 0.06), State.RoundNumber * State.Difficulty * playerCountMultiplier);
+  health = health * powf(1 + randRange(0.04, 0.06), State.RoundNumber * State.Difficulty * playerCountMultiplier);
+
+  // enforce max values
+  if (config->MaxDamage > 0 && damage > config->MaxDamage)
+    damage = config->MaxDamage;
+  if (config->MaxSpeed > 0 && speed > config->MaxSpeed)
+    speed = config->MaxSpeed;
+  if (config->MaxHealth > 0 && health > config->MaxHealth)
+    health = config->MaxHealth;
 
   output->Bolts = (config->Bolts + randRangeInt(-50, 50)) * BOLT_TAX[(int)gs->PlayerCount];
   output->Xp = config->Xp;
@@ -1737,7 +1749,7 @@ void resetRoundState(void)
 	// 
 	static int accum = 0;
 	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
-	State.RoundMaxMobCount = MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(State.RoundNumber * playerCountMultiplier, 0.75)));
+	State.RoundMaxMobCount = MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(State.RoundNumber * State.Difficulty * playerCountMultiplier, 0.75)));
 	State.RoundMaxSpawnedAtOnce = MAX_MOBS_SPAWNED;
 	State.RoundInitialized = 0;
 	State.RoundStartTime = gameTime;
@@ -2100,7 +2112,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
       //manSpawnMobId = 0;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
       int manSpawnedId = manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
 			VECTOR t = {1,1,1,0};
       vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnedId].Config.CollRadius*2);
@@ -2362,7 +2374,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			if (State.IsHost && (gameTime - State.RoundStartTime) > ROUND_START_DELAY_MS)
 			{
 				// decrement mob cooldowns
-				for (i = 0; i < defaultSpawnParamsCount; ++i) {
+				for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i) {
 					if (defaultSpawnParamsCooldowns[i]) {
 						defaultSpawnParamsCooldowns[i] -= 1;
 					}
@@ -2374,7 +2386,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				// handle spawning
 				if (State.RoundSpawnTicker == 0) {
 					if (State.RoundMobCount < maxSpawn && !State.Freeze) {
-						if (State.RoundBudget >= State.MinMobCost && State.RoundMobSpawnedCount < State.RoundMaxMobCount) {
+						if (State.RoundMobSpawnedCount < State.RoundMaxMobCount) {
 							if (spawnRandomMob()) {
 								++State.RoundMobSpawnedCount;
 #if QUICK_SPAWN
@@ -2430,7 +2442,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 }
 
 //--------------------------------------------------------------------------
-void setLobbyGameOptions(void)
+void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
 	int i;
 
@@ -2443,6 +2455,7 @@ void setLobbyGameOptions(void)
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickupsRandom = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
@@ -2472,6 +2485,15 @@ void setLobbyGameOptions(void)
 	gameOptions->WeaponFlags.B6 = 1;
 	gameOptions->WeaponFlags.Holoshield = 1;
 	gameOptions->WeaponFlags.Flail = 1;
+
+  // disable custom game rules
+  if (gameConfig) {
+    gameConfig->grNoHealthBoxes = 0;
+    gameConfig->grNoInvTimer = 0;
+    gameConfig->grNoPickups = 0;
+    gameConfig->grV2s = 0;
+    gameConfig->grVampire = 0;
+  }
 
 	// force everyone to same team as host
 	for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
@@ -2558,7 +2580,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameConfig);
 			break;
 		}
 	}
@@ -2567,7 +2589,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 //--------------------------------------------------------------------------
 void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
-	setLobbyGameOptions();
+	setLobbyGameOptions(gameConfig);
   
 	// point get resurrect point to ours
 	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
