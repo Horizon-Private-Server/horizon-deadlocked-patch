@@ -396,13 +396,6 @@ void mobUpdate(Moby* moby)
 		moby->Opacity = opacity;
 	}
 
-	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
-	if (State.Freeze || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
-		moby->AnimSpeed = 0;
-	} else {
-		moby->AnimSpeed = animSpeed;
-	}
-
 	// update armor
   if (pvars->VTable && pvars->VTable->GetArmor)
 	  moby->Bangles = pvars->VTable->GetArmor(moby);
@@ -1021,6 +1014,32 @@ void mobTick(void)
 
 		if (m) {
 			struct MobPVar* pvars = (struct MobPVar*)m->PVar;
+
+#if JOINT_TEST
+
+      static int aaa1 = 0;
+      char buf[32];
+      MATRIX jointMtx;
+
+      if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
+        aaa1 += 1;
+        DPRINTF("%d\n", aaa1);
+      }
+      else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
+        aaa1 -= 1;
+        DPRINTF("%d\n", aaa1);
+      }
+
+      // get position of right hand joint
+      mobyGetJointMatrix(m, aaa1, jointMtx);
+      
+      int x,y;
+      if (gfxWorldSpaceToScreenSpace(&jointMtx[12], &x, &y)) {
+        sprintf(buf, "%d", aaa1);
+        gfxScreenSpaceText(x,y,1,1,0x80FFFFFF, buf, -1, 4);
+      }
+
+#endif
 
 			// find closest dist to local
 			pvars->MobVars.ClosestDist = 10000000;

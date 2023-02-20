@@ -13,6 +13,7 @@
 
 #define ZOMBIE_MOBY_OCLASS										(0x20F6)
 #define EXECUTIONER_MOBY_OCLASS							  (0x2468)
+#define TREMOR_MOBY_OCLASS							      (0x24D3)
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
 

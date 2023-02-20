@@ -43,6 +43,7 @@ void configInit(void);
 
 int zombieCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 int executionerCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int tremorCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 
 int aaa = 2;
 
@@ -80,8 +81,11 @@ int createMob(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
     {
       return executionerCreate(position, yaw, spawnFromUID, config);
     }
-    case MOB_NORMAL:
     case MOB_RUNNER:
+    {
+      return tremorCreate(position, yaw, spawnFromUID, config);
+    }
+    case MOB_NORMAL:
     case MOB_ACID:
     case MOB_FREEZE:
     case MOB_EXPLODE:

@@ -35,6 +35,10 @@ void gateSetCollision(int collActive);
 #include "executioner.c"
 #endif
 
+#if MOB_TREMOR
+#include "tremor.c"
+#endif
+
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
 {
@@ -402,6 +406,13 @@ void mobOnSpawned(Moby* moby)
     case EXECUTIONER_MOBY_OCLASS:
     {
       pvars->VTable = &ExecutionerVTable;
+      break;
+    }
+#endif
+#if MOB_TREMOR
+    case TREMOR_MOBY_OCLASS:
+    {
+      pvars->VTable = &TremorVTable;
       break;
     }
 #endif

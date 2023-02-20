@@ -280,7 +280,9 @@ int mobyIsMob(Moby* moby)
     return;
 
   return moby->OClass == ZOMBIE_MOBY_OCLASS
-    || moby->OClass == EXECUTIONER_MOBY_OCLASS;
+    || moby->OClass == EXECUTIONER_MOBY_OCLASS
+    || moby->OClass == TREMOR_MOBY_OCLASS
+    ;
 }
 
 //--------------------------------------------------------------------------

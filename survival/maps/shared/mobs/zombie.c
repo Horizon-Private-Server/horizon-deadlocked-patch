@@ -1,3 +1,12 @@
+#include <libdl/stdio.h>
+#include <libdl/game.h>
+#include <libdl/collision.h>
+#include <libdl/graphics.h>
+#include <libdl/moby.h>
+#include <libdl/random.h>
+#include <libdl/radar.h>
+#include <libdl/color.h>
+
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../include/maputils.h"
@@ -120,7 +129,17 @@ void zombiePreUpdate(Moby* moby)
 //--------------------------------------------------------------------------
 void zombiePostUpdate(Moby* moby)
 {
+  if (!moby || !moby->PVar)
+    return;
+    
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
+	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
+	if ((MapConfig.State && MapConfig.State->Freeze) || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
+		moby->AnimSpeed = 0;
+	} else {
+		moby->AnimSpeed = animSpeed;
+	}
 }
 
 //--------------------------------------------------------------------------
@@ -229,7 +248,7 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     if (canFlinch) {
-      if (e.Knockback.Force || ((((e.Knockback.Power + 1) * damageRatio) > 0.25)))
+      if (e.Knockback.Force || ((((e.Knockback.Power + 1) * damageRatio) > 0.25) && !rand(3)))
         mobSetAction(moby, MOB_ACTION_BIG_FLINCH);
       else if (damageRatio > 0.05 && randRange(0, 1) < ZOMBIE_FLINCH_PROBABILITY) {
         mobSetAction(moby, MOB_ACTION_FLINCH);
@@ -352,21 +371,17 @@ void zombieDoAction(Moby* moby)
 		case MOB_ACTION_BIG_FLINCH:
 		{
       int animFlinchId = pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH ? ZOMBIE_ANIM_BIG_FLINCH : ZOMBIE_ANIM_FLINCH;
-      int animIdleId = ZOMBIE_ANIM_IDLE;
 
-      if (!pvars->MobVars.CurrentActionForTicks)
-			  mobTransAnim(moby, animFlinchId, 0);
-      else if (moby->AnimSeqId == animFlinchId && moby->AnimSeqT > 10)
-			  mobTransAnim(moby, ZOMBIE_ANIM_JUMP, 0);
-      else
-        mobTransAnimLerp(moby, moby->AnimSeqId, 1, 0);
-
+      mobTransAnim(moby, animFlinchId, 0);
+      
 			if (pvars->MobVars.Knockback.Ticks > 0) {
 				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
 				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
 				t[2] = 1.0;
 				vector_scale(pvars->MobVars.MoveVars.AddVelocity, t, power * MATH_DT);
-			}
+			} else if (pvars->MobVars.MoveVars.Grounded) {
+        mobStand(moby);
+      }
 			break;
 		}
 		case MOB_ACTION_IDLE:
@@ -671,6 +686,7 @@ void zombieForceLocalAction(Moby* moby, enum MobAction action)
     pvars->MobVars.CurrentActionForTicks = 0;
 
 	pvars->MobVars.Action = action;
+	pvars->MobVars.NextAction = -1;
 	pvars->MobVars.ActionCooldownTicks = ZOMBIE_ACTION_COOLDOWN_TICKS;
 }
 

@@ -132,10 +132,8 @@ struct GuberMoby* getGuber(Moby* moby)
 		return moby->GuberMoby;
 	if (moby->OClass == DROP_MOBY_OCLASS && moby->PVar)
 		return moby->GuberMoby;
-	if (moby->OClass == ZOMBIE_MOBY_OCLASS && moby->PVar)
-		return moby->GuberMoby;
-	if (moby->OClass == EXECUTIONER_MOBY_OCLASS && moby->PVar)
-		return moby->GuberMoby;
+  if (mobyIsMob(moby))
+    return moby->GuberMoby;
 	
 	return 0;
 }
@@ -150,6 +148,7 @@ int handleEvent(Moby* moby, GuberEvent* event)
 	{
 		case ZOMBIE_MOBY_OCLASS: return mobHandleEvent(moby, event);
 		case EXECUTIONER_MOBY_OCLASS: return mobHandleEvent(moby, event);
+		case TREMOR_MOBY_OCLASS: return mobHandleEvent(moby, event);
 		case DROP_MOBY_OCLASS: return dropHandleEvent(moby, event);
 		case UPGRADE_MOBY_OCLASS: return upgradeHandleEvent(moby, event);
 	}
@@ -1314,17 +1313,34 @@ void processPlayer(int pIndex) {
       playerUseItem(pIndex, playerData->State.Item);
     }
 
-		/*
-		static int aaa = 0;
+    /*
+    static int aaa = 0x17D;
+    static int handle = 0;
 		if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
 			aaa += 1;
+      TestSoundDef.Index = aaa;
+      if (handle)
+        soundKillByHandle(handle);
+      int id = soundPlay(&TestSoundDef, 0, playerGetFromSlot(0)->PlayerMoby, 0, 0x400);
+      if (id >= 0)
+        handle = soundCreateHandle(id);
+      else
+        handle = 0;
 			DPRINTF("%d\n", aaa);
 		}
 		else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
 			aaa -= 1;
+      TestSoundDef.Index = aaa;
+      if (handle)
+        soundKillByHandle(handle);
+      int id = soundPlay(&TestSoundDef, 0, playerGetFromSlot(0)->PlayerMoby, 0, 0x400);
+      if (id >= 0)
+        handle = soundCreateHandle(id);
+      else
+        handle = 0;
 			DPRINTF("%d\n", aaa);
 		}
-		*/
+    */
 
 		if (!hasMessage && messageCooldownTicks == 1) {
 			((void (*)(int))0x0054e5e8)(localPlayerIndex);
@@ -2084,7 +2100,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
       //manSpawnMobId = 0;
-			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
       int manSpawnedId = manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
 			VECTOR t = {1,1,1,0};
       vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnedId].Config.CollRadius*2);
