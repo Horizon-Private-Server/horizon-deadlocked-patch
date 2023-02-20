@@ -27,18 +27,20 @@
 
 void gateSetCollision(int collActive);
 
-u32 MobLODColors[] = {
-	[MOB_NORMAL] 	0x00808080,
-	[MOB_FREEZE] 	0x00F08000,
-	[MOB_ACID] 		0x0000F000,
-	[MOB_EXPLODE] 0x004040F0,
-	[MOB_GHOST] 	0x00464443,
-	[MOB_TANK]		0x00808080,
-};
-
 #if MOB_ZOMBIE
 #include "zombie.c"
 #endif
+
+#if MOB_EXECUTIONER
+#include "executioner.c"
+#endif
+
+//--------------------------------------------------------------------------
+int mobAmIOwner(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	return gameGetMyClientId() == pvars->MobVars.Owner;
+}
 
 //--------------------------------------------------------------------------
 void mobSetAction(Moby* moby, int action)
@@ -49,9 +51,6 @@ void mobSetAction(Moby* moby, int action)
 	// don't set if already action
 	if (pvars->MobVars.Action == action)
 		return;
-
-
-  DPRINTF("map set action %d\n", action);
 
 	GuberEvent* event = guberCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
 	if (event) {
@@ -67,8 +66,6 @@ void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff)
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (moby->AnimSeqId != animId) {
 		mobyAnimTransition(moby, animId, lerpFrames, startOff);
-
-    DPRINTF("map set anim %d\n", animId);
 
 		pvars->MobVars.AnimationReset = 1;
 		pvars->MobVars.AnimationLooped = 0;
@@ -316,7 +313,7 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   float collRadius = pvars->MobVars.Config.CollRadius + 0.5;
   
   // stop when at target
-  if (pvars->MobVars.Target) {
+  if (pvars->MobVars.Target && targetSpeed > 0) {
     vector_subtract(temp, pvars->MobVars.Target->Position, from);
     float sqrDistance = vector_sqrmag(temp);
     if (sqrDistance < ((collRadius+PLAYER_COLL_RADIUS)*(collRadius+PLAYER_COLL_RADIUS))) {
@@ -398,6 +395,13 @@ void mobOnSpawned(Moby* moby)
     case ZOMBIE_MOBY_OCLASS:
     {
       pvars->VTable = &ZombieVTable;
+      break;
+    }
+#endif
+#if MOB_EXECUTIONER
+    case EXECUTIONER_MOBY_OCLASS:
+    {
+      pvars->VTable = &ExecutionerVTable;
       break;
     }
 #endif

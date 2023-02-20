@@ -42,6 +42,7 @@ void mobInit(void);
 void configInit(void);
 
 int zombieCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int executionerCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 
 int aaa = 2;
 
@@ -77,7 +78,7 @@ int createMob(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
   {
     case MOB_TANK:
     {
-      break;
+      return executionerCreate(position, yaw, spawnFromUID, config);
     }
     case MOB_NORMAL:
     case MOB_RUNNER:

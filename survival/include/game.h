@@ -47,55 +47,20 @@
 #define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(2)
 #define MOB_SPAWN_BURST_MIN_INC_PER_ROUND			(1)
 
-#define ZOMBIE_BASE_DAMAGE										(15)
-#define ZOMBIE_DAMAGE_MUTATE									(0.02)
+#define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
 
-#define ZOMBIE_BASE_SPEED											(2)
-#define ZOMBIE_SPEED_MUTATE										(0.001)
+#define MOB_BASE_DAMAGE										    (15)
+#define MOB_BASE_SPEED											  (2)
+#define MOB_BASE_HEALTH										    (40)
 
-#define ZOMBIE_BASE_HEALTH										(40)
-#define ZOMBIE_HEALTH_MUTATE									(0.02)
-
-#define ZOMBIE_SPECIAL_MUTATION_PROBABILITY		(0.005)
-#define ZOMBIE_SPECIAL_MUTATION_BASE_COST			(200)
-#define ZOMBIE_SPECIAL_MUTATION_REL_COST			(1.0)
-
-#define ZOMBIE_BASE_REACTION_TICKS						(0.25 * TPS)
-#define ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS			(2 * TPS)
-#define ZOMBIE_BASE_EXPLODE_RADIUS						(5)
-#define ZOMBIE_MELEE_HIT_RADIUS								(1.75)
-#define ZOMBIE_EXPLODE_HIT_RADIUS							(5)
-#define ZOMBIE_MELEE_ATTACK_RADIUS						(5)
-
-#define ZOMBIE_TARGET_KEEP_CURRENT_FACTOR     (10)
-
-#define ZOMBIE_BASE_STEP_HEIGHT								(2)
-#define ZOMBIE_MAX_STEP_UP										(100)
-#define ZOMBIE_MAX_STEP_DOWN									(300)
-
-#define ZOMBIE_ANIM_ATTACK_TICKS							(30)
-#define ZOMBIE_TIMEBOMB_TICKS									(60 * 2)
-#define ZOMBIE_FLINCH_COOLDOWN_TICKS					(60 * 7)
-#define ZOMBIE_ACTION_COOLDOWN_TICKS					(30)
-#define ZOMBIE_RESPAWN_AFTER_TICKS						(60 * 30)
-#define ZOMBIE_BASE_COLL_RADIUS								(0.5)
-#define ZOMBIE_MAX_COLL_RADIUS								(4)
-#define ZOMBIE_AUTO_DIRTY_COOLDOWN_TICKS			(60 * 5)
-#define ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS    	(60 * 2)
-#define ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS    	(60 * 3)
-#define ZOMBIE_FLINCH_PROBABILITY             (0.05)
-
-#define ZOMBIE_MAX_WALKABLE_SLOPE             (40 * MATH_DEG2RAD)
-
-#define ZOMBIE_TURN_RADIANS_PER_SEC           (45 * MATH_DEG2RAD)
-#define ZOMBIE_TURN_AIR_RADIANS_PER_SEC       (15 * MATH_DEG2RAD)
-#define ZOMBIE_MOVE_ACCELERATION              (25)
-#define ZOMBIE_MOVE_AIR_ACCELERATION          (5)
+#define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
+#define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
+#define MOB_SPECIAL_MUTATION_REL_COST			    (1.0)
 
 #if PAYDAY
-#define ZOMBIE_BASE_BOLTS											(1000000)
+#define MOB_BASE_BOLTS											(1000000)
 #else
-#define ZOMBIE_BASE_BOLTS											(120)
+#define MOB_BASE_BOLTS											(120)
 #endif
 
 #define JACKPOT_BOLTS													(50)
@@ -105,7 +70,7 @@
 #define DROP_DURATION													(30 * TIME_SECOND)
 #define DOUBLE_POINTS_DURATION								(20 * TIME_SECOND)
 #define FREEZE_DROP_DURATION									(10 * TIME_SECOND)
-#define ZOMBIE_HAS_DROP_PROBABILITY						(0.01)
+#define MOB_HAS_DROP_PROBABILITY						(0.01)
 #define DROP_MAX_SPAWNED											(4)
 
 #define PLAYER_BASE_REVIVE_COST								(5000)

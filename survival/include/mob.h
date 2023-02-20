@@ -7,6 +7,8 @@
 #include <libdl/time.h>
 #include <libdl/player.h>
 #include <libdl/sound.h>
+#include "zombie.h"
+#include "executioner.h"
 
 enum ExecutionerAnimId
 {

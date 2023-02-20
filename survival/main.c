@@ -420,8 +420,8 @@ int spawnRandomMob(void) {
 
 		// try and get special mutation
 		float r = randRange(0, 1);
-		if (!bakedSpecialMutation && r < ZOMBIE_SPECIAL_MUTATION_PROBABILITY) {
-			int newCost = cost + ZOMBIE_SPECIAL_MUTATION_BASE_COST + (ZOMBIE_SPECIAL_MUTATION_REL_COST * mob->Cost);
+		if (!bakedSpecialMutation && r < MOB_SPECIAL_MUTATION_PROBABILITY) {
+			int newCost = cost + MOB_SPECIAL_MUTATION_BASE_COST + (MOB_SPECIAL_MUTATION_REL_COST * mob->Cost);
 			mob->Config.MobSpecialMutation = rand(MOB_SPECIAL_MUTATION_COUNT - 1) + 1;
       cost = newCost;
       DPRINTF("spawning %s with special mutation %d\n", mob->Name, mob->Config.MobSpecialMutation);
@@ -2084,7 +2084,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
       //manSpawnMobId = 0;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
       int manSpawnedId = manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
 			VECTOR t = {1,1,1,0};
       vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnedId].Config.CollRadius*2);
