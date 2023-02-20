@@ -1,4 +1,5 @@
 #include "include/utils.h"
+#include "include/game.h"
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
@@ -7,6 +8,8 @@
 #include <libdl/sound.h>
 #include <libdl/random.h>
 #include <libdl/graphics.h>
+
+extern struct SurvivalState State;
 
 /* 
  * Explosion sound def
@@ -268,4 +271,46 @@ float getSignedSlope(VECTOR forward, VECTOR normal)
       , slope * MATH_RAD2DEG);
   }*/
   return slope;
+}
+
+//--------------------------------------------------------------------------
+int mobyIsMob(Moby* moby)
+{
+  if (!moby)
+    return;
+
+  return moby->OClass == ZOMBIE_MOBY_OCLASS
+    || moby->OClass == EXECUTIONER_MOBY_OCLASS;
+}
+
+//--------------------------------------------------------------------------
+void gateSetCollision(int collActive)
+{
+  int i;
+  if (State.GateMobies[0]) {
+    for (i = 0; i < GATE_MAX_COUNT; ++i) {
+      if (State.GateMobies[i]) {
+        State.GateMobies[i]->CollActive = collActive ? 0 : -1;
+      }
+    }
+
+    return;
+  }
+
+  // find gates and mystery box
+  Moby* mStart = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+  int gateCount = 0;
+  while (mStart < mEnd) {
+    if (mStart->OClass == GATE_OCLASS && gateCount < GATE_MAX_COUNT) {
+      State.GateMobies[gateCount++] = mStart;
+      mStart->CollActive = collActive ? 0 : -1;
+      DPRINTF("gate found %08X\n", (u32)mStart);
+    } else if (mStart->OClass == MYSTERY_BOX_OCLASS) {
+      State.MysteryBoxMoby = mStart;
+      DPRINTF("mbox found %08X\n", (u32)mStart);
+    }
+
+    ++mStart;
+  }
 }

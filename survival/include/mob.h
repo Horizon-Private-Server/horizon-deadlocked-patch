@@ -8,6 +8,27 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
+enum ExecutionerAnimId
+{
+	EXECUTIONER_ANIM_IDLE,
+	EXECUTIONER_ANIM_LOOK_ON_ALERT,
+	EXECUTIONER_ANIM_STOMP_ON_GROUND,
+	EXECUTIONER_ANIM_WALK,
+	EXECUTIONER_ANIM_WALK_BACKWARD,
+	EXECUTIONER_ANIM_RUN,
+	EXECUTIONER_ANIM_WOBBLE_ON_GROUND,
+	EXECUTIONER_ANIM_WOBBLE_ON_GROUND2,
+	EXECUTIONER_ANIM_JUMP,
+	EXECUTIONER_ANIM_SWING,
+	EXECUTIONER_ANIM_FIRE,
+	EXECUTIONER_ANIM_THROW,
+	EXECUTIONER_ANIM_FIRE_READY,
+	EXECUTIONER_ANIM_FLINCH,
+	EXECUTIONER_ANIM_BIG_FLINCH,
+	EXECUTIONER_ANIM_FLINCH_FALL_DOWN,
+	EXECUTIONER_ANIM_SPAWN
+};
+
 enum ZombieAnimId
 {
 	ZOMBIE_ANIM_UNDERGROUND,
@@ -36,6 +57,7 @@ enum MobAction
 	MOB_ACTION_JUMP,
 	MOB_ACTION_WALK,
 	MOB_ACTION_FLINCH,
+	MOB_ACTION_BIG_FLINCH,
 	MOB_ACTION_LOOK_AT_TARGET,
 	MOB_ACTION_ATTACK,
 	MOB_ACTION_TIME_BOMB,
@@ -44,6 +66,7 @@ enum MobAction
 enum MobType
 {
 	MOB_NORMAL,
+  MOB_RUNNER,
 	MOB_FREEZE,
 	MOB_ACID,
 	MOB_EXPLODE,
@@ -77,6 +100,16 @@ enum MobMutateAttribute {
 	MOB_MUTATE_HEALTH,
 	MOB_MUTATE_COST,
 	MOB_MUTATE_COUNT
+};
+
+enum ExecutionerBangles {
+	EXECUTIONER_BANGLE_LEFT_CHEST_PLATE =  	  (1 << 0),
+	EXECUTIONER_BANGLE_RIGHT_CHEST_PLATE =  	(1 << 1),
+	EXECUTIONER_BANGLE_HELMET =  	            (1 << 2),
+	EXECUTIONER_BANGLE_LEFT_COLLAR_BONE =  	  (1 << 3),
+	EXECUTIONER_BANGLE_RIGHT_COLLAR_BONE =  	(1 << 4),
+	EXECUTIONER_BANGLE_BRAIN =  	            (1 << 5),
+	EXECUTIONER_BANGLE_HIDE_BODY =	          (1 << 15)
 };
 
 enum ZombieBangles {
@@ -119,6 +152,35 @@ enum MobSpawnType {
 	SPAWN_TYPE_NEAR_HEALTHBOX = 8,
 };
 
+struct MobDamageEventArgs;
+struct MobSpawnEventArgs;
+
+typedef void (*MobGenericCallback_func)(Moby* moby);
+typedef Moby* (*MobGetNextTarget_func)(Moby* moby);
+typedef enum MobAction (*MobGetPreferredAction_func)(Moby* moby);
+typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
+typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
+typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
+typedef void (*MobForceLocalAction_func)(Moby* moby, enum MobAction action);
+typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
+typedef short (*MobGetArmor_func)(Moby* moby);
+
+struct MobVTable {
+  MobGenericCallback_func PreUpdate;
+  MobGenericCallback_func PostUpdate;
+  MobGenericCallback_func PostDraw;
+  MobGenericCallback_func Move;
+  MobOnSpawn_func OnSpawn;
+  MobOnDestroy_func OnDestroy;
+  MobOnDamage_func OnDamage;
+  MobGetNextTarget_func GetNextTarget;
+  MobGetPreferredAction_func GetPreferredAction;
+  MobForceLocalAction_func ForceLocalAction;
+  MobGenericCallback_func DoAction;
+  MobDoDamage_func DoDamage;
+  MobGetArmor_func GetArmor;
+};
+
 struct MobConfig {
 	int MobType;
 	int Bolts;
@@ -153,6 +215,7 @@ struct Knockback {
 	short Angle;
 	u8 Power;
 	u8 Ticks;
+  char Force;
 };
 
 struct MobMoveVars {
@@ -195,11 +258,10 @@ struct MobVars {
 	u16 AmbientSoundCooldownTicks;
 	u16 TimeBombTicks;
 	u16 MovingTicks;
+	u16 CurrentActionForTicks;
 	u16 TimeLastGroundedTicks;
 	u8 ActionId;
 	u8 LastActionId;
-	u8 MoveStep;
-	u8 MoveStepCooldownTicks;
 	char Owner;
 	char IsTraversing;
 	char AnimationLooped;
@@ -270,13 +332,13 @@ struct MobPVar {
 	struct ReactVars ReactVars;
 	struct FlashVars FlashVars;
 	struct MobVars MobVars;
+  struct MobVTable* VTable;
 };
 
 struct MobDamageEventArgs
 {
 	struct Knockback Knockback;
 	int SourceUID;
-	float Angle;
 	u16 DamageQuarters;
 	u16 SourceOClass;
 };
@@ -310,6 +372,7 @@ struct MobSpawnEventArgs
 	u8 AttackCooldownTickCount;
 };
 
+void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);
 void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);
 int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);

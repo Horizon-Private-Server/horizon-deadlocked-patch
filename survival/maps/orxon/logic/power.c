@@ -38,11 +38,6 @@ void powerUpdateMobies(int powerOn)
   Moby* m = mobyListGetStart();
   Moby* mEnd = mobyListGetEnd();
 
-  if (powerOn)
-    uiShowPopup(0, "Power activated!");
-  else
-    uiShowPopup(0, "Power's out!");
-
   while (m < mEnd)
   {
     if (!mobyIsDestroyed(m))
@@ -69,6 +64,14 @@ void powerUpdateMobies(int powerOn)
 
     ++m;
   }
+}
+
+//--------------------------------------------------------------------------
+void powerOnMysteryBoxActivatePower(void)
+{
+  powerForcedOn = 1;
+  powerTimeOff = gameGetTime() + 5*TIME_MINUTE;
+  uiShowPopup(0, "Power supercharged!");
 }
 
 //--------------------------------------------------------------------------
@@ -120,9 +123,11 @@ void powerNodeUpdate(Moby* moby)
       powerForcedOn = 0;
       *team = 10;
       powerUpdateMobies(0);
+      uiShowPopup(0, "Power's out!");
     }
   } else {
     powerTimeOff = gameGetTime() + TIME_SECOND*90;
     powerUpdateMobies(1);
+    uiShowPopup(0, "Power activated!");
   }
 }

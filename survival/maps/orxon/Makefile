@@ -26,4 +26,4 @@ data: setup
 clean:
 	$(MAKE) -C $(CURDIR)/logic clean
 	$(MAKE) -C $(CURDIR)/data clean
-	rm -rf $(CURDIR)/bin
+	#rm -rf $(CURDIR)/bin

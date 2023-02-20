@@ -12,12 +12,9 @@
 #define TPS																		(60)
 
 #define ZOMBIE_MOBY_OCLASS										(0x20F6)
+#define EXECUTIONER_MOBY_OCLASS							  (0x2468)
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
-
-#define BUDGET_START													(200)
-#define BUDGET_START_ACCUM										(100)
-#define BUDGET_PLAYER_WEIGHT									(100)
 
 #define MAX_MOBS_BASE													(30)
 #define MAX_MOBS_ROUND_WEIGHT									(10)
@@ -70,6 +67,8 @@
 #define ZOMBIE_EXPLODE_HIT_RADIUS							(5)
 #define ZOMBIE_MELEE_ATTACK_RADIUS						(5)
 
+#define ZOMBIE_TARGET_KEEP_CURRENT_FACTOR     (10)
+
 #define ZOMBIE_BASE_STEP_HEIGHT								(2)
 #define ZOMBIE_MAX_STEP_UP										(100)
 #define ZOMBIE_MAX_STEP_DOWN									(300)
@@ -84,10 +83,11 @@
 #define ZOMBIE_AUTO_DIRTY_COOLDOWN_TICKS			(60 * 5)
 #define ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS    	(60 * 2)
 #define ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS    	(60 * 3)
+#define ZOMBIE_FLINCH_PROBABILITY             (0.05)
 
 #define ZOMBIE_MAX_WALKABLE_SLOPE             (40 * MATH_DEG2RAD)
 
-#define ZOMBIE_TURN_RADIANS_PER_SEC           (90 * MATH_DEG2RAD)
+#define ZOMBIE_TURN_RADIANS_PER_SEC           (45 * MATH_DEG2RAD)
 #define ZOMBIE_TURN_AIR_RADIANS_PER_SEC       (15 * MATH_DEG2RAD)
 #define ZOMBIE_MOVE_ACCELERATION              (25)
 #define ZOMBIE_MOVE_AIR_ACCELERATION          (5)
@@ -125,6 +125,7 @@
 
 #define BAKED_SPAWNPOINT_COUNT							  (24)
 
+#define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
 
 enum GameNetMessage
 {
@@ -138,6 +139,7 @@ enum GameNetMessage
 	CUSTOM_MSG_PLAYER_SET_STATS,
 	CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS,
 	CUSTOM_MSG_PLAYER_SET_FREEZE,
+  CUSTOM_MSG_PLAYER_USE_ITEM
 };
 
 enum BakedSpawnpointType
@@ -147,6 +149,11 @@ enum BakedSpawnpointType
 	BAKED_SPAWNPOINT_PLAYER_START = 2,
 	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
 };
+
+typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
+typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config);
+typedef void (*MapOnMobSpawned_func)(Moby* moby);
+typedef int (*MapOnMobCreate_func)(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 
 typedef struct SurvivalBakedSpawnpoint
 {
@@ -185,6 +192,7 @@ struct SurvivalPlayer
 	float MaxSqrDistFromMob;
 	struct SurvivalPlayerState State;
 	int TimeOfDoublePoints;
+  int InvisibilityCloakStopTime;
 	u16 ReviveCooldownTicks;
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;
@@ -198,7 +206,6 @@ struct SurvivalPlayer
 struct SurvivalState
 {
 	int RoundNumber;
-	long RoundBudget;
 	int RoundStartTime;
 	int RoundCompleteTime;
 	int RoundEndTime;
@@ -217,6 +224,7 @@ struct SurvivalState
 	int MobsDrawnLast;
 	int MobsDrawGameTime;
 	struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
+  char ClientReady[GAME_MAX_PLAYERS];
 	int RoundInitialized;
 	Moby* Vendor;
 	Moby* BigAl;
@@ -236,13 +244,21 @@ struct SurvivalState
 	char RoundSpecialSpawnableZombies[2];
 };
 
-typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
-
 struct SurvivalMapConfig
 {
+  int ClientsReady;
   struct SurvivalState* State;
   struct SurvivalBakedConfig* BakedConfig;
+
+  struct MobSpawnParams* DefaultSpawnParams;
+  int DefaultSpawnParamsCount; 
+  struct SurvivalSpecialRoundParam* SpecialRoundParams;
+  int SpecialRoundParamsCount; 
+  
   UpgradePlayerWeapon_func UpgradePlayerWeaponFunc;
+  PopulateSpawnArgs_func PopulateSpawnArgsFunc;
+  MapOnMobCreate_func OnMobCreateFunc;
+  MapOnMobSpawned_func OnMobSpawnedFunc;
 };
 
 struct SurvivalSpecialRoundParam
@@ -320,6 +336,12 @@ typedef struct SurvivalSetFreezeMessage
 {
 	char IsActive;
 } SurvivalSetFreezeMessage_t;
+
+typedef struct SurvivalPlayerUseItem
+{
+	int PlayerId;
+  enum MysteryBoxItem Item;
+} SurvivalPlayerUseItem_t;
 
 extern const int UPGRADE_COST[];
 extern const float BOLT_TAX[];

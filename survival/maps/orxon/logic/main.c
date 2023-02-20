@@ -31,12 +31,17 @@
 #include "module.h"
 #include "messageid.h"
 #include "../../../include/game.h"
+#include "../../../include/mob.h"
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
 void powerNodeUpdate(Moby* moby);
 void gateInit(void);
-void gateSpawn(void);
+void gateSpawn(VECTOR gateData[], int count);
 void gasTick(void);
+void mobInit(void);
+void configInit(void);
+
+int zombieCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 
 int aaa = 2;
 
@@ -66,6 +71,34 @@ VECTOR GateLocations[] = {
 const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
 
 //--------------------------------------------------------------------------
+int createMob(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+{
+  switch (config->MobType)
+  {
+    case MOB_TANK:
+    {
+      break;
+    }
+    case MOB_NORMAL:
+    case MOB_RUNNER:
+    case MOB_ACID:
+    case MOB_FREEZE:
+    case MOB_EXPLODE:
+    case MOB_GHOST:
+    {
+      return zombieCreate(position, yaw, spawnFromUID, config);
+    }
+    default:
+    {
+      DPRINTF("unhandled create mobtype %d\n", config->MobType);
+      break;
+    }
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 void initialize(void)
 {
   static int initialized = 0;
@@ -74,6 +107,9 @@ void initialize(void)
 
   gateInit();
   mboxInit();
+  mobInit();
+  configInit();
+  MapConfig.OnMobCreateFunc = &createMob;
 
   initialized = 1;
 }
@@ -158,6 +194,9 @@ void nodeUpdate(Moby* moby)
   // call base node base update
   ((void (*)(Moby*))0x003D13C0)(moby);
 
-  mboxSpawn();
-  gateSpawn();
+  if (MapConfig.ClientsReady || !netGetDmeServerConnection())
+  {
+    mboxSpawn();
+    gateSpawn(GateLocations, GateLocationsCount);
+  }
 }

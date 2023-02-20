@@ -51,6 +51,39 @@ SoundDef PaidSoundDef =
 	3			  // Bank
 };
 
+/* 
+ * Explosion sound def
+ */
+SoundDef ExplosionSoundDef =
+{
+	0.0,	// MinRange
+	50.0,	// MaxRange
+	100,		// MinVolume
+	4000,		// MaxVolume
+	0,			// MinPitch
+	0,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	0x106,  // 0x123, 0x171, 
+	3			  // Bank
+};
+
+//--------------------------------------------------------------------------
+Moby * spawnExplosion(VECTOR position, float size, u32 color)
+{
+	// SpawnMoby_5025
+	Moby * moby = ((Moby* (*)(u128, float, int, int, int, int, int, short, short, short, short, short, short,
+				short, short, float, float, float, int, Moby *, int, int, int, int, int, int, int, int,
+				int, short, Moby *, Moby *, u128)) (0x003c3b38))
+				(vector_read(position), size / 2.5, 0x2, 0x14, 0x10, 0x10, 0x10, 0x10, 0x2, 0, 1, 0, 0,
+				0, 0, 0, 0, 2, 0x00080800, 0, color, color, color, color, color, color, color, color,
+				color, 0, 0, 0, 0);
+				
+	soundPlay(&ExplosionSoundDef, 0, moby, 0, 0x400);
+
+	return moby;
+}
+
 //--------------------------------------------------------------------------
 void playPaidSound(Player* player)
 {
@@ -106,4 +139,48 @@ GuberEvent* guberCreateEvent(Moby* moby, u32 eventType)
 		event = guberEventCreateEvent(guber, eventType, 0, 0);
 
 	return event;
+}
+
+//--------------------------------------------------------------------------
+float getSignedSlope(VECTOR forward, VECTOR normal)
+{
+  VECTOR up, hForward;
+
+  vector_projectonhorizontal(hForward, forward);
+  vector_normalize(hForward, hForward);
+  vector_outerproduct(up, hForward, normal);
+  return atan2f(vector_length(up), vector_innerproduct(hForward, normal)) - MATH_PI/2;
+}
+
+//--------------------------------------------------------------------------
+u8 decTimerU8(u8* timeValue)
+{
+	int value = *timeValue;
+	if (value == 0)
+		return 0;
+
+	*timeValue = --value;
+	return value;
+}
+
+//--------------------------------------------------------------------------
+u16 decTimerU16(u16* timeValue)
+{
+	int value = *timeValue;
+	if (value == 0)
+		return 0;
+
+	*timeValue = --value;
+	return value;
+}
+
+//--------------------------------------------------------------------------
+u32 decTimerU32(u32* timeValue)
+{
+	long value = *timeValue;
+	if (value == 0)
+		return 0;
+
+	*timeValue = --value;
+	return value;
 }

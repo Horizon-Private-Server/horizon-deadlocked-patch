@@ -1,12 +1,12 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o ../../shared/gate.o gas.o power.o ../../shared/mysterybox.o ../../shared/maputils.o
+EE_OBJS = main.o config.o ../../shared/gate.o gas.o power.o ../../shared/mysterybox.o ../../shared/maputils.o ../../shared/mobs/mob.o
 EE_ELF = logic.elf
 EE_BIN = logic.bin
 EE_INCS := -I../../../../common -I../../../include -I../../shared/include
-EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L.
+EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_EXECUTIONER -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := RELEASE
+BUILD_CONFIG := DEBUG
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
@@ -20,10 +20,10 @@ endif
 all: $(EE_BIN) clean-temp
 
 clean-temp:
-	rm -f *.irx *.o ../../shared/*.o
+	rm -f *.irx *.o ../../shared/*.o ../../shared/mobs/*.o
 
 clean:
-	rm -f *.irx *.o *.bin *.elf ../../shared/*.o
+	rm -f *.irx *.o *.bin *.elf ../../shared/*.o ../../shared/mobs/*.o
 
 include $(CURDIR)/../../../../Makefile.pref
 include $(CURDIR)/../../../../Makefile.eeglobal

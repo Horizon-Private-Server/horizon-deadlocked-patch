@@ -34,12 +34,10 @@
 #include "messageid.h"
 #include "maputils.h"
 
-extern int powerTimeOff;
-extern int powerForcedOn;
-extern struct SurvivalMapConfig MapConfig;
+void powerOnMysteryBoxActivatePower(void);
+
 
 char* ITEM_NAMES[] = {
-  [MYSTERY_BOX_ITEM_FREEZE_PLAYER] "",
   [MYSTERY_BOX_ITEM_RESET_GATES] "",
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] "",
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] "Upgrade Weapon",
@@ -52,7 +50,6 @@ char* ITEM_NAMES[] = {
 };
 
 int ITEM_TEX_IDS[] = {
-  [MYSTERY_BOX_ITEM_FREEZE_PLAYER] 46 - 3,
   [MYSTERY_BOX_ITEM_RESET_GATES] 14 - 3,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 132 - 3,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 37 - 3,
@@ -65,7 +62,6 @@ int ITEM_TEX_IDS[] = {
 };
 
 u32 ITEM_COLORS[] = {
-  [MYSTERY_BOX_ITEM_FREEZE_PLAYER] 0x80F7D58A,
   [MYSTERY_BOX_ITEM_RESET_GATES] 0x8000FFFF,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 0x80808080,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 0x80FFFFFF,
@@ -346,7 +342,6 @@ void mboxUpdate(Moby* moby)
       // handle items that are forced onto player
       switch (pvars->Item)
       {
-        case MYSTERY_BOX_ITEM_FREEZE_PLAYER:
         case MYSTERY_BOX_ITEM_RESET_GATES:
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:
         {
@@ -561,13 +556,10 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
 
       switch (item)
       {
-        case MYSTERY_BOX_ITEM_FREEZE_PLAYER:
-        {
-          player->timers.freezeTimer = TPS * 60;
-          break;
-        }
         case MYSTERY_BOX_ITEM_RESET_GATES:
         {
+          uiShowPopup(0, "Map Reset!");
+          
           Moby* mStart = mobyListGetStart();
           Moby* mEnd = mobyListGetEnd();
 
@@ -592,8 +584,7 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
         }
         case MYSTERY_BOX_ITEM_ACTIVATE_POWER:
         {
-          powerForcedOn = 1;
-          powerTimeOff = gameGetTime() + 5*TIME_MINUTE;
+          powerOnMysteryBoxActivatePower();
           break;
         }
         case MYSTERY_BOX_ITEM_UPGRADE_WEAPON:

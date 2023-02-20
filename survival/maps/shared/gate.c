@@ -35,6 +35,8 @@
 
 extern struct SurvivalMapConfig MapConfig;
 
+Moby* GateMobies[GATE_MAX_COUNT] = {};
+
 SoundDef BaseSoundDef =
 {
 	0.0,	  // MinRange
@@ -49,8 +51,17 @@ SoundDef BaseSoundDef =
 	3			  // Bank
 };
 
-extern VECTOR GateLocations[];
-extern const int GateLocationsCount;
+//--------------------------------------------------------------------------
+void gateSetCollision(int collActive)
+{
+  int i;
+
+  for (i = 0; i < GATE_MAX_COUNT; ++i) {
+    if (GateMobies[i]) {
+      GateMobies[i]->CollActive = collActive ? 0 : -1;
+    }
+  }
+}
 
 //--------------------------------------------------------------------------
 void gateDrawQuad(Moby* moby, float direction)
@@ -271,6 +282,15 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
   // don't render
   moby->ModeBits |= 0x101;
 
+  // add to list
+  for (i = 0; i < GATE_MAX_COUNT; ++i) {
+    if (GateMobies[i])
+      continue;
+    
+    GateMobies[i] = moby;
+    break;
+  }
+
   // set default state
 	mobySetState(moby, GATE_STATE_ACTIVATED, -1);
   return 0;
@@ -366,7 +386,8 @@ int gateCreate(VECTOR start, VECTOR end, float height, int cost)
   return guberEvent != NULL;
 }
 
-void gateSpawn(void)
+//--------------------------------------------------------------------------
+void gateSpawn(VECTOR gateData[], int count)
 {
   static int spawned = 0;
   int i;
@@ -376,14 +397,15 @@ void gateSpawn(void)
 
   // create gates
   if (gameAmIHost()) {
-    for (i = 0; i < GateLocationsCount; i += 2) {
-      gateCreate(GateLocations[i], GateLocations[i+1], GateLocations[i][3], (int)GateLocations[i+1][3]);
+    for (i = 0; i < count; i += 2) {
+      gateCreate(gateData[i], gateData[i+1], gateData[i][3], (int)gateData[i+1][3]);
     }
   }
 
   spawned = 1;
 }
 
+//--------------------------------------------------------------------------
 void gateInit(void)
 {
   int i;

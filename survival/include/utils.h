@@ -34,4 +34,7 @@ void vectorProjectOnVertical(VECTOR output, VECTOR input0);
 void vectorProjectOnHorizontal(VECTOR output, VECTOR input0);
 float getSignedSlope(VECTOR forward, VECTOR normal);
 
+int mobyIsMob(Moby* moby);
+void gateSetCollision(int collActive);
+
 #endif // SURVIVAL_UTILS_H

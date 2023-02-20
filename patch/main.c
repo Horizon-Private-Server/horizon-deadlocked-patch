@@ -1555,12 +1555,6 @@ void runFixB6EatOnDownSlope(void)
   POKE_U16(0x003B56E8, 0x30C);
 }
 
-void * GetMobyClassPtr(int oClass)
-{
-	int mClass = *(u8*)(0x0024a110 + oClass);
-	return *(u32*)(0x002495c0 + mClass*4);
-}
-
 /*
  * NAME :		patchWeaponShotLag
  * 
@@ -1790,6 +1784,126 @@ void runCorrectPlayerChargebootRotation(void)
 			}
 		}
 	}
+}
+
+/*
+ * NAME :		onClientReady
+ * 
+ * DESCRIPTION :
+ * 			Handles when a client loads the level.
+ *      Sets a bit indicating the client has loaded and then checks if all clients have loaded.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onClientReady(int clientId)
+{
+  GameSettings* gs = gameGetSettings();
+  int i;
+  int bit = 1 << clientId;
+
+  // set ready
+  patchStateContainer.AllClientsReady = 0;
+  patchStateContainer.ClientsReadyMask |= bit;
+  DPRINTF("received client ready from %d\n", clientId);
+
+  if (!gs)
+    return;
+
+  // check if all clients are ready
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    bit = 1 << i;
+    if (gs->PlayerClients[i] >= 0 && (patchStateContainer.ClientsReadyMask & bit) == 0)
+      return;
+  }
+
+  patchStateContainer.AllClientsReady = 1;
+  DPRINTF("all clients ready\n");
+}
+
+/*
+ * NAME :		onClientReadyRemote
+ * 
+ * DESCRIPTION :
+ * 			Receives when another client has loaded the level and passes it to the onClientReady handler.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onClientReadyRemote(void * connection, void * data)
+{
+  int clientId;
+  memcpy(&clientId, data, sizeof(clientId));
+	onClientReady(clientId);
+
+	return sizeof(clientId);
+}
+
+/*
+ * NAME :		sendClientReady
+ * 
+ * DESCRIPTION :
+ * 			Broadcasts to all other clients in lobby that this client has finished loading the level.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void sendClientReady(void)
+{
+  int clientId = gameGetMyClientId();
+  int bit = 1 << clientId;
+  if (patchStateContainer.ClientsReadyMask & bit)
+    return;
+
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &clientId);
+  DPRINTF("send client ready\n");
+
+	// locally
+  onClientReady(clientId);
+}
+
+/*
+ * NAME :		runClientReadyMessager
+ * 
+ * DESCRIPTION :
+ * 			Sends the current game info to the server.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runClientReadyMessager(void)
+{
+  GameSettings* gs = gameGetSettings();
+
+  if (!gs)
+  {
+    patchStateContainer.AllClientsReady = 0;
+    patchStateContainer.ClientsReadyMask = 0;
+  }
+  else if (isInGame())
+  {
+    sendClientReady();
+  }
 }
 
 /*
@@ -3174,6 +3288,7 @@ int main (void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST, &onSetLobbyClientPatchConfig);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
 	netInstallCustomMsgHandler(CUSTOM_MSG_RESPONSE_CUSTOM_MODE_PATCH, &onCustomModeDownloadInitiated);
+	netInstallCustomMsgHandler(CUSTOM_MSG_CLIENT_READY, &onClientReadyRemote);
 
 	// Run map loader
 	runMapLoader();
@@ -3208,6 +3323,10 @@ int main (void)
 
 	// detects when to download a new custom mode patch
 	runPayloadDownloadRequester();
+
+  // sends client ready state to others in lobby when we load the level
+  // ensures our local copy of who is ready is reset when loading a new lobby
+  runClientReadyMessager();
 
 	// Patch camera speed
 	patchCameraSpeed();

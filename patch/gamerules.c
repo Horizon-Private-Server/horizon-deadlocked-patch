@@ -266,7 +266,7 @@ void rotatingWeaponsLogic(void)
 		return;
 
 	// hook
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_PATCH_IN_GAME_START, &onRotatingWeaponsChangedRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_ROTATING_WEAPONS_CHANGED, &onRotatingWeaponsChangedRemote);
 
 	// determine new weapon from enabled weapons randomly
 	if (gameAmIHost() && (RotatingWeaponsNextRotationTime == 0 || gameTime > RotatingWeaponsNextRotationTime))
@@ -301,7 +301,7 @@ void rotatingWeaponsLogic(void)
 			.gameTime = RotatingWeaponsNextRotationTime,
 			.weaponId = RotatingWeaponsActiveId
 		};
-		netBroadcastCustomAppMessage(0x40, netGetDmeServerConnection(), CUSTOM_MSG_ID_PATCH_IN_GAME_START, sizeof(message), &message);
+		netBroadcastCustomAppMessage(0x40, netGetDmeServerConnection(), CUSTOM_MSG_ROTATING_WEAPONS_CHANGED, sizeof(message), &message);
 	}
 
 	// if active weapon is wrench then just exit

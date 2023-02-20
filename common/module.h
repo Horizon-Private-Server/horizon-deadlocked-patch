@@ -143,6 +143,8 @@ typedef struct PatchStateContainer
     int UpdateCustomGameStats;
     CustomGameModeStats_t CustomGameStats;
     GameSettings GameSettingsAtStart;
+    int ClientsReadyMask;
+    int AllClientsReady;
 } PatchStateContainer_t;
 
 

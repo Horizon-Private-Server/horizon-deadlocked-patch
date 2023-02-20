@@ -86,3 +86,9 @@ Balance vendor discount
 ++Fix drowning in acid
 ++Make power longer to turn on (6 turns)
 ++Have upgrades fade and then respawn at another spot
+Move shield to right path
+Increase viper ammo to 50 per
+Add spawnpoints to quad room
+Add random events
+  - Defend something for period of time
+Add snack manager for events/popups

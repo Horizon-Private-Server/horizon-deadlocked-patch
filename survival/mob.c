@@ -16,6 +16,8 @@ int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
 Moby* mobLastInList = 0;
 
+extern struct SurvivalMapConfig* mapConfig;
+
 #if FIXEDTARGET
 extern Moby* FIXEDTARGETMOBY;
 #endif
@@ -61,7 +63,7 @@ u32 MobSecondaryColors[] = {
 	[MOB_ACID] 		0x8000FF00,
 	[MOB_EXPLODE] 0x000040C0,
 	[MOB_GHOST] 	0x80202020,
-	[MOB_TANK]		0x80202020,
+	[MOB_TANK]		0x80FF2020,
 };
 
 u32 MobSpecialMutationColors[] = {
@@ -78,19 +80,6 @@ u32 MobLODColors[] = {
 	[MOB_TANK]		0x00808080,
 };
 
-short MoveStepMaxByClientCount[GAME_MAX_PLAYERS] = {
-	12,
-	24,
-	32,
-	48,
-	64,
-	72,
-	96,
-	128,
-	128,
-	128
-};
-
 Moby* AllMobsSorted[MAX_MOBS_SPAWNED];
 int AllMobsSortedFreeSpots = MAX_MOBS_SPAWNED;
 
@@ -98,7 +87,29 @@ extern struct SurvivalState State;
 
 GuberEvent* mobCreateEvent(Moby* moby, u32 eventType);
 
+/*
+char ExecutionerActionAnims[] = {
+  [MOB_ACTION_ANIM_SPAWN] EXECUTIONER_ANIM_SPAWN,
+  [MOB_ACTION_ANIM_IDLE] EXECUTIONER_ANIM_IDLE,
+  [MOB_ACTION_ANIM_WALK] EXECUTIONER_ANIM_RUN,
+  [MOB_ACTION_ANIM_JUMP] EXECUTIONER_ANIM_JUMP,
+  [MOB_ACTION_ANIM_ATTACK1] EXECUTIONER_ANIM_SWING,
+  [MOB_ACTION_ANIM_ATTACK2] EXECUTIONER_ANIM_FIRE,
+  [MOB_ACTION_ANIM_FLINCH] EXECUTIONER_ANIM_FLINCH,
+  [MOB_ACTION_ANIM_BIG_FLINCH] EXECUTIONER_ANIM_BIG_FLINCH,
+};
 
+char ZombieActionAnims[] = {
+  [MOB_ACTION_ANIM_SPAWN] ZOMBIE_ANIM_CRAWL_OUT_OF_GROUND,
+  [MOB_ACTION_ANIM_IDLE] ZOMBIE_ANIM_IDLE,
+  [MOB_ACTION_ANIM_WALK] ZOMBIE_ANIM_RUN,
+  [MOB_ACTION_ANIM_JUMP] ZOMBIE_ANIM_JUMP,
+  [MOB_ACTION_ANIM_ATTACK1] ZOMBIE_ANIM_SLAP,
+  [MOB_ACTION_ANIM_ATTACK2] ZOMBIE_ANIM_CROUCH,
+  [MOB_ACTION_ANIM_FLINCH] ZOMBIE_ANIM_FLINCH,
+  [MOB_ACTION_ANIM_BIG_FLINCH] ZOMBIE_ANIM_BIG_FLINCH,
+};
+*/
 
 int mobAmIOwner(Moby* moby)
 {
@@ -110,6 +121,7 @@ void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (moby->AnimSeqId != animId) {
+    DPRINTF("mode set anim %d\n", animId);
 		mobyAnimTransition(moby, animId, lerpFrames, startOff);
 
 		pvars->MobVars.AnimationReset = 1;
@@ -119,7 +131,7 @@ void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff)
 		// get current t
 		// if our stored start is uninitialized, then set current t as start
 		float t = moby->AnimSeqT;
-		float end = (float)(*(u8*)((u32)moby->AnimSeq + 0x10)) - (float)lerpFrames;
+		float end = *(u8*)((u32)moby->AnimSeq + 0x10) - (float)(lerpFrames * 0.5);
 		if (t >= end && pvars->MobVars.AnimationReset) {
 			pvars->MobVars.AnimationLooped++;
 			pvars->MobVars.AnimationReset = 0;
@@ -226,6 +238,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	float angle = atan2f(delta[1] / len, delta[0] / len);
 	args.Knockback.Angle = (short)(angle * 1000);
 	args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
+  args.Knockback.Force = 0;
 	
 	// create event
 	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DAMAGE);
@@ -261,21 +274,6 @@ void mobDestroy(Moby* moby, int hitByUID)
 	}
 }
 
-void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute)
-{
-	if (!spawnParams)
-		return;
-	
-	switch (attribute)
-	{
-		case MOB_MUTATE_DAMAGE: if (spawnParams->Config.Damage < spawnParams->Config.MaxDamage) { spawnParams->Config.Damage += ZOMBIE_DAMAGE_MUTATE * ZOMBIE_BASE_DAMAGE * State.Difficulty; break; } 
-		case MOB_MUTATE_SPEED: if (spawnParams->Config.Speed < spawnParams->Config.MaxSpeed) { spawnParams->Config.Speed += ZOMBIE_SPEED_MUTATE * ZOMBIE_BASE_SPEED * State.Difficulty; break; } 
-		case MOB_MUTATE_HEALTH: if (spawnParams->Config.MaxHealth <= 0 || spawnParams->Config.Health < spawnParams->Config.MaxHealth) { spawnParams->Config.Health += ZOMBIE_HEALTH_MUTATE * ZOMBIE_BASE_HEALTH * maxf(0.5, State.Difficulty); } break;
-		case MOB_MUTATE_COST: spawnParams->Cost += rand(spawnParams->Config.MaxCostMutation); break;
-		default: break;
-	}
-}
-
 void mobDamage(Moby* source, Moby* target, float amount, int damageFlags)
 {
 	MobyColDamageIn in;
@@ -298,20 +296,32 @@ void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int fr
 {
 	VECTOR p;
 	MATRIX jointMtx;
-	
-	// get position of right hand joint
-	mobyGetJointMatrix(moby, 2, jointMtx);
-	vector_copy(p, &jointMtx[12]);
+  int joints[2];
+  int i;
 
-	// 
-	if (CollMobysSphere_Fix(p, 2, moby, 0, radius) > 0) {
-		Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
-		Moby* hitMoby;
-		while ((hitMoby = *hitMobies++)) {
-			if (friendlyFire || mobyIsHero(hitMoby))
-				mobDamage(moby, hitMoby, amount, damageFlags);
-		}
-	}
+  //joints[0] = mobGetMeleeHandJointIdx(moby);
+  //joints[1] = mobGetMeleeJointIdx(moby);
+	
+  for (i = 0; i < 2; ++i) {
+    if (i && joints[i] == joints[i-1])
+      continue;
+    if (joints[i] < 0)
+      continue;
+
+    // get position of right hand joint
+    mobyGetJointMatrix(moby, joints[i], jointMtx);
+    vector_copy(p, &jointMtx[12]);
+
+    // 
+    if (CollMobysSphere_Fix(p, 2, moby, 0, radius) > 0) {
+      Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
+      Moby* hitMoby;
+      while ((hitMoby = *hitMobies++)) {
+        if (friendlyFire || mobyIsHero(hitMoby))
+          mobDamage(moby, hitMoby, amount, damageFlags);
+      }
+    }
+  }
 }
 
 void mobSetTarget(Moby* moby, Moby* target)
@@ -335,6 +345,8 @@ void mobSetAction(Moby* moby, int action)
 	// don't set if already action
 	if (pvars->MobVars.Action == action)
 		return;
+
+  DPRINTF("mode set action %d\n", action);
 
 	GuberEvent* event = mobCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
 	if (event) {
@@ -417,6 +429,7 @@ void mobForceLocalAction(Moby* moby, int action)
 			break;
 		}
 		case MOB_ACTION_FLINCH:
+		case MOB_ACTION_BIG_FLINCH:
 		{
 			mobPlayHitSound(moby);
 			pvars->MobVars.FlinchCooldownTicks = ZOMBIE_FLINCH_COOLDOWN_TICKS;
@@ -429,9 +442,11 @@ void mobForceLocalAction(Moby* moby, int action)
 	}
 
 	// 
+  if (action != pvars->MobVars.Action)
+    pvars->MobVars.CurrentActionForTicks = 0;
+
 	pvars->MobVars.Action = action;
 	pvars->MobVars.ActionCooldownTicks = ZOMBIE_ACTION_COOLDOWN_TICKS;
-	pvars->MobVars.MoveStepCooldownTicks = 0;
 }
 
 int mobIsAttacking(struct MobPVar* pvars) {
@@ -459,16 +474,6 @@ int mobGetLostArmorBangle(short armorStart, short armorEnd)
 	return (armorStart - armorEnd) & armorStart;
 }
 
-short mobGetArmor(struct MobPVar* pvars) {
-	float t = pvars->MobVars.Health / pvars->MobVars.Config.MaxHealth;
-	if (t < 0.3)
-		return 0x0000;
-	else if (t < 0.7)
-		return pvars->MobVars.Config.Bangles & 0x1f; // remove torso bangle
-	
-	return pvars->MobVars.Config.Bangles;
-}
-
 Moby* mobGetNextTarget(Moby* moby)
 {
 #if BENCHMARK
@@ -487,14 +492,14 @@ Moby* mobGetNextTarget(Moby* moby)
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = *players;
-		if (p && !playerIsDead(p) && p->Health > 0) {
+		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
 			float distSqr = vector_sqrmag(delta);
 
 			if (distSqr < 300000) {
 				// favor existing target
-				if (p->SkinMoby == currentTarget && distSqr > (5*5))
-					distSqr = (5*5);
+				if (p->SkinMoby == currentTarget)
+					distSqr *= (1 / ZOMBIE_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target
 				if (distSqr < closestPlayerDist) {
@@ -531,6 +536,10 @@ int mobGetPreferredAction(Moby* moby)
 	// prevent action changing too quickly
 	if (pvars->MobVars.ActionCooldownTicks)
 		return -1;
+
+  // wait for grounded to stop flinch
+  if ((pvars->MobVars.Action == MOB_ACTION_FLINCH || pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
+    return -1;
 
   // jump if we've hit a slope and are grounded
   if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.WallSlope > ZOMBIE_MAX_WALKABLE_SLOPE) {
@@ -843,7 +852,6 @@ void mobMove(Moby* moby)
   const VECTOR up = {0,0,1,0};
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-	u16 moveStepCooldownTicks = decTimerU8(&pvars->MobVars.MoveStepCooldownTicks);
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
   u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
 
@@ -853,29 +861,19 @@ void mobMove(Moby* moby)
   // save last position
   vector_copy(pvars->MobVars.MoveVars.LastPosition, moby->Position);
 
-  // set rotation to planar velocity
-  // unless we're knocked back
-  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.Action != MOB_ACTION_FLINCH && mobHasVelocity(pvars)) {
-    moby->Rotation[2] = atan2f(pvars->MobVars.MoveVars.Velocity[1], pvars->MobVars.MoveVars.Velocity[0]);
-  }
-
   // reset state
   pvars->MobVars.MoveVars.Grounded = 0;
   pvars->MobVars.MoveVars.WallSlope = 0;
   pvars->MobVars.MoveVars.HitWall = 0;
+
+  // disable colliding with gates
+  gateSetCollision(0);
 
   if (mobFirstInList == moby) {
 
     // turn on holos so we can collide with them
     // optimization to only turn on for first mob in moby list (this is expensive)
     weaponTurnOnHoloshields(-1);
-
-    // disable colliding with gates
-    for (i = 0; i < GATE_MAX_COUNT; ++i) {
-      if (State.GateMobies[i]) {
-        State.GateMobies[i]->CollActive = -1;
-      }
-    }
   }
 
   // add additive velocity
@@ -885,9 +883,6 @@ void mobMove(Moby* moby)
 
   if (0) {
     pvars->MobVars.MoveVars.Grounded = 1;
-  }
-  else if (moveStepCooldownTicks) {
-    mobMoveSimple(moby, pvars);
   } else {
 
     // compute next position
@@ -932,7 +927,6 @@ void mobMove(Moby* moby)
 
     // set position
     vector_copy(moby->Position, nextPos);
-    pvars->MobVars.MoveStepCooldownTicks = pvars->MobVars.MoveStep;
   }
 
   // add gravity to velocity with clamp on downwards speed
@@ -967,6 +961,7 @@ void mobMove(Moby* moby)
 
   // done moving
   mobInMobMove = 0;
+  gateSetCollision(1);
 
   // re-enable colliding with gates
   if (mobLastInList == moby) {
@@ -974,15 +969,28 @@ void mobMove(Moby* moby)
     // turn off holos for everyone else
     // optimization to only turn off for last mob in moby list (this is expensive)
     weaponTurnOffHoloshields();
-
-    for (i = 0; i < GATE_MAX_COUNT; ++i) {
-      if (State.GateMobies[i] && State.GateMobies[i]->State == 1) {
-        State.GateMobies[i]->CollActive = 0;
-      }
-    }
   }
 
   vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
+}
+
+void mobTurnTowards(Moby* moby, VECTOR towards)
+{
+  VECTOR delta;
+  MATRIX mRot;
+  
+  if (!moby || !moby->PVar)
+    return;
+
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  float turnSpeed = pvars->MobVars.MoveVars.Grounded ? ZOMBIE_TURN_RADIANS_PER_SEC : ZOMBIE_TURN_AIR_RADIANS_PER_SEC;
+  float radians = turnSpeed * pvars->MobVars.Config.Speed * MATH_DT;
+
+  vector_subtract(delta, towards, moby->Position);
+  float targetYaw = atan2f(delta[1], delta[0]);
+  float yawDelta = clampAngle(targetYaw - moby->Rotation[2]);
+
+  moby->Rotation[2] = clampAngle(moby->Rotation[2] + clamp(yawDelta, -radians, radians));
 }
 
 void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed)
@@ -1000,7 +1008,6 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
     return;
 
   float collRadius = pvars->MobVars.Config.CollRadius + 0.5;
-  float turnSpeed = pvars->MobVars.MoveVars.Grounded ? ZOMBIE_TURN_RADIANS_PER_SEC : ZOMBIE_TURN_AIR_RADIANS_PER_SEC;
   float acceleration = pvars->MobVars.MoveVars.Grounded ? ZOMBIE_MOVE_ACCELERATION : ZOMBIE_MOVE_AIR_ACCELERATION;
   
   // stop when at target
@@ -1012,21 +1019,8 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
     }
   }
 
-  // give starting velocity
-  if (targetSpeed > 0 && !mobHasVelocity(pvars)) {
-    vector_fromyaw(planarVelocity, moby->Rotation[2]);
-    vector_scale(planarVelocity, planarVelocity, targetSpeed * 0.01);
-  } else {
-    vectorProjectOnHorizontal(planarVelocity, velocity);
-  }
-
-  // get velocity
-  vector_subtract(normalizedTargetDirection, to, from);
-  vector_normalize(normalizedTargetDirection, normalizedTargetDirection);
-
-  // rotate current velocity towards target
-  vector_rotateTowardsHorizontal(targetVelocity, planarVelocity, normalizedTargetDirection, turnSpeed * pvars->MobVars.Config.Speed * MATH_DT);
-  //vectorProjectOnHorizontal(targetVelocity, normalizedTargetDirection);
+  // target velocity from rotation
+  vector_fromyaw(targetVelocity, moby->Rotation[2]);
 
   // acclerate velocity towards target velocity
   //vector_normalize(targetVelocity, targetVelocity);
@@ -1047,6 +1041,7 @@ void mobStand(Moby* moby)
   vectorProjectOnVertical(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
 }
 
+/*
 void mobDoAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -1058,17 +1053,27 @@ void mobDoAction(Moby* moby)
 	{
 		case MOB_ACTION_SPAWN:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_CRAWL_OUT_OF_GROUND, 0);
+      mobTransAnim(moby, mobGetAnim(moby, MOB_ACTION_ANIM_SPAWN), 0);
+
       mobStand(moby);
 			break;
 		}
 		case MOB_ACTION_FLINCH:
+		case MOB_ACTION_BIG_FLINCH:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_BIG_FLINCH, 0);
-      //mobStand(moby);
+      int flinchType = pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH ? MOB_ACTION_ANIM_BIG_FLINCH : MOB_ACTION_ANIM_FLINCH;
+      int animFlinchId = mobGetAnim(moby, flinchType);
+      int animIdleId = mobGetAnim(moby, MOB_ACTION_ANIM_IDLE);
+
+      if (!pvars->MobVars.CurrentActionForTicks)
+			  mobTransAnim(moby, animFlinchId, 0);
+      else if (moby->AnimSeqId == animFlinchId && moby->AnimSeqT > 10)
+			  mobTransAnim(moby, mobGetAnim(moby, MOB_ACTION_ANIM_JUMP), 0);
+      else
+        mobTransAnimLerp(moby, moby->AnimSeqId, 1, 0);
 
 			if (pvars->MobVars.Knockback.Ticks > 0) {
-				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power * pvars->MobVars.MoveStep;
+				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
 				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
 				t[2] = 1.0;
 				vector_scale(pvars->MobVars.MoveVars.AddVelocity, t, power * MATH_DT);
@@ -1077,7 +1082,7 @@ void mobDoAction(Moby* moby)
 		}
 		case MOB_ACTION_IDLE:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_IDLE, 0);
+			mobTransAnim(moby, mobGetAnim(moby, MOB_ACTION_ANIM_IDLE), 0);
       mobStand(moby);
 			break;
 		}
@@ -1085,6 +1090,7 @@ void mobDoAction(Moby* moby)
 			{
         // move
         if (target) {
+          mobTurnTowards(moby, target->Position);
           mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, pvars->MobVars.Config.Speed);
         } else {
           mobStand(moby);
@@ -1092,7 +1098,7 @@ void mobDoAction(Moby* moby)
 
         // handle jumping
         if (pvars->MobVars.MoveVars.WallSlope > ZOMBIE_MAX_WALKABLE_SLOPE && pvars->MobVars.MoveVars.Grounded) {
-			    mobTransAnim(moby, ZOMBIE_ANIM_JUMP, 15);
+			    mobTransAnim(moby, mobGetAnim(moby, MOB_ACTION_ANIM_JUMP), 15);
 
           // check if we're near last jump pos
           // if so increment StuckJumpCount
@@ -1116,6 +1122,8 @@ void mobDoAction(Moby* moby)
 		case MOB_ACTION_LOOK_AT_TARGET:
     {
       mobStand(moby);
+      if (target)
+        mobTurnTowards(moby, target->Position);
       break;
     }
     case MOB_ACTION_WALK:
@@ -1133,6 +1141,7 @@ void mobDoAction(Moby* moby)
 				vector_scale(t, t, 1 / dist);
 				vector_add(t, moby->Position, t);
 
+        mobTurnTowards(moby, target->Position);
         mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed);
 			} else {
         // stand
@@ -1141,14 +1150,14 @@ void mobDoAction(Moby* moby)
 
 			// 
 			if (mobHasVelocity(pvars))
-				mobTransAnim(moby, ZOMBIE_ANIM_RUN, 0);
+				mobTransAnim(moby, mobGetAnim(moby, MOB_ACTION_ANIM_WALK), 0);
 			else
-				mobTransAnim(moby, ZOMBIE_ANIM_IDLE, 0);
+				mobTransAnim(moby, mobGetAnim(moby, MOB_ACTION_ANIM_IDLE), 0);
 			break;
 		}
 		case MOB_ACTION_TIME_BOMB:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_CROUCH, 0);
+			mobTransAnim(moby, mobGetAnim(moby, MOB_ACTION_ANIM_ATTACK2), 0);
 
 			if (pvars->MobVars.TimeBombTicks == 0) {
 				moby->Opacity = 0x80;
@@ -1180,15 +1189,38 @@ void mobDoAction(Moby* moby)
 		}
 		case MOB_ACTION_ATTACK:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_SLAP, 0);
+      int attack1AnimId = mobGetAnim(moby, MOB_ACTION_ANIM_ATTACK1);
+			mobTransAnim(moby, attack1AnimId, 0);
 
-			int swingAttackReady = moby->AnimSeqId == ZOMBIE_ANIM_SLAP && moby->AnimSeqT >= 11 && moby->AnimSeqT < 14;
+			float speedMult = 1;
+			int swingAttackReady = moby->AnimSeqId == attack1AnimId;
 			u32 damageFlags = 0x00081801;
-			float speedMult = (moby->AnimSeqId == ZOMBIE_ANIM_SLAP && moby->AnimSeqT < 5) ? (State.Difficulty * 2) : 1; //powf(clamp(10 - moby->AnimSeqT, 1, 10), 0.5);
-			if (speedMult < 1)
+
+
+      //
+      switch (pvars->MobVars.Config.ModelType)
+      {
+        case MOB_MODEL_ZOMBIE:
+        {
+          // zombies lunge
+          speedMult = (moby->AnimSeqId == attack1AnimId && moby->AnimSeqT < 5) ? (State.Difficulty * 2) : 1; //powf(clamp(10 - moby->AnimSeqT, 1, 10), 0.5);
+          
+          //
+          swingAttackReady &= moby->AnimSeqT >= 11 && moby->AnimSeqT < 14;
+          break;
+        }
+        case MOB_MODEL_EXECUTIONER:
+        {
+          swingAttackReady &= moby->AnimSeqT >= 4 && moby->AnimSeqT < 10;
+          break;
+        }
+      }
+      
+      if (speedMult < 1)
 				speedMult = 1;
 
 			if (target) {
+        mobTurnTowards(moby, target->Position);
         mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed);
 			} else {
 				// stand
@@ -1236,7 +1268,10 @@ void mobDoAction(Moby* moby)
 			break;
 		}
 	}
+
+  pvars->MobVars.CurrentActionForTicks ++;
 }
+*/
 
 //--------------------------------------------------------------------------
 void mobPostDrawQuad(Moby* moby)
@@ -1311,45 +1346,17 @@ void mobHandleDraw(Moby* moby)
 	moby->DrawDist = 128;
 	if (order >= 0) {
 		float rank = 1 - clamp(order / (float)State.RoundMaxSpawnedAtOnce, 0, 1);
-		float rankCurve = powf(rank, 6);
+		//float rankCurve = powf(rank, 6);
 		
-		pvars->MobVars.MoveStep = 1 + (u8)((MoveStepMaxByClientCount[State.ActivePlayerCount-1]-1)*(1-rankCurve));
 		if (State.RoundMobCount > 20) {
 			if (rank < 0.75) {
-				gfxRegisterDrawFunction((void**)0x0022251C, &mobPostDrawQuad, moby);
-				moby->DrawDist = 0;
+        if (pvars->VTable && pvars->VTable->PostDraw) {
+          gfxRegisterDrawFunction((void**)0x0022251C, pvars->VTable->PostDraw, moby);
+          moby->DrawDist = 0;
+        }
 			}
 		}
 	}
-	else {
-		pvars->MobVars.MoveStep = 1;
-	}
-  pvars->MobVars.MoveStep = 1;
-
-	/*
-	if (pvars->MobVars.Order > 10) {
-		if (State.RoundMobCount >= 70)
-			pvars->MobVars.MoveStep = 8;
-		else if (State.RoundMobCount >= 60)
-			pvars->MobVars.MoveStep = 6;
-		else if (State.RoundMobCount >= 45)
-			pvars->MobVars.MoveStep = 4;
-		else if (State.RoundMobCount >= 30)
-			pvars->MobVars.MoveStep = 2;
-		else
-			pvars->MobVars.MoveStep = 1;
-	} else {
-		pvars->MobVars.MoveStep = 1;
-	}
-	*/
-	
-
-	//pvars->MoveVars.runSpeed = 0.20 * pvars->MobVars.MoveStep;
-	//pvars->MoveVars.flySpeed = 0.20 * pvars->MobVars.MoveStep;
-	//pvars->MoveVars.angularAccel = 0.005 * pvars->MobVars.MoveStep;
-	//pvars->MoveVars.angularDecel = 0.005 * pvars->MobVars.MoveStep;
-	//pvars->MoveVars.angularLimit = 0.20 * pvars->MobVars.MoveStep;
-	//pvars->MoveVars.gravity = 20 * pvars->MobVars.MoveStep;
 }
 
 void mobUpdate(Moby* moby)
@@ -1357,9 +1364,13 @@ void mobUpdate(Moby* moby)
 	int i;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	GameOptions* gameOptions = gameGetOptions();
-	if (!pvars || pvars->MobVars.Destroyed)
+	if (!pvars || pvars->MobVars.Destroyed || !pvars->VTable)
 		return;
 	int isOwner;
+
+  // 
+  if (pvars->VTable->PreUpdate)
+    pvars->VTable->PreUpdate(moby);
 
 	// handle radar
 	if (pvars->MobVars.Config.MobType != MOB_GHOST && pvars->MobVars.Config.MobSpecialMutation != MOB_SPECIAL_MUTATION_GHOST && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
@@ -1430,8 +1441,10 @@ void mobUpdate(Moby* moby)
 
 	// 
 	if (!State.Freeze) {
-		mobDoAction(moby);
-    
+		//mobDoAction(moby);
+    if (pvars->VTable && pvars->VTable->DoAction)
+      pvars->VTable->DoAction(moby);
+
     // count ticks since last grounded
     if (pvars->MobVars.MoveVars.Grounded)
       pvars->MobVars.TimeLastGroundedTicks = 0;
@@ -1449,8 +1462,21 @@ void mobUpdate(Moby* moby)
 		mobyUpdateFlash(moby, 0);
 
   // move
-  if (!State.Freeze)
-    mobMove(moby);
+  if (!State.Freeze && pvars->VTable && pvars->VTable->Move) {
+    
+    // turn on holos so we can collide with them
+    // optimization to only turn on for first mob in moby list (this is expensive)
+    if (mobFirstInList == moby)
+      weaponTurnOnHoloshields(-1);
+
+    //mobMove(moby);
+    pvars->VTable->Move(moby);
+  
+    // turn off holos for everyone else
+    // optimization to only turn off for last mob in moby list (this is expensive)
+    if (mobLastInList == moby)
+      weaponTurnOffHoloshields();
+  }
 
 	//
 	if (isOwner && !State.Freeze) {
@@ -1465,16 +1491,24 @@ void mobUpdate(Moby* moby)
 		}
 		
 		// 
-		if (nextCheckActionDelayTicks == 0) {
-			int nextAction = mobGetPreferredAction(moby);
+		if (nextCheckActionDelayTicks == 0 && pvars->VTable && pvars->VTable->GetPreferredAction) {
+			//int nextAction = mobGetPreferredAction(moby);
+      int nextAction = pvars->VTable->GetPreferredAction(moby);
 			if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction && nextAction != pvars->MobVars.Action && nextActionTicks == 0) {
 				pvars->MobVars.NextAction = nextAction;
 				pvars->MobVars.NextActionDelayTicks = nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
 			} 
 
 			// get new target
-			if (scoutCooldownTicks == 0) {
-				mobSetTarget(moby, mobGetNextTarget(moby));
+			if (scoutCooldownTicks == 0 && pvars->VTable->GetNextTarget) {
+				//mobSetTarget(moby, mobGetNextTarget(moby));
+#if BENCHMARK
+        mobSetTarget(moby, NULL);
+#elif FIXEDTARGET
+        mobSetTarget(moby, FIXEDTARGETMOBY);
+#else
+        mobSetTarget(moby, pvars->VTable->GetNextTarget(moby));
+#endif
 			}
 
 			pvars->MobVars.NextCheckActionDelayTicks = 2;
@@ -1501,7 +1535,8 @@ void mobUpdate(Moby* moby)
 	}
 
 	// update armor
-	moby->Bangles = mobGetArmor(pvars);
+  if (pvars->VTable && pvars->VTable->GetArmor)
+	  moby->Bangles = pvars->VTable->GetArmor(moby);
 
 	// process damage
   int damageIndex = moby->CollDamage;
@@ -1563,6 +1598,10 @@ void mobUpdate(Moby* moby)
 			pvars->MobVars.AutoDirtyCooldownTicks = ZOMBIE_AUTO_DIRTY_COOLDOWN_TICKS;
 		}
 	}
+  
+  // 
+  if (pvars->VTable->PostUpdate)
+    pvars->VTable->PostUpdate(moby);
 }
 
 GuberEvent* mobCreateEvent(Moby* moby, u32 eventType)
@@ -1604,7 +1643,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	moby->PUpdate = &mobUpdate;
 
 	// 
-	moby->ModeBits |= 0x30;
+	moby->ModeBits |= 0x1030;
 	moby->GlowRGBA = MobSecondaryColors[(int)args.MobType];
 	moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
 	moby->Opacity = args.MobSpecialMutation ? 0xFF : 0x80;
@@ -1684,8 +1723,8 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	{
 		case MOB_GHOST:
 		{
-			// disable targeting
 			pvars->ReactVars.deathType = 0; // normal
+			// disable targeting
 			moby->ModeBits &= ~0x1000;
 			break;
 		}
@@ -1743,7 +1782,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	// destroy spawn from
 	if (spawnFromUID != -1) {
 		GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(spawnFromUID);
-		if (gm && gm->Moby && gm->Moby->PVar && !mobyIsDestroyed(gm->Moby) && gm->Moby->OClass == ZOMBIE_MOBY_OCLASS) {
+		if (gm && gm->Moby && gm->Moby->PVar && !mobyIsDestroyed(gm->Moby) && mobyIsMob(gm->Moby)) {
 			struct MobPVar* spawnFromPVars = (struct MobPVar*)gm->Moby->PVar;
 			if (spawnFromPVars->MobVars.Destroyed != 1) {
 				guberMobyDestroy(gm->Moby);
@@ -1751,6 +1790,14 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 			}
 		}
 	}
+
+  // pass to map
+  if (mapConfig->OnMobSpawnedFunc)
+    mapConfig->OnMobSpawnedFunc(moby);
+
+  // pass to mob handler
+  if (pvars->VTable && pvars->VTable->OnSpawn)
+    pvars->VTable->OnSpawn(moby, p, yaw, spawnFromUID, random, &args);
 	
 #if LOG_STATS2
 	DPRINTF("mob created event %08X, %08X, %08X mobtype:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.MobType, State.RoundMobCount, State.RoundMobSpawnedCount);
@@ -1771,6 +1818,10 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &killedByPlayerId, sizeof(killedByPlayerId));
 	guberEventRead(event, &weaponId, sizeof(weaponId));
 
+  // pass to mob handler
+  if (pvars->VTable && pvars->VTable->OnDestroy)
+    pvars->VTable->OnDestroy(moby, killedByPlayerId, weaponId);
+	
 	int bolts = pvars->MobVars.Config.Bolts;
 	int xp = pvars->MobVars.Config.Xp;
 
@@ -1874,15 +1925,27 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	VECTOR t;
 	struct MobDamageEventArgs args;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	int armorStart = mobGetArmor(pvars);
+  
 	if (!pvars)
 		return 0;
 
-	int canFlinch = pvars->MobVars.Action != MOB_ACTION_FLINCH && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB && pvars->MobVars.FlinchCooldownTicks == 0;
+	// update armor
+	int armorStart = 0;
+  if (pvars->VTable && pvars->VTable->GetArmor)
+	  armorStart = pvars->VTable->GetArmor(moby);
+
+	int canFlinch = pvars->MobVars.Action != MOB_ACTION_FLINCH 
+            && pvars->MobVars.Action != MOB_ACTION_BIG_FLINCH
+            && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB 
+            && pvars->MobVars.FlinchCooldownTicks == 0;
 
 	// read event
 	guberEventRead(event, &args, sizeof(struct MobDamageEventArgs));
 
+  // pass to mob handler
+  if (pvars->VTable && pvars->VTable->OnDamage)
+    pvars->VTable->OnDamage(moby, &args);
+	
 	// get damager
 	GuberMoby* damager = (GuberMoby*)guberGetObjectByUID(args.SourceUID);
 
@@ -1904,21 +1967,8 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	}
 	*/
 
-	// destroy
-	if (newHp <= 0) {
-		if (pvars->MobVars.Action == MOB_ACTION_TIME_BOMB && moby->AnimSeqId == ZOMBIE_ANIM_CROUCH && moby->AnimSeqT > 3) {
-			// explode
-			mobForceLocalAction(moby, MOB_ACTION_ATTACK);
-		} else {
-			//pvars->MoveVars.reaction_state = 5;
-			pvars->MobVars.Destroy = 1;
-			pvars->MobVars.LastHitBy = args.SourceUID;
-			pvars->MobVars.LastHitByOClass = args.SourceOClass;
-		}
-	}
-
 	// knockback
-	if (args.Knockback.Power > 0 && canFlinch)
+	if (args.Knockback.Power > 0 && (canFlinch || args.Knockback.Force))
 	{
 		memcpy(&pvars->MobVars.Knockback, &args.Knockback, sizeof(struct Knockback));
 	}
@@ -1927,8 +1977,13 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	{
 		// flinch
 		float damageRatio = damage / pvars->MobVars.Config.Health;
-		if ((((args.Knockback.Power + 1) * damageRatio) > 0.25) && canFlinch)
-			mobSetAction(moby, MOB_ACTION_FLINCH);
+    if (canFlinch) {
+      if (args.Knockback.Force || ((((args.Knockback.Power + 1) * damageRatio) > 0.25)))
+        mobSetAction(moby, MOB_ACTION_BIG_FLINCH);
+      else if (damageRatio > 0.05 && randRange(0, 1) < ZOMBIE_FLINCH_PROBABILITY) {
+        mobSetAction(moby, MOB_ACTION_FLINCH);
+      }
+    }
 
 		// set target
 		//if (damager)
@@ -1951,7 +2006,12 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 	// 
 	if (pvars->MobVars.LastActionId != args.ActionId && pvars->MobVars.Action != args.Action) {
 		pvars->MobVars.LastActionId = args.ActionId;
-		mobForceLocalAction(moby, args.Action);
+    
+    // pass to mob handler
+    if (pvars->VTable && pvars->VTable->ForceLocalAction)
+      pvars->VTable->ForceLocalAction(moby, args.Action);
+    
+		//mobForceLocalAction(moby, args.Action);
 	}
 	
 	//DPRINTF("mob state update event %08X, %08X, %d\n", (u32)moby, (u32)event, args.Action);
@@ -2009,7 +2069,7 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-	if (isInGame() && moby->OClass == ZOMBIE_MOBY_OCLASS && pvars) {
+	if (isInGame() && mobyIsMob(moby) && pvars) {
 		u32 mobEvent = event->NetEvent.EventID;
 		int isFromHost = gameIsHost(event->NetEvent.OriginClientIdx);
 		if (!isFromHost && mobEvent != MOB_EVENT_SPAWN && mobEvent != MOB_EVENT_DAMAGE && mobEvent != MOB_EVENT_DESTROY && pvars->MobVars.Owner != event->NetEvent.OriginClientIdx)
@@ -2039,43 +2099,10 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 
 int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
-	GameSettings* gs = gameGetSettings();
-	struct MobSpawnEventArgs args;
+  if (mapConfig->OnMobCreateFunc)
+    return mapConfig->OnMobCreateFunc(position, yaw, spawnFromUID, config);
 
-	// create guber object
-	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(ZOMBIE_MOBY_OCLASS, sizeof(struct MobPVar), &guberEvent, NULL);
-	if (guberEvent)
-	{
-		args.Bolts = (config->Bolts + randRangeInt(-50, 50)) * BOLT_TAX[(int)gs->PlayerCount];
-		args.Xp = config->Xp;
-		args.StartHealth = (u16)config->Health;
-		args.Bangles = (u16)config->Bangles;
-		args.MobType = (char)config->MobType;
-		args.Damage = (u8)config->Damage;
-		args.AttackRadiusEighths = (u8)(config->AttackRadius * 8);
-		args.HitRadiusEighths = (u8)(config->HitRadius * 8);
-		args.CollRadiusEighths = (u8)(config->CollRadius * 8);
-		args.SpeedEighths = (u8)(config->Speed * 8);
-		args.ReactionTickCount = (u8)config->ReactionTickCount;
-		args.AttackCooldownTickCount = (u8)config->AttackCooldownTickCount;
-		args.MobSpecialMutation = config->MobSpecialMutation;
-
-		u8 random = (u8)rand(100);
-
-    position[2] += 1; // spawn slightly above point
-		guberEventWrite(guberEvent, position, 12);
-		guberEventWrite(guberEvent, &yaw, 4);
-		guberEventWrite(guberEvent, &spawnFromUID, 4);
-		guberEventWrite(guberEvent, &random, 1);
-		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
-	}
-	else
-	{
-		DPRINTF("failed to guberevent mob\n");
-	}
-  
-  return guberEvent != NULL;
+  return 0;
 }
 
 void mobInitialize(void)
@@ -2112,6 +2139,49 @@ void mobNuke(int killedByPlayerId)
 	}
 }
 
+void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius)
+{
+	int i;
+  VECTOR delta;
+  struct MobDamageEventArgs args;
+  float sqrRadius = radius * radius;
+	Player** players = playerGetAll();
+	u32 playerUid = 0;
+	if (byPlayerId >= 0 && byPlayerId < GAME_MAX_PLAYERS) {
+		Player* p = players[byPlayerId];
+		if (p) {
+			playerUid = p->Guber.Id.UID;
+		}
+	}
+
+	for (i = 0; i < MAX_MOBS_SPAWNED; ++i) {
+		Moby* m = AllMobsSorted[i];
+		if (m) {
+      
+      vector_subtract(delta, m->Position, position);
+      if (vector_sqrmag(delta) <= sqrRadius) {
+	      
+        float dist = vector_length(delta);
+        float angle = atan2f(delta[1] / dist, delta[0] / dist);
+        
+        // create event
+        GuberEvent * guberEvent = mobCreateEvent(m, MOB_EVENT_DAMAGE);
+        if (guberEvent) {
+          args.SourceUID = playerUid;
+          args.SourceOClass = 0;
+          args.DamageQuarters = damage*4;
+          args.Knockback.Angle = (short)(angle * 1000);
+          args.Knockback.Ticks = 5;
+          args.Knockback.Power = 10;
+          args.Knockback.Force = 1;
+          guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
+        }
+      }
+
+		}
+	}
+}
+
 void mobTick(void)
 {
 	int i, j;
@@ -2119,9 +2189,9 @@ void mobTick(void)
 	Player* locals[] = { playerGetFromSlot(0), playerGetFromSlot(1) };
 	int localsCount = playerGetNumLocals();
 
-	if (mobFirstInList && (mobyIsDestroyed(mobFirstInList) || mobFirstInList->OClass != ZOMBIE_MOBY_OCLASS))
+	if (mobFirstInList && (mobyIsDestroyed(mobFirstInList) || !mobyIsMob(mobFirstInList)))
 		mobFirstInList = NULL;
-	if (mobLastInList && (mobyIsDestroyed(mobLastInList) || mobLastInList->OClass != ZOMBIE_MOBY_OCLASS))
+	if (mobLastInList && (mobyIsDestroyed(mobLastInList) || !mobyIsMob(mobLastInList)))
 		mobLastInList = NULL;
 	
 	// run single pass on sort
@@ -2135,7 +2205,7 @@ void mobTick(void)
 			mobLastInList = m;
 
 		// remove invalid moby ref
-		if (m && (mobyIsDestroyed(m) || !m->PVar || m->OClass != ZOMBIE_MOBY_OCLASS)) {
+		if (m && (mobyIsDestroyed(m) || !m->PVar || !mobyIsMob(m))) {
 			AllMobsSorted[i] = NULL;
 			m = NULL;
 			++AllMobsSortedFreeSpots;
