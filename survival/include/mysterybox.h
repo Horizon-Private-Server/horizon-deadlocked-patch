@@ -10,6 +10,7 @@
 
 #define MYSTERY_BOX_OCLASS                      (0x2635)
 #define MYSTERY_BOX_COST                        (10000)
+#define MYSTERY_BOX_CYCLE_ITEMS_DURATION        (TIME_SECOND * 0)
 #define PLAYER_MYSTERY_BOX_COOLDOWN_TICKS       (30)
 
 enum MysteryBoxEventType {

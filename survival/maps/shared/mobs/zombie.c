@@ -89,7 +89,7 @@ int zombieCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig 
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config);
+      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnFromUID == -1);
     }
 
 		u8 random = (u8)rand(100);

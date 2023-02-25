@@ -78,9 +78,21 @@ void mobForceIntoMapBounds(Moby* moby)
   if (!moby)
     return;
 
+  if (moby->Position[0] < 100)
+    moby->Position[0] = 100;
   // prevent mob from entering gas zone
-  if (moby->Position[0] > 524.4)
+  else if (moby->Position[0] > 524.4)
     moby->Position[0] = 524.4;
+  
+  if (moby->Position[1] < 400)
+    moby->Position[1] = 400;
+  else if (moby->Position[1] > 800)
+    moby->Position[1] = 800;
+
+  if (moby->Position[2] < 400)
+    moby->Position[2] = 400;
+  else if (moby->Position[2] > 500)
+    moby->Position[2] = 500;
 }
 
 //--------------------------------------------------------------------------

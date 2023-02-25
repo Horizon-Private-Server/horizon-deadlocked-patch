@@ -81,8 +81,8 @@ const u8 DIFFICULTY_HITINVTIMERS[] = {
 	[0] 180,
 	[1] 120,
 	[2] 80,
-	[3] 47,
-	[4] 40,
+	[3] 80,
+	[4] 80,
 };
 
 const u8 UPGRADEABLE_WEAPONS[] = {
@@ -339,7 +339,7 @@ int spawnCanSpawnMob(struct MobSpawnParams* mob)
 }
 
 //--------------------------------------------------------------------------
-void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config)
+void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config, int isBaseConfig)
 {
   GameSettings* gs = gameGetSettings();
   if (!gs)
@@ -351,9 +351,12 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   float health = config->Health;
 
   // scale config by round
-  damage = damage * powf(1 + randRange(0.04, 0.06), State.RoundNumber * State.Difficulty * playerCountMultiplier);
-  speed = speed * powf(1 + randRange(0.04, 0.06), State.RoundNumber * State.Difficulty * playerCountMultiplier);
-  health = health * powf(1 + randRange(0.04, 0.06), State.RoundNumber * State.Difficulty * playerCountMultiplier);
+  if (isBaseConfig) {
+    damage = damage * powf(1 + 0.02, State.RoundNumber * State.Difficulty * playerCountMultiplier * randRange(0.9, 1.1));
+    speed = speed * powf(1 + 0.02, State.RoundNumber * State.Difficulty * playerCountMultiplier * randRange(0.9, 1.1));
+    health = health * powf(1 + 0.02, State.RoundNumber * State.Difficulty * playerCountMultiplier * randRange(0.9, 1.1));
+    DPRINTF("base config\n");
+  }
 
   // enforce max values
   if (config->MaxDamage > 0 && damage > config->MaxDamage)
@@ -1859,7 +1862,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_USE_ITEM, &onPlayerUseItemRemote);
 
 	// set game over string (replaces "Draw!")
-	strncpy((char*)0x0197B3AA, SURVIVAL_GAME_OVER, 12);
+	//strncpy((char*)0x0197B3AA, SURVIVAL_GAME_OVER, 12);
 	strncpy(uiMsgString(0x3152), SURVIVAL_UPGRADE_MESSAGE, strlen(SURVIVAL_UPGRADE_MESSAGE));
 	strncpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE));
 
@@ -1944,6 +1947,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
       p->GadgetBox->ModBasic[5] = 64;
       p->GadgetBox->ModBasic[6] = 64;
       p->GadgetBox->ModBasic[7] = 64;
+      State.PlayerStates[i].State.Bolts = 10000000;
 #endif
 
 			++State.ActivePlayerCount;

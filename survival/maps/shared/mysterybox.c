@@ -108,6 +108,26 @@ SoundDef BaseMysteryBoxSoundDef =
 	3			  // Bank
 };
 
+struct MysteryBoxItemWeight
+{
+  enum MysteryBoxItem Item;
+  float Probability;
+};
+
+struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
+  { MYSTERY_BOX_ITEM_RESET_GATES, 0.05 },
+  { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
+  { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
+  { MYSTERY_BOX_ITEM_ACTIVATE_POWER, 0.0888 },
+  { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.0967 },
+  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
+  { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
+  // { MYSTERY_BOX_ITEM_WEAPON_MOD, 0.4 },
+  { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
+};
+
+const int MysteryBoxItemMysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)/sizeof(struct MysteryBoxItemWeight);
+
 //--------------------------------------------------------------------------
 void mboxPlayOpenSound(Moby* moby)
 {
@@ -131,14 +151,65 @@ int mboxGetAlphaMod(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+int mboxRand(int mod)
+{
+  static unsigned int seed = 0;
+  if (!seed)
+    seed = gameGetTime();
+
+  seed = (1664525 * seed + 1013904223);
+  return seed % mod;
+}
+
+//--------------------------------------------------------------------------
 void mboxActivate(Moby* moby, int activatedByPlayerId)
 {
+  int i;
+
+#if DEBUG
+  static int total = 0;
+  static int counts[MYSTERY_BOX_ITEM_COUNT] = {
+    0,0,0,0,0,0,0,0
+  };
+  const char * NAMES[MYSTERY_BOX_ITEM_COUNT] = {
+    [MYSTERY_BOX_ITEM_WEAPON_MOD] "Alpha  ",
+    [MYSTERY_BOX_ITEM_ACTIVATE_POWER] "Power  ",
+    [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] "Upgrade",
+    [MYSTERY_BOX_ITEM_DREAD_TOKEN] "Token  ",
+    [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] "Cloak  ",
+    [MYSTERY_BOX_ITEM_REVIVE_TOTEM] "Revive ",
+    [MYSTERY_BOX_ITEM_RESET_GATES] "Reset  ",
+    [MYSTERY_BOX_ITEM_TEDDY_BEAR] "Bear   ",
+  };
+#endif
+
 	// create event
 	GuberEvent * guberEvent = guberCreateEvent(moby, MYSTERY_BOX_EVENT_ACTIVATE);
   if (guberEvent) {
 
-    int item = randRangeInt(0, MYSTERY_BOX_ITEM_COUNT - 1);
+    // pick random by weight
+    for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesCount-1); ++i)
+    {
+      float r = mboxRand(1000000) / 999999.0;
+      if (r < MysteryBoxItemProbabilities[i].Probability)
+        break;
+    }
+
+    int item = MysteryBoxItemProbabilities[i].Item;
     int random = rand(100);
+
+#if DEBUG
+    counts[item] ++;
+    total ++;
+
+    printf("counts (%d):\n", total);
+    for (i = 0; i < MYSTERY_BOX_ITEM_COUNT; ++i) {
+      if (counts[i]) {
+        printf("\t%s => %d (%.2f%%)\n", NAMES[i], counts[i], 100 * (counts[i] / (float)total));
+      }
+    }
+    printf("\n");
+#endif
 
     guberEventWrite(guberEvent, &activatedByPlayerId, 4);
     guberEventWrite(guberEvent, &item, 4);
@@ -194,7 +265,7 @@ void mboxGivePlayer(Moby* moby, int playerId, enum MysteryBoxItem item, int rand
     guberEventWrite(guberEvent, &item, 4);
     guberEventWrite(guberEvent, &random, 4);
 
-    DPRINTF("mbox give player %d item %d (%d)\n", playerId, item, random);
+    //DPRINTF("mbox give player %d item %d (%d)\n", playerId, item, random);
     
   }
 }
@@ -415,7 +486,7 @@ void mboxUpdate(Moby* moby)
       mboxOpenDoor(moby, 1);
 
       // transition to next state after
-      if (timeSinceStateChanged > (TIME_SECOND * 3)) {
+      if (timeSinceStateChanged > MYSTERY_BOX_CYCLE_ITEMS_DURATION) {
         mobySetState(moby, MYSTERY_BOX_STATE_DISPLAYING_ITEM, -1);
         pvars->StateChangedAtTime = gameGetTime();
       }
@@ -492,7 +563,7 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
 	int i;
   int activatedByPlayerId, item, random;
   
-  DPRINTF("mbox activate: %08X\n", (u32)moby);
+  //DPRINTF("mbox activate: %08X\n", (u32)moby);
   struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
   if (!pvars)
     return 0;
@@ -529,7 +600,7 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
   int playerId, item, random;
   Player** players = playerGetAll();
   
-  DPRINTF("mbox give player: %08X\n", (u32)moby);
+  //DPRINTF("mbox give player: %08X\n", (u32)moby);
   struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
   if (!pvars)
     return 0;

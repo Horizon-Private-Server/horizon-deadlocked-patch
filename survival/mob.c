@@ -237,11 +237,11 @@ void mobHandleDraw(Moby* moby)
 void mobUpdate(Moby* moby)
 {
 	int i;
+	int isOwner;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	GameOptions* gameOptions = gameGetOptions();
 	if (!pvars || pvars->MobVars.Destroyed || !pvars->VTable)
 		return;
-	int isOwner;
 
   // 
   if (pvars->VTable->PreUpdate)
@@ -321,7 +321,7 @@ void mobUpdate(Moby* moby)
       pvars->MobVars.TimeLastGroundedTicks++;
 
     // auto destruct after 15 seconds of falling
-    if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
+    if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 10)) {
       pvars->MobVars.Respawn = 1;
     }
   }
@@ -432,8 +432,9 @@ void mobUpdate(Moby* moby)
 	if (isOwner) {
 
 		// handle falling under map
-		if (moby->Position[2] < gameGetDeathHeight())
+		if (moby->Position[2] < gameGetDeathHeight()) {
 			pvars->MobVars.Respawn = 1;
+    }
 
 		// respawn
 		if (pvars->MobVars.Respawn) {
@@ -442,7 +443,7 @@ void mobUpdate(Moby* moby)
 			if (spawnGetRandomPoint(p)) {
 				memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
 				mobCreate(p, 0, guberGetUID(moby), &config);
-			}	
+			}
 
 			pvars->MobVars.Respawn = 0;
 			pvars->MobVars.Destroyed = 2;
@@ -461,6 +462,24 @@ void mobUpdate(Moby* moby)
 		}
 	}
   
+
+
+  if (moby->Position[0] < 100)
+    moby->Position[0] = 100;
+  // prevent mob from entering gas zone
+  else if (moby->Position[0] > 524.4)
+    moby->Position[0] = 524.4;
+  
+  if (moby->Position[1] < 400)
+    moby->Position[1] = 400;
+  else if (moby->Position[1] > 800)
+    moby->Position[1] = 800;
+
+  if (moby->Position[2] < 400)
+    moby->Position[2] = 400;
+  else if (moby->Position[2] > 500)
+    moby->Position[2] = 500;
+
   // 
   if (pvars->VTable->PostUpdate)
     pvars->VTable->PostUpdate(moby);
@@ -520,6 +539,9 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.MobType = args.MobType;
 	pvars->MobVars.Config.MobSpecialMutation = args.MobSpecialMutation;
 	pvars->MobVars.Config.Bolts = args.Bolts;
+#if PAYDAY
+	pvars->MobVars.Config.Bolts = 100000;
+#endif
 	pvars->MobVars.Config.Xp = args.Xp;
 	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth;
 	pvars->MobVars.Config.Health = (float)args.StartHealth;

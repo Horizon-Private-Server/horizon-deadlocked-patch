@@ -10,7 +10,7 @@
 #include <libdl/sound.h>
 
 #define DROP_MOBY_OCLASS				(0x1F4)
-#define DROP_PICKUP_RADIUS			(2)
+#define DROP_PICKUP_RADIUS			(3)
 
 enum DropType {
 	DROP_NUKE,
