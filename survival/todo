@@ -29,7 +29,7 @@ Optimize network code
 ++Fix playing with locals breaking vendor/al spawns
 ++Add end game scoreboard with kills/bolts/deaths/revives
 Animate vendor for when you get near the it
-Send mutators to everyone at start of each round (in case host leaves midgame)
+--Send mutators to everyone at start of each round (in case host leaves midgame)
 ++Add knockback for impact mod
 ++Fix zombies flying across air when step skip is on
 ++Add grace period between rounds
@@ -61,7 +61,7 @@ Fix mob order not working correctly when spectating
 ++Add upgrade that lowers the cost of reviving other players
 ++Add upgrade that gives discount on vendor
 ++Add token system based on XP from killing mobs
-Add mystery box (pay 10000 bolts)
+++Add mystery box (pay 10000 bolts)
   - Teddy bear (respawn random location)
   - Random weapon mod
   - Dread token
@@ -73,7 +73,30 @@ Add mystery box (pay 10000 bolts)
   - Chance of being frozen for 1 minute
   - Can't use random weapon
   - Foggy vision for 1 minute
+  - Reset gates with 1 token to open
 ++Revive cost resets when you fully die
 Get a reward for reviving (ammo/health)
-Add path finding
+++Add path finding
 ++Force game settings on start
+++Fix knockback throwing mobs into air
+++Fix mobs clipping through walls
+Have power move around the map randomly
+++Balance vendor discount
+++Fix drops not spawning
+++Fix drowning in acid
+++Make power longer to turn on (6 turns)
+++Have upgrades fade and then respawn at another spot
+++Move shield to right path
+++Increase viper ammo to 50 per
+++Add spawnpoints to quad room
+Add random events
+  - Defend something for period of time
+++Add snack manager for events/popups
+++Fix mobs not retargeting to closer players
+++Fix titans not hitting players right on them
+++Add per mob config damage/speed/health scaling factor
+++Sync network pathfinding data
+++Make mobs spawn closer to players more likely
+++Rebalance arbiter damage/ammo
+++Add timed infinite ammo item to mystery box
+++Holoshields damage mobs

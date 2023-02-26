@@ -1,6 +1,15 @@
 #ifndef __PATCH_CONFIG_H__
 #define __PATCH_CONFIG_H__
 
+#include "messageid.h"
+
+enum PatchGameNetMessage
+{
+  // RotatingWeaponsChanged
+  CUSTOM_MSG_ROTATING_WEAPONS_CHANGED = CUSTOM_MSG_ID_PATCH_IN_GAME_START,
+  CUSTOM_MSG_CLIENT_READY,
+};
+
 enum ActionType
 {
   ACTIONTYPE_DRAW,

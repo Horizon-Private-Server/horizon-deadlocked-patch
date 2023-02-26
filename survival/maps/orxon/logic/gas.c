@@ -1,8 +1,7 @@
 /***************************************************
- * FILENAME :		logic.c
+ * FILENAME :		gas.c
  * 
  * DESCRIPTION :
- * 		Custom map logic for Survival V2's Mining Facility.
  * 		Handles logic for gaseous part of map.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
@@ -28,8 +27,9 @@
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
 #include <libdl/color.h>
+#include <libdl/utils.h>
 
-#define GAS_DAMAGE_TICKRATE			(30)
+#define GAS_DAMAGE_TICKRATE			(60)
 #define GAS_DAMAGE_AMOUNT			(1)
 #define GAS_QUAD_COLOR				(0x40004000)
 #define GAS_QUAD_TEX_ID				(24)
@@ -39,10 +39,10 @@
 #define GAS_X_FOG_FADE_OUT_OFFSET	(0)
 #define GAS_X_FOG_FADE_OUT_LENGTH	(5)
 
-const u32 DefaultFogColor = 0x0037433C;
+const u32 DefaultFogColor = 0x00002000;
 const float DefaultFogDistances[4] = {
-	51200.0,
-	204800.0,
+	10240.0,
+	102400.0,
 	255.0,
 	102.00
 };
@@ -91,7 +91,7 @@ struct GasPlane GasPlanes[] = {
 };
 const int GasPlanesCount = sizeof(GasPlanes)/sizeof(struct GasPlane);
 
-// sets the fog colors and distance
+// sets the fog colors and distancew
 void setFog(u32 color, float distance0, float distance1, float distance2, float distance3)
 {
 	*(u32*)0x0022254C = color;
@@ -127,15 +127,20 @@ float getCameraGasFogFactor(Player* player)
 	if (v > gasFadeOutX)
 		return 1;
 
+  if (v < gasFadeInX)
+    return 0;
+
 	float d = vector_innerproduct(&player->CameraMatrix[4], gasDotForward);
 
 	float rOut = 1 - clamp(d * ((v - gasFadeOutX)/GAS_X_FOG_FADE_OUT_LENGTH), 0, 1);
+  if (v < GAS_X_DAMAGE_START)
+    rOut = 0;
 	float rIn = clamp(((v - gasFadeInX)/GAS_X_FOG_FADE_IN_LENGTH), 0, 1);
+  if (v > GAS_X_DAMAGE_START)
+    rIn = 1;
 
 	return lerpf(rOut, rIn, (d + 1) / 2);
 }
-
-long aaa = 1;
 
 // draw gas quad
 void drawGasQuad(VECTOR position, float yaw, float width, float height, u32 color, float uOff, float vOff, float uScale, float vScale)
@@ -149,13 +154,13 @@ void drawGasQuad(VECTOR position, float yaw, float width, float height, u32 colo
 	VECTOR pBR = {-0.5,0,-0.5,1};
 	VECTOR scale = {width,1,height,0};
 
-	float u0 = uOff*uScale;
-	float u1 = (1+uOff)*uScale;
-	float v0 = vOff*vScale;
-	float v1 = (1+vOff)*vScale;
+	float u0 = fastmodf(uOff*uScale, 1);
+	float u1 = uScale + u0;
+	float v0 = fastmodf(vOff*vScale, 1);
+	float v1 = vScale + v0;
 
 	// init
-  	gfxResetQuad(&quad);
+  gfxResetQuad(&quad);
 
 	// color of each corner?
 	vector_copy(quad.VertexPositions[0], pTL);
@@ -170,7 +175,7 @@ void drawGasQuad(VECTOR position, float yaw, float width, float height, u32 colo
 	quad.Clamp = 0;
 	quad.Tex0 = gfxGetEffectTex(32, 1);
 	quad.Tex1 = 0xFF9000000260;
-	quad.Alpha = 0x8000000044;
+	quad.Alpha = 0x8000000048;
 
 	// set draw args
 	matrix_unit(m2);
@@ -181,7 +186,7 @@ void drawGasQuad(VECTOR position, float yaw, float width, float height, u32 colo
 	memcpy(&m2[12], position, sizeof(VECTOR));
 
 	// draw
-	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
+	gfxDrawQuad((void*)0x00222590, &quad, m2, 0);
 }
 
 // render all gas planes at entrances to gas area
@@ -192,7 +197,7 @@ void drawGasQuads(void)
 	Player* p = playerGetFromSlot(0);
 
 	float gasFactor = getCameraGasFogFactor(p);
-	u32 color = colorLerp(0x7C002000, 0x50002000, gasFactor * gasFactor);
+	u32 color = colorLerp(0x80008000, 0x80002000, gasFactor * gasFactor);
 
 	for (i = 0; i < GasPlanesCount; ++i) {
 		struct GasPlane* plane = &GasPlanes[i];
@@ -202,10 +207,10 @@ void drawGasQuads(void)
 }
 
 /*
- * NAME :		main
+ * NAME :		gasTick
  * 
  * DESCRIPTION :
- * 			Entrypoint.
+ * 			
  * 
  * NOTES :
  * 
@@ -215,7 +220,7 @@ void drawGasQuads(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int main (void)
+int gasTick(void)
 {
 	static int gasDamageTicker = GAS_DAMAGE_TICKRATE;
 	int i;
@@ -223,7 +228,7 @@ int main (void)
 		return;
 
 	// draw gas mobies
-  	gfxRegisterDrawFunction((void**)0x0022251C, &drawGasQuads, NULL);
+  gfxRegisterDrawFunction((void**)0x0022251C, &drawGasQuads, NULL);
 
 	// handle player damage and fog
 	Player* p = playerGetFromSlot(0);
@@ -240,7 +245,8 @@ int main (void)
 			);
 
 		// damage player if in gas
-		if (0 && !playerIsDead(p) && isPlayerInGasArea(p)) {
+#if !DEBUG
+		if (!playerIsDead(p) && isPlayerInGasArea(p)) {
 			
 			if (gasDamageTicker) {
 				--gasDamageTicker;
@@ -255,6 +261,7 @@ int main (void)
 		} else {
 			gasDamageTicker = GAS_DAMAGE_TICKRATE;
 		}
+#endif
 	}
 
 	return 0;

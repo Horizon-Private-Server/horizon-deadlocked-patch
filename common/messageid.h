@@ -212,6 +212,11 @@ enum CustomMessageId
     CUSTOM_MSG_RESPONSE_CUSTOM_MODE_PATCH = 37,
 
     /*
+     * Sent by the server containing the global custom maps version.
+     */
+    CUSTOM_MSG_ID_SERVER_SENT_CMAPS_GLOBAL_VERSION = 38,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -219,8 +224,7 @@ enum CustomMessageId
     /*
      * Start of custom message ids reserved for in game only patch custom messages.
      */
-    CUSTOM_MSG_ID_PATCH_IN_GAME_START = 200,
-
+    CUSTOM_MSG_ID_PATCH_IN_GAME_START = 200
 };
 
 typedef struct ServerDownloadDataRequest

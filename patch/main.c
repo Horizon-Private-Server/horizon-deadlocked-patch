@@ -111,6 +111,10 @@ void onConfigUpdate(void);
 void configMenuEnable(void);
 void configMenuDisable(void);
 void configTrySendGameConfig(void);
+int readLocalGlobalVersion(void);
+
+extern int mapsRemoteGlobalVersion;
+extern int mapsLocalGlobalVersion;
 
 #if FREECAM
 void processFreecam(void);
@@ -146,6 +150,7 @@ int lastSurvivor = 0;
 int lastRespawnTime = 5;
 int lastCrazyMode = 0;
 char mapOverrideResponse = 1;
+char showNeedLatestMapsPopup = 0;
 char showNoMapPopup = 0;
 char showMiscPopup = 0;
 char miscPopupTitle[32];
@@ -1555,12 +1560,6 @@ void runFixB6EatOnDownSlope(void)
   POKE_U16(0x003B56E8, 0x30C);
 }
 
-void * GetMobyClassPtr(int oClass)
-{
-	int mClass = *(u8*)(0x0024a110 + oClass);
-	return *(u32*)(0x002495c0 + mClass*4);
-}
-
 /*
  * NAME :		patchWeaponShotLag
  * 
@@ -1790,6 +1789,126 @@ void runCorrectPlayerChargebootRotation(void)
 			}
 		}
 	}
+}
+
+/*
+ * NAME :		onClientReady
+ * 
+ * DESCRIPTION :
+ * 			Handles when a client loads the level.
+ *      Sets a bit indicating the client has loaded and then checks if all clients have loaded.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onClientReady(int clientId)
+{
+  GameSettings* gs = gameGetSettings();
+  int i;
+  int bit = 1 << clientId;
+
+  // set ready
+  patchStateContainer.AllClientsReady = 0;
+  patchStateContainer.ClientsReadyMask |= bit;
+  DPRINTF("received client ready from %d\n", clientId);
+
+  if (!gs)
+    return;
+
+  // check if all clients are ready
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    bit = 1 << i;
+    if (gs->PlayerClients[i] >= 0 && (patchStateContainer.ClientsReadyMask & bit) == 0)
+      return;
+  }
+
+  patchStateContainer.AllClientsReady = 1;
+  DPRINTF("all clients ready\n");
+}
+
+/*
+ * NAME :		onClientReadyRemote
+ * 
+ * DESCRIPTION :
+ * 			Receives when another client has loaded the level and passes it to the onClientReady handler.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onClientReadyRemote(void * connection, void * data)
+{
+  int clientId;
+  memcpy(&clientId, data, sizeof(clientId));
+	onClientReady(clientId);
+
+	return sizeof(clientId);
+}
+
+/*
+ * NAME :		sendClientReady
+ * 
+ * DESCRIPTION :
+ * 			Broadcasts to all other clients in lobby that this client has finished loading the level.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void sendClientReady(void)
+{
+  int clientId = gameGetMyClientId();
+  int bit = 1 << clientId;
+  if (patchStateContainer.ClientsReadyMask & bit)
+    return;
+
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &clientId);
+  DPRINTF("send client ready\n");
+
+	// locally
+  onClientReady(clientId);
+}
+
+/*
+ * NAME :		runClientReadyMessager
+ * 
+ * DESCRIPTION :
+ * 			Sends the current game info to the server.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runClientReadyMessager(void)
+{
+  GameSettings* gs = gameGetSettings();
+
+  if (!gs)
+  {
+    patchStateContainer.AllClientsReady = 0;
+    patchStateContainer.ClientsReadyMask = 0;
+  }
+  else if (isInGame())
+  {
+    sendClientReady();
+  }
 }
 
 /*
@@ -2480,6 +2599,15 @@ int hookCheckHostStartGame(void* a0)
 			return 0;
 		}
 
+    // if survival
+    // verify we have the latest maps
+    if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+      if (mapsLocalGlobalVersion >= 0 || !readLocalGlobalVersion() || mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+        showNeedLatestMapsPopup = 1;
+        return 0;
+      }
+    }
+
 		// wait for download to finish
 		if (dlIsActive) {
 			showMiscPopup = 1;
@@ -2526,18 +2654,25 @@ void runCheckGameMapInstalled(void)
 		*(u32*)0x00759580 = 0x0C000000 | ((u32)&hookCheckHostStartGame >> 2);
 
 	int clientId = gameGetMyClientId();
-	if (mapOverrideResponse < 0)
-	{
-		for (i = 1; i < GAME_MAX_PLAYERS; ++i)
-		{
-			if (gs->PlayerClients[i] == clientId && gs->PlayerStates[i] == 6)
-			{
-				gameSetClientState(i, 0);
-				showNoMapPopup = 1;
-				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
-			}
-		}
-	}
+  for (i = 1; i < GAME_MAX_PLAYERS; ++i)
+  {
+    if (gs->PlayerClients[i] == clientId && gs->PlayerStates[i] == 6)
+    {
+      // need map
+      if (mapOverrideResponse < 0)
+      {
+        gameSetClientState(i, 0);
+        showNoMapPopup = 1;
+        netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+      }
+      else if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+        if (mapsLocalGlobalVersion >= 0 || !readLocalGlobalVersion() || mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+          gameSetClientState(i, 0);
+          showNeedLatestMapsPopup = 1;
+        }
+      }
+    }
+  }
 }
 
 /*
@@ -3030,6 +3165,7 @@ void runPayloadDownloadRequester(void)
  */
 void onOnlineMenu(void)
 {
+  char buf[64];
 
 	// call normal draw routine
 	((void (*)(void))0x00707F28)();
@@ -3074,7 +3210,6 @@ void onOnlineMenu(void)
 		else
 		{
 #if MAPDOWNLOADER
-			char buf[32];
 			sprintf(buf, "Would you like to download the map now?", dataCustomMaps.items[(int)gameConfig.customMapId]);
 			
 			//uiShowOkDialog("Custom Maps", buf);
@@ -3086,13 +3221,21 @@ void onOnlineMenu(void)
 				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
 			}
 #else
-			char buf[32];
 			sprintf(buf, "Please install %s to play.", dataCustomMaps.items[(int)gameConfig.customMapId]);
 			uiShowOkDialog("Custom Maps", buf);
 #endif
 		}
 
 		showNoMapPopup = 0;
+	}
+
+	// 
+	if (showNeedLatestMapsPopup)
+	{
+    sprintf(buf, "Please download the latest custom maps to play. %d %d", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
+    uiShowOkDialog("Custom Maps", buf);
+
+		showNeedLatestMapsPopup = 0;
 	}
 
 	if (showMiscPopup)
@@ -3174,6 +3317,7 @@ int main (void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST, &onSetLobbyClientPatchConfig);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
 	netInstallCustomMsgHandler(CUSTOM_MSG_RESPONSE_CUSTOM_MODE_PATCH, &onCustomModeDownloadInitiated);
+	netInstallCustomMsgHandler(CUSTOM_MSG_CLIENT_READY, &onClientReadyRemote);
 
 	// Run map loader
 	runMapLoader();
@@ -3208,6 +3352,10 @@ int main (void)
 
 	// detects when to download a new custom mode patch
 	runPayloadDownloadRequester();
+
+  // sends client ready state to others in lobby when we load the level
+  // ensures our local copy of who is ready is reset when loading a new lobby
+  runClientReadyMessager();
 
 	// Patch camera speed
 	patchCameraSpeed();

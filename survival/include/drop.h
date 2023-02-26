@@ -10,7 +10,7 @@
 #include <libdl/sound.h>
 
 #define DROP_MOBY_OCLASS				(0x1F4)
-#define DROP_PICKUP_RADIUS			(2)
+#define DROP_PICKUP_RADIUS			(3)
 
 enum DropType {
 	DROP_NUKE,
@@ -72,5 +72,6 @@ struct DropPickupEventArgs
 void dropTick(void);
 void dropInitialize(void);
 int dropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int team);
+int dropHandleEvent(Moby* moby, GuberEvent* event);
 
 #endif // SURVIVAL_DROP_H

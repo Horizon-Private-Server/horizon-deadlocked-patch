@@ -7,27 +7,9 @@
 #include <libdl/time.h>
 #include <libdl/player.h>
 #include <libdl/sound.h>
-
-enum ZombieAnimId
-{
-	ZOMBIE_ANIM_UNDERGROUND,
-	ZOMBIE_ANIM_IDLE,
-	ZOMBIE_ANIM_2,
-	ZOMBIE_ANIM_WALK,
-	ZOMBIE_ANIM_AGGRO_WALK,
-	ZOMBIE_ANIM_RUN,
-	ZOMBIE_ANIM_JUMP,
-	ZOMBIE_ANIM_CROUCH,
-	ZOMBIE_ANIM_ELECTROCUTED,
-	ZOMBIE_ANIM_CRAWL_OUT_OF_GROUND,
-	ZOMBIE_ANIM_FLINCH,
-	ZOMBIE_ANIM_THROW_HEAD,
-	ZOMBIE_ANIM_TAUNT,
-	ZOMBIE_ANIM_CAT_PASS,
-	ZOMBIE_ANIM_BIG_FLINCH,
-	ZOMBIE_ANIM_SLAP,
-	ZOMBIE_ANIM_IDLE_2
-};
+#include "zombie.h"
+#include "executioner.h"
+#include "tremor.h"
 
 enum MobAction
 {
@@ -36,6 +18,7 @@ enum MobAction
 	MOB_ACTION_JUMP,
 	MOB_ACTION_WALK,
 	MOB_ACTION_FLINCH,
+	MOB_ACTION_BIG_FLINCH,
 	MOB_ACTION_LOOK_AT_TARGET,
 	MOB_ACTION_ATTACK,
 	MOB_ACTION_TIME_BOMB,
@@ -44,6 +27,7 @@ enum MobAction
 enum MobType
 {
 	MOB_NORMAL,
+  MOB_RUNNER,
 	MOB_FREEZE,
 	MOB_ACID,
 	MOB_EXPLODE,
@@ -79,25 +63,6 @@ enum MobMutateAttribute {
 	MOB_MUTATE_COUNT
 };
 
-enum ZombieBangles {
-	ZOMBIE_BANGLE_HEAD_1 =  	(1 << 0),
-	ZOMBIE_BANGLE_HEAD_2 =  	(1 << 1),
-	ZOMBIE_BANGLE_HEAD_3 =  	(1 << 2),
-	ZOMBIE_BANGLE_HEAD_4 =  	(1 << 3),
-	ZOMBIE_BANGLE_HEAD_5 =  	(1 << 4),
-	ZOMBIE_BANGLE_TORSO_1 = 	(1 << 5),
-	ZOMBIE_BANGLE_TORSO_2 = 	(1 << 6),
-	ZOMBIE_BANGLE_TORSO_3 = 	(1 << 7),
-	ZOMBIE_BANGLE_TORSO_4 = 	(1 << 8),
-	ZOMBIE_BANGLE_HIPS = 			(1 << 9),
-	ZOMBIE_BANGLE_LLEG = 			(1 << 10),
-	ZOMBIE_BANGLE_RFOOT = 		(1 << 11),
-	ZOMBIE_BANGLE_RLEG = 			(1 << 12),
-	ZOMBIE_BANGLE_RARM = 			(1 << 13),
-	ZOMBIE_BANGLE_LARM = 			(1 << 14),
-	ZOMBIE_BANGLE_HIDE_BODY =	(1 << 15)
-};
-
 // ordered from least to most probable
 enum MobSpawnParamIds {
 	MOB_SPAWN_PARAM_TITAN = 0,
@@ -119,17 +84,52 @@ enum MobSpawnType {
 	SPAWN_TYPE_NEAR_HEALTHBOX = 8,
 };
 
+struct MobDamageEventArgs;
+struct MobSpawnEventArgs;
+
+typedef void (*MobGenericCallback_func)(Moby* moby);
+typedef Moby* (*MobGetNextTarget_func)(Moby* moby);
+typedef enum MobAction (*MobGetPreferredAction_func)(Moby* moby);
+typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
+typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
+typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
+typedef void (*MobOnStateUpdate_func)(Moby* moby, struct MobStateUpdateEventArgs* e);
+typedef void (*MobForceLocalAction_func)(Moby* moby, enum MobAction action);
+typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
+typedef short (*MobGetArmor_func)(Moby* moby);
+
+struct MobVTable {
+  MobGenericCallback_func PreUpdate;
+  MobGenericCallback_func PostUpdate;
+  MobGenericCallback_func PostDraw;
+  MobGenericCallback_func Move;
+  MobOnSpawn_func OnSpawn;
+  MobOnDestroy_func OnDestroy;
+  MobOnDamage_func OnDamage;
+  MobOnStateUpdate_func OnStateUpdate;
+  MobGetNextTarget_func GetNextTarget;
+  MobGetPreferredAction_func GetPreferredAction;
+  MobForceLocalAction_func ForceLocalAction;
+  MobGenericCallback_func DoAction;
+  MobDoDamage_func DoDamage;
+  MobGetArmor_func GetArmor;
+};
+
 struct MobConfig {
 	int MobType;
 	int Bolts;
 	float Damage;
 	float MaxDamage;
+  float DamageScale;
 	float Speed;
 	float MaxSpeed;
+  float SpeedScale;
 	float Health;
 	float MaxHealth;
+  float HealthScale;
 	float AttackRadius;
 	float HitRadius;
+  float CollRadius;
 	u16 Bangles;
 	u8 Xp;
 	u8 MaxCostMutation;
@@ -152,11 +152,42 @@ struct Knockback {
 	short Angle;
 	u8 Power;
 	u8 Ticks;
+  char Force;
+};
+
+struct MobMoveVars {
+  VECTOR LastPosition;
+  VECTOR Velocity;
+  VECTOR AddVelocity;
+  VECTOR LastJumpPosition;
+  VECTOR SumPositionDelta;
+  VECTOR LastTargetPos;
+  float SumSpeedOver;
+  float WallSlope;
+	u16 StuckTicks;
+  char Grounded;
+  char HitWall;
+  char IsStuck;
+  u8 UngroundedTicks;
+  u8 StuckCheckTicks;
+  u8 StuckJumpCount;
+
+  char PathEdgeCount;
+  char PathEdgeCurrent;
+  char PathHasReachedStart;
+  char PathHasReachedEnd;
+  u8 PathStartEndNodes[2];
+  u8 PathTicks;
+  u8 PathCheckNearAndSeeTargetTicks;
+  u8 CurrentPath[20];
 };
 
 struct MobVars {
 	struct MobConfig Config;
 	struct Knockback Knockback;
+  struct MobMoveVars MoveVars;
+  int SpawnParamsIdx;
+  VECTOR TargetPosition;
 	int Action;
 	int NextAction;
 	float Health;
@@ -174,13 +205,11 @@ struct MobVars {
 	u16 AutoDirtyCooldownTicks;
 	u16 AmbientSoundCooldownTicks;
 	u16 TimeBombTicks;
-	u16 StuckTicks;
 	u16 MovingTicks;
+	u16 CurrentActionForTicks;
 	u16 TimeLastGroundedTicks;
 	u8 ActionId;
 	u8 LastActionId;
-	u8 MoveStep;
-	u8 MoveStepCooldownTicks;
 	char Owner;
 	char IsTraversing;
 	char AnimationLooped;
@@ -238,27 +267,26 @@ struct ReactVars {
 };
 
 struct MobPVar {
-  struct TargetVars * TargetVarsPtr;
+	struct TargetVars * TargetVarsPtr;
 	char _pad0[0x0C];
 	struct ReactVars * ReactVarsPtr;
 	char _pad1[0x08];
   struct MoveVars_V2 * MoveVarsPtr;
 	char _pad2[0x14];
-  struct FlashVars * FlashVarsPtr;
+ 	struct FlashVars * FlashVarsPtr;
 	char _pad3[0x18];
 
 	struct TargetVars TargetVars;
 	struct ReactVars ReactVars;
-	struct MoveVars_V2 MoveVars;
 	struct FlashVars FlashVars;
 	struct MobVars MobVars;
+  struct MobVTable* VTable;
 };
 
 struct MobDamageEventArgs
 {
 	struct Knockback Knockback;
 	int SourceUID;
-	float Angle;
 	u16 DamageQuarters;
 	u16 SourceOClass;
 };
@@ -273,6 +301,11 @@ struct MobStateUpdateEventArgs
 {
 	VECTOR Position;
 	int TargetUID;
+  u8 PathStartNodeIdx;
+  u8 PathEndNodeIdx;
+  u8 PathCurrentEdgeIdx;
+  char PathHasReachedStart;
+  char PathHasReachedEnd;
 };
 
 struct MobSpawnEventArgs
@@ -280,20 +313,23 @@ struct MobSpawnEventArgs
 	int Bolts;
 	u16 StartHealth;
 	u16 Bangles;
+	u16 SpeedEighths;
+	u16 Damage;
 	char MobType;
 	char MobSpecialMutation;
+  u8 SpawnParamsIdx;
 	u8 Xp;
-	u8 Damage;
 	u8 AttackRadiusEighths;
 	u8 HitRadiusEighths;
-	u8 SpeedHundredths;
+  u8 CollRadiusEighths;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 };
 
+void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);
 void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);
-int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 void mobInitialize(void);
 void mobTick(void);
 

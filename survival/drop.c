@@ -223,7 +223,7 @@ int dropHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	moby->PUpdate = &dropUpdate;
 
 	// 
-	//moby->ModeBits |= 0x30;
+	moby->ModeBits &= ~2;
 	//moby->GlowRGBA = MobSecondaryColors[(int)args.MobType];
 	//moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
 	moby->CollData = NULL;
@@ -318,7 +318,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 				Player * p = players[i];
 				if (p && p->Team == pvars->Team) {
 					if (!playerIsDead(p) && p->Health > 0) {
-						playerSetHealth(p, 50);
+						playerSetHealth(p, p->MaxHealth);
 					}
 					else if (State.PlayerStates[i].ReviveCooldownTicks) {
 						playerRevive(p, args.PickedUpByPlayerId);

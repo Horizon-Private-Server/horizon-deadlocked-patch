@@ -1,4 +1,5 @@
 #include "include/utils.h"
+#include "include/game.h"
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
@@ -7,6 +8,8 @@
 #include <libdl/sound.h>
 #include <libdl/random.h>
 #include <libdl/graphics.h>
+
+extern struct SurvivalState State;
 
 /* 
  * Explosion sound def
@@ -42,6 +45,23 @@ SoundDef UpgradeSoundDef =
 	3			  // Bank
 };
 
+/* 
+ * paid sound def
+ */
+SoundDef PaidSoundDef =
+{
+	0.0,	// MinRange
+	20.0,	// MaxRange
+	100,		// MinVolume
+	2000,		// MaxVolume
+	0,			// MinPitch
+	0,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	32,		  // Index
+	3			  // Bank
+};
+
 Moby * spawnExplosion(VECTOR position, float size, u32 color)
 {
 	// SpawnMoby_5025
@@ -60,6 +80,11 @@ Moby * spawnExplosion(VECTOR position, float size, u32 color)
 void playUpgradeSound(Player* player)
 {	
 	soundPlay(&UpgradeSoundDef, 0, player->PlayerMoby, 0, 0x400);
+}
+
+void playPaidSound(Player* player)
+{
+  soundPlay(&PaidSoundDef, 0, player->PlayerMoby, 0, 0x400);
 }
 
 int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod)
@@ -96,6 +121,7 @@ int getWeaponIdFromOClass(short oclass)
 			case MOBY_ID_B6_BOMB_EXPLOSION: weaponId = WEAPON_ID_B6; break;
 			case MOBY_ID_FLAIL: weaponId = WEAPON_ID_FLAIL; break;
 			case MOBY_ID_HOLOSHIELD_LAUNCHER: weaponId = WEAPON_ID_OMNI_SHIELD; break;
+			case MOBY_ID_HOLOSHIELD_SHOT: weaponId = WEAPON_ID_OMNI_SHIELD; break;
 			case MOBY_ID_WRENCH: weaponId = WEAPON_ID_WRENCH; break;
 		}
 	}
@@ -192,4 +218,70 @@ int charArrayContains(char* list, int count, char value)
 			return 1;
 
 	return 0;
+}
+
+//--------------------------------------------------------------------------
+void vectorProjectOnVertical(VECTOR output, VECTOR input0)
+{
+    asm __volatile__ (
+#if __GNUC__ > 3
+    "lqc2   $vf1, 0x00(%1)  \n"
+    "vmove.xy   $vf1, $vf0   \n"
+    "sqc2   $vf1, 0x00(%0)  \n"
+#else
+    "lqc2		vf1, 0x00(%1)	\n"
+    "vmove.xy  vf1, vf0    \n"
+    "sqc2		vf1, 0x00(%0)	\n"
+#endif
+    : : "r" (output), "r" (input0)
+  );
+}
+
+//--------------------------------------------------------------------------
+void vectorProjectOnHorizontal(VECTOR output, VECTOR input0)
+{
+    asm __volatile__ (
+#if __GNUC__ > 3
+    "lqc2   $vf1, 0x00(%1)  \n"
+    "vmove.z   $vf1, $vf0   \n"
+    "sqc2   $vf1, 0x00(%0)  \n"
+#else
+    "lqc2		vf1, 0x00(%1)	\n"
+    "vmove.z  vf1, vf0    \n"
+    "sqc2		vf1, 0x00(%0)	\n"
+#endif
+    : : "r" (output), "r" (input0)
+  );
+}
+
+//--------------------------------------------------------------------------
+float getSignedSlope(VECTOR forward, VECTOR normal)
+{
+  VECTOR up, hForward;
+
+  vectorProjectOnHorizontal(hForward, forward);
+  vector_normalize(hForward, hForward);
+  vector_outerproduct(up, hForward, normal);
+  float slope = atan2f(vector_length(up), vector_innerproduct(hForward, normal)) - MATH_PI/2;
+
+  /*if (fabsf(slope) > 40*MATH_DEG2RAD) {
+    DPRINTF("getSignedSlope:\n\tup:%.2f,%.2f,%.2f\n\thF:%.2f,%.2f,%.2f\n\tn:%.2f,%.2f,%.2f\n\tslope:%f\n"
+      , up[0], up[1], up[2]
+      , hForward[0], hForward[1], hForward[2]
+      , normal[0], normal[1], normal[2]
+      , slope * MATH_RAD2DEG);
+  }*/
+  return slope;
+}
+
+//--------------------------------------------------------------------------
+int mobyIsMob(Moby* moby)
+{
+  if (!moby)
+    return;
+
+  return moby->OClass == ZOMBIE_MOBY_OCLASS
+    || moby->OClass == EXECUTIONER_MOBY_OCLASS
+    || moby->OClass == TREMOR_MOBY_OCLASS
+    ;
 }
