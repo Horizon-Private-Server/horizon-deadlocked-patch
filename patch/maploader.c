@@ -229,7 +229,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	}
 	else
 	{
-		if (!readLocalGlobalVersion() || mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
+		if (readLocalGlobalVersion() < 0 || mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
 		{
 			// Indicate new version
 			actionState = ACTION_NEW_MAPS_UPDATE;
