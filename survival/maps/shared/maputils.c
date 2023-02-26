@@ -184,3 +184,12 @@ u32 decTimerU32(u32* timeValue)
 	*timeValue = --value;
 	return value;
 }
+
+//--------------------------------------------------------------------------
+void pushSnack(int localPlayerIdx, char* string, int ticksAlive)
+{
+  if (MapConfig.PushSnackFunc)
+    MapConfig.PushSnackFunc(string, ticksAlive, localPlayerIdx);
+  else
+    uiShowPopup(localPlayerIdx, string);
+}

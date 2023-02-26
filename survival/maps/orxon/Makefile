@@ -21,7 +21,7 @@ data: setup
 
 	# payload and definition
 	cp $(CURDIR)/data/data.bin $(CURDIR)/bin/code.0008.bin
-	bin2codedef $(CURDIR)/bin/code.0008.bin 00760000 $(CURDIR)/bin/code.0008.def 004A7D98
+	bin2codedef $(CURDIR)/bin/code.0008.bin 01E60000 $(CURDIR)/bin/code.0008.def 004A7D98
 
 clean:
 	$(MAKE) -C $(CURDIR)/logic clean

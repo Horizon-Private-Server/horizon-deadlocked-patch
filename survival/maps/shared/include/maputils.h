@@ -25,4 +25,6 @@ u8 decTimerU8(u8* timeValue);
 u16 decTimerU16(u16* timeValue);
 u32 decTimerU32(u32* timeValue);
 
+void pushSnack(int localPlayerIdx, char* string, int ticksAlive);
+
 #endif // SURVIVAL_MAP_UTILS_H

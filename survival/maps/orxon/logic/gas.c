@@ -29,7 +29,7 @@
 #include <libdl/color.h>
 #include <libdl/utils.h>
 
-#define GAS_DAMAGE_TICKRATE			(30)
+#define GAS_DAMAGE_TICKRATE			(60)
 #define GAS_DAMAGE_AMOUNT			(1)
 #define GAS_QUAD_COLOR				(0x40004000)
 #define GAS_QUAD_TEX_ID				(24)

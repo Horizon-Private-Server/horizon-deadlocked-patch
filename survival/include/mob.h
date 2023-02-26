@@ -93,6 +93,7 @@ typedef enum MobAction (*MobGetPreferredAction_func)(Moby* moby);
 typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
 typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
+typedef void (*MobOnStateUpdate_func)(Moby* moby, struct MobStateUpdateEventArgs* e);
 typedef void (*MobForceLocalAction_func)(Moby* moby, enum MobAction action);
 typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 typedef short (*MobGetArmor_func)(Moby* moby);
@@ -105,6 +106,7 @@ struct MobVTable {
   MobOnSpawn_func OnSpawn;
   MobOnDestroy_func OnDestroy;
   MobOnDamage_func OnDamage;
+  MobOnStateUpdate_func OnStateUpdate;
   MobGetNextTarget_func GetNextTarget;
   MobGetPreferredAction_func GetPreferredAction;
   MobForceLocalAction_func ForceLocalAction;
@@ -118,10 +120,13 @@ struct MobConfig {
 	int Bolts;
 	float Damage;
 	float MaxDamage;
+  float DamageScale;
 	float Speed;
 	float MaxSpeed;
+  float SpeedScale;
 	float Health;
 	float MaxHealth;
+  float HealthScale;
 	float AttackRadius;
 	float HitRadius;
   float CollRadius;
@@ -156,6 +161,7 @@ struct MobMoveVars {
   VECTOR AddVelocity;
   VECTOR LastJumpPosition;
   VECTOR SumPositionDelta;
+  VECTOR LastTargetPos;
   float SumSpeedOver;
   float WallSlope;
 	u16 StuckTicks;
@@ -165,12 +171,22 @@ struct MobMoveVars {
   u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
+
+  char PathEdgeCount;
+  char PathEdgeCurrent;
+  char PathHasReachedStart;
+  char PathHasReachedEnd;
+  u8 PathStartEndNodes[2];
+  u8 PathTicks;
+  u8 PathCheckNearAndSeeTargetTicks;
+  u8 CurrentPath[20];
 };
 
 struct MobVars {
 	struct MobConfig Config;
 	struct Knockback Knockback;
   struct MobMoveVars MoveVars;
+  int SpawnParamsIdx;
   VECTOR TargetPosition;
 	int Action;
 	int NextAction;
@@ -285,6 +301,11 @@ struct MobStateUpdateEventArgs
 {
 	VECTOR Position;
 	int TargetUID;
+  u8 PathStartNodeIdx;
+  u8 PathEndNodeIdx;
+  u8 PathCurrentEdgeIdx;
+  char PathHasReachedStart;
+  char PathHasReachedEnd;
 };
 
 struct MobSpawnEventArgs
@@ -292,14 +313,15 @@ struct MobSpawnEventArgs
 	int Bolts;
 	u16 StartHealth;
 	u16 Bangles;
+	u16 SpeedEighths;
+	u16 Damage;
 	char MobType;
 	char MobSpecialMutation;
+  u8 SpawnParamsIdx;
 	u8 Xp;
-	u8 Damage;
 	u8 AttackRadiusEighths;
 	u8 HitRadiusEighths;
   u8 CollRadiusEighths;
-	u8 SpeedEighths;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 };
@@ -307,7 +329,7 @@ struct MobSpawnEventArgs
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);
 void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);
-int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 void mobInitialize(void);
 void mobTick(void);
 

@@ -121,6 +121,7 @@ int getWeaponIdFromOClass(short oclass)
 			case MOBY_ID_B6_BOMB_EXPLOSION: weaponId = WEAPON_ID_B6; break;
 			case MOBY_ID_FLAIL: weaponId = WEAPON_ID_FLAIL; break;
 			case MOBY_ID_HOLOSHIELD_LAUNCHER: weaponId = WEAPON_ID_OMNI_SHIELD; break;
+			case MOBY_ID_HOLOSHIELD_SHOT: weaponId = WEAPON_ID_OMNI_SHIELD; break;
 			case MOBY_ID_WRENCH: weaponId = WEAPON_ID_WRENCH; break;
 		}
 	}

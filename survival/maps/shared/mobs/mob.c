@@ -17,11 +17,13 @@
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
 #include <libdl/color.h>
+#include <libdl/collision.h>
 #include <libdl/utils.h>
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../include/gate.h"
 #include "../include/maputils.h"
+#include "../include/pathfind.h"
 #include "messageid.h"
 #include "module.h"
 
@@ -45,6 +47,54 @@ int mobAmIOwner(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return gameGetMyClientId() == pvars->MobVars.Owner;
+}
+
+//--------------------------------------------------------------------------
+void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId)
+{
+	VECTOR p;
+  VECTOR mobToHitMoby, mobToJoint, jointToHitMoby;
+	MATRIX jointMtx;
+  int i;
+  float sqrRadius = radius * radius;
+	MobyColDamageIn in;
+
+  // get position of right spike joint
+  mobyGetJointMatrix(moby, jointId, jointMtx);
+  vector_copy(p, &jointMtx[12]);
+
+  // 
+  if (CollMobysSphere_Fix(p, 2, moby, 0, 5 + radius) > 0) {
+    Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
+    Moby* hitMoby;
+    while ((hitMoby = *hitMobies++)) {
+      if (friendlyFire || mobyIsHero(hitMoby)) {
+        
+        vector_subtract(mobToHitMoby, hitMoby->Position, moby->Position);
+        vector_subtract(mobToJoint, p, moby->Position);
+        vector_subtract(jointToHitMoby, hitMoby->Position, p);
+
+        // ignore if hit behind
+        if (vector_innerproduct(mobToHitMoby, mobToJoint) < 0)
+          continue;
+
+        // ignore if past attack radius
+        if (vector_innerproduct(mobToHitMoby, jointToHitMoby) > 0 && vector_sqrmag(jointToHitMoby) > sqrRadius)
+          continue;
+
+        vector_write(in.Momentum, 0);
+        in.Damager = moby;
+        in.DamageFlags = damageFlags;
+        in.DamageClass = 0;
+        in.DamageStrength = 1;
+        in.DamageIndex = moby->OClass;
+        in.Flags = 1;
+        in.DamageHp = amount;
+
+        mobyCollDamageDirect(hitMoby, &in);
+      }
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -424,6 +474,13 @@ void mobOnSpawned(Moby* moby)
       break;
     }
   }
+}
+
+//--------------------------------------------------------------------------
+void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e)
+{
+  // update pathfinding state
+  pathSetPath(moby, e.PathStartNodeIdx, e.PathEndNodeIdx, e.PathCurrentEdgeIdx, e.PathHasReachedStart, e.PathHasReachedEnd);
 }
 
 //--------------------------------------------------------------------------

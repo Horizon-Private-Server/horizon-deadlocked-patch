@@ -12,6 +12,7 @@
 #include "../include/maputils.h"
 
 int mobAmIOwner(Moby* moby);
+void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
 void mobSetAction(Moby* moby, int action);
 void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
 void mobTransAnim(Moby* moby, int animId, float startOff);
@@ -22,6 +23,7 @@ void mobMove(Moby* moby);
 void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed);
 void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed, float acceleration);
 void mobPostDrawQuad(Moby* moby, int texId, u32 color);
+void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
 
 void executionerPreUpdate(Moby* moby);
 void executionerPostUpdate(Moby* moby);
@@ -30,6 +32,7 @@ void executionerMove(Moby* moby);
 void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs e);
 void executionerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void executionerOnDamage(Moby* moby, struct MobDamageEventArgs e);
+void executionerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
 Moby* executionerGetNextTarget(Moby* moby);
 enum MobAction executionerGetPreferredAction(Moby* moby);
 void executionerDoAction(Moby* moby);
@@ -52,6 +55,7 @@ struct MobVTable ExecutionerVTable = {
   .OnSpawn = &executionerOnSpawn,
   .OnDestroy = &executionerOnDestroy,
   .OnDamage = &executionerOnDamage,
+  .OnStateUpdate = &executionerOnStateUpdate,
   .GetNextTarget = &executionerGetNextTarget,
   .GetPreferredAction = &executionerGetPreferredAction,
   .ForceLocalAction = &executionerForceLocalAction,
@@ -79,7 +83,7 @@ extern u32 MobSpecialMutationColors[];
 extern u32 MobLODColors[];
 
 //--------------------------------------------------------------------------
-int executionerCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
   
@@ -89,7 +93,7 @@ int executionerCreate(VECTOR position, float yaw, int spawnFromUID, struct MobCo
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnFromUID == -1);
+      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1);
     }
 
 		u8 random = (u8)rand(100);
@@ -124,6 +128,9 @@ void executionerPreUpdate(Moby* moby)
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(EXECUTIONER_AMBSND_MIN_COOLDOWN_TICKS, EXECUTIONER_AMBSND_MAX_COOLDOWN_TICKS);
 	}
 
+  // decrement path target pos ticker
+  decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
+  decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
 }
 
 //--------------------------------------------------------------------------
@@ -183,7 +190,7 @@ void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID
 	moby->PrimaryColor = MobPrimaryColors[(int)e.MobType];
 
   // targeting
-	pvars->TargetVars.targetHeight = 2.5;
+	pvars->TargetVars.targetHeight = 3.5;
 
 	// special mutation settings
 	switch (pvars->MobVars.Config.MobSpecialMutation)
@@ -250,6 +257,12 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs e)
       }
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+void executionerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e)
+{
+  mobOnStateUpdate(moby, e);
 }
 
 //--------------------------------------------------------------------------
@@ -389,8 +402,9 @@ void executionerDoAction(Moby* moby)
 			{
         // move
         if (target) {
-          mobTurnTowards(moby, target->Position, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, pvars->MobVars.Config.Speed, acceleration);
+          pathGetTargetPos(t, moby);
+          mobTurnTowards(moby, t, turnSpeed);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
         } else {
           mobStand(moby);
         }
@@ -410,7 +424,7 @@ void executionerDoAction(Moby* moby)
           // with min speed
           float jumpSpeed = 4;
           if (target) {
-            jumpSpeed = clamp((target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
+            jumpSpeed = clamp(2 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
           }
 
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
@@ -443,10 +457,13 @@ void executionerDoAction(Moby* moby)
           walkBackwards = 1;
 
           mobTurnTowards(moby, target->Position, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, -pvars->MobVars.Config.Speed, acceleration);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, -pvars->MobVars.Config.Speed, acceleration);
         }
         else {
 
+          pathGetTargetPos(t, moby);
+				  vector_subtract(t, t, moby->Position);
+				  float dist = vector_length(t);
           executionerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
           vector_add(t, t, t2);
           vector_scale(t, t, 1 / dist);
@@ -532,36 +549,7 @@ void executionerDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void executionerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-	VECTOR p;
-	MATRIX jointMtx;
-  int joints[2];
-  int i;
-	MobyColDamageIn in;
-
-  // get position of weapon head joint
-  mobyGetJointMatrix(moby, 6, jointMtx);
-  vector_copy(p, &jointMtx[12]);
-
-  // 
-  if (CollMobysSphere_Fix(p, 2, moby, 0, radius) > 0) {
-    Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
-    Moby* hitMoby;
-    while ((hitMoby = *hitMobies++)) {
-      if (friendlyFire || mobyIsHero(hitMoby)) {
-        
-        vector_write(in.Momentum, 0);
-        in.Damager = moby;
-        in.DamageFlags = damageFlags;
-        in.DamageClass = 0;
-        in.DamageStrength = 1;
-        in.DamageIndex = moby->OClass;
-        in.Flags = 1;
-        in.DamageHp = amount;
-
-        mobyCollDamageDirect(hitMoby, &in);
-      }
-    }
-  }
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 6);
 }
 
 //--------------------------------------------------------------------------

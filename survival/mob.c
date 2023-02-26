@@ -321,7 +321,7 @@ void mobUpdate(Moby* moby)
       pvars->MobVars.TimeLastGroundedTicks++;
 
     // auto destruct after 15 seconds of falling
-    if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 10)) {
+    if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
       pvars->MobVars.Respawn = 1;
     }
   }
@@ -335,16 +335,16 @@ void mobUpdate(Moby* moby)
     
     // turn on holos so we can collide with them
     // optimization to only turn on for first mob in moby list (this is expensive)
-    if (mobFirstInList == moby)
-      weaponTurnOnHoloshields(-1);
+    //if (mobFirstInList == moby)
+    //  weaponTurnOnHoloshields(-1);
 
     //mobMove(moby);
     pvars->VTable->Move(moby);
   
     // turn off holos for everyone else
     // optimization to only turn off for last mob in moby list (this is expensive)
-    if (mobLastInList == moby)
-      weaponTurnOffHoloshields();
+    //if (mobLastInList == moby)
+    //  weaponTurnOffHoloshields();
   }
 
 	//
@@ -442,7 +442,7 @@ void mobUpdate(Moby* moby)
 			struct MobConfig config;
 			if (spawnGetRandomPoint(p)) {
 				memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
-				mobCreate(p, 0, guberGetUID(moby), &config);
+				mobCreate(pvars->MobVars.SpawnParamsIdx, p, 0, guberGetUID(moby), &config);
 			}
 
 			pvars->MobVars.Respawn = 0;
@@ -535,6 +535,11 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->FlashVarsPtr = &pvars->FlashVars;
 	pvars->ReactVarsPtr = &pvars->ReactVars;
 	
+  // copy spawn params to config
+  pvars->MobVars.SpawnParamsIdx = args.SpawnParamsIdx;
+  struct MobSpawnParams* params = &mapConfig->DefaultSpawnParams[args.SpawnParamsIdx];
+  memcpy(&pvars->MobVars.Config, &params->Config, sizeof(struct MobConfig));
+
 	// initialize mob vars
 	pvars->MobVars.Config.MobType = args.MobType;
 	pvars->MobVars.Config.MobSpecialMutation = args.MobSpecialMutation;
@@ -564,6 +569,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.Damage = 0;
 #endif
 	//pvars->MobVars.Config.Health = pvars->MobVars.Health = 1;
+
 
 	// initialize target vars
 	pvars->TargetVars.hitPoints = pvars->MobVars.Health;
@@ -634,6 +640,9 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	mobySetState(moby, 0, -1);
 
 	++State.RoundMobCount;
+  if (spawnFromUID == -1 && !gameAmIHost()) {
+    ++State.RoundMobSpawnedCount;
+  }
 
 	// destroy spawn from
 	if (spawnFromUID != -1) {
@@ -846,7 +855,7 @@ int mobHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 	struct MobStateUpdateEventArgs args;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
-	if (!pvars)
+	if (!pvars || mobAmIOwner(moby))
 		return 0;
 
 	// read event
@@ -861,6 +870,10 @@ int mobHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 	Player* target = (Player*)guberGetObjectByUID(args.TargetUID);
 	if (target)
 		pvars->MobVars.Target = target->SkinMoby;
+
+  // pass to mob
+  if (pvars->VTable && pvars->VTable->OnStateUpdate)
+	  pvars->VTable->OnStateUpdate(moby, &args);
 
 
 	//DPRINTF("mob target update event %08X, %08X, %d:%08X, %08X\n", (u32)moby, (u32)event, args.TargetUID, (u32)target, (u32)pvars->MobVars.Target);
@@ -920,10 +933,10 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 	return 0;
 }
 
-int mobCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
   if (mapConfig->OnMobCreateFunc)
-    return mapConfig->OnMobCreateFunc(position, yaw, spawnFromUID, config);
+    return mapConfig->OnMobCreateFunc(spawnParamsIdx, position, yaw, spawnFromUID, config);
 
   return 0;
 }

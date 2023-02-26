@@ -41,7 +41,7 @@ char* ITEM_NAMES[] = {
   [MYSTERY_BOX_ITEM_RESET_GATES] "",
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] "",
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] "Upgrade Weapon",
-  //[MYSTERY_BOX_ITEM_SUPER_JUMP] "",
+  [MYSTERY_BOX_ITEM_INFINITE_AMMO] "Infinite Ammo",
   [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] "Invisibility Cloak",
   [MYSTERY_BOX_ITEM_ACTIVATE_POWER] "Turn on Power",
   [MYSTERY_BOX_ITEM_REVIVE_TOTEM] "Self Revive",
@@ -53,7 +53,7 @@ int ITEM_TEX_IDS[] = {
   [MYSTERY_BOX_ITEM_RESET_GATES] 14 - 3,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 132 - 3,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 37 - 3,
-  //[MYSTERY_BOX_ITEM_SUPER_JUMP] "",
+  [MYSTERY_BOX_ITEM_INFINITE_AMMO] 93 - 3,
   [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] 19 - 3,
   [MYSTERY_BOX_ITEM_ACTIVATE_POWER] 54 - 3,
   [MYSTERY_BOX_ITEM_REVIVE_TOTEM] 80 - 3,
@@ -65,7 +65,7 @@ u32 ITEM_COLORS[] = {
   [MYSTERY_BOX_ITEM_RESET_GATES] 0x8000FFFF,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 0x80808080,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 0x80FFFFFF,
-  //[MYSTERY_BOX_ITEM_SUPER_JUMP] "",
+  [MYSTERY_BOX_ITEM_INFINITE_AMMO] 0x8000FFFF,
   [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_ACTIVATE_POWER] 0x80FFFF00,
   [MYSTERY_BOX_ITEM_REVIVE_TOTEM] 0x80FFFFFF,
@@ -118,6 +118,7 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_RESET_GATES, 0.05 },
   { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
   { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
+  { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },
   { MYSTERY_BOX_ITEM_ACTIVATE_POWER, 0.0888 },
   { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.0967 },
   { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
@@ -178,6 +179,7 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
     [MYSTERY_BOX_ITEM_DREAD_TOKEN] "Token  ",
     [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] "Cloak  ",
     [MYSTERY_BOX_ITEM_REVIVE_TOTEM] "Revive ",
+    [MYSTERY_BOX_ITEM_INFINITE_AMMO] "InfAmmo "
     [MYSTERY_BOX_ITEM_RESET_GATES] "Reset  ",
     [MYSTERY_BOX_ITEM_TEDDY_BEAR] "Bear   ",
   };
@@ -450,6 +452,7 @@ void mboxUpdate(Moby* moby)
           case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
           case MYSTERY_BOX_ITEM_REVIVE_TOTEM:
           case MYSTERY_BOX_ITEM_ACTIVATE_POWER:
+          case MYSTERY_BOX_ITEM_INFINITE_AMMO:
           case MYSTERY_BOX_ITEM_DREAD_TOKEN:
           {
             sprintf(buf, "\x11 %s", ITEM_NAMES[pvars->Item]);
@@ -629,7 +632,7 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
       {
         case MYSTERY_BOX_ITEM_RESET_GATES:
         {
-          uiShowPopup(0, "Map Reset!");
+          pushSnack(-1, "Map reset!", 60);
           
           Moby* mStart = mobyListGetStart();
           Moby* mEnd = mobyListGetEnd();
@@ -667,6 +670,7 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
         }
         case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
         case MYSTERY_BOX_ITEM_REVIVE_TOTEM:
+        case MYSTERY_BOX_ITEM_INFINITE_AMMO:
         {
           if (playerData)
             playerData->State.Item = item;

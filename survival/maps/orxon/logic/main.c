@@ -40,10 +40,11 @@ void gateSpawn(VECTOR gateData[], int count);
 void gasTick(void);
 void mobInit(void);
 void configInit(void);
+void pathTick(void);
 
-int zombieCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
-int executionerCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
-int tremorCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 
 int aaa = 2;
 
@@ -96,17 +97,17 @@ void mobForceIntoMapBounds(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int createMob(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
   switch (config->MobType)
   {
     case MOB_TANK:
     {
-      return executionerCreate(position, yaw, spawnFromUID, config);
+      return executionerCreate(spawnParamsIdx, position, yaw, spawnFromUID, config);
     }
     case MOB_RUNNER:
     {
-      return tremorCreate(position, yaw, spawnFromUID, config);
+      return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, config);
     }
     case MOB_NORMAL:
     case MOB_ACID:
@@ -114,7 +115,7 @@ int createMob(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *co
     case MOB_EXPLODE:
     case MOB_GHOST:
     {
-      return zombieCreate(position, yaw, spawnFromUID, config);
+      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, config);
     }
     default:
     {
@@ -166,6 +167,8 @@ int main (void)
 
   // init
   initialize();
+
+  pathTick();
 
   // disable jump pad effect
   POKE_U32(0x0042608C, 0);

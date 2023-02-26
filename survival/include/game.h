@@ -36,7 +36,9 @@
 #define ROUND_SPECIAL_EVERY										(5)
 #define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
-#define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(0.5)
+#define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 		(25)
+
+#define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(1)
 #define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)
 #define MOB_SPAWN_AT_PLAYER_PROBABILITY 					(0.01)
 #define MOB_SPAWN_NEAR_HEALTHBOX_PROBABILITY 			(0.1)
@@ -50,9 +52,10 @@
 
 #define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
 
-#define MOB_BASE_DAMAGE										    (15)
-#define MOB_BASE_SPEED											  (2)
+#define MOB_BASE_DAMAGE										    (10)
+#define MOB_BASE_SPEED											  (3)
 #define MOB_BASE_HEALTH										    (40)
+#define MOB_BASE_STATS_SCALE                  (0.03)
 
 #define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
 #define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
@@ -92,6 +95,9 @@
 #define BAKED_SPAWNPOINT_COUNT							  (24)
 
 #define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
+#define ITEM_INFAMMO_DURATION                 (60*TIME_SECOND)
+
+#define SNACK_ITEM_MAX_COUNT                  (16)
 
 enum GameNetMessage
 {
@@ -117,9 +123,10 @@ enum BakedSpawnpointType
 };
 
 typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
-typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int isBaseConfig);
+typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
+typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig);
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef int (*MapOnMobCreate_func)(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 
 typedef struct SurvivalBakedSpawnpoint
 {
@@ -159,6 +166,7 @@ struct SurvivalPlayer
 	struct SurvivalPlayerState State;
 	int TimeOfDoublePoints;
   int InvisibilityCloakStopTime;
+  int InfiniteAmmoStopTime;
 	u16 ReviveCooldownTicks;
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;
@@ -222,6 +230,7 @@ struct SurvivalMapConfig
   int SpecialRoundParamsCount; 
   
   UpgradePlayerWeapon_func UpgradePlayerWeaponFunc;
+  PushSnack_func PushSnackFunc;
   PopulateSpawnArgs_func PopulateSpawnArgsFunc;
   MapOnMobCreate_func OnMobCreateFunc;
   MapOnMobSpawned_func OnMobSpawnedFunc;
@@ -308,6 +317,13 @@ typedef struct SurvivalPlayerUseItem
 	int PlayerId;
   enum MysteryBoxItem Item;
 } SurvivalPlayerUseItem_t;
+
+struct SurvivalSnackItem
+{
+  int TicksAlive;
+  char DisplayForLocalPlayerIdx;
+  char Str[64];
+};
 
 extern const int UPGRADE_COST[];
 extern const float BOLT_TAX[];

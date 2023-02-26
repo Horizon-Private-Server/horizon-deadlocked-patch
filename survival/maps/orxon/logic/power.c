@@ -14,8 +14,6 @@
 #include <libdl/pad.h>
 #include <libdl/time.h>
 #include <libdl/net.h>
-#include "module.h"
-#include "messageid.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
 #include <libdl/math.h>
@@ -28,6 +26,9 @@
 #include <libdl/graphics.h>
 #include <libdl/color.h>
 #include <libdl/utils.h>
+#include "module.h"
+#include "messageid.h"
+#include "../../shared/include/maputils.h"
 
 int powerTimeOff = -1;
 int powerForcedOn = 0;
@@ -71,7 +72,8 @@ void powerOnMysteryBoxActivatePower(void)
 {
   powerForcedOn = 1;
   powerTimeOff = gameGetTime() + 5*TIME_MINUTE;
-  uiShowPopup(0, "Power supercharged!");
+
+  pushSnack(-1, "Power supercharged", 60);
 }
 
 //--------------------------------------------------------------------------
@@ -123,11 +125,11 @@ void powerNodeUpdate(Moby* moby)
       powerForcedOn = 0;
       *team = 10;
       powerUpdateMobies(0);
-      uiShowPopup(0, "Power's out!");
+      pushSnack(-1, "Power's out", 60);
     }
   } else {
     powerTimeOff = gameGetTime() + TIME_SECOND*90;
     powerUpdateMobies(1);
-    uiShowPopup(0, "Power activated!");
+    pushSnack(-1, "Power activated!", 60);
   }
 }

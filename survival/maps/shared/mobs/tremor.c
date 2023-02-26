@@ -12,6 +12,7 @@
 #include "../include/maputils.h"
 
 int mobAmIOwner(Moby* moby);
+void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
 void mobSetAction(Moby* moby, int action);
 void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
 void mobTransAnim(Moby* moby, int animId, float startOff);
@@ -22,6 +23,7 @@ void mobMove(Moby* moby);
 void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed);
 void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed, float acceleration);
 void mobPostDrawQuad(Moby* moby, int texId, u32 color);
+void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
 
 void tremorPreUpdate(Moby* moby);
 void tremorPostUpdate(Moby* moby);
@@ -30,6 +32,7 @@ void tremorMove(Moby* moby);
 void tremorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs e);
 void tremorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void tremorOnDamage(Moby* moby, struct MobDamageEventArgs e);
+void tremorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
 Moby* tremorGetNextTarget(Moby* moby);
 enum MobAction tremorGetPreferredAction(Moby* moby);
 void tremorDoAction(Moby* moby);
@@ -52,6 +55,7 @@ struct MobVTable TremorVTable = {
   .OnSpawn = &tremorOnSpawn,
   .OnDestroy = &tremorOnDestroy,
   .OnDamage = &tremorOnDamage,
+  .OnStateUpdate = &tremorOnStateUpdate,
   .GetNextTarget = &tremorGetNextTarget,
   .GetPreferredAction = &tremorGetPreferredAction,
   .ForceLocalAction = &tremorForceLocalAction,
@@ -79,7 +83,7 @@ extern u32 MobSpecialMutationColors[];
 extern u32 MobLODColors[];
 
 //--------------------------------------------------------------------------
-int tremorCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
   
@@ -89,7 +93,7 @@ int tremorCreate(VECTOR position, float yaw, int spawnFromUID, struct MobConfig 
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnFromUID == -1);
+      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1);
     }
 
 		u8 random = (u8)rand(100);
@@ -124,6 +128,9 @@ void tremorPreUpdate(Moby* moby)
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(TREMOR_AMBSND_MIN_COOLDOWN_TICKS, TREMOR_AMBSND_MAX_COOLDOWN_TICKS);
 	}
 
+  // decrement path target pos ticker
+  decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
+  decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
 }
 
 //--------------------------------------------------------------------------
@@ -243,13 +250,19 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs e)
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     if (canFlinch) {
-      if (e.Knockback.Force || ((((e.Knockback.Power + 1) * damageRatio) > 0.25) && !rand(3)))
+      if (e.Knockback.Force || ((((e.Knockback.Power + 1) * damageRatio) > 0.5) && !rand(3)))
         mobSetAction(moby, MOB_ACTION_BIG_FLINCH);
       else if (damageRatio > 0.05 && randRange(0, 1) < TREMOR_FLINCH_PROBABILITY) {
         mobSetAction(moby, MOB_ACTION_FLINCH);
       }
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+void tremorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e)
+{
+  mobOnStateUpdate(moby, e);
 }
 
 //--------------------------------------------------------------------------
@@ -389,8 +402,9 @@ void tremorDoAction(Moby* moby)
 			{
         // move
         if (target) {
-          mobTurnTowards(moby, target->Position, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, pvars->MobVars.Config.Speed, acceleration);
+          pathGetTargetPos(t, moby);
+          mobTurnTowards(moby, t, turnSpeed);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
         } else {
           mobStand(moby);
         }
@@ -410,7 +424,7 @@ void tremorDoAction(Moby* moby)
           // with min speed
           float jumpSpeed = 4;
           if (target) {
-            jumpSpeed = clamp((target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
+            jumpSpeed = clamp(2 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
           }
 
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
@@ -432,7 +446,8 @@ void tremorDoAction(Moby* moby)
 				float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
 
 				// determine next position
-				vector_copy(t, target->Position);
+        pathGetTargetPos(t, moby);
+				//vector_copy(t, target->Position);
 				vector_subtract(t, t, moby->Position);
 				float dist = vector_length(t);
 				tremorAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
@@ -440,7 +455,7 @@ void tremorDoAction(Moby* moby)
 				vector_scale(t, t, 1 / dist);
 				vector_add(t, moby->Position, t);
 
-        mobTurnTowards(moby, target->Position, turnSpeed);
+        mobTurnTowards(moby, t, turnSpeed);
         mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
 			} else {
         // stand
@@ -499,49 +514,7 @@ void tremorDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-	VECTOR p;
-  VECTOR mobToHitMoby, mobToJoint, jointToHitMoby;
-	MATRIX jointMtx;
-  int i;
-  float sqrRadius = radius * radius;
-	MobyColDamageIn in;
-
-  // get position of right spike joint
-  mobyGetJointMatrix(moby, 0, jointMtx);
-  vector_copy(p, &jointMtx[12]);
-
-  // 
-  if (CollMobysSphere_Fix(p, 2, moby, 0, 5) > 0) {
-    Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
-    Moby* hitMoby;
-    while ((hitMoby = *hitMobies++)) {
-      if (friendlyFire || mobyIsHero(hitMoby)) {
-        
-        vector_subtract(mobToHitMoby, hitMoby->Position, moby->Position);
-        vector_subtract(mobToJoint, p, moby->Position);
-        vector_subtract(jointToHitMoby, hitMoby->Position, p);
-
-        // ignore if hit behind
-        if (vector_innerproduct(mobToHitMoby, mobToJoint) < 0)
-          continue;
-
-        // ignore if past attack radius
-        if (vector_innerproduct(mobToHitMoby, jointToHitMoby) > 0 && vector_sqrmag(jointToHitMoby) > sqrRadius)
-          continue;
-
-        vector_write(in.Momentum, 0);
-        in.Damager = moby;
-        in.DamageFlags = damageFlags;
-        in.DamageClass = 0;
-        in.DamageStrength = 1;
-        in.DamageIndex = moby->OClass;
-        in.Flags = 1;
-        in.DamageHp = amount;
-
-        mobyCollDamageDirect(hitMoby, &in);
-      }
-    }
-  }
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 0);
 }
 
 //--------------------------------------------------------------------------
