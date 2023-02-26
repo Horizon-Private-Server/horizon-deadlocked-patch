@@ -42,6 +42,9 @@ int readGlobalVersion(int * version);
 int usbFsModuleSize = 0;
 int usbSrvModuleSize = 0;
 
+int mapsRemoteGlobalVersion = -2;
+int mapsLocalGlobalVersion = -1;
+
 // patch config
 extern PatchConfig_t config;
 
@@ -201,6 +204,8 @@ int onServerSentMapIrxModules(void * connection, void * data)
 
 	MapServerSentModulesMessage * msg = (MapServerSentModulesMessage*)data;
 
+  mapsRemoteGlobalVersion = msg->Version;
+
 	// initiate loading
 	if (LOAD_MODULES_STATE == 0)
 		LOAD_MODULES_STATE = 7;
@@ -224,9 +229,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	}
 	else
 	{
-		int remoteVersion = msg->Version;
-		int localVersion = 0;
-		if (!readGlobalVersion(&localVersion) || localVersion != remoteVersion)
+		if (!readLocalGlobalVersion() || mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
 		{
 			// Indicate new version
 			actionState = ACTION_NEW_MAPS_UPDATE;
@@ -237,7 +240,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
 			actionState = ACTION_MODULES_INSTALLED;
 		}
 		
-		DPRINTF("local maps version %d || remote maps version %d\n", localVersion, remoteVersion);
+		DPRINTF("local maps version %d || remote maps version %d\n", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
 
 		// if in game, ask server to resend map override to use
 		if (gameGetSettings())
@@ -245,6 +248,15 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	}
 
 	return sizeof(MapServerSentModulesMessage);
+}
+
+//------------------------------------------------------------------------------
+int onServerSendMapVersion(void * connection, void * data)
+{
+  memcpy(&mapsRemoteGlobalVersion, data, 4);
+	DPRINTF("server sent map version %d\n", mapsRemoteGlobalVersion);
+
+  return 4;
 }
 
 #if MAPDOWNLOADER
@@ -370,6 +382,15 @@ int onServerSentMapInitiated(void * connection, void * data)
 	return sizeof(ServerInitiateMapDownloadResponse_t);
 }
 #endif
+
+//------------------------------------------------------------------------------
+int readLocalGlobalVersion(void)
+{
+  if (!readGlobalVersion(&mapsLocalGlobalVersion))
+    return (mapsLocalGlobalVersion = -1);
+    
+  return mapsLocalGlobalVersion;
+}
 
 //------------------------------------------------------------------------------
 void loadModules(void)
@@ -1091,6 +1112,7 @@ void runMapLoader(void)
 	// 
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_MAP_OVERRIDE, &onSetMapOverride);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_MAP_IRX_MODULES, &onServerSentMapIrxModules);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_CMAPS_GLOBAL_VERSION, onServerSendMapVersion);
 #if MAPDOWNLOADER
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_INITIATE_DOWNLOAD_MAP_RESPONSE, &onServerSentMapInitiated);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_MAP_CHUNK_REQUEST, &onServerSentMapChunk);

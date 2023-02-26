@@ -111,6 +111,10 @@ void onConfigUpdate(void);
 void configMenuEnable(void);
 void configMenuDisable(void);
 void configTrySendGameConfig(void);
+int readLocalGlobalVersion(void);
+
+extern int mapsRemoteGlobalVersion;
+extern int mapsLocalGlobalVersion;
 
 #if FREECAM
 void processFreecam(void);
@@ -146,6 +150,7 @@ int lastSurvivor = 0;
 int lastRespawnTime = 5;
 int lastCrazyMode = 0;
 char mapOverrideResponse = 1;
+char showNeedLatestMapsPopup = 0;
 char showNoMapPopup = 0;
 char showMiscPopup = 0;
 char miscPopupTitle[32];
@@ -2594,6 +2599,15 @@ int hookCheckHostStartGame(void* a0)
 			return 0;
 		}
 
+    // if survival
+    // verify we have the latest maps
+    if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+      if (mapsLocalGlobalVersion >= 0 || !readLocalGlobalVersion() || mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+        showNeedLatestMapsPopup = 1;
+        return 0;
+      }
+    }
+
 		// wait for download to finish
 		if (dlIsActive) {
 			showMiscPopup = 1;
@@ -2640,18 +2654,25 @@ void runCheckGameMapInstalled(void)
 		*(u32*)0x00759580 = 0x0C000000 | ((u32)&hookCheckHostStartGame >> 2);
 
 	int clientId = gameGetMyClientId();
-	if (mapOverrideResponse < 0)
-	{
-		for (i = 1; i < GAME_MAX_PLAYERS; ++i)
-		{
-			if (gs->PlayerClients[i] == clientId && gs->PlayerStates[i] == 6)
-			{
-				gameSetClientState(i, 0);
-				showNoMapPopup = 1;
-				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
-			}
-		}
-	}
+  for (i = 1; i < GAME_MAX_PLAYERS; ++i)
+  {
+    if (gs->PlayerClients[i] == clientId && gs->PlayerStates[i] == 6)
+    {
+      // need map
+      if (mapOverrideResponse < 0)
+      {
+        gameSetClientState(i, 0);
+        showNoMapPopup = 1;
+        netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+      }
+      else if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+        if (mapsLocalGlobalVersion >= 0 || !readLocalGlobalVersion() || mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+          gameSetClientState(i, 0);
+          showNeedLatestMapsPopup = 1;
+        }
+      }
+    }
+  }
 }
 
 /*
@@ -3144,6 +3165,7 @@ void runPayloadDownloadRequester(void)
  */
 void onOnlineMenu(void)
 {
+  char buf[64];
 
 	// call normal draw routine
 	((void (*)(void))0x00707F28)();
@@ -3188,7 +3210,6 @@ void onOnlineMenu(void)
 		else
 		{
 #if MAPDOWNLOADER
-			char buf[32];
 			sprintf(buf, "Would you like to download the map now?", dataCustomMaps.items[(int)gameConfig.customMapId]);
 			
 			//uiShowOkDialog("Custom Maps", buf);
@@ -3200,13 +3221,21 @@ void onOnlineMenu(void)
 				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
 			}
 #else
-			char buf[32];
 			sprintf(buf, "Please install %s to play.", dataCustomMaps.items[(int)gameConfig.customMapId]);
 			uiShowOkDialog("Custom Maps", buf);
 #endif
 		}
 
 		showNoMapPopup = 0;
+	}
+
+	// 
+	if (showNeedLatestMapsPopup)
+	{
+    sprintf(buf, "Please download the latest custom maps to play. %d %d", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
+    uiShowOkDialog("Custom Maps", buf);
+
+		showNeedLatestMapsPopup = 0;
 	}
 
 	if (showMiscPopup)

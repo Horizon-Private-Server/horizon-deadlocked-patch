@@ -389,9 +389,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Torval SP",
       "Tyhrranosis",
       // -- SURVIVAL MAPS --
-      "Marcadia Palace",
-      "Orxon",
-      "Veldin"
+      [CUSTOM_MAP_SURVIVAL_MINING_FACILITY] "Orxon",
     }
 };
 
@@ -1928,7 +1926,7 @@ void onConfigInitialize(void)
   memset(&gameConfig, 0, sizeof(gameConfig));
 
   // set defaults
-  gameConfigHostBackup.survivalConfig.difficulty = 4;
+  //gameConfigHostBackup.survivalConfig.difficulty = 4;
 
 #if DEFAULT_GAMEMODE > 0
   gameConfigHostBackup.customModeId = DEFAULT_GAMEMODE;
