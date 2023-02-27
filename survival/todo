@@ -100,3 +100,9 @@ Add random events
 ++Rebalance arbiter damage/ammo
 ++Add timed infinite ammo item to mystery box
 ++Holoshields damage mobs
+Fix executioner pathfinding/getting stuck on walls
+Add XP alpha mod
+Change executioner blip to big red dot
+Double XP drop
+Rename special rounds
+Make speed upgrade crank bolts faster
