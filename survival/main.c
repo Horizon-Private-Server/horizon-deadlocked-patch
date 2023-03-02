@@ -411,9 +411,9 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
 
   // scale config by round
   if (isBaseConfig) {
-    damage = damage * powf(1 + (MOB_BASE_STATS_SCALE * config->DamageScale), State.RoundNumber * State.Difficulty * playerCountMultiplier * randRange(0.8, 1.2));
-    speed = speed * powf(1 + (MOB_BASE_STATS_SCALE * config->SpeedScale), State.RoundNumber * State.Difficulty * playerCountMultiplier * randRange(0.8, 1.2));
-    health = health * powf(1 + (MOB_BASE_STATS_SCALE * config->HealthScale), State.RoundNumber * State.Difficulty * playerCountMultiplier * randRange(0.8, 1.2));
+    damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale), State.RoundNumber * (0 + State.Difficulty) * playerCountMultiplier * randRange(0.8, 1.2));
+    speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale), State.RoundNumber * (0 + State.Difficulty) * playerCountMultiplier * randRange(0.8, 1.2));
+    health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale), State.RoundNumber * (0 + State.Difficulty) * playerCountMultiplier * randRange(0.8, 1.2));
   }
 
   // enforce max values

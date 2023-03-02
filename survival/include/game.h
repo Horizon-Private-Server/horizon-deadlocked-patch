@@ -53,9 +53,11 @@
 #define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
 
 #define MOB_BASE_DAMAGE										    (10)
+#define MOB_BASE_DAMAGE_SCALE                 (0.04)
 #define MOB_BASE_SPEED											  (3)
+#define MOB_BASE_SPEED_SCALE                  (0.04)
 #define MOB_BASE_HEALTH										    (40)
-#define MOB_BASE_STATS_SCALE                  (0.03)
+#define MOB_BASE_HEALTH_SCALE                 (0.04)
 
 #define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
 #define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
