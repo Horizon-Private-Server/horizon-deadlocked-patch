@@ -113,6 +113,7 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 #ifdef DEBUG
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element);
 #endif
 
 void navMenu(TabElem_t* tab, int direction, int loop);
@@ -178,6 +179,7 @@ MenuElem_RangeData_t dataPlayerAggTime = {
 MenuElem_t menuElementsGeneral[] = {
 #ifdef DEBUG
   { "Redownload patch", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadPatchSelectHandler },
+  { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
   { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
@@ -724,6 +726,21 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
   void * lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
+}
+
+// 
+void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  ClientRequestBootElf_t request;
+  request.BootElfId = 0;
+  
+  // close menu
+  configMenuDisable();
+
+  // send request
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (lobbyConnection)
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
 }
 
 #endif

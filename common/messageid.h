@@ -217,6 +217,16 @@ enum CustomMessageId
     CUSTOM_MSG_ID_SERVER_SENT_CMAPS_GLOBAL_VERSION = 38,
 
     /*
+     * Sent by the client to the server when the client wants a boot elf.
+     */
+    CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF = 39,
+
+    /*
+     * Sent by the server to the client when the server has finished sending a boot elf.
+     */
+    CUSTOM_MSG_ID_SERVER_RESPONSE_BOOT_ELF = 40,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -357,6 +367,18 @@ typedef struct ClientPickedUpFlag
     int PlayerId;
     int FlagClass;
 } ClientPickedUpFlag_t;
+
+typedef struct ClientRequestBootElf
+{
+    int BootElfId;
+} ClientRequestBootElf_t;
+
+typedef struct ServerResponseBootElf
+{
+    int BootElfId;
+    u32 Address;
+    u32 Size;
+} ServerResponseBootElf_t;
 
 
 #endif // _MESSAGEID_H_
