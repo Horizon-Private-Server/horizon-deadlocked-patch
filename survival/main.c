@@ -1370,7 +1370,7 @@ void processPlayer(int pIndex) {
 		// handle revive logic
 		if (!isDeadState) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				if (i != pIndex && !hasMessage) {
+				if (i != pIndex) {
 
 					// ensure player exists, is dead, and is on the same team
 					struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
