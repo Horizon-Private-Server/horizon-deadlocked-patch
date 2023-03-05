@@ -380,6 +380,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Ghost Ship",
       "Hoven Gorge",
       "Hoverbike Race",
+      "Infinite Climber",
       "Korgon Outpost",
       "Launch Site",
       "Marcadia Palace",
@@ -402,7 +403,8 @@ MenuElem_ListData_t dataCustomMaps = {
 char dataCustomMapsWithExclusiveGameMode[] = {
   CUSTOM_MAP_SPLEEF,
   CUSTOM_MAP_DUCK_HUNT,
-  CUSTOM_MAP_HOVERBIKE_RACE
+  CUSTOM_MAP_HOVERBIKE_RACE,
+  CUSTOM_MAP_INFINITE_CLIMBER
 };
 const int dataCustomMapsWithExclusiveGameModeCount = sizeof(dataCustomMapsWithExclusiveGameMode)/sizeof(char);
 
@@ -415,7 +417,7 @@ MenuElem_ListData_t dataCustomModes = {
       "None",
       "Gun Game",
       "Infected",
-      "Infinite Climber",
+      // "Infinite Climber",
       "Payload",
       "Search and Destroy",
       "Survival",
@@ -941,7 +943,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
     {
       case CUSTOM_MODE_INFECTED:
       case CUSTOM_MODE_GUN_GAME:
-      case CUSTOM_MODE_INFINITE_CLIMBER:
+      //case CUSTOM_MODE_INFINITE_CLIMBER:
       case CUSTOM_MODE_1000_KILLS:
       case CUSTOM_MODE_SURVIVAL:
       case CUSTOM_MODE_PAYLOAD:
