@@ -2,6 +2,7 @@
 #include <libdl/stdio.h>
 #include <libdl/stdlib.h>
 #include <libdl/string.h>
+#include <libdl/ui.h>
 
 #define NEWLIB_PORT_AWARE
 #include <io_common.h>
@@ -9,7 +10,7 @@
 #include "db.h"
 #include "rpc.h"
 
-#define BUF_SIZE                  (1024 * 4)
+#define BUF_SIZE                  (1460)
 #define DOWNLOAD_CHUNK_SIZE       (1024 * 16)
 #define USB_WRITE_BLOCK_SIZE      (512)
 
@@ -39,7 +40,8 @@ int dbStateCancel = 0;
 int client_connect(void);
 int client_close(void);
 int client_get(char * path, char * output, int output_size);
-int client_recv(char * output, int output_size);
+int client_recv(char * output, int output_size, int* bytes_recvd);
+int db_read_local_version(char * map_filename);
 
 int parse_http_response_content_length(char* buf)
 {
@@ -104,10 +106,11 @@ int parse_http_response(char* buf, int buf_size, int* response_code, int* conten
 int http_get(char * path, char * output, int output_length, downloadCallback_func callback)
 {
   int i;
-  char buffer[2048];
-  char content_type_buffer[2048];
   int response, content_length;
   int total_read = 0;
+
+  char* buffer = dlBuffer1;
+  char* content_type_buffer = dlBuffer2;
 
   // connect
   if (client_connect() < 0) {
@@ -116,7 +119,7 @@ int http_get(char * path, char * output, int output_length, downloadCallback_fun
   }
 
   // GET
-  int read = client_get(path, buffer, sizeof(buffer)-1);
+  int read = client_get(path, buffer, BUF_SIZE);
   if (read <= 0) {
     DPRINTF("db returned empty response\n");
     client_close();
@@ -124,7 +127,7 @@ int http_get(char * path, char * output, int output_length, downloadCallback_fun
   }
 
   // parse response
-  int content_read_length = parse_http_response(buffer, read, &response, &content_length, output, output_length, content_type_buffer, sizeof(content_type_buffer)-1);
+  int content_read_length = parse_http_response(buffer, read, &response, &content_length, output, output_length, content_type_buffer, BUF_SIZE);
   if (response != 200) {
     DPRINTF("db returned %d\n", response);
     client_close();
@@ -140,12 +143,12 @@ int http_get(char * path, char * output, int output_length, downloadCallback_fun
 
     // 
     int left = content_length - total_read;
-    if (left > 2048)
-      left = 2048;
+    if (left > BUF_SIZE)
+      left = BUF_SIZE;
     else if (left <= 0)
       break;
 
-    content_read_length = client_recv(output, left);
+    int finished = client_recv(output, left, &content_read_length);
     if (content_read_length < 0) {
       DPRINTF("failed to finish reading content %d/%d (%s)\n", total_read, content_length, output);
       client_close();
@@ -157,6 +160,11 @@ int http_get(char * path, char * output, int output_length, downloadCallback_fun
     if (callback)
       callback(total_read, content_length);
     DPRINTF("read %d/%d\n", total_read, content_length);
+
+    if (finished) {
+      DPRINTF("recv finished\n");
+      break;
+    }
   }
 
   if (callback)
@@ -266,6 +274,7 @@ int http_download(char * path, char* file_path, downloadCallback_func callback)
   int y = 0; //scr_getY();
   while (total_read < content_length) {
 
+    uiRunCallbacks();
     if (dbStateCancel) {
       goto error;
     }
@@ -279,9 +288,9 @@ int http_download(char * path, char* file_path, downloadCallback_func callback)
 
     DPRINTF("recv start\n");
     memset(content_buffer, 0, BUF_SIZE);
-    content_read_length = client_recv(content_buffer, left);
-    DPRINTF("recv end %d\n", content_read_length);
-    if (content_read_length < 0) {
+    int recvResult = client_recv(content_buffer, left, &content_read_length);
+    DPRINTF("recv end ret:%d read:%d\n", recvResult, content_read_length);
+    if (content_read_length < 0 || recvResult < 0) {
       DPRINTF("failed to finish reading content %d/%d (%s)\n", total_read, content_length, content_buffer);
       goto error;
     }
@@ -293,8 +302,8 @@ int http_download(char * path, char* file_path, downloadCallback_func callback)
 
     DPRINTF("%d write %d to %d\n", x, content_read_length, fd);
     //lseek(fd, total_write, SEEK_SET);
-    //w = block_write(fd, content_buffer, content_read_length);
-    w = content_read_length;
+    w = block_write(fd, content_buffer, content_read_length);
+    //w = content_read_length;
     total_write += w;
     DPRINTF("%d write end %d\n", x, w);
 
@@ -303,18 +312,12 @@ int http_download(char * path, char* file_path, downloadCallback_func callback)
     if (callback)
       callback(total_read, content_length);
 
+    if (recvResult > 0) {
+      DPRINTF("recv finished\n");
+      break;
+    }
     ++x;
   }
-
-#if CHUNK
-  if (chunk_read) {
-    DPRINTF("%d write %d to %d\n", x, chunk_read, fd);
-    lseek(fd, total_write, SEEK_SET);
-    w = block_write(fd, chunk_buffer, chunk_read);
-    total_write += w;
-    DPRINTF("%d write end %d\n", x, w);
-  }
-#endif
 
   if (callback)
     callback(total_read, content_length);
@@ -372,21 +375,82 @@ int parse_db(struct DbIndex* db)
     DPRINTF("\t%s (version %d)\n", db->Items[i].Name, db->Items[i].RemoteVersion);
   }
   
+  // read local version
+  for (i = 0; i < db->ItemCount; ++i) {
+    db->Items[i].LocalVersion = db_read_local_version(db->Items[i].Filename);
+  }
 
   return 0;
+}
+
+int db_read_local_version(char * map_filename)
+{
+  char file_path[128];
+  char buf[4];
+  int version = 0;
+  int fd = -1;
+  int ret = 0;
+
+  // construct path
+  snprintf(file_path, sizeof(file_path), MASS_BINARY_PATH, map_filename, MAP_VERSION_EXT);
+
+  // open
+  rpcUSBopen(file_path, FIO_O_RDONLY);
+	rpcUSBSync(0, NULL, &fd);
+  if (fd < 0) {
+    DPRINTF("unable to open %s\n", file_path);
+    return -1;
+  }
+
+	// Go back to start of file
+	rpcUSBseek(fd, 0, SEEK_SET);
+	rpcUSBSync(0, NULL, NULL);
+
+  // read version
+	if (rpcUSBread(fd, (void*)buf, sizeof( int ) ) != 0)
+	{
+		DPRINTF( "error reading from %s\n", file_path );
+		rpcUSBclose(fd);
+		rpcUSBSync(0, NULL, NULL);
+		return -1;
+	}
+	rpcUSBSync(0, NULL, NULL);
+
+  version = *(int*)buf;
+  DPRINTF( "%s => %d\n", file_path, version );
+
+	// Close file
+	rpcUSBclose(fd);
+	rpcUSBSync(0, NULL, NULL);
+  return version;
 }
 
 int db_check_mass_dir(void)
 {
   DPRINTF("check\n");
-  struct stat st = {0};
-  if (stat(MASS_DIR_PATH, &st) == -1) {
-    int a = mkdir(MASS_DIR_PATH, 0777);
-    DPRINTF("no dir %d\n", a);
-    if (a < 0)
+  io_stat_t st = {0};
+  int ret = 0;
+
+  // if dir not exist then try mkdir
+  int getstat = rpcUSBgetstat(MASS_DIR_PATH, &st);
+  rpcUSBSync( 0, NULL, &ret );
+  if ( ret < 0 ) {
+    DPRINTF("getstat failed with %d\n", ret);
+
+    if ( rpcUSBmkdir(MASS_DIR_PATH) != 0 ) {
+      rpcUSBSync( 0, NULL, &ret );
+      DPRINTF("mkdir failed with %d\n", ret);
       return -1;
+    }
+
+    rpcUSBSync( 0, NULL, &ret );
+    if ( ret < 0 ) {
+      DPRINTF("2 mkdir failed with %d\n", ret);
+      return -1;
+    }
+  
+    return 0;
   }
-  DPRINTF("check 2\n");
 
   return 0;
 }
@@ -414,6 +478,11 @@ int download_db_item(struct DbIndexItem* item)
   int fd = -1;
   if (!item)
     return -1;
+
+  // delete version file if it exists
+  snprintf(file_path, 511, MASS_BINARY_PATH, item->Filename, MAP_VERSION_EXT);
+  rpcUSBremove(file_path);
+	rpcUSBSync(0, NULL, NULL);
 
   // download wad
   snprintf(file_path, 511, MASS_BINARY_PATH, item->Filename, MAP_WAD_EXT);
@@ -456,3 +525,20 @@ int download_db_item(struct DbIndexItem* item)
   return -1;
 }
 
+void db_write_global_maps_version(int version)
+{
+  char file_path[512];
+  int fd = -1;
+
+  snprintf(file_path, 511, "%s/version", MASS_DIR_PATH);
+  DPRINTF("%s\n", file_path);
+  rpcUSBopen(file_path, FIO_O_WRONLY | FIO_O_TRUNC | FIO_O_CREAT);
+  rpcUSBSync(0, NULL, &fd);
+  if (fd < 0) {
+    DPRINTF("unable to open version\n");
+    return -2;
+  }
+  block_write(fd, &version, sizeof(int));
+  rpcUSBclose(fd);
+  rpcUSBSync(0, NULL, NULL);
+}

@@ -88,6 +88,7 @@ void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* st
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
 
@@ -98,6 +99,8 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+
+void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -612,6 +615,7 @@ MenuElem_t menuElementsCustomMap[] = {
   { "and insert it into your PS2.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Finally install the custom maps modules here.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Install custom map modules", buttonActionHandler, menuStateHandler_InstallCustomMaps, mapsSelectHandler },
+  { "Check for map updates", buttonActionHandler, menuStateHandler_CheckForUpdatesCustomMaps, downloadMapUpdatesSelectHandler },
 };
 
 #if MAPEDITOR
@@ -781,6 +785,21 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
   memset(&gameConfig, 0, sizeof(gameConfig));
 }
 
+// 
+void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  ClientRequestBootElf_t request;
+  request.BootElfId = 1;
+  
+  // close menu
+  configMenuDisable();
+
+  // send request
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (lobbyConnection)
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
+}
+
 //------------------------------------------------------------------------------
 void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
@@ -809,6 +828,12 @@ void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   *state = isInMenus() && mapsGetInstallationResult() == 0 ? (ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE) : ELEMENT_HIDDEN;
+}
+
+// 
+void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  *state = isInMenus() && uiGetActive() == UI_ID_ONLINE_MAIN_MENU && mapsGetInstallationResult() == 1 ? (ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE) : ELEMENT_HIDDEN;
 }
 
 // 

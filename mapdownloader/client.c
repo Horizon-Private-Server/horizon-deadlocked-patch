@@ -3,76 +3,20 @@
 #include <libdl/stdlib.h>
 #include <libdl/string.h>
 #include <libdl/pad.h>
+#include <libdl/net.h>
 
 #include "db.h"
 
-#define BUF_SIZE            (1024 * 2)
-
-struct RTCommSock;
-
-typedef void (*RTCommSock_Destructor_func)(struct RTCommSock* this, int a1);
-typedef void* (*RTCommSock_DNSLookup_func)(struct RTCommSock* this, char * hostname, void * memoryContextBase, u32* result);
-typedef int (*RTCommSock_DNSLookupNonBlockingQuery_func)(struct RTCommSock* this, void ** svAddr);
-typedef int (*RTCommSock_UnserializeAddr_func)(struct RTCommSock* this);
-typedef int (*RTCommSock_AddrAsString_func)(struct RTCommSock* this, void* svAddr, char * str, int maxLen);
-typedef int (*RTCommSock_Connect_func)(struct RTCommSock* this, void* svAddr, int port);
-typedef int (*RTCommSock_WaitForConnect_func)(struct RTCommSock* this);
-typedef int (*RTCommSock_Send_func)(struct RTCommSock* this, char* buf, int len, u64* sendCount);
-typedef int (*RTCommSock_Recv_func)(struct RTCommSock* this, char* buf, int bufSize, int* recvLen, int* isFinished);
-typedef int (*RTCommSock_Close_func)(struct RTCommSock* this, int forceClose);
-typedef void (*RTCommSock_SetNonBlocking_func)(struct RTCommSock* this, int nonBlocking);
-typedef int (*RTCommSock_GetNonBlocking_func)(struct RTCommSock* this);
-typedef void (*RTCommSock_SetSynchronous_func)(struct RTCommSock* this, int synchronous);
-typedef int (*RTCommSock_GetSynchronous_func)(struct RTCommSock* this);
-typedef int (*RTCommSock_GetErrNo_func)(struct RTCommSock* this);
-typedef void (*RTCommSock_SetErrNo_func)(struct RTCommSock* this, int err);
-
-struct RTCommSockVTable
-{
-    void * FUNC_00;
-    void * FUNC_04;
-    RTCommSock_Destructor_func Destructor;
-    RTCommSock_DNSLookup_func DNSLookup;
-    RTCommSock_DNSLookup_func DNSLookupBlocking;
-    RTCommSock_DNSLookup_func DNSLookupNonBlocking;
-    RTCommSock_DNSLookupNonBlockingQuery_func DNSLookupNonBlockingQuery;
-    RTCommSock_UnserializeAddr_func UnserializeAddr;
-    RTCommSock_AddrAsString_func AddrAsString;
-    RTCommSock_Connect_func Connect;
-    RTCommSock_WaitForConnect_func WaitForConnect;
-    RTCommSock_Send_func Send;
-    RTCommSock_Recv_func Recv;
-    RTCommSock_Close_func Close;
-    RTCommSock_SetNonBlocking_func SetNonBlocking;
-    RTCommSock_GetNonBlocking_func GetNonBlocking;
-    RTCommSock_SetSynchronous_func SetSynchronous;
-    RTCommSock_GetSynchronous_func GetSynchronous;
-    RTCommSock_GetErrNo_func GetErrNo;
-    RTCommSock_SetErrNo_func SetErrNo;
-};
-
-typedef struct RTCommSock
-{
-  int ErrNo;
-  void * MemoryContext;
-  struct RTCommSockVTable* VTable;
-  void * RTCommCID;
-  char OutBuf[28];
-  char HostnameBeingLookedUp[64];
-  int NonBlocking;
-  u8* ScratchBuffer;
-  void * SVAddrVTable;
-  long unsigned int Addr[2];
-  int Synchronous;
-} RTCommSock_t;
+#define BUF_SIZE            (1460)
+#define CLIENTDATA          ((void*)0x001b26c0)
 
 const char* HOSTNAME = "cdn.rac-horizon.com";
-const char* HOSTNAME2 = "ratchetdl-prod.pdonline.scea.com";
 
 const int PORT = 80;
 
-void* memoryContext = NULL;
-RTCommSock_t* commSock = NULL;
+static u8	net_buf[2048] __attribute__( ( aligned( 64 ) ) );
+
+int inetClientTCPID = -1;
 
 long comm_startup(void)
 {
@@ -84,47 +28,65 @@ void comm_update(void)
   ((void (*)(void))0x01ea7538)();
 }
 
-void client_createCommSock(void * this, void * memoryContextBase)
-{
-  return ((void* (*)(void*, void*))0x01ef4e64)(this, memoryContextBase);
-}
-
 int client_connect(void)
 {
+  int ret = 0;
+  inetParam_t param;
+
   DPRINTF("connecting to %s...\n", HOSTNAME);
-  char buf[64];
   
-  u32 result = 0;
+  memset( &param, 0, sizeof( inetParam_t ) );
+	param.type = 1;
+	param.local_port = -1;
+	ret = inetName2Address( CLIENTDATA, net_buf, 0, &param.remote_addr, HOSTNAME, 0, 0 );
+	if ( ret < 0 ) {
+		DPRINTF( "%s, %d, inetName2Address : DNS failed : %s, ret = %d\n", __FILE__, __LINE__, HOSTNAME, ret );
+		return -1;
+	}
+	param.remote_port = 80;
 
-  void* lookupResult = commSock->VTable->DNSLookupBlocking(commSock, HOSTNAME, memoryContext, &result);
-  if (!result || !lookupResult)
-    return -1;
+	inetClientTCPID = inetCreate( CLIENTDATA, net_buf, &param );
+	if ( inetClientTCPID < 0 ) {
+		DPRINTF( "%s, %d, inetCreate() failed.(%d)\n", __FILE__, __LINE__, inetClientTCPID );
+		return -2;
+	}
 
-  //*(u32*)((u32)lookupResult + 0x8) = 0xCFE20F34;
+	ret = inetOpen( CLIENTDATA, net_buf, inetClientTCPID, -1 );
+	if ( ret < 0 ) {
+		DPRINTF( "inetOpen() failed.(%d)\n", ret );
+		client_close();
+    return -3;
+	}
 
-  int connectResult = commSock->VTable->Connect(commSock, lookupResult, PORT);
-  if (!connectResult)
-    return -2;
-
-  commSock->VTable->AddrAsString(commSock, lookupResult, buf, sizeof(buf));
-  DPRINTF("connected %08X %d %s\n", (u32)lookupResult, connectResult, buf);
+  //DPRINTF("connected %08X %d %s\n", (u32)lookupResult, connectResult, buf);
   return 0;
 }
 
 int client_close(void)
 {
+  int ret = 0;
+  if (inetClientTCPID < 0)
+    return 0;
+
   DPRINTF("disconnecting...\n");
   
-  if (!commSock->VTable->Close(commSock, 1))
-    return -1;
+	ret = inetClose( CLIENTDATA, net_buf, inetClientTCPID, -1 );
+	if ( ret < 0 ) {
+		DPRINTF( "inetClose() failed.(%d)\n", ret );
+	}
+	else {
+		DPRINTF( "inetClose() done.\n" );
+	}
 
+  inetClientTCPID = -1;
   return 0;
 }
 
 int client_get(char * path, char * output, int output_size)
 {
   int i,j=0;
-  char buffer[BUF_SIZE + 1]; /* +1 so we can add null terminator */
+  int ret, flags;
+  char getcmd[BUF_SIZE + 1]; /* +1 so we can add null terminator */
   char encoded_path[512];
   int sendCount = 0;
   int len = 0;
@@ -142,78 +104,51 @@ int client_get(char * path, char * output, int output_size)
   }
   encoded_path[j] = '\0';
 
-  sprintf(buffer, "GET %s HTTP/1.1\r\nUser-Agent: PS2HorizonClient\r\nAccept: */*\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n", encoded_path, HOSTNAME);
-  int sendResult = commSock->VTable->Send(commSock, buffer, strlen(buffer), &sendCount);
-  DPRINTF("sent res:%d cnt:%d\n", sendResult, sendCount);
+  sprintf(getcmd, "GET %s HTTP/1.1\r\nUser-Agent: PS2HorizonClient\r\nAccept: */*\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n", encoded_path, HOSTNAME);
+  
+  flags = 0;
+	ret = inetSend( CLIENTDATA, net_buf, inetClientTCPID, getcmd, strlen( getcmd ), &flags, -1 );
+	if ( ret < 0 ) {
+		DPRINTF( "inetSend() failed.(%d)\n", ret );
+		return -1;
+	}
 
-  len = client_recv(output, output_size);
-  DPRINTF("recv len:%d\n", len);
+  ret = client_recv(output, output_size, &len);
+  DPRINTF("recv ret:%d len:%d\n", ret, len);
 
   return len;
 }
 
-int client_recv(char * output, int output_size)
+int client_recv(char * output, int output_size, int * bytes_recvd)
 {
-  int isFinished = 0;
-  int len = 0;
-  int recvResult = 1;
-  int waits = 0;
+  int flags = 0;
+  int ret = 0;
   
-  while (!len && recvResult) {
-    // update logic
-    if ((waits % 10000) == 9999) {
-      uiRunCallbacks();
-    }
-    if ((waits % 1000) == 500) {
-      comm_update();
-    }
+  ret = inetRecv( CLIENTDATA, net_buf, inetClientTCPID, output, output_size, &flags, -1 );
+  if ( ret < 0 ) {
+    DPRINTF( "inetRecv() failed.(%d)\n", ret );
+    if (bytes_recvd)
+      *bytes_recvd = 0;
+    return ret;
+  } else if (!ret) { DPRINTF("empty recv\n"); }
 
-    if (dbStateCancel)
-      return -1;
 
-    recvResult = commSock->VTable->Recv(commSock, output, output_size, &len, &isFinished);
-    ++waits;
-  }
+  DPRINTF("recv ret:%d finished:%d\n", ret, flags & 4);
+  if (bytes_recvd)
+    *bytes_recvd = ret;
+    
+  if (flags & 4)
+    return 1;
 
-  DPRINTF("recv res:%d len:%d finished:%d waits:%d\n", recvResult, len, isFinished, waits);
-  return len;
+  return 0;
 }
 
 int client_init(void)
 {
-  *(u32*)0x0016e4c8 = 1024 * 16;
-
-  if (!memoryContext) {
-    DPRINTF("mem %08X\n", ((u32 (*)(void))0x01f07100)() );
-    memoryContext = ((void* (*)(void))0x01f07100)(); //malloc(0x10420);
-  }
-
-  if (!commSock) {
-
-    comm_startup();
-    comm_update();
-
-    commSock = malloc(0xa0);
-    client_createCommSock(commSock, memoryContext);
-    if (commSock->VTable) {
-      commSock->VTable->SetNonBlocking(commSock, 0);
-      commSock->VTable->SetSynchronous(commSock, 3);
-    }
-    DPRINTF("created comm sock at %08X\n", commSock);
-  }
-
   return 0;
 }
 
 void client_destroy(void)
 {
-  if (memoryContext) {
-    //free(memoryContext);
-    memoryContext = NULL;
-  }
-
-  if (commSock) {
-    free(commSock);
-    commSock = NULL;
-  }
+  
 }
