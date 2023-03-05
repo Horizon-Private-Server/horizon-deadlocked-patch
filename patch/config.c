@@ -88,6 +88,7 @@ void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* st
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
 
@@ -98,6 +99,8 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+
+void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -113,6 +116,7 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 #ifdef DEBUG
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element);
 #endif
 
 void navMenu(TabElem_t* tab, int direction, int loop);
@@ -178,6 +182,7 @@ MenuElem_RangeData_t dataPlayerAggTime = {
 MenuElem_t menuElementsGeneral[] = {
 #ifdef DEBUG
   { "Redownload patch", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadPatchSelectHandler },
+  { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
   { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
@@ -375,6 +380,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Ghost Ship",
       "Hoven Gorge",
       "Hoverbike Race",
+      "Infinite Climber",
       "Korgon Outpost",
       "Launch Site",
       "Marcadia Palace",
@@ -397,7 +403,8 @@ MenuElem_ListData_t dataCustomMaps = {
 char dataCustomMapsWithExclusiveGameMode[] = {
   CUSTOM_MAP_SPLEEF,
   CUSTOM_MAP_DUCK_HUNT,
-  CUSTOM_MAP_HOVERBIKE_RACE
+  CUSTOM_MAP_HOVERBIKE_RACE,
+  CUSTOM_MAP_INFINITE_CLIMBER
 };
 const int dataCustomMapsWithExclusiveGameModeCount = sizeof(dataCustomMapsWithExclusiveGameMode)/sizeof(char);
 
@@ -410,7 +417,7 @@ MenuElem_ListData_t dataCustomModes = {
       "None",
       "Gun Game",
       "Infected",
-      "Infinite Climber",
+      // "Infinite Climber",
       "Payload",
       "Search and Destroy",
       "Survival",
@@ -610,6 +617,7 @@ MenuElem_t menuElementsCustomMap[] = {
   { "and insert it into your PS2.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Finally install the custom maps modules here.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Install custom map modules", buttonActionHandler, menuStateHandler_InstallCustomMaps, mapsSelectHandler },
+  { "Check for map updates", buttonActionHandler, menuStateHandler_CheckForUpdatesCustomMaps, downloadMapUpdatesSelectHandler },
 };
 
 #if MAPEDITOR
@@ -726,6 +734,21 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
 }
 
+// 
+void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  ClientRequestBootElf_t request;
+  request.BootElfId = 1;
+  
+  // close menu
+  configMenuDisable();
+
+  // send request
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (lobbyConnection)
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
+}
+
 #endif
 
 #ifdef MAPEDITOR
@@ -764,6 +787,21 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
   memset(&gameConfig, 0, sizeof(gameConfig));
 }
 
+// 
+void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  ClientRequestBootElf_t request;
+  request.BootElfId = 1;
+  
+  // close menu
+  configMenuDisable();
+
+  // send request
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (lobbyConnection)
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
+}
+
 //------------------------------------------------------------------------------
 void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
@@ -792,6 +830,12 @@ void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   *state = isInMenus() && mapsGetInstallationResult() == 0 ? (ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE) : ELEMENT_HIDDEN;
+}
+
+// 
+void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  *state = isInMenus() && uiGetActive() == UI_ID_ONLINE_MAIN_MENU && mapsGetInstallationResult() == 1 ? (ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE) : ELEMENT_HIDDEN;
 }
 
 // 
@@ -899,7 +943,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
     {
       case CUSTOM_MODE_INFECTED:
       case CUSTOM_MODE_GUN_GAME:
-      case CUSTOM_MODE_INFINITE_CLIMBER:
+      //case CUSTOM_MODE_INFINITE_CLIMBER:
       case CUSTOM_MODE_1000_KILLS:
       case CUSTOM_MODE_SURVIVAL:
       case CUSTOM_MODE_PAYLOAD:
