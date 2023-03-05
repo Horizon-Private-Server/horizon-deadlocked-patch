@@ -9,6 +9,9 @@
 #include <libcdvd.h>
 #include <debug.h>
 
+#define NEWLIB_PORT_AWARE
+#include <io_common.h>
+
 /* IRX Modules and elf loader */
 
 extern void *memdisk_irx;
@@ -31,6 +34,9 @@ int rpcUSBwrite(int fd, void *buf, int size);
 int rpcUSBclose(int fd);
 int rpcUSBread(int fd, void *buf, int size);
 int rpcUSBseek(int fd, int offset, int whence);
+int rpcUSBremove(char *filename);
+int rpcUSBgetstat(char *filename, struct stat * st);
+int rpcUSBmkdir(char *dirpath);
 int rpcUSBSync(int mode, int *cmd, int *result);
 int rpcUSBSyncNB(int mode, int *cmd, int *result);
 

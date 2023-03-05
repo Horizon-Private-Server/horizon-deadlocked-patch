@@ -229,7 +229,8 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	}
 	else
 	{
-		if (readLocalGlobalVersion() < 0 || mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
+    readLocalGlobalVersion();
+		if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
 		{
 			// Indicate new version
 			actionState = ACTION_NEW_MAPS_UPDATE;
@@ -501,14 +502,16 @@ int readFile(char * path, void * buffer, int length)
 int readGlobalVersion(int * version)
 {
 	int r;
+  char buf[4];
 
-	r = readFile(fGlobalVersion, (void*)version, 4);
+	r = readFile(fGlobalVersion, (void*)buf, 4);
 	if (r != 4)
 	{
 		DPRINTF("error reading file (%s)\n", fGlobalVersion);
 		return 0;
 	}
 
+  *version = *(int*)buf;
 	return 1;
 }
 
@@ -921,10 +924,10 @@ int mapsAllocateModuleBuffer(void)
 		}
 	}
 	if (!USB_SRV_MODULE_PTR) {
-		USB_SRV_MODULE_PTR = malloc(9000);
+		USB_SRV_MODULE_PTR = malloc(9100);
 		if (USB_SRV_MODULE_PTR) {
 			USB_SRV_MODULE_PTR = (void*)align((int)USB_SRV_MODULE_PTR, 0x10);
-			memset(USB_SRV_MODULE_PTR, 0, 9000);
+			memset(USB_SRV_MODULE_PTR, 0, 9100);
 		}
 	}
 

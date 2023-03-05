@@ -436,7 +436,7 @@ const char* CustomModeShortNames[] = {
   NULL,
   NULL,
   NULL,
-  "Climber",
+  //"Climber",
   NULL,
   "SND",
   NULL,

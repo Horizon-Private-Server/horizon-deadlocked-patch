@@ -2602,7 +2602,7 @@ int hookCheckHostStartGame(void* a0)
     // if survival
     // verify we have the latest maps
     if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
-      if (mapsLocalGlobalVersion >= 0 || readLocalGlobalVersion() < 0 || mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+      if (mapsLocalGlobalVersion >= 0 || mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
         showNeedLatestMapsPopup = 1;
         return 0;
       }
@@ -3234,6 +3234,7 @@ void onOnlineMenu(void)
 	{
     sprintf(buf, "Please download the latest custom maps to play. %d %d", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
     uiShowOkDialog("Custom Maps", buf);
+    readLocalGlobalVersion();
 
 		showNeedLatestMapsPopup = 0;
 	}
