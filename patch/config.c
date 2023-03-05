@@ -732,7 +732,7 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
 void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   ClientRequestBootElf_t request;
-  request.BootElfId = 0;
+  request.BootElfId = 1;
   
   // close menu
   configMenuDisable();
