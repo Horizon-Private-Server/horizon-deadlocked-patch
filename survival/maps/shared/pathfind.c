@@ -281,13 +281,13 @@ int pathGetTargetNodeIdx(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void pathGetClosestPointOnNode(VECTOR output, VECTOR from, VECTOR target, int currentNodeIdx, int nextEdgeIdx)
+void pathGetClosestPointOnNode(VECTOR output, VECTOR from, VECTOR target, int currentNodeIdx, int nextEdgeIdx, float collRadius)
 {
   VECTOR fit;
   VECTOR fromToCurrentNodeCenter;
   VECTOR currentNodeCenterToNextNode;
 
-  float currentNodeRadius = MOB_PATHFINDING_NODES[currentNodeIdx][3];
+  float currentNodeRadius = maxf(0, MOB_PATHFINDING_NODES[currentNodeIdx][3] - collRadius);
   float currentNodeCornering = MOB_PATHFINDING_NODES_CORNERING[currentNodeIdx];
   vector_subtract(fromToCurrentNodeCenter, MOB_PATHFINDING_NODES[currentNodeIdx], from);
   
@@ -439,7 +439,7 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
   }
 
   // get point
-  pathGetClosestPointOnNode(output, moby->Position, pvars->MobVars.Target->Position, targetNodeIdx, pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent+1]);
+  pathGetClosestPointOnNode(output, moby->Position, pvars->MobVars.Target->Position, targetNodeIdx, pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent+1], pvars->MobVars.Config.CollRadius);
   vector_copy(pvars->MobVars.MoveVars.LastTargetPos, output);
 }
 

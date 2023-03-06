@@ -1,5 +1,6 @@
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
+#include "../../../include/mysterybox.h"
 
 extern struct SurvivalMapConfig MapConfig;
 
@@ -14,7 +15,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 			MOB_SPAWN_PARAM_GHOST,
 			-1, -1
 		},
-		.Name = "Ghost Runner Round"
+		.Name = "Ghost Tremor Round"
 	},
 	// ROUND 10
 	{
@@ -37,7 +38,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 			MOB_SPAWN_PARAM_FREEZE,
 			-1
 		},
-		.Name = "Freeze Runner Round"
+		.Name = "Freeze Tremor Round"
 	},
 	// ROUND 20
 	{
@@ -59,7 +60,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 			MOB_SPAWN_PARAM_TITAN,
 			-1
 		},
-		.Name = "Titan Round"
+		.Name = "Executioner Round"
 	},
 };
 
@@ -87,8 +88,8 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MaxDamage = MOB_BASE_DAMAGE * 5,
       .DamageScale = 1.0,
 			.Speed = MOB_BASE_SPEED * 0.85,
-			.MaxSpeed = MOB_BASE_SPEED * 1.0,
-      .SpeedScale = 1.0,
+			.MaxSpeed = MOB_BASE_SPEED * 2.0,
+      .SpeedScale = 0.5,
 			.Health = MOB_BASE_HEALTH * 50.0,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
@@ -116,11 +117,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 25,
 			.Bangles = ZOMBIE_BANGLE_HEAD_2 | ZOMBIE_BANGLE_TORSO_2,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 1.3,
-      .DamageScale = 1.0,
+			.MaxDamage = MOB_BASE_DAMAGE * 5.0,
+      .DamageScale = 0.2,
 			.Speed = MOB_BASE_SPEED * 1.0,
-			.MaxSpeed = MOB_BASE_SPEED * 2.0,
-      .SpeedScale = 1.0,
+			.MaxSpeed = MOB_BASE_SPEED * 3.0,
+      .SpeedScale = 0.5,
 			.Health = MOB_BASE_HEALTH * 1.0,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
@@ -148,11 +149,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 40,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = MOB_BASE_DAMAGE * 2.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 10.0,
+			.MaxDamage = MOB_BASE_DAMAGE * 20.0,
       .DamageScale = 1.0,
 			.Speed = MOB_BASE_SPEED * 1.0,
 			.MaxSpeed = MOB_BASE_SPEED * 1.5,
-      .SpeedScale = 1.0,
+      .SpeedScale = 0.5,
 			.Health = MOB_BASE_HEALTH * 2.0,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
@@ -180,8 +181,8 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 50,
 			.Bangles = ZOMBIE_BANGLE_HEAD_4 | ZOMBIE_BANGLE_TORSO_4,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 1.0,
-      .DamageScale = 1.0,
+			.MaxDamage = MOB_BASE_DAMAGE * 3.0,
+      .DamageScale = 0.5,
 			.Speed = MOB_BASE_SPEED * 1.0,
 			.MaxSpeed = MOB_BASE_SPEED * 1.8,
       .SpeedScale = 1.0,
@@ -212,11 +213,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 50,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 1.6,
-      .DamageScale = 1.0,
+			.MaxDamage = MOB_BASE_DAMAGE * 2.2,
+      .DamageScale = 0.5,
 			.Speed = MOB_BASE_SPEED * 0.8,
-			.MaxSpeed = MOB_BASE_SPEED * 1.5,
-      .SpeedScale = 1.0,
+			.MaxSpeed = MOB_BASE_SPEED * 2.5,
+      .SpeedScale = 0.5,
 			.Health = MOB_BASE_HEALTH * 1.2,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
@@ -244,10 +245,10 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 15,
 			.Bangles = TREMOR_BANGLE_HEAD | TREMOR_BANGLE_CHEST | TREMOR_BANGLE_LEFT_ARM,
 			.Damage = MOB_BASE_DAMAGE * 0.7,
-			.MaxDamage = MOB_BASE_DAMAGE * 1.2,
-      .DamageScale = 1.0,
+			.MaxDamage = MOB_BASE_DAMAGE * 2.2,
+      .DamageScale = 0.3,
 			.Speed = MOB_BASE_SPEED * 2.0,
-			.MaxSpeed = MOB_BASE_SPEED * 3.0,
+			.MaxSpeed = MOB_BASE_SPEED * 4.0,
       .SpeedScale = 1.0,
 			.Health = MOB_BASE_HEALTH * 0.6,
 			.MaxHealth = 0,
@@ -276,11 +277,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 10,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 1.3,
+			.MaxDamage = MOB_BASE_DAMAGE * 3.3,
       .DamageScale = 1.0,
 			.Speed = MOB_BASE_SPEED * 1.0,
 			.MaxSpeed = MOB_BASE_SPEED * 2.0,
-      .SpeedScale = 1.0,
+      .SpeedScale = 0.5,
 			.Health = MOB_BASE_HEALTH * 1.0,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
@@ -334,6 +335,19 @@ u32 MobLODColors[] = {
 	[MOB_TANK]		0x00808080,
 };
 
+struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
+  { MYSTERY_BOX_ITEM_RESET_GATES, 0.05 },
+  { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
+  { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
+  { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },
+  { MYSTERY_BOX_ITEM_ACTIVATE_POWER, 0.0888 },
+  { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.0967 },
+  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
+  { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
+  // { MYSTERY_BOX_ITEM_WEAPON_MOD, 0.4 },
+  { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
+};
+const int MysteryBoxItemMysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)/sizeof(struct MysteryBoxItemWeight);
 
 void configInit(void)
 {

@@ -245,8 +245,9 @@ int gasTick(void)
 			);
 
 		// damage player if in gas
+    // and player doesn't have shield on
 #if !DEBUG
-		if (!playerIsDead(p) && isPlayerInGasArea(p)) {
+		if (!playerIsDead(p) && isPlayerInGasArea(p) && p->timers.armorLevelTimer <= 0) {
 			
 			if (gasDamageTicker) {
 				--gasDamageTicker;

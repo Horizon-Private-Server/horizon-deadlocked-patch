@@ -169,6 +169,9 @@ int onSetMapOverride(void * connection, void * data)
 		else if (!readLevelVersion(payload->MapFileName, &version))
 			version = -2;
 
+    // read global maps version from usb
+    readLocalGlobalVersion();
+
 		// print
 		DPRINTF("MapId:%d MapName:%s MapFileName:%s Version:%d\n", payload->MapId, payload->MapName, payload->MapFileName, version);
 
@@ -919,15 +922,15 @@ int mapsAllocateModuleBuffer(void)
 	if (!USB_FS_MODULE_PTR) {
 		USB_FS_MODULE_PTR = malloc(41100);
 		if (USB_FS_MODULE_PTR) {
-			USB_FS_MODULE_PTR = (void*)align((int)USB_FS_MODULE_PTR, 0x10);
 			memset(USB_FS_MODULE_PTR, 0, 41100);
+			USB_FS_MODULE_PTR = (void*)align((int)USB_FS_MODULE_PTR, 0x10);
 		}
 	}
 	if (!USB_SRV_MODULE_PTR) {
-		USB_SRV_MODULE_PTR = malloc(9100);
+		USB_SRV_MODULE_PTR = malloc(6000);
 		if (USB_SRV_MODULE_PTR) {
+			memset(USB_SRV_MODULE_PTR, 0, 6000);
 			USB_SRV_MODULE_PTR = (void*)align((int)USB_SRV_MODULE_PTR, 0x10);
-			memset(USB_SRV_MODULE_PTR, 0, 9100);
 		}
 	}
 

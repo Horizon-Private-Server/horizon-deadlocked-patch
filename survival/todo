@@ -100,17 +100,17 @@ Add random events
 ++Rebalance arbiter damage/ammo
 ++Add timed infinite ammo item to mystery box
 ++Holoshields damage mobs
-Fix executioner pathfinding/getting stuck on walls
-Add XP alpha mod
-Change executioner blip to big red dot
-Double XP drop
-Rename special rounds
+++Fix executioner pathfinding/getting stuck on walls
+++Add XP alpha mod
+++Change executioner blip to big red dot
+++Double XP drop
+++Rename special rounds
 Make speed upgrade crank bolts faster
-Fix revive not working near Al
-Rename medic to revive discount
-Let people play on any team, but act like they are on same
-Shield sphere prevents gas damage on orxon
-Communicate when you reached max player upgrades
-Medic upgrade hidden in solo runs
-Solo run spawn in with a self revive
-Prevents mobs from accidentally spawning on player
+++Fix revive not working near Al
+++Rename medic to revive discount
+++Let people play on any team, but act like they are on same
+++Shield sphere prevents gas damage on orxon
+++Communicate when you reached max player upgrades
+++Medic upgrade hidden in solo runs
+++Solo run spawn in with a self revive
+++Prevents mobs from accidentally spawning on player

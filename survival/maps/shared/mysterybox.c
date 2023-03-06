@@ -108,26 +108,8 @@ SoundDef BaseMysteryBoxSoundDef =
 	3			  // Bank
 };
 
-struct MysteryBoxItemWeight
-{
-  enum MysteryBoxItem Item;
-  float Probability;
-};
-
-struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
-  { MYSTERY_BOX_ITEM_RESET_GATES, 0.05 },
-  { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
-  { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
-  { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },
-  { MYSTERY_BOX_ITEM_ACTIVATE_POWER, 0.0888 },
-  { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.0967 },
-  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
-  { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
-  // { MYSTERY_BOX_ITEM_WEAPON_MOD, 0.4 },
-  { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
-};
-
-const int MysteryBoxItemMysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)/sizeof(struct MysteryBoxItemWeight);
+extern struct MysteryBoxItemWeight MysteryBoxItemProbabilities[];
+extern const int MysteryBoxItemMysteryBoxItemProbabilitiesCount;
 
 //--------------------------------------------------------------------------
 void mboxPlayOpenSound(Moby* moby)
@@ -144,9 +126,7 @@ int mboxGetAlphaMod(Moby* moby)
 
   struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
   
-	int alphaMod = (pvars->Random % 6) + 1;
-	if (alphaMod == ALPHA_MOD_XP)
-		alphaMod++;
+	int alphaMod = (pvars->Random % 7) + 1;
 
   return alphaMod;
 }
@@ -167,24 +147,6 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
 {
   int i;
 
-#if DEBUG
-  static int total = 0;
-  static int counts[MYSTERY_BOX_ITEM_COUNT] = {
-    0,0,0,0,0,0,0,0
-  };
-  const char * NAMES[MYSTERY_BOX_ITEM_COUNT] = {
-    [MYSTERY_BOX_ITEM_WEAPON_MOD] "Alpha  ",
-    [MYSTERY_BOX_ITEM_ACTIVATE_POWER] "Power  ",
-    [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] "Upgrade",
-    [MYSTERY_BOX_ITEM_DREAD_TOKEN] "Token  ",
-    [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] "Cloak  ",
-    [MYSTERY_BOX_ITEM_REVIVE_TOTEM] "Revive ",
-    [MYSTERY_BOX_ITEM_INFINITE_AMMO] "InfAmmo "
-    [MYSTERY_BOX_ITEM_RESET_GATES] "Reset  ",
-    [MYSTERY_BOX_ITEM_TEDDY_BEAR] "Bear   ",
-  };
-#endif
-
 	// create event
 	GuberEvent * guberEvent = guberCreateEvent(moby, MYSTERY_BOX_EVENT_ACTIVATE);
   if (guberEvent) {
@@ -199,19 +161,6 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
 
     int item = MysteryBoxItemProbabilities[i].Item;
     int random = rand(100);
-
-#if DEBUG
-    counts[item] ++;
-    total ++;
-
-    printf("counts (%d):\n", total);
-    for (i = 0; i < MYSTERY_BOX_ITEM_COUNT; ++i) {
-      if (counts[i]) {
-        printf("\t%s => %d (%.2f%%)\n", NAMES[i], counts[i], 100 * (counts[i] / (float)total));
-      }
-    }
-    printf("\n");
-#endif
 
     guberEventWrite(guberEvent, &activatedByPlayerId, 4);
     guberEventWrite(guberEvent, &item, 4);

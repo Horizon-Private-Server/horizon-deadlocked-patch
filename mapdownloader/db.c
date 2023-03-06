@@ -12,7 +12,7 @@
 
 #define BUF_SIZE                  (1460)
 #define DOWNLOAD_CHUNK_SIZE       (1024 * 16)
-#define USB_WRITE_BLOCK_SIZE      (512)
+#define USB_WRITE_BLOCK_SIZE      (256)
 
 const char * MASS_DIR_PATH = "dl";
 const char * MASS_BINARY_PATH = "dl/%s.%s";
@@ -188,17 +188,17 @@ int block_write(int fd, void* buf, int len)
 	while (rPos < len)
 	{
 		int size = len - rPos;
-		if (size > 512)
-			size = 512;
+		if (size > USB_WRITE_BLOCK_SIZE)
+			size = USB_WRITE_BLOCK_SIZE;
 
 		// Try to write to usb
 		if ((r = rpcUSBwrite(fd, buf, size)) != 0)
 		{
 			rpcUSBSync(0, NULL, NULL);
 			DPRINTF("error writing to file %d\n", r);
-			rpcUSBclose(fd);
-			rpcUSBSync(0, NULL, NULL);
-			fd = -1;
+			//rpcUSBclose(fd);
+			//rpcUSBSync(0, NULL, NULL);
+			//fd = -1;
 			return 0;
 		}
 
@@ -264,6 +264,10 @@ int http_download(char * path, char* file_path, downloadCallback_func callback)
   dbStateDownloadTotal = content_length;
   dbStateDownloadAmount = content_read_length;
   int w = block_write(fd, content_buffer, content_read_length);
+  if (w <= 0) {
+    DPRINTF("failed to write at %d size:%d\n", 0, content_read_length);
+    goto error;
+  }
   total_write += w;
   DPRINTF("write end %d\n", w);
   total_read += content_read_length;
@@ -304,6 +308,11 @@ int http_download(char * path, char* file_path, downloadCallback_func callback)
     //lseek(fd, total_write, SEEK_SET);
     w = block_write(fd, content_buffer, content_read_length);
     //w = content_read_length;
+    if (w <= 0) {
+      DPRINTF("failed to write at %d size:%d\n", total_write, content_read_length);
+      goto error;
+    }
+
     total_write += w;
     DPRINTF("%d write end %d\n", x, w);
 
@@ -427,6 +436,7 @@ int db_read_local_version(char * map_filename)
 
 int db_check_mass_dir(void)
 {
+  return 0;
   DPRINTF("check\n");
   io_stat_t st = {0};
   int ret = 0;
@@ -481,8 +491,8 @@ int download_db_item(struct DbIndexItem* item)
 
   // delete version file if it exists
   snprintf(file_path, 511, MASS_BINARY_PATH, item->Filename, MAP_VERSION_EXT);
-  rpcUSBremove(file_path);
-	rpcUSBSync(0, NULL, NULL);
+  //rpcUSBremove(file_path);
+	//rpcUSBSync(0, NULL, NULL);
 
   // download wad
   snprintf(file_path, 511, MASS_BINARY_PATH, item->Filename, MAP_WAD_EXT);

@@ -424,7 +424,7 @@ void executionerDoAction(Moby* moby)
           // with min speed
           float jumpSpeed = 4;
           if (target) {
-            jumpSpeed = clamp(2 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
+            jumpSpeed = clamp(4 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 25);
           }
 
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
@@ -459,7 +459,7 @@ void executionerDoAction(Moby* moby)
           mobTurnTowards(moby, target->Position, turnSpeed);
           mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, -pvars->MobVars.Config.Speed, acceleration);
         }
-        else {
+        else if (dist > (pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius)) {
 
           pathGetTargetPos(t, moby);
 				  vector_subtract(t, t, moby->Position);
@@ -469,8 +469,10 @@ void executionerDoAction(Moby* moby)
           vector_scale(t, t, 1 / dist);
           vector_add(t, moby->Position, t);
 
-          mobTurnTowards(moby, target->Position, turnSpeed);
+          mobTurnTowards(moby, t, turnSpeed);
           mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+        } else {
+          mobStand(moby);
         }
       } else {
         // stand

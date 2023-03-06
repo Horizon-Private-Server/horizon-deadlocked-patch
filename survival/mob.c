@@ -259,7 +259,7 @@ void mobUpdate(Moby* moby)
 				blip->X = moby->Position[0];
 				blip->Y = moby->Position[1];
 				blip->Life = 0x1F;
-				blip->Type = 4;
+				blip->Type = pvars->MobVars.Config.MobType == MOB_TANK ? 5 : 4;
 				blip->Team = 1;
 			}
 		}
@@ -708,7 +708,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		if (killedByPlayer) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				Player* p = players[i];
-				if (p && !playerIsDead(p) && p->Team == killedByPlayer->Team) {
+				if (p && !playerIsDead(p)) {
 					int multiplier = State.PlayerStates[i].IsDoublePoints ? 2 : 1;
 					State.PlayerStates[i].State.Bolts += bolts * multiplier;
 					State.PlayerStates[i].State.TotalBolts += bolts * multiplier;
@@ -730,8 +730,15 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		GameData * gameData = gameGetData();
 
 		// give xp
-		pState->State.XP += xp;
+		pState->State.XP += xp * (pState->IsDoubleXP ? 2 : 1);
 		u64 targetForNextToken = getXpForNextToken(pState->State.TotalTokens);
+
+		// handle weapon xp
+		if (weaponId > 1 && killedByPlayer) {
+			int xpCount = playerGetWeaponAlphaModCount(killedByPlayer, weaponId, ALPHA_MOD_XP);
+
+      pState->State.XP += xpCount * XP_ALPHAMOD_XP;
+		}
 
 		// give tokens
 		while (pState->State.XP >= targetForNextToken)

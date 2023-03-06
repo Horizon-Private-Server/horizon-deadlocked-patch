@@ -54,6 +54,12 @@ struct MysteryBoxPVar
   int RoundHidden;
 };
 
+struct MysteryBoxItemWeight
+{
+  enum MysteryBoxItem Item;
+  float Probability;
+};
+
 void mboxSpawn(void);
 void mboxInit(void);
 

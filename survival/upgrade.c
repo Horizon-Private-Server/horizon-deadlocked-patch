@@ -29,7 +29,7 @@ char UpgradeTexIds[] = {
 
 int UpgradeMax[] = {
 	[UPGRADE_HEALTH] 1000,
-	[UPGRADE_SPEED] 10,
+	[UPGRADE_SPEED] 16,
 	[UPGRADE_DAMAGE] 100,
 	[UPGRADE_MEDIC] 16,
 	[UPGRADE_VENDOR] 16,
@@ -315,7 +315,7 @@ int upgradeHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 			}
 			case UPGRADE_MEDIC:
 			{
-				uiShowPopup(targetPlayer->LocalPlayerIndex, "Medic upgraded!");
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Revive discount!");
 				break;
 			}
 			case UPGRADE_VENDOR:

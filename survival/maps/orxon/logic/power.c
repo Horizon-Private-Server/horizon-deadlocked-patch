@@ -80,6 +80,8 @@ void powerOnMysteryBoxActivatePower(void)
 void powerNodeUpdate(Moby* moby)
 {
   static int initialized = 0;
+  float baseTurnSpeed = 0.061666;
+  int i;
   if (!moby || !moby->PVar)
     return;
 
@@ -102,6 +104,20 @@ void powerNodeUpdate(Moby* moby)
   Moby* boltCrank = *(Moby**)((u32)moby->PVar + 0xC);
   if (!boltCrank || !boltCrank->PVar)
     return;
+
+  // adjust crank speed by player speed
+  Player** players = playerGetAll();
+  int playerOnCrank = *(int*)(boltCrank->PVar + 0x10);
+  if (playerOnCrank >= 0)
+  {
+    Player* p = players[playerOnCrank];
+    baseTurnSpeed *= p->Speed;
+  }
+
+  // update crank speed
+  u32 turnSpeedU32 = *(u32*)&baseTurnSpeed;
+  POKE_U16(0x003D8B2C, (turnSpeedU32 >> 16));
+  POKE_U16(0x003D8B30, turnSpeedU32);
 
   // get team from bolt crank pvars
   // if team is 10 then power is waiting to be activated

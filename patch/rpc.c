@@ -11,9 +11,13 @@
 #define CMD_USBGETSTAT  0x07
 #define CMD_USBMKDIR    0x08
 
-#define RPCCLIENT_INITED (*(int*)0x000CFF00)
+#define UNCACHED_SEG(x) \
+    ((void *)(((u32)(x)) | 0x20000000))
 
-#define USBSERV_BUFSIZE (1024 * 6)
+#define IS_UNCACHED_SEG(x) \
+    (((u32)(x)) & 0x20000000)
+
+#define RPCCLIENT_INITED (*(int*)0x000CFF00)
 
 static SifRpcClientData_t * rpcclient = (SifRpcClientData_t*)0x000CFF10;
 static int Rpc_Buffer[16] 			__attribute__((aligned(64)));
@@ -26,7 +30,9 @@ static struct { 			// size = 256
 static struct { 		// size =
 	int fd;				// 0
 	int size;			// 8
-	u8 buf[USBSERV_BUFSIZE];		//
+	void * buf;
+  unsigned int unalignedDataLen;
+  unsigned char unalignedData[64];
 } writeParam __attribute__((aligned(64)));
 
 static struct { 		// size = 16
@@ -133,20 +139,30 @@ int rpcUSBopen(char *filename, int flags)
 int rpcUSBwrite(int fd, void *buf, int size)
 {
 	int ret = 0;
+  unsigned int miss = 0;
 
 	// check lib is inited
 	if (!RPCCLIENT_INITED)
 		return -1;
 
-	if (size > USBSERV_BUFSIZE)
-		return -1;
-			
+	if((unsigned int)buf & 0x3F)
+	{
+		miss = 64 - ((unsigned int)buf & 0x3F);
+		if(miss > (unsigned int)size) miss = size;
+	} else {
+		miss = 0;
+	}
+
 	// set global variables
 	writeParam.fd = fd;
-	memcpy(writeParam.buf, buf, size);
+  writeParam.buf = buf;
+	//memcpy(writeParam.buf, buf, size);
 	writeParam.size = size;
+  writeParam.unalignedDataLen = miss;
+	memcpy(writeParam.unalignedData, buf, miss);
 
-	SifWriteBackDCache(buf, size);
+	if(!IS_UNCACHED_SEG(buf))
+	  SifWriteBackDCache(buf, size);
 	 	
 	if((ret = SifCallRpc(rpcclient, CMD_USBWRITE, SIF_RPC_M_NOWAIT, &writeParam, sizeof(writeParam), Rpc_Buffer, 4, 0, 0)) != 0) {
 		return ret;

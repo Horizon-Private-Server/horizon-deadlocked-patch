@@ -70,11 +70,13 @@
 #endif
 
 #define JACKPOT_BOLTS													(50)
+#define XP_ALPHAMOD_XP												(10)
 
 #define DROP_COOLDOWN_TICKS_MIN								(TPS * 10)
 #define DROP_COOLDOWN_TICKS_MAX								(TPS * 60)
 #define DROP_DURATION													(30 * TIME_SECOND)
 #define DOUBLE_POINTS_DURATION								(20 * TIME_SECOND)
+#define DOUBLE_XP_DURATION								    (20 * TIME_SECOND)
 #define FREEZE_DROP_DURATION									(10 * TIME_SECOND)
 #define MOB_HAS_DROP_PROBABILITY						(0.01)
 #define DROP_MAX_SPAWNED											(4)
@@ -112,6 +114,7 @@ enum GameNetMessage
 	CUSTOM_MSG_PLAYER_SET_WEAPON_MODS,
 	CUSTOM_MSG_PLAYER_SET_STATS,
 	CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS,
+	CUSTOM_MSG_PLAYER_SET_DOUBLE_XP,
 	CUSTOM_MSG_PLAYER_SET_FREEZE,
   CUSTOM_MSG_PLAYER_USE_ITEM
 };
@@ -167,6 +170,7 @@ struct SurvivalPlayer
 	float MaxSqrDistFromMob;
 	struct SurvivalPlayerState State;
 	int TimeOfDoublePoints;
+	int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
   int InfiniteAmmoStopTime;
 	u16 ReviveCooldownTicks;
@@ -176,6 +180,7 @@ struct SurvivalPlayer
 	char IsDead;
 	char IsInWeaponsMenu;
 	char IsDoublePoints;
+	char IsDoubleXP;
 	char HealthBarStrBuf[8];
 };
 
@@ -308,6 +313,12 @@ typedef struct SurvivalSetPlayerDoublePointsMessage
 	int TimeOfDoublePoints[GAME_MAX_PLAYERS];
 	char IsActive[GAME_MAX_PLAYERS];
 } SurvivalSetPlayerDoublePointsMessage_t;
+
+typedef struct SurvivalSetPlayerDoubleXPMessage
+{
+	int TimeOfDoubleXP[GAME_MAX_PLAYERS];
+	char IsActive[GAME_MAX_PLAYERS];
+} SurvivalSetPlayerDoubleXPMessage_t;
 
 typedef struct SurvivalSetFreezeMessage
 {
