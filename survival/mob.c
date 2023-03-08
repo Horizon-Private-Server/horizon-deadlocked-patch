@@ -8,6 +8,7 @@
 #include <libdl/collision.h>
 #include <libdl/graphics.h>
 #include <libdl/moby.h>
+#include <libdl/net.h>
 #include <libdl/random.h>
 #include <libdl/radar.h>
 #include <libdl/color.h>
@@ -89,9 +90,40 @@ void mobSendStateUpdate(Moby* moby)
 	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_TARGET_UPDATE);
 	if (guberEvent) {
 		vector_copy(args.Position, moby->Position);
+    args.PathCurrentEdgeIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
+    args.PathEndNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[0];
+    args.PathStartNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[1];
+    args.PathHasReachedEnd = pvars->MobVars.MoveVars.PathHasReachedEnd;
+    args.PathHasReachedStart = pvars->MobVars.MoveVars.PathHasReachedStart;
 		args.TargetUID = guberGetUID(pvars->MobVars.Target);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobStateUpdateEventArgs));
 	}
+}
+
+void mobSendStateUpdateUnreliable(Moby* moby)
+{
+	struct MobUnreliableMsgStateUpdateArgs msg;
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  void * connection = netGetDmeServerConnection();
+  if (!connection)
+    return;
+
+  // base msg
+  msg.Base.MsgId = MOB_UNRELIABLE_MSG_ID_STATE_UPDATE;
+  msg.Base.MobUID = guberGetUID(moby);
+
+  // state update
+  vector_copy(msg.StateUpdate.Position, moby->Position);
+  msg.StateUpdate.PathCurrentEdgeIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
+  msg.StateUpdate.PathEndNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[0];
+  msg.StateUpdate.PathStartNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[1];
+  msg.StateUpdate.PathHasReachedEnd = pvars->MobVars.MoveVars.PathHasReachedEnd;
+  msg.StateUpdate.PathHasReachedStart = pvars->MobVars.MoveVars.PathHasReachedStart;
+  msg.StateUpdate.TargetUID = guberGetUID(pvars->MobVars.Target);
+
+  // broadcast to players unreliably
+  netBroadcastCustomAppMessage(0, connection, CUSTOM_MSG_MOB_UNRELIABLE_MSG, sizeof(msg), &msg);
 }
 
 void mobSendOwnerUpdate(Moby* moby, char owner)
@@ -197,6 +229,15 @@ int mobGetLostArmorBangle(short armorStart, short armorEnd)
 	return (armorStart - armorEnd) & armorStart;
 }
 
+int mobIsFrozen(Moby* moby)
+{
+  if (!moby || !moby->PVar)
+    return 0;
+
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  return State.Freeze && pvars->MobVars.Config.MobType != MOB_FREEZE && pvars->MobVars.Config.MobSpecialMutation != MOB_SPECIAL_MUTATION_FREEZE;
+}
+
 void mobHandleDraw(Moby* moby)
 {
 	int i;
@@ -240,6 +281,7 @@ void mobUpdate(Moby* moby)
 	int isOwner;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	GameOptions* gameOptions = gameGetOptions();
+  int isFrozen = mobIsFrozen(moby);
 	if (!pvars || pvars->MobVars.Destroyed || !pvars->VTable)
 		return;
 
@@ -309,7 +351,7 @@ void mobUpdate(Moby* moby)
 	mobHandleDraw(moby);
 
 	// 
-	if (!State.Freeze) {
+	if (!isFrozen) {
 		//mobDoAction(moby);
     if (pvars->VTable && pvars->VTable->DoAction)
       pvars->VTable->DoAction(moby);
@@ -322,7 +364,7 @@ void mobUpdate(Moby* moby)
 
     // auto destruct after 15 seconds of falling
     if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
-      pvars->MobVars.Respawn = 1;
+      //pvars->MobVars.Respawn = 1;
     }
   }
 
@@ -331,7 +373,7 @@ void mobUpdate(Moby* moby)
 		mobyUpdateFlash(moby, 0);
 
   // move
-  if (!State.Freeze && pvars->VTable && pvars->VTable->Move) {
+  if (!isFrozen && pvars->VTable && pvars->VTable->Move) {
     
     // turn on holos so we can collide with them
     // optimization to only turn on for first mob in moby list (this is expensive)
@@ -339,6 +381,7 @@ void mobUpdate(Moby* moby)
     //  weaponTurnOnHoloshields(-1);
 
     //mobMove(moby);
+    //vector_write(pvars->MobVars.MoveVars.Velocity, 0);
     pvars->VTable->Move(moby);
   
     // turn off holos for everyone else
@@ -348,9 +391,9 @@ void mobUpdate(Moby* moby)
   }
 
 	//
-	if (isOwner && !State.Freeze) {
+	if (isOwner && !isFrozen) {
 		// set next state
-		if (pvars->MobVars.NextAction >= 0 && pvars->MobVars.ActionCooldownTicks == 0 && pvars->MobVars.Knockback.Ticks == 0) {
+		if (pvars->MobVars.NextAction >= 0 && pvars->MobVars.Knockback.Ticks == 0) {
 			if (nextActionTicks == 0) {
 				mobSetAction(moby, pvars->MobVars.NextAction);
 				pvars->MobVars.NextAction = -1;
@@ -363,7 +406,7 @@ void mobUpdate(Moby* moby)
 		if (nextCheckActionDelayTicks == 0 && pvars->VTable && pvars->VTable->GetPreferredAction) {
 			//int nextAction = mobGetPreferredAction(moby);
       int nextAction = pvars->VTable->GetPreferredAction(moby);
-			if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction && nextAction != pvars->MobVars.Action && nextActionTicks == 0) {
+			if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction && nextAction != pvars->MobVars.Action) {
 				pvars->MobVars.NextAction = nextAction;
 				pvars->MobVars.NextActionDelayTicks = nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
 			} 
@@ -371,10 +414,11 @@ void mobUpdate(Moby* moby)
 			// get new target
 			if (scoutCooldownTicks == 0 && pvars->VTable->GetNextTarget) {
 				//mobSetTarget(moby, mobGetNextTarget(moby));
-#if BENCHMARK
-        mobSetTarget(moby, NULL);
-#elif FIXEDTARGET
+#if FIXEDTARGET
         mobSetTarget(moby, FIXEDTARGETMOBY);
+#elif BENCHMARK
+        //mobSetTarget(moby, NULL);
+        mobSetTarget(moby, pvars->VTable->GetNextTarget(moby));
 #else
         mobSetTarget(moby, pvars->VTable->GetNextTarget(moby));
 #endif
@@ -456,30 +500,12 @@ void mobUpdate(Moby* moby)
 
 		// send changes
 		else if (pvars->MobVars.Dirty || autoDirtyCooldownTicks == 0) {
-			mobSendStateUpdate(moby);
+			mobSendStateUpdateUnreliable(moby);
 			pvars->MobVars.Dirty = 0;
 			pvars->MobVars.AutoDirtyCooldownTicks = MOB_AUTO_DIRTY_COOLDOWN_TICKS;
 		}
 	}
   
-
-
-  if (moby->Position[0] < 100)
-    moby->Position[0] = 100;
-  // prevent mob from entering gas zone
-  else if (moby->Position[0] > 524.4)
-    moby->Position[0] = 524.4;
-  
-  if (moby->Position[1] < 400)
-    moby->Position[1] = 400;
-  else if (moby->Position[1] > 800)
-    moby->Position[1] = 800;
-
-  if (moby->Position[2] < 400)
-    moby->Position[2] = 400;
-  else if (moby->Position[2] > 500)
-    moby->Position[2] = 500;
-
   // 
   if (pvars->VTable->PostUpdate)
     pvars->VTable->PostUpdate(moby);
@@ -562,6 +588,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Order = -1;
 	pvars->MobVars.TimeLastGroundedTicks = 0;
 	pvars->MobVars.Random = random;
+  vector_copy(pvars->MobVars.MoveVars.NextPosition, p);
 #if MOB_NO_MOVE
 	pvars->MobVars.Config.Speed = 0;
 #endif
@@ -847,6 +874,7 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 	// 
 	if (pvars->MobVars.LastActionId != args.ActionId && pvars->MobVars.Action != args.Action) {
 		pvars->MobVars.LastActionId = args.ActionId;
+    pvars->MobVars.LastAction = pvars->MobVars.Action;
     
     // pass to mob handler
     if (pvars->VTable && pvars->VTable->ForceLocalAction)
@@ -854,6 +882,32 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 	}
 	
 	//DPRINTF("mob state update event %08X, %08X, %d\n", (u32)moby, (u32)event, args.Action);
+	return 0;
+}
+
+int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventArgs* args)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	VECTOR t;
+	if (!pvars || mobAmIOwner(moby) || !args)
+		return 0;
+
+	// teleport position if far away
+	vector_subtract(t, moby->Position, args->Position);
+	if (vector_sqrmag(t) > 25)
+		vector_copy(moby->Position, args->Position);
+
+	// 
+	Player* target = (Player*)guberGetObjectByUID(args->TargetUID);
+	if (target)
+		pvars->MobVars.Target = target->SkinMoby;
+
+  // pass to mob
+  if (pvars->VTable && pvars->VTable->OnStateUpdate)
+	  pvars->VTable->OnStateUpdate(moby, args);
+
+
+	//DPRINTF("mob target update event %08X, %d:%08X, %08X\n", (u32)moby, args->TargetUID, (u32)target, (u32)pvars->MobVars.Target);
 	return 0;
 }
 
@@ -867,24 +921,11 @@ int mobHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 
 	// read event
 	guberEventRead(event, &args, sizeof(struct MobStateUpdateEventArgs));
-
-	// teleport position if far away
-	vector_subtract(t, moby->Position, args.Position);
-	if (vector_sqrmag(t) > 25)
-		vector_copy(moby->Position, args.Position);
-
-	// 
-	Player* target = (Player*)guberGetObjectByUID(args.TargetUID);
-	if (target)
-		pvars->MobVars.Target = target->SkinMoby;
-
-  // pass to mob
-  if (pvars->VTable && pvars->VTable->OnStateUpdate)
-	  pvars->VTable->OnStateUpdate(moby, &args);
-
-
-	//DPRINTF("mob target update event %08X, %08X, %d:%08X, %08X\n", (u32)moby, (u32)event, args.TargetUID, (u32)target, (u32)pvars->MobVars.Target);
-	return 0;
+  
+  //DPRINTF("mob target update event %08X, %08X, %d:%08X, %08X\n", (u32)moby, (u32)event, args.TargetUID, (u32)target, (u32)pvars->MobVars.Target);
+	
+  // pass to actual handler
+  return mobHandleEvent_StateUpdateUnreliable(moby, &args);
 }
 
 int mobHandleEvent_OwnerUpdate(Moby* moby, GuberEvent* event)
@@ -938,6 +979,33 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 	}
 
 	return 0;
+}
+
+int mobOnUnreliableMsgRemote(void * connection, void * data)
+{
+  struct MobUnreliableBaseMsgArgs baseArgs;
+  memcpy(&baseArgs, data, sizeof(struct MobUnreliableBaseMsgArgs));
+
+  switch (baseArgs.MsgId)
+  {
+    case MOB_UNRELIABLE_MSG_ID_STATE_UPDATE:
+    {
+      struct MobUnreliableMsgStateUpdateArgs args;
+      memcpy(&args, data, sizeof(struct MobUnreliableMsgStateUpdateArgs));
+
+      GuberMoby* guber = (GuberMoby*)guberGetObjectByUID(baseArgs.MobUID);
+      if (guber) {
+        Moby* moby = guber->Moby;
+        if (moby && mobyIsMob(moby) && !mobyIsDestroyed(moby)) {
+          mobHandleEvent_StateUpdateUnreliable(moby, &args.StateUpdate);
+        }
+      }
+
+      return sizeof(struct MobUnreliableMsgStateUpdateArgs);
+    }
+  }
+
+  return sizeof(struct MobUnreliableBaseMsgArgs);
 }
 
 int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)

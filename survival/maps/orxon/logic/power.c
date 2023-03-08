@@ -118,6 +118,8 @@ void powerNodeUpdate(Moby* moby)
   u32 turnSpeedU32 = *(u32*)&baseTurnSpeed;
   POKE_U16(0x003D8B2C, (turnSpeedU32 >> 16));
   POKE_U16(0x003D8B30, turnSpeedU32);
+  POKE_U16(0x003D8028, (turnSpeedU32 >> 16));
+  POKE_U16(0x003D802C, turnSpeedU32);
 
   // get team from bolt crank pvars
   // if team is 10 then power is waiting to be activated

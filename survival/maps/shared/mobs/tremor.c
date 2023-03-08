@@ -131,6 +131,7 @@ void tremorPreUpdate(Moby* moby)
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
+  decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
 }
 
 //--------------------------------------------------------------------------
@@ -141,7 +142,15 @@ void tremorPostUpdate(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
+  // adjust animSpeed by speed and by animation
 	float animSpeed = 0.5 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
+  if (moby->AnimSeqId == TREMOR_ANIM_JUMP) {
+    animSpeed = 0.5 * (1 - powf(moby->AnimSeqT / 21, 2));
+    if (pvars->MobVars.MoveVars.Grounded) {
+      animSpeed = 0.5;
+    }
+  }
+
 	if ((MapConfig.State && MapConfig.State->Freeze) || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
@@ -317,12 +326,9 @@ enum MobAction tremorGetPreferredAction(Moby* moby)
 	if (tremorIsSpawning(pvars))
 		return -1;
 
-	if (pvars->MobVars.Action == MOB_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded)
-		return -1;
-
-	// prevent action changing too quickly
-	if (pvars->MobVars.ActionCooldownTicks)
-		return -1;
+	if (pvars->MobVars.Action == MOB_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
+		return MOB_ACTION_WALK;
+  }
 
   // wait for flinch to stop
   if ((pvars->MobVars.Action == MOB_ACTION_FLINCH || pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH) && (!pvars->MobVars.AnimationLooped || !pvars->MobVars.MoveVars.Grounded))
@@ -332,6 +338,15 @@ enum MobAction tremorGetPreferredAction(Moby* moby)
   if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.WallSlope > TREMOR_MAX_WALKABLE_SLOPE) {
     return MOB_ACTION_JUMP;
   }
+
+  // jump if we've hit a jump point on the path
+  if (pathShouldJump(moby)) {
+    return MOB_ACTION_JUMP;
+  }
+
+	// prevent action changing too quickly
+	if (pvars->MobVars.ActionCooldownTicks)
+		return -1;
 
 	// get next target
 	Moby * target = tremorGetNextTarget(moby);
@@ -404,14 +419,14 @@ void tremorDoAction(Moby* moby)
         if (target) {
           pathGetTargetPos(t, moby);
           mobTurnTowards(moby, t, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, 0, acceleration);
         } else {
           mobStand(moby);
         }
 
         // handle jumping
-        if (pvars->MobVars.MoveVars.WallSlope > TREMOR_MAX_WALKABLE_SLOPE && pvars->MobVars.MoveVars.Grounded) {
-			    mobTransAnim(moby, TREMOR_ANIM_JUMP, 15);
+        if (pvars->MobVars.MoveVars.Grounded) {
+			    mobTransAnim(moby, TREMOR_ANIM_JUMP, 10);
 
           // check if we're near last jump pos
           // if so increment StuckJumpCount
@@ -422,11 +437,12 @@ void tremorDoAction(Moby* moby)
 
           // use delta height between target as base of jump speed
           // with min speed
-          float jumpSpeed = 4;
-          if (target) {
-            jumpSpeed = clamp(2 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
+          float jumpSpeed = pathGetJumpSpeed(moby);
+          if (jumpSpeed <= 0 && target) {
+            jumpSpeed = 5; //clamp(2 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
           }
 
+          vector_write(pvars->MobVars.MoveVars.Velocity, 0);
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
           pvars->MobVars.MoveVars.Grounded = 0;
         }
@@ -450,8 +466,10 @@ void tremorDoAction(Moby* moby)
 				//vector_copy(t, target->Position);
 				vector_subtract(t, t, moby->Position);
 				float dist = vector_length(t);
-				tremorAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-				vector_add(t, t, t2);
+        if (dist < 10.0) {
+				  tremorAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+				  vector_add(t, t, t2);
+        }
 				vector_scale(t, t, 1 / dist);
 				vector_add(t, moby->Position, t);
 
@@ -463,7 +481,10 @@ void tremorDoAction(Moby* moby)
 			}
 
 			// 
-			if (mobHasVelocity(pvars))
+      if (moby->AnimSeqId == TREMOR_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
+        // wait for jump to land
+      }
+			else if (mobHasVelocity(pvars))
 				mobTransAnim(moby, TREMOR_ANIM_RUN, 0);
 			else
 				mobTransAnim(moby, TREMOR_ANIM_IDLE, 0);

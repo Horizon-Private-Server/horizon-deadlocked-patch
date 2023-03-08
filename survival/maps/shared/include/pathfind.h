@@ -32,15 +32,17 @@ extern struct SurvivalMapConfig MapConfig;
 extern const int MOB_PATHFINDING_NODES_COUNT;
 extern const int MOB_PATHFINDING_EDGES_COUNT;
 extern VECTOR MOB_PATHFINDING_NODES[];
-extern float MOB_PATHFINDING_NODES_CORNERING[];
-extern char MOB_PATHFINDING_EDGES[][2];
-extern float MOB_PATHFINDING_EDGES_COSTS[];
-extern float MOB_PATHFINDING_EDGES_PATHFIT[];
-extern char MOB_PATHFINDING_EDGES_JUMPPAD[];
-
+extern u8 MOB_PATHFINDING_NODES_CORNERING[];
+extern u8 MOB_PATHFINDING_EDGES[][2];
+extern u8 MOB_PATHFINDING_EDGES_PATHFIT[];
+extern u8 MOB_PATHFINDING_EDGES_REQUIRED[];
+extern u8 MOB_PATHFINDING_EDGES_JUMPPADSPEED[];
+extern u8 MOB_PATHFINDING_EDGES_JUMPPADAT[];
 extern const int MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH;
-extern u8 MOB_PATHFINDING_PATHS[][11];
+extern u8 MOB_PATHFINDING_PATHS[];
 
+float pathGetJumpSpeed(Moby* moby);
+int pathShouldJump(Moby* moby);
 void pathGetTargetPos(VECTOR output, Moby* moby);
 void pathSetPath(Moby* moby, int fromNodeIdx, int toNodeIdx, int currentOnPath, int hasReachedStart, int hasReachedEnd);
 

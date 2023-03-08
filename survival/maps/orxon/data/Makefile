@@ -1,6 +1,7 @@
 EE_LIBS = -ldl
 EE_OBJS = data.o
 EE_ELF = data.elf
+EE_SYMS = data.syms
 EE_BIN = data.bin
 EE_INCS := -I../../../../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib

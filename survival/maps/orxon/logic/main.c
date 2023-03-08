@@ -32,6 +32,7 @@
 #include "messageid.h"
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
+#include "pathfind.h"
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
 void powerNodeUpdate(Moby* moby);
@@ -46,7 +47,7 @@ int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 
-int aaa = 2;
+int aaa = 3;
 
 
 char LocalPlayerStrBuffer[2][48];
@@ -128,6 +129,20 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
 }
 
 //--------------------------------------------------------------------------
+void onBeforeUpdateHeroes(void)
+{
+  gateSetCollision(1);
+
+  ((void (*)())0x005ce1d8)();
+}
+
+//--------------------------------------------------------------------------
+void onAfterUpdateHeroes(void)
+{
+  gateSetCollision(0);
+}
+
+//--------------------------------------------------------------------------
 void initialize(void)
 {
   static int initialized = 0;
@@ -139,6 +154,12 @@ void initialize(void)
   mobInit();
   configInit();
   MapConfig.OnMobCreateFunc = &createMob;
+
+  // only have gate collision on when processing players
+  HOOK_JAL(0x003bd854, &onBeforeUpdateHeroes);
+  HOOK_J(0x003bd864, &onAfterUpdateHeroes);
+
+  DPRINTF("path %08X end %08X\n", (u32)&MOB_PATHFINDING_PATHS, (u32)&MOB_PATHFINDING_PATHS + (MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH * MOB_PATHFINDING_NODES_COUNT * MOB_PATHFINDING_NODES_COUNT));
 
   initialized = 1;
 }
@@ -173,7 +194,7 @@ int main (void)
   // disable jump pad effect
   POKE_U32(0x0042608C, 0);
 
-#if DEBUG
+#if DEBUG || 1
   dlPreUpdate();
   if (padGetButtonDown(0, PAD_LEFT) > 0) {
     --aaa;
@@ -195,7 +216,7 @@ void nodeUpdate(Moby* moby)
 {
   static int initialized = 0;
   if (!initialized) {
-    DPRINTF("node %08X\n", (u32)moby);
+    DPRINTF("node %08X bolt:%08X\n", (u32)moby, *(u32*)(moby->PVar + 0xC));
     initialized = 1;
   }
 

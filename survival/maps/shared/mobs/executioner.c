@@ -131,6 +131,7 @@ void executionerPreUpdate(Moby* moby)
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
+  decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
 }
 
 //--------------------------------------------------------------------------
@@ -141,7 +142,15 @@ void executionerPostUpdate(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
+  // adjust animSpeed by speed and by animation
+	float animSpeed = 0.6 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
+  if (moby->AnimSeqId == EXECUTIONER_ANIM_JUMP) {
+    animSpeed = 1 * (1 - powf(moby->AnimSeqT / 21, 1));
+    if (pvars->MobVars.MoveVars.Grounded) {
+      animSpeed = 0.6;
+    }
+  }
+
 	if ((MapConfig.State && MapConfig.State->Freeze) || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
@@ -268,6 +277,8 @@ void executionerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e)
 //--------------------------------------------------------------------------
 Moby* executionerGetNextTarget(Moby* moby)
 {
+  asm (".set noreorder;");
+
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Player ** players = playerGetAll();
 	int i;
@@ -298,8 +309,9 @@ Moby* executionerGetNextTarget(Moby* moby)
 		++players;
 	}
 
-	if (closestPlayer)
-		return closestPlayer->SkinMoby;
+	if (closestPlayer) {
+    return closestPlayer->SkinMoby;
+  }
 
 	return NULL;
 }
@@ -317,12 +329,9 @@ enum MobAction executionerGetPreferredAction(Moby* moby)
 	if (executionerIsSpawning(pvars))
 		return -1;
 
-	if (pvars->MobVars.Action == MOB_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded)
-		return -1;
-
-	// prevent action changing too quickly
-	if (pvars->MobVars.ActionCooldownTicks)
-		return -1;
+	if (pvars->MobVars.Action == MOB_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
+		return MOB_ACTION_WALK;
+  }
 
   // wait for grounded to stop flinch
   if ((pvars->MobVars.Action == MOB_ACTION_FLINCH || pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
@@ -332,6 +341,15 @@ enum MobAction executionerGetPreferredAction(Moby* moby)
   if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.WallSlope > EXECUTIONER_MAX_WALKABLE_SLOPE) {
     return MOB_ACTION_JUMP;
   }
+
+  // jump if we've hit a jump point on the path
+  if (pathShouldJump(moby)) {
+    return MOB_ACTION_JUMP;
+  }
+
+	// prevent action changing too quickly
+	if (pvars->MobVars.ActionCooldownTicks)
+		return -1;
 
 	// get next target
 	Moby * target = executionerGetNextTarget(moby);
@@ -410,8 +428,8 @@ void executionerDoAction(Moby* moby)
         }
 
         // handle jumping
-        if (pvars->MobVars.MoveVars.WallSlope > EXECUTIONER_MAX_WALKABLE_SLOPE && pvars->MobVars.MoveVars.Grounded) {
-			    mobTransAnim(moby, EXECUTIONER_ANIM_JUMP, 15);
+        if (pvars->MobVars.MoveVars.Grounded) {
+			    mobTransAnim(moby, EXECUTIONER_ANIM_JUMP, 5);
 
           // check if we're near last jump pos
           // if so increment StuckJumpCount
@@ -422,9 +440,9 @@ void executionerDoAction(Moby* moby)
 
           // use delta height between target as base of jump speed
           // with min speed
-          float jumpSpeed = 4;
-          if (target) {
-            jumpSpeed = clamp(4 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 25);
+          float jumpSpeed = pathGetJumpSpeed(moby);
+          if (jumpSpeed <= 0 && target) {
+            jumpSpeed = 8; //clamp(2 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
           }
 
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
@@ -464,8 +482,10 @@ void executionerDoAction(Moby* moby)
           pathGetTargetPos(t, moby);
 				  vector_subtract(t, t, moby->Position);
 				  float dist = vector_length(t);
-          executionerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-          vector_add(t, t, t2);
+          if (dist < 10.0) {
+            executionerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+            vector_add(t, t, t2);
+          }
           vector_scale(t, t, 1 / dist);
           vector_add(t, moby->Position, t);
 
@@ -480,7 +500,10 @@ void executionerDoAction(Moby* moby)
 			}
 
 			// 
-			if (mobHasVelocity(pvars))
+      if (moby->AnimSeqId == EXECUTIONER_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
+        // wait for jump to land
+      }
+			else if (mobHasVelocity(pvars))
 				mobTransAnim(moby, walkBackwards ? EXECUTIONER_ANIM_WALK_BACKWARD : EXECUTIONER_ANIM_RUN, 0);
 			else
 				mobTransAnim(moby, EXECUTIONER_ANIM_IDLE, 0);

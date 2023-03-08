@@ -22,6 +22,7 @@ enum MobAction
 	MOB_ACTION_LOOK_AT_TARGET,
 	MOB_ACTION_ATTACK,
 	MOB_ACTION_TIME_BOMB,
+  MOB_ACTION_TIME_BOMB_EXPLODE
 };
 
 enum MobType
@@ -82,6 +83,11 @@ enum MobSpawnType {
 	SPAWN_TYPE_NEAR_PLAYER = 2,
 	SPAWN_TYPE_ON_PLAYER = 4,
 	SPAWN_TYPE_NEAR_HEALTHBOX = 8,
+};
+
+// 
+enum MobUnreliableMsgId {
+  MOB_UNRELIABLE_MSG_ID_STATE_UPDATE
 };
 
 struct MobDamageEventArgs;
@@ -157,6 +163,7 @@ struct Knockback {
 
 struct MobMoveVars {
   VECTOR LastPosition;
+  VECTOR NextPosition;
   VECTOR Velocity;
   VECTOR AddVelocity;
   VECTOR LastJumpPosition;
@@ -164,6 +171,7 @@ struct MobMoveVars {
   VECTOR LastTargetPos;
   float SumSpeedOver;
   float WallSlope;
+  float PathEdgeAlpha;
 	u16 StuckTicks;
   char Grounded;
   char HitWall;
@@ -171,6 +179,7 @@ struct MobMoveVars {
   u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
+  u8 MoveSkipTicks;
 
   char PathEdgeCount;
   char PathEdgeCurrent;
@@ -178,6 +187,7 @@ struct MobMoveVars {
   char PathHasReachedEnd;
   u8 PathStartEndNodes[2];
   u8 PathTicks;
+  u8 PathNewTicks;
   u8 PathCheckNearAndSeeTargetTicks;
   u8 CurrentPath[20];
 };
@@ -190,6 +200,7 @@ struct MobVars {
   VECTOR TargetPosition;
 	int Action;
 	int NextAction;
+	int LastAction;
 	float Health;
 	float ClosestDist;
 	float LastSpeed;
@@ -326,6 +337,19 @@ struct MobSpawnEventArgs
 	u8 AttackCooldownTickCount;
 };
 
+struct MobUnreliableBaseMsgArgs
+{
+  int MsgId;
+  u32 MobUID;
+};
+
+struct MobUnreliableMsgStateUpdateArgs
+{
+  struct MobUnreliableBaseMsgArgs Base;
+  struct MobStateUpdateEventArgs StateUpdate;
+};
+
+int mobOnUnreliableMsgRemote(void* connection, void* data);
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);
 void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);

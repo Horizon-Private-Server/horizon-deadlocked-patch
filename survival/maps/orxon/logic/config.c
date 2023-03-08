@@ -9,6 +9,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 5
 	{
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+    .SpawnCountFactor = 1.0,
 		.SpawnParamCount = 2,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_RUNNER,
@@ -20,6 +21,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 10
 	{
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+    .SpawnCountFactor = 1.0,
 		.SpawnParamCount = 3,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_EXPLOSION,
@@ -32,6 +34,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 15
 	{
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+    .SpawnCountFactor = 1.0,
 		.SpawnParamCount = 2,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_RUNNER,
@@ -43,6 +46,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 20
 	{
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+    .SpawnCountFactor = 1.0,
 		.SpawnParamCount = 3,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_GHOST,
@@ -55,6 +59,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 25
 	{
 		.MaxSpawnedAtOnce = 10,
+    .SpawnCountFactor = 0.5,
 		.SpawnParamCount = 1,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_TITAN,
@@ -248,8 +253,8 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MaxDamage = MOB_BASE_DAMAGE * 2.2,
       .DamageScale = 0.3,
 			.Speed = MOB_BASE_SPEED * 2.0,
-			.MaxSpeed = MOB_BASE_SPEED * 4.0,
-      .SpeedScale = 1.0,
+			.MaxSpeed = MOB_BASE_SPEED * 3.0,
+      .SpeedScale = 0.5,
 			.Health = MOB_BASE_HEALTH * 0.6,
 			.MaxHealth = 0,
       .HealthScale = 1.0,

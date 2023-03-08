@@ -37,6 +37,7 @@
 #define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
 #define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 		(25)
+#define MOB_MOVE_SKIP_TICKS                   (2)
 
 #define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(1)
 #define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)
@@ -45,19 +46,19 @@
 
 #define MOB_SPAWN_BURST_MIN_DELAY							(1 * 60)
 #define MOB_SPAWN_BURST_MAX_DELAY							(2 * 60)
-#define MOB_SPAWN_BURST_MIN										(5)
-#define MOB_SPAWN_BURST_MAX										(30)
-#define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(2)
-#define MOB_SPAWN_BURST_MIN_INC_PER_ROUND			(1)
+#define MOB_SPAWN_BURST_MIN										(3)
+#define MOB_SPAWN_BURST_MAX										(10)
+#define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(1)
+#define MOB_SPAWN_BURST_MIN_INC_PER_ROUND			(0)
 
 #define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
 
 #define MOB_BASE_DAMAGE										    (10)
-#define MOB_BASE_DAMAGE_SCALE                 (0.04)
+#define MOB_BASE_DAMAGE_SCALE                 (0.02)
 #define MOB_BASE_SPEED											  (3)
-#define MOB_BASE_SPEED_SCALE                  (0.04)
-#define MOB_BASE_HEALTH										    (40)
-#define MOB_BASE_HEALTH_SCALE                 (0.04)
+#define MOB_BASE_SPEED_SCALE                  (0.03)
+#define MOB_BASE_HEALTH										    (30)
+#define MOB_BASE_HEALTH_SCALE                 (0.05)
 
 #define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
 #define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
@@ -116,7 +117,8 @@ enum GameNetMessage
 	CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS,
 	CUSTOM_MSG_PLAYER_SET_DOUBLE_XP,
 	CUSTOM_MSG_PLAYER_SET_FREEZE,
-  CUSTOM_MSG_PLAYER_USE_ITEM
+  CUSTOM_MSG_PLAYER_USE_ITEM,
+  CUSTOM_MSG_MOB_UNRELIABLE_MSG
 };
 
 enum BakedSpawnpointType
@@ -246,6 +248,7 @@ struct SurvivalMapConfig
 struct SurvivalSpecialRoundParam
 {
 	int SpawnParamCount;
+	float SpawnCountFactor;
 	int MaxSpawnedAtOnce;
 	char SpawnParamIds[4];
 	char Name[32];

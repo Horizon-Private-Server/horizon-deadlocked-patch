@@ -30,6 +30,8 @@
 void mobForceIntoMapBounds(Moby* moby);
 void gateSetCollision(int collActive);
 
+extern int aaa;
+
 #if MOB_ZOMBIE
 #include "zombie.c"
 #endif
@@ -50,49 +52,69 @@ int mobAmIOwner(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqrHitRadius, int damageFlags, float amount)
+{
+  VECTOR mobToHitMoby, mobToJoint, jointToHitMoby;
+	MobyColDamageIn in;
+
+  vector_subtract(mobToHitMoby, hitMoby->Position, moby->Position);
+  vector_subtract(mobToJoint, jointPosition, moby->Position);
+  vector_subtract(jointToHitMoby, hitMoby->Position, jointPosition);
+
+  // ignore if hit behind
+  if (vector_innerproduct(mobToHitMoby, mobToJoint) < 0)
+    return;
+
+  // ignore if past attack radius
+  if (vector_innerproduct(mobToHitMoby, jointToHitMoby) > 0 && vector_sqrmag(jointToHitMoby) > sqrHitRadius)
+    return;
+
+  vector_write(in.Momentum, 0);
+  in.Damager = moby;
+  in.DamageFlags = damageFlags;
+  in.DamageClass = 0;
+  in.DamageStrength = 1;
+  in.DamageIndex = moby->OClass;
+  in.Flags = 1;
+  in.DamageHp = amount;
+
+  mobyCollDamageDirect(hitMoby, &in);
+}
+
+//--------------------------------------------------------------------------
 void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId)
 {
-	VECTOR p;
-  VECTOR mobToHitMoby, mobToJoint, jointToHitMoby;
+	VECTOR p, delta;
 	MATRIX jointMtx;
+  Player** players = playerGetAll();
   int i;
   float sqrRadius = radius * radius;
-	MobyColDamageIn in;
+  float firstPassSqrRadius = powf(5 + radius, 2);
 
   // get position of right spike joint
   mobyGetJointMatrix(moby, jointId, jointMtx);
   vector_copy(p, &jointMtx[12]);
 
-  // 
-  if (CollMobysSphere_Fix(p, 2, moby, 0, 5 + radius) > 0) {
+  // if no friendly fire just check hit on players
+  // otherwise check all mobys
+  if (!friendlyFire) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* player = players[i];
+      if (!player || !player->SkinMoby || playerIsDead(player))
+        continue;
+
+      vector_subtract(delta, player->PlayerPosition, p);
+      if (vector_sqrmag(delta) > firstPassSqrRadius)
+        continue;
+
+      mobDoDamageTryHit(moby, player->PlayerMoby, p, sqrRadius, damageFlags, amount);
+    }
+  }
+  else if (CollMobysSphere_Fix(p, 2, moby, 0, 5 + radius) > 0) {
     Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
     Moby* hitMoby;
     while ((hitMoby = *hitMobies++)) {
-      if (friendlyFire || mobyIsHero(hitMoby)) {
-        
-        vector_subtract(mobToHitMoby, hitMoby->Position, moby->Position);
-        vector_subtract(mobToJoint, p, moby->Position);
-        vector_subtract(jointToHitMoby, hitMoby->Position, p);
-
-        // ignore if hit behind
-        if (vector_innerproduct(mobToHitMoby, mobToJoint) < 0)
-          continue;
-
-        // ignore if past attack radius
-        if (vector_innerproduct(mobToHitMoby, jointToHitMoby) > 0 && vector_sqrmag(jointToHitMoby) > sqrRadius)
-          continue;
-
-        vector_write(in.Momentum, 0);
-        in.Damager = moby;
-        in.DamageFlags = damageFlags;
-        in.DamageClass = 0;
-        in.DamageStrength = 1;
-        in.DamageIndex = moby->OClass;
-        in.Flags = 1;
-        in.DamageHp = amount;
-
-        mobyCollDamageDirect(hitMoby, &in);
-      }
+      mobDoDamageTryHit(moby, hitMoby, p, sqrRadius, damageFlags, amount);
     }
   }
 }
@@ -172,11 +194,12 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
   VECTOR hitToEx, hitNormal;
   VECTOR up = {0,0,0,0};
   float angle;
+  float collRadius = 0.5; // pvars->MobVars.Config.CollRadius;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (!pvars)
     return 0;
 
-  up[2] = pvars->MobVars.Config.CollRadius;
+  up[2] = collRadius;
 
   // offset hit scan to center of mob
   //vector_add(hitFrom, from, up);
@@ -194,7 +217,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 
   // move to further out to factor in the radius of the mob
   vector_normalize(hitToEx, delta);
-  vector_scale(hitToEx, hitToEx, pvars->MobVars.Config.CollRadius);
+  vector_scale(hitToEx, hitToEx, collRadius);
   vector_add(hitTo, hitTo, hitToEx);
 
   // check if we hit something
@@ -235,100 +258,109 @@ void mobMove(Moby* moby)
 
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
   u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
+  u8 moveSkipTicks = decTimerU8(&pvars->MobVars.MoveVars.MoveSkipTicks);
 
-  // save last position
-  vector_copy(pvars->MobVars.MoveVars.LastPosition, moby->Position);
+  if (moveSkipTicks == 0) {
 
-  // reset state
-  pvars->MobVars.MoveVars.Grounded = 0;
-  pvars->MobVars.MoveVars.WallSlope = 0;
-  pvars->MobVars.MoveVars.HitWall = 0;
+    // move next position to last position
+    vector_copy(moby->Position, pvars->MobVars.MoveVars.NextPosition);
+    vector_copy(pvars->MobVars.MoveVars.LastPosition, pvars->MobVars.MoveVars.NextPosition);
 
-  // disable colliding with gates
-  gateSetCollision(0);
+    // reset state
+    pvars->MobVars.MoveVars.Grounded = 0;
+    pvars->MobVars.MoveVars.WallSlope = 0;
+    pvars->MobVars.MoveVars.HitWall = 0;
 
-  // add additive velocity
-  vector_add(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.AddVelocity);
+    if (1)
+    {
+      // add additive velocity
+      vector_add(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.AddVelocity);
 
-  {
-    // compute next position
-    vector_add(nextPos, moby->Position, pvars->MobVars.MoveVars.Velocity);
+      // compute simulated velocity by multiplying velocity by number of ticks to simulate
+      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, MOB_MOVE_SKIP_TICKS);
 
-    // move physics check twice to prevent clipping walls
-    if (mobMoveCheck(moby, nextPos, moby->Position, nextPos))
-      mobMoveCheck(moby, nextPos, moby->Position, nextPos);
+      // compute next position
+      vector_add(nextPos, moby->Position, targetVelocity);
 
-    // check ground or ceiling
-    isMovingDown = vector_innerproduct(pvars->MobVars.MoveVars.Velocity, up) < 0;
-    if (isMovingDown) {
-      vector_copy(groundCheckFrom, nextPos);
-      groundCheckFrom[2] = maxf(moby->Position[2], nextPos[2]) + ZOMBIE_BASE_STEP_HEIGHT;
-      vector_copy(groundCheckTo, nextPos);
-      groundCheckTo[2] -= 0.5;
-      if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
-        // mark grounded this frame
-        pvars->MobVars.MoveVars.Grounded = 1;
-
-        // force position to above ground
-        vector_copy(nextPos, CollLine_Fix_GetHitPosition());
-        nextPos[2] += 0.01;
-
-        // remove vertical velocity from velocity
-        vector_projectonhorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+      // move physics check twice to prevent clipping walls
+      if (mobMoveCheck(moby, nextPos, moby->Position, nextPos)) {
+        mobMoveCheck(moby, nextPos, moby->Position, nextPos);
       }
-    } else {
-      vector_copy(groundCheckFrom, nextPos);
-      groundCheckFrom[2] = moby->Position[2];
-      vector_copy(groundCheckTo, nextPos);
-      //groundCheckTo[2] += ZOMBIE_BASE_STEP_HEIGHT;
-      if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
-        // force position to below ceiling
-        vector_copy(nextPos, CollLine_Fix_GetHitPosition());
-        nextPos[2] -= 0.01;
 
-        // remove vertical velocity from velocity
-        //vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+      // check ground or ceiling
+      isMovingDown = vector_innerproduct(targetVelocity, up) < 0;
+      if (isMovingDown) {
+        vector_copy(groundCheckFrom, nextPos);
+        groundCheckFrom[2] = maxf(moby->Position[2], nextPos[2]) + ZOMBIE_BASE_STEP_HEIGHT;
+        vector_copy(groundCheckTo, nextPos);
+        groundCheckTo[2] -= 0.5;
+        if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
+          // mark grounded this frame
+          pvars->MobVars.MoveVars.Grounded = 1;
+
+          // force position to above ground
+          vector_copy(nextPos, CollLine_Fix_GetHitPosition());
+          nextPos[2] += 0.01;
+
+          // remove vertical velocity from velocity
+          vector_projectonhorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+        }
+      } else {
+        vector_copy(groundCheckFrom, nextPos);
+        groundCheckFrom[2] = moby->Position[2];
+        vector_copy(groundCheckTo, nextPos);
+        //groundCheckTo[2] += ZOMBIE_BASE_STEP_HEIGHT;
+        if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
+          // force position to below ceiling
+          vector_copy(nextPos, CollLine_Fix_GetHitPosition());
+          nextPos[2] -= 0.01;
+
+          // remove vertical velocity from velocity
+          //vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
+        }
       }
+
+      // set position
+      vector_copy(pvars->MobVars.MoveVars.NextPosition, nextPos);
     }
 
-    // set position
-    vector_copy(moby->Position, nextPos);
-  }
+    // add gravity to velocity with clamp on downwards speed
+    pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT * MOB_MOVE_SKIP_TICKS;
+    if (pvars->MobVars.MoveVars.Velocity[2] < -10 * MATH_DT)
+      pvars->MobVars.MoveVars.Velocity[2] = -10 * MATH_DT;
 
-  // add gravity to velocity with clamp on downwards speed
-  pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT;
-  if (pvars->MobVars.MoveVars.Velocity[2] < -10 * MATH_DT)
-    pvars->MobVars.MoveVars.Velocity[2] = -10 * MATH_DT;
+    // check if stuck by seeing if the sum horizontal delta position over the last second
+    // is less than 1 in magnitude
+    if (!stuckCheckTicks) {
+      pvars->MobVars.MoveVars.StuckCheckTicks = 60;
+      pvars->MobVars.MoveVars.IsStuck = pvars->MobVars.MoveVars.HitWall && vector_sqrmag(pvars->MobVars.MoveVars.SumPositionDelta) < (pvars->MobVars.MoveVars.SumSpeedOver * TPS * 0.25);
+      if (!pvars->MobVars.MoveVars.IsStuck) {
+        pvars->MobVars.MoveVars.StuckJumpCount = 0;
+        pvars->MobVars.MoveVars.StuckTicks = 0;
+      }
 
-  // check if stuck by seeing if the sum horizontal delta position over the last second
-  // is less than 1 in magnitude
-  if (!stuckCheckTicks) {
-    pvars->MobVars.MoveVars.StuckCheckTicks = 60;
-    pvars->MobVars.MoveVars.IsStuck = pvars->MobVars.MoveVars.HitWall && vector_sqrmag(pvars->MobVars.MoveVars.SumPositionDelta) < (pvars->MobVars.MoveVars.SumSpeedOver * TPS * 0.25);
-    if (!pvars->MobVars.MoveVars.IsStuck) {
-      pvars->MobVars.MoveVars.StuckJumpCount = 0;
-      pvars->MobVars.MoveVars.StuckTicks = 0;
+      // reset counters
+      vector_write(pvars->MobVars.MoveVars.SumPositionDelta, 0);
+      pvars->MobVars.MoveVars.SumSpeedOver = 0;
     }
 
-    // reset counters
-    vector_write(pvars->MobVars.MoveVars.SumPositionDelta, 0);
-    pvars->MobVars.MoveVars.SumSpeedOver = 0;
+    if (pvars->MobVars.MoveVars.IsStuck) {
+      pvars->MobVars.MoveVars.StuckTicks++;
+    }
+
+    // add horizontal delta position to sum
+    vector_subtract(temp, pvars->MobVars.MoveVars.NextPosition, pvars->MobVars.MoveVars.LastPosition);
+    vector_projectonhorizontal(temp, temp);
+    vector_add(pvars->MobVars.MoveVars.SumPositionDelta, pvars->MobVars.MoveVars.SumPositionDelta, temp);
+    pvars->MobVars.MoveVars.SumSpeedOver += vector_sqrmag(temp);
+
+    vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
+    pvars->MobVars.MoveVars.MoveSkipTicks = MOB_MOVE_SKIP_TICKS;
   }
 
-  if (pvars->MobVars.MoveVars.IsStuck) {
-    pvars->MobVars.MoveVars.StuckTicks++;
-  }
+  float t = clamp(1 - (pvars->MobVars.MoveVars.MoveSkipTicks / (float)MOB_MOVE_SKIP_TICKS), 0, 1);
+  vector_lerp(moby->Position, pvars->MobVars.MoveVars.LastPosition, pvars->MobVars.MoveVars.NextPosition, t);
 
-  // add horizontal delta position to sum
-  vector_subtract(temp, moby->Position, pvars->MobVars.MoveVars.LastPosition);
-  vector_projectonhorizontal(temp, temp);
-  vector_add(pvars->MobVars.MoveVars.SumPositionDelta, pvars->MobVars.MoveVars.SumPositionDelta, temp);
-  pvars->MobVars.MoveVars.SumSpeedOver += vector_sqrmag(temp);
-
-  // done moving
-  gateSetCollision(1);
-
-  vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
   mobForceIntoMapBounds(moby);
 }
 
@@ -363,7 +395,7 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   if (!pvars)
     return;
 
-  if (!pvars->MobVars.MoveVars.Grounded)
+  if (!pvars->MobVars.MoveVars.Grounded && (pvars->MobVars.LastAction == MOB_ACTION_FLINCH || pvars->MobVars.LastAction == MOB_ACTION_BIG_FLINCH))
     return;
 
   float collRadius = pvars->MobVars.Config.CollRadius + 0.5;
@@ -371,6 +403,7 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   // stop when at target
   if (pvars->MobVars.Target && targetSpeed > 0) {
     vector_subtract(temp, pvars->MobVars.Target->Position, from);
+    //temp[2] = 0;
     float sqrDistance = vector_sqrmag(temp);
     if (sqrDistance < ((collRadius+PLAYER_COLL_RADIUS)*(collRadius+PLAYER_COLL_RADIUS))) {
       targetSpeed = 0;
