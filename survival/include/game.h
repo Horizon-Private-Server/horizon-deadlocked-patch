@@ -45,7 +45,7 @@
 #define MOB_SPAWN_NEAR_HEALTHBOX_PROBABILITY 			(0.1)
 
 #define MOB_SPAWN_BURST_MIN_DELAY							(1 * 60)
-#define MOB_SPAWN_BURST_MAX_DELAY							(2 * 60)
+#define MOB_SPAWN_BURST_MAX_DELAY							(10 * 60)
 #define MOB_SPAWN_BURST_MIN										(3)
 #define MOB_SPAWN_BURST_MAX										(10)
 #define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(1)
@@ -145,7 +145,7 @@ typedef struct SurvivalBakedSpawnpoint
 
 typedef struct SurvivalBakedConfig
 {
-	float MapSize;
+	float Difficulty;
 	SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];
 } SurvivalBakedConfig_t;
 

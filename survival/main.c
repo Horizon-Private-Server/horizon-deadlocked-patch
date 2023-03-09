@@ -70,22 +70,6 @@ const char * ALPHA_MODS[] = {
 	"Nanoleech Mod"
 };
 
-const char * DIFFICULTY_NAMES[] = {
-	"Couch Potato",
-	"Contestant",
-	"Gladiator",
-	"Hero",
-	"Exterminator"
-};
-
-const u8 DIFFICULTY_HITINVTIMERS[] = {
-	[0] 180,
-	[1] 120,
-	[2] 80,
-	[3] 80,
-	[4] 80,
-};
-
 const u8 UPGRADEABLE_WEAPONS[] = {
 	WEAPON_ID_VIPERS,
 	WEAPON_ID_MAGMA_CANNON,
@@ -391,9 +375,8 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
 
 //--------------------------------------------------------------------------
 int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
-	// larger the map, better chance mob spawns near you
 	// harder difficulty, better chance mob spawns near you
-	float r = randRange(0, 1) / (BakedConfig.MapSize * State.Difficulty);
+	float r = randRange(0, 1) / State.Difficulty;
 
 #if QUICK_SPAWN
 	r = MOB_SPAWN_NEAR_PLAYER_PROBABILITY;
@@ -1963,7 +1946,7 @@ void resetRoundState(void)
 	State.RoundMobSpawnedCount = 0;
 	State.RoundSpawnTicker = 0;
 	State.RoundSpawnTickerCounter = 0;
-	State.RoundNextSpawnTickerCounter = 0;
+	State.RoundNextSpawnTickerCounter = randRangeInt(MOB_SPAWN_BURST_MIN + (State.RoundNumber * MOB_SPAWN_BURST_MIN_INC_PER_ROUND), MOB_SPAWN_BURST_MAX + (State.RoundNumber * MOB_SPAWN_BURST_MAX_INC_PER_ROUND));
 	State.MinMobCost = getMinMobCost();
 
 	// 
@@ -2050,8 +2033,8 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   mapConfig->PopulateSpawnArgsFunc = &populateSpawnArgsFromConfig;
 
 	// custom damage cooldown time
-	POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
-	POKE_U16(0x0060582C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
+	//POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
+	//POKE_U16(0x0060582C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
 
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);
@@ -2220,7 +2203,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.RoundSpecialIdx = 0;
 	State.DropCooldownTicks = DROP_COOLDOWN_TICKS_MAX; // try and stop drops from spawning immediately
 	State.InitializedTime = gameGetTime();
-	State.Difficulty = DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
+	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 	resetRoundState();
 
 	// scale default mob params by difficulty
@@ -2327,8 +2310,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	{
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
-      manSpawnMobId = 0;
-			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+      //manSpawnMobId = 0;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
       int manSpawnedId = manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
 			VECTOR t = {1,1,1,0};
       vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnedId].Config.CollRadius*2);
@@ -2629,7 +2612,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 								{
 									State.RoundSpawnTickerCounter = 0;
 									State.RoundNextSpawnTickerCounter = randRangeInt(MOB_SPAWN_BURST_MIN + (State.RoundNumber * MOB_SPAWN_BURST_MIN_INC_PER_ROUND), MOB_SPAWN_BURST_MAX + (State.RoundNumber * MOB_SPAWN_BURST_MAX_INC_PER_ROUND));
-									State.RoundSpawnTicker = randRangeInt(MOB_SPAWN_BURST_MIN_DELAY, MOB_SPAWN_BURST_MAX_DELAY) / clamp(State.RoundNumber * 0.1, 0.3, 2);
+									
+                  float maxBurstDelay = lerpf(MOB_SPAWN_BURST_MAX_DELAY, MOB_SPAWN_BURST_MIN_DELAY, clamp(State.RoundNumber / 20, 0, 1));
+                  State.RoundSpawnTicker = randRangeInt(MOB_SPAWN_BURST_MIN_DELAY, maxBurstDelay);
 								}
 								else
 								{
@@ -2725,6 +2710,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grNoPickups = 0;
     gameConfig->grV2s = 0;
     gameConfig->grVampire = 0;
+    gameConfig->grHealthBars = 1;
   }
 
 	// force everyone to same team as host
@@ -2759,7 +2745,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		struct SurvivalPlayerState* pState = &State.PlayerStates[pid].State;
 
 		// set round number
-		sprintf((char*)0x003D3AE0, "Survived %d Rounds on %s!", State.RoundNumber, DIFFICULTY_NAMES[(int)gameConfig->survivalConfig.difficulty]);
+		sprintf((char*)0x003D3AE0, "Survived %d Rounds!", State.RoundNumber);
 
 		// set kills
 		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", pState->Kills);

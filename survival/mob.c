@@ -364,7 +364,7 @@ void mobUpdate(Moby* moby)
 
     // auto destruct after 15 seconds of falling
     if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
-      //pvars->MobVars.Respawn = 1;
+      pvars->MobVars.Respawn = 1;
     }
   }
 
@@ -374,20 +374,8 @@ void mobUpdate(Moby* moby)
 
   // move
   if (!isFrozen && pvars->VTable && pvars->VTable->Move) {
-    
-    // turn on holos so we can collide with them
-    // optimization to only turn on for first mob in moby list (this is expensive)
-    //if (mobFirstInList == moby)
-    //  weaponTurnOnHoloshields(-1);
-
-    //mobMove(moby);
     //vector_write(pvars->MobVars.MoveVars.Velocity, 0);
     pvars->VTable->Move(moby);
-  
-    // turn off holos for everyone else
-    // optimization to only turn off for last mob in moby list (this is expensive)
-    //if (mobLastInList == moby)
-    //  weaponTurnOffHoloshields();
   }
 
 	//

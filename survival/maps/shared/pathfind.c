@@ -11,6 +11,11 @@
 
 #define PATH_EDGE_IS_EMPTY(x)               (x == 255)
 #define TARGETS_CACHE_COUNT                 (16)
+#define CLOSEST_NODES_COLL_CHECK_SIZE       (3)
+
+#if GATE
+void gateSetCollision(int collActive);
+#endif
 
 struct TargetCache
 {
@@ -28,6 +33,44 @@ u8* pathGetPathAt(int fromNodeIdx, int toNodeIdx)
   u32 addr = (u32)MOB_PATHFINDING_PATHS;
 
   return (u8*)(addr + pathIdx * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
+}
+
+//--------------------------------------------------------------------------
+int pathSegmentCanBeSkipped(Moby* moby, int segmentStartEdgeIdx, int segmentLen)
+{
+  int i, edge;
+  if (!moby || !moby->PVar)
+    return 0;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  // no path
+  if (!pvars->MobVars.MoveVars.PathEdgeCount) {
+    return 0;
+  }
+
+  // segment not in path
+  if (segmentStartEdgeIdx >= pvars->MobVars.MoveVars.PathEdgeCount) {
+    return 0;
+  }
+
+  // check if current edge is required or there is a jump we haven't reached
+  edge = pvars->MobVars.MoveVars.CurrentPath[segmentStartEdgeIdx];
+  float jumpAt = MOB_PATHFINDING_EDGES_JUMPPADAT[edge] / 255.0;
+  float requiredAt = MOB_PATHFINDING_EDGES_REQUIRED[edge] / 255.0;
+  if ((requiredAt > 0 && pvars->MobVars.MoveVars.PathEdgeAlpha <= requiredAt) || (MOB_PATHFINDING_EDGES_JUMPPADSPEED[edge] > 0 && pvars->MobVars.MoveVars.PathEdgeAlpha <= jumpAt))
+    return 0;
+
+  for (i = 1; i < segmentLen && (i+segmentStartEdgeIdx) < pvars->MobVars.MoveVars.PathEdgeCount; ++i) {
+    edge = pvars->MobVars.MoveVars.CurrentPath[i + segmentStartEdgeIdx];
+    if (PATH_EDGE_IS_EMPTY(edge))
+      break;
+
+    if (MOB_PATHFINDING_EDGES_REQUIRED[edge] > 0 || MOB_PATHFINDING_EDGES_JUMPPADSPEED[edge] > 0)
+      return 0;
+  }
+
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -91,7 +134,7 @@ int pathGetClosestNode(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int pathGetClosestNodeInSight(Moby* moby)
+int pathGetClosestNodeInSight(Moby* moby, int * foundInSight)
 {
   int i,j;
   VECTOR position = {0,0,1,0};
@@ -99,7 +142,7 @@ int pathGetClosestNodeInSight(Moby* moby)
   int closestNodeIdx = 0;
   float closestNodeDist = 10000000;
 
-  char orderedNodesByDist[3];
+  char orderedNodesByDist[CLOSEST_NODES_COLL_CHECK_SIZE];
   float nodeDists[MOB_PATHFINDING_NODES_COUNT];
 
   // init
@@ -111,7 +154,7 @@ int pathGetClosestNodeInSight(Moby* moby)
 
   //DPRINTF("get closest node in sight %08X %08X %04X\n", guberGetUID(moby), (u32)moby, moby->OClass);
 
-  // find 3 closest nodes to moby
+  // find n closest nodes to moby
   for (i = 0; i < MOB_PATHFINDING_NODES_COUNT; ++i) {
 
     vector_subtract(delta, MOB_PATHFINDING_NODES[i], position);
@@ -122,9 +165,9 @@ int pathGetClosestNodeInSight(Moby* moby)
     //if (CollLine_Fix(position, MOB_PATHFINDING_NODES[i], 2, moby, 0))
     //  dist *= 1000;
     
-    for (j = 0; j < 3; ++j) {
+    for (j = 0; j < CLOSEST_NODES_COLL_CHECK_SIZE; ++j) {
       if (orderedNodesByDist[j] < 0 || dist < nodeDists[orderedNodesByDist[j]]) {
-        int leftover = 2 - j;
+        int leftover = (CLOSEST_NODES_COLL_CHECK_SIZE - 1) - j;
         if (leftover > 0)
           memmove(&orderedNodesByDist[j+1], &orderedNodesByDist[j], sizeof(char) * leftover);
         
@@ -135,15 +178,26 @@ int pathGetClosestNodeInSight(Moby* moby)
   }
 
   // if more than 1 node found
-  // then find the closest of those 3 that is in sight
+  // then find the closest of those that is in sight
   if (orderedNodesByDist[1] >= 0) {
-    for (i = 0; i < 3; ++i) {
+#if GATE
+    gateSetCollision(0);
+#endif
+
+    for (i = 0; i < CLOSEST_NODES_COLL_CHECK_SIZE; ++i) {
       if (!CollLine_Fix(position, MOB_PATHFINDING_NODES[orderedNodesByDist[i]], 2, moby, 0)) {
+        if (foundInSight)
+          *foundInSight = 1;
+
         return orderedNodesByDist[i];
       }
     }
   }
 
+  // didn't find in sight
+  if (foundInSight)
+    *foundInSight = 0;
+    
   return orderedNodesByDist[0];
 }
 
@@ -155,7 +209,7 @@ int pathRegisterTarget(Moby* moby)
   for (i = 0; i < TARGETS_CACHE_COUNT; ++i) {
     if (!TargetsCache[i].Target) {
       TargetsCache[i].Target = moby;
-      return TargetsCache[i].ClosestNodeIdx = pathGetClosestNodeInSight(moby);
+      return TargetsCache[i].ClosestNodeIdx = pathGetClosestNodeInSight(moby, NULL);
     }
   }
 
@@ -207,6 +261,7 @@ int pathShouldFindNewPath(Moby* moby)
 void pathGetPath(Moby* moby)
 {
   int i;
+  int inSight = 0;
   if (!moby || !moby->PVar)
     return;
 
@@ -219,7 +274,8 @@ void pathGetPath(Moby* moby)
 
   // we should reuse both the last node we were at
   // and the node we're currently going towards for this depending on the final path
-  int closestNodeIdxToMob = pathGetClosestNodeInSight(moby);
+  int closestNodeIdxToMob = pathGetClosestNodeInSight(moby, &inSight);
+  DPRINTF("closest node to mob is %d (insight: %d)\n", closestNodeIdxToMob, inSight);
 
   memcpy(pvars->MobVars.MoveVars.CurrentPath, pathGetPathAt(closestNodeIdxToMob, closestNodeIdxToTarget), sizeof(u8) * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
   pvars->MobVars.MoveVars.PathEdgeCurrent = 0;
@@ -237,7 +293,8 @@ void pathGetPath(Moby* moby)
   pvars->MobVars.MoveVars.PathEdgeCount = i;
 
   // skip start if its backwards along path
-  if (i > 0) {
+  // and the segment can be skipped
+  if (i > 0 && pathSegmentCanBeSkipped(moby, 0, 1)) {
     int startEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[0];
     u8* startEdge = MOB_PATHFINDING_EDGES[startEdgeIdx];
     
@@ -556,7 +613,7 @@ void pathTick(void)
     if (mobyIsDestroyed(cache->Target)) {
       cache->Target = NULL;
     } else if (cache->DelayNextCheckTicks <= 0 && !hasAlreadyCheckedANode) {
-      cache->ClosestNodeIdx = pathGetClosestNodeInSight(cache->Target);
+      cache->ClosestNodeIdx = pathGetClosestNodeInSight(cache->Target, NULL);
       cache->DelayNextCheckTicks = TPS * 0.2;
       hasAlreadyCheckedANode = 1;
       lastTargetUpdatedIdx = idx + 1;

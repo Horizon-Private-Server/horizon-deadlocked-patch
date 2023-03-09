@@ -28,7 +28,10 @@
 #include "module.h"
 
 void mobForceIntoMapBounds(Moby* moby);
+
+#if GATE
 void gateSetCollision(int collActive);
+#endif
 
 extern int aaa;
 
@@ -49,6 +52,16 @@ int mobAmIOwner(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return gameGetMyClientId() == pvars->MobVars.Owner;
+}
+
+//--------------------------------------------------------------------------
+int mobIsFrozen(Moby* moby)
+{
+  if (!moby || !moby->PVar || !MapConfig.State)
+    return 0;
+
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  return MapConfig.State->Freeze && pvars->MobVars.Config.MobType != MOB_FREEZE && pvars->MobVars.Config.MobSpecialMutation != MOB_SPECIAL_MUTATION_FREEZE;
 }
 
 //--------------------------------------------------------------------------
@@ -261,6 +274,10 @@ void mobMove(Moby* moby)
   u8 moveSkipTicks = decTimerU8(&pvars->MobVars.MoveVars.MoveSkipTicks);
 
   if (moveSkipTicks == 0) {
+
+#if GATE
+    gateSetCollision(0);
+#endif
 
     // move next position to last position
     vector_copy(moby->Position, pvars->MobVars.MoveVars.NextPosition);

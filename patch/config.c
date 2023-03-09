@@ -450,6 +450,7 @@ const char* CustomModeShortNames[] = {
 };
 
 // survival difficulty
+/*
 MenuElem_ListData_t dataSurvivalDifficulty = {
     &gameConfig.survivalConfig.difficulty,
     NULL,
@@ -462,6 +463,7 @@ MenuElem_ListData_t dataSurvivalDifficulty = {
       "Exterminator"
     }
 };
+*/
 
 // payload contest mode
 MenuElem_ListData_t dataPayloadContestMode = {
@@ -574,7 +576,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
 
   // SURVIVAL SETTINGS
-  { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
+  // { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
 
   // PAYLOAD SETTINGS
   { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode },

@@ -36,6 +36,7 @@
 extern struct SurvivalMapConfig MapConfig;
 
 Moby* GateMobies[GATE_MAX_COUNT] = {};
+void * GateCollisionData = NULL;
 
 SoundDef BaseSoundDef =
 {
@@ -57,11 +58,20 @@ void gateSetCollision(int collActive)
   int i;
 
   for (i = 0; i < GATE_MAX_COUNT; ++i) {
-    if (GateMobies[i]) {
-      if (!collActive)
-        GateMobies[i]->CollActive = -1;
-      else if (GateMobies[i]->State == GATE_STATE_ACTIVATED)
-        GateMobies[i]->CollActive = 0;
+    if (!GateMobies[i])
+      break;
+
+    // if any gate is already in the correct state
+    // then we can stop because the rest will be
+    if (!collActive && !GateMobies[i]->CollData)
+      break;
+    if (collActive && GateMobies[i]->CollData)
+      break;
+
+    if (!collActive) {
+      GateMobies[i]->CollData = 0;
+    } else {
+      GateMobies[i]->CollData = GateCollisionData;
     }
   }
 }
@@ -284,6 +294,10 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 
   // don't render
   moby->ModeBits |= 0x101;
+
+  // update global collision data ptr
+  if (!GateCollisionData)
+    GateCollisionData = moby->CollData;
 
   // add to list
   for (i = 0; i < GATE_MAX_COUNT; ++i) {

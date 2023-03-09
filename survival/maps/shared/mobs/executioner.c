@@ -12,6 +12,7 @@
 #include "../include/maputils.h"
 
 int mobAmIOwner(Moby* moby);
+int mobIsFrozen(Moby* moby);
 void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
 void mobSetAction(Moby* moby, int action);
 void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
@@ -120,7 +121,7 @@ void executionerPreUpdate(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  if (MapConfig.State && MapConfig.State->Freeze)
+  if (mobIsFrozen(moby))
     return;
 
 	if (!pvars->MobVars.AmbientSoundCooldownTicks) {
@@ -151,7 +152,7 @@ void executionerPostUpdate(Moby* moby)
     }
   }
 
-	if ((MapConfig.State && MapConfig.State->Freeze) || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
+	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
 		moby->AnimSpeed = animSpeed;

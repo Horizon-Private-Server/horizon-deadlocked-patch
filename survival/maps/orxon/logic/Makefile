@@ -3,7 +3,7 @@ EE_OBJS = main.o config.o path.o ../../shared/gate.o gas.o power.o ../../shared/
 EE_ELF = logic.elf
 EE_BIN = logic.bin
 EE_INCS := -I../../../../common -I../../../include -I../../shared/include
-EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_EXECUTIONER -DMOB_TREMOR -fno-builtin -nostdlib -nostartfiles -L.
+EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_EXECUTIONER -DMOB_TREMOR -DGATE -DGAS -DPOWER -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
 BUILD_CONFIG := RELEASE

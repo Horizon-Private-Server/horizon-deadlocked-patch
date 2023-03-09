@@ -26,14 +26,6 @@ const float BOLT_TAX[] = {
 	0.40,			// 10 players
 };
 
-const float DIFFICULTY_MAP[] = {
-	0.25,			// Couch Potato
-	0.50,			// Contestant
-	0.75,			// Gladiator
-	1.00,			// Hero
-	1.50,			// Exterminator
-};
-
 // vanilla is 30 for each
 const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[] = {
 	30, // VIPER

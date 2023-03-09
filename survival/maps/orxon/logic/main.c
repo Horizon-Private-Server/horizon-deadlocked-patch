@@ -139,7 +139,21 @@ void onBeforeUpdateHeroes(void)
 //--------------------------------------------------------------------------
 void onAfterUpdateHeroes(void)
 {
-  gateSetCollision(0);
+  //gateSetCollision(0);
+}
+
+//--------------------------------------------------------------------------
+void onBeforeUpdateHeroes2(u32 a0)
+{
+  gateSetCollision(1);
+
+  ((void (*)(u32))0x0059b320)(a0);
+}
+
+//--------------------------------------------------------------------------
+void onAfterUpdateHeroes2(void)
+{
+  //gateSetCollision(1);
 }
 
 //--------------------------------------------------------------------------
@@ -158,6 +172,8 @@ void initialize(void)
   // only have gate collision on when processing players
   HOOK_JAL(0x003bd854, &onBeforeUpdateHeroes);
   HOOK_J(0x003bd864, &onAfterUpdateHeroes);
+  HOOK_JAL(0x0051f648, &onBeforeUpdateHeroes2);
+  HOOK_J(0x0051f78c, &onAfterUpdateHeroes2);
 
   DPRINTF("path %08X end %08X\n", (u32)&MOB_PATHFINDING_PATHS, (u32)&MOB_PATHFINDING_PATHS + (MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH * MOB_PATHFINDING_NODES_COUNT * MOB_PATHFINDING_NODES_COUNT));
 
