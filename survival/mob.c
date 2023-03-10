@@ -149,6 +149,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 		int weaponId = getWeaponIdFromOClass(source->OClass);
 		if (weaponId >= 0) {
 			args.Knockback.Power = (u8)playerGetWeaponAlphaModCount(pDamager, weaponId, ALPHA_MOD_IMPACT);
+	    args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
 		}
 	}
 
@@ -157,15 +158,22 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	float len = vector_length(delta);
 	float angle = atan2f(delta[1] / len, delta[0] / len);
 	args.Knockback.Angle = (short)(angle * 1000);
-	args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
   args.Knockback.Force = 0;
-	
+
+  // full knockback
+  if (damageFlags & 0x80000000) {
+    args.Knockback.Ticks = 5;
+    args.Knockback.Power = 10;
+    args.Knockback.Force = 1;
+  }
+
 	// create event
 	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DAMAGE);
 	if (guberEvent) {
 		args.SourceUID = guberGetUID(sourcePlayer);
 		args.SourceOClass = source->OClass;
 		args.DamageQuarters = amount*4;
+    args.DamageFlags = damageFlags;
 		guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
 	}
 }
@@ -235,7 +243,7 @@ int mobIsFrozen(Moby* moby)
     return 0;
 
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  return State.Freeze && pvars->MobVars.Config.MobType != MOB_FREEZE && pvars->MobVars.Config.MobSpecialMutation != MOB_SPECIAL_MUTATION_FREEZE;
+  return State.Freeze && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_FREEZE;
 }
 
 void mobHandleDraw(Moby* moby)
@@ -290,7 +298,7 @@ void mobUpdate(Moby* moby)
     pvars->VTable->PreUpdate(moby);
 
 	// handle radar
-	if (pvars->MobVars.Config.MobType != MOB_GHOST && pvars->MobVars.Config.MobSpecialMutation != MOB_SPECIAL_MUTATION_GHOST && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
+	if (pvars->MobVars.BlipType >= 0 && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_GHOST && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
 	{
 		if (gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips == 1 || pvars->MobVars.ClosestDist < (20 * 20))
 		{
@@ -301,7 +309,7 @@ void mobUpdate(Moby* moby)
 				blip->X = moby->Position[0];
 				blip->Y = moby->Position[1];
 				blip->Life = 0x1F;
-				blip->Type = pvars->MobVars.Config.MobType == MOB_TANK ? 5 : 4;
+				blip->Type = pvars->MobVars.BlipType;
 				blip->Team = 1;
 			}
 		}
@@ -417,9 +425,8 @@ void mobUpdate(Moby* moby)
 	}
 
 	// 
-	if (pvars->MobVars.Config.MobType == MOB_GHOST || pvars->MobVars.Config.MobSpecialMutation == MOB_SPECIAL_MUTATION_GHOST) {
-		u8 defaultOpacity = pvars->MobVars.Config.MobSpecialMutation ? 0xFF : 0x80;
-		u8 targetOpacity = pvars->MobVars.Action > MOB_ACTION_WALK ? defaultOpacity : 0x10;
+	if (pvars->MobVars.Config.MobAttribute == MOB_ATTRIBUTE_GHOST) {
+		u8 targetOpacity = pvars->MobVars.Action > MOB_ACTION_WALK ? 0x80 : 0x10;
 		u8 opacity = moby->Opacity;
 		if (opacity < targetOpacity)
 			opacity = targetOpacity;
@@ -434,11 +441,13 @@ void mobUpdate(Moby* moby)
 
 	// process damage
   int damageIndex = moby->CollDamage;
+  u32 damageFlags = 0;
   MobyColDamage* colDamage = NULL;
   float damage = 0.0;
 
   if (damageIndex >= 0) {
-    colDamage = mobyGetDamage(moby, 0x400C00, 0);
+    colDamage = mobyGetDamage(moby, 0x80481C40, 0);
+    damageFlags = colDamage->DamageFlags;
     if (colDamage)
       damage = colDamage->DamageHp;
   }
@@ -448,12 +457,17 @@ void mobUpdate(Moby* moby)
     Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
     if (damager) {
       damage *= 1 + (0.05 * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
+
+      // surge boost
+      if (damager->timers.clankRedEye > 0) {
+        damage *= 2;
+      }
     }
 
     if (damager && (isOwner || playerIsLocal(damager))) {
-      mobSendDamageEvent(moby, damager->PlayerMoby, colDamage->Damager, damage, colDamage->DamageFlags);	
+      mobSendDamageEvent(moby, damager->PlayerMoby, colDamage->Damager, damage, damageFlags);	
     } else if (isOwner) {
-      mobSendDamageEvent(moby, colDamage->Damager, colDamage->Damager, damage, colDamage->DamageFlags);	
+      mobSendDamageEvent(moby, colDamage->Damager, colDamage->Damager, damage, damageFlags);	
     }
 
     // 
@@ -474,7 +488,7 @@ void mobUpdate(Moby* moby)
 			struct MobConfig config;
 			if (spawnGetRandomPoint(p)) {
 				memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
-				mobCreate(pvars->MobVars.SpawnParamsIdx, p, 0, guberGetUID(moby), &config);
+				mobCreate(pvars->MobVars.SpawnParamsIdx, p, 0, guberGetUID(moby), pvars->MobVars.FreeAgent, &config);
 			}
 
 			pvars->MobVars.Respawn = 0;
@@ -518,6 +532,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	float yaw;
 	int i;
 	int spawnFromUID;
+  int freeAgent;
 	char random;
 	struct MobSpawnEventArgs args;
 
@@ -525,6 +540,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	guberEventRead(event, p, 12);
 	guberEventRead(event, &yaw, 4);
 	guberEventRead(event, &spawnFromUID, 4);
+	guberEventRead(event, &freeAgent, 4);
 	guberEventRead(event, &random, 1);
 	guberEventRead(event, &args, sizeof(struct MobSpawnEventArgs));
 
@@ -537,7 +553,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// 
 	moby->ModeBits |= 0x1030;
-	moby->Opacity = args.MobSpecialMutation ? 0xFF : 0x80;
+	moby->Opacity = 0x80;
 	moby->CollActive = 1;
 
 
@@ -549,14 +565,16 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->FlashVarsPtr = &pvars->FlashVars;
 	pvars->ReactVarsPtr = &pvars->ReactVars;
 	
+  // free agent data
+  pvars->MobVars.FreeAgent = freeAgent;
+
   // copy spawn params to config
   pvars->MobVars.SpawnParamsIdx = args.SpawnParamsIdx;
   struct MobSpawnParams* params = &mapConfig->DefaultSpawnParams[args.SpawnParamsIdx];
   memcpy(&pvars->MobVars.Config, &params->Config, sizeof(struct MobConfig));
 
 	// initialize mob vars
-	pvars->MobVars.Config.MobType = args.MobType;
-	pvars->MobVars.Config.MobSpecialMutation = args.MobSpecialMutation;
+	pvars->MobVars.Config.MobAttribute = args.MobAttribute;
 	pvars->MobVars.Config.Bolts = args.Bolts;
 #if PAYDAY
 	pvars->MobVars.Config.Bolts = 100000;
@@ -606,43 +624,10 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->ReactVars.acidDamage = 1.0;
 	pvars->ReactVars.shieldDamageReduction = 1.0;
 
-	// mob specifc settings
-	switch (args.MobType)
+	// mob attributes
+	switch (pvars->MobVars.Config.MobAttribute)
 	{
-		case MOB_GHOST:
-		{
-			pvars->ReactVars.deathType = 0; // normal
-
-			// disable targeting
-			moby->ModeBits &= ~0x1000;
-			break;
-		}
-		case MOB_ACID:
-		{
-			pvars->ReactVars.deathType = 4; // acid
-			break;
-		}
-		case MOB_FREEZE:
-		{
-			pvars->ReactVars.deathType = 3; // blue explosion
-			break;
-		}
-		case MOB_EXPLODE:
-		{
-			pvars->ReactVars.deathType = 2; // explosion
-			break;
-		}
-		case MOB_TANK:
-		{
-			pvars->ReactVars.deathType = 0; // normal
-			break;
-		}
-	}
-
-	// special mutation settings
-	switch (pvars->MobVars.Config.MobSpecialMutation)
-	{
-		case MOB_SPECIAL_MUTATION_GHOST:
+		case MOB_ATTRIBUTE_GHOST:
 		{
 			// disable targeting
 			pvars->ReactVars.deathType = 0; // normal
@@ -680,7 +665,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
     pvars->VTable->OnSpawn(moby, p, yaw, spawnFromUID, random, &args);
 	
 #if LOG_STATS2
-	DPRINTF("mob created event %08X, %08X, %08X mobtype:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.MobType, State.RoundMobCount, State.RoundMobSpawnedCount);
+	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.RoundMobCount, State.RoundMobSpawnedCount);
 #endif
 	return 0;
 }
@@ -996,10 +981,10 @@ int mobOnUnreliableMsgRemote(void * connection, void * data)
   return sizeof(struct MobUnreliableBaseMsgArgs);
 }
 
-int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
 {
   if (mapConfig->OnMobCreateFunc)
-    return mapConfig->OnMobCreateFunc(spawnParamsIdx, position, yaw, spawnFromUID, config);
+    return mapConfig->OnMobCreateFunc(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
 
   return 0;
 }
@@ -1069,6 +1054,7 @@ void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float 
           args.SourceUID = playerUid;
           args.SourceOClass = 0;
           args.DamageQuarters = damage*4;
+          args.DamageFlags = 0;
           args.Knockback.Angle = (short)(angle * 1000);
           args.Knockback.Ticks = 5;
           args.Knockback.Power = 10;

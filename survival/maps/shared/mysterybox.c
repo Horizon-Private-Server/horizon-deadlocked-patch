@@ -731,7 +731,7 @@ void mboxInit(void)
   if (mobyFunctionsPtr) {
     *(u32*)(mobyFunctionsPtr + 0x04) = (u32)&mboxGetGuber;
     *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&mboxHandleEvent;
-    DPRINTF("oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
+    DPRINTF("MBOX oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
 }

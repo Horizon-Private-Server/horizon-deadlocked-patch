@@ -193,3 +193,39 @@ void pushSnack(int localPlayerIdx, char* string, int ticksAlive)
   else
     uiShowPopup(localPlayerIdx, string);
 }
+
+//--------------------------------------------------------------------------
+int isInDrawDist(Moby* moby)
+{
+  int i;
+  VECTOR delta;
+  if (!moby)
+    return 0;
+
+  int drawDistSqr = moby->DrawDist*moby->DrawDist;
+
+  for (i = 0; i < 2; ++i) {
+    GameCamera* camera = cameraGetGameCamera(i);
+    if (!camera)
+      continue;
+    
+    // check if in range of camera
+    vector_subtract(delta, camera->pos, moby->Position);
+    if (vector_sqrmag(delta) < drawDistSqr)
+      return 1;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int mobyIsMob(Moby* moby)
+{
+  if (!moby)
+    return;
+
+  return moby->OClass == ZOMBIE_MOBY_OCLASS
+    || moby->OClass == EXECUTIONER_MOBY_OCLASS
+    || moby->OClass == TREMOR_MOBY_OCLASS
+    ;
+}

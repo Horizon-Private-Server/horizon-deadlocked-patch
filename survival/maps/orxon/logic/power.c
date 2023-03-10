@@ -30,8 +30,68 @@
 #include "messageid.h"
 #include "../../shared/include/maputils.h"
 
+#define MAX_TEMP_POWER_ON_MOBYS         (10)
+
 int powerTimeOff = -1;
 int powerForcedOn = 0;
+
+struct MobyTempPowerOn
+{
+  Moby* pMoby;
+  int TimeDeactivate;
+};
+
+struct MobyTempPowerOn TempPowerOnList[MAX_TEMP_POWER_ON_MOBYS];
+
+//--------------------------------------------------------------------------
+int powerMobyHasTempPowerOn(Moby* moby)
+{
+  int i;
+
+  for (i = 0; i < MAX_TEMP_POWER_ON_MOBYS; ++i) {
+    if (TempPowerOnList[i].pMoby == moby)
+      return 1;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int powerIsMobyOn(Moby* moby)
+{
+  switch (moby->OClass)
+  {
+    case MOBY_ID_BOLT_CRANK_MP: return powerTimeOff >= 0;
+    case MOBY_ID_JUMP_PAD: return moby->State == 3;
+    case MOBY_ID_PICKUP_PAD: return (*(u32*)moby->PVar & 0x10000000) == 0;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+void powerUpdateMoby(Moby* moby, int powerOn)
+{
+  switch (moby->OClass)
+  {
+    case MOBY_ID_JUMP_PAD:
+    {
+      moby->State = powerOn ? 3 : 1;
+      break;
+    }
+    case MOBY_ID_PICKUP_PAD:
+    {
+      u32 v = *(u32*)moby->PVar;
+      if (powerOn) {
+        *(u32*)moby->PVar = v &= 0xFF;
+        *(u32*)(moby->PVar + 0x7C) = 0;
+      } else {
+        *(u32*)moby->PVar = v |= 0x10000000;
+      }
+      break;
+    }
+  }
+}
 
 //--------------------------------------------------------------------------
 void powerUpdateMobies(int powerOn)
@@ -41,29 +101,57 @@ void powerUpdateMobies(int powerOn)
 
   while (m < mEnd)
   {
-    if (!mobyIsDestroyed(m))
-    {
-      switch (m->OClass)
-      {
-        case MOBY_ID_JUMP_PAD:
-        {
-          m->State = powerOn ? 3 : 1;
-          break;
-        }
-        case MOBY_ID_PICKUP_PAD:
-        {
-          u32 v = *(u32*)m->PVar;
-          if (powerOn) {
-            *(u32*)m->PVar = v &= 0xFF;
-          } else {
-            *(u32*)m->PVar = v |= 0x10000000;
-          }
-          break;
-        }
-      }
+    if (!mobyIsDestroyed(m)) {
+      powerUpdateMoby(m, powerOn);
     }
 
     ++m;
+  }
+}
+
+//--------------------------------------------------------------------------
+void powerActivateMobyTempPower(Moby* moby, int durationMs)
+{
+  int i;
+  int idx = -1;
+
+  for (i = 0; i < MAX_TEMP_POWER_ON_MOBYS; ++i) {
+    struct MobyTempPowerOn* tempPowerOn = &TempPowerOnList[i];
+    if (tempPowerOn->pMoby == moby) {
+      idx = i;
+      break;
+    } else if (!tempPowerOn->pMoby) {
+      idx = i;
+    }
+  }
+
+  // activate
+  if (idx >= 0) {
+    struct MobyTempPowerOn* tempPowerOn = &TempPowerOnList[idx];
+    tempPowerOn->TimeDeactivate = gameGetTime() + durationMs;
+    tempPowerOn->pMoby = moby;
+    powerUpdateMoby(moby, 1);
+    DPRINTF("temp activate %08X for %d ms\n", (u32)moby, durationMs);
+  }
+}
+
+//--------------------------------------------------------------------------
+void powerDeactivateMobyTempPower(void)
+{
+  int i;
+  int time = gameGetTime();
+
+  for (i = 0; i < MAX_TEMP_POWER_ON_MOBYS; ++i) {
+    struct MobyTempPowerOn* tempPowerOn = &TempPowerOnList[i];
+    if (tempPowerOn->pMoby && time > tempPowerOn->TimeDeactivate) {
+
+      // turn off only if power is off
+      if (powerTimeOff < 0) {
+        powerUpdateMoby(tempPowerOn->pMoby, 0);
+        DPRINTF("temp deactivate %08X\n", (u32)tempPowerOn->pMoby);
+      }
+      tempPowerOn->pMoby = 0;
+    }
   }
 }
 
@@ -74,6 +162,35 @@ void powerOnMysteryBoxActivatePower(void)
   powerTimeOff = gameGetTime() + 5*TIME_MINUTE;
 
   pushSnack(-1, "Power supercharged", 60);
+}
+
+//--------------------------------------------------------------------------
+void powerOnSurgeMoby(Moby* moby)
+{
+  if (!moby)
+    return;
+
+  switch (moby->OClass)
+  {
+    case MOBY_ID_BOLT_CRANK_MP:
+    {
+      // supercharge once
+      if (!powerForcedOn) {
+        powerOnMysteryBoxActivatePower();
+      }
+      break;
+    }
+    case MOBY_ID_JUMP_PAD:
+    {
+      powerActivateMobyTempPower(moby, TIME_SECOND * 5);
+      break;
+    }
+    case MOBY_ID_PICKUP_PAD:
+    {
+      powerActivateMobyTempPower(moby, TIME_SECOND * 5);
+      break;
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -94,6 +211,9 @@ void powerNodeUpdate(Moby* moby)
 
     // disable pickup pad not being pickupable in CQ
     POKE_U32(0x00446638, 0);
+
+    // 
+    memset(TempPowerOnList, 0, sizeof(TempPowerOnList));
 
     //
     powerUpdateMobies(0);
@@ -150,4 +270,6 @@ void powerNodeUpdate(Moby* moby)
     powerUpdateMobies(1);
     pushSnack(-1, "Power activated!", 60);
   }
+
+  powerDeactivateMobyTempPower();
 }

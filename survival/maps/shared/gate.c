@@ -350,7 +350,7 @@ int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 struct GuberMoby* gateGetGuber(Moby* moby)
 {
-	if (moby->OClass == 0x1F6 && moby->PVar)
+	if (moby->OClass == GATE_OCLASS && moby->PVar)
 		return moby->GuberMoby;
 	
 	return 0;
@@ -435,7 +435,7 @@ void gateInit(void)
   if (mobyFunctionsPtr) {
     *(u32*)(mobyFunctionsPtr + 0x04) = (u32)&gateGetGuber;
     *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&gateHandleEvent;
-    DPRINTF("oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
+    DPRINTF("GATE oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
 }

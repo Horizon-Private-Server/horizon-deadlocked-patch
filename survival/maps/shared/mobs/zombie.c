@@ -81,11 +81,10 @@ SoundDef ZombieSoundDef = {
 
 extern u32 MobPrimaryColors[];
 extern u32 MobSecondaryColors[];
-extern u32 MobSpecialMutationColors[];
 extern u32 MobLODColors[];
 
 //--------------------------------------------------------------------------
-int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
   
@@ -95,7 +94,7 @@ int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1);
+      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1, freeAgent);
     }
 
 		u8 random = (u8)rand(100);
@@ -104,6 +103,7 @@ int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &yaw, 4);
 		guberEventWrite(guberEvent, &spawnFromUID, 4);
+		guberEventWrite(guberEvent, &freeAgent, 4);
 		guberEventWrite(guberEvent, &random, 1);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
 	}
@@ -168,7 +168,7 @@ void zombiePostDraw(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  u32 color = MobLODColors[pvars->MobVars.Config.MobType] | (moby->Opacity << 24);
+  u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
   mobPostDrawQuad(moby, 127, color);
 }
 
@@ -198,26 +198,12 @@ void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
   moby->Scale = 0.256339;
 
   // colors by mob type
-	moby->GlowRGBA = MobSecondaryColors[(int)e.MobType];
-	moby->PrimaryColor = MobPrimaryColors[(int)e.MobType];
+	moby->GlowRGBA = MobSecondaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
 
   // targeting
 	pvars->TargetVars.targetHeight = 1;
-
-	// special mutation settings
-	switch (pvars->MobVars.Config.MobSpecialMutation)
-	{
-		case MOB_SPECIAL_MUTATION_FREEZE:
-		{
-			moby->GlowRGBA = MobSpecialMutationColors[(int)pvars->MobVars.Config.MobSpecialMutation];
-			break;
-		}
-		case MOB_SPECIAL_MUTATION_ACID:
-		{
-			moby->GlowRGBA = MobSpecialMutationColors[(int)pvars->MobVars.Config.MobSpecialMutation];
-			break;
-		}
-	}
+  pvars->MobVars.BlipType = 4;
 }
 
 //--------------------------------------------------------------------------
@@ -229,7 +215,7 @@ void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
 	// set colors before death so that the corn has the correct color
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.Config.MobType];
+	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
 }
 
 //--------------------------------------------------------------------------
@@ -244,6 +230,8 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
             && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB 
             && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB_EXPLODE
             && pvars->MobVars.FlinchCooldownTicks == 0;
+
+  int isShock = e.DamageFlags & 0x40;
 
 	// destroy
 	if (newHp <= 0) {
@@ -268,8 +256,12 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     if (canFlinch) {
-      if (e.Knockback.Force || ((((e.Knockback.Power + 1) * damageRatio) > 0.25) && !rand(3)))
+      if (isShock) {
+        mobSetAction(moby, MOB_ACTION_FLINCH);
+      }
+      else if (e.Knockback.Force || ((((e.Knockback.Power + 1) * damageRatio) > 0.25) && !rand(3))) {
         mobSetAction(moby, MOB_ACTION_BIG_FLINCH);
+      }
       else if (damageRatio > 0.05 && randRange(0, 1) < ZOMBIE_FLINCH_PROBABILITY) {
         mobSetAction(moby, MOB_ACTION_FLINCH);
       }
@@ -367,7 +359,7 @@ enum MobAction zombieGetPreferredAction(Moby* moby)
 
 		if (distSqr <= attackRadiusSqr) {
 			if (zombieCanAttack(pvars))
-				return pvars->MobVars.Config.MobType != MOB_EXPLODE ? MOB_ACTION_ATTACK : MOB_ACTION_TIME_BOMB;
+				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? MOB_ACTION_ATTACK : MOB_ACTION_TIME_BOMB;
 			return MOB_ACTION_WALK;
 		} else {
 			return MOB_ACTION_WALK;
@@ -589,41 +581,21 @@ void zombieDoAction(Moby* moby)
 				mobStand(moby);
 			}
 
-			switch (pvars->MobVars.Config.MobType)
+			// attribute damage
+			switch (pvars->MobVars.Config.MobAttribute)
 			{
-				case MOB_FREEZE:
-				{
-					damageFlags = 0x00881801;
-					break;
-				}
-				case MOB_ACID:
-				{
-					damageFlags = 0x00081881;
-					break;
-				}
-				case MOB_EXPLODE:
-				{
-					// explode is handled on action (once)
-					damageFlags = 0;
-					break;
-				}
-			}
-
-			// special mutation settings
-			switch (pvars->MobVars.Config.MobSpecialMutation)
-			{
-				case MOB_SPECIAL_MUTATION_FREEZE:
+				case MOB_ATTRIBUTE_FREEZE:
 				{
 					damageFlags |= 0x00800000;
 					break;
 				}
-				case MOB_SPECIAL_MUTATION_ACID:
+				case MOB_ATTRIBUTE_ACID:
 				{
 					damageFlags |= 0x00000080;
 					break;
 				}
 			}
-			
+
 			if (swingAttackReady && damageFlags) {
 				zombieDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);
 			}
@@ -686,16 +658,16 @@ void zombieForceLocalAction(Moby* moby, enum MobAction action)
       u32 damageFlags = 0x00008801;
       u32 color = 0x003064FF;
 
-      // special mutation settings
-      switch (pvars->MobVars.Config.MobSpecialMutation)
+			// attribute damage
+      switch (pvars->MobVars.Config.MobAttribute)
       {
-        case MOB_SPECIAL_MUTATION_FREEZE:
+        case MOB_ATTRIBUTE_FREEZE:
         {
           color = 0x00FF6430;
           damageFlags |= 0x00800000;
           break;
         }
-        case MOB_SPECIAL_MUTATION_ACID:
+        case MOB_ATTRIBUTE_ACID:
         {
           color = 0x0064FF30;
           damageFlags |= 0x00000080;

@@ -1,6 +1,7 @@
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../../../include/mysterybox.h"
+#include "orxon.h"
 
 extern struct SurvivalMapConfig MapConfig;
 
@@ -59,7 +60,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 25
 	{
 		.MaxSpawnedAtOnce = 10,
-    .SpawnCountFactor = 0.5,
+    .SpawnCountFactor = 0.05,
 		.SpawnParamCount = 1,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_TITAN,
@@ -84,7 +85,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
 		.Name = "Titan",
 		.Config = {
-			.MobType = MOB_TANK,
 			.Xp = 250,
 			.Bangles = EXECUTIONER_BANGLE_LEFT_CHEST_PLATE | EXECUTIONER_BANGLE_RIGHT_CHEST_PLATE
                 | EXECUTIONER_BANGLE_LEFT_COLLAR_BONE | EXECUTIONER_BANGLE_RIGHT_COLLAR_BONE
@@ -105,7 +105,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.ReactionTickCount = EXECUTIONER_BASE_REACTION_TICKS * 0.35,
 			.AttackCooldownTickCount = EXECUTIONER_BASE_ATTACK_COOLDOWN_TICKS * 1.5,
 			.MaxCostMutation = 10,
-			.MobSpecialMutation = 0,
+			.MobAttribute = 0,
 		}
 	},
 	// ghost zombie
@@ -118,7 +118,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM | SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
 		.Name = "Ghost",
 		.Config = {
-			.MobType = MOB_GHOST,
 			.Xp = 25,
 			.Bangles = ZOMBIE_BANGLE_HEAD_2 | ZOMBIE_BANGLE_TORSO_2,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
@@ -137,7 +136,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
-			.MobSpecialMutation = 0,
+			.MobAttribute = MOB_ATTRIBUTE_GHOST,
 		}
 	},
 	// explode zombie
@@ -150,7 +149,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_ON_PLAYER,
 		.Name = "Explosion",
 		.Config = {
-			.MobType = MOB_EXPLODE,
 			.Xp = 40,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = MOB_BASE_DAMAGE * 2.0,
@@ -169,7 +167,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
-			.MobSpecialMutation = 0,
+			.MobAttribute = MOB_ATTRIBUTE_EXPLODE,
 		}
 	},
 	// acid zombie
@@ -182,7 +180,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
 		.Name = "Acid",
 		.Config = {
-			.MobType = MOB_ACID,
 			.Xp = 50,
 			.Bangles = ZOMBIE_BANGLE_HEAD_4 | ZOMBIE_BANGLE_TORSO_4,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
@@ -201,7 +198,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
-			.MobSpecialMutation = 0,
+			.MobAttribute = MOB_ATTRIBUTE_ACID,
 		}
 	},
 	// freeze zombie
@@ -214,7 +211,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Freeze",
 		.Config = {
-			.MobType = MOB_FREEZE,
 			.Xp = 50,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
@@ -233,7 +229,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
-			.MobSpecialMutation = 0,
+			.MobAttribute = MOB_ATTRIBUTE_FREEZE,
 		}
 	},
 	// runner zombie
@@ -246,7 +242,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Runner",
 		.Config = {
-			.MobType = MOB_RUNNER,
 			.Xp = 15,
 			.Bangles = TREMOR_BANGLE_HEAD | TREMOR_BANGLE_CHEST | TREMOR_BANGLE_LEFT_ARM,
 			.Damage = MOB_BASE_DAMAGE * 0.7,
@@ -265,7 +260,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.ReactionTickCount = TREMOR_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = TREMOR_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
-			.MobSpecialMutation = 0,
+			.MobAttribute = 0,
 		}
 	},
 	// normal zombie
@@ -278,7 +273,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Zombie",
 		.Config = {
-			.MobType = MOB_NORMAL,
 			.Xp = 10,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
@@ -297,7 +291,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MaxCostMutation = 2,
-			.MobSpecialMutation = 0,
+			.MobAttribute = 0,
 		}
 	},
 };
@@ -306,42 +300,37 @@ const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct M
 
 
 u32 MobPrimaryColors[] = {
-	[MOB_NORMAL] 	0x00464443,
-	[MOB_RUNNER] 	0x00464443,
-	[MOB_FREEZE] 	0x00804000,
-	[MOB_ACID] 		0x00464443,
-	[MOB_EXPLODE] 0x00202080,
-	[MOB_GHOST] 	0x00464443,
-	[MOB_TANK]		0x00464443,
+	[MOB_SPAWN_PARAM_NORMAL] 	0x00464443,
+	[MOB_SPAWN_PARAM_RUNNER] 	0x00464443,
+	[MOB_SPAWN_PARAM_FREEZE] 	0x00804000,
+	[MOB_SPAWN_PARAM_ACID] 		0x00464443,
+	[MOB_SPAWN_PARAM_EXPLOSION] 0x00202080,
+	[MOB_SPAWN_PARAM_GHOST] 	0x00464443,
+	[MOB_SPAWN_PARAM_TITAN]		0x00464443,
 };
 
 u32 MobSecondaryColors[] = {
-	[MOB_NORMAL] 	0x80202020,
-	[MOB_RUNNER] 	0x80202020,
-	[MOB_FREEZE] 	0x80FF2000,
-	[MOB_ACID] 		0x8000FF00,
-	[MOB_EXPLODE] 0x000040C0,
-	[MOB_GHOST] 	0x80202020,
-	[MOB_TANK]		0x80FF2020,
-};
-
-u32 MobSpecialMutationColors[] = {
-	[MOB_SPECIAL_MUTATION_FREEZE] 0xFFFF2000,
-	[MOB_SPECIAL_MUTATION_ACID] 	0xFF00FF00,
+	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
+	[MOB_SPAWN_PARAM_RUNNER] 	0x80202020,
+	[MOB_SPAWN_PARAM_FREEZE] 	0x80FF2000,
+	[MOB_SPAWN_PARAM_ACID] 		0x8000FF00,
+	[MOB_SPAWN_PARAM_EXPLOSION] 0x000040C0,
+	[MOB_SPAWN_PARAM_GHOST] 	0x80202020,
+	[MOB_SPAWN_PARAM_TITAN]		0x80FF2020,
 };
 
 u32 MobLODColors[] = {
-	[MOB_NORMAL] 	0x00808080,
-	[MOB_RUNNER] 	0x00808080,
-	[MOB_FREEZE] 	0x00F08000,
-	[MOB_ACID] 		0x0000F000,
-	[MOB_EXPLODE] 0x004040F0,
-	[MOB_GHOST] 	0x00464443,
-	[MOB_TANK]		0x00808080,
+	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
+	[MOB_SPAWN_PARAM_RUNNER] 	0x00808080,
+	[MOB_SPAWN_PARAM_FREEZE] 	0x00F08000,
+	[MOB_SPAWN_PARAM_ACID] 		0x0000F000,
+	[MOB_SPAWN_PARAM_EXPLOSION] 0x004040F0,
+	[MOB_SPAWN_PARAM_GHOST] 	0x00464443,
+	[MOB_SPAWN_PARAM_TITAN]		0x00808080,
 };
 
 struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
-  { MYSTERY_BOX_ITEM_RESET_GATES, 0.05 },
+  //{ MYSTERY_BOX_ITEM_RESET_GATES, 0.005 },
   { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
   { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
   { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },

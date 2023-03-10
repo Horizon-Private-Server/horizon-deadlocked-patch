@@ -97,7 +97,7 @@ struct SurvivalMapConfig* mapConfig = (struct SurvivalMapConfig*)0x001E60010;
 struct SurvivalSnackItem snackItems[SNACK_ITEM_MAX_COUNT];
 int snackItemsCount = 0;
 
-int defaultSpawnParamsCooldowns[MOB_SPAWN_PARAM_COUNT];
+int defaultSpawnParamsCooldowns[MAX_MOB_SPAWN_PARAMS];
 
 SoundDef TestSoundDef =
 {
@@ -421,7 +421,7 @@ int spawnCanSpawnMob(struct MobSpawnParams* mob)
 }
 
 //--------------------------------------------------------------------------
-void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig)
+void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int freeAgent)
 {
   GameSettings* gs = gameGetSettings();
   if (!gs)
@@ -462,7 +462,6 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   output->Xp = config->Xp;
   output->StartHealth = (u16)health;
   output->Bangles = (u16)config->Bangles;
-  output->MobType = (char)config->MobType;
   output->Damage = (u16)damage;
   output->AttackRadiusEighths = (u8)(config->AttackRadius * 8);
   output->HitRadiusEighths = (u8)(config->HitRadius * 8);
@@ -470,7 +469,7 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   output->SpeedEighths = (u16)(speed * 8);
   output->ReactionTickCount = (u8)config->ReactionTickCount;
   output->AttackCooldownTickCount = (u8)config->AttackCooldownTickCount;
-  output->MobSpecialMutation = config->MobSpecialMutation;
+  output->MobAttribute = config->MobAttribute;
 }
 
 //--------------------------------------------------------------------------
@@ -513,7 +512,6 @@ int spawnRandomMob(void) {
 	struct MobSpawnParams* mob = spawnGetRandomMobParams(&mobIdx);
 	if (mob) {
 		int cost = mob->Cost;
-		char bakedSpecialMutation = mob->Config.MobSpecialMutation;
 
 		// skip if cooldown not 0
 		int cooldown = defaultSpawnParamsCooldowns[mobIdx];
@@ -524,25 +522,12 @@ int spawnRandomMob(void) {
 			defaultSpawnParamsCooldowns[mobIdx] = mob->CooldownTicks;
 		}
 
-		// try and get special mutation
-		float r = randRange(0, 1);
-		if (!bakedSpecialMutation && r < MOB_SPECIAL_MUTATION_PROBABILITY) {
-			int newCost = cost + MOB_SPECIAL_MUTATION_BASE_COST + (MOB_SPECIAL_MUTATION_REL_COST * mob->Cost);
-			mob->Config.MobSpecialMutation = rand(MOB_SPECIAL_MUTATION_COUNT - 1) + 1;
-      cost = newCost;
-      DPRINTF("spawning %s with special mutation %d\n", mob->Name, mob->Config.MobSpecialMutation);
-		}
-
 		// try and spawn
 		if (spawnGetRandomPoint(sp, mob)) {
-			if (mobCreate(mobIdx, sp, 0, -1, &mob->Config)) {
-				mob->Config.MobSpecialMutation = bakedSpecialMutation;
+			if (mobCreate(mobIdx, sp, 0, -1, 0, &mob->Config)) {
 				return 1;
 			} else { DPRINTF("failed to create mob\n"); }
 		} else { DPRINTF("failed to get random spawn point\n"); }
-
-		// reset special mutation back to original if failed to spawn
-		mob->Config.MobSpecialMutation = bakedSpecialMutation;
 	} else { DPRINTF("failed to get random mob params\n"); }
 
 	// no more budget left
@@ -978,7 +963,7 @@ int onPlayerUseItemRemote(void * connection, void * data)
   SurvivalPlayerUseItem_t message;
 
   memcpy(&message, data, sizeof(SurvivalPlayerUseItem_t));
-	onSetFreeze(message.PlayerId, message.Item);
+	onPlayerUseItem(message.PlayerId, message.Item);
 
 	return sizeof(SurvivalPlayerUseItem_t);
 }
@@ -1256,7 +1241,7 @@ void processPlayer(int pIndex) {
 
 	// adjust speed of chargeboot stun
 	if (player->PlayerState == 121) {
-		*(float*)((u32)player + 0x25C4) = 1.0 / State.Difficulty;
+		*(float*)((u32)player + 0x25C4) = player->Speed;
 	} else {
 		*(float*)((u32)player + 0x25C4) = 1.0;
 	}
@@ -1830,10 +1815,13 @@ void setWeaponPickupRespawnTime(void)
 //--------------------------------------------------------------------------
 int whoKilledMeHook(Player* player, Moby* moby, int b)
 {
-	// allow damage from mobs
-	if (moby && mobyIsMob(moby))
-		return ((int (*)(Player*, Moby*, int))0x005dff08)(player, moby, b);
-		
+  if (!moby)
+    return 0;
+
+  // only allow mobs or special mobys
+  if (mobyIsMob(moby) || moby->Bolts == -1)
+    return ((int (*)(Player*, Moby*, int))0x005dff08)(player, moby, b);
+
 	return 0;
 }
 
@@ -2311,13 +2299,16 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
       //manSpawnMobId = 0;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
+      while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
+        manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
+      }
       int manSpawnedId = manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
 			VECTOR t = {1,1,1,0};
       vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnedId].Config.CollRadius*2);
 			vector_add(t, t, localPlayer->PlayerPosition);
       
-			mobCreate(manSpawnedId, t, 0, -1, &mapConfig->DefaultSpawnParams[manSpawnedId].Config);
+			mobCreate(manSpawnedId, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[manSpawnedId].Config);
 		}
     else if (padGetButtonDown(0, PAD_L1 | PAD_RIGHT) > 0) {
       State.Freeze = 1;

@@ -18,7 +18,7 @@
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
 
 #define MAX_MOBS_BASE													(30)
-#define MAX_MOBS_ROUND_WEIGHT									(10)
+#define MAX_MOBS_ROUND_WEIGHT									(30)
 #define MAX_MOBS_SPAWNED											(50)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
@@ -27,7 +27,7 @@
 #if QUICK_SPAWN
 #define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 0)
 #else
-#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 30)
+#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 45)
 #endif
 
 #define ROUND_BASE_BOLT_BONUS									(100)
@@ -129,11 +129,14 @@ enum BakedSpawnpointType
 	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
 };
 
+struct MobConfig;
+struct MobSpawnEventArgs;
+
 typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
-typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig);
+typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int freeAgent);
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 
 typedef struct SurvivalBakedSpawnpoint
 {

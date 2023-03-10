@@ -61,7 +61,7 @@ int mobIsFrozen(Moby* moby)
     return 0;
 
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  return MapConfig.State->Freeze && pvars->MobVars.Config.MobType != MOB_FREEZE && pvars->MobVars.Config.MobSpecialMutation != MOB_SPECIAL_MUTATION_FREEZE;
+  return MapConfig.State->Freeze && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_FREEZE;
 }
 
 //--------------------------------------------------------------------------

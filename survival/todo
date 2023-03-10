@@ -116,8 +116,15 @@ Add random events
 ++Prevents mobs from accidentally spawning on player
 ++Fix teleporting mobs
 ++Fix speed mod not working on bolt cranks if not blue/red team
-Remove difficulty setting
+++Remove difficulty setting
 ++Increase special round mob count
-Have mob respawn if stuck
-Have mob respawn if not near any visible nodes for awhile?
+--Have mob respawn if stuck
+--Have mob respawn if not near any visible nodes for awhile?
 ++Update weapons spawns from unity
+++Surge stun animation
+++Nerf wraith outside of gas
+++Surge damage/flinch mobs
+++Surge buffs wrench damage
+++Add sounds to Surge
+++Add sounds to wraith
+Fix emu crashing when loading too fast

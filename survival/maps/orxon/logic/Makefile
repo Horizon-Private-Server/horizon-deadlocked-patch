@@ -1,9 +1,9 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o config.o path.o ../../shared/gate.o gas.o power.o ../../shared/mysterybox.o ../../shared/pathfind.o ../../shared/maputils.o ../../shared/mobs/mob.o
+EE_OBJS = main.o config.o path.o gaspath.o wraith.o surge.o ../../shared/gate.o gas.o power.o ../../shared/mysterybox.o ../../shared/pathfind.o ../../shared/maputils.o ../../shared/mobs/mob.o
 EE_ELF = logic.elf
 EE_BIN = logic.bin
-EE_INCS := -I../../../../common -I../../../include -I../../shared/include
-EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_EXECUTIONER -DMOB_TREMOR -DGATE -DGAS -DPOWER -fno-builtin -nostdlib -nostartfiles -L.
+EE_INCS := -I../../../../common -I../../../include -I../../shared/include -Iinclude
+EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_EXECUTIONER -DMOB_TREMOR -DMAP_WRAITH -DMAP_SURGE -DGATE -DGAS -DPOWER -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
 BUILD_CONFIG := RELEASE
@@ -12,7 +12,7 @@ BUILD_CONFIG := RELEASE
 # 	DEBUG									Enables debug strings and additional misc debug logic.
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG
+EE_DEFS := -DDEBUG -DNOGAS -DSURGE_IDLE -DWRAITH_IDLE
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := 
 endif
