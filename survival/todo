@@ -127,4 +127,11 @@ Add random events
 ++Surge buffs wrench damage
 ++Add sounds to Surge
 ++Add sounds to wraith
-Fix emu crashing when loading too fast
+Fix emu crashing when loading too fast/loading too fast in general freezing on Guber event
+++Add death state/animations
+++Fix mobs getting stuck in orxon building
+++Look into moving map code on top of SVO code
+++Buff b6
+++Demon bell to speed up early rounds
+Add more stats
+++Self revive shouldn't give you a revive stat

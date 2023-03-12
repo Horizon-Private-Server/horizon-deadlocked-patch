@@ -1,7 +1,7 @@
 #ifndef _SURVIVAL_ORXON_WRAITH_H_
 #define _SURVIVAL_ORXON_WRAITH_H_
 
-#define WRAITH_MOBY_OCLASS                (0x2479)
+#define WRAITH_MOBY_OCLASS                (0x2480)
 
 #define WRAITH_HEIGHT                     (5)
 #define WRAITH_HIT_RADIUS                 (3)

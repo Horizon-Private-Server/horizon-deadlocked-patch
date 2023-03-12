@@ -1,9 +1,8 @@
 /***************************************************
- * FILENAME :		logic.c
+ * FILENAME :		main.c
  * 
  * DESCRIPTION :
- * 		Custom map logic for Survival V2's Mining Facility.
- * 		Handles logic for gaseous part of map.
+ * 		Custom map logic for Survival V2's Orxon.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -43,6 +42,8 @@ void gasTick(void);
 void mobInit(void);
 void configInit(void);
 void pathTick(void);
+
+int isMobyInGasArea(Moby* moby);
 
 int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
@@ -99,6 +100,21 @@ void mobForceIntoMapBounds(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+int mapPathCanBeSkippedForTarget(Moby* moby)
+{
+  if (!moby || !moby->PVar)
+    return 1;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  // can't skip if target is in gas
+  if (pvars->MobVars.Target && isMobyInGasArea(pvars->MobVars.Target))
+    return 0;
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
 int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
 {
   switch (spawnParamsIdx)
@@ -151,6 +167,8 @@ void initialize(void)
   static int initialized = 0;
   if (initialized)
     return;
+
+  MapConfig.Magic = MAP_CONFIG_MAGIC;
 
   gateInit();
   wraithInit();
@@ -315,6 +333,12 @@ void nodeUpdate(Moby* moby)
 
   if (MapConfig.ClientsReady || !netGetDmeServerConnection())
   {
+    static int asd = 0;
+    if (!asd) {
+      asd = 1;
+      printf("ready\n");
+    }
+
     mboxSpawn();
     wraithSpawn();
     surgeSpawn();

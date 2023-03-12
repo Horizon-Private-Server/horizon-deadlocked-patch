@@ -447,9 +447,10 @@ void mobUpdate(Moby* moby)
 
   if (damageIndex >= 0) {
     colDamage = mobyGetDamage(moby, 0x80481C40, 0);
-    damageFlags = colDamage->DamageFlags;
-    if (colDamage)
+    if (colDamage) {
       damage = colDamage->DamageHp;
+      damageFlags = colDamage->DamageFlags;
+    }
   }
   ((void (*)(Moby*, float*, MobyColDamage*))0x005184d0)(moby, &damage, colDamage);
 
@@ -767,11 +768,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		int weaponSlotId = weaponIdToSlot(weaponId);
 		if (weaponId > 0 && (weaponId != WEAPON_ID_WRENCH || weaponSlotId == WEAPON_SLOT_WRENCH))
 			gameData->PlayerStats.WeaponKills[killedByPlayerId][weaponSlotId]++;
-	}
-
-	// limit corn spawning to prevent freezing/framelag
-	if (State.RoundMobCount < 30) {
-		mobSpawnCorn(moby, ZOMBIE_BANGLE_LARM | ZOMBIE_BANGLE_RARM | ZOMBIE_BANGLE_LLEG | ZOMBIE_BANGLE_RLEG | ZOMBIE_BANGLE_RFOOT | ZOMBIE_BANGLE_HIPS);
 	}
 
 	if (pvars->MobVars.Order >= 0) {

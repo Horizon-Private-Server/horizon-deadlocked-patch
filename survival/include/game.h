@@ -6,8 +6,11 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 #include "upgrade.h"
+#include "demonbell.h"
 #include "gate.h"
 #include "mysterybox.h"
+
+#define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
 #define TPS																		(60)
 
@@ -54,11 +57,11 @@
 #define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
 
 #define MOB_BASE_DAMAGE										    (10)
-#define MOB_BASE_DAMAGE_SCALE                 (0.02)
+#define MOB_BASE_DAMAGE_SCALE                 (0.02*2)
 #define MOB_BASE_SPEED											  (3)
-#define MOB_BASE_SPEED_SCALE                  (0.03)
+#define MOB_BASE_SPEED_SCALE                  (0.03*2)
 #define MOB_BASE_HEALTH										    (30)
-#define MOB_BASE_HEALTH_SCALE                 (0.05)
+#define MOB_BASE_HEALTH_SCALE                 (0.05*2)
 
 #define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
 #define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
@@ -127,6 +130,7 @@ enum BakedSpawnpointType
 	BAKED_SPAWNPOINT_UPGRADE = 1,
 	BAKED_SPAWNPOINT_PLAYER_START = 2,
 	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
+	BAKED_SPAWNPOINT_DEMON_BELL = 4,
 };
 
 struct MobConfig;
@@ -202,9 +206,11 @@ struct SurvivalState
 	int RoundSpawnTicker;
 	int RoundSpawnTickerCounter;
 	int RoundNextSpawnTickerCounter;
+  int RoundDemonBellCount;
 	int RoundIsSpecial;
 	int RoundSpecialIdx;
 	int InitializedTime;
+  int DemonBellCount;
 	int MinMobCost;
 	int MobsDrawnCurrent;
 	int MobsDrawnLast;
@@ -232,6 +238,7 @@ struct SurvivalState
 
 struct SurvivalMapConfig
 {
+  u32 Magic;
   int ClientsReady;
   struct SurvivalState* State;
   struct SurvivalBakedConfig* BakedConfig;

@@ -21,6 +21,7 @@ int powerIsMobyOn(Moby* moby);
 void powerOnSurgeMoby(Moby* moby);
 int powerMobyHasTempPowerOn(Moby* moby);
 int isPlayerInGasArea(Player* player);
+int isMobyInGasArea(Moby* moby);
 
 #if MAP_WRAITH
 extern Player* wraithTargetOverride;
@@ -409,7 +410,7 @@ void surgeMove(Moby* moby)
   // if there are any, then turn around
   if (gameAmIHost() && surgePlayerOnPath(moby) && !pvars->StuckOnPathTicks) {
     surgeSetPath(moby, pvars->NextNodeIdx, pvars->CurrentNodeIdx);
-    pvars->StuckOnPathTicks = 15;
+    pvars->StuckOnPathTicks = TPS;
   } else if (pvars->StuckOnPathTicks) {
     pvars->StuckOnPathTicks -= 1;
   }
@@ -619,6 +620,7 @@ void surgeAttached(Moby* moby)
 //--------------------------------------------------------------------------
 void surgeUpdate(Moby* moby)
 {
+  VECTOR delta;
   struct SurgePVar* pvars = (struct SurgePVar*)moby->PVar;
   if (!pvars)
     return;
@@ -628,19 +630,19 @@ void surgeUpdate(Moby* moby)
 
     // if attached to someone then only hide after round ends
     if (pvars->AttachedTo) {
-      if (MapConfig.State->RoundCompleteTime > 0) {
-        mobySetState(moby, SURGE_STATE_HIDDEN, -1);
-        if (gameAmIHost()) {
-          surgeSetAttached(moby, NULL);
-        }
-      }
+      //if (MapConfig.State->RoundCompleteTime > 0) {
+      //  mobySetState(moby, SURGE_STATE_HIDDEN, -1);
+      //  if (gameAmIHost()) {
+      //    surgeSetAttached(moby, NULL);
+      //  }
+      //}
     }
-    // spawn only after 100 mobs have spawned this round
+    // spawn only after 50 mobs have spawned this round
     // and we still have at least another 100 to kill
-    else if (MapConfig.State->RoundMobSpawnedCount > 100 && (MapConfig.State->RoundMaxMobCount - (MapConfig.State->RoundMobSpawnedCount - MapConfig.State->RoundMobCount)) > 100) {
+    else if (MapConfig.State->RoundMobSpawnedCount > 50 && (MapConfig.State->RoundMaxMobCount - (MapConfig.State->RoundMobSpawnedCount - MapConfig.State->RoundMobCount)) > 100) {
       mobySetState(moby, SURGE_STATE_ACTIVE, -1);
     }
-    else {
+    else if (isMobyInGasArea(moby)) {
       mobySetState(moby, SURGE_STATE_HIDDEN, -1);
     }
   }
@@ -657,7 +659,7 @@ void surgeUpdate(Moby* moby)
 
   moby->DrawDist = 50;
 
-#if DEBUG
+#if DEBUG || 1
 
   if (!pvars->AttachedTo) {
     int blipId = radarGetBlipIndex(moby);
@@ -699,14 +701,24 @@ void surgeUpdate(Moby* moby)
   if (moby->CollDamage >= 0) {
     
     MobyColDamage* colDamage = mobyGetDamage(moby, 0x400C00, 0);
-    if (colDamage && colDamage->Damager && colDamage->Damager->OClass == MOBY_ID_WRENCH) {
-      Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
-      if (damager && damager->IsLocal) {
-        surgeSetAttached(moby, damager);
+    if (colDamage && colDamage->Damager ) {
+      if (colDamage->Damager->OClass == MOBY_ID_WRENCH) {
+        Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
+        if (damager && damager->IsLocal) {
+          surgeSetAttached(moby, damager);
+        }
+      }
+      
+      // stun if hit near
+      // by B6 or Arb
+      if (colDamage->Damager->OClass == MOBY_ID_B6_BOMB_EXPLOSION || colDamage->Damager->OClass == MOBY_ID_ARBITER_ROCKET0) {
+        vector_subtract(delta, colDamage->Damager->Position, moby->Position);
+        if (vector_sqrmag(delta) < (3*3)) {
+          pvars->StunnedTicks = SURGE_STUN_DURATION_TICKS;
+        }
       }
     }
 
-    pvars->StunnedTicks = SURGE_STUN_DURATION_TICKS;
     moby->CollDamage = -1;
   }
 }

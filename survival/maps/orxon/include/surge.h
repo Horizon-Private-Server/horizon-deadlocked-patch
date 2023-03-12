@@ -10,7 +10,7 @@
 #define SURGE_RUN_SPEED                  (20)
 
 #define SURGE_MAX_REMOTE_DIST_TO_TP      (5)
-#define SURGE_STUN_DURATION_TICKS        (TPS * 3)
+#define SURGE_STUN_DURATION_TICKS        (TPS * 5)
 
 #define SURGE_AVOID_PLAYER_RADIUS        (15)
 

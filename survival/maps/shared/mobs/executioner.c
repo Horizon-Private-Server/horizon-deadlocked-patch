@@ -207,6 +207,7 @@ void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID
 //--------------------------------------------------------------------------
 void executionerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 {
+  VECTOR expOffset;
   if (!moby || !moby->PVar)
     return;
     
@@ -214,6 +215,16 @@ void executionerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+
+  // spawn explosion
+  u32 expColor = 0x801E70D6;
+  vector_copy(expOffset, moby->Position);
+  expOffset[2] += pvars->TargetVars.targetHeight;
+  u128 expPos = vector_read(expOffset);
+  mobySpawnExplosion
+    (expPos, 1, 0, 0, 0, 0, 16, 0, 16, 0, 1, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, expColor, expColor, expColor, expColor, expColor, expColor, expColor, expColor,
+    0, 0, 0, 0, 0);
 }
 
 //--------------------------------------------------------------------------
@@ -232,7 +243,7 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs e)
 
 	// destroy
 	if (newHp <= 0) {
-		pvars->MobVars.Destroy = 1;
+    executionerForceLocalAction(moby, MOB_ACTION_DIE);
     pvars->MobVars.LastHitBy = e.SourceUID;
     pvars->MobVars.LastHitByOClass = e.SourceOClass;
 	}
@@ -446,8 +457,9 @@ void executionerDoAction(Moby* moby)
 		case MOB_ACTION_LOOK_AT_TARGET:
     {
       mobStand(moby);
-      if (target)
+      if (target) {
         mobTurnTowards(moby, target->Position, turnSpeed);
+      }
       break;
     }
     case MOB_ACTION_WALK:
@@ -502,6 +514,17 @@ void executionerDoAction(Moby* moby)
 				mobTransAnim(moby, EXECUTIONER_ANIM_IDLE, 0);
 			break;
 		}
+    case MOB_ACTION_DIE:
+    {
+      mobTransAnimLerp(moby, EXECUTIONER_ANIM_BIG_FLINCH, 5, 0);
+
+      if (moby->AnimSeqId == EXECUTIONER_ANIM_BIG_FLINCH && moby->AnimSeqT > 3) {
+        pvars->MobVars.Destroy = 1;
+      }
+
+      mobStand(moby);
+      break;
+    }
 		case MOB_ACTION_ATTACK:
 		{
       int attack1AnimId = EXECUTIONER_ANIM_SWING;
@@ -562,11 +585,16 @@ void executionerForceLocalAction(Moby* moby, enum MobAction action)
 	// from
 	switch (pvars->MobVars.Action)
 	{
-		case MOB_EVENT_SPAWN:
+		case MOB_ACTION_SPAWN:
 		{
 			// enable collision
 			moby->CollActive = 0;
 			break;
+		}
+		case MOB_ACTION_DIE:
+		{
+      // can't undie
+      return;
 		}
 	}
 
@@ -580,6 +608,11 @@ void executionerForceLocalAction(Moby* moby, enum MobAction action)
 			break;
 		}
 		case MOB_ACTION_WALK:
+		{
+			
+			break;
+		}
+		case MOB_ACTION_DIE:
 		{
 			
 			break;

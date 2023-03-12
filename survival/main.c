@@ -92,7 +92,7 @@ int * LocalBoltCount = (int*)0x00171B40;
 int Initialized = 0;
 
 struct SurvivalState State;
-struct SurvivalMapConfig* mapConfig = (struct SurvivalMapConfig*)0x001E60010;
+struct SurvivalMapConfig* mapConfig = (struct SurvivalMapConfig*)0x01EF0010;
 
 struct SurvivalSnackItem snackItems[SNACK_ITEM_MAX_COUNT];
 int snackItemsCount = 0;
@@ -176,6 +176,8 @@ struct GuberMoby* getGuber(Moby* moby)
 		return moby->GuberMoby;
 	if (moby->OClass == DROP_MOBY_OCLASS && moby->PVar)
 		return moby->GuberMoby;
+	if (moby->OClass == DEMONBELL_MOBY_OCLASS && moby->PVar)
+		return moby->GuberMoby;
   if (mobyIsMob(moby))
     return moby->GuberMoby;
 	
@@ -195,6 +197,7 @@ int handleEvent(Moby* moby, GuberEvent* event)
 		case TREMOR_MOBY_OCLASS: return mobHandleEvent(moby, event);
 		case DROP_MOBY_OCLASS: return dropHandleEvent(moby, event);
 		case UPGRADE_MOBY_OCLASS: return upgradeHandleEvent(moby, event);
+    case DEMONBELL_MOBY_OCLASS: return demonbellHandleEvent(moby, event);
 	}
 
 	return 0;
@@ -755,7 +758,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 {
   int useDeadPos = 0;
 
-	if (fromPlayerId >= 0)
+	if (fromPlayerId >= 0 && playerId != fromPlayerId)
 		State.PlayerStates[fromPlayerId].State.Revives++;
 	
 	State.PlayerStates[playerId].IsDead = 0;
@@ -1494,9 +1497,9 @@ void processPlayer(int pIndex) {
     }
 
     /*
-    static int aaa = 0x17D;
+    static int aaa = 1;
     static int handle = 0;
-		if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
+		if (padGetButtonDown(0, PAD_RIGHT) > 0) {
 			aaa += 1;
       TestSoundDef.Index = aaa;
       if (handle)
@@ -1508,7 +1511,7 @@ void processPlayer(int pIndex) {
         handle = 0;
 			DPRINTF("%d\n", aaa);
 		}
-		else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
+		else if (padGetButtonDown(0, PAD_LEFT) > 0) {
 			aaa -= 1;
       TestSoundDef.Index = aaa;
       if (handle)
@@ -1595,6 +1598,10 @@ void setRoundComplete(void)
 //--------------------------------------------------------------------------
 void onSetRoundStart(int roundNumber, int gameTime)
 {
+  if (State.RoundNumber != roundNumber) {
+    State.RoundDemonBellCount = 0;
+  }
+
 	// 
 	State.RoundNumber = roundNumber;
 	State.RoundEndTime = gameTime;
@@ -1916,6 +1923,24 @@ void spawnUpgrades(void)
 }
 
 //--------------------------------------------------------------------------
+void spawnDemonBell(void)
+{
+  int i;
+
+  // only spawn if host
+  if (!gameAmIHost())
+    return;
+
+	// count number of baked spawnpoints used for upgrade
+	for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
+		if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_DEMON_BELL) {
+      demonbellCreate(BakedConfig.BakedSpawnPoints[i].Position);
+      State.DemonBellCount += 1;
+    }
+	}
+}
+
+//--------------------------------------------------------------------------
 void resetRoundState(void)
 {
 	GameSettings* gameSettings = gameGetSettings();
@@ -2013,6 +2038,12 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	*(u32*)0x005F8A84 = 0x0000102D;
 	*(u32*)0x005F8A88 = 0x24440001;
 
+  // clear if magic not valid
+  if (mapConfig->Magic != MAP_CONFIG_MAGIC) {
+    memset(mapConfig, 0, sizeof(struct SurvivalMapConfig));
+    mapConfig->Magic = MAP_CONFIG_MAGIC;
+  }
+
   // write map config
   mapConfig->State = &State;
   mapConfig->BakedConfig = &BakedConfig;
@@ -2068,7 +2099,8 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   
   // wait for all clients to be ready
   // or for 15 seconds
-  if (!gameState->AllClientsReady && waitingForClientsReady < (15 * TPS)) {
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * TPS)) {
+    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
     ++waitingForClientsReady;
     return;
   }
@@ -2086,6 +2118,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	mobInitialize();
 	dropInitialize();
 	upgradeInitialize();
+  demonbellInitialize();
 
 	// initialize player states
 	State.LocalPlayerState = NULL;
@@ -2173,6 +2206,11 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	spawnUpgrades();
 #endif
 
+#if DEMONBELL
+	// spawn demonbell
+	spawnDemonBell();
+#endif
+
 	DPRINTF("vendor %08X\n", (u32)State.Vendor);
 	DPRINTF("big al %08X\n", (u32)State.BigAl);
 
@@ -2193,6 +2231,9 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.InitializedTime = gameGetTime();
 	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 	resetRoundState();
+
+  // force initial delay on first round
+  State.RoundSpawnTicker = TPS * 3;
 
 	// scale default mob params by difficulty
 	for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i)
@@ -2254,6 +2295,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	int i;
 	char buffer[64];
 	int gameTime = gameGetTime();
+  float demonBellFactor = 1 - powf(1 - (State.RoundDemonBellCount / (float)State.DemonBellCount), 2);
 
 	// first
 	dlPreUpdate();
@@ -2604,12 +2646,18 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 									State.RoundSpawnTickerCounter = 0;
 									State.RoundNextSpawnTickerCounter = randRangeInt(MOB_SPAWN_BURST_MIN + (State.RoundNumber * MOB_SPAWN_BURST_MIN_INC_PER_ROUND), MOB_SPAWN_BURST_MAX + (State.RoundNumber * MOB_SPAWN_BURST_MAX_INC_PER_ROUND));
 									
-                  float maxBurstDelay = lerpf(MOB_SPAWN_BURST_MAX_DELAY, MOB_SPAWN_BURST_MIN_DELAY, clamp(State.RoundNumber / 20, 0, 1));
-                  State.RoundSpawnTicker = randRangeInt(MOB_SPAWN_BURST_MIN_DELAY, maxBurstDelay);
+
+                  // ticks to delay between spawning bursts
+                  float maxBurstDelay = lerpf(MOB_SPAWN_BURST_MAX_DELAY, MOB_SPAWN_BURST_MIN_DELAY, clamp((State.RoundNumber / 20.0), 0, 1));
+                  maxBurstDelay = lerpf(maxBurstDelay, 5, demonBellFactor);
+                  State.RoundSpawnTicker = randRangeInt(minf(maxBurstDelay, MOB_SPAWN_BURST_MIN_DELAY), maxBurstDelay);
+
+                  //DPRINTF("MIN:%f MAX:%f BELL:%f TICKER:%f\n", minf(maxBurstDelay, MOB_SPAWN_BURST_MIN_DELAY)/60.0, maxBurstDelay/60.0, demonBellFactor, State.RoundSpawnTicker/60.0);
 								}
 								else
 								{
-									State.RoundSpawnTicker = 10 / State.Difficulty;
+                  // ticks to delay between spawning mobs within a burst
+                  State.RoundSpawnTicker = 1 + lerpf(60.0 / (State.RoundNumber+1), 0, demonBellFactor);
 								}
 #endif
 							}
@@ -2677,7 +2725,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 #endif
 
 	// no vehicles
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_0D = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 0;

@@ -17,6 +17,8 @@
 void gateSetCollision(int collActive);
 #endif
 
+int mapPathCanBeSkippedForTarget(Moby* moby);
+
 struct TargetCache
 {
   Moby* Target;
@@ -81,6 +83,11 @@ int pathCanBeSkippedForTarget(Moby* moby)
     return 1;
 
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  // pass to map
+  // let map decide if path can't be skipped
+  if (!mapPathCanBeSkippedForTarget(moby))
+    return 0;
 
   // no path
   if (!pvars->MobVars.MoveVars.PathEdgeCount) {

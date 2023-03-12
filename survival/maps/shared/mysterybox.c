@@ -80,6 +80,7 @@ int ALPHA_MOD_TEX_IDS[] = {
   [ALPHA_MOD_IMPACT] 47 - 3,
   [ALPHA_MOD_AREA] 42 - 3,
   [ALPHA_MOD_JACKPOT] 49 - 3,
+  [ALPHA_MOD_XP] 44 - 3,
 };
 
 const char * ALPHA_MODS[] = {

@@ -903,6 +903,9 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
     }
     default:
     {
+#if DEBUG
+      return 1;
+#endif
       if (v < CUSTOM_MAP_SURVIVAL_START)
         return 1;
       
@@ -918,6 +921,7 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
   int i = 0;
 
   // hide gamemode for maps with exclusive gamemode
+#if !DEBUG
   for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
   {
     if (gameConfig.customMapId == dataCustomMapsWithExclusiveGameMode[i])
@@ -926,6 +930,7 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
       return;
     }
   }
+#endif
 
   *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }

@@ -65,6 +65,35 @@ int mobIsFrozen(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void mobSpawnCorn(Moby* moby, int bangle)
+{
+#if MOB_CORN
+	mobyBlowCorn(
+			moby
+		, bangle
+		, 0
+		, 3.0
+		, 6.0
+		, 3.0
+		, 6.0
+		, -1
+		, -1.0
+		, -1.0
+		, 255
+		, 1
+		, 0
+		, 1
+		, 1.0
+		, 0x23
+		, 3
+		, 1.0
+		, NULL
+		, 0
+		);
+#endif
+}
+
+//--------------------------------------------------------------------------
 void mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqrHitRadius, int damageFlags, float amount)
 {
   VECTOR mobToHitMoby, mobToJoint, jointToHitMoby;

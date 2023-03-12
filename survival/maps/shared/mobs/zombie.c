@@ -14,6 +14,7 @@
 
 int mobAmIOwner(Moby* moby);
 int mobIsFrozen(Moby* moby);
+void mobSpawnCorn(Moby* moby, int bangle);
 void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
 void mobSetAction(Moby* moby, int action);
 void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
@@ -216,6 +217,11 @@ void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+  
+	// limit corn spawning to prevent freezing/framelag
+	if (MapConfig.State && MapConfig.State->RoundMobCount < 30) {
+		mobSpawnCorn(moby, ZOMBIE_BANGLE_LARM | ZOMBIE_BANGLE_RARM | ZOMBIE_BANGLE_LLEG | ZOMBIE_BANGLE_RLEG | ZOMBIE_BANGLE_RFOOT | ZOMBIE_BANGLE_HIPS);
+	}
 }
 
 //--------------------------------------------------------------------------
@@ -239,10 +245,11 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
 			// explode
 			zombieForceLocalAction(moby, MOB_ACTION_TIME_BOMB_EXPLODE);
 		} else {
-			pvars->MobVars.Destroy = 1;
-			pvars->MobVars.LastHitBy = e.SourceUID;
-			pvars->MobVars.LastHitByOClass = e.SourceOClass;
+			zombieForceLocalAction(moby, MOB_ACTION_DIE);
 		}
+
+    pvars->MobVars.LastHitBy = e.SourceUID;
+    pvars->MobVars.LastHitByOClass = e.SourceOClass;
 	}
 
 	// knockback
@@ -524,6 +531,11 @@ void zombieDoAction(Moby* moby)
 				mobTransAnim(moby, ZOMBIE_ANIM_IDLE, 0);
 			break;
 		}
+    case MOB_ACTION_DIE:
+    {
+      mobStand(moby);
+      break;
+    }
 		case MOB_ACTION_TIME_BOMB_EXPLODE:
     {
       
@@ -624,12 +636,17 @@ void zombieForceLocalAction(Moby* moby, enum MobAction action)
 	// from
 	switch (pvars->MobVars.Action)
 	{
-		case MOB_EVENT_SPAWN:
+		case MOB_ACTION_SPAWN:
 		{
 			// enable collision
 			moby->CollActive = 0;
 			break;
 		}
+    case MOB_ACTION_DIE:
+    {
+      // can't undie
+      return;
+    }
 	}
 
 	// to
@@ -644,6 +661,11 @@ void zombieForceLocalAction(Moby* moby, enum MobAction action)
 		case MOB_ACTION_WALK:
 		{
 			
+			break;
+		}
+		case MOB_ACTION_DIE:
+		{
+      pvars->MobVars.Destroy = 1;
 			break;
 		}
 		case MOB_ACTION_ATTACK:

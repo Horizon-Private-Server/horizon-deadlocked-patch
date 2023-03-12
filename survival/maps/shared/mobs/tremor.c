@@ -232,7 +232,7 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs e)
 
 	// destroy
 	if (newHp <= 0) {
-    pvars->MobVars.Destroy = 1;
+    tremorForceLocalAction(moby, MOB_ACTION_DIE);
     pvars->MobVars.LastHitBy = e.SourceUID;
     pvars->MobVars.LastHitByOClass = e.SourceOClass;
 	}
@@ -483,6 +483,17 @@ void tremorDoAction(Moby* moby)
 				mobTransAnim(moby, TREMOR_ANIM_IDLE, 0);
 			break;
 		}
+    case MOB_ACTION_DIE:
+    {
+      mobTransAnimLerp(moby, TREMOR_ANIM_FLINCH_BACK_FLIP_FALL, 5, 0);
+
+      if (moby->AnimSeqId == TREMOR_ANIM_FLINCH_BACK_FLIP_FALL && moby->AnimSeqT > 15) {
+        pvars->MobVars.Destroy = 1;
+      }
+
+      mobStand(moby);
+      break;
+    }
     case MOB_ACTION_ATTACK:
 		{
       int attack1AnimId = TREMOR_ANIM_SWING;
@@ -543,11 +554,16 @@ void tremorForceLocalAction(Moby* moby, enum MobAction action)
 	// from
 	switch (pvars->MobVars.Action)
 	{
-		case MOB_EVENT_SPAWN:
+		case MOB_ACTION_SPAWN:
 		{
 			// enable collision
 			moby->CollActive = 0;
 			break;
+		}
+		case MOB_ACTION_DIE:
+		{
+      // can't undie
+      return;
 		}
 	}
 
@@ -563,6 +579,11 @@ void tremorForceLocalAction(Moby* moby, enum MobAction action)
 		case MOB_ACTION_WALK:
 		{
 			
+			break;
+		}
+		case MOB_ACTION_DIE:
+		{
+      
 			break;
 		}
 		case MOB_ACTION_ATTACK:
