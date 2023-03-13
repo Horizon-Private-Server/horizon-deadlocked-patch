@@ -284,6 +284,11 @@ void pathGetPath(Moby* moby)
   int closestNodeIdxToMob = pathGetClosestNodeInSight(moby, &inSight);
   DPRINTF("closest node to mob is %d (insight: %d)\n", closestNodeIdxToMob, inSight);
 
+  int lastEdgeIdx = 255;
+  if (pvars->MobVars.MoveVars.PathEdgeCount) {
+    lastEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent];
+  }
+
   memcpy(pvars->MobVars.MoveVars.CurrentPath, pathGetPathAt(closestNodeIdxToMob, closestNodeIdxToTarget), sizeof(u8) * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
   pvars->MobVars.MoveVars.PathEdgeCurrent = 0;
   pvars->MobVars.MoveVars.PathEdgeAlpha = 0;
@@ -299,9 +304,16 @@ void pathGetPath(Moby* moby)
   }
   pvars->MobVars.MoveVars.PathEdgeCount = i;
 
+  // check if we're on same segment as last
+  int isOnSameSegment = 0;
+  if (!PATH_EDGE_IS_EMPTY(lastEdgeIdx)) {
+    isOnSameSegment = lastEdgeIdx == pvars->MobVars.MoveVars.CurrentPath[0];
+  }
+
   // skip start if its backwards along path
   // and the segment can be skipped
-  if (i > 0 && pathSegmentCanBeSkipped(moby, 0, 1)) {
+  // or if we're already on this segment from the last path
+  if (i > 0 && (pathSegmentCanBeSkipped(moby, 0, 1) || isOnSameSegment)) {
     int startEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[0];
     u8* startEdge = MOB_PATHFINDING_EDGES[startEdgeIdx];
     

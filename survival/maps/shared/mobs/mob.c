@@ -344,6 +344,12 @@ void mobMove(Moby* moby)
           // mark grounded this frame
           pvars->MobVars.MoveVars.Grounded = 1;
 
+          // check if we've hit death barrier
+          int hitId = CollLine_Fix_GetHitCollisionId() & 0x0F;
+          if (hitId == 0x4 || hitId == 0xb || hitId == 0x0d) {
+            pvars->MobVars.Respawn = 1;
+          }
+
           // force position to above ground
           vector_copy(nextPos, CollLine_Fix_GetHitPosition());
           nextPos[2] += 0.01;

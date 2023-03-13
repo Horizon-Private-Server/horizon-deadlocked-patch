@@ -41,6 +41,8 @@
 #include "include/utils.h"
 #include "include/gate.h"
 
+#define DIFFICULTY_FACTOR                   (State.TotalMobsSpawned / 200)
+
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
 const char * SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE = "\x1d   Start Round";
@@ -437,15 +439,14 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   // scale config by round
   if (isBaseConfig) {
     struct MobSpawnParams* spawnParams = &mapConfig->DefaultSpawnParams[spawnParamsIdx];
-    int roundNo = maxf(1, State.RoundNumber - spawnParams->MinRound);
     //damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale), roundNo * (0 + State.Difficulty) * randRange(0.8, 1.2));
     //speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale), roundNo * (0 + State.Difficulty) * randRange(0.8, 1.2));
     //health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale), roundNo * (0 + State.Difficulty) * randRange(0.8, 1.2));
 
     //printf("1 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
-    damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * roundNo * State.Difficulty * randRange(0.8, 1.2)), 2);
-    speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * roundNo * State.Difficulty * randRange(0.8, 1.2)), 2);
-    health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * roundNo * State.Difficulty * randRange(0.8, 1.2)), 2);
+    damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.8, 1.2)), 2);
+    speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.8, 1.2)), 2);
+    health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.8, 1.2)), 2);
     //printf("2 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
 
   }
@@ -1172,7 +1173,7 @@ int getUpgradeCost(Player * player, enum WEAPON_IDS weaponId) {
 		return 0;
 		
 	// determine discount rate
-	float rate = clamp(1 - (0.04 * State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_VENDOR]), 0, 1);
+	float rate = clamp(1 - (PLAYER_UPGRADE_VENDOR_FACTOR * State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_VENDOR]), 0, 1);
 
 	return ceilf(UPGRADE_COST[level] * rate);
 }
@@ -1202,7 +1203,7 @@ int getPlayerReviveCost(Player * fromPlayer, Player * player) {
 	GameData * gameData = gameGetData();
 
 	// determine discount rate
-	float rate = clamp(1 - (0.05 * State.PlayerStates[fromPlayer->PlayerId].State.Upgrades[UPGRADE_MEDIC]), 0, 1);
+	float rate = clamp(1 - (PLAYER_UPGRADE_MEDIC_FACTOR * State.PlayerStates[fromPlayer->PlayerId].State.Upgrades[UPGRADE_MEDIC]), 0, 1);
 
 	return ceilf(rate * ((State.PlayerStates[player->PlayerId].State.TimesRevivedSinceLastFullDeath + 1) * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber))));
 }
@@ -1235,10 +1236,10 @@ void processPlayer(int pIndex) {
 	}
 
 	// set max health
-	player->MaxHealth = 50 + (5 * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_HEALTH]);
+	player->MaxHealth = 50 + (PLAYER_UPGRADE_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_HEALTH]);
 
 	// set speed
-	player->Speed = 1 + (0.05 * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED]);
+	player->Speed = 1 + (PLAYER_UPGRADE_SPEED_FACTOR * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED]);
   if (player->timers.freezeTimer)
     player->Speed *= 0.65;
 
@@ -1538,6 +1539,11 @@ int getRoundBonus(int roundNumber, int numPlayers)
 	int bonus = State.RoundNumber * ROUND_BASE_BOLT_BONUS * numPlayers;
 	if (bonus > ROUND_MAX_BOLT_BONUS)
 		return ROUND_MAX_BOLT_BONUS * multiplier;
+
+  // give a round bonus for using the demon bells
+  if (State.DemonBellCount > 0 && State.RoundDemonBellCount > 0) {
+    multiplier += State.RoundDemonBellCount / (float)State.DemonBellCount;
+  }
 
 	return bonus * multiplier;
 }
@@ -2295,7 +2301,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	int i;
 	char buffer[64];
 	int gameTime = gameGetTime();
-  float demonBellFactor = 1 - powf(1 - (State.RoundDemonBellCount / (float)State.DemonBellCount), 2);
+  float demonBellFactor = 0;
+
+  if (State.DemonBellCount > 0) {
+    demonBellFactor = 1 - powf(1 - (State.RoundDemonBellCount / (float)State.DemonBellCount), 2);
+  }
 
 	// first
 	dlPreUpdate();
@@ -2341,7 +2351,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
       //manSpawnMobId = 0;
-			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
         manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
       }
@@ -2637,6 +2647,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 						if (State.RoundMobSpawnedCount < State.RoundMaxMobCount) {
 							if (spawnRandomMob()) {
 								++State.RoundMobSpawnedCount;
+                ++State.TotalMobsSpawned;
 #if QUICK_SPAWN
 								State.RoundSpawnTicker = 10;
 #else

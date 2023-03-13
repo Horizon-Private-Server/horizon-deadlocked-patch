@@ -57,11 +57,11 @@
 #define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
 
 #define MOB_BASE_DAMAGE										    (10)
-#define MOB_BASE_DAMAGE_SCALE                 (0.02*2)
+#define MOB_BASE_DAMAGE_SCALE                 (0.02*1)
 #define MOB_BASE_SPEED											  (3)
-#define MOB_BASE_SPEED_SCALE                  (0.03*2)
+#define MOB_BASE_SPEED_SCALE                  (0.03*1)
 #define MOB_BASE_HEALTH										    (30)
-#define MOB_BASE_HEALTH_SCALE                 (0.05*2)
+#define MOB_BASE_HEALTH_SCALE                 (0.05*1)
 
 #define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
 #define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
@@ -99,6 +99,12 @@
 #define WEAPON_UPGRADE_COOLDOWN_TICKS					(60)
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
+
+#define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.05)
+#define PLAYER_UPGRADE_SPEED_FACTOR           (0.03)
+#define PLAYER_UPGRADE_HEALTH_FACTOR          (5)
+#define PLAYER_UPGRADE_MEDIC_FACTOR           (0.05)
+#define PLAYER_UPGRADE_VENDOR_FACTOR          (0.02)
 
 #define BAKED_SPAWNPOINT_COUNT							  (24)
 
@@ -211,6 +217,7 @@ struct SurvivalState
 	int RoundSpecialIdx;
 	int InitializedTime;
   int DemonBellCount;
+  int TotalMobsSpawned;
 	int MinMobCost;
 	int MobsDrawnCurrent;
 	int MobsDrawnLast;

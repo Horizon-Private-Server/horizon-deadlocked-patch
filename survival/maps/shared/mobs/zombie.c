@@ -266,10 +266,10 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
       if (isShock) {
         mobSetAction(moby, MOB_ACTION_FLINCH);
       }
-      else if (e.Knockback.Force || ((((e.Knockback.Power + 1) * damageRatio) > 0.25) && !rand(3))) {
+      else if (e.Knockback.Force || randRangeInt(0, 10) < e.Knockback.Power) {
         mobSetAction(moby, MOB_ACTION_BIG_FLINCH);
       }
-      else if (damageRatio > 0.05 && randRange(0, 1) < ZOMBIE_FLINCH_PROBABILITY) {
+      else if (randRange(0, 1) < (ZOMBIE_FLINCH_PROBABILITY * damageRatio)) {
         mobSetAction(moby, MOB_ACTION_FLINCH);
       }
     }
@@ -441,7 +441,8 @@ void zombieDoAction(Moby* moby)
 				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
 				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
 				t[2] = 1.0;
-				vector_scale(pvars->MobVars.MoveVars.AddVelocity, t, power * MATH_DT);
+				vector_scale(t, t, power * 2 * MATH_DT);
+				vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
 			} else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
       }

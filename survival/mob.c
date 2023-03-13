@@ -457,7 +457,7 @@ void mobUpdate(Moby* moby)
   if (colDamage && damage > 0) {
     Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
     if (damager) {
-      damage *= 1 + (0.05 * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
+      damage *= 1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
 
       // surge boost
       if (damager->timers.clankRedEye > 0) {
@@ -962,11 +962,13 @@ int mobOnUnreliableMsgRemote(void * connection, void * data)
       struct MobUnreliableMsgStateUpdateArgs args;
       memcpy(&args, data, sizeof(struct MobUnreliableMsgStateUpdateArgs));
 
-      GuberMoby* guber = (GuberMoby*)guberGetObjectByUID(baseArgs.MobUID);
-      if (guber) {
-        Moby* moby = guber->Moby;
-        if (moby && mobyIsMob(moby) && !mobyIsDestroyed(moby)) {
-          mobHandleEvent_StateUpdateUnreliable(moby, &args.StateUpdate);
+      if (isInGame()) {
+        GuberMoby* guber = (GuberMoby*)guberGetObjectByUID(baseArgs.MobUID);
+        if (guber) {
+          Moby* moby = guber->Moby;
+          if (moby && mobyIsMob(moby) && !mobyIsDestroyed(moby)) {
+            mobHandleEvent_StateUpdateUnreliable(moby, &args.StateUpdate);
+          }
         }
       }
 

@@ -484,7 +484,7 @@ void surgeSpawnSlamExplosion(Moby* moby)
 
   float damage = 120;
   if (pvars->AttachedToPlayer && MapConfig.State) {
-    damage *= 1 + (0.05 * MapConfig.State->PlayerStates[pvars->AttachedToPlayer->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
+    damage *= 1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * MapConfig.State->PlayerStates[pvars->AttachedToPlayer->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
     damage *= pvars->AttachedToPlayer->DamageMultiplier;
   }
 

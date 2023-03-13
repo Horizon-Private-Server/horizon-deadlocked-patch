@@ -135,3 +135,10 @@ Fix emu crashing when loading too fast/loading too fast in general freezing on G
 ++Demon bell to speed up early rounds
 Add more stats
 ++Self revive shouldn't give you a revive stat
++-Fix pathfinding rerunning required route when target moves to new node
+    - This needs to be changed to factor in two paths.
+      One from nearest node to target.
+      And one from next node on existing path to target.
+      Choosing the shorter path and then continuing on the current path to the next node if that is the shortest path.
+Cleanup orxon collision
+++Change impact mod to be random probability instead of percent health
