@@ -2003,10 +2003,22 @@ void runEnableSingleplayerMusic(void)
 {
 	static int FinishedConvertingTracks = 0;
 	static int AddedTracks = 0;
+  static int Loading = 0;
+  
+  // indicate to user we're loading sp music
+  // running uiRunCallbacks triggers our vsync hook and reinvokes this method
+  // while it is still looping
+  if (Loading)
+  {
+    gfxScreenSpaceBox(0.3, 0.45, 0.4, 0.1, 0x80000000);
+    gfxScreenSpaceText(0.5 * SCREEN_WIDTH, 0.5 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Loading Music...", 14 + ((gameGetTime()/1000)%3), 4);
+    return;
+  }
 
 	if (!config.enableSingleplayerMusic || !musicIsLoaded())
 		return;
 
+  Loading = 1;
 	u32 NewTracksLocation = 0x001CF940;
 	if (!FinishedConvertingTracks || *(u32*)NewTracksLocation == 0)
 	{
@@ -2024,6 +2036,11 @@ void runEnableSingleplayerMusic(void)
 		// Loop through each Sector
 		for(a = 0; a < 12; a++)
 		{
+      // let the game handle net and rendering stuff
+      // this prevents the user from lagging out if the disc
+      // takes forever to seek
+      uiRunCallbacks();
+
 			Offset += 0x18;
 			int MapSector = *(u32*)(Sector + Offset);
 			// Check if Map Sector is not zero
@@ -2133,6 +2150,8 @@ void runEnableSingleplayerMusic(void)
 			}
 		}
 	}
+
+  Loading = 0;
 }
 
 /*
