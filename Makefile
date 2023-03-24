@@ -15,6 +15,7 @@ all:
 	$(MAKE) -C survival
 	$(MAKE) -C payload
 	$(MAKE) -C training
+	$(MAKE) -C mapdownloader
 	
 clean:
 	$(MAKE) -C patch clean
@@ -31,4 +32,5 @@ clean:
 	$(MAKE) -C survival clean
 	$(MAKE) -C payload clean
 	$(MAKE) -C training clean
+	$(MAKE) -C mapdownloader clean
 

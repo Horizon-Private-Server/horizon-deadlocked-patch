@@ -161,8 +161,8 @@ void onOnlineMenu(void)
 	((void (*)(void))0x00707F28)();
 
 	// only show on main menu
-	if (uiGetActive() != UI_ID_ONLINE_MAIN_MENU)
-		return;
+	//if (uiGetActive() != UI_ID_ONLINE_MAIN_MENU)
+	//	return;
 
 	gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, bgColorDownload);
 	gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, barBgColor);
