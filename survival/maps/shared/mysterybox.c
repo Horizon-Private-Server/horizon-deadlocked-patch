@@ -38,7 +38,7 @@ void powerOnMysteryBoxActivatePower(void);
 
 
 char* ITEM_NAMES[] = {
-  [MYSTERY_BOX_ITEM_RESET_GATES] "",
+  [MYSTERY_BOX_ITEM_RESET_GATE] "",
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] "",
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] "Upgrade Weapon",
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] "Infinite Ammo",
@@ -50,7 +50,7 @@ char* ITEM_NAMES[] = {
 };
 
 int ITEM_TEX_IDS[] = {
-  [MYSTERY_BOX_ITEM_RESET_GATES] 14 - 3,
+  [MYSTERY_BOX_ITEM_RESET_GATE] 14 - 3,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 132 - 3,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 37 - 3,
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] 93 - 3,
@@ -62,7 +62,7 @@ int ITEM_TEX_IDS[] = {
 };
 
 u32 ITEM_COLORS[] = {
-  [MYSTERY_BOX_ITEM_RESET_GATES] 0x8000FFFF,
+  [MYSTERY_BOX_ITEM_RESET_GATE] 0x8000FFFF,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 0x80808080,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] 0x8000FFFF,
@@ -365,7 +365,7 @@ void mboxUpdate(Moby* moby)
       // handle items that are forced onto player
       switch (pvars->Item)
       {
-        case MYSTERY_BOX_ITEM_RESET_GATES:
+        case MYSTERY_BOX_ITEM_RESET_GATE:
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:
         {
           mboxGivePlayer(moby, pvars->ActivatedByPlayerId, pvars->Item, pvars->Random);
@@ -580,25 +580,15 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
 
       switch (item)
       {
-        case MYSTERY_BOX_ITEM_RESET_GATES:
+        case MYSTERY_BOX_ITEM_RESET_GATE:
         {
-          pushSnack(-1, "Map reset!", 60);
-          
-          Moby* mStart = mobyListGetStart();
-          Moby* mEnd = mobyListGetEnd();
+          pushSnack(-1, "Gate reset!", 60);
 
-          while (mStart < mEnd) {
-
-            if (mStart->OClass == GATE_OCLASS && !mobyIsDestroyed(mStart) && mStart->State == GATE_STATE_DEACTIVATED) {
-              struct GatePVar* gatePvars = (struct GatePVar*)mStart->PVar;
-              if (gatePvars && gatePvars->Cost == 0) {
-                gatePvars->Cost = 1;
-                mobySetState(mStart, GATE_STATE_ACTIVATED, -1);
-              }
-            }
-
-            ++mStart;
+#if GATE
+          if (gameAmIHost()) {
+            gateResetRandomGate();
           }
+#endif
           break;
         }
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:

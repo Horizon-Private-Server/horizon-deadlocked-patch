@@ -142,3 +142,13 @@ Add more stats
       Choosing the shorter path and then continuing on the current path to the next node if that is the shortest path.
 Cleanup orxon collision
 ++Change impact mod to be random probability instead of percent health
+++Up the Arbiter ammo count from 8->12
+++Lower the base health of Executioners.
+++Adjust executioner round
+++Lower the Vendor Discount from 4%->2%
+++Increase the damage upgrade from 5% to 8%
+++Make the max speed cap 200% instead of 180%
+++Fix zombie desync
+Fix OPL crash on load
+++Buff surge
+++Add gate reset (resets gate 100% cost)

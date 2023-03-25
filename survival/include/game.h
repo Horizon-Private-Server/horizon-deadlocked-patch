@@ -20,8 +20,8 @@
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
 
-#define MAX_MOBS_BASE													(30)
-#define MAX_MOBS_ROUND_WEIGHT									(30)
+#define MAX_MOBS_BASE													(10)
+#define MAX_MOBS_ROUND_WEIGHT									(20)
 #define MAX_MOBS_SPAWNED											(50)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
@@ -100,7 +100,7 @@
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
-#define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.05)
+#define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.08)
 #define PLAYER_UPGRADE_SPEED_FACTOR           (0.03)
 #define PLAYER_UPGRADE_HEALTH_FACTOR          (5)
 #define PLAYER_UPGRADE_MEDIC_FACTOR           (0.05)
@@ -266,6 +266,7 @@ struct SurvivalSpecialRoundParam
 {
 	int SpawnParamCount;
 	float SpawnCountFactor;
+  float SpawnRateFactor;
 	int MaxSpawnedAtOnce;
 	char SpawnParamIds[4];
 	char Name[32];

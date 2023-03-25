@@ -863,8 +863,10 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
 
 	// teleport position if far away
 	vector_subtract(t, moby->Position, args->Position);
-	if (vector_sqrmag(t) > 25)
+	if (vector_sqrmag(t) > 25) {
 		vector_copy(moby->Position, args->Position);
+		vector_copy(pvars->MobVars.MoveVars.NextPosition, args->Position);
+  }
 
 	// 
 	Player* target = (Player*)guberGetObjectByUID(args->TargetUID);

@@ -29,7 +29,7 @@ char UpgradeTexIds[] = {
 
 int UpgradeMax[] = {
 	[UPGRADE_HEALTH] 1000,
-	[UPGRADE_SPEED] 25,
+	[UPGRADE_SPEED] 33,
 	[UPGRADE_DAMAGE] 100,
 	[UPGRADE_MEDIC] 16,
 	[UPGRADE_VENDOR] 16,

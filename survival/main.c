@@ -489,6 +489,7 @@ struct MobSpawnParams* spawnGetRandomMobParams(int * mobIdx)
 		i = rand(params->SpawnParamCount);
 		if (mobIdx)
 			*mobIdx = (int)params->SpawnParamIds[i];
+
 		return &mapConfig->DefaultSpawnParams[(int)params->SpawnParamIds[i]];
 	}
 
@@ -518,13 +519,17 @@ int spawnRandomMob(void) {
 		int cost = mob->Cost;
 
 		// skip if cooldown not 0
-		int cooldown = defaultSpawnParamsCooldowns[mobIdx];
-		if (cooldown > 0) {
-			return 0;
-		}
-		else {
-			defaultSpawnParamsCooldowns[mobIdx] = mob->CooldownTicks;
-		}
+    int cooldown = defaultSpawnParamsCooldowns[mobIdx];
+    if (cooldown > 0) {
+      return 0;
+    }
+    else if (State.RoundIsSpecial) {
+      defaultSpawnParamsCooldowns[mobIdx] = lerpf(2 * TPS, mob->CooldownTicks, mapConfig->SpecialRoundParams[State.RoundSpecialIdx].SpawnRateFactor);
+      DPRINTF("%d => %d\n", mobIdx, defaultSpawnParamsCooldowns[mobIdx]);
+    }
+    else {
+      defaultSpawnParamsCooldowns[mobIdx] = mob->CooldownTicks;
+    }
 
 		// try and spawn
 		if (spawnGetRandomPoint(sp, mob)) {
@@ -2098,6 +2103,12 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   // prevent player from doing anything
   padDisableInput();
 
+	// 
+	mobInitialize();
+	dropInitialize();
+	upgradeInitialize();
+  demonbellInitialize();
+
   if (startDelay) {
     --startDelay;
     return;
@@ -2119,12 +2130,6 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 
 	memset(defaultSpawnParamsCooldowns, 0, sizeof(defaultSpawnParamsCooldowns));
   memset(snackItems, 0, sizeof(snackItems));
-
-	// 
-	mobInitialize();
-	dropInitialize();
-	upgradeInitialize();
-  demonbellInitialize();
 
 	// initialize player states
 	State.LocalPlayerState = NULL;
@@ -2229,6 +2234,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.MobsDrawnCurrent = 0;
 	State.MobsDrawnLast = 0;
 	State.MobsDrawGameTime = 0;
+  State.TotalMobsSpawned = 0;
 	State.Freeze = 0;
 	State.TimeOfFreeze = 0;
 	State.RoundIsSpecial = 0;
@@ -2236,6 +2242,21 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.DropCooldownTicks = DROP_COOLDOWN_TICKS_MAX; // try and stop drops from spawning immediately
 	State.InitializedTime = gameGetTime();
 	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
+
+#if DEBUG
+	State.RoundNumber = 24;
+	State.RoundIsSpecial = 1;
+	State.RoundSpecialIdx = 4;
+
+  // 
+	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
+  for (i = 0; i < State.RoundNumber; ++i) {
+    State.TotalMobsSpawned += MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(i * State.Difficulty * playerCountMultiplier, 0.75)));
+  }
+
+  DPRINTF("Skipped to Round #%d with %d mobs spawned\n", State.RoundNumber + 1, State.TotalMobsSpawned);
+#endif
+
 	resetRoundState();
 
   // force initial delay on first round

@@ -152,7 +152,7 @@ void surgeArcDamageMoby(Moby* moby, Moby* damageMoby)
   in.DamageStrength = 1;
   in.DamageIndex = moby->OClass;
   in.Flags = 1;
-  in.DamageHp = 5;
+  in.DamageHp = 50;
 
   mobyCollDamageDirect(damageMoby, &in);
 }
@@ -490,8 +490,8 @@ void surgeSpawnSlamExplosion(Moby* moby)
 
   // spawn explosion
   Moby * moby = mobySpawnExplosion
-        (vPos, 2, 0x2, 0x0, 0x0, 0x0, 0x10, 0x10, 0x0, 0, 0, 0, 0,
-        1, 0, 0, damage, 10, 0x80080800, 0, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000,
+        (vPos, 3, 1, 0x0, 0x0, 0x0, 0x10, 0x10, 0x0, 0, 0, 0, 0,
+        1, 0, 0, damage, 15, 0x80080800, 0, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000,
         0x80E18000, 1, 0, 0, vPos);
   
   // play explosion sound

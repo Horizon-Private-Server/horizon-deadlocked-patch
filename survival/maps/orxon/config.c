@@ -11,6 +11,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	{
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
+    .SpawnRateFactor = 1.0,
 		.SpawnParamCount = 2,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_RUNNER,
@@ -23,6 +24,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	{
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
+    .SpawnRateFactor = 1.0,
 		.SpawnParamCount = 3,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_EXPLOSION,
@@ -36,6 +38,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	{
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
+    .SpawnRateFactor = 1.0,
 		.SpawnParamCount = 2,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_RUNNER,
@@ -48,6 +51,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	{
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
+    .SpawnRateFactor = 1.0,
 		.SpawnParamCount = 3,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_GHOST,
@@ -59,12 +63,15 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	},
 	// ROUND 25
 	{
-		.MaxSpawnedAtOnce = 10,
-    .SpawnCountFactor = 0.05,
-		.SpawnParamCount = 1,
+		.MaxSpawnedAtOnce = 20,
+    .SpawnCountFactor = 0.1,
+    .SpawnRateFactor = 0.2,
+		.SpawnParamCount = 3,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_TITAN,
-			-1
+      MOB_SPAWN_PARAM_NORMAL,
+      MOB_SPAWN_PARAM_RUNNER,
+			MOB_SPAWN_PARAM_GHOST
 		},
 		.Name = "Executioner Round"
 	},
@@ -95,7 +102,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Speed = MOB_BASE_SPEED * 0.85,
 			.MaxSpeed = MOB_BASE_SPEED * 2.0,
       .SpeedScale = 0.5,
-			.Health = MOB_BASE_HEALTH * 50.0,
+			.Health = MOB_BASE_HEALTH * 25.0,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
 			.Bolts = MOB_BASE_BOLTS * 10,
@@ -330,7 +337,7 @@ u32 MobLODColors[] = {
 };
 
 struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
-  //{ MYSTERY_BOX_ITEM_RESET_GATES, 0.005 },
+  { MYSTERY_BOX_ITEM_RESET_GATE, 0.05 },
   { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
   { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
   { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },

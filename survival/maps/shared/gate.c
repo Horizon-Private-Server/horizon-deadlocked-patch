@@ -34,6 +34,7 @@
 #include "../../include/game.h"
 
 extern struct SurvivalMapConfig MapConfig;
+extern VECTOR GateLocations[];
 
 Moby* GateMobies[GATE_MAX_COUNT] = {};
 void * GateCollisionData = NULL;
@@ -285,6 +286,7 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 	guberEventRead(event, pvars->To, 12);
 	guberEventRead(event, &pvars->Height, 4);
 	guberEventRead(event, &pvars->Cost, 4);
+	guberEventRead(event, &pvars->Id, 1);
 
 	// set update
 	moby->PUpdate = &gateUpdate;
@@ -348,12 +350,78 @@ int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
+int gateHandleEvent_SetCost(Moby* moby, GuberEvent* event)
+{
+	int i;
+  
+  struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
+  if (!pvars)
+    return 0;
+  
+  guberEventRead(event, &pvars->Cost, 4);
+
+  DPRINTF("gate cost set: %08X => %d\n", (u32)moby, pvars->Cost);
+
+  // reactivate
+  if (moby->State != GATE_STATE_ACTIVATED) {
+    mobySetState(moby, GATE_STATE_ACTIVATED, -1);
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 struct GuberMoby* gateGetGuber(Moby* moby)
 {
 	if (moby->OClass == GATE_OCLASS && moby->PVar)
 		return moby->GuberMoby;
 	
 	return 0;
+}
+
+//--------------------------------------------------------------------------
+void gateResetRandomGate(void)
+{
+  int i = 0;
+  int r = 1 + rand(GATE_MAX_COUNT);
+  int loops = 0;
+  Moby* gateToReset = NULL;
+
+  while (r > 0) {
+    gateToReset = GateMobies[i];
+
+    // skip mobies that are NULL, don't have pvars, or gates that aren't deactivated yet
+    // we only want to reset an open gate
+    if (!gateToReset || !gateToReset->PVar || gateToReset->State != GATE_STATE_DEACTIVATED) {
+      i = (i+1) % GATE_MAX_COUNT;
+
+      // we've looped through the entire list without finding
+      // a gate that we can reset
+      // so stop
+      if (loops == 0 && i == 0) {
+        return;
+      }
+
+      continue;
+    }
+
+    // increment gate index
+    // and decrement random number
+    i = (i+1) % GATE_MAX_COUNT;
+    --r;
+
+    ++loops;
+  }
+  
+  // create event set cost event
+  if (gateToReset) {
+    struct GatePVar* pvars = (struct GatePVar*)gateToReset->PVar;
+    GuberEvent * guberEvent = guberCreateEvent(gateToReset, GATE_EVENT_SET_COST);
+    if (guberEvent) {
+      int cost = (int)GateLocations[(pvars->Id*2)+1][3];
+      guberEventWrite(guberEvent, &cost, 4);
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -371,6 +439,7 @@ int gateHandleEvent(Moby* moby, GuberEvent* event)
       case GATE_EVENT_ACTIVATE: { mobySetState(moby, GATE_STATE_ACTIVATED, -1); return 0; }
       case GATE_EVENT_DEACTIVATE: { mobySetState(moby, GATE_STATE_DEACTIVATED, -1); gatePlayOpenSound(moby); return 0; }
 			case GATE_EVENT_PAY_TOKEN: return gateHandleEvent_PayToken(moby, event);
+			case GATE_EVENT_SET_COST: return gateHandleEvent_SetCost(moby, event);
 			default:
 			{
 				DPRINTF("unhandle gate event %d\n", upgradeEvent);
@@ -383,7 +452,7 @@ int gateHandleEvent(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-int gateCreate(VECTOR start, VECTOR end, float height, int cost)
+int gateCreate(VECTOR start, VECTOR end, float height, int cost, u8 id)
 {
 	// create guber object
 	GuberEvent * guberEvent = 0;
@@ -394,6 +463,7 @@ int gateCreate(VECTOR start, VECTOR end, float height, int cost)
 		guberEventWrite(guberEvent, end, 12);
     guberEventWrite(guberEvent, &height, 4);
     guberEventWrite(guberEvent, &cost, 4);
+    guberEventWrite(guberEvent, &id, 1);
 	}
 	else
 	{
@@ -415,7 +485,7 @@ void gateSpawn(VECTOR gateData[], int count)
   // create gates
   if (gameAmIHost()) {
     for (i = 0; i < count; i += 2) {
-      gateCreate(gateData[i], gateData[i+1], gateData[i][3], (int)gateData[i+1][3]);
+      gateCreate(gateData[i], gateData[i+1], gateData[i][3], (int)gateData[i+1][3], i/2);
     }
   }
 
