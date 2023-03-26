@@ -881,6 +881,12 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
   char gm = gameConfig.customModeId;
   char v = *value;
 
+  // disable duck hunt
+  if (v == CUSTOM_MAP_DUCK_HUNT) {
+    *value = CUSTOM_MAP_NONE;
+    return 0;
+  }
+
   switch (gm)
   {
     case CUSTOM_MODE_SURVIVAL:
@@ -914,7 +920,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
 #endif
 
       // hide maps with gamemode override
-      if (gm != CUSTOM_MODE_NONE)
+      if (gm > CUSTOM_MODE_NONE)
       {
         for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
         {
