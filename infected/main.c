@@ -271,6 +271,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
+    gameState->CustomGameStatsSize = sizeof(struct InfectedGameData);
 		struct InfectedGameData* sGameData = (struct InfectedGameData*)gameState->CustomGameStats.Payload;
 		sGameData->Version = 0x00000001;
 

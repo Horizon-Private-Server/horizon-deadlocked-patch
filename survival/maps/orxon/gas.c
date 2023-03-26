@@ -109,6 +109,12 @@ int isPlayerInGasArea(Player* player)
 	return player && player->PlayerPosition[0] > GAS_X_DAMAGE_START;
 }
 
+// return non-zero when the given moby is inside the gas area
+int isMobyInGasArea(Moby* moby)
+{
+	return moby && moby->Position[0] > GAS_X_DAMAGE_START;
+}
+
 // returns 0-1, representing the percentage of fog should be gas
 float getCameraGasFogFactor(Player* player)
 {
@@ -236,6 +242,9 @@ int gasTick(void)
 
 		// set fog based on camera position
 		float gasFactor = getCameraGasFogFactor(p);
+#if NOGAS
+    gasFactor = 0;
+#endif
 		setFog(
 			colorLerp(DefaultFogColor, GasFogColor, gasFactor),
 			lerpf(DefaultFogDistances[0], GasFogDistances[0], gasFactor),
@@ -245,8 +254,9 @@ int gasTick(void)
 			);
 
 		// damage player if in gas
+    // and player doesn't have shield on
 #if !DEBUG
-		if (!playerIsDead(p) && isPlayerInGasArea(p)) {
+		if (!playerIsDead(p) && isPlayerInGasArea(p) && p->timers.armorLevelTimer <= 0) {
 			
 			if (gasDamageTicker) {
 				--gasDamageTicker;

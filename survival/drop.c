@@ -27,6 +27,7 @@ char DropTexIds[] = {
 	[DROP_NUKE] 19,
 	[DROP_FREEZE] 43,
 	[DROP_DOUBLE_POINTS] 3,
+  [DROP_DOUBLE_XP] 41,
 };
 
 //--------------------------------------------------------------------------
@@ -176,7 +177,7 @@ void dropUpdate(Moby* moby)
 	// handle pickup
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * player = players[i];
-		if (player && pvars->Team == player->Team && !playerIsDead(player)) {
+		if (player && !playerIsDead(player)) {
 			vector_subtract(t, player->PlayerPosition, moby->Position);
 			if (vector_sqrmag(t) < (DROP_PICKUP_RADIUS * DROP_PICKUP_RADIUS)) {
 				dropPickup(moby, i);
@@ -295,10 +296,10 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 	{
 		case DROP_AMMO:
 		{
-			DPRINTF("giving ammo to all players on %d team\n", pvars->Team);
+			DPRINTF("giving ammo to all players\n");
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				Player * p = players[i];
-				if (p && p->Team == pvars->Team) {
+				if (p && p->SkinMoby) {
 					for (j = 0; j <= 8; ++j) {
 						int gadgetId = weaponSlotToId(j);
 						if (p->GadgetBox->Gadgets[gadgetId].Level >= 0)
@@ -313,10 +314,10 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 		}
 		case DROP_HEALTH:
 		{
-			DPRINTF("giving health to all players on %d team\n", pvars->Team);
+			DPRINTF("giving health to all players\n");
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				Player * p = players[i];
-				if (p && p->Team == pvars->Team) {
+				if (p && p->SkinMoby) {
 					if (!playerIsDead(p) && p->Health > 0) {
 						playerSetHealth(p, p->MaxHealth);
 					}
@@ -332,10 +333,18 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 		}
 		case DROP_DOUBLE_POINTS:
 		{
-			DPRINTF("giving double points to all players on %d team\n", pvars->Team);
+			DPRINTF("giving double points to all players\n");
 			uiShowPopup(0, "Double points!");
 			uiShowPopup(1, "Double points!");
-			setDoublePointsForTeam(pvars->Team, 1);
+			setDoublePoints(1);
+			break;
+		}
+		case DROP_DOUBLE_XP:
+		{
+			DPRINTF("giving double xp to all players\n");
+			uiShowPopup(0, "Double XP!");
+			uiShowPopup(1, "Double XP!");
+			setDoubleXP(1);
 			break;
 		}
 		case DROP_FREEZE:

@@ -6,8 +6,11 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 #include "upgrade.h"
+#include "demonbell.h"
 #include "gate.h"
 #include "mysterybox.h"
+
+#define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
 #define TPS																		(60)
 
@@ -17,8 +20,8 @@
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
 
-#define MAX_MOBS_BASE													(30)
-#define MAX_MOBS_ROUND_WEIGHT									(10)
+#define MAX_MOBS_BASE													(10)
+#define MAX_MOBS_ROUND_WEIGHT									(20)
 #define MAX_MOBS_SPAWNED											(50)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
@@ -27,7 +30,7 @@
 #if QUICK_SPAWN
 #define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 0)
 #else
-#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 30)
+#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 45)
 #endif
 
 #define ROUND_BASE_BOLT_BONUS									(100)
@@ -37,6 +40,7 @@
 #define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
 #define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 		(25)
+#define MOB_MOVE_SKIP_TICKS                   (2)
 
 #define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(1)
 #define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)
@@ -44,20 +48,20 @@
 #define MOB_SPAWN_NEAR_HEALTHBOX_PROBABILITY 			(0.1)
 
 #define MOB_SPAWN_BURST_MIN_DELAY							(1 * 60)
-#define MOB_SPAWN_BURST_MAX_DELAY							(2 * 60)
-#define MOB_SPAWN_BURST_MIN										(5)
-#define MOB_SPAWN_BURST_MAX										(30)
-#define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(2)
-#define MOB_SPAWN_BURST_MIN_INC_PER_ROUND			(1)
+#define MOB_SPAWN_BURST_MAX_DELAY							(10 * 60)
+#define MOB_SPAWN_BURST_MIN										(3)
+#define MOB_SPAWN_BURST_MAX										(10)
+#define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(1)
+#define MOB_SPAWN_BURST_MIN_INC_PER_ROUND			(0)
 
 #define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
 
 #define MOB_BASE_DAMAGE										    (10)
-#define MOB_BASE_DAMAGE_SCALE                 (0.04)
+#define MOB_BASE_DAMAGE_SCALE                 (0.02*1)
 #define MOB_BASE_SPEED											  (3)
-#define MOB_BASE_SPEED_SCALE                  (0.04)
-#define MOB_BASE_HEALTH										    (40)
-#define MOB_BASE_HEALTH_SCALE                 (0.04)
+#define MOB_BASE_SPEED_SCALE                  (0.03*1)
+#define MOB_BASE_HEALTH										    (30)
+#define MOB_BASE_HEALTH_SCALE                 (0.05*1)
 
 #define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
 #define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
@@ -70,11 +74,13 @@
 #endif
 
 #define JACKPOT_BOLTS													(50)
+#define XP_ALPHAMOD_XP												(10)
 
 #define DROP_COOLDOWN_TICKS_MIN								(TPS * 10)
 #define DROP_COOLDOWN_TICKS_MAX								(TPS * 60)
 #define DROP_DURATION													(30 * TIME_SECOND)
 #define DOUBLE_POINTS_DURATION								(20 * TIME_SECOND)
+#define DOUBLE_XP_DURATION								    (20 * TIME_SECOND)
 #define FREEZE_DROP_DURATION									(10 * TIME_SECOND)
 #define MOB_HAS_DROP_PROBABILITY						(0.01)
 #define DROP_MAX_SPAWNED											(4)
@@ -94,12 +100,20 @@
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
+#define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.08)
+#define PLAYER_UPGRADE_SPEED_FACTOR           (0.03)
+#define PLAYER_UPGRADE_HEALTH_FACTOR          (5)
+#define PLAYER_UPGRADE_MEDIC_FACTOR           (0.05)
+#define PLAYER_UPGRADE_VENDOR_FACTOR          (0.02)
+
 #define BAKED_SPAWNPOINT_COUNT							  (24)
 
 #define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
 #define ITEM_INFAMMO_DURATION                 (60*TIME_SECOND)
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
+
+#define MAX_MOB_SPAWN_PARAMS                  (10)
 
 enum GameNetMessage
 {
@@ -112,8 +126,10 @@ enum GameNetMessage
 	CUSTOM_MSG_PLAYER_SET_WEAPON_MODS,
 	CUSTOM_MSG_PLAYER_SET_STATS,
 	CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS,
+	CUSTOM_MSG_PLAYER_SET_DOUBLE_XP,
 	CUSTOM_MSG_PLAYER_SET_FREEZE,
-  CUSTOM_MSG_PLAYER_USE_ITEM
+  CUSTOM_MSG_PLAYER_USE_ITEM,
+  CUSTOM_MSG_MOB_UNRELIABLE_MSG
 };
 
 enum BakedSpawnpointType
@@ -122,13 +138,30 @@ enum BakedSpawnpointType
 	BAKED_SPAWNPOINT_UPGRADE = 1,
 	BAKED_SPAWNPOINT_PLAYER_START = 2,
 	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
+	BAKED_SPAWNPOINT_DEMON_BELL = 4,
 };
+
+enum MobStatId
+{
+  MOB_STAT_NONE               = 0,
+  MOB_STAT_ZOMBIE             = 1,
+  MOB_STAT_ZOMBIE_FREEZE      = 2,
+  MOB_STAT_ZOMBIE_ACID        = 3,
+  MOB_STAT_ZOMBIE_GHOST       = 4,
+  MOB_STAT_ZOMBIE_EXPLODE     = 5,
+  MOB_STAT_TREMOR             = 6,
+  MOB_STAT_EXECUTIONER        = 7,
+  MOB_STAT_COUNT
+};
+
+struct MobConfig;
+struct MobSpawnEventArgs;
 
 typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
-typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig);
+typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int freeAgent);
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 
 typedef struct SurvivalBakedSpawnpoint
 {
@@ -140,7 +173,7 @@ typedef struct SurvivalBakedSpawnpoint
 
 typedef struct SurvivalBakedConfig
 {
-	float MapSize;
+	float Difficulty;
 	SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];
 } SurvivalBakedConfig_t;
 
@@ -156,7 +189,14 @@ struct SurvivalPlayerState
 	int TotalTokens;
 	int CurrentTokens;
   int Item;
-	int Upgrades[UPGRADE_COUNT];
+  int BestRound;
+  int TimesRolledMysteryBox;
+  int TimesActivatedDemonBell;
+  int TimesActivatedPower;
+  int TokensUsedOnGates;
+	int KillsPerMob[MAX_MOB_SPAWN_PARAMS];
+	short DeathsByMob[MAX_MOB_SPAWN_PARAMS];
+	short Upgrades[UPGRADE_COUNT];
 	short AlphaMods[8];
 	char BestWeaponLevel[9];
 };
@@ -167,6 +207,7 @@ struct SurvivalPlayer
 	float MaxSqrDistFromMob;
 	struct SurvivalPlayerState State;
 	int TimeOfDoublePoints;
+	int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
   int InfiniteAmmoStopTime;
 	u16 ReviveCooldownTicks;
@@ -176,6 +217,7 @@ struct SurvivalPlayer
 	char IsDead;
 	char IsInWeaponsMenu;
 	char IsDoublePoints;
+	char IsDoubleXP;
 	char HealthBarStrBuf[8];
 };
 
@@ -192,9 +234,12 @@ struct SurvivalState
 	int RoundSpawnTicker;
 	int RoundSpawnTickerCounter;
 	int RoundNextSpawnTickerCounter;
+  int RoundDemonBellCount;
 	int RoundIsSpecial;
 	int RoundSpecialIdx;
 	int InitializedTime;
+  int DemonBellCount;
+  int TotalMobsSpawned;
 	int MinMobCost;
 	int MobsDrawnCurrent;
 	int MobsDrawnLast;
@@ -222,6 +267,7 @@ struct SurvivalState
 
 struct SurvivalMapConfig
 {
+  u32 Magic;
   int ClientsReady;
   struct SurvivalState* State;
   struct SurvivalBakedConfig* BakedConfig;
@@ -241,6 +287,8 @@ struct SurvivalMapConfig
 struct SurvivalSpecialRoundParam
 {
 	int SpawnParamCount;
+	float SpawnCountFactor;
+  float SpawnRateFactor;
 	int MaxSpawnedAtOnce;
 	char SpawnParamIds[4];
 	char Name[32];
@@ -254,6 +302,15 @@ struct SurvivalGameData
 	int Kills[GAME_MAX_PLAYERS];
 	int Revives[GAME_MAX_PLAYERS];
 	int TimesRevived[GAME_MAX_PLAYERS];
+  int KillsPerMob[GAME_MAX_PLAYERS][MAX_MOB_SPAWN_PARAMS];
+  short DeathsByMob[GAME_MAX_PLAYERS][MAX_MOB_SPAWN_PARAMS];
+  short MobIds[MAX_MOB_SPAWN_PARAMS];
+	short BestRound[GAME_MAX_PLAYERS];
+	short PlayerUpgrades[GAME_MAX_PLAYERS][UPGRADE_COUNT];
+	short TimesRolledMysteryBox[GAME_MAX_PLAYERS];
+	short TimesActivatedDemonBell[GAME_MAX_PLAYERS];
+	short TimesActivatedPower[GAME_MAX_PLAYERS];
+  short TokensUsedOnGates[GAME_MAX_PLAYERS];
 	char AlphaMods[GAME_MAX_PLAYERS][8];
 	char BestWeaponLevel[GAME_MAX_PLAYERS][9];
 };
@@ -308,6 +365,12 @@ typedef struct SurvivalSetPlayerDoublePointsMessage
 	int TimeOfDoublePoints[GAME_MAX_PLAYERS];
 	char IsActive[GAME_MAX_PLAYERS];
 } SurvivalSetPlayerDoublePointsMessage_t;
+
+typedef struct SurvivalSetPlayerDoubleXPMessage
+{
+	int TimeOfDoubleXP[GAME_MAX_PLAYERS];
+	char IsActive[GAME_MAX_PLAYERS];
+} SurvivalSetPlayerDoubleXPMessage_t;
 
 typedef struct SurvivalSetFreezeMessage
 {

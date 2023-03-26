@@ -28,7 +28,7 @@ typedef struct PatchConfig
 
 typedef struct SurvivalConfig
 {
-	u8 difficulty;
+	//u8 difficulty;
 } SurvivalConfig_t;
 
 enum PayloadContestMode

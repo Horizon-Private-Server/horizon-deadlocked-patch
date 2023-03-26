@@ -7,10 +7,17 @@
 #define CMD_USBCLOSE		0x03
 #define CMD_USBREAD			0x04
 #define CMD_USBSEEK			0x05
+#define CMD_USBREMOVE   0x06
+#define CMD_USBGETSTAT  0x07
+#define CMD_USBMKDIR    0x08
+
+#define UNCACHED_SEG(x) \
+    ((void *)(((u32)(x)) | 0x20000000))
+
+#define IS_UNCACHED_SEG(x) \
+    (((u32)(x)) & 0x20000000)
 
 #define RPCCLIENT_INITED (*(int*)0x000CFF00)
-
-#define USBSERV_BUFSIZE (1024 * 6)
 
 static SifRpcClientData_t * rpcclient = (SifRpcClientData_t*)0x000CFF10;
 static int Rpc_Buffer[16] 			__attribute__((aligned(64)));
@@ -23,7 +30,9 @@ static struct { 			// size = 256
 static struct { 		// size =
 	int fd;				// 0
 	int size;			// 8
-	u8 buf[USBSERV_BUFSIZE];		//
+	void * buf;
+  unsigned int unalignedDataLen;
+  unsigned char unalignedData[64];
 } writeParam __attribute__((aligned(64)));
 
 static struct { 		// size = 16
@@ -42,6 +51,20 @@ static struct { 		// size =
 	int offset;
 	int whence;
 } seekParam __attribute__((aligned(64)));
+
+static struct { 			// size = 256
+	char filename[256];	// 0
+} removeParam __attribute__((aligned(64)));
+
+static struct { 			// size = 272
+	char filename[256];	// 0
+  struct stat * st;   // 260
+  char pad[12];
+} getstatParam __attribute__((aligned(64)));
+
+static struct { 			// size = 256
+	char dirpath[256];	// 0
+} mkdirParam __attribute__((aligned(64)));
 
 
 // stores command currently being executed on the iop
@@ -116,20 +139,30 @@ int rpcUSBopen(char *filename, int flags)
 int rpcUSBwrite(int fd, void *buf, int size)
 {
 	int ret = 0;
+  unsigned int miss = 0;
 
 	// check lib is inited
 	if (!RPCCLIENT_INITED)
 		return -1;
 
-	if (size > USBSERV_BUFSIZE)
-		return -1;
-			
+	if((unsigned int)buf & 0x3F)
+	{
+		miss = 64 - ((unsigned int)buf & 0x3F);
+		if(miss > (unsigned int)size) miss = size;
+	} else {
+		miss = 0;
+	}
+
 	// set global variables
 	writeParam.fd = fd;
-	memcpy(writeParam.buf, buf, size);
+  writeParam.buf = buf;
+	//memcpy(writeParam.buf, buf, size);
 	writeParam.size = size;
+  writeParam.unalignedDataLen = miss;
+	memcpy(writeParam.unalignedData, buf, miss);
 
-	SifWriteBackDCache(buf, size);
+	if(!IS_UNCACHED_SEG(buf))
+	  SifWriteBackDCache(buf, size);
 	 	
 	if((ret = SifCallRpc(rpcclient, CMD_USBWRITE, SIF_RPC_M_NOWAIT, &writeParam, sizeof(writeParam), Rpc_Buffer, 4, 0, 0)) != 0) {
 		return ret;
@@ -207,6 +240,79 @@ int rpcUSBseek(int fd, int offset, int whence)
 	currentCmd = CMD_USBSEEK;
 	
 	return 1;
+}
+
+//--------------------------------------------------------------
+int rpcUSBremove(char *filename)
+{
+	int ret = 0;
+
+	// check lib is inited
+	if (!RPCCLIENT_INITED)
+		return -1;
+			
+	// set global variables
+	if (filename)
+		memcpy(removeParam.filename, filename, sizeof(removeParam.filename));
+	else
+		return -2;	
+	
+	if((ret = SifCallRpc(rpcclient, CMD_USBREMOVE, SIF_RPC_M_NOWAIT, &removeParam, sizeof(removeParam), Rpc_Buffer, 4, 0, 0)) != 0) {
+		return ret;
+	}
+			
+	currentCmd = CMD_USBREMOVE;
+	
+	return 1;
+}
+
+//--------------------------------------------------------------
+int rpcUSBgetstat(char *filename, struct stat * st)
+{
+	int ret = 0;
+
+	// check lib is inited
+	if (!RPCCLIENT_INITED)
+		return -1;
+			
+	// set global variables
+	if (filename)
+		memcpy(getstatParam.filename, filename, sizeof(getstatParam.filename));
+	else
+		return -2;	
+	
+  getstatParam.st = st;
+	if((ret = SifCallRpc(rpcclient, CMD_USBGETSTAT, SIF_RPC_M_NOWAIT, &getstatParam, sizeof(getstatParam), Rpc_Buffer, 4, 0, 0)) != 0) {
+		return ret;
+	}
+			
+	currentCmd = CMD_USBGETSTAT;
+	
+	return ret;
+}
+
+//--------------------------------------------------------------
+int rpcUSBmkdir(char *dirpath)
+{
+	int ret = 0;
+
+	// check lib is inited
+	if (!RPCCLIENT_INITED)
+		return -1;
+			
+	// set global variables
+	if (dirpath)
+		memcpy(mkdirParam.dirpath, dirpath, sizeof(mkdirParam.dirpath));
+	else
+		return -2;	
+	
+	if((ret = SifCallRpc(rpcclient, CMD_USBMKDIR, SIF_RPC_M_NOWAIT, &mkdirParam, sizeof(mkdirParam), Rpc_Buffer, 4, 0, 0)) != 0) {
+		return ret;
+	}
+			
+	currentCmd = CMD_USBMKDIR;
+	
+	return ret;
 }
 
 //--------------------------------------------------------------

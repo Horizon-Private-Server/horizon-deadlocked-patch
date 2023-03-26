@@ -1,9 +1,8 @@
 /***************************************************
- * FILENAME :		logic.c
+ * FILENAME :		main.c
  * 
  * DESCRIPTION :
- * 		Custom map logic for Survival V2's Mining Facility.
- * 		Handles logic for gaseous part of map.
+ * 		Custom map logic for Survival V2's Orxon.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -30,8 +29,10 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
-#include "../../../include/game.h"
-#include "../../../include/mob.h"
+#include "game.h"
+#include "mob.h"
+#include "pathfind.h"
+#include "orxon.h"
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
 void powerNodeUpdate(Moby* moby);
@@ -42,11 +43,13 @@ void mobInit(void);
 void configInit(void);
 void pathTick(void);
 
-int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
-int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
-int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int isMobyInGasArea(Moby* moby);
 
-int aaa = 2;
+int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+
+int aaa = 47;
 
 
 char LocalPlayerStrBuffer[2][48];
@@ -97,34 +100,65 @@ void mobForceIntoMapBounds(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int mapPathCanBeSkippedForTarget(Moby* moby)
 {
-  switch (config->MobType)
+  if (!moby || !moby->PVar)
+    return 1;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  // can't skip if target is in gas
+  if (pvars->MobVars.Target && isMobyInGasArea(pvars->MobVars.Target))
+    return 0;
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
+{
+  switch (spawnParamsIdx)
   {
-    case MOB_TANK:
+    case MOB_SPAWN_PARAM_TITAN:
     {
-      return executionerCreate(spawnParamsIdx, position, yaw, spawnFromUID, config);
+      return executionerCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
-    case MOB_RUNNER:
+    case MOB_SPAWN_PARAM_RUNNER:
     {
-      return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, config);
+      return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
-    case MOB_NORMAL:
-    case MOB_ACID:
-    case MOB_FREEZE:
-    case MOB_EXPLODE:
-    case MOB_GHOST:
+    case MOB_SPAWN_PARAM_GHOST:
+    case MOB_SPAWN_PARAM_EXPLOSION:
+    case MOB_SPAWN_PARAM_ACID:
+    case MOB_SPAWN_PARAM_FREEZE:
+    case MOB_SPAWN_PARAM_NORMAL:
     {
-      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, config);
+      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
     default:
     {
-      DPRINTF("unhandled create mobtype %d\n", config->MobType);
+      DPRINTF("unhandled create spawnParamsIdx %d\n", spawnParamsIdx);
       break;
     }
   }
 
   return 0;
+}
+
+//--------------------------------------------------------------------------
+void onBeforeUpdateHeroes(void)
+{
+  gateSetCollision(1);
+
+  ((void (*)())0x005ce1d8)();
+}
+
+//--------------------------------------------------------------------------
+void onBeforeUpdateHeroes2(u32 a0)
+{
+  gateSetCollision(1);
+
+  ((void (*)(u32))0x0059b320)(a0);
 }
 
 //--------------------------------------------------------------------------
@@ -134,14 +168,42 @@ void initialize(void)
   if (initialized)
     return;
 
+  MapConfig.Magic = MAP_CONFIG_MAGIC;
+
   gateInit();
+  wraithInit();
+  surgeInit();
   mboxInit();
   mobInit();
   configInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
+  // only have gate collision on when processing players
+  HOOK_JAL(0x003bd854, &onBeforeUpdateHeroes);
+  //HOOK_J(0x003bd864, &onAfterUpdateHeroes);
+  HOOK_JAL(0x0051f648, &onBeforeUpdateHeroes2);
+  //HOOK_J(0x0051f78c, &onAfterUpdateHeroes2);
+
+  DPRINTF("path %08X end %08X\n", (u32)&MOB_PATHFINDING_PATHS, (u32)&MOB_PATHFINDING_PATHS + (MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH * MOB_PATHFINDING_NODES_COUNT * MOB_PATHFINDING_NODES_COUNT));
+
   initialized = 1;
 }
+
+
+SoundDef def =
+{
+	0.0,	// MinRange
+	50.0,	// MaxRange
+	100,		// MinVolume
+	10000,		// MaxVolume
+	0,			// MinPitch
+	0,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	95,    // 98, 95, 
+	3			  // Bank
+};
+
 
 /*
  * NAME :		main
@@ -174,7 +236,22 @@ int main (void)
   POKE_U32(0x0042608C, 0);
 
 #if DEBUG
+  static int tpPlayerToSpawn = 0;
+  if (!tpPlayerToSpawn) {
+    tpPlayerToSpawn = 1;
+
+    Player* localPlayer = playerGetFromSlot(0);
+    if (localPlayer && localPlayer->SkinMoby) {
+      VECTOR pStart = { 328.6, 544.85, 434, 0 };
+      VECTOR pRotStart = { 0, 0, 0, 0 };
+      playerSetPosRot(localPlayer, pStart, pRotStart);
+    }
+  }
+#endif
+
+#if DEBUG
   dlPreUpdate();
+  Player* localPlayer = playerGetFromSlot(0);
   if (padGetButtonDown(0, PAD_LEFT) > 0) {
     --aaa;
     DPRINTF("%d\n", aaa);
@@ -183,6 +260,35 @@ int main (void)
     ++aaa;
     DPRINTF("%d\n", aaa);
   }
+
+  /*
+  static int handle = 0;
+  if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
+    aaa += 1;
+    def.Index = aaa;
+    if (handle)
+      soundKillByHandle(handle);
+    int id = soundPlay(&def, 0, playerGetFromSlot(0)->PlayerMoby, 0, 0x400);
+    if (id >= 0)
+      handle = soundCreateHandle(id);
+    else
+      handle = 0;
+    DPRINTF("%d\n", aaa);
+  }
+  else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
+    aaa -= 1;
+    def.Index = aaa;
+    if (handle)
+      soundKillByHandle(handle);
+    int id = soundPlay(&def, 0, playerGetFromSlot(0)->PlayerMoby, 0, 0x400);
+    if (id >= 0)
+      handle = soundCreateHandle(id);
+    else
+      handle = 0;
+    DPRINTF("%d\n", aaa);
+  }
+  */
+
   dlPostUpdate();
 #endif
 
@@ -195,7 +301,7 @@ void nodeUpdate(Moby* moby)
 {
   static int initialized = 0;
   if (!initialized) {
-    DPRINTF("node %08X\n", (u32)moby);
+    DPRINTF("node %08X bolt:%08X\n", (u32)moby, *(u32*)(moby->PVar + 0xC));
     initialized = 1;
   }
 
@@ -227,7 +333,15 @@ void nodeUpdate(Moby* moby)
 
   if (MapConfig.ClientsReady || !netGetDmeServerConnection())
   {
+    static int asd = 0;
+    if (!asd) {
+      asd = 1;
+      printf("ready\n");
+    }
+
     mboxSpawn();
+    wraithSpawn();
+    surgeSpawn();
     gateSpawn(GateLocations, GateLocationsCount);
   }
 }

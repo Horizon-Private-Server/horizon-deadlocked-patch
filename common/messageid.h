@@ -11,6 +11,9 @@
 #ifndef _MESSAGEID_H_
 #define _MESSAGEID_H_
 
+
+#define PATCH_GAME_STATS_VERSION              (1)
+
 /*
  * NAME :		CustomMessageId
  * 

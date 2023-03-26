@@ -1277,6 +1277,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
+    gameState->CustomGameStatsSize = sizeof(struct SNDGameData);
 		struct SNDGameData* sGameData = (struct SNDGameData*)gameState->CustomGameStats.Payload;
 		
 		sGameData->Version = 2;

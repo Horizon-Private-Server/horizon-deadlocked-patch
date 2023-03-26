@@ -436,7 +436,7 @@ const char* CustomModeShortNames[] = {
   NULL,
   NULL,
   NULL,
-  "Climber",
+  //"Climber",
   NULL,
   "SND",
   NULL,
@@ -450,6 +450,7 @@ const char* CustomModeShortNames[] = {
 };
 
 // survival difficulty
+/*
 MenuElem_ListData_t dataSurvivalDifficulty = {
     &gameConfig.survivalConfig.difficulty,
     NULL,
@@ -462,6 +463,7 @@ MenuElem_ListData_t dataSurvivalDifficulty = {
       "Exterminator"
     }
 };
+*/
 
 // payload contest mode
 MenuElem_ListData_t dataPayloadContestMode = {
@@ -574,7 +576,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
 
   // SURVIVAL SETTINGS
-  { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
+  // { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
 
   // PAYLOAD SETTINGS
   { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode },
@@ -617,7 +619,7 @@ MenuElem_t menuElementsCustomMap[] = {
   { "and insert it into your PS2.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Finally install the custom maps modules here.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
   { "Install custom map modules", buttonActionHandler, menuStateHandler_InstallCustomMaps, mapsSelectHandler },
-  { "Check for map updates", buttonActionHandler, menuStateHandler_CheckForUpdatesCustomMaps, downloadMapUpdatesSelectHandler },
+  //{ "Check for map updates", buttonActionHandler, menuStateHandler_CheckForUpdatesCustomMaps, downloadMapUpdatesSelectHandler },
 };
 
 #if MAPEDITOR
@@ -872,11 +874,18 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 // 
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value)
 {
+  int i;
   if (!value)
     return 0;
 
   char gm = gameConfig.customModeId;
   char v = *value;
+
+  // disable duck hunt
+  if (v == CUSTOM_MAP_DUCK_HUNT) {
+    *value = CUSTOM_MAP_NONE;
+    return 0;
+  }
 
   switch (gm)
   {
@@ -899,8 +908,30 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
       *value = CUSTOM_MAP_DESERT_PRISON;
       return 0;
     }
+    case CUSTOM_MODE_TRAINING:
+    {
+      *value = CUSTOM_MAP_NONE;
+      return 0;
+    }
     default:
     {
+#if DEBUG
+      return 1;
+#endif
+
+      // hide maps with gamemode override
+      if (gm > CUSTOM_MODE_NONE)
+      {
+        for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
+        {
+          if (v == dataCustomMapsWithExclusiveGameMode[i])
+          {
+            *value = CUSTOM_MAP_NONE;
+            return 0;
+          }
+        }
+      }
+
       if (v < CUSTOM_MAP_SURVIVAL_START)
         return 1;
       
@@ -916,6 +947,7 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
   int i = 0;
 
   // hide gamemode for maps with exclusive gamemode
+#if !DEBUG
   for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
   {
     if (gameConfig.customMapId == dataCustomMapsWithExclusiveGameMode[i])
@@ -924,6 +956,7 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
       return;
     }
   }
+#endif
 
   *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
@@ -1138,6 +1171,10 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
   // get element state
   int state = getMenuElementState(tab, element);
 
+  int selectedIdx = (int)*listData->value;
+  if (selectedIdx < 0)
+    selectedIdx = 0;
+  
   float x,y;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
@@ -1149,7 +1186,7 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
 
   // draw value
   x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
-  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[(int)*listData->value], -1, 2);
+  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[selectedIdx], -1, 2);
 }
 
 //------------------------------------------------------------------------------

@@ -867,7 +867,7 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_0D = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 0;

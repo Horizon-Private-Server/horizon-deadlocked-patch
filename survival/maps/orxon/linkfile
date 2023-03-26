@@ -14,7 +14,7 @@
 ENTRY(_start);
 
 SECTIONS {
-	.text 0x01E60000: {
+	.text 0x01EF0000: {
 		_ftext = . ;
 		*(.text)
 		KEEP(*(.config))

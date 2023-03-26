@@ -38,7 +38,7 @@ void powerOnMysteryBoxActivatePower(void);
 
 
 char* ITEM_NAMES[] = {
-  [MYSTERY_BOX_ITEM_RESET_GATES] "",
+  [MYSTERY_BOX_ITEM_RESET_GATE] "",
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] "",
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] "Upgrade Weapon",
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] "Infinite Ammo",
@@ -50,7 +50,7 @@ char* ITEM_NAMES[] = {
 };
 
 int ITEM_TEX_IDS[] = {
-  [MYSTERY_BOX_ITEM_RESET_GATES] 14 - 3,
+  [MYSTERY_BOX_ITEM_RESET_GATE] 14 - 3,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 132 - 3,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 37 - 3,
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] 93 - 3,
@@ -62,7 +62,7 @@ int ITEM_TEX_IDS[] = {
 };
 
 u32 ITEM_COLORS[] = {
-  [MYSTERY_BOX_ITEM_RESET_GATES] 0x8000FFFF,
+  [MYSTERY_BOX_ITEM_RESET_GATE] 0x8000FFFF,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 0x80808080,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] 0x8000FFFF,
@@ -80,6 +80,7 @@ int ALPHA_MOD_TEX_IDS[] = {
   [ALPHA_MOD_IMPACT] 47 - 3,
   [ALPHA_MOD_AREA] 42 - 3,
   [ALPHA_MOD_JACKPOT] 49 - 3,
+  [ALPHA_MOD_XP] 44 - 3,
 };
 
 const char * ALPHA_MODS[] = {
@@ -108,26 +109,8 @@ SoundDef BaseMysteryBoxSoundDef =
 	3			  // Bank
 };
 
-struct MysteryBoxItemWeight
-{
-  enum MysteryBoxItem Item;
-  float Probability;
-};
-
-struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
-  { MYSTERY_BOX_ITEM_RESET_GATES, 0.05 },
-  { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
-  { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
-  { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },
-  { MYSTERY_BOX_ITEM_ACTIVATE_POWER, 0.0888 },
-  { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.0967 },
-  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
-  { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
-  // { MYSTERY_BOX_ITEM_WEAPON_MOD, 0.4 },
-  { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
-};
-
-const int MysteryBoxItemMysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)/sizeof(struct MysteryBoxItemWeight);
+extern struct MysteryBoxItemWeight MysteryBoxItemProbabilities[];
+extern const int MysteryBoxItemMysteryBoxItemProbabilitiesCount;
 
 //--------------------------------------------------------------------------
 void mboxPlayOpenSound(Moby* moby)
@@ -144,9 +127,7 @@ int mboxGetAlphaMod(Moby* moby)
 
   struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
   
-	int alphaMod = (pvars->Random % 6) + 1;
-	if (alphaMod == ALPHA_MOD_XP)
-		alphaMod++;
+	int alphaMod = (pvars->Random % 7) + 1;
 
   return alphaMod;
 }
@@ -167,24 +148,6 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
 {
   int i;
 
-#if DEBUG
-  static int total = 0;
-  static int counts[MYSTERY_BOX_ITEM_COUNT] = {
-    0,0,0,0,0,0,0,0
-  };
-  const char * NAMES[MYSTERY_BOX_ITEM_COUNT] = {
-    [MYSTERY_BOX_ITEM_WEAPON_MOD] "Alpha  ",
-    [MYSTERY_BOX_ITEM_ACTIVATE_POWER] "Power  ",
-    [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] "Upgrade",
-    [MYSTERY_BOX_ITEM_DREAD_TOKEN] "Token  ",
-    [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] "Cloak  ",
-    [MYSTERY_BOX_ITEM_REVIVE_TOTEM] "Revive ",
-    [MYSTERY_BOX_ITEM_INFINITE_AMMO] "InfAmmo "
-    [MYSTERY_BOX_ITEM_RESET_GATES] "Reset  ",
-    [MYSTERY_BOX_ITEM_TEDDY_BEAR] "Bear   ",
-  };
-#endif
-
 	// create event
 	GuberEvent * guberEvent = guberCreateEvent(moby, MYSTERY_BOX_EVENT_ACTIVATE);
   if (guberEvent) {
@@ -199,19 +162,6 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
 
     int item = MysteryBoxItemProbabilities[i].Item;
     int random = rand(100);
-
-#if DEBUG
-    counts[item] ++;
-    total ++;
-
-    printf("counts (%d):\n", total);
-    for (i = 0; i < MYSTERY_BOX_ITEM_COUNT; ++i) {
-      if (counts[i]) {
-        printf("\t%s => %d (%.2f%%)\n", NAMES[i], counts[i], 100 * (counts[i] / (float)total));
-      }
-    }
-    printf("\n");
-#endif
 
     guberEventWrite(guberEvent, &activatedByPlayerId, 4);
     guberEventWrite(guberEvent, &item, 4);
@@ -415,7 +365,7 @@ void mboxUpdate(Moby* moby)
       // handle items that are forced onto player
       switch (pvars->Item)
       {
-        case MYSTERY_BOX_ITEM_RESET_GATES:
+        case MYSTERY_BOX_ITEM_RESET_GATE:
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:
         {
           mboxGivePlayer(moby, pvars->ActivatedByPlayerId, pvars->Item, pvars->Random);
@@ -575,6 +525,11 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
   guberEventRead(event, &item, 4);
   guberEventRead(event, &random, 4);
   
+  // increment stat
+  if (activatedByPlayerId >= 0 && MapConfig.State) {
+    MapConfig.State->PlayerStates[activatedByPlayerId].State.TimesRolledMysteryBox += 1;
+  }
+
   // 
   if (moby->State == MYSTERY_BOX_STATE_IDLE) {
     
@@ -630,25 +585,15 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
 
       switch (item)
       {
-        case MYSTERY_BOX_ITEM_RESET_GATES:
+        case MYSTERY_BOX_ITEM_RESET_GATE:
         {
-          pushSnack(-1, "Map reset!", 60);
-          
-          Moby* mStart = mobyListGetStart();
-          Moby* mEnd = mobyListGetEnd();
+          pushSnack(-1, "Gate reset!", 60);
 
-          while (mStart < mEnd) {
-
-            if (mStart->OClass == GATE_OCLASS && !mobyIsDestroyed(mStart) && mStart->State == GATE_STATE_DEACTIVATED) {
-              struct GatePVar* gatePvars = (struct GatePVar*)mStart->PVar;
-              if (gatePvars && gatePvars->Cost == 0) {
-                gatePvars->Cost = 1;
-                mobySetState(mStart, GATE_STATE_ACTIVATED, -1);
-              }
-            }
-
-            ++mStart;
+#if GATE
+          if (gameAmIHost()) {
+            gateResetRandomGate();
           }
+#endif
           break;
         }
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:
@@ -782,7 +727,7 @@ void mboxInit(void)
   if (mobyFunctionsPtr) {
     *(u32*)(mobyFunctionsPtr + 0x04) = (u32)&mboxGetGuber;
     *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&mboxHandleEvent;
-    DPRINTF("oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
+    DPRINTF("MBOX oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
 }

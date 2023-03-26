@@ -474,6 +474,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
+    gameState->CustomGameStatsSize = sizeof(struct TrainingGameData);
 		struct TrainingGameData* sGameData = (struct TrainingGameData*)gameState->CustomGameStats.Payload;
 		sGameData->Version = 0x00000002;
 		sGameData->Points = State.Points;
