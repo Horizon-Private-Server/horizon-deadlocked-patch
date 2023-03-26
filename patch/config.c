@@ -874,6 +874,7 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 // 
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value)
 {
+  int i;
   if (!value)
     return 0;
 
@@ -901,11 +902,30 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
       *value = CUSTOM_MAP_DESERT_PRISON;
       return 0;
     }
+    case CUSTOM_MODE_TRAINING:
+    {
+      *value = CUSTOM_MAP_NONE;
+      return 0;
+    }
     default:
     {
 #if DEBUG
       return 1;
 #endif
+
+      // hide maps with gamemode override
+      if (gm != CUSTOM_MODE_NONE)
+      {
+        for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
+        {
+          if (v == dataCustomMapsWithExclusiveGameMode[i])
+          {
+            *value = CUSTOM_MAP_NONE;
+            return 0;
+          }
+        }
+      }
+
       if (v < CUSTOM_MAP_SURVIVAL_START)
         return 1;
       
@@ -1145,6 +1165,10 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
   // get element state
   int state = getMenuElementState(tab, element);
 
+  int selectedIdx = (int)*listData->value;
+  if (selectedIdx < 0)
+    selectedIdx = 0;
+  
   float x,y;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
@@ -1156,7 +1180,7 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
 
   // draw value
   x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
-  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[(int)*listData->value], -1, 2);
+  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[selectedIdx], -1, 2);
 }
 
 //------------------------------------------------------------------------------
