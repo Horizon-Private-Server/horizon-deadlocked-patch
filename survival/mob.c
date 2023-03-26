@@ -764,6 +764,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 		// handle stats
 		pState->State.Kills++;
+    pState->State.KillsPerMob[pvars->MobVars.SpawnParamsIdx]++;
 		gameData->PlayerStats.Kills[killedByPlayerId]++;
 		int weaponSlotId = weaponIdToSlot(weaponId);
 		if (weaponId > 0 && (weaponId != WEAPON_ID_WRENCH || weaponSlotId == WEAPON_SLOT_WRENCH))
@@ -817,6 +818,8 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	float newHp = pvars->MobVars.Health - damage;
 	pvars->MobVars.Health = newHp;
 	pvars->TargetVars.hitPoints = newHp;
+
+  // 
 
 	// drop armor bangle
 	/*

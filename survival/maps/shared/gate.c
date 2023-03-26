@@ -329,6 +329,11 @@ int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
   
   guberEventRead(event, &pIdx, 4);
 
+  // increment stat
+  if (pIdx >= 0 && MapConfig.State) {
+    MapConfig.State->PlayerStates[pIdx].State.TokensUsedOnGates += 1;
+  }
+  
   // reduce cost by 1
   // open gate if cost reduced to 0
   if (pvars->Cost > 0 && moby->State == GATE_STATE_ACTIVATED) {

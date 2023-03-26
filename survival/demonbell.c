@@ -72,7 +72,16 @@ void demonbellUpdate(Moby* moby)
 
           // activate
           if (pvars->HitAmount == 1 && gameAmIHost()) {
-            demonbellCreateEvent(moby, DEMONBELL_EVENT_ACTIVATE);
+            GuberEvent * guberEvent = demonbellCreateEvent(moby, DEMONBELL_EVENT_ACTIVATE);
+            Player* sourcePlayer = guberMobyGetPlayerDamager(colDamage->Damager);
+            int activatedByPlayerId = -1;
+            if (sourcePlayer) {
+              activatedByPlayerId = sourcePlayer->PlayerId;
+            }
+
+            if (guberEvent) {
+              guberEventWrite(guberEvent, &activatedByPlayerId, 4);
+            }
           }
         }
 
@@ -165,16 +174,25 @@ int demonbellHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int demonbellHandleEvent_Activate(Moby* moby, GuberEvent* event)
 {
+  int activatedByPlayerId = -1;
 	struct DemonBellPVar* pvars = (struct DemonBellPVar*)moby->PVar;
 	if (!pvars)
 		return 0;
+
+
+  guberEventRead(event, &activatedByPlayerId, 4);
+
+  // increment demon bell stat
+  if (activatedByPlayerId >= 0) {
+    State.PlayerStates[activatedByPlayerId].State.TimesActivatedDemonBell += 1;
+  }
 
   pvars->RoundActivated = State.RoundNumber;
   State.RoundDemonBellCount += 1;
   mobySetState(moby, 1, -1);
   demonbellPlayActivateSound(moby);
   pushSnack("Demon Bell Activated!", 120, 0);
-	DPRINTF("demonbell activated at %08X\n", (u32)moby);
+	DPRINTF("demonbell activated at %08X by \n", (u32)moby, activatedByPlayerId);
 	return 0;
 }
 

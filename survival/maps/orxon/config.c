@@ -81,6 +81,7 @@ const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct S
 
 // NOTE
 // These must be ordered from least probable to most probable
+// SHOULD NEVER EXCEED MAX_MOB_SPAWN_PARAMS
 struct MobSpawnParams defaultSpawnParams[] = {
 	// executioner
 	[MOB_SPAWN_PARAM_TITAN]
@@ -89,6 +90,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 10,
 		.CooldownTicks = TPS * 10,
 		.Probability = 0.01,
+    .StatId = MOB_STAT_EXECUTIONER,
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
 		.Name = "Titan",
 		.Config = {
@@ -122,6 +124,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 4,
 		.CooldownTicks = TPS * 1,
 		.Probability = 0.05,
+    .StatId = MOB_STAT_ZOMBIE_GHOST,
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM | SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
 		.Name = "Ghost",
 		.Config = {
@@ -153,6 +156,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 6,
 		.CooldownTicks = TPS * 2,
 		.Probability = 0.08,
+    .StatId = MOB_STAT_ZOMBIE_EXPLODE,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_ON_PLAYER,
 		.Name = "Explosion",
 		.Config = {
@@ -184,6 +188,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 10,
 		.Probability = 0.09,
 		.CooldownTicks = TPS * 1,
+    .StatId = MOB_STAT_ZOMBIE_ACID,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
 		.Name = "Acid",
 		.Config = {
@@ -215,6 +220,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 8,
 		.CooldownTicks = TPS * 1,
 		.Probability = 0.1,
+    .StatId = MOB_STAT_ZOMBIE_FREEZE,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Freeze",
 		.Config = {
@@ -246,6 +252,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 0.1,
+    .StatId = MOB_STAT_TREMOR,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Runner",
 		.Config = {
@@ -277,6 +284,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 1.0,
+    .StatId = MOB_STAT_ZOMBIE,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Zombie",
 		.Config = {

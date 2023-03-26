@@ -152,3 +152,4 @@ Cleanup orxon collision
 Fix OPL crash on load
 ++Buff surge
 ++Add gate reset (resets gate 100% cost)
+++Teams off ends game when only one team left

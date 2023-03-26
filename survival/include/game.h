@@ -113,6 +113,8 @@
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
 
+#define MAX_MOB_SPAWN_PARAMS                  (10)
+
 enum GameNetMessage
 {
 	CUSTOM_MSG_ROUND_COMPLETE = CUSTOM_MSG_ID_GAME_MODE_START,
@@ -137,6 +139,19 @@ enum BakedSpawnpointType
 	BAKED_SPAWNPOINT_PLAYER_START = 2,
 	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
 	BAKED_SPAWNPOINT_DEMON_BELL = 4,
+};
+
+enum MobStatId
+{
+  MOB_STAT_NONE               = 0,
+  MOB_STAT_ZOMBIE             = 1,
+  MOB_STAT_ZOMBIE_FREEZE      = 2,
+  MOB_STAT_ZOMBIE_ACID        = 3,
+  MOB_STAT_ZOMBIE_GHOST       = 4,
+  MOB_STAT_ZOMBIE_EXPLODE     = 5,
+  MOB_STAT_TREMOR             = 6,
+  MOB_STAT_EXECUTIONER        = 7,
+  MOB_STAT_COUNT
 };
 
 struct MobConfig;
@@ -174,7 +189,14 @@ struct SurvivalPlayerState
 	int TotalTokens;
 	int CurrentTokens;
   int Item;
-	int Upgrades[UPGRADE_COUNT];
+  int BestRound;
+  int TimesRolledMysteryBox;
+  int TimesActivatedDemonBell;
+  int TimesActivatedPower;
+  int TokensUsedOnGates;
+	int KillsPerMob[MAX_MOB_SPAWN_PARAMS];
+	short DeathsByMob[MAX_MOB_SPAWN_PARAMS];
+	short Upgrades[UPGRADE_COUNT];
 	short AlphaMods[8];
 	char BestWeaponLevel[9];
 };
@@ -280,6 +302,15 @@ struct SurvivalGameData
 	int Kills[GAME_MAX_PLAYERS];
 	int Revives[GAME_MAX_PLAYERS];
 	int TimesRevived[GAME_MAX_PLAYERS];
+  int KillsPerMob[GAME_MAX_PLAYERS][MAX_MOB_SPAWN_PARAMS];
+  short DeathsByMob[GAME_MAX_PLAYERS][MAX_MOB_SPAWN_PARAMS];
+  short MobIds[MAX_MOB_SPAWN_PARAMS];
+	short BestRound[GAME_MAX_PLAYERS];
+	short PlayerUpgrades[GAME_MAX_PLAYERS][UPGRADE_COUNT];
+	short TimesRolledMysteryBox[GAME_MAX_PLAYERS];
+	short TimesActivatedDemonBell[GAME_MAX_PLAYERS];
+	short TimesActivatedPower[GAME_MAX_PLAYERS];
+  short TokensUsedOnGates[GAME_MAX_PLAYERS];
 	char AlphaMods[GAME_MAX_PLAYERS][8];
 	char BestWeaponLevel[GAME_MAX_PLAYERS][9];
 };

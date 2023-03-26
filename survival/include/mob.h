@@ -10,8 +10,7 @@
 #include "zombie.h"
 #include "executioner.h"
 #include "tremor.h"
-
-#define MAX_MOB_SPAWN_PARAMS              (32)
+#include "game.h"
 
 enum MobAction
 {
@@ -121,6 +120,7 @@ struct MobSpawnParams {
 	int MinRound;
 	int CooldownTicks;
 	float Probability;
+  enum MobStatId StatId;
 	enum MobSpawnType SpawnType;
 	char Name[32];
 	struct MobConfig Config;

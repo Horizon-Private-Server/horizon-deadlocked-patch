@@ -1310,6 +1310,18 @@ void processPlayer(int pIndex) {
 
 		// handle death
 		if (isDeadState && !playerData->IsDead) {
+
+      // increment DeathsByMob if we were killed by a mob
+      if (player->PlayerMoby->CollDamage >= 0) {
+        MobyColDamage* damage = mobyGetDamage(player->PlayerMoby, 0xFFFFFF, 1);
+        if (damage && mobyIsMob(damage->Damager)) {
+          struct MobPVar* pvars = (struct MobPVar*)damage->Damager->PVar;
+          if (pvars) {
+            playerData->State.DeathsByMob[pvars->MobVars.SpawnParamsIdx] += 1;
+          }
+        }
+      }
+
       if (playerData->State.Item == MYSTERY_BOX_ITEM_REVIVE_TOTEM) {
         playerRevive(player, player->PlayerId);
         uiShowPopup(0, "Self Revive Used!");
@@ -1609,6 +1621,9 @@ void setRoundComplete(void)
 //--------------------------------------------------------------------------
 void onSetRoundStart(int roundNumber, int gameTime)
 {
+  int i;
+  Player** players = playerGetAll();
+
   if (State.RoundNumber != roundNumber) {
     State.RoundDemonBellCount = 0;
   }
@@ -1619,6 +1634,14 @@ void onSetRoundStart(int roundNumber, int gameTime)
   if (mapConfig->DefaultSpawnParams && mapConfig->SpecialRoundParamsCount > 0) {
     State.RoundIsSpecial = ((roundNumber + 1) % ROUND_SPECIAL_EVERY) == 0;
     State.RoundSpecialIdx = (roundNumber / ROUND_SPECIAL_EVERY) % mapConfig->SpecialRoundParamsCount;
+  }
+
+  // set best round for each player still in lobby
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && player->SkinMoby) {
+      State.PlayerStates[i].State.BestRound = roundNumber;
+    }
   }
 
 	DPRINTF("round start %d\n", roundNumber);
@@ -1837,8 +1860,12 @@ int whoKilledMeHook(Player* player, Moby* moby, int b)
     return 0;
 
   // only allow mobs or special mobys
-  if (mobyIsMob(moby) || moby->Bolts == -1)
+  if (mobyIsMob(moby) || moby->Bolts == -1) {
+    DPRINTF("%08X %f %d %d\n", (u32)moby, player->Health, player->PlayerState, playerIsDead(player));
+
+
     return ((int (*)(Player*, Moby*, int))0x005dff08)(player, moby, b);
+  }
 
 	return 0;
 }
@@ -1999,6 +2026,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	*(u32*)0x00620F54 = 0;	// time end (1)
 	*(u32*)0x00621568 = 0;	// kills reached (2)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
+  *(u32*)0x006210D8 = 0;	// all enemies leave (9)
 
   // disable holoshields from disappearing
   //*(u16*)0x00401478 = 2;
@@ -2295,19 +2323,39 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
+    gameState->CustomGameStatsSize = sizeof(struct SurvivalGameData);
 		struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats.Payload;
 		sGameData->RoundNumber = State.RoundNumber;
-		sGameData->Version = 0x00000002;
+		sGameData->Version = 0x00000003;
 
+    int a = sizeof (struct SurvivalGameData);
+
+    // set mob ids
+    for (i = 0; i < mapConfig->DefaultSpawnParamsCount && i < MAX_MOB_SPAWN_PARAMS; ++i) {
+      sGameData->MobIds[i] = (short)mapConfig->DefaultSpawnParams[i].StatId;
+    }
+
+    // set per player stats
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
 			sGameData->Kills[i] = State.PlayerStates[i].State.Kills;
 			sGameData->Revives[i] = State.PlayerStates[i].State.Revives;
 			sGameData->TimesRevived[i] = State.PlayerStates[i].State.TimesRevived;
 			sGameData->Points[i] = State.PlayerStates[i].State.TotalBolts;
-			for (j = 0; j < 8; ++j)
+			sGameData->BestRound[i] = State.PlayerStates[i].State.BestRound;
+			sGameData->TimesRolledMysteryBox[i] = State.PlayerStates[i].State.TimesRolledMysteryBox;
+			sGameData->TimesActivatedDemonBell[i] = State.PlayerStates[i].State.TimesActivatedDemonBell;
+			sGameData->TimesActivatedPower[i] = State.PlayerStates[i].State.TimesActivatedPower;
+			sGameData->TokensUsedOnGates[i] = State.PlayerStates[i].State.TokensUsedOnGates;
+
+			for (j = 0; j < 8; ++j) {
 				sGameData->AlphaMods[i][j] = (u8)State.PlayerStates[i].State.AlphaMods[j];
+      }
+
 			memcpy(sGameData->BestWeaponLevel[i], State.PlayerStates[i].State.BestWeaponLevel, sizeof(State.PlayerStates[i].State.BestWeaponLevel));
+			memcpy(sGameData->KillsPerMob[i], State.PlayerStates[i].State.KillsPerMob, sizeof(State.PlayerStates[i].State.KillsPerMob));
+			memcpy(sGameData->DeathsByMob[i], State.PlayerStates[i].State.DeathsByMob, sizeof(State.PlayerStates[i].State.DeathsByMob));
+			memcpy(sGameData->PlayerUpgrades[i], State.PlayerStates[i].State.Upgrades, sizeof(State.PlayerStates[i].State.Upgrades));
 		}
 	}
 }
@@ -2372,7 +2420,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
       //manSpawnMobId = 0;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
         manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
       }

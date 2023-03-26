@@ -269,6 +269,12 @@ void powerNodeUpdate(Moby* moby)
     powerTimeOff = gameGetTime() + TIME_SECOND*90;
     powerUpdateMobies(1);
     pushSnack(-1, "Power activated!", 60);
+
+
+    // increment stat
+    if (playerOnCrank >= 0 && MapConfig.State) {
+      MapConfig.State->PlayerStates[playerOnCrank].State.TimesActivatedPower += 1;
+    }
   }
 
   powerDeactivateMobyTempPower();

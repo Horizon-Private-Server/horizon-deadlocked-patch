@@ -525,6 +525,11 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
   guberEventRead(event, &item, 4);
   guberEventRead(event, &random, 4);
   
+  // increment stat
+  if (activatedByPlayerId >= 0 && MapConfig.State) {
+    MapConfig.State->PlayerStates[activatedByPlayerId].State.TimesRolledMysteryBox += 1;
+  }
+
   // 
   if (moby->State == MYSTERY_BOX_STATE_IDLE) {
     
