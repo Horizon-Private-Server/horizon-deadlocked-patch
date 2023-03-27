@@ -322,8 +322,7 @@ void rotatingWeaponsLogic(void)
 			// give weapon
 			GadgetBox* gBox = player->GadgetBox;
 			if (gBox->Gadgets[RotatingWeaponsActiveId].Level < 0) {
-				playerGiveWeapon(player, RotatingWeaponsActiveId, 0);
-				gBox->Gadgets[RotatingWeaponsActiveId].Level = 0;
+				playerGiveWeapon(gBox, RotatingWeaponsActiveId, 0);
 			}
 
 			// set slot and weapon

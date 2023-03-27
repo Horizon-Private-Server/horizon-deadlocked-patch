@@ -688,9 +688,8 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 		return;
 
 	GadgetBox* gBox = p->GadgetBox;
-	playerGiveWeapon(p, weaponId, level);
-	gBox->Gadgets[weaponId].Level = level;
-	gBox->Gadgets[weaponId].Ammo = playerGetWeaponAmmo(p, weaponId);
+	gBox->Gadgets[weaponId].Level = -1;
+	playerGiveWeapon(gBox, weaponId, level);
 	if (p->Gadgets[0].pMoby && p->Gadgets[0].id == weaponId)
 		customBangelizeWeapons(p->Gadgets[0].pMoby, weaponId, level);
 

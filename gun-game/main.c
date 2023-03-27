@@ -213,8 +213,7 @@ void setWeapon(Player * player, int weaponId)
 	// Give
 	if (gBox->Gadgets[weaponId].Level < 0)
 	{
-		playerGiveWeapon(player, weaponId, 0);
-		gBox->Gadgets[weaponId].Level = 0;
+		playerGiveWeapon(gBox, weaponId, 0);
 	}
 
 	// Set alpha mods
