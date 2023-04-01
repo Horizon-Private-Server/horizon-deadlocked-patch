@@ -26,9 +26,11 @@ enum DemonBellEventType {
 };
 
 struct DemonBellPVar {
+  int Id;
   float HitAmount;
   u32 RecoverCooldownTicks;
   int RoundActivated;
+  int ForcedOn;
 };
 
 struct DemonBellDestroyedEventArgs
@@ -37,7 +39,8 @@ struct DemonBellDestroyedEventArgs
 };
 
 int demonbellHandleEvent(Moby* moby, GuberEvent* event);
+void demonbellOnRoundChanged(int roundNo);
 void demonbellInitialize(void);
-int demonbellCreate(VECTOR position);
+int demonbellCreate(VECTOR position, int id);
 
 #endif // SURVIVAL_DEMONBELL_H

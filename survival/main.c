@@ -41,7 +41,7 @@
 #include "include/utils.h"
 #include "include/gate.h"
 
-#define DIFFICULTY_FACTOR                   (State.TotalMobsSpawned / 200)
+#define DIFFICULTY_FACTOR                   (State.TotalMobsSpawned / 150)
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
@@ -58,6 +58,7 @@ const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
 	[UPGRADE_DAMAGE] "\x11 Damage Upgrade",
 	[UPGRADE_MEDIC] "\x11 Revive Discount",
 	[UPGRADE_VENDOR] "\x11 Vendor Discount",
+	[UPGRADE_PICKUPS] "\x11 Increase Powerup Duration",
 };
 
 const char * ALPHA_MODS[] = {
@@ -444,9 +445,9 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
     //health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale), roundNo * (0 + State.Difficulty) * randRange(0.8, 1.2));
 
     //printf("1 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
-    damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.8, 1.2)), 2);
-    speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.8, 1.2)), 2);
-    health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.8, 1.2)), 2);
+    damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
+    speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
+    health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
     //printf("2 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
 
   }
@@ -525,7 +526,7 @@ int spawnRandomMob(void) {
     }
     else if (State.RoundIsSpecial) {
       defaultSpawnParamsCooldowns[mobIdx] = lerpf(2 * TPS, mob->CooldownTicks, mapConfig->SpecialRoundParams[State.RoundSpecialIdx].SpawnRateFactor);
-      DPRINTF("%d => %d\n", mobIdx, defaultSpawnParamsCooldowns[mobIdx]);
+      //DPRINTF("%d => %d\n", mobIdx, defaultSpawnParamsCooldowns[mobIdx]);
     }
     else {
       defaultSpawnParamsCooldowns[mobIdx] = mob->CooldownTicks;
@@ -950,14 +951,6 @@ void onPlayerUseItem(int playerId, enum MysteryBoxItem item)
       }
       break;
     }
-    case MYSTERY_BOX_ITEM_INFINITE_AMMO:
-    {
-      State.PlayerStates[playerId].InfiniteAmmoStopTime = gameGetTime() + ITEM_INFAMMO_DURATION;
-      if (State.PlayerStates[playerId].IsLocal) {
-        pushSnack("Infinite Ammo!", TPS, players[playerId]->LocalPlayerIndex);
-      }
-      break;
-    }
     default:
     {
       break;
@@ -1200,6 +1193,28 @@ void respawnDeadPlayers(void) {
 }
 
 //--------------------------------------------------------------------------
+void setPlayerQuadCooldownTimer(Player * player) {
+	player->timers.damageMuliplierTimer = 1200 + State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 0.75;
+  player->DamageMultiplier = 4;
+}
+
+//--------------------------------------------------------------------------
+void setPlayerShieldCooldownTimer(void) {
+	
+  Player* player = NULL;
+
+	// pointer to player is in $s1
+	asm volatile (
+    ".set noreorder;"
+		"move %0, $s1"
+		: : "r" (player)
+	);
+
+  player->timers.armorLevelTimer = 1800 + State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 1.00;
+  POKE_U32((u32)player + 0x2FB4, 3);
+}
+
+//--------------------------------------------------------------------------
 int getPlayerReviveCost(Player * fromPlayer, Player * player) {
 	if (!player || !fromPlayer)
 		return 0;
@@ -1262,17 +1277,6 @@ void processPlayer(int pIndex) {
     } else {
       player->SkinMoby->Opacity = 0x80;
       playerData->InvisibilityCloakStopTime = -1;
-    }
-  }
-
-  // handle inf ammo
-  if (playerData->InfiniteAmmoStopTime > 0) {
-    int timeUntilEnd = gameGetTime() - playerData->InfiniteAmmoStopTime;
-    if (timeUntilEnd < 0) {
-      gameGetOptions()->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
-    } else {
-      gameGetOptions()->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
-      playerData->InfiniteAmmoStopTime = -1;
     }
   }
 
@@ -1509,7 +1513,7 @@ void processPlayer(int pIndex) {
 		}
 
     // handle items
-    if (padGetButtonDown(0, PAD_LEFT) > 0 && (playerData->State.Item == MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK || playerData->State.Item == MYSTERY_BOX_ITEM_INFINITE_AMMO)) {
+    if (padGetButtonDown(0, PAD_LEFT) > 0 && (playerData->State.Item == MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK)) {
       playerUseItem(pIndex, playerData->State.Item);
     }
 
@@ -1625,6 +1629,7 @@ void onSetRoundStart(int roundNumber, int gameTime)
 
   if (State.RoundNumber != roundNumber) {
     State.RoundDemonBellCount = 0;
+    demonbellOnRoundChanged(roundNumber);
   }
 
 	// 
@@ -1696,7 +1701,7 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
 
 	struct HUDWidgetRectangleObject* expBar = hudCanvasGetObject(canvas, 0xF000010A);
 	if (!expBar) {
-		DPRINTF("no exp bar %d canvas:%d\n", localPlayerIndex, canvasId);
+		//DPRINTF("no exp bar %d canvas:%d\n", localPlayerIndex, canvasId);
     return;
   }
 	
@@ -1860,7 +1865,7 @@ int whoKilledMeHook(Player* player, Moby* moby, int b)
 
   // only allow mobs or special mobys
   if (mobyIsMob(moby) || moby->Bolts == -1) {
-    DPRINTF("%08X %f %d %d\n", (u32)moby, player->Health, player->PlayerState, playerIsDead(player));
+    //DPRINTF("%08X %f %d %d\n", (u32)moby, player->Health, player->PlayerState, playerIsDead(player));
 
 
     return ((int (*)(Player*, Moby*, int))0x005dff08)(player, moby, b);
@@ -1971,7 +1976,7 @@ void spawnDemonBell(void)
 	// count number of baked spawnpoints used for upgrade
 	for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
 		if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_DEMON_BELL) {
-      demonbellCreate(BakedConfig.BakedSpawnPoints[i].Position);
+      demonbellCreate(BakedConfig.BakedSpawnPoints[i].Position, State.DemonBellCount);
       State.DemonBellCount += 1;
     }
 	}
@@ -2067,7 +2072,13 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	// patch who killed me to prevent damaging others
 	*(u32*)0x005E07C8 = 0x0C000000 | ((u32)&whoKilledMeHook >> 2);
 	*(u32*)0x005E11B0 = *(u32*)0x005E07C8;
-	
+
+  // patch quad/shield cooldown timer
+  HOOK_JAL(0x004468D8, &setPlayerQuadCooldownTimer);
+  POKE_U32(0x004468E4, 0);
+	HOOK_JAL(0x00446948, &setPlayerShieldCooldownTimer);
+  POKE_U32(0x00446954, 0);
+
 	// set default ammo for flail to 8
 	//*(u8*)0x0039A3B4 = 8;
 
@@ -2271,9 +2282,9 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 
 #if DEBUG
-	State.RoundNumber = 24;
-	State.RoundIsSpecial = 1;
-	State.RoundSpecialIdx = 4;
+	State.RoundNumber = 19;
+	//State.RoundIsSpecial = 1;
+	//State.RoundSpecialIdx = 4;
 
   // 
 	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
@@ -2325,9 +2336,7 @@ void updateGameState(PatchStateContainer_t * gameState)
     gameState->CustomGameStatsSize = sizeof(struct SurvivalGameData);
 		struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats.Payload;
 		sGameData->RoundNumber = State.RoundNumber;
-		sGameData->Version = 0x00000003;
-
-    int a = sizeof (struct SurvivalGameData);
+		sGameData->Version = 0x00000004;
 
     // set mob ids
     for (i = 0; i < mapConfig->DefaultSpawnParamsCount && i < MAX_MOB_SPAWN_PARAMS; ++i) {
@@ -2476,6 +2485,33 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	}
 #endif
 
+  // handle inf ammo
+  if (State.InfiniteAmmoStopTime > 0) {
+    int timeUntilEnd = gameGetTime() - State.InfiniteAmmoStopTime;
+    if (timeUntilEnd < 0) {
+      gameGetOptions()->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
+    } else {
+      gameGetOptions()->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
+      State.InfiniteAmmoStopTime = -1;
+
+      // give everyone max ammo
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+        Player* player = players[i];
+        if (!player || !player->SkinMoby || !player->GadgetBox)
+          continue;
+
+        int j = 0;
+        for (j = 0; j < 8; ++j) {
+          int weaponId = weaponSlotToId(j+1);
+          struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[weaponId];
+          if (gadgetEntry->Level >= 0) {
+            gadgetEntry->Ammo = playerGetWeaponAmmo(player, weaponId);
+          }
+        }
+      }
+    }
+  }
+
   // draw hud stuff
   if (!gameIsStartMenuOpen() && !localPlayerData->IsInWeaponsMenu) {
 
@@ -2527,7 +2563,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     {
       case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
       case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 19 - 3; useItemChar = '\x1A'; break;
-      case MYSTERY_BOX_ITEM_INFINITE_AMMO: itemTexId = 93 - 3; useItemChar = '\x1A'; itemColor = 0x8000C0C0; break;
       default: break;
     }
 
@@ -2728,7 +2763,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
                   // ticks to delay between spawning bursts
                   float maxBurstDelay = lerpf(MOB_SPAWN_BURST_MAX_DELAY, MOB_SPAWN_BURST_MIN_DELAY, clamp((State.RoundNumber / 20.0), 0, 1));
-                  maxBurstDelay = lerpf(maxBurstDelay, 5, demonBellFactor);
+                  maxBurstDelay = lerpf(MOB_SPAWN_BURST_MAX_DELAY, 5, demonBellFactor);
                   State.RoundSpawnTicker = randRangeInt(minf(maxBurstDelay, MOB_SPAWN_BURST_MIN_DELAY), maxBurstDelay);
 
                   //DPRINTF("MIN:%f MAX:%f BELL:%f TICKER:%f\n", minf(maxBurstDelay, MOB_SPAWN_BURST_MIN_DELAY)/60.0, maxBurstDelay/60.0, demonBellFactor, State.RoundSpawnTicker/60.0);

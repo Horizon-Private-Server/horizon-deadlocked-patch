@@ -25,6 +25,7 @@ char UpgradeTexIds[] = {
 	[UPGRADE_DAMAGE] 9,
 	[UPGRADE_MEDIC] 39,
 	[UPGRADE_VENDOR] 46,
+	[UPGRADE_PICKUPS] 2,
 };
 
 int UpgradeMax[] = {
@@ -33,6 +34,7 @@ int UpgradeMax[] = {
 	[UPGRADE_DAMAGE] 100,
 	[UPGRADE_MEDIC] 16,
 	[UPGRADE_VENDOR] 16,
+	[UPGRADE_PICKUPS] 33,
 };
 
 //--------------------------------------------------------------------------
@@ -321,6 +323,11 @@ int upgradeHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 			case UPGRADE_VENDOR:
 			{
 				uiShowPopup(targetPlayer->LocalPlayerIndex, "Vendor discount!");
+				break;
+			}
+			case UPGRADE_PICKUPS:
+			{
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Powerup duration increased!");
 				break;
 			}
 		}
