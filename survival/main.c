@@ -806,6 +806,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
   }
 
 	player->timers.acidTimer = 0;
+	player->timers.collOff = 0;
 	player->timers.freezeTimer = 1; // triggers the game to handle resetting movement speed on 0
 	player->timers.postHitInvinc = TPS * 3;
 }
@@ -1194,7 +1195,7 @@ void respawnDeadPlayers(void) {
 
 //--------------------------------------------------------------------------
 void setPlayerQuadCooldownTimer(Player * player) {
-	player->timers.damageMuliplierTimer = 1200 + State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 0.75;
+	player->timers.damageMuliplierTimer = 1200 + State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 1.0;
   player->DamageMultiplier = 4;
 }
 
@@ -1210,7 +1211,7 @@ void setPlayerShieldCooldownTimer(void) {
 		: : "r" (player)
 	);
 
-  player->timers.armorLevelTimer = 1800 + State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 1.00;
+  player->timers.armorLevelTimer = 1800 + State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 1.25;
   POKE_U32((u32)player + 0x2FB4, 3);
 }
 

@@ -57,7 +57,7 @@
 void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx);
 float getComboMultiplier(void);
 void incCombo(void);
-Moby* modeOnCreateMoby(void);
+Moby* modeOnCreateB6Bomb(int oclass, int pvarSize);
 
 //--------------------------------------------------------------------------
 //---------------------------------- DATA ----------------------------------
@@ -98,7 +98,7 @@ void modeInitialize(void)
 	cheatsDisableHealthboxes();
 
 	// 
-	HOOK_J(0x004f7328, &modeOnCreateMoby);
+	HOOK_JAL(0x003F5FDC, &modeOnCreateB6Bomb);
 
 	// disable ADS
 #if !DEBUG
@@ -110,17 +110,9 @@ void modeInitialize(void)
 //--------------------------------------------------------------------------
 //---------------------------------- HOOKS ---------------------------------
 //--------------------------------------------------------------------------
-Moby* modeOnCreateMoby(void)
+Moby* modeOnCreateB6Bomb(int oclass, int pvarSize)
 {
-	Moby* m;
-
-	asm (".set noreorder;");
-
-	// pointer to gameplay data is stored in $v0
-	asm volatile (
-		"move %0, $v0"
-		: : "r" (m)
-	);
+	Moby* m = mobySpawn(oclass, pvarSize);
 
 	if (m && m->OClass == MOBY_ID_B6_BALL0) {
 		B6Balls[B6BallsRingIndex] = m;
