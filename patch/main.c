@@ -522,9 +522,19 @@ void patchLevelOfDetail(void)
 		*(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
 	}
 
+  int lod = config.levelOfDetail;
+  switch (gameConfig.customMapId)
+  {
+    case CUSTOM_MAP_CANAL_CITY:
+    {
+      lod = 0; // always potato on canal city
+      break;
+    }
+  }
+
 	// correct lod
-	int lodChanged = config.levelOfDetail != lastLodLevel;
-	switch (config.levelOfDetail)
+	int lodChanged = lod != lastLodLevel;
+	switch (lod)
 	{
 		case 0: // potato
 		{
