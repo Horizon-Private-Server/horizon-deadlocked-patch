@@ -1723,6 +1723,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
+    gameState->CustomGameStatsSize = sizeof(struct PayloadGameData);
 		struct PayloadGameData* sGameData = (struct PayloadGameData*)gameState->CustomGameStats.Payload;
 		sGameData->Rounds = State.RoundNumber;
 		sGameData->Version = 0x00000002;

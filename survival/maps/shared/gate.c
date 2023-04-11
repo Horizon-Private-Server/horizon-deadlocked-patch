@@ -34,8 +34,10 @@
 #include "../../include/game.h"
 
 extern struct SurvivalMapConfig MapConfig;
+extern VECTOR GateLocations[];
 
 Moby* GateMobies[GATE_MAX_COUNT] = {};
+void * GateCollisionData = NULL;
 
 SoundDef BaseSoundDef =
 {
@@ -57,11 +59,20 @@ void gateSetCollision(int collActive)
   int i;
 
   for (i = 0; i < GATE_MAX_COUNT; ++i) {
-    if (GateMobies[i]) {
-      if (!collActive)
-        GateMobies[i]->CollActive = -1;
-      else if (GateMobies[i]->State == GATE_STATE_ACTIVATED)
-        GateMobies[i]->CollActive = 0;
+    if (!GateMobies[i])
+      break;
+
+    // if any gate is already in the correct state
+    // then we can stop because the rest will be
+    if (!collActive && !GateMobies[i]->CollData)
+      break;
+    if (collActive && GateMobies[i]->CollData)
+      break;
+
+    if (!collActive) {
+      GateMobies[i]->CollData = 0;
+    } else {
+      GateMobies[i]->CollData = GateCollisionData;
     }
   }
 }
@@ -275,6 +286,7 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 	guberEventRead(event, pvars->To, 12);
 	guberEventRead(event, &pvars->Height, 4);
 	guberEventRead(event, &pvars->Cost, 4);
+	guberEventRead(event, &pvars->Id, 1);
 
 	// set update
 	moby->PUpdate = &gateUpdate;
@@ -284,6 +296,10 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 
   // don't render
   moby->ModeBits |= 0x101;
+
+  // update global collision data ptr
+  if (!GateCollisionData)
+    GateCollisionData = moby->CollData;
 
   // add to list
   for (i = 0; i < GATE_MAX_COUNT; ++i) {
@@ -313,6 +329,11 @@ int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
   
   guberEventRead(event, &pIdx, 4);
 
+  // increment stat
+  if (pIdx >= 0 && MapConfig.State) {
+    MapConfig.State->PlayerStates[pIdx].State.TokensUsedOnGates += 1;
+  }
+  
   // reduce cost by 1
   // open gate if cost reduced to 0
   if (pvars->Cost > 0 && moby->State == GATE_STATE_ACTIVATED) {
@@ -334,12 +355,78 @@ int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
+int gateHandleEvent_SetCost(Moby* moby, GuberEvent* event)
+{
+	int i;
+  
+  struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
+  if (!pvars)
+    return 0;
+  
+  guberEventRead(event, &pvars->Cost, 4);
+
+  DPRINTF("gate cost set: %08X => %d\n", (u32)moby, pvars->Cost);
+
+  // reactivate
+  if (moby->State != GATE_STATE_ACTIVATED) {
+    mobySetState(moby, GATE_STATE_ACTIVATED, -1);
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 struct GuberMoby* gateGetGuber(Moby* moby)
 {
-	if (moby->OClass == 0x1F6 && moby->PVar)
+	if (moby->OClass == GATE_OCLASS && moby->PVar)
 		return moby->GuberMoby;
 	
 	return 0;
+}
+
+//--------------------------------------------------------------------------
+void gateResetRandomGate(void)
+{
+  int i = 0;
+  int r = 1 + rand(GATE_MAX_COUNT);
+  int loops = 0;
+  Moby* gateToReset = NULL;
+
+  while (r > 0) {
+    gateToReset = GateMobies[i];
+
+    // skip mobies that are NULL, don't have pvars, or gates that aren't deactivated yet
+    // we only want to reset an open gate
+    if (!gateToReset || !gateToReset->PVar || gateToReset->State != GATE_STATE_DEACTIVATED) {
+      i = (i+1) % GATE_MAX_COUNT;
+
+      // we've looped through the entire list without finding
+      // a gate that we can reset
+      // so stop
+      if (loops == 0 && i == 0) {
+        return;
+      }
+
+      continue;
+    }
+
+    // increment gate index
+    // and decrement random number
+    i = (i+1) % GATE_MAX_COUNT;
+    --r;
+
+    ++loops;
+  }
+  
+  // create event set cost event
+  if (gateToReset) {
+    struct GatePVar* pvars = (struct GatePVar*)gateToReset->PVar;
+    GuberEvent * guberEvent = guberCreateEvent(gateToReset, GATE_EVENT_SET_COST);
+    if (guberEvent) {
+      int cost = (int)GateLocations[(pvars->Id*2)+1][3];
+      guberEventWrite(guberEvent, &cost, 4);
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -357,6 +444,7 @@ int gateHandleEvent(Moby* moby, GuberEvent* event)
       case GATE_EVENT_ACTIVATE: { mobySetState(moby, GATE_STATE_ACTIVATED, -1); return 0; }
       case GATE_EVENT_DEACTIVATE: { mobySetState(moby, GATE_STATE_DEACTIVATED, -1); gatePlayOpenSound(moby); return 0; }
 			case GATE_EVENT_PAY_TOKEN: return gateHandleEvent_PayToken(moby, event);
+			case GATE_EVENT_SET_COST: return gateHandleEvent_SetCost(moby, event);
 			default:
 			{
 				DPRINTF("unhandle gate event %d\n", upgradeEvent);
@@ -369,7 +457,7 @@ int gateHandleEvent(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-int gateCreate(VECTOR start, VECTOR end, float height, int cost)
+int gateCreate(VECTOR start, VECTOR end, float height, int cost, u8 id)
 {
 	// create guber object
 	GuberEvent * guberEvent = 0;
@@ -380,6 +468,7 @@ int gateCreate(VECTOR start, VECTOR end, float height, int cost)
 		guberEventWrite(guberEvent, end, 12);
     guberEventWrite(guberEvent, &height, 4);
     guberEventWrite(guberEvent, &cost, 4);
+    guberEventWrite(guberEvent, &id, 1);
 	}
 	else
 	{
@@ -401,7 +490,7 @@ void gateSpawn(VECTOR gateData[], int count)
   // create gates
   if (gameAmIHost()) {
     for (i = 0; i < count; i += 2) {
-      gateCreate(gateData[i], gateData[i+1], gateData[i][3], (int)gateData[i+1][3]);
+      gateCreate(gateData[i], gateData[i+1], gateData[i][3], (int)gateData[i+1][3], i/2);
     }
   }
 
@@ -421,7 +510,7 @@ void gateInit(void)
   if (mobyFunctionsPtr) {
     *(u32*)(mobyFunctionsPtr + 0x04) = (u32)&gateGetGuber;
     *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&gateHandleEvent;
-    DPRINTF("oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
+    DPRINTF("GATE oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
 }

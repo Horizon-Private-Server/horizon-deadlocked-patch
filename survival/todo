@@ -100,17 +100,56 @@ Add random events
 ++Rebalance arbiter damage/ammo
 ++Add timed infinite ammo item to mystery box
 ++Holoshields damage mobs
-Fix executioner pathfinding/getting stuck on walls
-Add XP alpha mod
-Change executioner blip to big red dot
-Double XP drop
-Rename special rounds
-Make speed upgrade crank bolts faster
-Fix revive not working near Al
-Rename medic to revive discount
-Let people play on any team, but act like they are on same
-Shield sphere prevents gas damage on orxon
-Communicate when you reached max player upgrades
-Medic upgrade hidden in solo runs
-Solo run spawn in with a self revive
-Prevents mobs from accidentally spawning on player
+++Fix executioner pathfinding/getting stuck on walls
+++Add XP alpha mod
+++Change executioner blip to big red dot
+++Double XP drop
+++Rename special rounds
+++Make speed upgrade crank bolts faster
+++Fix revive not working near Al
+++Rename medic to revive discount
+++Let people play on any team, but act like they are on same
+++Shield sphere prevents gas damage on orxon
+++Communicate when you reached max player upgrades
+++Medic upgrade hidden in solo runs
+++Solo run spawn in with a self revive
+++Prevents mobs from accidentally spawning on player
+++Fix teleporting mobs
+++Fix speed mod not working on bolt cranks if not blue/red team
+++Remove difficulty setting
+++Increase special round mob count
+--Have mob respawn if stuck
+--Have mob respawn if not near any visible nodes for awhile?
+++Update weapons spawns from unity
+++Surge stun animation
+++Nerf wraith outside of gas
+++Surge damage/flinch mobs
+++Surge buffs wrench damage
+++Add sounds to Surge
+++Add sounds to wraith
+Fix emu crashing when loading too fast/loading too fast in general freezing on Guber event
+++Add death state/animations
+++Fix mobs getting stuck in orxon building
+++Look into moving map code on top of SVO code
+++Buff b6
+++Demon bell to speed up early rounds
+Add more stats
+++Self revive shouldn't give you a revive stat
++-Fix pathfinding rerunning required route when target moves to new node
+    - This needs to be changed to factor in two paths.
+      One from nearest node to target.
+      And one from next node on existing path to target.
+      Choosing the shorter path and then continuing on the current path to the next node if that is the shortest path.
+Cleanup orxon collision
+++Change impact mod to be random probability instead of percent health
+++Up the Arbiter ammo count from 8->12
+++Lower the base health of Executioners.
+++Adjust executioner round
+++Lower the Vendor Discount from 4%->2%
+++Increase the damage upgrade from 5% to 8%
+++Make the max speed cap 200% instead of 180%
+++Fix zombie desync
+Fix OPL crash on load
+++Buff surge
+++Add gate reset (resets gate 100% cost)
+++Teams off ends game when only one team left

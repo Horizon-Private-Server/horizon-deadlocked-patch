@@ -2453,14 +2453,17 @@ int sendGameDataBlock(short offset, char endOfList, void* buffer, int size)
 	struct GameDataBlock data;
 
 	data.Offset = offset;
-	data.EndOfList = endOfList;
 
 	// send in chunks
 	while (i < size)
 	{
 		short len = (size - i);
-		if (len > sizeof(data.Payload))
+		if (len > sizeof(data.Payload)) {
 			len = sizeof(data.Payload);
+	    data.EndOfList = 0;
+    } else {
+	    data.EndOfList = endOfList;
+    }
 
 		data.Length = len;
 		memcpy(data.Payload, (char*)buffer + i, len);
@@ -2493,18 +2496,28 @@ void sendGameData(void)
   GameSettings* gameSettings = gameGetSettings();
   GameData* gameData = gameGetData();
 	short offset = 0;
+  int hasCustomGameData = patchStateContainer.CustomGameStatsSize > 0;
+  int header[] = {
+    0x1337C0DE,
+    PATCH_GAME_STATS_VERSION
+  };
 
 	// ensure in game/staging
 	if (!gameSettings)
 		return;
 	
 	DPRINTF("sending stats... ");
-	offset += sendGameDataBlock(offset, 0, gameData, sizeof(GameData));
-	offset += sendGameDataBlock(offset, 0, &patchStateContainer.GameSettingsAtStart, sizeof(GameSettings));
-	offset += sendGameDataBlock(offset, 0, gameSettings, sizeof(GameSettings));
-	offset += sendGameDataBlock(offset, 0, gameOptions, sizeof(GameOptions));
-	offset += sendGameDataBlock(offset, 0, &patchStateContainer.CustomGameStats, sizeof(CustomGameModeStats_t));
-	offset += sendGameDataBlock(offset, 1, &patchStateContainer.GameStateUpdate, sizeof(UpdateGameStateRequest_t));
+	offset += sendGameDataBlock(offset, 0, header, sizeof(header));
+	offset += sendGameDataBlock(offset, 0, gameData, sizeof(GameData)); uiRunCallbacks();
+	offset += sendGameDataBlock(offset, 0, &patchStateContainer.GameSettingsAtStart, sizeof(GameSettings)); uiRunCallbacks();
+	offset += sendGameDataBlock(offset, 0, gameSettings, sizeof(GameSettings)); uiRunCallbacks();
+	offset += sendGameDataBlock(offset, 0, gameOptions, sizeof(GameOptions)); uiRunCallbacks();
+	offset += sendGameDataBlock(offset, !hasCustomGameData, &patchStateContainer.GameStateUpdate, sizeof(UpdateGameStateRequest_t));
+  if (hasCustomGameData) {
+    uiRunCallbacks();
+	  offset += sendGameDataBlock(offset, 1, &patchStateContainer.CustomGameStats, patchStateContainer.CustomGameStatsSize);
+  }
+  
 	DPRINTF("done.\n");
 }
 
@@ -2631,7 +2644,8 @@ int hookCheckHostStartGame(void* a0)
     // if survival
     // verify we have the latest maps
     if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
-      if (mapsLocalGlobalVersion >= 0 || readLocalGlobalVersion() < 0 || mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+      readLocalGlobalVersion();
+      if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
         showNeedLatestMapsPopup = 1;
         return 0;
       }
@@ -2695,7 +2709,8 @@ void runCheckGameMapInstalled(void)
         netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
       }
       else if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
-        if (mapsLocalGlobalVersion >= 0 || readLocalGlobalVersion() < 0 || mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+        readLocalGlobalVersion();
+        if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
           gameSetClientState(i, 0);
           showNeedLatestMapsPopup = 1;
         }

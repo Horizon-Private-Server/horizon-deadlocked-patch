@@ -22,18 +22,22 @@ struct GatePVar
   float Opacity;
   int Cost;
   int Dirty;
+  u8 Id;
 };
 
 enum GateEventType {
 	GATE_EVENT_SPAWN,
   GATE_EVENT_ACTIVATE,
   GATE_EVENT_DEACTIVATE,
-  GATE_EVENT_PAY_TOKEN
+  GATE_EVENT_PAY_TOKEN,
+  GATE_EVENT_SET_COST,
 };
 
 enum GateState {
 	GATE_STATE_DEACTIVATED,
 	GATE_STATE_ACTIVATED,
 };
+
+void gateResetRandomGate(void);
 
 #endif // SURVIVAL_GATE_H

@@ -26,7 +26,7 @@
 #define ZOMBIE_MAX_COLL_RADIUS								(4)
 #define ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS    	(60 * 2)
 #define ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS    	(60 * 3)
-#define ZOMBIE_FLINCH_PROBABILITY             (0.05)
+#define ZOMBIE_FLINCH_PROBABILITY             (1.0)
 
 enum ZombieAnimId
 {

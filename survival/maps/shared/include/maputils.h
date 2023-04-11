@@ -27,4 +27,8 @@ u32 decTimerU32(u32* timeValue);
 
 void pushSnack(int localPlayerIdx, char* string, int ticksAlive);
 
+int isInDrawDist(Moby* moby);
+
+int mobyIsMob(Moby* moby);
+
 #endif // SURVIVAL_MAP_UTILS_H

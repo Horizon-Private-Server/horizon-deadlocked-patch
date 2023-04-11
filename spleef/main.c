@@ -367,6 +367,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
+    gameState->CustomGameStatsSize = sizeof(struct SpleefGameData);
 		struct SpleefGameData* sGameData = (struct SpleefGameData*)gameState->CustomGameStats.Payload;
 		sGameData->Rounds = SpleefState.RoundNumber+1;
 		DPRINTF("spleef ran for %d rounds\n", sGameData->Rounds);

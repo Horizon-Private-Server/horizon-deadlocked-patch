@@ -115,13 +115,17 @@ void drawDownloadPopup(void)
   if (!dbStateActive)
     return;
 
-  float secondsElapsed = (gameGetTime() - dbStateTimeStarted) / 1000.0;
-  float downloaded = dbStateDownloadAmount / (float)dbStateDownloadTotal;
-  float kbps = (dbStateDownloadAmount / secondsElapsed) / 1024.0;
-  int estimatedSecondsLeft = (int)((1 - downloaded) / (downloaded / secondsElapsed));
-  int m = estimatedSecondsLeft / 60;
-  int s = estimatedSecondsLeft % 60;
-  snprintf(etaStr, sizeof(etaStr), "%02d:%02d remaining.. (%.2f kbps)", m, s, kbps);
+  if (dbStateTimeStarted > 0) {
+    float secondsElapsed = (gameGetTime() - dbStateTimeStarted) / 1000.0;
+    float downloaded = dbStateDownloadAmount / (float)dbStateDownloadTotal;
+    float kbps = (dbStateDownloadAmount / secondsElapsed) / 1024.0;
+    int estimatedSecondsLeft = (int)((1 - downloaded) / (downloaded / secondsElapsed));
+    int m = estimatedSecondsLeft / 60;
+    int s = estimatedSecondsLeft % 60;
+    snprintf(etaStr, sizeof(etaStr), "%02d:%02d remaining.. (%.2f kbps)", m, s, kbps);
+  } else {
+    etaStr[0] = 0;
+  }
 
 	gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.225, bgColorDownload);
 	gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, barBgColor);

@@ -10,6 +10,7 @@
 #include "zombie.h"
 #include "executioner.h"
 #include "tremor.h"
+#include "game.h"
 
 enum MobAction
 {
@@ -20,28 +21,20 @@ enum MobAction
 	MOB_ACTION_FLINCH,
 	MOB_ACTION_BIG_FLINCH,
 	MOB_ACTION_LOOK_AT_TARGET,
+  MOB_ACTION_DIE,
 	MOB_ACTION_ATTACK,
 	MOB_ACTION_TIME_BOMB,
+  MOB_ACTION_TIME_BOMB_EXPLODE
 };
 
-enum MobType
+enum MobAttributeType
 {
-	MOB_NORMAL,
-  MOB_RUNNER,
-	MOB_FREEZE,
-	MOB_ACID,
-	MOB_EXPLODE,
-	MOB_GHOST,
-	MOB_TANK
-};
-
-enum MobSpecialMutationType
-{
-	MOB_SPECIAL_MUTATION_NONE = 0,
-	MOB_SPECIAL_MUTATION_FREEZE,
-	MOB_SPECIAL_MUTATION_ACID,
-	MOB_SPECIAL_MUTATION_GHOST,
-	MOB_SPECIAL_MUTATION_COUNT
+	MOB_ATTRIBUTE_NONE = 0,
+	MOB_ATTRIBUTE_FREEZE,
+	MOB_ATTRIBUTE_ACID,
+	MOB_ATTRIBUTE_GHOST,
+  MOB_ATTRIBUTE_EXPLODE,
+	MOB_ATTRIBUTE_COUNT
 };
 
 enum MobEvent
@@ -54,27 +47,6 @@ enum MobEvent
 	MOB_EVENT_OWNER_UPDATE,
 };
 
-
-enum MobMutateAttribute {
-	MOB_MUTATE_DAMAGE,
-	MOB_MUTATE_SPEED,
-	MOB_MUTATE_HEALTH,
-	MOB_MUTATE_COST,
-	MOB_MUTATE_COUNT
-};
-
-// ordered from least to most probable
-enum MobSpawnParamIds {
-	MOB_SPAWN_PARAM_TITAN = 0,
-	MOB_SPAWN_PARAM_GHOST = 1,
-	MOB_SPAWN_PARAM_EXPLOSION = 2,
-	MOB_SPAWN_PARAM_ACID = 3,
-	MOB_SPAWN_PARAM_FREEZE = 4,
-	MOB_SPAWN_PARAM_RUNNER = 5,
-	MOB_SPAWN_PARAM_NORMAL = 6,
-	MOB_SPAWN_PARAM_COUNT
-};
-
 // what kind of spawn a mob can have
 enum MobSpawnType {
 	SPAWN_TYPE_DEFAULT_RANDOM = 0,
@@ -84,8 +56,14 @@ enum MobSpawnType {
 	SPAWN_TYPE_NEAR_HEALTHBOX = 8,
 };
 
+// 
+enum MobUnreliableMsgId {
+  MOB_UNRELIABLE_MSG_ID_STATE_UPDATE
+};
+
 struct MobDamageEventArgs;
 struct MobSpawnEventArgs;
+struct MobStateUpdateEventArgs;
 
 typedef void (*MobGenericCallback_func)(Moby* moby);
 typedef Moby* (*MobGetNextTarget_func)(Moby* moby);
@@ -116,7 +94,6 @@ struct MobVTable {
 };
 
 struct MobConfig {
-	int MobType;
 	int Bolts;
 	float Damage;
 	float MaxDamage;
@@ -135,7 +112,7 @@ struct MobConfig {
 	u8 MaxCostMutation;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
-	char MobSpecialMutation;
+	char MobAttribute;
 };
 
 struct MobSpawnParams {
@@ -143,6 +120,7 @@ struct MobSpawnParams {
 	int MinRound;
 	int CooldownTicks;
 	float Probability;
+  enum MobStatId StatId;
 	enum MobSpawnType SpawnType;
 	char Name[32];
 	struct MobConfig Config;
@@ -157,6 +135,7 @@ struct Knockback {
 
 struct MobMoveVars {
   VECTOR LastPosition;
+  VECTOR NextPosition;
   VECTOR Velocity;
   VECTOR AddVelocity;
   VECTOR LastJumpPosition;
@@ -164,6 +143,7 @@ struct MobMoveVars {
   VECTOR LastTargetPos;
   float SumSpeedOver;
   float WallSlope;
+  float PathEdgeAlpha;
 	u16 StuckTicks;
   char Grounded;
   char HitWall;
@@ -171,6 +151,7 @@ struct MobMoveVars {
   u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
+  u8 MoveSkipTicks;
 
   char PathEdgeCount;
   char PathEdgeCurrent;
@@ -178,6 +159,7 @@ struct MobMoveVars {
   char PathHasReachedEnd;
   u8 PathStartEndNodes[2];
   u8 PathTicks;
+  u8 PathNewTicks;
   u8 PathCheckNearAndSeeTargetTicks;
   u8 CurrentPath[20];
 };
@@ -187,9 +169,11 @@ struct MobVars {
 	struct Knockback Knockback;
   struct MobMoveVars MoveVars;
   int SpawnParamsIdx;
+  int FreeAgent;
   VECTOR TargetPosition;
 	int Action;
 	int NextAction;
+	int LastAction;
 	float Health;
 	float ClosestDist;
 	float LastSpeed;
@@ -221,6 +205,7 @@ struct MobVars {
 	char Destroyed;
 	char Order;
 	char Random;
+  char BlipType;
 };
 
 // warning: multiple differing types with the same name, only one recovered
@@ -287,6 +272,7 @@ struct MobDamageEventArgs
 {
 	struct Knockback Knockback;
 	int SourceUID;
+  u32 DamageFlags;
 	u16 DamageQuarters;
 	u16 SourceOClass;
 };
@@ -316,7 +302,7 @@ struct MobSpawnEventArgs
 	u16 SpeedEighths;
 	u16 Damage;
 	char MobType;
-	char MobSpecialMutation;
+	char MobAttribute;
   u8 SpawnParamsIdx;
 	u8 Xp;
 	u8 AttackRadiusEighths;
@@ -326,10 +312,22 @@ struct MobSpawnEventArgs
 	u8 AttackCooldownTickCount;
 };
 
+struct MobUnreliableBaseMsgArgs
+{
+  int MsgId;
+  u32 MobUID;
+};
+
+struct MobUnreliableMsgStateUpdateArgs
+{
+  struct MobUnreliableBaseMsgArgs Base;
+  struct MobStateUpdateEventArgs StateUpdate;
+};
+
+int mobOnUnreliableMsgRemote(void* connection, void* data);
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);
-void mobMutate(struct MobSpawnParams* spawnParams, enum MobMutateAttribute attribute);
-int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 void mobInitialize(void);
 void mobTick(void);
 

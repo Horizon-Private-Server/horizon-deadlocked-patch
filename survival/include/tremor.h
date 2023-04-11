@@ -24,7 +24,7 @@
 #define TREMOR_MAX_COLL_RADIUS								(4)
 #define TREMOR_AMBSND_MIN_COOLDOWN_TICKS    	(60 * 2)
 #define TREMOR_AMBSND_MAX_COOLDOWN_TICKS    	(60 * 3)
-#define TREMOR_FLINCH_PROBABILITY             (0.05)
+#define TREMOR_FLINCH_PROBABILITY             (1.0)
 
 enum TremorAnimId
 {

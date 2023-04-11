@@ -413,6 +413,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
+    gameState->CustomGameStatsSize = sizeof(struct ClimberGameData);
 		struct ClimberGameData* sGameData = (struct ClimberGameData*)gameState->CustomGameStats.Payload;
 		sGameData->Version = 0x00000001;
 
