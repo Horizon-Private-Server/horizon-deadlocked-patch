@@ -1808,6 +1808,11 @@ void onConfigUpdate(void)
       modeName = (char*)CustomModeShortNames[(int)gameConfig.customModeId];
       if (!modeName)
         modeName = dataCustomModes.items[(int)gameConfig.customModeId];
+
+      // set map name to training type
+      if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) {
+        mapName = dataTrainingType.items[gameConfig.trainingConfig.type];
+      }
     }
 
     // override gamemode name with map if map has exclusive gamemode
