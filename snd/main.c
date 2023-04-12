@@ -1307,8 +1307,10 @@ void updateGameState(PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(void)
+void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 {
+	static int delayStart = 60 * 0.2;
+	static int waitingForClientsReady = 0;
 	int i = 0;
 	GuberMoby * guberMoby = guberMobyGetFirst();
 	GameOptions * gameOptions = gameGetOptions();
@@ -1361,12 +1363,19 @@ void initialize(void)
 	replaceString(0x2331, SND_BOMB_YOU_PICKED_UP);
 
 	// 
-	static int delayStart = 60 * 1;
 	if (delayStart > 0)
 	{
 		--delayStart;
 		return;
 	}
+
+  // wait for all clients to be ready
+  // or for 15 seconds
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
+    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    ++waitingForClientsReady;
+    return;
+  }
 
 	// 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -1386,15 +1395,6 @@ void initialize(void)
 
 	// 
 	ScoreboardChanged = 1;
-
-	// Set kill target to 0 (disable)
-	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
-
-	// Enable survivor
-	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
-
-	// Disable respawn
-	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0xFF;
 
 	// Disable packs
 	cheatsApplyNoPacks();
@@ -1476,7 +1476,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	// Initialize if not yet initialized
 	if (!Initialized)
 	{
-		initialize();
+		initialize(gameConfig, gameState);
 		return;
 	}
 
@@ -1793,7 +1793,8 @@ void setLobbyGameOptions(void)
 
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
-	if (!gameOptions)
+	GameSettings* gameSettings = gameGetSettings();
+	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 		
 	// set to conquest homenodes
@@ -1801,6 +1802,11 @@ void setLobbyGameOptions(void)
 
 	// force hacker orbs
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 1;
+
+	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = -1;
+  gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips = 0;
 }
 
 /*
@@ -1864,8 +1870,11 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(void)
+
+void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
+	setLobbyGameOptions();
+
 	// only handle when loading level
 	GameSettings* gs = gameGetSettings();
 	if (!gs || gs->GameStartTime >= 0)

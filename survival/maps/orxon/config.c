@@ -64,9 +64,9 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 25
 	{
 		.MaxSpawnedAtOnce = 20,
-    .SpawnCountFactor = 0.1,
+    .SpawnCountFactor = 0.8,
     .SpawnRateFactor = 0.2,
-		.SpawnParamCount = 3,
+		.SpawnParamCount = 4,
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_TITAN,
       MOB_SPAWN_PARAM_NORMAL,

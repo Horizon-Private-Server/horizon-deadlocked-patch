@@ -1533,8 +1533,11 @@ void resetRoundState(void)
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchGameConfig_t* gameConfig)
+void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 {
+  static int startDelay = 60 * 0.2;
+	static int waitingForClientsReady = 0;
+
 	GameSettings* gameSettings = gameGetSettings();
 	Player** players = playerGetAll();
 	GameData* gameData = gameGetData();
@@ -1565,13 +1568,19 @@ void initialize(PatchGameConfig_t* gameConfig)
   // 
   initializeScoreboard();
 
-	// give a 1 second delay before finalizing the initialization.
-	// this helps prevent the slow loaders from desyncing
-	static int startDelay = 60 * 1;
-	if (startDelay > 0) {
-		--startDelay;
-		return;
-	}
+  if (startDelay) {
+    --startDelay;
+    return;
+  }
+  
+  // wait for all clients to be ready
+  // or for 5 seconds
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
+    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    ++waitingForClientsReady;
+    return;
+  }
+
 
 	// reset destroyed mobies list
 	memset(payloadDestroyedMobies, 0, sizeof(payloadDestroyedMobies));
@@ -1749,12 +1758,12 @@ void setLobbyGameOptions(void)
 {
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
-	// GameSettings* gameSettings = gameGetSettings();
-	if (!gameOptions)
+	GameSettings* gameSettings = gameGetSettings();
+	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 	
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
-
-	//gameSettings->PlayerTeams[0] = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
 }

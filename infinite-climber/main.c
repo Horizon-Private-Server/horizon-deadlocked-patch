@@ -28,6 +28,7 @@
 #include <libdl/ui.h>
 #include <libdl/spawnpoint.h>
 #include <libdl/collision.h>
+#include <libdl/graphics.h>
 #include <libdl/radar.h>
 #include <libdl/utils.h>
 #include "module.h"
@@ -64,6 +65,7 @@ int LastSpawn = 0;
 float WaterRaiseRate = 0.1 * (1 / 60.0);
 float WaterHeight = 0;
 int MobyCount = 0;
+unsigned int RandSeed = 0;
 Moby * RadarBlipMoby = NULL;
 Moby * WaterMoby = NULL;
 int BranchDialogs[] = { DIALOG_ID_CLANK_YOU_HAVE_A_CHOICE_OF_2_PATHS, DIALOG_ID_DALLAS_WOAH_THIS_IS_GETTING_INTERESTING, DIALOG_ID_DALLAS_KICKING_PROVERBIAL_BUTT_IDK_WHAT_THAT_MEANS, DIALOG_ID_DALLAS_DARKSTAR_TIGHT_SPOTS_BEFORE  };
@@ -78,11 +80,6 @@ struct ClimbChain
 	int LastBranch;
 	VECTOR CurrentPosition;
 } Chains[4];
-
-/*
- *
- */
-u16 shaBuffer;
 
 /*
  *
@@ -138,6 +135,13 @@ MobyDef MobyDefs[] = {
 	{ 4, 0.8, 3, MOBY_ID_RED_DREADZONE_LIFT, 0 },
 	{ 3, 1, 1.2, MOBY_ID_TURRET_SHIELD_UPGRADE, 0 }
 };
+
+//--------------------------------------------------------------------------
+int myRand(int mod)
+{
+  RandSeed = (1664525 * RandSeed + 1013904223);
+  return RandSeed % mod;
+}
 
 //--------------------------------------------------------------------------
 int gameGetTeamScore(int team, int score)
@@ -271,20 +275,16 @@ void DestroyOld(void)
 
 float RandomRange(float min, float max)
 {
-	// Generate our rng seed from SHA1 of spawn seed
-	sha1(&shaBuffer, 2, (void*)&shaBuffer, 2);
-
-	float value = ((float)shaBuffer / 0xFFFF);
+	int v = myRand(0xFFFF);
+	float value = ((float)v / 0xFFFF);
 
 	return (value + min) * (max - min);
 }
 
 short RandomRangeShort(short min, short max)
 {
-	// Generate our rng seed from SHA1 of spawn seed
-	sha1(&shaBuffer, 2, (void*)&shaBuffer, 2);
-
-	return (shaBuffer % (max - min)) + min;
+	int v = myRand(0xFFFF);
+	return (v % (max - min)) + min;
 }
 
 void GenerateNext(struct ClimbChain * chain, MobyDef * currentItem, float scale)
@@ -306,10 +306,10 @@ void GenerateNext(struct ClimbChain * chain, MobyDef * currentItem, float scale)
 	chain->CurrentPosition[2] += nextItem->ScaleVertical * RandomRange(1.5, 3);
 }
 
-void onReceiveSpawn(u16 seed, int gameTime)
+void onReceiveSpawn(u32 seed, int gameTime)
 {
 	DPRINTF("recv %d\n", gameTime);
-	shaBuffer = seed;
+	RandSeed = seed;
 	int chainIndex;
 	VECTOR rot;
 
@@ -387,8 +387,8 @@ void spawnTick(void)
 	{
 		if (State.IsHost)
 		{
-			sendSpawn(shaBuffer, gameTime);
-			onReceiveSpawn(shaBuffer, gameTime);
+			sendSpawn(RandSeed, gameTime);
+			onReceiveSpawn(RandSeed, gameTime);
 		}
 	}
 
@@ -441,8 +441,11 @@ void updateGameState(PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(void)
+void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 {
+  static int startDelay = 60 * 0.2;
+	static int waitingForClientsReady = 0;
+
 	VECTOR startPos, to;
 	int i;
 
@@ -462,8 +465,20 @@ void initialize(void)
 	*(u32*)0x00621568 = 0;	// kills reached (2)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
 
-	// Init seed
-	shaBuffer = (short)gameSettings->GameLoadStartTime;
+  if (startDelay) {
+    --startDelay;
+    return;
+  }
+  
+  // wait for all clients to be ready
+  // or for 15 seconds
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
+    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    ++waitingForClientsReady;
+    return;
+  }
+
+  RandSeed = gameSettings->GameLoadStartTime;
 
 	// Set survivor
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
@@ -590,7 +605,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	State.IsHost = gameAmIHost();
 
 	if (!Initialized) {
-		initialize();
+		initialize(gameConfig, gameState);
 		return;
 	}
 
@@ -687,12 +702,28 @@ void setLobbyGameOptions(void)
 
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
-	if (!gameOptions)
+	GameSettings* gameSettings = gameGetSettings();
+	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 		
 	// apply options
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
+  
+  gameOptions->WeaponFlags.Chargeboots = 1;
+  gameOptions->WeaponFlags.DualVipers = 0;
+  gameOptions->WeaponFlags.MagmaCannon = 1;
+  gameOptions->WeaponFlags.Arbiter = 0;
+  gameOptions->WeaponFlags.FusionRifle = 0;
+  gameOptions->WeaponFlags.MineLauncher = 0;
+  gameOptions->WeaponFlags.B6 = 0;
+  gameOptions->WeaponFlags.Holoshield = 0;
+  gameOptions->WeaponFlags.Flail = 1;
 }
 
 /*
@@ -762,5 +793,5 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  */
 void loadStart(void)
 {
-	
+  setLobbyGameOptions();
 }

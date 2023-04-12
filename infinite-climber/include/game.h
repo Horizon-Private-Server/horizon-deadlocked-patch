@@ -47,10 +47,10 @@ struct ClimberConfig
 typedef struct SpawnMessage
 {
 	int GameTime;
-	u16 Seed;
+	u32 Seed;
 } SpawnMessage_t;
 
 void netHookMessages(void);
-void sendSpawn(u16 seed, int gameTime);
+void sendSpawn(u32 seed, int gameTime);
 
 #endif // _CLIMBER_GAME_H_

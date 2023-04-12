@@ -109,7 +109,7 @@
 #define BAKED_SPAWNPOINT_COUNT							  (24)
 
 #define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
-#define ITEM_INFAMMO_DURATION                 (60*TIME_SECOND)
+#define ITEM_INFAMMO_DURATION                 (30*TIME_SECOND)
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
 
@@ -209,7 +209,6 @@ struct SurvivalPlayer
 	int TimeOfDoublePoints;
 	int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
-  int InfiniteAmmoStopTime;
 	u16 ReviveCooldownTicks;
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;
@@ -259,6 +258,7 @@ struct SurvivalState
 	int IsHost;
 	float Difficulty;
 	int TimeOfFreeze;
+  int InfiniteAmmoStopTime;
 	short DropCooldownTicks;
 	char Freeze;
 	char NumTeams;

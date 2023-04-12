@@ -42,12 +42,18 @@ void demonbellUpdate(Moby* moby)
 	if (!pvars)
 		return;
 
+  // force on
+  if (pvars->ForcedOn && moby->State != 1) {
+    pvars->HitAmount = 1;
+    mobySetState(moby, 1, -1);
+  }
+
   switch (moby->State)
   {
     case 1: // activated
     {
       // check if new round and deactivate
-      if (State.RoundNumber != pvars->RoundActivated && gameAmIHost()) {
+      if (!pvars->ForcedOn && State.RoundNumber != pvars->RoundActivated && gameAmIHost()) {
         demonbellCreateEvent(moby, DEMONBELL_EVENT_DEACTIVATE);
         return;
       }
@@ -58,6 +64,9 @@ void demonbellUpdate(Moby* moby)
       // pulse
       float t = (sinf(DEMONBELL_PULSE_SPEED * gameGetTime() / 1000.0)+1) / 2.0;
       moby->GlowRGBA = colorLerp(DEMONBELL_PULSE_COLOR_1, DEMONBELL_PULSE_COLOR_2, t);
+
+      // ignore any hits
+      moby->CollDamage = -1;
       break;
     }
     case 0: // awaiting activation
@@ -123,9 +132,11 @@ int demonbellHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 {
 	VECTOR p;
 	int i;
+  int id;
 
 	// read event
 	guberEventRead(event, p, 12);
+	guberEventRead(event, &id, 4);
 
 	// set position
 	vector_copy(moby->Position, p);
@@ -146,6 +157,9 @@ int demonbellHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// update pvars
 	struct DemonBellPVar* pvars = (struct DemonBellPVar*)moby->PVar;
+
+  // set id
+  pvars->Id = id;
 
 	// set team
 	Guber* guber = guberGetObjectByMoby(moby);
@@ -192,7 +206,7 @@ int demonbellHandleEvent_Activate(Moby* moby, GuberEvent* event)
   mobySetState(moby, 1, -1);
   demonbellPlayActivateSound(moby);
   pushSnack("Demon Bell Activated!", 120, 0);
-	DPRINTF("demonbell activated at %08X by \n", (u32)moby, activatedByPlayerId);
+	DPRINTF("demonbell activated at %08X by %d\n", (u32)moby, activatedByPlayerId);
 	return 0;
 }
 
@@ -213,12 +227,10 @@ int demonbellHandleEvent_Deactivate(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int demonbellHandleEvent(Moby* moby, GuberEvent* event)
 {
-	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
+	if (isInGame() && !mobyIsDestroyed(moby) && moby->OClass == DEMONBELL_MOBY_OCLASS && moby->PVar) {
+		u32 demonbellEvent = event->NetEvent.EventID;
 
-	if (isInGame() && !mobyIsDestroyed(moby) && moby->OClass == DEMONBELL_MOBY_OCLASS && pvars) {
-		u32 upgradeEvent = event->NetEvent.EventID;
-
-		switch (upgradeEvent)
+		switch (demonbellEvent)
 		{
 			case DEMONBELL_EVENT_SPAWN: return demonbellHandleEvent_Spawn(moby, event);
 			case DEMONBELL_EVENT_DESTROY: return demonbellHandleEvent_Destroy(moby, event);
@@ -226,7 +238,7 @@ int demonbellHandleEvent(Moby* moby, GuberEvent* event)
 			case DEMONBELL_EVENT_DEACTIVATE: return demonbellHandleEvent_Deactivate(moby, event);
 			default:
 			{
-				DPRINTF("unhandle demonbell event %d\n", upgradeEvent);
+				DPRINTF("unhandle demonbell event %d\n", demonbellEvent);
 				break;
 			}
 		}
@@ -236,7 +248,7 @@ int demonbellHandleEvent(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-int demonbellCreate(VECTOR position)
+int demonbellCreate(VECTOR position, int id)
 {
 	GameSettings* gs = gameGetSettings();
 
@@ -246,6 +258,7 @@ int demonbellCreate(VECTOR position)
 	if (guberEvent)
 	{
 		guberEventWrite(guberEvent, position, 12);
+    guberEventWrite(guberEvent, &id, 4);
 	}
 	else
 	{
@@ -253,6 +266,34 @@ int demonbellCreate(VECTOR position)
 	}
   
   return guberEvent != NULL;
+}
+
+//--------------------------------------------------------------------------
+void demonbellOnRoundChanged(int roundNo)
+{
+  // force demonbell on every 10 rounds
+  int forcedOnCount = (roundNo+1) / 10;
+  if (forcedOnCount > State.DemonBellCount)
+    forcedOnCount = State.DemonBellCount;
+
+  State.RoundDemonBellCount = forcedOnCount;
+
+  // force on
+  Moby* m = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+  while (m < mEnd)
+  {
+    m = mobyFindNextByOClass(m, DEMONBELL_MOBY_OCLASS);
+    if (!m)
+      break;
+
+    struct DemonBellPVar* pvars = (struct DemonBellPVar*)m->PVar;
+    if (pvars && pvars->Id < forcedOnCount) {
+      pvars->ForcedOn = 1;
+    }
+
+    ++m;
+  }
 }
 
 //--------------------------------------------------------------------------

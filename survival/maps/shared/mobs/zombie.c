@@ -433,7 +433,7 @@ void zombieDoAction(Moby* moby)
 		case MOB_ACTION_FLINCH:
 		case MOB_ACTION_BIG_FLINCH:
 		{
-      int animFlinchId = pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH ? ZOMBIE_ANIM_BIG_FLINCH : ZOMBIE_ANIM_FLINCH;
+      int animFlinchId = pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH ? ZOMBIE_ANIM_BIG_FLINCH : ZOMBIE_ANIM_BIG_FLINCH;
 
       mobTransAnim(moby, animFlinchId, 0);
       

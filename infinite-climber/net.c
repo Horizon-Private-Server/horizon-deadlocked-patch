@@ -34,7 +34,7 @@ int onSpawnRemote(void * connection, void * data)
 }
 
 //--------------------------------------------------------------------------
-void sendSpawn(u16 seed, int gameTime)
+void sendSpawn(u32 seed, int gameTime)
 {
 	int i;
 	SpawnMessage_t message;

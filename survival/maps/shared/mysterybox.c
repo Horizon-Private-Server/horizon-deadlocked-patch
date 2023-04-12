@@ -613,9 +613,16 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
           }
           break;
         }
+        case MYSTERY_BOX_ITEM_INFINITE_AMMO:
+        {
+          if (MapConfig.State) {
+            MapConfig.State->InfiniteAmmoStopTime = gameGetTime() + ITEM_INFAMMO_DURATION;
+            pushSnack(-1, "Infinite Ammo!", TPS);
+          }
+          break;
+        }
         case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
         case MYSTERY_BOX_ITEM_REVIVE_TOTEM:
-        case MYSTERY_BOX_ITEM_INFINITE_AMMO:
         {
           if (playerData)
             playerData->State.Item = item;

@@ -375,7 +375,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 		
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		{
-			DPRINTF("%d: %d points %d boxes\n", i, PlayerScores[i].Value, SpleefState.PlayerBoxesDestroyed[i]);
+			DPRINTF("%d: %d points %d boxes\n", i, SpleefState.PlayerPoints[i], SpleefState.PlayerBoxesDestroyed[i]);
 			sGameData->Points[i] = SpleefState.PlayerPoints[i];
 			sGameData->BoxesDestroyed[i] = SpleefState.PlayerBoxesDestroyed[i];
 		}
@@ -531,8 +531,10 @@ int whoKilledMeHook(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(void)
+void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 {
+  static int startDelay = 60 * 0.2;
+	static int waitingForClientsReady = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
 	Player ** players = playerGetAll();
@@ -544,7 +546,6 @@ void initialize(void)
 	// Set survivor
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = -1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 0;
 
 	// Hook set outcome net event
 	netInstallCustomMsgHandler(CUSTOM_MSG_SET_OUTCOME, &onSetRoundOutcomeRemote);
@@ -554,6 +555,19 @@ void initialize(void)
 	*(u32*)0x006219B8 = 0;	// survivor (8)
 	*(u32*)0x00621A10 = 0;  // survivor (8)
 
+  if (startDelay) {
+    --startDelay;
+    return;
+  }
+  
+  // wait for all clients to be ready
+  // or for 15 seconds
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
+    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    ++waitingForClientsReady;
+    return;
+  }
+
 	// Spawn box so we know the correct model and collision pointers
 	SourceBox = mobySpawn(MOBY_ID_BETA_BOX, 0);
 	
@@ -562,6 +576,7 @@ void initialize(void)
 
 	// clear spleefbox array
 	memset(SpleefBox, 0, sizeof(SpleefBox));
+  memset(&SpleefState, 0, sizeof(SpleefState));
 
 	// Initialize scoreboard
 	initializeScoreboard();
@@ -616,7 +631,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	SpleefState.IsHost = gameIsHost(localPlayer->Guber.Id.GID.HostId);
 
 	if (!Initialized)
-		initialize();
+		initialize(gameConfig, gameState);
 
 	int killsToWin = gameGetOptions()->GameFlags.MultiplayerGameFlags.KillsToWin;
 
@@ -792,12 +807,24 @@ void setLobbyGameOptions(void)
 
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
-	if (!gameOptions)
+	GameSettings* gameSettings = gameGetSettings();
+	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 		
 	// apply options
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
+
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = -1;
 }
 
 /*
@@ -861,7 +888,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(void)
+void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
-	
+	setLobbyGameOptions();
 }

@@ -235,10 +235,14 @@ int main (void)
 	*(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
 
 	// disable pad on online main menu
-  if (!netGetLobbyServerConnection())
+  if (!netGetLobbyServerConnection()) {
     padEnableInput();
-	else if (uiGetActive() == UI_ID_ONLINE_MAIN_MENU)
+
+	  *(u32*)0x00594CB8 = 0x0C000000 | (0x00707F28 / 4);
+  }
+	else if (uiGetActive() == UI_ID_ONLINE_MAIN_MENU) {
 		padDisableInput();
+  }
 
 	return 0;
 }

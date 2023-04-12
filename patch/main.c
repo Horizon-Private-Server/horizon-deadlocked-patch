@@ -3157,8 +3157,14 @@ void runPayloadDownloadRequester(void)
 {
 	GameModule * module = GLOBAL_GAME_MODULES_START;
 	GameSettings* gs = gameGetSettings();
-	if (!gs || !isInMenus())
-		return;
+	if (!gs || !isInMenus()) {
+		
+    if (dlIsActive == 201) {
+      dlIsActive = 0;
+    }
+    
+    return;
+  }
 
 	// don't make any requests when the config menu is active
 	if (gameAmIHost() && isConfigMenuActive)

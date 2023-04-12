@@ -243,7 +243,7 @@ int mobIsFrozen(Moby* moby)
     return 0;
 
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  return State.Freeze && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_FREEZE;
+  return State.Freeze && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_FREEZE && pvars->MobVars.Action != MOB_ACTION_DIE;
 }
 
 void mobHandleDraw(Moby* moby)
