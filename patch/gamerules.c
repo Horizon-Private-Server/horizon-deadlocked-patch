@@ -272,7 +272,7 @@ void rotatingWeaponsLogic(void)
 	if (gameAmIHost() && (RotatingWeaponsNextRotationTime == 0 || gameTime > RotatingWeaponsNextRotationTime))
 	{
 		GameOptions* gameOptions = gameGetOptions();
-		int r = randRangeInt(0, 8);
+		int r = 1 + randRangeInt(0, 8);
 		int slotId = weaponIdToSlot(RotatingWeaponsActiveId);
 		int iterations = 0;
 		int matches = 0;
@@ -280,6 +280,7 @@ void rotatingWeaponsLogic(void)
 		// randomly select weapon from enabled weapons
 		while (r) {
 			slotId = (slotId + 1) % 7;
+
 			if (gameOptions->WeaponFlags.Raw & (1 << weaponSlotToId(1 + slotId))) {
 				--r;
 				++matches;
