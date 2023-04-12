@@ -17,6 +17,7 @@
 #include <libdl/time.h>
 #include <libdl/game.h>
 #include <libdl/gamesettings.h>
+#include <libdl/graphics.h>
 #include <libdl/player.h>
 #include <libdl/weapon.h>
 #include <libdl/hud.h>
@@ -504,8 +505,11 @@ void updateGameState(PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(void)
+void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 {
+  static int startDelay = 60 * 0.2;
+	static int waitingForClientsReady = 0;
+
 	int i = 0;
 	int j = 0;
 	u8 rngSeed[12];
@@ -513,6 +517,19 @@ void initialize(void)
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
 	Player ** players = playerGetAll();
+
+  if (startDelay) {
+    --startDelay;
+    return;
+  }
+  
+  // wait for all clients to be ready
+  // or for 15 seconds
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
+    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    ++waitingForClientsReady;
+    return;
+  }
 
 	// Reset states to 0
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -588,12 +605,6 @@ void initialize(void)
 	// hook into player kill event
 	*(u32*)0x00621c7c = 0x0C000000 | ((u32)&onPlayerKill >> 2);
 
-	// Set respawn time to 2
-	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 2;
-
-	// Set kill target to 0 (disable)
-	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
-
 	// Set holoshields to instant kill
 	weaponSetDamage(WEAPON_ID_OMNI_SHIELD, 0, 50);
 	
@@ -631,8 +642,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	if (!gameSettings)
 		return;
 
-	if (!Initialized)
-		initialize();
+	if (!Initialized) {
+		initialize(gameConfig, gameState);
+    return;
+  }
 
 	// 
 	updateGameState(gameState);
@@ -716,13 +729,18 @@ void setLobbyGameOptions(void)
 	};
 
 	// set game options
-	GameOptions * gameOptions = gameGetOptions();
-	if (!gameOptions)
+  GameOptions * gameOptions = gameGetOptions();
+	GameSettings* gameSettings = gameGetSettings();
+	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 		
 	// apply options
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 2;
+	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 }
 
 void setEndGameScoreboard(void)
@@ -825,5 +843,5 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  */
 void loadStart(void)
 {
-	
+  setLobbyGameOptions();
 }

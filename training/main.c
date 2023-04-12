@@ -161,7 +161,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 }
 
 //--------------------------------------------------------------------------
-void loadStart(void)
+void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
-	
+	modeSetLobbyGameOptions(gameConfig);
 }

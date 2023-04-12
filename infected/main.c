@@ -18,6 +18,7 @@
 #include "module.h"
 #include <libdl/game.h>
 #include <libdl/gamesettings.h>
+#include <libdl/graphics.h>
 #include <libdl/player.h>
 #include <libdl/cheats.h>
 #include <libdl/ui.h>
@@ -412,6 +413,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 void setLobbyGameOptions(void)
 {
+  int i;
+
 	// deathmatch options
 	static char options[] = { 
 		0, 0, 			  // 0x06 - 0x08
@@ -423,7 +426,8 @@ void setLobbyGameOptions(void)
 
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
-	if (!gameOptions)
+	GameSettings* gameSettings = gameGetSettings();
+	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 		
 	// apply options
@@ -431,6 +435,14 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Lockdown = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
+
+  // set everyone to blue
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (gameSettings->PlayerClanTags[i] >= 0) {
+      gameSettings->PlayerTeams[i] = 0;
+    }
+  }
 }
 
 /*
@@ -495,5 +507,5 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  */
 void loadStart(void)
 {
-	
+  setLobbyGameOptions();
 }

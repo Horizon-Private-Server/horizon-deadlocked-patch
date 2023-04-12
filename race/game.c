@@ -483,8 +483,10 @@ void gameTick(void)
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchGameConfig_t* gameConfig)
+void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 {
+  static int startDelay = 60 * 0.2;
+	static int waitingForClientsReady = 0;
 	GameSettings* gameSettings = gameGetSettings();
 	Player** players = playerGetAll();
 	GameData* gameData = gameGetData();
@@ -511,13 +513,18 @@ void initialize(PatchGameConfig_t* gameConfig)
   // 
   initializeScoreboard(Config.TargetLaps);
 
-	// give a 1 second delay before finalizing the initialization.
-	// this helps prevent the slow loaders from desyncing
-	static int startDelay = 60 * 1;
-	if (startDelay > 0) {
-		--startDelay;
-		return;
-	}
+  if (startDelay) {
+    --startDelay;
+    return;
+  }
+  
+  // wait for all clients to be ready
+  // or for 15 seconds
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
+    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    ++waitingForClientsReady;
+    return;
+  }
 
 	// spawn track
 	spawnTrack();
@@ -620,11 +627,14 @@ void setLobbyGameOptions(void)
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
 	GameSettings* gameSettings = gameGetSettings();
-	if (!gameOptions)
+	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 	
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
 
 	//gameSettings->PlayerTeams[0] = 1;
 }

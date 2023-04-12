@@ -38,7 +38,7 @@ struct PayloadState State;
 
 void processPlayer(int pIndex);
 void resetRoundState(void);
-void initialize(PatchGameConfig_t* gameConfig);
+void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState);
 void updateGameState(PatchStateContainer_t * gameState);
 void gameTick(void);
 void frameTick(void);
@@ -89,7 +89,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 	if (!Initialized)
 	{
-		initialize(gameConfig);
+		initialize(gameConfig, gameState);
 		teamsAtStart = getTeamCount();
 		return;
 	}
@@ -182,5 +182,5 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 //--------------------------------------------------------------------------
 void loadStart(void)
 {
-	
+  setLobbyGameOptions();
 }
