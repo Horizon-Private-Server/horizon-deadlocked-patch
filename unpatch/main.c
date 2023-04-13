@@ -106,6 +106,7 @@ const int clears[][2] = {
 	{ 0x000F0000, 0x0000F000 }, // game mode
 	{ 0x000CF000, 0x00000800 }, // module definitions
 	{ 0x000CFFD0, 0x00000020 }, // patch hash
+	{ 0x000CFFC0, 0x00000010 }, // patch pointers
 };
 
 int hasClearedMemory = 0;

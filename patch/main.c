@@ -950,6 +950,63 @@ void patchWideStats(void)
 }
 
 /*
+ * NAME :		patchComputePoints_Hook
+ * 
+ * DESCRIPTION :
+ * 			The game uses one function to compute points for each player at the end of the game.
+ *      These points are used to determine MVP, assign more/less MMR, etc.
+ *      For competitive reasons, 
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int patchComputePoints_Hook(int playerIdx)
+{
+  GameData* gameData = gameGetData();
+  int basePoints = ((int (*)(int))0x00625510)(playerIdx);
+  int newPoints = basePoints;
+
+  if (gameData) {
+    
+    // saves are worth half a cap (10 pts)
+    newPoints += gameData->PlayerStats.CtfFlagsSaved[playerIdx] * 5;
+
+  }
+
+  DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
+
+  return newPoints;
+}
+
+/*
+ * NAME :		patchComputePoints
+ * 
+ * DESCRIPTION :
+ * 			Hooks all calls to ComputePoints.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchComputePoints(void)
+{
+  if (!isInGame())
+    return;
+
+  HOOK_JAL(0x006233f0, &patchComputePoints_Hook);
+  HOOK_JAL(0x006265a4, &patchComputePoints_Hook);
+}
+
+/*
  * NAME :		patchKillStealing_Hook
  * 
  * DESCRIPTION :
@@ -3336,6 +3393,11 @@ int main (void)
 		}
 	}
 
+  // write patch pointers
+  POKE_U32(PATCH_POINTERS + 0, &config);
+  POKE_U32(PATCH_POINTERS + 4, &gameConfig);
+  POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
+
 	// invoke exception display installer
 	if (*(u32*)EXCEPTION_DISPLAY_ADDR != 0)
 	{
@@ -3451,6 +3513,9 @@ int main (void)
 
 	// 
 	//patchWideStats();
+
+  // 
+  patchComputePoints();
 
 	// 
 	patchAggTime();
