@@ -9,6 +9,7 @@
 #include <libdl/cheats.h>
 #include <libdl/stdio.h>
 #include <libdl/pad.h>
+#include <libdl/utils.h>
 #include <libdl/dl.h>
 #include <libdl/spawnpoint.h>
 #include <libdl/ui.h>
@@ -46,6 +47,17 @@ enum HalfTimeStates
 	HT_COMPLETED
 };
 
+
+enum OvertimeStates
+{
+	OT_WAITING,
+	OT_INTERMISSION,
+	OT_SWITCH,
+	OT_INTERMISSION2,
+	OT_COMPLETED,
+  OT_GAMEOVER
+};
+
 /* 
  * 
  */
@@ -55,6 +67,16 @@ int HalfTimeState = 0;
  * Indicates when the half time grace period should end.
  */
 int HalfTimeEnd = -1;
+
+/*
+ *
+ */
+int OvertimeState = 0;
+
+/*
+ * Indicates when the overtime grace period should end.
+ */
+int OvertimeEnd = -1;
 
 /*
  * Flag moby by team id.
@@ -78,7 +100,7 @@ Moby * CtfFlags[4] = {0,0,0,0};
  */
 void htReset(void)
 {
-    HalfTimeState = 0;
+  HalfTimeState = 0;
 	HalfTimeEnd = -1;
 	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
 }
@@ -338,10 +360,6 @@ void htCtfTick(void)
 	Player ** players = playerGetAll();
 	int gameTime = gameGetTime();
 
-	// Prevent input
-	padResetInput(0);
-	padResetInput(1);
-
 	switch (HalfTimeState)
 	{
 		case HT_INTERMISSION:
@@ -443,6 +461,435 @@ void halftimeLogic(void)
 		default:
 		{
 			htCtfTick();
+			break;
+		}
+	}
+}
+
+
+/*
+ * NAME :		otReset
+ * 
+ * DESCRIPTION :
+ * 			Resets the overtime state.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void otReset(void)
+{
+  OvertimeState = 0;
+  OvertimeEnd = -1;
+	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+}
+
+/*
+ * NAME :		otCtfBegin
+ * 
+ * DESCRIPTION :
+ * 			Performs all the operations needed at the start of overtime.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void otCtfBegin(void)
+{
+	// Make sure we have the flag mobies
+	getFlags();
+
+	// Indicate when the intermission should end
+	OvertimeEnd = gameGetTime() + (TIME_SECOND * 5);
+	OvertimeState = OT_INTERMISSION;
+
+	// Disable saving or pickup up flag
+	gameFlagSetPickupDistance(0);
+
+	// Show popup
+	uiShowPopup(0, "Overtime");
+	uiShowPopup(1, "Overtime");
+}
+
+/*
+ * NAME :		otCtfRespawnPlayers
+ * 
+ * DESCRIPTION :
+ * 			Resets players and flags back to their bases.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void otCtfRespawnPlayers(void)
+{
+  Player** players = playerGetAll();
+  VECTOR pVector, rVector = {0,0,0,0};
+  Moby* moby;
+  int i;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player* player = players[i];
+    if (!player)
+      continue;
+
+		// Kick from vehicle
+		if (player->Vehicle)
+			vehicleRemovePlayer(player->Vehicle, player);
+
+		// Respawn
+		playerRespawn(player);
+
+		// Teleport player to base
+		moby = CtfFlags[player->Team];
+		if (moby)
+		{
+			vector_copy(pVector, (float*)moby->PVar);
+			float theta = (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU;
+			pVector[0] += cosf(theta) * 2.5;
+			pVector[1] += sinf(theta) * 2.5;
+			playerSetPosRot(player, pVector, rVector);
+		}
+	}
+
+	// reset flags
+	for (i = 0; i < 4; ++i)
+	{
+		if (CtfFlags[i])
+		{
+			*(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+			vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+		}
+	}
+}
+
+/*
+ * NAME :		otCtfEnd
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void otCtfEnd(void)
+{
+	// Enable flag pickup
+	gameFlagSetPickupDistance(2);
+
+  // Enable survivor
+  GameOptions* go = gameGetOptions();
+  if (go) {
+    go->GameFlags.MultiplayerGameFlags.Survivor = 1;
+    go->GameFlags.MultiplayerGameFlags.RespawnTime = -1;
+  }
+}
+
+/*
+ * NAME :		otGetScores
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int otGetScores(int* bestScore, int* winningTeam)
+{
+  int i;
+  int best = 0;
+  int teamsWithBest = 0;
+  int teamWithBest = -1;
+
+  GameData * gameData = gameGetData();
+  if (gameData) {
+    for (i = 0; i < 4; ++i) {
+      if (gameData->TeamStats.FlagCaptureCounts[i] > best) {
+        best = gameData->TeamStats.FlagCaptureCounts[i];
+        teamsWithBest = 1;
+        teamWithBest = i;
+      } else if (gameData->TeamStats.FlagCaptureCounts[i] == best) {
+        teamsWithBest += 1;
+        teamWithBest = -1;
+      }
+    }
+  }
+
+  if (bestScore) {
+    *bestScore = best;
+  }
+
+  if (winningTeam) {
+    *winningTeam = teamWithBest;
+  }
+
+  return teamsWithBest;
+}
+
+/*
+ * NAME :		otGetWinningTeam
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int otGetWinningTeam(void)
+{
+  int i;
+  int playersAlive = 0;
+  int winningTeam = -1;
+  Player** players = playerGetAll();
+  GameOptions* go = gameGetOptions();
+
+  // if 1 team has most caps then return that team
+  if (otGetScores(NULL, &winningTeam) <= 1) {
+    return winningTeam;
+  }
+
+  // otherwise if survivor is on, return last team alive
+  winningTeam = -1;
+  if (go && go->GameFlags.MultiplayerGameFlags.Survivor) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* player = players[i];
+
+      // skip players that left/don't exist
+      if (!player || !player->PlayerMoby || !player->pNetPlayer)
+        continue;
+
+      if (playerIsDead(player))
+        continue;
+
+      ++playersAlive;
+
+      // either set winning team to player (if not yet set)
+      // or if the player is not the current winning team
+      // then that means we have more than one team alive
+      if (winningTeam < 0) {
+        winningTeam = player->Team;
+      }
+      else if (winningTeam != player->Team) {
+        winningTeam = -1;
+        break;
+      }
+    }
+  }
+
+  // no one is alive == draw
+  if (playersAlive == 0) {
+    return -2;
+  }
+
+  return winningTeam;
+}
+
+/*
+ * NAME :		otOnTimelimitReached
+ * 
+ * DESCRIPTION :
+ * 			Triggers when the game ends.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void otOnTimelimitReached(int reason)
+{
+  // if we're already in OT then ignore
+  if (OvertimeState != OT_WAITING) {
+    return;
+  }
+
+  DPRINTF("ot game end called reason=%d\n", reason);
+
+  if (reason == 1) {
+
+    // determine if score is tied
+    int bestScore = 0;
+    int teamsWithBestScore = otGetScores(&bestScore, NULL);
+
+    DPRINTF("ot best score %d, teams with best score %d\n", bestScore, teamsWithBestScore);
+
+    if (teamsWithBestScore > 1) {
+      otCtfBegin();
+      return;
+    }
+  }
+
+  // call base
+  internal_gameEnd(reason);
+}
+
+/*
+ * NAME :		otCtfTick
+ * 
+ * DESCRIPTION :
+ * 			Performs all the operations needed while in intermission.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void otCtfTick(void)
+{
+	int i;
+	Player ** players = playerGetAll();
+	int gameTime = gameGetTime();
+
+	switch (OvertimeState)
+	{
+		case OT_INTERMISSION:
+		{
+			if (gameTime > (OvertimeEnd - (TIME_SECOND * 2)))
+				OvertimeState = OT_SWITCH;
+			break;
+		}
+		case OT_SWITCH:
+		{
+			// Show popup
+			if (gameTime > (OvertimeEnd - (TIME_SECOND * 2)))
+			{
+				uiShowPopup(0, "Survivor is on");
+				uiShowPopup(1, "Survivor is on");
+
+        otCtfRespawnPlayers();
+				OvertimeState = OT_INTERMISSION2;
+			}
+			break;
+		}
+		case OT_INTERMISSION2:
+		{
+			// Drop held items
+			for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+			{
+				if (!players[i])
+					continue;
+
+				players[i]->HeldMoby = 0;
+			}
+
+			// reset flags
+			for (i = 0; i < 4; ++i)
+			{
+				if (CtfFlags[i])
+				{
+					*(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+					vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+				}
+			}
+
+			if (gameTime > OvertimeEnd)
+			{
+				otCtfEnd();
+				OvertimeState = OT_COMPLETED;
+			}
+			break;
+		}
+	}
+	
+}
+
+/*
+ * NAME :		overtimeLogic
+ * 
+ * DESCRIPTION :
+ * 			Checks if the CTF game has reached its end and the score is tied.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void overtimeLogic(void)
+{
+	int timeLimit = gameGetRawTimeLimit();
+	int gameTime = gameGetTime();
+	GameSettings * gameSettings = gameGetSettings();
+
+	// Check we're in game and that it is compatible
+	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
+		return;
+
+	// 
+	switch (OvertimeState)
+	{
+		case OT_WAITING:
+		{
+      // no timelimit
+			if (timeLimit <= 0)
+				break;
+
+      // hook when game ends due to timelimit
+      HOOK_JAL(0x00620F54, &otOnTimelimitReached);
+			break;
+		}
+		case OT_COMPLETED:
+		{
+      // end game when we have a clear winner
+      int winningTeam = otGetWinningTeam();
+      if (winningTeam >= 0) {
+        gameSetWinner(winningTeam, 1);
+        internal_gameEnd(2);
+        gameSetWinner(winningTeam, 1);
+        DPRINTF("ot game over %d\n", winningTeam);
+        OvertimeState = OT_GAMEOVER;
+      } else if (winningTeam == -2) {
+        // draw
+        internal_gameEnd(1);
+        gameSetWinner(-1, 1);
+        DPRINTF("ot game over draw\n");
+        OvertimeState = OT_GAMEOVER;
+      }
+
+			break;
+		}
+    case OT_GAMEOVER:
+    {
+      break;
+    }
+		default:
+		{
+			otCtfTick();
 			break;
 		}
 	}
