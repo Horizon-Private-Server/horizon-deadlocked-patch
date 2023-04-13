@@ -360,6 +360,9 @@ void htCtfTick(void)
 	Player ** players = playerGetAll();
 	int gameTime = gameGetTime();
 
+  padResetInput(0);
+  padResetInput(1);
+  
 	switch (HalfTimeState)
 	{
 		case HT_INTERMISSION:
@@ -513,6 +516,9 @@ void otCtfBegin(void)
 
 	// Disable saving or pickup up flag
 	gameFlagSetPickupDistance(0);
+
+  // disable healthboxes
+  cheatsDisableHealthboxes();
 
 	// Show popup
 	uiShowPopup(0, "Overtime");
@@ -772,6 +778,9 @@ void otCtfTick(void)
 	int i;
 	Player ** players = playerGetAll();
 	int gameTime = gameGetTime();
+
+  padResetInput(0);
+  padResetInput(1);
 
 	switch (OvertimeState)
 	{
