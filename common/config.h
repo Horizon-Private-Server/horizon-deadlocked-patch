@@ -1,6 +1,11 @@
 #ifndef _PATCH_CONFIG_
 #define _PATCH_CONFIG_
 
+/*
+ * Fixed pointers to patch container for use by external modules.
+ */
+#define PATCH_POINTERS			((void*)0x000CFFC0)
+
 typedef struct PatchConfig
 {
   char framelimiter;
