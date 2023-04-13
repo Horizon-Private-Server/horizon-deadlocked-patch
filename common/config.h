@@ -64,6 +64,7 @@ typedef struct PatchGameConfig
   char grNoHealthBoxes;
   char grVampire;
   char grHalfTime;
+  char grOvertime;
   char grBetterHills;
   char grBetterFlags;
   char grHealthBars;

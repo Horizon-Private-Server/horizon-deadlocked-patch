@@ -1365,6 +1365,7 @@ void grInitialize(void)
 
 	// reset
 	htReset();
+  otReset();
 	BetterHillsInitialized = 0;
 	HasDisabledHealthboxes = 0;
 	RotatingWeaponsNextRotationTime = 0;
@@ -1440,6 +1441,9 @@ void grGameStart(void)
 
 	if (gameConfig.grHalfTime)
 		halftimeLogic();
+
+  if (gameConfig.grOvertime)
+    overtimeLogic();
 
 	if (gameConfig.grBetterHills && gameConfig.customMapId == 0)
 		betterHillsLogic();
