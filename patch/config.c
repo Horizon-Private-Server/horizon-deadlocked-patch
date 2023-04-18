@@ -77,6 +77,7 @@ void configMenuEnable(void);
 void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
+void toggleSpMusicActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
@@ -197,7 +198,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
   { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
-  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
+  { "Singleplayer music", toggleSpMusicActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
   { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate },
   { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
 };
@@ -1515,8 +1516,52 @@ void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     {
       if ((state & ELEMENT_EDITABLE) == 0)
         break;
+
       // toggle
-      *(char*)element->userdata = !(*(char*)element->userdata);;
+      *(char*)element->userdata = !(*(char*)element->userdata);
+      break;
+    }
+    case ACTIONTYPE_GETHEIGHT:
+    {
+      *(float*)actionArg = LINE_HEIGHT;
+      break;
+    }
+    case ACTIONTYPE_DRAW:
+    {
+      drawToggleMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+void toggleSpMusicActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+{
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  // do nothing if hidden
+  if ((state & ELEMENT_VISIBLE) == 0)
+    return;
+
+  switch (actionType)
+  {
+    case ACTIONTYPE_INCREMENT:
+    case ACTIONTYPE_SELECT:
+    case ACTIONTYPE_DECREMENT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+        
+      // toggle
+      char newValue = !(*(char*)element->userdata);
+      if (newValue) {
+        if (1 != uiShowYesNoDialog("Enable Singleplayer Music", "If you are on disc, enabling Singleplayer Music will cause brief stuttering at the start of each game. Would you still like to enable it?")) {
+          newValue = 0;
+        }
+      }
+
+      *(char*)element->userdata = newValue;
       break;
     }
     case ACTIONTYPE_GETHEIGHT:
