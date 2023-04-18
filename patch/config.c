@@ -1515,8 +1515,9 @@ void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     {
       if ((state & ELEMENT_EDITABLE) == 0)
         break;
+
       // toggle
-      *(char*)element->userdata = !(*(char*)element->userdata);;
+      *(char*)element->userdata = !(*(char*)element->userdata);
       break;
     }
     case ACTIONTYPE_GETHEIGHT:

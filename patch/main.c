@@ -27,6 +27,7 @@
 #include <libdl/collision.h>
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
+#include <libdl/radar.h>
 #include <libdl/dialog.h>
 #include <libdl/patch.h>
 #include <libdl/ui.h>
@@ -2071,7 +2072,12 @@ void runEnableSingleplayerMusic(void)
 	static int FinishedConvertingTracks = 0;
 	static int AddedTracks = 0;
   static int Loading = 0;
-  
+
+  // wait for scene to finish loading
+  if (isSceneLoading()) {
+    return;
+  }
+
   // indicate to user we're loading sp music
   // running uiRunCallbacks triggers our vsync hook and reinvokes this method
   // while it is still looping
