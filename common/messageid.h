@@ -230,6 +230,12 @@ enum CustomMessageId
     CUSTOM_MSG_ID_SERVER_RESPONSE_BOOT_ELF = 40,
 
     /*
+     * Sent by the client to the server when the client's "client type" changes.
+     * Ie, are they a DZO client or a normal client.
+     */
+    CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE = 41,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,

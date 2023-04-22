@@ -150,6 +150,7 @@ int hasInstalledExceptionHandler = 0;
 int lastSurvivor = 0;
 int lastRespawnTime = 5;
 int lastCrazyMode = 0;
+int lastClientType = -1;
 char mapOverrideResponse = 1;
 char showNeedLatestMapsPopup = 0;
 char showNoMapPopup = 0;
@@ -3403,6 +3404,17 @@ int main (void)
   POKE_U32(PATCH_POINTERS + 0, &config);
   POKE_U32(PATCH_POINTERS + 4, &gameConfig);
   POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
+
+  // send client type to server on change
+  int currentClientType = *(u8*)(PATCH_POINTERS + 12);
+  if (currentClientType != lastClientType) {
+    
+    void* lobbyConnection = netGetLobbyServerConnection();
+    if (lobbyConnection) {
+      lastClientType = currentClientType;
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(currentClientType), &currentClientType);
+    }
+  }
 
 	// invoke exception display installer
 	if (*(u32*)EXCEPTION_DISPLAY_ADDR != 0)
