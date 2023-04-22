@@ -2462,6 +2462,9 @@ u64 hookedProcessLevel()
 	// Start at the first game module
 	GameModule * module = GLOBAL_GAME_MODULES_START;
 
+  // increase wait for players to 50 seconds
+  POKE_U32(0x0021E1E8, 50 * 60);
+
 	// call gamerules level load
 	grLoadStart();
 
