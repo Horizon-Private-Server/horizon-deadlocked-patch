@@ -14,6 +14,7 @@ EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 #EE_DEFS += -DMAPDOWNLOADER
 #EE_DEFS += -DFREECAM
 #EE_DEFS += -DTEST
+#EE_DEFS += -DMAPINFO
 
 # build freecam if defined
 ifneq (,$(findstring -DFREECAM,$(EE_DEFS)))

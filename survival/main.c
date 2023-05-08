@@ -1183,9 +1183,11 @@ void respawnDeadPlayers(void) {
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
-		if (p && p->IsLocal && playerIsDead(p)) {
+		if (p && playerIsDead(p)) {
 			State.PlayerStates[i].State.TimesRevivedSinceLastFullDeath = 0;
-			playerRespawn(p);
+      if (p->IsLocal) {
+			  playerRespawn(p);
+      }
 		}
 		
 		State.PlayerStates[i].IsDead = 0;
@@ -2865,6 +2867,9 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grV2s = 0;
     gameConfig->grVampire = 0;
     gameConfig->grHealthBars = 1;
+    gameConfig->prChargebootForever = 0;
+    gameConfig->prHeadbutt = 0;
+    gameConfig->prPlayerSize = 0;
   }
 
 	// force everyone to same team as host

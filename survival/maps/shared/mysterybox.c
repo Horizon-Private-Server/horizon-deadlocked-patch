@@ -336,8 +336,12 @@ void mboxUpdate(Moby* moby)
     return;
     
   struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
+  Player* activatedByPlayer = players[pvars->ActivatedByPlayerId];
   int timeSinceActivated = gameGetTime() - pvars->ActivatedTime;
   int timeSinceStateChanged = gameGetTime() - pvars->StateChangedAtTime;
+
+  if (pvars->ActivatedByPlayerId < 0)
+    activatedByPlayer = NULL;
 
 	// post draw
   if (moby->State != MYSTERY_BOX_STATE_HIDDEN)
@@ -368,7 +372,9 @@ void mboxUpdate(Moby* moby)
         case MYSTERY_BOX_ITEM_RESET_GATE:
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:
         {
-          mboxGivePlayer(moby, pvars->ActivatedByPlayerId, pvars->Item, pvars->Random);
+          if ((activatedByPlayer && activatedByPlayer->IsLocal) || (gameAmIHost() && !activatedByPlayer)) {
+            mboxGivePlayer(moby, pvars->ActivatedByPlayerId, pvars->Item, pvars->Random);
+          }
           break;
         }
         default: break;
