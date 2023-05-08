@@ -32,6 +32,7 @@ extern int redownloadCustomModeBinaries;
 int isConfigMenuActive = 0;
 int selectedTabItem = 0;
 u32 padPointer = 0;
+int preset = 0;
 
 char fixWeaponLagToggle = 1;
 
@@ -99,6 +100,9 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
@@ -567,6 +571,18 @@ MenuElem_ListData_t dataV2s = {
     }
 };
 
+// presets list item
+MenuElem_ListData_t dataGameConfigPreset = {
+    &preset,
+    NULL,
+    3,
+    {
+      "None",
+      "Competitive",
+      "1v1",
+    }
+};
+
 // game settings tab menu items
 MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
@@ -574,6 +590,7 @@ MenuElem_t menuElementsGameSettings[] = {
   // { "Game Settings", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps },
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
+  { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset },
 
   // SURVIVAL SETTINGS
   // { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
@@ -586,19 +603,19 @@ MenuElem_t menuElementsGameSettings[] = {
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Better flags", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterFlags },
-  { "Better hills", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grBetterHills },
-  { "CTF Halftime", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHalfTime },
-  { "CTF Overtime", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grOvertime },
-  { "Damage cooldown", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoInvTimer },
-  { "Fix Wallsniping", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grFusionShotsAlwaysHit },
-  { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
-  { "Healthboxes", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoHealthBoxes },
-  { "Nametags", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoNames },
-  { "V2s", listActionHandler, menuStateAlwaysEnabledHandler, &dataV2s },
-  { "Vampire", listActionHandler, menuStateAlwaysEnabledHandler, &dataVampire },
-  { "Weapon packs", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPacks },
-  { "Weapon pickups", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNoPickups },
+  { "Better flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags },
+  { "Better hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills },
+  { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime },
+  { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime },
+  { "Damage cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
+  { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
+  { "Healthbars", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grHealthBars },
+  { "Healthboxes", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoHealthBoxes },
+  { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
+  { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
+  { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire },
+  { "Weapon packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks },
+  { "Weapon pickups", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPickups },
 
   // PARTY RULES
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -787,6 +804,7 @@ void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
 // 
 void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
+  preset = 0;
   memset(&gameConfig, 0, sizeof(gameConfig));
 }
 
@@ -1081,6 +1099,41 @@ void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* el
 
   if (gameConfig.customModeId != CUSTOM_MODE_TRAINING)
     *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+
+  if (!gs || gs->GameRules != GAMERULE_CTF)
+    *state = ELEMENT_HIDDEN;
+  else if (preset)
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+
+  if (!gs || gs->GameRules != GAMERULE_KOTH)
+    *state = ELEMENT_HIDDEN;
+  else if (preset)
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (preset)
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
@@ -2076,6 +2129,41 @@ void configMenuDisable(void)
     return;
   
   isConfigMenuActive = 0;
+
+  // force game config to preset
+  switch (preset)
+  {
+    case 1: // competitive
+    {
+      gameConfig.grNoHealthBoxes = 0;
+      gameConfig.grNoNames = 0;
+      gameConfig.grV2s = 0;
+      gameConfig.grVampire = 0;
+
+      gameConfig.grBetterFlags = 1;
+      gameConfig.grBetterHills = 1;
+      gameConfig.grFusionShotsAlwaysHit = 1;
+      gameConfig.grOvertime = 1;
+      gameConfig.grHalfTime = 1;
+      gameConfig.grNoInvTimer = 1;
+      gameConfig.grNoPacks = 1;
+      gameConfig.grNoPickups = 1;
+      break;
+    }
+    case 2: // 1v1
+    {
+      gameConfig.grNoHealthBoxes = 1;
+      gameConfig.grNoNames = 0;
+      gameConfig.grV2s = 2;
+      gameConfig.grVampire = 3;
+
+      gameConfig.grFusionShotsAlwaysHit = 1;
+      gameConfig.grNoInvTimer = 1;
+      gameConfig.grNoPacks = 1;
+      gameConfig.grNoPickups = 1;
+      break;
+    }
+  }
 
   // send config to server for saving
   void * lobbyConnection = netGetLobbyServerConnection();
