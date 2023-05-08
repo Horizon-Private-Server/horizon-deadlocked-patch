@@ -37,8 +37,8 @@
 #include "include/config.h"
 
 
-#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN					(TIME_SECOND * 15)
-#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX					(TIME_SECOND * 45)
+#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN					(TIME_SECOND * 10)
+#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX					(TIME_SECOND * 20)
 #define HEADBUTT_COOLDOWN_TICKS												(4)
 
 typedef struct RotatingWeaponsChangedMessage
@@ -129,6 +129,7 @@ float VampireHealRate[] = {
  */
 int RotatingWeaponsActiveId = WEAPON_ID_WRENCH;
 int RotatingWeaponsNextRotationTime = 0;
+int RotatingWeaponsGiveAmmo = 0;
 
 /*
  *
@@ -239,6 +240,7 @@ void onRotatingWeaponsChangedRemote(void * connection, void * data)
 
 	RotatingWeaponsNextRotationTime = message.gameTime;
 	RotatingWeaponsActiveId = message.weaponId;
+  RotatingWeaponsGiveAmmo = 1;
 }
 
 /*
@@ -297,6 +299,9 @@ void rotatingWeaponsLogic(void)
 		// determine next rotation time
 		RotatingWeaponsNextRotationTime = gameTime + randRangeInt(ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN, ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX);
 
+    // give ammo
+    RotatingWeaponsGiveAmmo = 1;
+
 		// send to others
 		RotatingWeaponsChangedMessage_t message = {
 			.gameTime = RotatingWeaponsNextRotationTime,
@@ -336,14 +341,24 @@ void rotatingWeaponsLogic(void)
 				// force equip if not holding correct weapon
 				if (player->WeaponHeldId != WEAPON_ID_WRENCH &&
 						player->WeaponHeldId != WEAPON_ID_SWINGSHOT &&
-						player->WeaponHeldId != MOBY_ID_HACKER_RAY &&
+						player->WeaponHeldId != WEAPON_ID_HACKER_RAY &&
 						player->WeaponHeldId != RotatingWeaponsActiveId)
 				{
 					playerEquipWeapon(player, RotatingWeaponsActiveId);
 				}
+
+        //
+        if (RotatingWeaponsGiveAmmo) {
+          struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[RotatingWeaponsActiveId];
+          if (gadgetEntry->Level >= 0) {
+            gadgetEntry->Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, RotatingWeaponsActiveId);
+          }
+        }
 			}
 		}
 	}
+
+  RotatingWeaponsGiveAmmo = 0;
 }
 
 /*
@@ -1536,6 +1551,8 @@ void grLoadStart(void)
 	GameSettings* gs = gameGetSettings();
 	if (!gs || gs->GameStartTime >= 0)
 		return;
+
+  //gameGetOptions()->GameFlags.MultiplayerGameFlags.Timelimit = 1;
 
 	// Hook load gameplay file
 	if (*(u32*)0x004EE598 == 0x0C13B1C8)

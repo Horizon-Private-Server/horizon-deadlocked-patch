@@ -3553,6 +3553,18 @@ int main (void)
 	// config update
 	onConfigUpdate();
 
+#if MAPINFO
+  static Moby* waterMoby = NULL;
+  if (!isInGame()) {
+    waterMoby = NULL;
+  } else {
+    waterMoby = mobyFindNextByOClass(mobyListGetStart(), MOBY_ID_WATER);
+    if (waterMoby && waterMoby->PVar) {
+      DPRINTF("water %08X height %f\n", (u32)waterMoby, ((float*)waterMoby->PVar)[19]);
+    }
+  }
+#endif
+
 	// in game stuff
 	if (isInGame())
 	{
@@ -3569,6 +3581,8 @@ int main (void)
 			gameEnd(0);
 		}
 	#endif
+
+    
 
 		//
 		grGameStart();

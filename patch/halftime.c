@@ -82,7 +82,7 @@ int OvertimeEnd = -1;
  * Flag moby by team id.
  */
 Moby * CtfFlags[4] = {0,0,0,0};
-
+VECTOR CtfHtOtFreezePositions[GAME_MAX_PLAYERS];
 
 /*
  * NAME :		htReset
@@ -103,6 +103,7 @@ void htReset(void)
   HalfTimeState = 0;
 	HalfTimeEnd = -1;
 	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  memset(CtfHtOtFreezePositions, 0, sizeof(CtfHtOtFreezePositions));
 }
 
 /*
@@ -159,6 +160,9 @@ void getFlags(void)
  */
 void htCtfBegin(void)
 {
+  int i;
+  Player** players = playerGetAll();
+
 	// Make sure we have the flag mobies
 	getFlags();
 
@@ -168,6 +172,14 @@ void htCtfBegin(void)
 
 	// Disable saving or pickup up flag
 	gameFlagSetPickupDistance(0);
+
+  // Freeze players
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player) {
+      vector_copy(CtfHtOtFreezePositions[i], player->PlayerPosition);
+    }
+  }
 
 	// Show popup
 	uiShowPopup(0, "Halftime");
@@ -360,9 +372,19 @@ void htCtfTick(void)
 	Player ** players = playerGetAll();
 	int gameTime = gameGetTime();
 
+  // prevent pad input
   padResetInput(0);
   padResetInput(1);
   
+  // lock players to positions
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && player->PlayerMoby) {
+      vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
+      vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
+    }
+  }
+
 	switch (HalfTimeState)
 	{
 		case HT_INTERMISSION:
@@ -489,6 +511,7 @@ void otReset(void)
   OvertimeState = 0;
   OvertimeEnd = -1;
 	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  memset(CtfHtOtFreezePositions, 0, sizeof(CtfHtOtFreezePositions));
 }
 
 /*
@@ -507,6 +530,9 @@ void otReset(void)
  */
 void otCtfBegin(void)
 {
+  int i;
+  Player** players = playerGetAll();
+
 	// Make sure we have the flag mobies
 	getFlags();
 
@@ -516,6 +542,14 @@ void otCtfBegin(void)
 
 	// Disable saving or pickup up flag
 	gameFlagSetPickupDistance(0);
+
+  // Freeze players
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player) {
+      vector_copy(CtfHtOtFreezePositions[i], player->PlayerPosition);
+    }
+  }
 
   // disable healthboxes
   cheatsDisableHealthboxes();
@@ -626,20 +660,31 @@ void otCtfEnd(void)
 int otGetScores(int* bestScore, int* winningTeam)
 {
   int i;
-  int best = 0;
+  int best = -1;
   int teamsWithBest = 0;
   int teamWithBest = -1;
+  int teams[4] = {0,0,0,0};
+  Player** players = playerGetAll();
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && player->PlayerMoby && player->pNetPlayer && player->Team >= 0 && player->Team < 4) {
+      teams[player->Team] += 1;
+    }
+  }
 
   GameData * gameData = gameGetData();
   if (gameData) {
     for (i = 0; i < 4; ++i) {
-      if (gameData->TeamStats.FlagCaptureCounts[i] > best) {
-        best = gameData->TeamStats.FlagCaptureCounts[i];
-        teamsWithBest = 1;
-        teamWithBest = i;
-      } else if (gameData->TeamStats.FlagCaptureCounts[i] == best) {
-        teamsWithBest += 1;
-        teamWithBest = -1;
+      if (teams[i]) {
+        if (gameData->TeamStats.FlagCaptureCounts[i] > best) {
+          best = gameData->TeamStats.FlagCaptureCounts[i];
+          teamsWithBest = 1;
+          teamWithBest = i;
+        } else if (gameData->TeamStats.FlagCaptureCounts[i] == best) {
+          teamsWithBest += 1;
+          teamWithBest = -1;
+        }
       }
     }
   }
@@ -779,8 +824,18 @@ void otCtfTick(void)
 	Player ** players = playerGetAll();
 	int gameTime = gameGetTime();
 
+  // prevent pad input
   padResetInput(0);
   padResetInput(1);
+
+  // lock players to positions
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && player->PlayerMoby) {
+      vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
+      vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
+    }
+  }
 
 	switch (OvertimeState)
 	{
