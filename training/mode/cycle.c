@@ -72,7 +72,7 @@ long TimeLastInHill = 0;
 
 int last_names_idx = 0;
 
-const float ComboMultiplierFactor = 0.1;
+const float ComboMultiplierFactor = 0.2;
 const int SimPlayerCount = MAX_SPAWNED_TARGETS;
 SimulatedPlayer_t SimPlayers[MAX_SPAWNED_TARGETS];
 
@@ -292,7 +292,7 @@ void modeOnTargetKilled(SimulatedPlayer_t* target, MobyColDamage* colDamage)
 	// give points
 	if (pvar && colDamage && !gameHasEnded()) {
 		int gadgetId = getGadgetIdFromMoby(colDamage->Damager);
-		float pointMultiplier = 1;
+		float pointMultiplier = 2;
 		int pointAdditive = 0;
 		int timeToKillMs = (timerGetSystemTime() - State.TimeLastKill) / SYSTEM_TIME_TICKS_PER_MS;
 
@@ -334,13 +334,14 @@ void modeOnTargetKilled(SimulatedPlayer_t* target, MobyColDamage* colDamage)
 		// and 0 is time to kill <= 1 second
 		float timeToKillR = powf(clamp((timeToKillMs - (TIME_SECOND * 1)) / (float)TARGET_POINTS_LIFETIME, 0, 1), 0.5);
 
-		// max points for quick kill is 1000
-		int points = 2000 * (1 - timeToKillR);
+		// max points for quick kill is 5000
+		int points = 5000 * (1 - timeToKillR);
 
 		// add additional points before multiplication
 		points += pointAdditive;
 
 		points += target->Points;
+    target->Points = 0;
 
 		DPRINTF("killed %d -> %d (%.2f x)\n", points, (int)(points * pointMultiplier), pointMultiplier);
 
