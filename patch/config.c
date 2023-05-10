@@ -381,6 +381,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Dark Cathedral Interior",
       "Desert Prison",
       "Duck Hunt",
+      "Ghost Hangar",
       "Ghost Ship",
       "Hoven Gorge",
       "Hoverbike Race",
