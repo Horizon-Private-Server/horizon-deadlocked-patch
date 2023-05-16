@@ -151,6 +151,7 @@ int lastSurvivor = 0;
 int lastRespawnTime = 5;
 int lastCrazyMode = 0;
 int lastClientType = -1;
+int lastAccountId = -1;
 char mapOverrideResponse = 1;
 char showNeedLatestMapsPopup = 0;
 char showNoMapPopup = 0;
@@ -3410,11 +3411,12 @@ int main (void)
 
   // send client type to server on change
   int currentClientType = *(u8*)(PATCH_POINTERS + 12);
-  if (currentClientType != lastClientType) {
-    
+  int accountId = *(int*)0x00172194;
+  if (currentClientType != lastClientType || lastAccountId != accountId) {
     void* lobbyConnection = netGetLobbyServerConnection();
     if (lobbyConnection) {
       lastClientType = currentClientType;
+      lastAccountId = accountId;
       netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(currentClientType), &currentClientType);
     }
   }

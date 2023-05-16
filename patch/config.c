@@ -379,21 +379,16 @@ MenuElem_ListData_t dataCustomMaps = {
       "Canal City",
       "Containment Suite",
       "Dark Cathedral Interior",
-      "Desert Prison",
-      "Duck Hunt",
       "Ghost Hangar",
       "Ghost Ship",
       "Hoven Gorge",
-      "Hoverbike Race",
       "Infinite Climber",
       "Korgon Outpost",
       "Launch Site",
       "Marcadia Palace",
       "Metropolis MP",
       "Mining Facility SP",
-      "Sarathos SP",
       "Shaar SP",
-      "Shipment",
       "Snivelak",
       "Spleef",
       "Torval Lost Factory",
@@ -407,8 +402,6 @@ MenuElem_ListData_t dataCustomMaps = {
 // maps with their own exclusive gamemode
 char dataCustomMapsWithExclusiveGameMode[] = {
   CUSTOM_MAP_SPLEEF,
-  CUSTOM_MAP_DUCK_HUNT,
-  CUSTOM_MAP_HOVERBIKE_RACE,
   CUSTOM_MAP_INFINITE_CLIMBER
 };
 const int dataCustomMapsWithExclusiveGameModeCount = sizeof(dataCustomMapsWithExclusiveGameMode)/sizeof(char);
@@ -901,12 +894,6 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
   char gm = gameConfig.customModeId;
   char v = *value;
 
-  // disable duck hunt
-  if (v == CUSTOM_MAP_DUCK_HUNT) {
-    *value = CUSTOM_MAP_NONE;
-    return 0;
-  }
-
   switch (gm)
   {
     case CUSTOM_MODE_SURVIVAL:
@@ -922,10 +909,10 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
     }
     case CUSTOM_MODE_PAYLOAD:
     {
-      if (v == CUSTOM_MAP_SARATHOS_SP || v == CUSTOM_MAP_DESERT_PRISON || v == CUSTOM_MAP_SNIVELAK || v == CUSTOM_MAP_NONE)
+      if (v == CUSTOM_MAP_SNIVELAK || v == CUSTOM_MAP_NONE)
         return 1;
 
-      *value = CUSTOM_MAP_DESERT_PRISON;
+      *value = CUSTOM_MAP_SNIVELAK;
       return 0;
     }
     case CUSTOM_MODE_TRAINING:
