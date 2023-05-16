@@ -526,13 +526,17 @@ void patchLevelOfDetail(void)
 	}
 
   int lod = config.levelOfDetail;
-  switch (gameConfig.customMapId)
-  {
-    case CUSTOM_MAP_CANAL_CITY:
+  if (lastClientType == CLIENT_TYPE_NORMAL) {
+    switch (gameConfig.customMapId)
     {
-      lod = 0; // always potato on canal city
-      break;
+      case CUSTOM_MAP_CANAL_CITY:
+      {
+        lod = 0; // always potato on canal city
+        break;
+      }
     }
+  } else if (lastClientType == CLIENT_TYPE_DZO) {
+    lod = 2; // always use normal LOD for dzo clients
   }
 
 	// correct lod
