@@ -151,6 +151,7 @@ int lastSurvivor = 0;
 int lastRespawnTime = 5;
 int lastCrazyMode = 0;
 int lastClientType = -1;
+int lastAccountId = -1;
 char mapOverrideResponse = 1;
 char showNeedLatestMapsPopup = 0;
 char showNoMapPopup = 0;
@@ -525,13 +526,17 @@ void patchLevelOfDetail(void)
 	}
 
   int lod = config.levelOfDetail;
-  switch (gameConfig.customMapId)
-  {
-    case CUSTOM_MAP_CANAL_CITY:
+  if (lastClientType == CLIENT_TYPE_NORMAL) {
+    switch (gameConfig.customMapId)
     {
-      lod = 0; // always potato on canal city
-      break;
+      case CUSTOM_MAP_CANAL_CITY:
+      {
+        lod = 0; // always potato on canal city
+        break;
+      }
     }
+  } else if (lastClientType == CLIENT_TYPE_DZO) {
+    lod = 2; // always use normal LOD for dzo clients
   }
 
 	// correct lod
@@ -3410,11 +3415,12 @@ int main (void)
 
   // send client type to server on change
   int currentClientType = *(u8*)(PATCH_POINTERS + 12);
-  if (currentClientType != lastClientType) {
-    
+  int accountId = *(int*)0x00172194;
+  if (currentClientType != lastClientType || lastAccountId != accountId) {
     void* lobbyConnection = netGetLobbyServerConnection();
     if (lobbyConnection) {
       lastClientType = currentClientType;
+      lastAccountId = accountId;
       netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(currentClientType), &currentClientType);
     }
   }
