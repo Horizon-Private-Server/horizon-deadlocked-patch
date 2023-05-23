@@ -2431,11 +2431,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
       //manSpawnMobId = 0;
-			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
         manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
       }
-      int manSpawnedId = manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
+      int manSpawnedId = manSpawnMobId; //manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
 			VECTOR t = {1,1,1,0};
       vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnedId].Config.CollRadius*2);
 			vector_add(t, t, localPlayer->PlayerPosition);

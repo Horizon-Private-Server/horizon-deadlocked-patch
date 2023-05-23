@@ -88,6 +88,9 @@ void freecamUpdateCamera_PostHook(void)
 
     // write spectate position
     vector_copy(camera->pos, freecamData->LastCameraPos);
+    camera->rot[1] = freecamData->SpectateCameraPitch;
+    camera->rot[2] = freecamData->SpectateCameraYaw;
+    camera->rot[0] = 0;
 
     // create and write spectate rotation matrix
     freecamGetRotationMatrix(m, freecamData);
@@ -97,8 +100,8 @@ void freecamUpdateCamera_PostHook(void)
     ((void (*)(int))0x004b2010)(i);
 
     // restore backup
-    vector_copy(camera->pos, pBackup);
-    memcpy(camera->uMtx, mBackup, sizeof(float) * 12);
+    //vector_copy(camera->pos, pBackup);
+    //memcpy(camera->uMtx, mBackup, sizeof(float) * 12);
   }
 
 }
