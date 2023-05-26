@@ -525,95 +525,97 @@ void patchLevelOfDetail(void)
 		*(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
 	}
 
-  int lod = config.levelOfDetail;
   if (lastClientType == CLIENT_TYPE_NORMAL) {
-    switch (gameConfig.customMapId)
-    {
-      case CUSTOM_MAP_CANAL_CITY:
+
+    // force lod on certain maps
+    int lod = config.levelOfDetail;
+    if (lastClientType == CLIENT_TYPE_NORMAL) {
+      switch (gameConfig.customMapId)
       {
-        lod = 0; // always potato on canal city
+        case CUSTOM_MAP_CANAL_CITY:
+        {
+          lod = 0; // always potato on canal city
+          break;
+        }
+      }
+    }
+
+    // correct lod
+    int lodChanged = lod != lastLodLevel;
+    switch (lod)
+    {
+      case 0: // potato
+      {
+        _lodScale = 0.2;
+        SHRUB_RENDER_DISTANCE = 50;
+        *DRAW_SHADOW_FUNC = 0x03E00008;
+        *(DRAW_SHADOW_FUNC + 1) = 0;
+
+        if (lodChanged)
+        {
+          // set terrain and tie render distance
+          POKE_U16(0x00223158, 120);
+          *(float*)0x002230F0 = 120 * 1024;
+
+          for (i = 0; i < sizeof(lodPatchesPotato) / (2 * sizeof(int)); ++i)
+            POKE_U32(lodPatchesPotato[i][0], lodPatchesPotato[i][1]);
+        }
+        break;
+      }
+      case 1: // low
+      {
+        _lodScale = 0.2;
+        SHRUB_RENDER_DISTANCE = 50;
+        *DRAW_SHADOW_FUNC = 0x03E00008;
+        *(DRAW_SHADOW_FUNC + 1) = 0;
+
+        if (lodChanged)
+        {
+          // set terrain and tie render distance
+          POKE_U16(0x00223158, 480);
+          *(float*)0x002230F0 = 480 * 1024;
+
+          for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+            POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+
+          // disable jump pad blur
+          POKE_U32(0x0042608C, 0);
+        }
+        break;
+      }
+      case 2: // normal
+      {
+        _lodScale = 1.0;
+        SHRUB_RENDER_DISTANCE = 500;
+        *DRAW_SHADOW_FUNC = 0x27BDFF90;
+        *(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
+        POKE_U16(0x00223158, 960);
+        *(float*)0x002230F0 = 960 * 1024;
+
+        if (lodChanged)
+        {
+          // set terrain and tie render distance
+          POKE_U16(0x00223158, 960);
+          *(float*)0x002230F0 = 960 * 1024;
+
+          for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+            POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+        }
+        break;
+      }
+      case 3: // high
+      {
+        _lodScale = 10.0;
+        SHRUB_RENDER_DISTANCE = 5000;
+        *DRAW_SHADOW_FUNC = 0x27BDFF90;
+        *(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
+
+        for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+          POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
         break;
       }
     }
-  } else if (lastClientType == CLIENT_TYPE_DZO) {
-    lod = 2; // always use normal LOD for dzo clients
   }
-
-	// correct lod
-	int lodChanged = lod != lastLodLevel;
-	switch (lod)
-	{
-		case 0: // potato
-		{
-			_lodScale = 0.2;
-			SHRUB_RENDER_DISTANCE = 50;
-			*DRAW_SHADOW_FUNC = 0x03E00008;
-			*(DRAW_SHADOW_FUNC + 1) = 0;
-
-			if (lodChanged)
-			{
-				// set terrain and tie render distance
-				POKE_U16(0x00223158, 120);
-				*(float*)0x002230F0 = 120 * 1024;
-
-				for (i = 0; i < sizeof(lodPatchesPotato) / (2 * sizeof(int)); ++i)
-					POKE_U32(lodPatchesPotato[i][0], lodPatchesPotato[i][1]);
-			}
-			break;
-		}
-		case 1: // low
-		{
-			_lodScale = 0.2;
-			SHRUB_RENDER_DISTANCE = 50;
-			*DRAW_SHADOW_FUNC = 0x03E00008;
-			*(DRAW_SHADOW_FUNC + 1) = 0;
-
-			if (lodChanged)
-			{
-				// set terrain and tie render distance
-				POKE_U16(0x00223158, 480);
-				*(float*)0x002230F0 = 480 * 1024;
-
-				for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-					POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
-
-				// disable jump pad blur
-				POKE_U32(0x0042608C, 0);
-			}
-			break;
-		}
-		case 2: // normal
-		{
-			_lodScale = 1.0;
-			SHRUB_RENDER_DISTANCE = 500;
-			*DRAW_SHADOW_FUNC = 0x27BDFF90;
-			*(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
-			POKE_U16(0x00223158, 960);
-			*(float*)0x002230F0 = 960 * 1024;
-
-			if (lodChanged)
-			{
-				// set terrain and tie render distance
-				POKE_U16(0x00223158, 960);
-				*(float*)0x002230F0 = 960 * 1024;
-
-				for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-					POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
-			}
-			break;
-		}
-		case 3: // high
-		{
-			_lodScale = 10.0;
-			SHRUB_RENDER_DISTANCE = 5000;
-			*DRAW_SHADOW_FUNC = 0x27BDFF90;
-			*(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
-
-			for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-				POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
-			break;
-		}
-	}
 
 	// backup lod
 	lastLodLevel = config.levelOfDetail;
