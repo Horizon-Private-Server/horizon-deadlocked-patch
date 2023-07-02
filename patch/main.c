@@ -3390,6 +3390,11 @@ int main (void)
 	// Call this first
 	dlPreUpdate();
 
+  //
+  //if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+  //  POKE_U32(0x0036D664, gameGetTime() + (TIME_SECOND * 1020));
+  //}
+
 	// auto enable pad input to prevent freezing when popup shows
 	if (lastMenuInvokedTime > 0 && gameGetTime() - lastMenuInvokedTime > TIME_SECOND)
 	{
