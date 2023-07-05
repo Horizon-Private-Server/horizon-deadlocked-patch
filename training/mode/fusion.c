@@ -526,6 +526,13 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	if (!gameOptions || gameSettings->GameLoadStartTime <= 0)
 		return;
 
+	//
+	gameConfig->grNoInvTimer = 1;
+	gameConfig->grV2s = 0;
+	gameConfig->grVampire = 0;
+	gameConfig->prPlayerSize = 0;
+	gameConfig->prRotatingWeapons = 0;
+
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;

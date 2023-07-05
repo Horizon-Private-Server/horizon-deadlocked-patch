@@ -626,6 +626,11 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 
 	//
 	gameConfig->grNoInvTimer = 1;
+	gameConfig->grV2s = 0;
+	gameConfig->grVampire = 0;
+	gameConfig->grBetterHills = 0;
+	gameConfig->prPlayerSize = 0;
+	gameConfig->prRotatingWeapons = 0;
 
 	// teams
 	gameSettings->PlayerTeams[0] = 0;
