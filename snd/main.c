@@ -196,8 +196,7 @@ typedef struct GameplayMobyDef
 	short UNK_4C;
 	short UNK_4E;
 	int PVarIndex;
-	short UNK_54;
-	short UNK_56;
+	int Occlusion;
 	int UNK_58;
 	int Red;
 	int Green;
@@ -1273,6 +1272,7 @@ void loadGameplayHook(void * gameplayMobies, void * a1, u32 a2)
 			defs->PosX = point[0];
 			defs->PosY = point[1];
 			defs->PosZ = point[2];
+      defs->Occlusion = 1; // disable occlusion
 			++nodeCount;
 		}
 		else if (defs->OClass == MOBY_ID_PLAYER_TURRET 
