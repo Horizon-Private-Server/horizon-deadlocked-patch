@@ -3302,6 +3302,7 @@ void onOnlineMenu(void)
 	{
 		padEnableInput();
 		onConfigInitialize();
+    PATCH_DZO_INTEROP_FUNCS = 0;
 		memset(lobbyPlayerConfigs, 0, sizeof(lobbyPlayerConfigs));
 		hasInitialized = 1;
 	}
@@ -3418,7 +3419,7 @@ int main (void)
   // write patch pointers
   POKE_U32(PATCH_POINTERS + 0, &config);
   POKE_U32(PATCH_POINTERS + 4, &gameConfig);
-  POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
+  //POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
 
   // send client type to server on change
   int currentClientType = *(u8*)(PATCH_POINTERS + 12);

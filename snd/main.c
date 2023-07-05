@@ -262,6 +262,17 @@ struct SNDState
 	SNDTimerState_t Timer;
 } SNDState;
 
+struct CustomDzoCommandSndDrawTimer
+{
+  u32 MsLeft;
+  u32 Color;
+  float Size;
+};
+
+struct CustomDzoCommandSndDrawRoundResult
+{
+  char Message[64];
+};
 
 /*
  *
@@ -797,6 +808,14 @@ void drawRoundMessage(const char * message, float scale)
 
 	// draw message
 	gfxScreenSpaceText(SCREEN_WIDTH * x, SCREEN_HEIGHT * y, scale, scale * 1.5, 0x80FFFFFF, message, -1, 4);
+
+  // pass to dzo
+  if (PATCH_DZO_INTEROP_FUNCS)
+  {
+    struct CustomDzoCommandSndDrawRoundResult cmd;
+    strncpy(cmd.Message, message, sizeof(cmd.Message));
+    PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SND_DRAW_ROUND_RESULT, sizeof(cmd), &cmd);
+  }
 }
 
 
@@ -1023,6 +1042,16 @@ void bombTimerLogic()
 			// draw timer
 			sprintf(strBuf, "%.02f", timeLeft / (float)TIME_SECOND);
 			gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT * 0.15, scale, scale, color, strBuf, -1, 4);
+
+      // pass to dzo
+      if (PATCH_DZO_INTEROP_FUNCS)
+      {
+        struct CustomDzoCommandSndDrawTimer cmd;
+        cmd.Color = color;
+        cmd.Size = scale;
+        cmd.MsLeft = timeLeft;
+        PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SND_DRAW_TIMER, sizeof(cmd), &cmd);
+      }
 
 			// tick timer
 			if (timeSecondsLeftFloor < SNDState.Timer.LastPlaySoundSecond)
