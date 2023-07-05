@@ -724,15 +724,17 @@ void setPackLifetime(int lifetime)
 
 void killPack()
 {
-	// Set lifetime of bomb pack moby
-	if (SNDState.BombPackMoby)
-	{
-		guberMobyDestroy(SNDState.BombPackMoby);
-		
-		DPRINTF("KILLED PACK AT %08X\n", (u32)SNDState.BombPackMoby);
-		SNDState.BombPackMoby = NULL;
-		SNDState.BombPackGuber = NULL;
-	}
+  // destroy all packs
+  Moby* m = mobyListGetStart();
+  while (m = mobyFindNextByOClass(m, MOBY_ID_WEAPON_PACK))
+  {
+    m->State = 5; // kill
+		DPRINTF("KILLED PACK AT %08X\n", (u32)m);
+    ++m;
+  }
+
+  SNDState.BombPackMoby = NULL;
+  SNDState.BombPackGuber = NULL;
 }
 
 void * spawnPackHook(u16 OClass, int pvarSize, int guberId, int arg4, int arg5)
