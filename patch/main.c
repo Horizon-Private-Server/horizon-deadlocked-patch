@@ -1252,6 +1252,51 @@ u128 getFusionShotDirection(Player* target, int a1, u128 vFrom, u128 vTo, Moby* 
   return ((u128 (*)(Player*, int, u128, u128, float))0x003f9fc0)(target, a1, vFrom, vTo, 0.0);
 }
 
+/*
+ * NAME :		patchFusionReticule
+ * 
+ * DESCRIPTION :
+ * 			Enables/disables the fusion reticule.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchFusionReticule(void)
+{
+  static int patched = -1;
+  if (!isInGame()) {
+    patched = -1; // reset
+    return;
+  }
+
+  // don't allow reticule when disabled by host
+  if (gameConfig.grNoSniperHelpers)
+    return;
+
+  // already patched
+  if (patched == config.enableFusionReticule)
+    return;
+
+  if (config.enableFusionReticule) {
+    POKE_U32(0x003FAFA4, 0x8203266D);
+    POKE_U32(0x003FAFA8, 0x1060003E);
+
+    POKE_U32(0x003FAEE0, 0);
+  } else {
+    POKE_U32(0x003FAFA4, 0x24020001);
+    POKE_U32(0x003FAFA8, 0x1062003E);
+
+    POKE_U32(0x003FAEE0, 0x10400070);
+  }
+
+  patched = config.enableFusionReticule;
+}
+
 struct FlagPVars
 {
 	VECTOR BasePosition;
@@ -3545,6 +3590,9 @@ int main (void)
 
 	// Patch camera shake
 	patchCameraShake();
+
+  //
+  patchFusionReticule();
 
 	// 
 	//patchWideStats();

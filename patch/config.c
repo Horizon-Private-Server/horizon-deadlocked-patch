@@ -196,6 +196,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
+  { "Fusion Reticule", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
@@ -540,6 +541,17 @@ MenuElem_ListData_t dataWeather = {
     }
 };
 
+// fusion reticule allow/disable list item
+MenuElem_ListData_t dataFusionReticule = {
+    &gameConfig.grNoSniperHelpers,
+    NULL,
+    2,
+    {
+      "Permitted",
+      "Disabled"
+    }
+};
+
 // vampire list item
 MenuElem_ListData_t dataVampire = {
     &gameConfig.grVampire,
@@ -603,6 +615,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime },
   { "Damage cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
+  { "Fusion Reticule", listActionHandler, menuStateHandler_SettingStateHandler, &dataFusionReticule },
   { "Healthbars", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grHealthBars },
   { "Healthboxes", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
@@ -905,6 +918,30 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
         return 1;
 
       *value = CUSTOM_MAP_SURVIVAL_START;
+      return 0;
+    }
+    case CUSTOM_MODE_SEARCH_AND_DESTROY:
+    {
+      // supported custom maps
+      switch (v)
+      {
+        case CUSTOM_MAP_BAKISI_ISLES:
+        case CUSTOM_MAP_CANAL_CITY:
+        case CUSTOM_MAP_GHOST_HANGAR:
+        case CUSTOM_MAP_GHOST_SHIP:
+        case CUSTOM_MAP_HOVEN_GORGE:
+        case CUSTOM_MAP_KORGON_OUTPOST:
+        case CUSTOM_MAP_METROPOLIS_MP:
+        case CUSTOM_MAP_MINING_FACILITY_SP:
+        case CUSTOM_MAP_SHAAR_SP:
+        case CUSTOM_MAP_SNIVELAK:
+        case CUSTOM_MAP_TORVAL_LOST_FACTORY:
+        case CUSTOM_MAP_TORVAL_SP:
+        case CUSTOM_MAP_TYHRRANOSIS:
+          return 1;
+      }
+
+      *value = CUSTOM_MAP_NONE;
       return 0;
     }
     case CUSTOM_MODE_PAYLOAD:
@@ -2136,6 +2173,7 @@ void configMenuDisable(void)
       gameConfig.grNoInvTimer = 1;
       gameConfig.grNoPacks = 1;
       gameConfig.grNoPickups = 1;
+      gameConfig.grNoSniperHelpers = 1;
       break;
     }
     case 2: // 1v1

@@ -23,6 +23,7 @@ typedef struct PatchConfig
   char minimapScale;
   char minimapBigZoom;
   char minimapSmallZoom;
+  char enableFusionReticule;
 #if FREECAM
   char playerFov;
 #endif
@@ -73,6 +74,7 @@ typedef struct PatchGameConfig
   char grNoInvTimer;
   char grNoPickups;
   char grFusionShotsAlwaysHit;
+  char grNoSniperHelpers;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;
