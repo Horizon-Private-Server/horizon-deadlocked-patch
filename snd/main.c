@@ -1658,7 +1658,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				targetTeams[1] = SND_NODE2_BLIP_TEAM;
 
 				if (localPlayer->Team == SNDState.DefenderTeamId)
-					disableBlipPulsing();
+				  disableBlipPulsing();
+        else
+          enableBlipPulsing();
 			}
 			else if (SNDState.BombPackMoby)
 			{
@@ -1666,6 +1668,13 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				target[0] = SNDState.BombPackMoby;
 				enableBlipPulsing();
 			}
+      else if (localPlayer->Team == SNDState.AttackerTeamId)
+      {
+        // bomb is carried by attacking team
+        // we're not the carrier
+        // so enable pulsing to show who has the bomb on attacking team
+        enableBlipPulsing();
+      }
 
 			// set objectives
 			for (i = 0; i < SNDState.NodeCount; ++i)
@@ -1695,7 +1704,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					if (blipId >= 0)
 					{
 						RadarBlip * blip = radarGetBlips() + blipId;
-						blip->Type = SNDState.Players[i].IsBombCarrier && localPlayer->Team == SNDState.AttackerTeamId ? 0x01 : 0x00;
+						blip->Type = (SNDState.Players[i].IsBombCarrier && localPlayer->Team == SNDState.AttackerTeamId) ? 0x01 : 0x00;
 					}
 				}
 			}
@@ -1811,7 +1820,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 }
 
 //--------------------------------------------------------------------------
-void setLobbyGameOptions(void)
+void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
 	// conquest homenodes options
 	static char cqOptions[] = { 
@@ -1827,7 +1836,10 @@ void setLobbyGameOptions(void)
 	GameSettings* gameSettings = gameGetSettings();
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
-		
+	
+  // disable healthboxes
+  gameConfig->grNoHealthBoxes = 1;
+
 	// set to conquest homenodes
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)cqOptions, sizeof(cqOptions)/sizeof(char));
 
@@ -1880,7 +1892,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameConfig);
 			break;
 		}
 	}
@@ -1904,7 +1916,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 
 void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
-	setLobbyGameOptions();
+	setLobbyGameOptions(gameConfig);
 
 	// only handle when loading level
 	GameSettings* gs = gameGetSettings();
