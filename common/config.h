@@ -24,7 +24,7 @@ typedef struct PatchConfig
   char minimapBigZoom;
   char minimapSmallZoom;
   char enableFusionReticule;
-  
+
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
 #endif
@@ -72,6 +72,9 @@ typedef struct PatchGameConfig
   char grNoPickups;
   char grFusionShotsAlwaysHit;
   char grNoSniperHelpers;
+  char grCqPersistentCapture;
+  char grCqDisableTurrets;
+  char grCqDisableUpgrades;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;

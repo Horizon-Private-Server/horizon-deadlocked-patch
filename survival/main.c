@@ -102,6 +102,9 @@ int snackItemsCount = 0;
 
 int defaultSpawnParamsCooldowns[MAX_MOB_SPAWN_PARAMS];
 
+int playerStates[GAME_MAX_PLAYERS];
+int playerStateTimers[GAME_MAX_PLAYERS];
+
 SoundDef TestSoundDef =
 {
 	0.0,	  // MinRange
@@ -1290,6 +1293,13 @@ void processPlayer(int pIndex) {
     }
   }
 
+  // update state timers
+  if (playerStates[pIndex] != player->PlayerState)
+    playerStateTimers[pIndex] = 0;
+  else
+    playerStateTimers[pIndex] += 1;
+  playerStates[pIndex] = player->PlayerState;
+
 	if (player->IsLocal) {
 		
 		GadgetBox* gBox = player->GadgetBox;
@@ -1559,7 +1569,21 @@ void processPlayer(int pIndex) {
 		if (!hasMessage && messageCooldownTicks == 1) {
 			((void (*)(int))0x0054e5e8)(localPlayerIndex);
 		}
-	}
+	} else {
+
+    // bug where players on GREEN or higher will remain cranking bolt after finishing
+    // so we'll check to see if their remote player state is no longer cranking
+    // and we'll stop them
+    int remoteState = *(int*)((u32)player + 0x3a80);
+    int playerStateTimer = playerStateTimers[pIndex];
+    if (player->PlayerState == PLAYER_STATE_BOLT_CRANK
+     && remoteState != PLAYER_STATE_BOLT_CRANK
+     && playerStateTimer > TPS*3) {
+
+			PlayerVTable* vtable = playerGetVTable(player);
+      vtable->UpdateState(player, remoteState, 1, 1, 1);
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -2156,6 +2180,10 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	dropInitialize();
 	upgradeInitialize();
   demonbellInitialize();
+
+  //
+  memset(playerStates, 0, sizeof(playerStates));
+  memset(playerStateTimers, 0, sizeof(playerStateTimers));
 
   if (startDelay) {
     --startDelay;
@@ -2877,6 +2905,9 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->prChargebootForever = 0;
     gameConfig->prHeadbutt = 0;
     gameConfig->prPlayerSize = 0;
+    gameConfig->grCqPersistentCapture = 0;
+    gameConfig->grCqDisableTurrets = 0;
+    gameConfig->grCqDisableUpgrades = 0;
   }
 
 	// force everyone to same team as host

@@ -988,7 +988,7 @@ int patchComputePoints_Hook(int playerIdx)
 
   }
 
-  DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
+  //DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
 
   return newPoints;
 }

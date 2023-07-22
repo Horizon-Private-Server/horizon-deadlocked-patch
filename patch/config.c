@@ -104,6 +104,7 @@ void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* ele
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element);
@@ -612,6 +613,9 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Better hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills },
   { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime },
   { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime },
+  { "CQ Save Capture Progress", toggleActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqPersistentCapture },
+  { "CQ Turrets", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableTurrets },
+  { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades },
   { "Damage cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
   { "Fusion Reticule", listActionHandler, menuStateHandler_SettingStateHandler, &dataFusionReticule },
@@ -1144,6 +1148,19 @@ void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element
   GameSettings* gs = gameGetSettings();
 
   if (!gs || gs->GameRules != GAMERULE_CTF)
+    *state = ELEMENT_HIDDEN;
+  else if (preset)
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+
+  if (!gs || gs->GameRules != GAMERULE_CQ)
     *state = ELEMENT_HIDDEN;
   else if (preset)
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
