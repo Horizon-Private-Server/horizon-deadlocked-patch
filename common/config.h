@@ -4,7 +4,8 @@
 /*
  * Fixed pointers to patch container for use by external modules.
  */
-#define PATCH_POINTERS			((void*)0x000CFFC0)
+#define PATCH_POINTERS			    ((void*)0x000CFFC0)
+#define PATCH_DZO_INTEROP_FUNCS	(*(DzoInteropFunctions_t**)0x000CFFC8)
 
 typedef struct PatchConfig
 {
@@ -22,10 +23,8 @@ typedef struct PatchConfig
   char minimapScale;
   char minimapBigZoom;
   char minimapSmallZoom;
-#if FREECAM
-  char playerFov;
-#endif
-  
+  char enableFusionReticule;
+
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
 #endif
@@ -72,15 +71,27 @@ typedef struct PatchGameConfig
   char grNoInvTimer;
   char grNoPickups;
   char grFusionShotsAlwaysHit;
+  char grNoSniperHelpers;
+  char grCqPersistentCapture;
+  char grCqDisableTurrets;
+  char grCqDisableUpgrades;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;
   char prHeadbuttFriendlyFire;
   char prChargebootForever;
+  char drFreecam;
   SurvivalConfig_t survivalConfig;
   PayloadConfig_t payloadConfig;
   TrainingConfig_t trainingConfig;
 } PatchGameConfig_t;
+
+typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void * data);
+
+typedef struct DzoInteropFunctions
+{
+  SendCustomCommandToClientFunc_t SendCustomCommandToClient;
+} DzoInteropFunctions_t;
 
 enum CHARACTER_TWEAKER_ID
 {

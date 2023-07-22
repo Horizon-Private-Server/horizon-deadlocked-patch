@@ -379,7 +379,7 @@ void htCtfTick(void)
   // lock players to positions
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     Player* player = players[i];
-    if (player && player->PlayerMoby) {
+    if (player && player->PlayerMoby && player->IsLocal) {
       vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
       vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
     }
@@ -636,11 +636,11 @@ void otCtfEnd(void)
 	gameFlagSetPickupDistance(2);
 
   // Enable survivor
-  GameOptions* go = gameGetOptions();
-  if (go) {
-    go->GameFlags.MultiplayerGameFlags.Survivor = 1;
-    go->GameFlags.MultiplayerGameFlags.RespawnTime = -1;
-  }
+  //GameOptions* go = gameGetOptions();
+  //if (go) {
+  //  go->GameFlags.MultiplayerGameFlags.Survivor = 1;
+  //  go->GameFlags.MultiplayerGameFlags.RespawnTime = -1;
+  //}
 }
 
 /*
@@ -726,6 +726,9 @@ int otGetWinningTeam(void)
   if (otGetScores(NULL, &winningTeam) <= 1) {
     return winningTeam;
   }
+
+  // otherwise no winner yet
+  return -1;
 
   // otherwise if survivor is on, return last team alive
   winningTeam = -1;
@@ -831,7 +834,7 @@ void otCtfTick(void)
   // lock players to positions
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     Player* player = players[i];
-    if (player && player->PlayerMoby) {
+    if (player && player->PlayerMoby && player->IsLocal) {
       vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
       vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
     }
@@ -850,8 +853,8 @@ void otCtfTick(void)
 			// Show popup
 			if (gameTime > (OvertimeEnd - (TIME_SECOND * 2)))
 			{
-				uiShowPopup(0, "Survivor is on");
-				uiShowPopup(1, "Survivor is on");
+				//uiShowPopup(0, "Survivor is on");
+				//uiShowPopup(1, "Survivor is on");
 
         otCtfRespawnPlayers();
 				OvertimeState = OT_INTERMISSION2;

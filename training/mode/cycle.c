@@ -58,6 +58,7 @@ void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx);
 float getComboMultiplier(void);
 void incCombo(void);
 Moby* modeOnCreateB6Bomb(int oclass, int pvarSize);
+int shouldDrawHud(void);
 
 //--------------------------------------------------------------------------
 //---------------------------------- DATA ----------------------------------
@@ -555,7 +556,7 @@ void modeTick(void)
 
 	// draw combo
 	float multiplier = 1 + getComboMultiplier();
-	if (multiplier > 1) {
+	if (multiplier > 1 && shouldDrawHud()) {
 		u32 color = 0x8029E5E6;
 		float timeT = clamp(powf(timeSinceLastInHill / (float)COMBO_MAX_TIME_OUT_HILL_MS, 0.5), 0, 1);
 		if (timeT < 1 && timeT > 0.2)
@@ -626,6 +627,11 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 
 	//
 	gameConfig->grNoInvTimer = 1;
+	gameConfig->grV2s = 0;
+	gameConfig->grVampire = 0;
+	gameConfig->grBetterHills = 0;
+	gameConfig->prPlayerSize = 0;
+	gameConfig->prRotatingWeapons = 0;
 
 	// teams
 	gameSettings->PlayerTeams[0] = 0;

@@ -246,6 +246,23 @@ enum CustomMessageId
     CUSTOM_MSG_ID_PATCH_IN_GAME_START = 200
 };
 
+/*
+ * NAME :		CustomDzoCommandId
+ * 
+ * DESCRIPTION :
+ * 			Contains the different message ids used with the Dzo Client command interop.
+ * 
+ * NOTES :
+ * 
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+enum CustomDzoCommandId
+{
+  CUSTOM_DZO_CMD_ID_SND_DRAW_TIMER = 1,
+  CUSTOM_DZO_CMD_ID_SND_DRAW_ROUND_RESULT = 2,
+};
+
 typedef struct ServerDownloadDataRequest
 {
     int Id;

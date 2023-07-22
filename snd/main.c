@@ -196,8 +196,7 @@ typedef struct GameplayMobyDef
 	short UNK_4C;
 	short UNK_4E;
 	int PVarIndex;
-	short UNK_54;
-	short UNK_56;
+	int Occlusion;
 	int UNK_58;
 	int Red;
 	int Green;
@@ -262,6 +261,17 @@ struct SNDState
 	SNDTimerState_t Timer;
 } SNDState;
 
+struct CustomDzoCommandSndDrawTimer
+{
+  u32 MsLeft;
+  u32 Color;
+  float Size;
+};
+
+struct CustomDzoCommandSndDrawRoundResult
+{
+  char Message[64];
+};
 
 /*
  *
@@ -724,15 +734,17 @@ void setPackLifetime(int lifetime)
 
 void killPack()
 {
-	// Set lifetime of bomb pack moby
-	if (SNDState.BombPackMoby)
-	{
-		guberMobyDestroy(SNDState.BombPackMoby);
-		
-		DPRINTF("KILLED PACK AT %08X\n", (u32)SNDState.BombPackMoby);
-		SNDState.BombPackMoby = NULL;
-		SNDState.BombPackGuber = NULL;
-	}
+  // destroy all packs
+  Moby* m = mobyListGetStart();
+  while (m = mobyFindNextByOClass(m, MOBY_ID_WEAPON_PACK))
+  {
+    m->State = 5; // kill
+		DPRINTF("KILLED PACK AT %08X\n", (u32)m);
+    ++m;
+  }
+
+  SNDState.BombPackMoby = NULL;
+  SNDState.BombPackGuber = NULL;
 }
 
 void * spawnPackHook(u16 OClass, int pvarSize, int guberId, int arg4, int arg5)
@@ -795,6 +807,14 @@ void drawRoundMessage(const char * message, float scale)
 
 	// draw message
 	gfxScreenSpaceText(SCREEN_WIDTH * x, SCREEN_HEIGHT * y, scale, scale * 1.5, 0x80FFFFFF, message, -1, 4);
+
+  // pass to dzo
+  if (PATCH_DZO_INTEROP_FUNCS)
+  {
+    struct CustomDzoCommandSndDrawRoundResult cmd;
+    strncpy(cmd.Message, message, sizeof(cmd.Message));
+    PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SND_DRAW_ROUND_RESULT, sizeof(cmd), &cmd);
+  }
 }
 
 
@@ -1022,6 +1042,16 @@ void bombTimerLogic()
 			sprintf(strBuf, "%.02f", timeLeft / (float)TIME_SECOND);
 			gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT * 0.15, scale, scale, color, strBuf, -1, 4);
 
+      // pass to dzo
+      if (PATCH_DZO_INTEROP_FUNCS)
+      {
+        struct CustomDzoCommandSndDrawTimer cmd;
+        cmd.Color = color;
+        cmd.Size = scale;
+        cmd.MsLeft = timeLeft;
+        PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SND_DRAW_TIMER, sizeof(cmd), &cmd);
+      }
+
 			// tick timer
 			if (timeSecondsLeftFloor < SNDState.Timer.LastPlaySoundSecond)
 			{
@@ -1242,6 +1272,7 @@ void loadGameplayHook(void * gameplayMobies, void * a1, u32 a2)
 			defs->PosX = point[0];
 			defs->PosY = point[1];
 			defs->PosZ = point[2];
+      defs->Occlusion = 1; // disable occlusion
 			++nodeCount;
 		}
 		else if (defs->OClass == MOBY_ID_PLAYER_TURRET 
@@ -1627,7 +1658,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				targetTeams[1] = SND_NODE2_BLIP_TEAM;
 
 				if (localPlayer->Team == SNDState.DefenderTeamId)
-					disableBlipPulsing();
+				  disableBlipPulsing();
+        else
+          enableBlipPulsing();
 			}
 			else if (SNDState.BombPackMoby)
 			{
@@ -1635,6 +1668,13 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				target[0] = SNDState.BombPackMoby;
 				enableBlipPulsing();
 			}
+      else if (localPlayer->Team == SNDState.AttackerTeamId)
+      {
+        // bomb is carried by attacking team
+        // we're not the carrier
+        // so enable pulsing to show who has the bomb on attacking team
+        enableBlipPulsing();
+      }
 
 			// set objectives
 			for (i = 0; i < SNDState.NodeCount; ++i)
@@ -1664,7 +1704,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					if (blipId >= 0)
 					{
 						RadarBlip * blip = radarGetBlips() + blipId;
-						blip->Type = SNDState.Players[i].IsBombCarrier && localPlayer->Team == SNDState.AttackerTeamId ? 0x01 : 0x00;
+						blip->Type = (SNDState.Players[i].IsBombCarrier && localPlayer->Team == SNDState.AttackerTeamId) ? 0x01 : 0x00;
 					}
 				}
 			}
@@ -1780,7 +1820,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 }
 
 //--------------------------------------------------------------------------
-void setLobbyGameOptions(void)
+void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
 	// conquest homenodes options
 	static char cqOptions[] = { 
@@ -1796,7 +1836,10 @@ void setLobbyGameOptions(void)
 	GameSettings* gameSettings = gameGetSettings();
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
-		
+	
+  // disable healthboxes
+  gameConfig->grNoHealthBoxes = 1;
+
 	// set to conquest homenodes
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)cqOptions, sizeof(cqOptions)/sizeof(char));
 
@@ -1849,7 +1892,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameConfig);
 			break;
 		}
 	}
@@ -1873,7 +1916,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 
 void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
-	setLobbyGameOptions();
+	setLobbyGameOptions(gameConfig);
 
 	// only handle when loading level
 	GameSettings* gs = gameGetSettings();

@@ -117,9 +117,8 @@ int readLocalGlobalVersion(void);
 extern int mapsRemoteGlobalVersion;
 extern int mapsLocalGlobalVersion;
 
-#if FREECAM
+void resetFreecam(void);
 void processFreecam(void);
-#endif
 
 #if COMP
 void runCompMenuLogic(void);
@@ -312,6 +311,8 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 PatchGameConfig_t gameConfig;
 PatchGameConfig_t gameConfigHostBackup;
+
+char playerFov = 0;
 
 /*
  * NAME :		patchCameraSpeed
@@ -525,95 +526,97 @@ void patchLevelOfDetail(void)
 		*(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
 	}
 
-  int lod = config.levelOfDetail;
   if (lastClientType == CLIENT_TYPE_NORMAL) {
-    switch (gameConfig.customMapId)
-    {
-      case CUSTOM_MAP_CANAL_CITY:
+
+    // force lod on certain maps
+    int lod = config.levelOfDetail;
+    if (lastClientType == CLIENT_TYPE_NORMAL) {
+      switch (gameConfig.customMapId)
       {
-        lod = 0; // always potato on canal city
+        case CUSTOM_MAP_CANAL_CITY:
+        {
+          lod = 0; // always potato on canal city
+          break;
+        }
+      }
+    }
+
+    // correct lod
+    int lodChanged = lod != lastLodLevel;
+    switch (lod)
+    {
+      case 0: // potato
+      {
+        _lodScale = 0.2;
+        SHRUB_RENDER_DISTANCE = 50;
+        *DRAW_SHADOW_FUNC = 0x03E00008;
+        *(DRAW_SHADOW_FUNC + 1) = 0;
+
+        if (lodChanged)
+        {
+          // set terrain and tie render distance
+          POKE_U16(0x00223158, 120);
+          *(float*)0x002230F0 = 120 * 1024;
+
+          for (i = 0; i < sizeof(lodPatchesPotato) / (2 * sizeof(int)); ++i)
+            POKE_U32(lodPatchesPotato[i][0], lodPatchesPotato[i][1]);
+        }
+        break;
+      }
+      case 1: // low
+      {
+        _lodScale = 0.2;
+        SHRUB_RENDER_DISTANCE = 50;
+        *DRAW_SHADOW_FUNC = 0x03E00008;
+        *(DRAW_SHADOW_FUNC + 1) = 0;
+
+        if (lodChanged)
+        {
+          // set terrain and tie render distance
+          POKE_U16(0x00223158, 480);
+          *(float*)0x002230F0 = 480 * 1024;
+
+          for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+            POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+
+          // disable jump pad blur
+          POKE_U32(0x0042608C, 0);
+        }
+        break;
+      }
+      case 2: // normal
+      {
+        _lodScale = 1.0;
+        SHRUB_RENDER_DISTANCE = 500;
+        *DRAW_SHADOW_FUNC = 0x27BDFF90;
+        *(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
+        POKE_U16(0x00223158, 960);
+        *(float*)0x002230F0 = 960 * 1024;
+
+        if (lodChanged)
+        {
+          // set terrain and tie render distance
+          POKE_U16(0x00223158, 960);
+          *(float*)0x002230F0 = 960 * 1024;
+
+          for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+            POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+        }
+        break;
+      }
+      case 3: // high
+      {
+        _lodScale = 10.0;
+        SHRUB_RENDER_DISTANCE = 5000;
+        *DRAW_SHADOW_FUNC = 0x27BDFF90;
+        *(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
+
+        for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
+          POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
         break;
       }
     }
-  } else if (lastClientType == CLIENT_TYPE_DZO) {
-    lod = 2; // always use normal LOD for dzo clients
   }
-
-	// correct lod
-	int lodChanged = lod != lastLodLevel;
-	switch (lod)
-	{
-		case 0: // potato
-		{
-			_lodScale = 0.2;
-			SHRUB_RENDER_DISTANCE = 50;
-			*DRAW_SHADOW_FUNC = 0x03E00008;
-			*(DRAW_SHADOW_FUNC + 1) = 0;
-
-			if (lodChanged)
-			{
-				// set terrain and tie render distance
-				POKE_U16(0x00223158, 120);
-				*(float*)0x002230F0 = 120 * 1024;
-
-				for (i = 0; i < sizeof(lodPatchesPotato) / (2 * sizeof(int)); ++i)
-					POKE_U32(lodPatchesPotato[i][0], lodPatchesPotato[i][1]);
-			}
-			break;
-		}
-		case 1: // low
-		{
-			_lodScale = 0.2;
-			SHRUB_RENDER_DISTANCE = 50;
-			*DRAW_SHADOW_FUNC = 0x03E00008;
-			*(DRAW_SHADOW_FUNC + 1) = 0;
-
-			if (lodChanged)
-			{
-				// set terrain and tie render distance
-				POKE_U16(0x00223158, 480);
-				*(float*)0x002230F0 = 480 * 1024;
-
-				for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-					POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
-
-				// disable jump pad blur
-				POKE_U32(0x0042608C, 0);
-			}
-			break;
-		}
-		case 2: // normal
-		{
-			_lodScale = 1.0;
-			SHRUB_RENDER_DISTANCE = 500;
-			*DRAW_SHADOW_FUNC = 0x27BDFF90;
-			*(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
-			POKE_U16(0x00223158, 960);
-			*(float*)0x002230F0 = 960 * 1024;
-
-			if (lodChanged)
-			{
-				// set terrain and tie render distance
-				POKE_U16(0x00223158, 960);
-				*(float*)0x002230F0 = 960 * 1024;
-
-				for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-					POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
-			}
-			break;
-		}
-		case 3: // high
-		{
-			_lodScale = 10.0;
-			SHRUB_RENDER_DISTANCE = 5000;
-			*DRAW_SHADOW_FUNC = 0x27BDFF90;
-			*(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
-
-			for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-				POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
-			break;
-		}
-	}
 
 	// backup lod
 	lastLodLevel = config.levelOfDetail;
@@ -985,7 +988,7 @@ int patchComputePoints_Hook(int playerIdx)
 
   }
 
-  DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
+  //DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
 
   return newPoints;
 }
@@ -1104,17 +1107,15 @@ void patchAggTime(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-#if FREECAM
 void patchFov(void)
 {
 	if (!isInGame())
 		return;
 
-	float fov = 1.11003 + (config.playerFov / 10.0) * 1;
+	float fov = 1.11003 + (playerFov / 10.0) * 1;
 
 	((void (*)(int, int, int, float, float, float, float))0x004AEA90)(0, 0, 3, fov, 0.05, 0.2, 0);
 }
-#endif
 
 /*
  * NAME :		patchFrameSkip
@@ -1248,6 +1249,51 @@ u128 getFusionShotDirection(Player* target, int a1, u128 vFrom, u128 vTo, Moby* 
 
 	// call base get direction
   return ((u128 (*)(Player*, int, u128, u128, float))0x003f9fc0)(target, a1, vFrom, vTo, 0.0);
+}
+
+/*
+ * NAME :		patchFusionReticule
+ * 
+ * DESCRIPTION :
+ * 			Enables/disables the fusion reticule.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchFusionReticule(void)
+{
+  static int patched = -1;
+  if (!isInGame()) {
+    patched = -1; // reset
+    return;
+  }
+
+  // don't allow reticule when disabled by host
+  if (gameConfig.grNoSniperHelpers)
+    return;
+
+  // already patched
+  if (patched == config.enableFusionReticule)
+    return;
+
+  if (config.enableFusionReticule) {
+    POKE_U32(0x003FAFA4, 0x8203266D);
+    POKE_U32(0x003FAFA8, 0x1060003E);
+
+    POKE_U32(0x003FAEE0, 0);
+  } else {
+    POKE_U32(0x003FAFA4, 0x24020001);
+    POKE_U32(0x003FAFA8, 0x1062003E);
+
+    POKE_U32(0x003FAEE0, 0x10400070);
+  }
+
+  patched = config.enableFusionReticule;
 }
 
 struct FlagPVars
@@ -2079,11 +2125,6 @@ void runEnableSingleplayerMusic(void)
 	static int AddedTracks = 0;
   static int Loading = 0;
 
-  // wait for scene to finish loading
-  if (isSceneLoading()) {
-    return;
-  }
-
   // indicate to user we're loading sp music
   // running uiRunCallbacks triggers our vsync hook and reinvokes this method
   // while it is still looping
@@ -2469,6 +2510,9 @@ u64 hookedProcessLevel()
 
   // increase wait for players to 50 seconds
   POKE_U32(0x0021E1E8, 50 * 60);
+
+  // enable singleplayer music
+  runEnableSingleplayerMusic();
 
 	// call gamerules level load
 	grLoadStart();
@@ -3287,6 +3331,7 @@ void runPayloadDownloadRequester(void)
  */
 void onOnlineMenu(void)
 {
+  static int hasDevGameConfig = 0;
   char buf[64];
 
 	// call normal draw routine
@@ -3300,6 +3345,7 @@ void onOnlineMenu(void)
 	{
 		padEnableInput();
 		onConfigInitialize();
+    PATCH_DZO_INTEROP_FUNCS = 0;
 		memset(lobbyPlayerConfigs, 0, sizeof(lobbyPlayerConfigs));
 		hasInitialized = 1;
 	}
@@ -3321,6 +3367,19 @@ void onOnlineMenu(void)
 
 	// settings
 	onConfigOnlineMenu();
+
+  // check if dev item is newly enabled
+  // and we're host
+  if (!netGetDmeServerConnection()) {
+    hasDevGameConfig = 0;
+  }
+  else if (!isConfigMenuActive) {
+    int lastHasDevConfig = hasDevGameConfig;
+    hasDevGameConfig = gameConfig.drFreecam != 0;
+    if (gameAmIHost() && hasDevGameConfig && !lastHasDevConfig) {
+      uiShowOkDialog("Warning", "By enabling a dev rule this game will not count towards stats.");
+    }
+  }
 
 	// 
 	if (showNoMapPopup)
@@ -3388,6 +3447,11 @@ int main (void)
 	// Call this first
 	dlPreUpdate();
 
+  //
+  //if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+  //  POKE_U32(0x0036D664, gameGetTime() + (TIME_SECOND * 1020));
+  //}
+
 	// auto enable pad input to prevent freezing when popup shows
 	if (lastMenuInvokedTime > 0 && gameGetTime() - lastMenuInvokedTime > TIME_SECOND)
 	{
@@ -3411,7 +3475,7 @@ int main (void)
   // write patch pointers
   POKE_U32(PATCH_POINTERS + 0, &config);
   POKE_U32(PATCH_POINTERS + 4, &gameConfig);
-  POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
+  //POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
 
   // send client type to server on change
   int currentClientType = *(u8*)(PATCH_POINTERS + 12);
@@ -3487,7 +3551,9 @@ int main (void)
 	runFpsCounter();
 
 	// Run add singleplayer music
-	runEnableSingleplayerMusic();
+  if (isInMenus()) {
+	  runEnableSingleplayerMusic();
+  }
 
 	// detects when to download a new custom mode patch
 	runPayloadDownloadRequester();
@@ -3537,6 +3603,9 @@ int main (void)
 
 	// Patch camera shake
 	patchCameraShake();
+
+  //
+  patchFusionReticule();
 
 	// 
 	//patchWideStats();
@@ -3748,10 +3817,12 @@ int main (void)
 	if (config.enableSpectate)
 		processSpectate();
 
-#if FREECAM
-	patchFov();
-	processFreecam();
-#endif
+  // Process freecam
+  if (isInGame() && gameConfig.drFreecam) {
+	  processFreecam();
+  } else {
+    resetFreecam();
+  }
 
 	// Process game modules
 	processGameModules();

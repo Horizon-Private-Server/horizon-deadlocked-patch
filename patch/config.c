@@ -25,12 +25,14 @@ extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 extern PatchGameConfig_t gameConfigHostBackup;
 
+extern char playerFov;
 extern char aa_value;
 extern int redownloadCustomModeBinaries;
 
 // 
 int isConfigMenuActive = 0;
 int selectedTabItem = 0;
+int hasDevGameConfig = 0;
 u32 padPointer = 0;
 int preset = 0;
 
@@ -102,6 +104,7 @@ void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* ele
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element);
@@ -111,6 +114,7 @@ void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, 
 #endif
 
 void tabDefaultStateHandler(TabElem_t* tab, int * state);
+void tabFreecamStateHandler(TabElem_t* tab, int * state);
 void tabGameSettingsStateHandler(TabElem_t* tab, int * state);
 void tabCustomMapStateHandler(TabElem_t* tab, int * state);
 
@@ -196,6 +200,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
+  { "Fusion Reticule", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
@@ -341,13 +346,11 @@ MenuElem_t menuElementsCharacter[] = {
 
 #endif
 
-#if FREECAM
-
 extern FreecamSettings_t freecamSettings;
 
 // player fov range item
 MenuElem_RangeData_t dataFieldOfView = {
-    .value = &config.playerFov,
+    .value = &playerFov,
     .stateHandler = NULL,
     .minValue = -10,
     .maxValue = 10,
@@ -360,8 +363,6 @@ MenuElem_t menuElementsFreecam[] = {
   { "Lock Position", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.lockPosition },
   { "Lock Animation", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.lockStateToggle },
 };
-
-#endif
 
 // map override list item
 MenuElem_ListData_t dataCustomMaps = {
@@ -540,6 +541,17 @@ MenuElem_ListData_t dataWeather = {
     }
 };
 
+// fusion reticule allow/disable list item
+MenuElem_ListData_t dataFusionReticule = {
+    &gameConfig.grNoSniperHelpers,
+    NULL,
+    2,
+    {
+      "Permitted",
+      "Disabled"
+    }
+};
+
 // vampire list item
 MenuElem_ListData_t dataVampire = {
     &gameConfig.grVampire,
@@ -601,8 +613,12 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Better hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills },
   { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime },
   { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime },
+  { "CQ Save Capture Progress", toggleActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqPersistentCapture },
+  { "CQ Turrets", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableTurrets },
+  { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades },
   { "Damage cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
+  { "Fusion Reticule", listActionHandler, menuStateHandler_SettingStateHandler, &dataFusionReticule },
   { "Healthbars", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grHealthBars },
   { "Healthboxes", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
@@ -620,6 +636,10 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
   { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons },
   { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather },
+
+  // DEV RULES
+  { "Dev Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Freecam", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drFreecam },
 };
 
 // custom map tab menu items
@@ -660,9 +680,7 @@ MenuElem_t menuElementsMapEditor[] = {
 // tab items
 TabElem_t tabElements[] = {
   { "General", tabDefaultStateHandler, menuElementsGeneral, sizeof(menuElementsGeneral)/sizeof(MenuElem_t) },
-#if FREECAM
-  { "Free Cam", tabDefaultStateHandler, menuElementsFreecam, sizeof(menuElementsFreecam)/sizeof(MenuElem_t) },
-#endif
+  { "Free Cam", tabFreecamStateHandler, menuElementsFreecam, sizeof(menuElementsFreecam)/sizeof(MenuElem_t) },
 #if TWEAKERS
   { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter)/sizeof(MenuElem_t) },
 #endif
@@ -680,6 +698,15 @@ const int tabsCount = sizeof(tabElements)/sizeof(TabElem_t);
 void tabDefaultStateHandler(TabElem_t* tab, int * state)
 {
   *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void tabFreecamStateHandler(TabElem_t* tab, int * state)
+{
+  if (gameConfig.drFreecam && isInGame())
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+  else
+    *state = ELEMENT_HIDDEN;
 }
 
 // 
@@ -907,6 +934,30 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
       *value = CUSTOM_MAP_SURVIVAL_START;
       return 0;
     }
+    case CUSTOM_MODE_SEARCH_AND_DESTROY:
+    {
+      // supported custom maps
+      switch (v)
+      {
+        case CUSTOM_MAP_BAKISI_ISLES:
+        case CUSTOM_MAP_CANAL_CITY:
+        case CUSTOM_MAP_GHOST_HANGAR:
+        case CUSTOM_MAP_GHOST_SHIP:
+        case CUSTOM_MAP_HOVEN_GORGE:
+        case CUSTOM_MAP_KORGON_OUTPOST:
+        case CUSTOM_MAP_METROPOLIS_MP:
+        case CUSTOM_MAP_MINING_FACILITY_SP:
+        case CUSTOM_MAP_SHAAR_SP:
+        case CUSTOM_MAP_SNIVELAK:
+        case CUSTOM_MAP_TORVAL_LOST_FACTORY:
+        case CUSTOM_MAP_TORVAL_SP:
+        case CUSTOM_MAP_TYHRRANOSIS:
+          return 1;
+      }
+
+      *value = CUSTOM_MAP_NONE;
+      return 0;
+    }
     case CUSTOM_MODE_PAYLOAD:
     {
       if (v == CUSTOM_MAP_SNIVELAK || v == CUSTOM_MAP_NONE)
@@ -1097,6 +1148,19 @@ void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element
   GameSettings* gs = gameGetSettings();
 
   if (!gs || gs->GameRules != GAMERULE_CTF)
+    *state = ELEMENT_HIDDEN;
+  else if (preset)
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+
+  if (!gs || gs->GameRules != GAMERULE_CQ)
     *state = ELEMENT_HIDDEN;
   else if (preset)
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
@@ -2081,9 +2145,10 @@ void configTrySendGameConfig(void)
 #else
   int state = 0;
   int i = 0, j = 0;
+  TabElem_t* gameSettingsTab = &tabElements[2];
 
   // send game config to server for saving if tab is enabled
-  tabElements[1].stateHandler(&tabElements[1], &state);
+  gameSettingsTab->stateHandler(gameSettingsTab, &state);
   if (state & ELEMENT_EDITABLE)
   {
     // validate everything
@@ -2136,6 +2201,7 @@ void configMenuDisable(void)
       gameConfig.grNoInvTimer = 1;
       gameConfig.grNoPacks = 1;
       gameConfig.grNoPickups = 1;
+      gameConfig.grNoSniperHelpers = 1;
       break;
     }
     case 2: // 1v1

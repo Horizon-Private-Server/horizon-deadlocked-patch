@@ -846,6 +846,105 @@ void vampireLogic(float healRate)
 }
 
 /*
+ * NAME :		cqPersistentCaptureGetHackerOrbUncapRate
+ * 
+ * DESCRIPTION :
+ * 			Returns 1 if the node is white and should uncap.
+ *      Return 0 if the node is not white.
+ *      Return value is passed through f03.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void cqPersistentCaptureGetHackerOrbUncapRate(int team)
+{
+  if (team == TEAM_WHITE)
+  {
+    asm ("lui $at, 0x3F80;\n
+          mtc1 $at, $f03;");
+  }
+  else
+  {
+    asm ("lui $at, 0x0000;\n
+          mtc1 $at, $f03;");
+  }
+}
+
+/*
+ * NAME :		cqPersistentCaptureLogic
+ * 
+ * DESCRIPTION :
+ * 			Disables node auto uncapture.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void cqPersistentCaptureLogic(void) {
+  if (!isInGame())
+    return;
+
+  // hacker orbs
+  POKE_U32(0x0044169C, 0x0C000000 | ((u32)&cqPersistentCaptureGetHackerOrbUncapRate >> 2));
+  POKE_U32(0x004416A0, 0x00602021);
+
+  // bolt cranks
+  POKE_U32(0x003D7C54, 0x46000806);
+  POKE_U32(0x003D7C80, 0x46000806);
+}
+
+/*
+ * NAME :		cqDisableTurretsLogic
+ * 
+ * DESCRIPTION :
+ * 			Disables node turrets. Does not disable homenode turrets.
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void cqDisableTurretsLogic(void) {
+  if (!isInGame())
+    return;
+
+  POKE_U32(0x003CFD9C, 0x100000A2); // initial turrets
+  POKE_U32(0x003D005C, 0x10000307); // turret upgrades
+}
+
+/*
+ * NAME :		cqDisableUpgradesLogic
+ * 
+ * DESCRIPTION :
+ * 			Disables node upgrades.
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void cqDisableUpgradesLogic(void) {
+  if (!isInGame())
+    return;
+
+  POKE_U32(0x00410C84, 0x100001D0); // disable upgrade hud
+  POKE_U32(0x0040FD7C, 0x1000007C); // disable application of upgrade
+}
+
+/*
  * NAME :		betterHillsLogic
  * 
  * DESCRIPTION :
@@ -1490,6 +1589,15 @@ void grGameStart(void)
 
 	if (gameConfig.grFusionShotsAlwaysHit)
 		fusionShotsAlwaysHitLogic();
+
+  if (gameConfig.grCqPersistentCapture)
+    cqPersistentCaptureLogic();
+
+  if (gameConfig.grCqDisableTurrets)
+    cqDisableTurretsLogic();
+
+  if (gameConfig.grCqDisableUpgrades)
+    cqDisableUpgradesLogic();
 
 #if TWEAKERS
 	tweakers();
