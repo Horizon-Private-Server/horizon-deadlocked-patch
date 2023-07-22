@@ -2125,11 +2125,6 @@ void runEnableSingleplayerMusic(void)
 	static int AddedTracks = 0;
   static int Loading = 0;
 
-  // wait for scene to finish loading
-  if (isSceneLoading()) {
-    return;
-  }
-
   // indicate to user we're loading sp music
   // running uiRunCallbacks triggers our vsync hook and reinvokes this method
   // while it is still looping
@@ -2515,6 +2510,9 @@ u64 hookedProcessLevel()
 
   // increase wait for players to 50 seconds
   POKE_U32(0x0021E1E8, 50 * 60);
+
+  // enable singleplayer music
+  runEnableSingleplayerMusic();
 
 	// call gamerules level load
 	grLoadStart();
@@ -3553,7 +3551,9 @@ int main (void)
 	runFpsCounter();
 
 	// Run add singleplayer music
-	runEnableSingleplayerMusic();
+  if (isInMenus()) {
+	  runEnableSingleplayerMusic();
+  }
 
 	// detects when to download a new custom mode patch
 	runPayloadDownloadRequester();
