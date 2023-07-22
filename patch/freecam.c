@@ -63,6 +63,8 @@ struct PlayerFreecamData
     VECTOR LockedCharacterPosition;
 } FreecamData[2];
 
+void patchFov(void);
+
 void freecamGetRotationMatrix(MATRIX output, struct PlayerFreecamData * freecamData)
 {
   matrix_unit(output);
@@ -134,7 +136,10 @@ void enableFreecam(Player * player, struct PlayerFreecamData * data)
   POKE_U32(0x004C327C, 0);
   POKE_U32(0x004B3970, 0); // disable reticule
   HOOK_J(0x004b2428, &freecamUpdateCamera_PostHook);
-  hudGetPlayerFlags(player->LocalPlayerIndex)->Flags.Raw = 0;
+
+  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(player->LocalPlayerIndex);
+  if (hudFlags)
+    hudFlags->Flags.Raw = 0;
 }
 
 /*
@@ -147,7 +152,7 @@ void enableFreecam(Player * player, struct PlayerFreecamData * data)
  */
 void disableFreecam(Player * player, struct PlayerFreecamData * data)
 {
-  data->Enabled = 0;
+  memset(data, 0, sizeof(struct PlayerFreecamData));
   player->timers.noInput = 0;
   player->CameraOffset[0] = -6;
   player->CameraPitch.Value = data->CharcterCameraPitch;
@@ -155,7 +160,47 @@ void disableFreecam(Player * player, struct PlayerFreecamData * data)
   POKE_U32(0x004C327C, 0x0C1302AA);
   POKE_U32(0x004B3970, 0x0C12CB28); // enable reticule
   POKE_U32(0x004b2428, 0x03E00008);
-  hudGetPlayerFlags(player->LocalPlayerIndex)->Flags.Raw = 0x333;
+  
+  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(player->LocalPlayerIndex);
+  if (hudFlags)
+    hudFlags->Flags.Raw = 0x333;
+}
+
+/*
+ * NAME :		resetFreecam
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void resetFreecam(void)
+{
+  int i = 0;
+  
+  if (isInGame()) {
+    Player** players = playerGetAll();
+
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* player = players[i];
+      if (!player)
+        continue;
+        
+      if (!playerIsLocal(player) || player->LocalPlayerIndex >= playerGetNumLocals())
+        continue;
+
+      struct PlayerFreecamData * freecamData = FreecamData + player->LocalPlayerIndex;
+      if (freecamData->Enabled) {
+        disableFreecam(player, freecamData);
+      }
+    }
+  }
+  
+  for (i = 0; i < 2; ++i) {
+    if (FreecamData[i].Enabled) {
+      memset(&FreecamData[i], 0, sizeof(struct PlayerFreecamData));
+    }
+  }
 }
 
 /*
@@ -423,7 +468,7 @@ void processFreecam(void)
 		Player * player = players[i];
 
     // Next, we have to ensure the player is the local player and they are not dead
-    if (playerIsLocal(player)) 
+    if (playerIsLocal(player) && player->LocalPlayerIndex < playerGetNumLocals()) 
     {
       // Grab player-specific spectate data
       freecamData = FreecamData + player->LocalPlayerIndex;
@@ -453,6 +498,7 @@ void processFreecam(void)
         }
         else
         {
+          patchFov();
           freecam(player);
         }
       }

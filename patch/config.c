@@ -25,12 +25,14 @@ extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 extern PatchGameConfig_t gameConfigHostBackup;
 
+extern char playerFov;
 extern char aa_value;
 extern int redownloadCustomModeBinaries;
 
 // 
 int isConfigMenuActive = 0;
 int selectedTabItem = 0;
+int hasDevGameConfig = 0;
 u32 padPointer = 0;
 int preset = 0;
 
@@ -111,6 +113,7 @@ void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, 
 #endif
 
 void tabDefaultStateHandler(TabElem_t* tab, int * state);
+void tabFreecamStateHandler(TabElem_t* tab, int * state);
 void tabGameSettingsStateHandler(TabElem_t* tab, int * state);
 void tabCustomMapStateHandler(TabElem_t* tab, int * state);
 
@@ -342,13 +345,11 @@ MenuElem_t menuElementsCharacter[] = {
 
 #endif
 
-#if FREECAM
-
 extern FreecamSettings_t freecamSettings;
 
 // player fov range item
 MenuElem_RangeData_t dataFieldOfView = {
-    .value = &config.playerFov,
+    .value = &playerFov,
     .stateHandler = NULL,
     .minValue = -10,
     .maxValue = 10,
@@ -361,8 +362,6 @@ MenuElem_t menuElementsFreecam[] = {
   { "Lock Position", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.lockPosition },
   { "Lock Animation", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.lockStateToggle },
 };
-
-#endif
 
 // map override list item
 MenuElem_ListData_t dataCustomMaps = {
@@ -633,6 +632,10 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
   { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons },
   { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather },
+
+  // DEV RULES
+  { "Dev Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Freecam", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drFreecam },
 };
 
 // custom map tab menu items
@@ -673,9 +676,7 @@ MenuElem_t menuElementsMapEditor[] = {
 // tab items
 TabElem_t tabElements[] = {
   { "General", tabDefaultStateHandler, menuElementsGeneral, sizeof(menuElementsGeneral)/sizeof(MenuElem_t) },
-#if FREECAM
-  { "Free Cam", tabDefaultStateHandler, menuElementsFreecam, sizeof(menuElementsFreecam)/sizeof(MenuElem_t) },
-#endif
+  { "Free Cam", tabFreecamStateHandler, menuElementsFreecam, sizeof(menuElementsFreecam)/sizeof(MenuElem_t) },
 #if TWEAKERS
   { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter)/sizeof(MenuElem_t) },
 #endif
@@ -693,6 +694,15 @@ const int tabsCount = sizeof(tabElements)/sizeof(TabElem_t);
 void tabDefaultStateHandler(TabElem_t* tab, int * state)
 {
   *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void tabFreecamStateHandler(TabElem_t* tab, int * state)
+{
+  if (gameConfig.drFreecam && isInGame())
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+  else
+    *state = ELEMENT_HIDDEN;
 }
 
 // 
@@ -2118,9 +2128,10 @@ void configTrySendGameConfig(void)
 #else
   int state = 0;
   int i = 0, j = 0;
+  TabElem_t* gameSettingsTab = &tabElements[2];
 
   // send game config to server for saving if tab is enabled
-  tabElements[1].stateHandler(&tabElements[1], &state);
+  gameSettingsTab->stateHandler(gameSettingsTab, &state);
   if (state & ELEMENT_EDITABLE)
   {
     // validate everything

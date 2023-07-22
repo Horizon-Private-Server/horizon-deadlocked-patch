@@ -117,9 +117,8 @@ int readLocalGlobalVersion(void);
 extern int mapsRemoteGlobalVersion;
 extern int mapsLocalGlobalVersion;
 
-#if FREECAM
+void resetFreecam(void);
 void processFreecam(void);
-#endif
 
 #if COMP
 void runCompMenuLogic(void);
@@ -312,6 +311,8 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 PatchGameConfig_t gameConfig;
 PatchGameConfig_t gameConfigHostBackup;
+
+char playerFov = 0;
 
 /*
  * NAME :		patchCameraSpeed
@@ -1106,17 +1107,15 @@ void patchAggTime(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-#if FREECAM
 void patchFov(void)
 {
 	if (!isInGame())
 		return;
 
-	float fov = 1.11003 + (config.playerFov / 10.0) * 1;
+	float fov = 1.11003 + (playerFov / 10.0) * 1;
 
 	((void (*)(int, int, int, float, float, float, float))0x004AEA90)(0, 0, 3, fov, 0.05, 0.2, 0);
 }
-#endif
 
 /*
  * NAME :		patchFrameSkip
@@ -3334,6 +3333,7 @@ void runPayloadDownloadRequester(void)
  */
 void onOnlineMenu(void)
 {
+  static int hasDevGameConfig = 0;
   char buf[64];
 
 	// call normal draw routine
@@ -3369,6 +3369,19 @@ void onOnlineMenu(void)
 
 	// settings
 	onConfigOnlineMenu();
+
+  // check if dev item is newly enabled
+  // and we're host
+  if (!netGetDmeServerConnection()) {
+    hasDevGameConfig = 0;
+  }
+  else if (!isConfigMenuActive) {
+    int lastHasDevConfig = hasDevGameConfig;
+    hasDevGameConfig = gameConfig.drFreecam != 0;
+    if (gameAmIHost() && hasDevGameConfig && !lastHasDevConfig) {
+      uiShowOkDialog("Warning", "By enabling a dev rule this game will not count towards stats.");
+    }
+  }
 
 	// 
 	if (showNoMapPopup)
@@ -3804,10 +3817,12 @@ int main (void)
 	if (config.enableSpectate)
 		processSpectate();
 
-#if FREECAM
-	patchFov();
-	processFreecam();
-#endif
+  // Process freecam
+  if (isInGame() && gameConfig.drFreecam) {
+	  processFreecam();
+  } else {
+    resetFreecam();
+  }
 
 	// Process game modules
 	processGameModules();

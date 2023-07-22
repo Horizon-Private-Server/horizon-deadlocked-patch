@@ -207,6 +207,13 @@ int handleEvent(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
+int shouldDrawHud(void)
+{
+  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(0);
+  return hudFlags && hudFlags->Flags.Raw != 0;
+}
+
+//--------------------------------------------------------------------------
 void drawRoundMessage(const char * message, float scale, int yPixelsOffset)
 {
 	int fw = gfxGetFontWidth(message, -1, scale);
@@ -2516,7 +2523,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
   }
 
   // draw hud stuff
-  if (!gameIsStartMenuOpen() && !localPlayerData->IsInWeaponsMenu) {
+  if (!gameIsStartMenuOpen() && !localPlayerData->IsInWeaponsMenu && shouldDrawHud()) {
 
     // draw round number
     char* roundStr = uiMsgString(0x25A9);

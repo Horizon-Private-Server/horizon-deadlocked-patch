@@ -85,9 +85,19 @@ void incCombo(void) {
 }
 
 //--------------------------------------------------------------------------
+int shouldDrawHud(void)
+{
+  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(0);
+  return hudFlags && hudFlags->Flags.Raw != 0;
+}
+
+//--------------------------------------------------------------------------
 void forcePlayerHUD(void)
 {
 	int i;
+
+  if (!shouldDrawHud())
+    return;
 
 	// replace normal scoreboard with bolt counter
 	for (i = 0; i < 2; ++i)
@@ -229,9 +239,11 @@ void frameTick(void)
 		timeSecondsRounded += 1;
 
 	// draw timer
-	sprintf(buf, "%02d:%02d", secondsLeftInt/60, secondsLeftInt%60);
-	gfxScreenSpaceText(479+1, 57+1, 0.8, 0.8, 0x80000000, buf, -1, 1);
-	gfxScreenSpaceText(479, 57, 0.8, 0.8, 0x80FFFFFF, buf, -1, 1);
+  if (shouldDrawHud()) {
+	  sprintf(buf, "%02d:%02d", secondsLeftInt/60, secondsLeftInt%60);
+	  gfxScreenSpaceText(479+1, 57+1, 0.8, 0.8, 0x80000000, buf, -1, 1);
+	  gfxScreenSpaceText(479, 57, 0.8, 0.8, 0x80FFFFFF, buf, -1, 1);
+  }
 
 	modeTick();
 }

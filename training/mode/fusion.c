@@ -54,6 +54,7 @@
 void createSimPlayer(SimulatedPlayer_t* sPlayer, int idx);
 float getComboMultiplier(void);
 void incCombo(void);
+int shouldDrawHud(void);
 
 //--------------------------------------------------------------------------
 //---------------------------------- DATA ----------------------------------
@@ -456,7 +457,7 @@ void modeTick(void)
 	char buf[32];
 
 	// draw combo
-	if (State.ComboCounter) {
+	if (State.ComboCounter && shouldDrawHud()) {
 		float multiplier = 1 + getComboMultiplier();
 		snprintf(buf, 32, "x%.1f", multiplier);
 		gfxScreenSpaceText(32+1, 130+1, 1, 1, 0x40000000, buf, -1, 1);

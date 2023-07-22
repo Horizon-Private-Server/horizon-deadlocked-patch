@@ -440,6 +440,13 @@ void setPayloadState(enum PayloadMobyState state)
 }
 
 //--------------------------------------------------------------------------
+int shouldDrawHud(void)
+{
+  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(0);
+  return hudFlags && hudFlags->Flags.Raw != 0;
+}
+
+//--------------------------------------------------------------------------
 void flipTeams(void)
 {
 	struct PayloadTeam team = State.Teams[0];
@@ -1077,28 +1084,30 @@ void processPlayer(int pIndex)
 
 	gfxSetupGifPaging(0);
 
-	// draw payload moving icon
-	if (pvar->State == PAYLOAD_STATE_MOVING_FORWARD) {
-		gfxDrawSprite(370, 16, 16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
-	} else if (pvar->State == PAYLOAD_STATE_MOVING_BACKWARD) {
-		gfxDrawSprite(370 + 16, 16, -16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
-	}
+  if (shouldDrawHud()) {
+    // draw payload moving icon
+    if (pvar->State == PAYLOAD_STATE_MOVING_FORWARD) {
+      gfxDrawSprite(370, 16, 16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
+    } else if (pvar->State == PAYLOAD_STATE_MOVING_BACKWARD) {
+      gfxDrawSprite(370 + 16, 16, -16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
+    }
 
-	// number of attacking players near payload
-	if (pvar->AttackerNearCount) {
-		sprintf(strBuf, "x%d", pvar->AttackerNearCount);
-		u32 color = colorLerp(TEAM_COLORS[State.Teams[1].TeamId], 0x80E0E0E0, pulseTime);
-		gfxDrawSprite(395, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
-		gfxScreenSpaceText(395 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
-	}
+    // number of attacking players near payload
+    if (pvar->AttackerNearCount) {
+      sprintf(strBuf, "x%d", pvar->AttackerNearCount);
+      u32 color = colorLerp(TEAM_COLORS[State.Teams[1].TeamId], 0x80E0E0E0, pulseTime);
+      gfxDrawSprite(395, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
+      gfxScreenSpaceText(395 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
+    }
 
-	// number of defending players near payload
-	if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->DefenderNearCount) {
-		sprintf(strBuf, "x%d", pvar->DefenderNearCount);
-		u32 color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], 0x80E0E0E0, pulseTime);
-		gfxDrawSprite(420, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
-		gfxScreenSpaceText(420 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
-	}
+    // number of defending players near payload
+    if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->DefenderNearCount) {
+      sprintf(strBuf, "x%d", pvar->DefenderNearCount);
+      u32 color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], 0x80E0E0E0, pulseTime);
+      gfxDrawSprite(420, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
+      gfxScreenSpaceText(420 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
+    }
+  }
 
 	if (pvar->State >= PAYLOAD_STATE_DELIVERED) {
 
@@ -1224,8 +1233,10 @@ void processPlayer(int pIndex)
 		sprintf(strBuf, "%02d:%02d", secondsLeftInt/60, secondsLeftInt%60);
 
 		// 
-		gfxScreenSpaceText(452+1, 16+1, 1, 1, 0x80000000, strBuf, -1, 0);
-		gfxScreenSpaceText(452, 16, 1, 1, 0x80FFFFFF, strBuf, -1, 0);
+    if (shouldDrawHud()) {
+		  gfxScreenSpaceText(452+1, 16+1, 1, 1, 0x80000000, strBuf, -1, 0);
+		  gfxScreenSpaceText(452, 16, 1, 1, 0x80FFFFFF, strBuf, -1, 0);
+    }
 
 		// draw end round timer
 		if (!State.RoundEndTime && pvar->State < PAYLOAD_STATE_DELIVERED && secondsLeft <= 3) {
@@ -1253,7 +1264,7 @@ void processPlayer(int pIndex)
 	}
 
 	// draw progress bar
-	if (player->LocalPlayerIndex == 0) {
+	if (player->LocalPlayerIndex == 0 && shouldDrawHud()) {
 		const float height = 250.0;
 		const float x = 470.0;
 		const float y = 50.0;

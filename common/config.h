@@ -24,9 +24,6 @@ typedef struct PatchConfig
   char minimapBigZoom;
   char minimapSmallZoom;
   char enableFusionReticule;
-#if FREECAM
-  char playerFov;
-#endif
   
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
@@ -80,6 +77,7 @@ typedef struct PatchGameConfig
   char prHeadbutt;
   char prHeadbuttFriendlyFire;
   char prChargebootForever;
+  char drFreecam;
   SurvivalConfig_t survivalConfig;
   PayloadConfig_t payloadConfig;
   TrainingConfig_t trainingConfig;
