@@ -876,6 +876,32 @@ void cqPersistentCaptureGetHackerOrbUncapRate(int team)
 }
 
 /*
+ * NAME :		cqPersistentCaptureGetHackerOrbCapRate
+ * 
+ * DESCRIPTION :
+ * 			Returns rate at which node should be captured.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+float cqPersistentCaptureGetHackerOrbCapRate(int team)
+{
+  if (team == TEAM_WHITE)
+  {
+    return 0.01;
+  }
+  else
+  {
+    return 0.005;
+  }
+}
+
+/*
  * NAME :		cqPersistentCaptureLogic
  * 
  * DESCRIPTION :
@@ -900,6 +926,15 @@ void cqPersistentCaptureLogic(void) {
   // bolt cranks
   POKE_U32(0x003D7C54, 0x46000806);
   POKE_U32(0x003D7C80, 0x46000806);
+
+  // increase time to capture if upgrades are off
+  // since we don't want to mess with capture resistance
+  if (gameConfig.grCqDisableUpgrades) {
+    POKE_U32(0x00440E68, 0x0C000000 | ((u32)&cqPersistentCaptureGetHackerOrbCapRate >> 2));
+    POKE_U32(0x00440E6C, 0x8E040004);
+    POKE_U32(0x00440E70, 0x00000000);
+		//*(u16*)0x00440E68 = 0x3BA3;
+  }
 }
 
 /*
