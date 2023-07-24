@@ -105,7 +105,7 @@ void freecamUpdateCamera_PostHook(void)
 
     // restore backup
     if (freecamData->IgnoreCharacterCamera) {
-      vector_copy(camera->pos, pBackup);
+      //vector_copy(camera->pos, pBackup);
       memcpy(camera->uMtx, mBackup, sizeof(float) * 12);
     }
   }
