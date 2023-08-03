@@ -305,14 +305,14 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 	.enableFpsCounter = 0,
 	.disableCircleToHackerRay = 0,
 	.playerAggTime = 0,
+  .playerFov = 0,
+  .preferredGameServer = 0
 };
 
 // 
 PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 PatchGameConfig_t gameConfig;
 PatchGameConfig_t gameConfigHostBackup;
-
-char playerFov = 0;
 
 /*
  * NAME :		patchCameraSpeed
@@ -1094,10 +1094,77 @@ void patchAggTime(void)
 }
 
 /*
+ * NAME :		writeFov
+ * 
+ * DESCRIPTION :
+ * 			Replaces game's SetFov function. Hook installed by patchFov().
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void writeFov(int cameraIdx, int a1, int a2, u32 ra, float fov, float f13, float f14, float f15)
+{
+  static float lastFov = 0;
+
+  GameCamera* camera = cameraGetGameCamera(cameraIdx);
+  if (!camera)
+    return;
+  
+  // save last fov
+  // or reuse last if fov passed is 0
+  if (fov > 0)
+    lastFov = fov;
+  else if (lastFov > 0)
+    fov = lastFov;
+  else
+    fov = lastFov = camera->fov.ideal;
+
+  // apply our fov modifier
+  // only if not scoping with sniper
+  if (ra != 0x003FB4E4) fov += (config.playerFov / 10.0) * 1;
+
+  if (a2 > 2) {
+    if (a2 != 3) return;
+    camera->fov.limit = f15;
+    camera->fov.changeType = a2;
+    camera->fov.ideal = fov;
+    camera->fov.state = 1;
+    camera->fov.gain = f13;
+    camera->fov.damp = f14;
+    return;
+  }
+  else if (a2 < 1) {
+    if (a2 != 0) return;
+    camera->fov.ideal = fov;
+    camera->fov.changeType = 0;
+    camera->fov.state = 1;
+    return;
+  }
+
+  if (a1 == 0) {
+    camera->fov.ideal = fov;
+    camera->fov.changeType = 0;
+  }
+  else {
+    camera->fov.changeType = a2;
+    camera->fov.init = camera->fov.actual;
+    camera->fov.timer = (short)a2;
+    camera->fov.timerInv = 1.0 / (float)a2;
+  }
+
+  camera->fov.state = 1;
+}
+
+/*
  * NAME :		patchFov
  * 
  * DESCRIPTION :
- * 			Sets player's fov.
+ * 			Installs SetFov override hook.
  * 
  * NOTES :
  * 
@@ -1109,12 +1176,27 @@ void patchAggTime(void)
  */
 void patchFov(void)
 {
-	if (!isInGame())
-		return;
+  static int ingame = 0;
+  static int lastFov = 0;
+	if (!isInGame()) {
+		ingame = 0;
+    return;
+  }
 
-	float fov = 1.11003 + (playerFov / 10.0) * 1;
+  // replace SetFov function
+  HOOK_J(0x004AEA90, &writeFov);
+  POKE_U32(0x004AEA94, 0x03E0382D);
 
-	((void (*)(int, int, int, float, float, float, float))0x004AEA90)(0, 0, 3, fov, 0.05, 0.2, 0);
+  // initialize fov at start of game
+  if (!ingame || lastFov != config.playerFov) {
+    GameCamera* camera = cameraGetGameCamera(0);
+    if (!camera)
+      return;
+
+    writeFov(0, 0, 3, 0, 0, 0.05, 0.2, 0);
+    lastFov = config.playerFov;
+    ingame = 1;
+  }
 }
 
 /*
@@ -1638,6 +1720,80 @@ void runFlagPickupFix(void)
     gm = (GuberMoby*)gm->Guber.Prev;
   }
 	*/
+}
+
+/*
+ * NAME :		patchFlagCaptureMessage_Hook
+ * 
+ * DESCRIPTION :
+ * 			Replaces default flag capture popup text with custom one including
+ *      the name of the player who captured the flag.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchFlagCaptureMessage_Hook(int localPlayerIdx, int msgStringId, GuberEvent* event)
+{
+  static char buf[64];
+  int teams[4] = {0,0,0,0};
+  int teamCount = 0;
+  int i;
+  GameSettings* gs = gameGetSettings();
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    int team = gs->PlayerTeams[i];
+    if (team >= 0 && teams[team] == 0) {
+      teams[team]++;
+      teamCount++;
+    }
+  }
+
+  // flag captured
+  if (gs && teamCount < 3 && event && event->NetEvent.EventID == 1) {
+
+    // pid of player who captured the flag
+    int pid = event->NetEvent.NetData[1];
+    if (pid >= 0 && pid < GAME_MAX_PLAYERS)
+    {
+      snprintf(buf, 64, "%s has captured the flag!", gs->PlayerNames[pid]);
+      uiShowPopup(localPlayerIdx, buf);
+      return;
+    }
+  }
+
+  // call underlying GUI PrintPrompt
+  ((void (*)(int, int))0x00540190)(localPlayerIdx, msgStringId);
+}
+
+/*
+ * NAME :		patchFlagCaptureMessage
+ * 
+ * DESCRIPTION :
+ * 			Hooks patchFlagCaptureMessage_Hook
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchFlagCaptureMessage(void)
+{
+  if (!isInGame()) return;
+
+  // moves some logic around in a loop to free up an extra instruction slot
+  // so that we can pass a pointer to the guber event to our custom message handler
+  POKE_U32(0x00418808, 0x92242FEA);
+  POKE_U32(0x00418830, 0x263131F0);
+  HOOK_JAL(0x00418814, &patchFlagCaptureMessage_Hook);
+  POKE_U32(0x00418810, 0x8FA60068);
 }
 
 /*
@@ -2252,7 +2408,7 @@ void runEnableSingleplayerMusic(void)
 	}
 
 	// If in game
-	if(isInGame())
+	if (isInGame())
 	{
 		int TrackDuration = *(u32*)0x002069A4;
 		if (*(u32*)0x002069A0 <= 0)
@@ -2503,6 +2659,9 @@ void patchStartMenuBack_Hook(long a0, u64 a1, u64 a2, u8 a3)
  */
 u64 hookedProcessLevel()
 {
+  // enable singleplayer music
+  runEnableSingleplayerMusic();
+
 	u64 r = ((u64 (*)(void))0x001579A0)();
 
 	// Start at the first game module
@@ -2510,9 +2669,6 @@ u64 hookedProcessLevel()
 
   // increase wait for players to 50 seconds
   POKE_U32(0x0021E1E8, 50 * 60);
-
-  // enable singleplayer music
-  runEnableSingleplayerMusic();
 
 	// call gamerules level load
 	grLoadStart();
@@ -3586,6 +3742,9 @@ int main (void)
 	// Ensures that player's don't lag through the flag
 	runFlagPickupFix();
 
+  //
+  patchFlagCaptureMessage();
+
 	// Patch state update to run more optimized
 	patchStateUpdate();
 
@@ -3612,6 +3771,9 @@ int main (void)
 
   // 
   patchComputePoints();
+
+  // 
+  patchFov();
 
 	// 
 	//patchAggTime();
@@ -3816,6 +3978,8 @@ int main (void)
 	// Process spectate
 	if (config.enableSpectate)
 		processSpectate();
+  else
+    *(char*)(PATCH_POINTERS + 13) = 0;
 
   // Process freecam
   if (isInGame() && gameConfig.drFreecam) {

@@ -24,6 +24,8 @@ typedef struct PatchConfig
   char minimapBigZoom;
   char minimapSmallZoom;
   char enableFusionReticule;
+  char playerFov;
+  char preferredGameServer;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];

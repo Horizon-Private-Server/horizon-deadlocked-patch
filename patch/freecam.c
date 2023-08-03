@@ -63,8 +63,6 @@ struct PlayerFreecamData
     VECTOR LockedCharacterPosition;
 } FreecamData[2];
 
-void patchFov(void);
-
 void freecamGetRotationMatrix(MATRIX output, struct PlayerFreecamData * freecamData)
 {
   matrix_unit(output);
@@ -498,7 +496,6 @@ void processFreecam(void)
         }
         else
         {
-          patchFov();
           freecam(player);
         }
       }

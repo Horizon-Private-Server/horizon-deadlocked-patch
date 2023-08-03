@@ -84,6 +84,8 @@ const int patches[][3] = {
 	{ 1, 0x003FC66C, 0x0C12DF94 }, // fusion shot collision check hook
 	{ 1, 0x003fc670, 0x0000302D }, // fusion shot collision check a2 arg
 	{ 1, 0x0062ac60, 0x0C17C0C6 }, // weapon shot timebase delay hook
+  { 1, 0x004aea90, 0x24020470 }, // SetFov patch
+  { 1, 0x004aea94, 0x3C030023 }, // SetFov patch
 	// spectator
 	{ 1, 0x0054F46C, 0x0C1734F4 }, // healthbar
 	{ 1, 0x0054f898, 0x0C1734F4 }, // healthbar
