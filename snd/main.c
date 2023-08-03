@@ -1839,6 +1839,8 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	
   // disable healthboxes
   gameConfig->grNoHealthBoxes = 1;
+  gameConfig->grCqDisableTurrets = 0;
+  gameConfig->grCqDisableUpgrades = 0;
 
 	// set to conquest homenodes
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)cqOptions, sizeof(cqOptions)/sizeof(char));

@@ -3614,7 +3614,7 @@ int main (void)
   patchComputePoints();
 
 	// 
-	patchAggTime();
+	//patchAggTime();
 
 	//
 	patchLevelOfDetail();

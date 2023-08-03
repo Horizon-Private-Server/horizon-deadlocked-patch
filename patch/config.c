@@ -2202,6 +2202,9 @@ void configMenuDisable(void)
       gameConfig.grNoPacks = 1;
       gameConfig.grNoPickups = 1;
       gameConfig.grNoSniperHelpers = 1;
+      gameConfig.grCqPersistentCapture = 1;
+      gameConfig.grCqDisableTurrets = 1;
+      gameConfig.grCqDisableUpgrades = 1;
       break;
     }
     case 2: // 1v1

@@ -337,117 +337,123 @@ void processSpectate(void)
     int spectateIndex = 0;
 
     // First, we have to ensure we are in-game
-	if (!gameSettings || !isInGame()) 
+	  if (!gameSettings || !isInGame()) 
     {
-        SpectateData->Enabled = 0;
-        Initialized = 0;
-		return;
+      SpectateData->Enabled = 0;
+      Initialized = 0;
+      return;
     }
 
     if (Initialized != 1)
-        initialize();
+      initialize();
+
+    // store currently spectating player
+    if (SpectateData[0].Enabled)
+      *(char*)(PATCH_POINTERS + 13) = SpectateData[0].Index;
+    else
+      *(char*)(PATCH_POINTERS + 13) = -1;
 
     // Loop through every player
     for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-        if (!players[i])
-		    continue;
+	  {
+      if (!players[i])
+      continue;
 
-		Player * player = players[i];
+      Player * player = players[i];
 
-        // Next, we have to ensure the player is the local player and they are dead
-	    if (playerIsLocal(player)) 
+      // Next, we have to ensure the player is the local player and they are dead
+      if (playerIsLocal(player)) 
+      {
+        // Grab player-specific spectate data
+        spectateData = SpectateData + player->LocalPlayerIndex;
+        spectateIndex = spectateData->Index;
+
+        // If dead
+        if (playerIsDead(player))
         {
-            // Grab player-specific spectate data
-            spectateData = SpectateData + player->LocalPlayerIndex;
-            spectateIndex = spectateData->Index;
-
-            // If dead
-            if (playerIsDead(player))
+          if (!spectateData->Enabled)
+          {
+            // Show help message when player dies
+            if (!spectateData->HasShownEnterMsg) 
             {
-                if (!spectateData->Enabled)
-                {
-                    // Show help message when player dies
-                    if (!spectateData->HasShownEnterMsg) 
-                    {
-                        spectateData->HasShownEnterMsg = 1;
-                        uiShowHelpPopup(player->LocalPlayerIndex, "Press \x13 to enter spectate mode.", 5 * 30);
-                    }
-
-                    // When the player presses square and spectate isn't already enabled. Try to enable it.
-                    if (playerPadGetButtonDown(player, PAD_SQUARE) > 0) 
-                    {
-                        // First check if there is a player to spectate
-                        spectateIndex = findNextPlayerIndex(i, spectateIndex, 1);
-                        if (spectateIndex >= 0)
-                        {
-                            enableSpectate(player, spectateData);
-                            spectateData->Index = spectateIndex;
-                            vector_copy(spectateData->LastCameraPos, players[spectateIndex]->CameraPos);
-                        }
-                    }
-                }
-                // Let the player exit spectate by pressing square
-                else if (playerPadGetButtonDown(player, PAD_SQUARE) > 0)
-                {
-                    disableSpectate(player, spectateData);
-                }
-                // If the actively spectated player left find the next player
-                else if (!players[spectateIndex])
-                {
-                    // First check if there is a player to spectate
-                    spectateIndex = findNextPlayerIndex(i, spectateIndex, 1);
-                    if (spectateIndex < 0)
-                        disableSpectate(player, spectateData);
-
-                    // Update spectate index
-                    spectateData->Index = spectateIndex;
-                }
-                else
-                {
-                    // Show nav message
-                    if (!spectateData->HasShownNavMsg) 
-                    {
-                        spectateData->HasShownNavMsg = 1;
-                        uiShowHelpPopup(player->LocalPlayerIndex, "Use \x14 and \x15 to navigate between players.", 10 * 30);
-                    }
-                    
-                    // If the currently spectated player becomes null, we move forward to the next player            
-                    if (!players[spectateIndex])
-                        direction = 1;
-                    // If the player is pressing R1, move forward
-                    else if (playerPadGetButtonDown(player, PAD_R1) > 0) 
-                        direction = 1;
-                    // If the player is pressing L1, move backward
-                    else if (playerPadGetButtonDown(player, PAD_L1) > 0)
-                        direction = -1;
-
-                    // 
-                    if (direction)
-                        spectateIndex = findNextPlayerIndex(i, spectateIndex, direction);
-
-                    if (spectateIndex >= 0)
-                    {
-                        Player * nextPlayer = players[spectateIndex];
-                        if (nextPlayer)
-                        {
-                            // Update last camera position to new target
-                            // This snaps the camera to the new target instead of lerping
-                            if (spectateIndex != spectateData->Index)
-                                vector_copy(spectateData->LastCameraPos, nextPlayer->CameraPos);
-
-                            spectate(player, nextPlayer);
-                        }
-                    }
-
-                    // Finally update stored index value
-                    spectateData->Index = spectateIndex;
-                }
+              spectateData->HasShownEnterMsg = 1;
+              uiShowHelpPopup(player->LocalPlayerIndex, "Press \x13 to enter spectate mode.", 5 * 30);
             }
-            else if (spectateData->Enabled)
+
+            // When the player presses square and spectate isn't already enabled. Try to enable it.
+            if (playerPadGetButtonDown(player, PAD_SQUARE) > 0) 
             {
-                disableSpectate(player, spectateData);
+              // First check if there is a player to spectate
+              spectateIndex = findNextPlayerIndex(i, spectateIndex, 1);
+              if (spectateIndex >= 0)
+              {
+                enableSpectate(player, spectateData);
+                spectateData->Index = spectateIndex;
+                vector_copy(spectateData->LastCameraPos, players[spectateIndex]->CameraPos);
+              }
             }
+          }
+          // Let the player exit spectate by pressing square
+          else if (playerPadGetButtonDown(player, PAD_SQUARE) > 0)
+          {
+            disableSpectate(player, spectateData);
+          }
+          // If the actively spectated player left find the next player
+          else if (!players[spectateIndex])
+          {
+            // First check if there is a player to spectate
+            spectateIndex = findNextPlayerIndex(i, spectateIndex, 1);
+            if (spectateIndex < 0)
+              disableSpectate(player, spectateData);
+
+            // Update spectate index
+            spectateData->Index = spectateIndex;
+          }
+          else
+          {
+            // Show nav message
+            if (!spectateData->HasShownNavMsg) 
+            {
+              spectateData->HasShownNavMsg = 1;
+              uiShowHelpPopup(player->LocalPlayerIndex, "Use \x14 and \x15 to navigate between players.", 10 * 30);
+            }
+            
+            // If the currently spectated player becomes null, we move forward to the next player            
+            if (!players[spectateIndex])
+              direction = 1;
+            // If the player is pressing R1, move forward
+            else if (playerPadGetButtonDown(player, PAD_R1) > 0) 
+              direction = 1;
+            // If the player is pressing L1, move backward
+            else if (playerPadGetButtonDown(player, PAD_L1) > 0)
+              direction = -1;
+
+            // 
+            if (direction)
+              spectateIndex = findNextPlayerIndex(i, spectateIndex, direction);
+
+            if (spectateIndex >= 0)
+            {
+              Player * nextPlayer = players[spectateIndex];
+              if (nextPlayer)
+              {
+                // Update last camera position to new target
+                // This snaps the camera to the new target instead of lerping
+                if (spectateIndex != spectateData->Index)
+                  vector_copy(spectateData->LastCameraPos, nextPlayer->CameraPos);
+
+                spectate(player, nextPlayer);
+              }
+            }
+
+            // Finally update stored index value
+            spectateData->Index = spectateIndex;
+          }
         }
+        else if (spectateData->Enabled)
+        {
+          disableSpectate(player, spectateData);
+        }
+      }
 	}
 }
