@@ -14,6 +14,7 @@ const int UPGRADE_COST[] = {
 };
 
 const float BOLT_TAX[] = {
+  1.00,     // 0 players
 	1.00,			// 1 player
 	0.90,			// 2 players
 	0.80,			// 3 players

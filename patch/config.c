@@ -25,7 +25,6 @@ extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 extern PatchGameConfig_t gameConfigHostBackup;
 
-extern char playerFov;
 extern char aa_value;
 extern int redownloadCustomModeBinaries;
 
@@ -186,6 +185,25 @@ MenuElem_RangeData_t dataPlayerAggTime = {
     .maxValue = 5,
 };
 
+// game servers
+MenuElem_ListData_t dataGameServers = {
+  .value = &config.preferredGameServer,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
+    "US Central",
+    "Europe"
+  }
+};
+
+// player fov range item
+MenuElem_RangeData_t dataFieldOfView = {
+    .value = &config.playerFov,
+    .stateHandler = NULL,
+    .minValue = 0,
+    .maxValue = 5,
+};
+
 // general tab menu items
 MenuElem_t menuElementsGeneral[] = {
 #ifdef DEBUG
@@ -193,11 +211,13 @@ MenuElem_t menuElementsGeneral[] = {
   { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
   { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
+  { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
   { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements },
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
+  { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
   { "Fusion Reticule", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
@@ -348,17 +368,8 @@ MenuElem_t menuElementsCharacter[] = {
 
 extern FreecamSettings_t freecamSettings;
 
-// player fov range item
-MenuElem_RangeData_t dataFieldOfView = {
-    .value = &playerFov,
-    .stateHandler = NULL,
-    .minValue = -10,
-    .maxValue = 10,
-};
-
 // character tab menu items
 MenuElem_t menuElementsFreecam[] = {
-  { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
   { "Airwalk", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.airwalk },
   { "Lock Position", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.lockPosition },
   { "Lock Animation", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.lockStateToggle },
