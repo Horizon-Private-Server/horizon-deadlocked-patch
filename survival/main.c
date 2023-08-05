@@ -119,6 +119,20 @@ SoundDef TestSoundDef =
 	3			  // Bank
 };
 
+struct CustomDzoCommandSurvivalDrawHud
+{
+  int Tokens;
+  int EnemiesAlive;
+  int CurrentRoundNumber;
+  int HeldItem;
+  int StartRoundTimer;
+  float XpPercent;
+  char HasRoundCompleteMessage;
+  char HasDblPoints;
+  char HasDblXp;
+  char RoundCompleteMessage[64];
+} dzoDrawHudCmd;
+
 //--------------------------------------------------------------------------
 void uiShowLowerPopup(int localPlayerIdx, int msgStringId)
 {
@@ -222,6 +236,10 @@ void drawRoundMessage(const char * message, float scale, int yPixelsOffset)
 	int fw = gfxGetFontWidth(message, -1, scale);
 	float x = 0.5;
 	float y = 0.16;
+
+  // move to dzo
+  dzoDrawHudCmd.HasRoundCompleteMessage = 1;
+  strncpy(dzoDrawHudCmd.RoundCompleteMessage, message, sizeof(dzoDrawHudCmd.RoundCompleteMessage));
 
 	// draw message
 	y *= SCREEN_HEIGHT;
@@ -1392,7 +1410,8 @@ void processPlayer(int pIndex) {
 		//
 		if (actionCooldownTicks > 0 || player->timers.noInput) {
 			if (messageCooldownTicks == 1) {
-        ((void (*)(int))0x0054e5e8)(localPlayerIndex);
+        //((void (*)(int))0x0054e5e8)(localPlayerIndex);
+        POKE_U32(0x0030E7E8, 0);
       }
       return;
     }
@@ -1567,7 +1586,8 @@ void processPlayer(int pIndex) {
     */
 
 		if (!hasMessage && messageCooldownTicks == 1) {
-			((void (*)(int))0x0054e5e8)(localPlayerIndex);
+			//((void (*)(int))0x0054e5e8)(localPlayerIndex);
+      POKE_U32(0x0030E7E8, 0);
 		}
 	} else {
 
@@ -2014,6 +2034,28 @@ void spawnDemonBell(void)
       State.DemonBellCount += 1;
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+void updateDzoHud(void)
+{
+  if (!PATCH_DZO_INTEROP_FUNCS)
+    return;
+
+  int gameTime = gameGetTime();
+
+  dzoDrawHudCmd.Tokens = State.LocalPlayerState->State.CurrentTokens;
+  dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
+  dzoDrawHudCmd.CurrentRoundNumber = State.RoundNumber;
+  dzoDrawHudCmd.EnemiesAlive = State.RoundMobCount;
+  dzoDrawHudCmd.StartRoundTimer = State.RoundEndTime - gameTime;
+  dzoDrawHudCmd.HasDblPoints = State.LocalPlayerState->IsDoublePoints;
+  dzoDrawHudCmd.HasDblXp = State.LocalPlayerState->IsDoubleXP;
+  dzoDrawHudCmd.XpPercent = State.LocalPlayerState->State.XP / (float)getXpForNextToken(State.LocalPlayerState->State.TotalTokens);
+  PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD, sizeof(dzoDrawHudCmd), &dzoDrawHudCmd);
+
+  // reset
+  dzoDrawHudCmd.HasRoundCompleteMessage = 0;
 }
 
 //--------------------------------------------------------------------------
@@ -2843,6 +2885,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			State.GameOver = 2;
 		}
 	}
+
+  //
+  updateDzoHud();
 
 	// last
 	dlPostUpdate();

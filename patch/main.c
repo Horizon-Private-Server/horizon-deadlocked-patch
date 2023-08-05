@@ -2281,6 +2281,12 @@ void runEnableSingleplayerMusic(void)
 	static int AddedTracks = 0;
   static int Loading = 0;
 
+  // there's an crash issue when loading sp music
+  // in survival
+  // so reject it then
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && !isInMenus())
+    return;
+
   // indicate to user we're loading sp music
   // running uiRunCallbacks triggers our vsync hook and reinvokes this method
   // while it is still looping
@@ -3634,7 +3640,7 @@ int main (void)
   //POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
 
   // send client type to server on change
-  int currentClientType = *(u8*)(PATCH_POINTERS + 12);
+  int currentClientType = PATCH_POINTERS_CLIENT;
   int accountId = *(int*)0x00172194;
   if (currentClientType != lastClientType || lastAccountId != accountId) {
     void* lobbyConnection = netGetLobbyServerConnection();
@@ -3979,7 +3985,7 @@ int main (void)
 	if (config.enableSpectate)
 		processSpectate();
   else
-    *(char*)(PATCH_POINTERS + 13) = 0;
+    PATCH_POINTERS_SPECTATE = 0;
 
   // Process freecam
   if (isInGame() && gameConfig.drFreecam) {

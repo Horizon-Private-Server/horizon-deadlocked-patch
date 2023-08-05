@@ -2,6 +2,7 @@
 #include "include/drop.h"
 #include "include/utils.h"
 #include "include/game.h"
+#include "config.h"
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
@@ -265,6 +266,12 @@ void mobHandleDraw(Moby* moby)
 			}
 		}
 	}
+
+  // dzo clients don't need draw optimization
+  if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_DZO) {
+    moby->DrawDist = 128;
+    return;
+  }
 
 	int order = pvars->MobVars.Order;
 	moby->DrawDist = 128;

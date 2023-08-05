@@ -349,9 +349,9 @@ void processSpectate(void)
 
     // store currently spectating player
     if (SpectateData[0].Enabled)
-      *(char*)(PATCH_POINTERS + 13) = SpectateData[0].Index + 1;
+      PATCH_POINTERS_SPECTATE = SpectateData[0].Index + 1;
     else
-      *(char*)(PATCH_POINTERS + 13) = 0;
+      PATCH_POINTERS_SPECTATE = 0;
 
     // Loop through every player
     for (i = 0; i < GAME_MAX_PLAYERS; ++i)

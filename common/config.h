@@ -4,8 +4,11 @@
 /*
  * Fixed pointers to patch container for use by external modules.
  */
-#define PATCH_POINTERS			    ((void*)0x000CFFC0)
-#define PATCH_DZO_INTEROP_FUNCS	(*(DzoInteropFunctions_t**)0x000CFFC8)
+#define PATCH_POINTERS			      ((void*)0x000CFFC0)
+#define PATCH_DZO_INTEROP_FUNCS	  (*(DzoInteropFunctions_t**)0x000CFFC8)
+#define PATCH_POINTERS_CLIENT     (*(u8*)(PATCH_POINTERS + 12))
+#define PATCH_POINTERS_SPECTATE   (*(u8*)(PATCH_POINTERS + 13))
+#define PATCH_POINTERS_PATCHMENU  (*(u8*)(PATCH_POINTERS + 14))
 
 typedef struct PatchConfig
 {

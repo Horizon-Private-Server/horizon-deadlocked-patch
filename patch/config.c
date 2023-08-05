@@ -2192,7 +2192,7 @@ void configMenuDisable(void)
   if (!isConfigMenuActive)
     return;
   
-  isConfigMenuActive = 0;
+  isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 0;
 
   // force game config to preset
   switch (preset)
@@ -2249,7 +2249,7 @@ void configMenuDisable(void)
 void configMenuEnable(void)
 {
   // enable
-  isConfigMenuActive = 1;
+  isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 1;
 
   // return to first tab if current is hidden
   int state = 0;
