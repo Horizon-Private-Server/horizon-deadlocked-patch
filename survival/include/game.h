@@ -114,6 +114,11 @@
 #define SNACK_ITEM_MAX_COUNT                  (16)
 
 #define MAX_MOB_SPAWN_PARAMS                  (10)
+#define MAX_MOB_COMPLEXITY_DRAWN              (20000)
+#define MAX_MOB_COMPLEXITY_DRAWN_DZO          (30000)
+#define MOB_COMPLEXITY_SKIN_FACTOR            (1000)
+#define MOB_COMPLEXITY_LOD_FACTOR             (2500)
+#define MAX_MOB_COMPLEXITY_MIN                (10000)
 
 enum GameNetMessage
 {

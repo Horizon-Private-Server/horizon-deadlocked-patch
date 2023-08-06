@@ -963,6 +963,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
         case CUSTOM_MAP_TORVAL_LOST_FACTORY:
         case CUSTOM_MAP_TORVAL_SP:
         case CUSTOM_MAP_TYHRRANOSIS:
+        case CUSTOM_MAP_NONE:
           return 1;
       }
 

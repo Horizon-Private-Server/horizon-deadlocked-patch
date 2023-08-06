@@ -1161,6 +1161,30 @@ void writeFov(int cameraIdx, int a1, int a2, u32 ra, float fov, float f13, float
 }
 
 /*
+ * NAME :		initFovHook
+ * 
+ * DESCRIPTION :
+ * 			Called when FOV is initialized.
+ *      Ensures custom FOV is applied on initialization.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void initFovHook(int cameraIdx)
+{
+  // call base
+  ((void (*)(int))0x004ae9e0)(cameraIdx);
+
+  GameCamera* camera = cameraGetGameCamera(cameraIdx);
+  writeFov(0, 0, 3, 0, camera->fov.ideal, 0.05, 0.2, 0);
+}
+
+/*
  * NAME :		patchFov
  * 
  * DESCRIPTION :
@@ -1186,6 +1210,8 @@ void patchFov(void)
   // replace SetFov function
   HOOK_J(0x004AEA90, &writeFov);
   POKE_U32(0x004AEA94, 0x03E0382D);
+  
+  HOOK_JAL(0x004B25C0, &initFovHook);
 
   // initialize fov at start of game
   if (!ingame || lastFov != config.playerFov) {

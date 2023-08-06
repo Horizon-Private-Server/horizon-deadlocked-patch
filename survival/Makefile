@@ -8,7 +8,7 @@ EE_INCS := -I../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := DEBUG
+BUILD_CONFIG := RELEASE
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
@@ -26,9 +26,10 @@ BUILD_CONFIG := DEBUG
 #		MANUAL_SPAWN					When enabled, allows player to spawn mob at feet by pressing DPAD DOWN.
 #		DROPS									When enabled, randomly spawns special drops when a mob is killed.
 #		UPGRADES							When enabled, spawns the player upgrade mobies around the map.
+#		PRINT_MOB_COMPLEXITY	When enabled, draws "complexity" number as sum of drawn mobs
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DMOB_CORN -DDISABLE_SPAWNING -DBENCHMARK1 -DMANUAL_DROP_SPAWN -DMANUAL_SPAWN -DDROPS -DUPGRADES -DDEMONBELL -DFIXEDTARGET1 -DMOB_NO_DAMAGE -DMOB_NO_MOVE1 -DPAYDAY  -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DSHARED_BOLTS -DLOG_STATS2
+EE_DEFS := -DDEBUG -DMOB_CORN -DDISABLE_SPAWNING -DBENCHMARK! -DMANUAL_DROP_SPAWN -DMANUAL_SPAWN -DDROPS -DUPGRADES -DDEMONBELL -DFIXEDTARGET -DMOB_NO_DAMAGE -DMOB_NO_MOVE! -DPAYDAY  -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DSHARED_BOLTS -DLOG_STATS2! -DPRINT_MOB_COMPLEXITY
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DSHARED_BOLTS -DDROPS -DUPGRADES -DDEMONBELL
 endif

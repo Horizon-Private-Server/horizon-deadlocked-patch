@@ -35,6 +35,7 @@
 #include <libdl/collision.h>
 #include "module.h"
 #include "messageid.h"
+#include "config.h"
 #include "include/mob.h"
 #include "include/drop.h"
 #include "include/game.h"
@@ -101,6 +102,8 @@ struct SurvivalSnackItem snackItems[SNACK_ITEM_MAX_COUNT];
 int snackItemsCount = 0;
 
 int defaultSpawnParamsCooldowns[MAX_MOB_SPAWN_PARAMS];
+
+PatchConfig_t* playerConfig = NULL;
 
 int playerStates[GAME_MAX_PLAYERS];
 int playerStateTimers[GAME_MAX_PLAYERS];
@@ -2477,6 +2480,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	// Determine if host
 	State.IsHost = gameAmIHost();
 
+  // 
+  playerConfig = config;
+
 	if (!Initialized) {
 		initialize(gameConfig, gameState);
 		return;
@@ -2507,17 +2513,25 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	{
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
+
+      // force one mob type
       //manSpawnMobId = 0;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+      //manSpawnMobId = 5;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+
+      // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
         manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
       }
-      int manSpawnedId = manSpawnMobId; //manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
+
+      // build spawn position
 			VECTOR t = {1,1,1,0};
-      vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnedId].Config.CollRadius*2);
+      vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnMobId].Config.CollRadius*2);
 			vector_add(t, t, localPlayer->PlayerPosition);
       
-			mobCreate(manSpawnedId, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[manSpawnedId].Config);
+      // spawn
+			mobCreate(manSpawnMobId, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[manSpawnMobId].Config);
+      manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
 		}
     else if (padGetButtonDown(0, PAD_L1 | PAD_RIGHT) > 0) {
       State.Freeze = 1;
@@ -2543,7 +2557,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       t[1] += (manSpawnMobId / 8) * 2;
 
       int id = manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
-      mobCreate(id, t, 0, -1, &mapConfig->DefaultSpawnParams[id].Config);
+      mobCreate(id, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[id].Config);
     }
   }
 #endif

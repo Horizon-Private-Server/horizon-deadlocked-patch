@@ -19,6 +19,10 @@ Moby* mobFirstInList = 0;
 Moby* mobLastInList = 0;
 
 extern struct SurvivalMapConfig* mapConfig;
+extern PatchConfig_t* playerConfig;
+
+int mobOrderedDrawUpToIndex = MAX_MOBS_SPAWNED;
+int mobComplexitySum = 0;
 
 #if FIXEDTARGET
 extern Moby* FIXEDTARGETMOBY;
@@ -41,7 +45,9 @@ SoundDef BaseSoundDef =
 	3			  // Bank
 };
 
-Moby* AllMobsSorted[MAX_MOBS_SPAWNED];
+int MobComplexityValueByOClass[MAX_MOB_SPAWN_PARAMS][2];
+
+Moby* AllMobsSorted[MAX_MOBS_SPAWNED + 10];
 int AllMobsSortedFreeSpots = MAX_MOBS_SPAWNED;
 
 extern struct SurvivalState State;
@@ -179,11 +185,124 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	}
 }
 
+int getMaxComplexity(void)
+{
+  int maxComplexity = MAX_MOB_COMPLEXITY_DRAWN;
+
+  // reduce by lod
+  maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? playerConfig->levelOfDetail : 2);
+
+  // dzo bypasses max complexity
+  if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_DZO)
+    maxComplexity = MAX_MOB_COMPLEXITY_DRAWN_DZO;
+
+  // reduce by number of players
+  maxComplexity -= (MOB_COMPLEXITY_SKIN_FACTOR * State.ActivePlayerCount);
+
+	if (maxComplexity < MAX_MOB_COMPLEXITY_MIN)
+    return MAX_MOB_COMPLEXITY_MIN;
+  return maxComplexity;
+}
+
+int mobyComputeComplexity(Moby * moby)
+{
+  int complexity = 0;
+  int i;
+
+  // baked by oclass
+  switch (moby->OClass)
+  {
+    case ZOMBIE_MOBY_OCLASS: return 650;
+    case TREMOR_MOBY_OCLASS: return 900;
+    case EXECUTIONER_MOBY_OCLASS: return 1500;
+  }
+
+  if (!moby || !moby->PClass)
+    return 0;
+
+  void * pclass =moby->PClass;
+  int highPacketCnt = *(char*)(pclass + 0x04);
+  int lowPacketCnt = *(char*)(pclass + 0x05);
+  int metalPacketCnt = *(char*)(pclass + 0x0A);
+  int jointCnt = *(char*)(pclass + 0x08);
+  void * packets = *(void**)pclass;
+
+  if (packets) {
+
+    int count = highPacketCnt + lowPacketCnt + metalPacketCnt;
+    for (i = 0; i < count; ++i) {
+      int vertexDataSize = *(char*)(packets + 0x0C);
+      int vifListSize = *(short*)(packets + 0x04);
+      int vertexCount = *(u8*)(packets + 0x0f);
+      complexity += vifListSize * 0x10;
+      packets += 0x10;
+    }
+  }
+
+  //complexity += jointCnt * 0x40;
+
+  return complexity/0x10;
+}
+
+int mobyGetComplexity(Moby* moby)
+{
+  if (!moby)
+    return 0;
+
+  int i;
+  int freeIdx = -1;
+
+  // ensure we don't already have
+  for (i = 0; i < MAX_MOB_SPAWN_PARAMS; ++i) {
+    int oclass = MobComplexityValueByOClass[i][0];
+    if (oclass == moby->OClass)
+      return MobComplexityValueByOClass[i][1];
+    else if (oclass == 0 && freeIdx < 0)
+      freeIdx = i;
+  }
+
+  if (freeIdx < 0)
+    return 0;
+
+  // disable lod low
+  /*
+  int lowPacketCnt = *(char*)(moby->PClass + 0x05);
+  if (lowPacketCnt > 0) {
+
+    int highPacketCnt = *(char*)(moby->PClass + 0x04);
+    int copyPacketCnt = lowPacketCnt + *(char*)(moby->PClass + 0x0A);
+    void * packets = *(void**)moby->PClass;
+
+    memmove(packets, packets + highPacketCnt*0x10, copyPacketCnt * 0x10);
+
+    *(char*)(moby->PClass + 0x04) = lowPacketCnt;
+    *(char*)(moby->PClass + 0x05) = 0;
+    *(char*)(moby->PClass + 0x0A) = 0;
+    *(char*)(moby->PClass + 0x0E) = -1;
+    *(char*)(moby->PClass + 0x06) = 0;
+    DPRINTF("%04X -> %08X (%d)\n", moby->OClass, (u32)moby->PClass, mobyComputeComplexity(moby));
+  }
+  */
+
+  int complexity = mobyComputeComplexity(moby);
+  DPRINTF("%04X -> %08X (%d) (max %d)\n", moby->OClass, (u32)moby->PClass, complexity, (getMaxComplexity() / complexity) + 1);
+
+  // compute and save
+  MobComplexityValueByOClass[freeIdx][0] = moby->OClass;
+  return MobComplexityValueByOClass[freeIdx][1] = complexity;
+}
+
 void mobDestroy(Moby* moby, int hitByUID)
 {
 	char killedByPlayerId = -1;
 	char weaponId = -1;
+
+  if (!moby)
+    return;
+
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (!pvars)
+    return;
 
 	// create event
 	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DESTROY);
@@ -252,6 +371,8 @@ void mobHandleDraw(Moby* moby)
 	int i;
 	VECTOR t;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  int minMobsForHiding = 20;
+  float minRankForDrawCutoff = 0.75;
 
 	// if we aren't in the sorted list, try and find an empty spot
 	if (pvars->MobVars.Order < 0 && AllMobsSortedFreeSpots > 0) {
@@ -267,27 +388,39 @@ void mobHandleDraw(Moby* moby)
 		}
 	}
 
-  // dzo clients don't need draw optimization
+  // dzo clients don't need draw optimization as much
+  // unfortunately the cost of each mob can cause problems on the VU
+  // so we are forced to stop animating some
   if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_DZO) {
-    moby->DrawDist = 128;
-    return;
+    minMobsForHiding = 30;
+    minRankForDrawCutoff = 0.25;
   }
 
-	int order = pvars->MobVars.Order;
-	moby->DrawDist = 128;
-	if (order >= 0) {
-		float rank = 1 - clamp(order / (float)State.RoundMaxSpawnedAtOnce, 0, 1);
-		//float rankCurve = powf(rank, 6);
-		
-		if (State.RoundMobCount > 20) {
-			if (rank < 0.75) {
-        if (pvars->VTable && pvars->VTable->PostDraw) {
-          gfxRegisterDrawFunction((void**)0x0022251C, pvars->VTable->PostDraw, moby);
-          moby->DrawDist = 0;
+  if (1) {
+    moby->DrawDist = 128;
+    if (pvars->MobVars.Order >= mobOrderedDrawUpToIndex) {
+      if (pvars->VTable && pvars->VTable->PostDraw) {
+        gfxRegisterDrawFunction((void**)0x0022251C, pvars->VTable->PostDraw, moby);
+        moby->DrawDist = 0;
+      }
+    }
+  } else {
+    int order = pvars->MobVars.Order;
+    moby->DrawDist = 128;
+    if (order >= 0) {
+      float rank = 1 - clamp(order / (float)State.RoundMaxSpawnedAtOnce, 0, 1);
+      //float rankCurve = powf(rank, 6);
+      
+      if (State.RoundMobCount > minMobsForHiding) {
+        if (rank < minRankForDrawCutoff) {
+          if (pvars->VTable && pvars->VTable->PostDraw) {
+            gfxRegisterDrawFunction((void**)0x0022251C, pvars->VTable->PostDraw, moby);
+            moby->DrawDist = 0;
+          }
         }
-			}
-		}
-	}
+      }
+    }
+  }
 }
 
 void mobUpdate(Moby* moby)
@@ -604,7 +737,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Random = random;
   vector_copy(pvars->MobVars.MoveVars.NextPosition, p);
 #if MOB_NO_MOVE
-	pvars->MobVars.Config.Speed = 0;
+	pvars->MobVars.Config.Speed = 0.001;
 #endif
 #if MOB_NO_DAMAGE
 	pvars->MobVars.Config.Damage = 0;
@@ -1010,6 +1143,7 @@ void mobInitialize(void)
 	//*(u32*)0x004bd1f4 = 0x00402021;
 
 	// 
+  memset(MobComplexityValueByOClass, 0, sizeof(MobComplexityValueByOClass));
 	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
 }
 
@@ -1088,7 +1222,12 @@ void mobTick(void)
 		mobFirstInList = NULL;
 	if (mobLastInList && (mobyIsDestroyed(mobLastInList) || !mobyIsMob(mobLastInList)))
 		mobLastInList = NULL;
-	
+
+  // reset
+  mobComplexitySum = 0;
+  mobOrderedDrawUpToIndex = MAX_MOBS_SPAWNED;
+  int maxComplexity = getMaxComplexity();
+
 	// run single pass on sort
 	for (i = 0; i < MAX_MOBS_SPAWNED; ++i)
 	{
@@ -1108,6 +1247,12 @@ void mobTick(void)
 
 		if (m) {
 			struct MobPVar* pvars = (struct MobPVar*)m->PVar;
+
+      int complexity = mobyGetComplexity(m);
+      mobComplexitySum += complexity;
+      if (i < mobOrderedDrawUpToIndex && mobComplexitySum > maxComplexity) {
+        mobOrderedDrawUpToIndex = i-1;
+      }
 
 #if JOINT_TEST
 
@@ -1171,4 +1316,11 @@ void mobTick(void)
 			}
 		}
 	}
+
+#if PRINT_MOB_COMPLEXITY
+  //DPRINTF("MOB COMPLEXITY %d\n", mobComplexitySum);
+  char buf[64];
+  snprintf(buf, 64, "%d/%d -> %d", mobComplexitySum, maxComplexity, State.MobsDrawnCurrent);
+  gfxScreenSpaceText(0, 0, 1, 1, 0x80FFFFFF, buf, -1, 0);
+#endif
 }
