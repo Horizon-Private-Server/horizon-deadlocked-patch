@@ -44,6 +44,13 @@ void frameTick(void);
 void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig);
 void modeSetEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
+const char* TRAINING_AGGRO_NAMES[] = {
+  [TRAINING_AGGRESSION_AGGRO] "AGGRO",
+  [TRAINING_AGGRESSION_AGGRO_NO_DAMAGE] "NO DAMAGE",
+  [TRAINING_AGGRESSION_PASSIVE] "PASSIVE",
+  [TRAINING_AGGRESSION_IDLE] "IDLE",
+};
+
 //--------------------------------------------------------------------------
 void correctEndGameData(void)
 {
@@ -81,6 +88,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 	// Determine if host
 	State.IsHost = gameAmIHost();
+  State.AggroMode = gameConfig->trainingConfig.aggression;
 
 	if (!Initialized)
 	{

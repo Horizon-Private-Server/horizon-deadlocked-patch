@@ -399,6 +399,10 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 		return;
 	}
 
+  // don't move when idle
+  if (State.AggroMode == TRAINING_AGGRESSION_IDLE)
+    return;
+
 	// face player
 	vector_copy(delta, player->PlayerPosition);
 	delta[2] += 1;
@@ -446,7 +450,7 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	}
 
 	// cycle
-	if (cycleTicks == 1) {
+	if (cycleTicks == 1 && State.AggroMode < TRAINING_AGGRESSION_PASSIVE) {
 		sPlayer->CycleIdx = (sPlayer->CycleIdx + 1 /*+rand(3)*/) % 3;
 		sPlayer->TicksFireDelay = randRangeInt(5, 20);
 		playerEquipWeapon(target, sPlayer->CycleIdx ? (sPlayer->CycleIdx == 1 ? WEAPON_ID_FUSION_RIFLE : WEAPON_ID_B6) : WEAPON_ID_MAGMA_CANNON );
@@ -454,11 +458,9 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	}
 
 	// fire weapons
-	if (!fireDelayTicks && target->timers.gadgetRefire == 0) {
+	if (!fireDelayTicks && target->timers.gadgetRefire == 0 && State.AggroMode < TRAINING_AGGRESSION_PASSIVE) {
 		u32 fireTicks = decTimerU32(&sPlayer->TicksToFire);
 		if (!fireTicks) {
-
-			
 			if (target->WeaponHeldId == WEAPON_ID_FUSION_RIFLE && strafeStopTicksFor > 10) {
 				sPlayer->TicksToFire = 1;
 			} else {
@@ -537,7 +539,12 @@ void modeInitTarget(SimulatedPlayer_t *sPlayer)
 //--------------------------------------------------------------------------
 void modeProcessPlayer(int pIndex)
 {
-	
+  Player* player = playerGetAll()[pIndex];
+
+  // infinite health
+	if (player && State.AggroMode == TRAINING_AGGRESSION_AGGRO_NO_DAMAGE && !playerIsDead(player)) {
+    player->Health = player->MaxHealth;
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -582,6 +589,11 @@ void modeSetEndGameScoreboard(PatchGameConfig_t * gameConfig)
 	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
 	int i;
 	
+  // title
+  snprintf((char*)0x003D3AE0, 0x3F, "Cycle %s (%s)"
+    , gameConfig->trainingConfig.variant == 0 ? "Ranked" : "Endless"
+    , TRAINING_AGGRO_NAMES[gameConfig->trainingConfig.aggression]);
+	
 	// column headers start at 17
 	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
 	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
@@ -625,6 +637,8 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	if (!gameOptions || gameSettings->GameLoadStartTime <= 0)
 		return;
 
+  int endless = gameConfig->trainingConfig.variant == 1;
+
 	//
 	gameConfig->grNoInvTimer = 1;
 	gameConfig->grV2s = 0;
@@ -647,7 +661,10 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = TIMELIMIT_MINUTES;
+	gameOptions->GameFlags.MultiplayerGameFlags.Homenodes = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_13 = 1; // KOTH
+	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = endless ? 0 : TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.HillMovingTime = 0;

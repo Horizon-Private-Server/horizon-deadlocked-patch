@@ -57,6 +57,9 @@ typedef struct PayloadConfig
 typedef struct TrainingConfig
 {
 	u8 type;
+  u8 variant;
+  u8 aggression;
+  u8 opt3;
 } TrainingConfig_t;
 
 typedef struct PatchGameConfig
@@ -187,6 +190,15 @@ enum TRAINING_TYPE
 	TRAINING_TYPE_CYCLE,
 	TRAINING_TYPE_B6,
 	TRAINING_TYPE_MAX
+};
+
+enum TRAINING_AGGRESSION
+{
+	TRAINING_AGGRESSION_AGGRO,
+	TRAINING_AGGRESSION_AGGRO_NO_DAMAGE,
+	TRAINING_AGGRESSION_PASSIVE,
+	TRAINING_AGGRESSION_IDLE,
+  TRAINING_AGGRESSION_MAX
 };
 
 enum CLIENT_TYPE

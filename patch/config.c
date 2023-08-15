@@ -99,10 +99,12 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value);
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -493,13 +495,37 @@ MenuElem_ListData_t dataPayloadContestMode = {
 // training type
 MenuElem_ListData_t dataTrainingType = {
     &gameConfig.trainingConfig.type,
-    menuStateHandler_SelectedTrainingTypeOverride,
+    NULL, //menuStateHandler_SelectedTrainingTypeOverride,
     2,
     {
       "Fusion",
       "Cycle",
       "B6",
     }
+};
+
+// training variant
+MenuElem_ListData_t dataTrainingVariant = {
+  &gameConfig.trainingConfig.variant,
+  NULL,
+  2,
+  {
+    "Ranked",
+    "Endless"
+  }
+};
+
+// training aggression
+MenuElem_ListData_t dataTrainingAggression = {
+  &gameConfig.trainingConfig.aggression,
+  menuStateHandler_SelectedTrainingAggressionOverride,
+  4,
+  {
+    "Aggressive",
+    "Aggressive No Damage",
+    "Passive",
+    "Idle"
+  }
 };
 
 // player size list item
@@ -620,6 +646,8 @@ MenuElem_t menuElementsGameSettings[] = {
 
   // TRAINING SETTINGS
   { "Training Type", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingType },
+  { "Training Variant", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingVariant },
+  { "Bot Aggression", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingAggression },
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -1111,6 +1139,7 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
   GameSettings* gs = gameGetSettings();
   char v = *value;
 
+  return 1;
   if (gs)
   {
     switch (gs->GameRules)
@@ -1131,6 +1160,51 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
         *value = TRAINING_TYPE_CYCLE;
         return 0;
       }
+    }
+  }
+
+  return 0;
+}
+
+// 
+int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value)
+{
+  if (!value)
+    return 0;
+
+  GameSettings* gs = gameGetSettings();
+  char v = *value;
+
+  switch (gameConfig.trainingConfig.type)
+  {
+    case TRAINING_TYPE_FUSION:
+    {
+      // if ranked variant, force passive
+      if (gameConfig.trainingConfig.variant == 0)
+      {
+        *value = TRAINING_AGGRESSION_PASSIVE;
+        return 0;
+      }
+
+      // force PASSIVE or IDLE for endless
+      if (v != TRAINING_AGGRESSION_PASSIVE && v != TRAINING_AGGRESSION_IDLE)
+      {
+        *value = TRAINING_AGGRESSION_PASSIVE;
+        return 0;
+      }
+
+      return 1;
+    }
+    case TRAINING_TYPE_CYCLE:
+    {
+      // if ranked variant, force aggro
+      if (gameConfig.trainingConfig.variant == 0)
+      {
+        *value = TRAINING_AGGRESSION_AGGRO;
+        return 0;
+      }
+
+      return 1;
     }
   }
 
@@ -1161,6 +1235,17 @@ void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* el
   GameSettings* gs = gameGetSettings();
 
   if (gameConfig.customModeId != CUSTOM_MODE_TRAINING)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+
+  if (gameConfig.customModeId != CUSTOM_MODE_TRAINING || gameConfig.trainingConfig.type != TRAINING_TYPE_CYCLE)
     *state = ELEMENT_HIDDEN;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;

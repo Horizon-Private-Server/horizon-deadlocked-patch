@@ -352,6 +352,10 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	// set camera type to lock strafe
 	POKE_U32(0x001711D4 + (4*sPlayer->Idx), 1);
 
+  // don't move when idle
+  if (State.AggroMode == TRAINING_AGGRESSION_IDLE)
+    return;
+
 	// face player
 	vector_subtract(delta, player->PlayerPosition, target->PlayerPosition);
 	float len = vector_length(delta);
@@ -484,6 +488,11 @@ void modeSetEndGameScoreboard(PatchGameConfig_t * gameConfig)
 {
 	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
 	int i;
+
+  // title
+  snprintf((char*)0x003D3AE0, 0x3F, "Fusion %s (%s)"
+    , gameConfig->trainingConfig.variant == 0 ? "Ranked" : "Endless"
+    , TRAINING_AGGRO_NAMES[gameConfig->trainingConfig.aggression]);
 	
 	// column headers start at 17
 	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
@@ -527,6 +536,8 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	if (!gameOptions || gameSettings->GameLoadStartTime <= 0)
 		return;
 
+  int endless = gameConfig->trainingConfig.variant == 1;
+
 	//
 	gameConfig->grNoInvTimer = 1;
 	gameConfig->grV2s = 0;
@@ -544,7 +555,8 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = TIMELIMIT_MINUTES;
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_13 = 0; // KOTH
+	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = endless ? 0 : TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
 	
