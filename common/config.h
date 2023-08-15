@@ -9,6 +9,7 @@
 #define PATCH_POINTERS_CLIENT     (*(u8*)(PATCH_POINTERS + 12))
 #define PATCH_POINTERS_SPECTATE   (*(u8*)(PATCH_POINTERS + 13))
 #define PATCH_POINTERS_PATCHMENU  (*(u8*)(PATCH_POINTERS + 14))
+#define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
 typedef struct PatchConfig
 {
@@ -29,6 +30,7 @@ typedef struct PatchConfig
   char enableFusionReticule;
   char playerFov;
   char preferredGameServer;
+  char enableSingleTapChargeboot;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];

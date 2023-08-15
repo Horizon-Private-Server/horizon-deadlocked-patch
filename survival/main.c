@@ -136,6 +136,13 @@ struct CustomDzoCommandSurvivalDrawHud
   char RoundCompleteMessage[64];
 } dzoDrawHudCmd;
 
+struct CustomDzoCommandSurvivalDrawReviveMsg
+{
+  VECTOR Position;
+  int Seconds;
+  int PlayerIdx;
+};
+
 //--------------------------------------------------------------------------
 void uiShowLowerPopup(int localPlayerIdx, int msgStringId)
 {
@@ -1285,6 +1292,7 @@ void processPlayer(int pIndex) {
     if (gfxWorldSpaceToScreenSpace(pos, &x, &y)) {
       sprintf(strBuf, "\x18  %02d", reviveCooldownTicks/60);
       gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
+      dzoDrawReviveMsg(pIndex, pos, reviveCooldownTicks/60);
     }
 	}
 
@@ -2037,6 +2045,19 @@ void spawnDemonBell(void)
       State.DemonBellCount += 1;
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds)
+{
+  struct CustomDzoCommandSurvivalDrawReviveMsg cmd;
+  if (!PATCH_DZO_INTEROP_FUNCS)
+    return;
+
+  vector_copy(cmd.Position, wsPosition);
+  cmd.Seconds = seconds;
+  cmd.PlayerIdx = playerId;
+  PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_REVIVE_MSG, sizeof(cmd), &cmd);
 }
 
 //--------------------------------------------------------------------------

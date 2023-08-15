@@ -17,6 +17,7 @@
 #define LINE_HEIGHT_3_2     (0.075)
 #define DEFAULT_GAMEMODE    (0)
 #define CHARACTER_TWEAKER_RANGE (10)
+#define DZO_MAX_CMAPS       (10)
 
 // config
 extern PatchConfig_t config;
@@ -88,6 +89,7 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
 void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -200,7 +202,7 @@ MenuElem_ListData_t dataGameServers = {
 MenuElem_RangeData_t dataFieldOfView = {
     .value = &config.playerFov,
     .stateHandler = NULL,
-    .minValue = 0,
+    .minValue = -5,
     .maxValue = 5,
 };
 
@@ -221,6 +223,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
   { "Fusion Reticule", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
+  { "R2 Single Tap Chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
@@ -629,8 +632,8 @@ MenuElem_t menuElementsGameSettings[] = {
   { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades },
   { "Damage cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
-  { "Fusion Reticule", listActionHandler, menuStateHandler_SettingStateHandler, &dataFusionReticule },
-  { "Healthbars", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grHealthBars },
+  { "Fusion Reticule", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
+  { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
   { "Healthboxes", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
@@ -871,6 +874,15 @@ void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* st
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
+}
+
+// 
+void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT)
+    *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
+  else
+    *state = ELEMENT_HIDDEN;
 }
 
 // 
@@ -2213,7 +2225,7 @@ void configMenuDisable(void)
       gameConfig.grNoInvTimer = 1;
       gameConfig.grNoPacks = 1;
       gameConfig.grNoPickups = 1;
-      gameConfig.grNoSniperHelpers = 1;
+      //gameConfig.grNoSniperHelpers = 1;
       gameConfig.grCqPersistentCapture = 1;
       gameConfig.grCqDisableTurrets = 1;
       gameConfig.grCqDisableUpgrades = 1;

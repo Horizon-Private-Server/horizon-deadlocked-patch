@@ -295,7 +295,7 @@ const PlayerStateCondition_t stateForceRemoteConditions[] = {
 // 
 int isUnloading __attribute__((section(".config"))) = 0;
 PatchConfig_t config __attribute__((section(".config"))) = {
-	.framelimiter = 0,
+	.framelimiter = 2,
 	.enableGamemodeAnnouncements = 0,
 	.enableSpectate = 0,
 	.enableSingleplayerMusic = 0,
@@ -306,7 +306,8 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 	.disableCircleToHackerRay = 0,
 	.playerAggTime = 0,
   .playerFov = 0,
-  .preferredGameServer = 0
+  .preferredGameServer = 0,
+  .enableSingleTapChargeboot = 0
 };
 
 // 
@@ -1245,11 +1246,12 @@ void patchFrameSkip()
 	static int autoDisableDelayTicks = 0;
 	
 	int addrValue = FRAME_SKIP_WRITE0;
-	int disableFramelimiter = config.framelimiter == 2;
+  int dzoClient = CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT; // force framelimiter off for dzo
+	int disableFramelimiter = config.framelimiter == 2 || dzoClient;
 	int totalTimeMs = renderTimeMs + updateTimeMs;
 	float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
 
-	if (config.framelimiter == 1) // auto
+	if (!dzoClient && config.framelimiter == 1) // auto
 	{
 		// already disabled, to re-enable must have instantaneous high total time
 		if (disableByAuto && totalTimeMs > 15.0) {
@@ -1749,6 +1751,48 @@ void runFlagPickupFix(void)
 }
 
 /*
+ * NAME :		patchSingleTapChargeboot
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchSingleTapChargeboot(void)
+{
+  int i;
+  if (!isInGame()) return;
+
+  // 
+  for (i = 0; i < 2; ++i) {
+    Player* p = playerGetFromSlot(i);
+    if (!p)
+      continue;
+
+    if (!p->Paddata)
+      continue;
+
+    u32 padData = *(u32*)((u32)p->Paddata + 0x1A4);
+
+    // chargeDownTimer
+    // when non-zero, game is expecting another L2 tap to cboot
+    // write value here when R2 is tapped
+    if (config.enableSingleTapChargeboot && (padData & 0x2)) {
+      POKE_U16((u32)p + 0x2E50, 20);
+      POKE_U32(0x0060DC48, 0x24030002);
+    } else {
+      POKE_U32(0x0060DC48, 0x8C8301A4);
+    }
+  }
+}
+
+/*
  * NAME :		patchFlagCaptureMessage_Hook
  * 
  * DESCRIPTION :
@@ -2233,6 +2277,7 @@ int runSendGameUpdate(void)
 	static int newGame = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
+  GameData * gameData = gameGetData();
 	int gameTime = gameGetTime();
 	int i;
 	void * connection = netGetLobbyServerConnection();
@@ -2273,12 +2318,21 @@ int runSendGameUpdate(void)
 	{
 		memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
 
-		for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
-		{
-			ScoreboardItem * item = GAME_SCOREBOARD_ARRAY[i];
-			if (item)
-				patchStateContainer.GameStateUpdate.TeamScores[item->TeamId] = item->Value;
-		}
+    if (gameSettings->GameRules == GAMERULE_JUGGY) {
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        int team = gameSettings->PlayerTeams[i];
+        if (team >= 0 && team < GAME_MAX_PLAYERS)
+          patchStateContainer.GameStateUpdate.TeamScores[team] = gameData->PlayerStats.Kills[i];
+      }
+    } else {
+      for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
+      {
+        ScoreboardItem * item = GAME_SCOREBOARD_ARRAY[i];
+        if (item)
+          patchStateContainer.GameStateUpdate.TeamScores[item->TeamId] = item->Value;
+      }
+    }
 	}
 
 	// copy teams over
@@ -3227,6 +3281,40 @@ int onSetLobbyClientPatchConfig(void * connection, void * data)
 }
 
 /*
+ * NAME :		padMappedPadHooked
+ * 
+ * DESCRIPTION :
+ * 			Replaces game's built in Pad_MappedPad function
+ *      which remaps input masks.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int padMappedPadHooked(int padMask, int a1)
+{
+  if (config.enableSingleTapChargeboot && padMask == 8) return 0x3; // R1 -> L2 or R2 (cboot)
+
+  // not third person
+  if (*(char*)(0x00171de0 + a1) != 0) {
+    if (padMask == 0x08) return 1; // R1 -> L2 (cboot)
+    if (padMask < 9) {
+      if (padMask == 4) return 1; // L1 -> L2 (ADS)
+    } else {
+      if (padMask == 0x10 && config.enableSingleTapChargeboot) return 0x10; // Triangle -> Triangle (quick select)
+      if (padMask == 0x10) return 0x12; // Triangle -> Triangle or R2 (quick select)
+      if (padMask == 0x40) return 0x44; // Cross -> Cross or L1 (jump)
+    }
+  }
+
+  return padMask;
+}
+
+/*
  * NAME :		onSetRanks
  * 
  * DESCRIPTION :
@@ -3457,6 +3545,59 @@ int onCustomModeDownloadInitiated(void * connection, void * data)
 	return 0;
 }
 
+void sendClientType(void)
+{
+  static int sendCounter = -1;
+
+  // get
+  int currentClientType = PATCH_POINTERS_CLIENT;
+  int accountId = *(int*)0x00172194;
+  void* lobbyConnection = netGetLobbyServerConnection();
+
+  // if we're not logged in, update last account id to -1
+  if (accountId < 0) {
+    lastAccountId = accountId;
+  }
+
+  // if we're not connected to the server
+  // which can happen as we transition from lobby to game server
+  // or vice-versa, or when we've logged out/disconnected
+  // reset sendCounter, indicating it's time to recheck if we need to send the client type
+  if (!lobbyConnection) {
+    sendCounter = -1;
+    return;
+  }
+
+  if (sendCounter > 0) {
+    // tick down until we hit 0
+    --sendCounter;
+  } else if (sendCounter < 0) {
+
+    // if relogged in
+    // or client type has changed
+    // trigger send in 60 ticks
+    if (lobbyConnection && accountId > 0 && (lastAccountId != accountId || lastClientType != currentClientType)) {
+      sendCounter = 60;
+    }
+
+  } else {
+
+    lastClientType = currentClientType;
+    lastAccountId = accountId;
+
+    // keep trying to send until it succeeds
+    if (netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(int), &currentClientType) != 0) {
+      // failed, wait another second
+      sendCounter = 60;
+    } else {
+      // success
+      sendCounter = -1;
+      DPRINTF("sent %d %d\n", gameGetTime(), currentClientType);
+    }
+  }
+
+}
+
 void runPayloadDownloadRequester(void)
 {
 	GameModule * module = GLOBAL_GAME_MODULES_START;
@@ -3569,7 +3710,6 @@ void onOnlineMenu(void)
     }
   }
 
-	// 
 	if (showNoMapPopup)
 	{
 		if (mapOverrideResponse == -1)
@@ -3665,18 +3805,6 @@ int main (void)
   POKE_U32(PATCH_POINTERS + 4, &gameConfig);
   //POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
 
-  // send client type to server on change
-  int currentClientType = PATCH_POINTERS_CLIENT;
-  int accountId = *(int*)0x00172194;
-  if (currentClientType != lastClientType || lastAccountId != accountId) {
-    void* lobbyConnection = netGetLobbyServerConnection();
-    if (lobbyConnection) {
-      lastClientType = currentClientType;
-      lastAccountId = accountId;
-      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(currentClientType), &currentClientType);
-    }
-  }
-
 	// invoke exception display installer
 	if (*(u32*)EXCEPTION_DISPLAY_ADDR != 0)
 	{
@@ -3722,6 +3850,9 @@ int main (void)
 	// run test patch logic
 	runTestLogic();
 #endif
+
+  //
+  sendClientType();
 
 	// 
 	runCheckGameMapInstalled();
@@ -3798,6 +3929,9 @@ int main (void)
   //
   patchFusionReticule();
 
+  //
+  patchSingleTapChargeboot();
+
 	// 
 	//patchWideStats();
 
@@ -3840,6 +3974,10 @@ int main (void)
 		// hook render function
 		HOOK_JAL(0x004A84B0, &updateHook);
 		HOOK_JAL(0x004C3A94, &drawHook);
+
+    // hook Pad_MappedPad
+    HOOK_J(0x005282d8, &padMappedPadHooked);
+    POKE_U32(0x005282dc, 0);
 
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
