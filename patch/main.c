@@ -1560,21 +1560,30 @@ int onRemoteClientPickedUpFlag(void * connection, void * data)
 
 	// check if client picked up our flag
 	DPRINTF("remote player %d picked up flag %X at %d\n", msg.PlayerId, msg.FlagClass, msg.GameTime);
-	for (i = 0; i < 2; ++i) {
-		Player* localPlayer = playerGetFromSlot(i);
-		if (localPlayer && localPlayer->HeldMoby && localPlayer->HeldMoby->OClass == msg.FlagClass) {
+  for (i = 0; i < 2; ++i) {
+    Player* localPlayer = playerGetFromSlot(i);
+    if (!localPlayer || !localPlayerHasFlag[i])
+      continue;
 
-			// drop if they picked up before us
-			if (msg.GameTime > timeLocalPlayerPickedUpFlag[i]) {
-				playerDropFlag(localPlayer, 0);
-			}
-			// drop if they picked up at same time but are earlier player id
-			// we need some kind of priority ordering for this case
-			else if (msg.GameTime == timeLocalPlayerPickedUpFlag[i] && msg.PlayerId < localPlayer->PlayerId) {
-				playerDropFlag(localPlayer, 0);
-			}
-		}
-	}
+    if (remotePlayer->HeldMoby && remotePlayer->HeldMoby->OClass == msg.FlagClass) {
+
+      // reassign to us if they picked up before us
+      if (msg.GameTime < timeLocalPlayerPickedUpFlag[i]) {
+        flagPickup(remotePlayer->HeldMoby, localPlayer->PlayerId);
+        localPlayer->HeldMoby = remotePlayer->HeldMoby;
+        remotePlayer->HeldMoby = NULL;
+        DPRINTF("local player %d flag force pickup case A\n", i);
+      }
+      // reassign to us if they picked up at same time but are later player id
+      // we need some kind of priority ordering for this case
+      else if (msg.GameTime == timeLocalPlayerPickedUpFlag[i] && msg.PlayerId > localPlayer->PlayerId) {
+        flagPickup(remotePlayer->HeldMoby, localPlayer->PlayerId);
+        localPlayer->HeldMoby = remotePlayer->HeldMoby;
+        remotePlayer->HeldMoby = NULL;
+        DPRINTF("local player %d flag force pickup case B\n", i);
+      }
+    }
+  }
 
 	return sizeof(ClientPickedUpFlag_t);
 }
@@ -1606,13 +1615,26 @@ void runFlagPickupFix(void)
 		return;
 	}
 
+#if DEBUG
+  // drop flag
+  if (padGetButtonDown(0, PAD_UP | PAD_LEFT) > 0) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      if (players[i]) {
+        playerDropFlag(players[i], 0);
+        playerDropFlag(players[i], 1);
+        DPRINTF("force drop %d\n", i);
+      }
+    }
+  }
+#endif
+
 	// issue with this fix is that now two people can pick up the flag
 	// at the same time, causing both of them to hold the flag (one is invis)
 	// so to fix this we have to broadcast when we pick the flag up, with the game time
 	// and if a client receives this message and it tells them another person picked up the flag before them
 	// then we drop our flag
 	void * dmeConnection = netGetDmeServerConnection();
-	if (dmeConnection && 0) {
+	if (dmeConnection) {
 
 		netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_PICKED_UP, &onRemoteClientPickedUpFlag);
 
@@ -1767,6 +1789,7 @@ void runFlagPickupFix(void)
 void patchSingleTapChargeboot(void)
 {
   int i;
+  int patch = 0;
   if (!isInGame()) return;
 
   // 
@@ -1774,7 +1797,6 @@ void patchSingleTapChargeboot(void)
     Player* p = playerGetFromSlot(i);
     if (!p)
       continue;
-
     if (!p->Paddata)
       continue;
 
@@ -1785,10 +1807,14 @@ void patchSingleTapChargeboot(void)
     // write value here when R2 is tapped
     if (config.enableSingleTapChargeboot && (padData & 0x2)) {
       POKE_U16((u32)p + 0x2E50, 20);
-      POKE_U32(0x0060DC48, 0x24030002);
-    } else {
-      POKE_U32(0x0060DC48, 0x8C8301A4);
+      patch = 1;
     }
+  }
+
+  if (patch) {
+    POKE_U32(0x0060DC48, 0x24030002);
+  } else {
+    POKE_U32(0x0060DC48, 0x8C8301A4);
   }
 }
 
@@ -1824,7 +1850,7 @@ void patchFlagCaptureMessage_Hook(int localPlayerIdx, int msgStringId, GuberEven
   }
 
   // flag captured
-  if (gs && teamCount < 3 && event && event->NetEvent.EventID == 1) {
+  if (gs && teamCount < 3 && event && event->NetEvent.EventID == 1 && event->NetEvent.NetData[0] == 1) {
 
     // pid of player who captured the flag
     int pid = event->NetEvent.NetData[1];
@@ -3627,6 +3653,12 @@ void runPayloadDownloadRequester(void)
 			redownloadCustomModeBinaries = 1;
 			DPRINTF("map id %d != %d\n", gameConfig.customMapId, module->MapId);
 		}
+    
+    // redownload if training mode changed
+    if (!redownloadCustomModeBinaries && module->State && module->ModeId == CUSTOM_MODE_TRAINING && gameConfig.trainingConfig.type != module->Arg3) {
+			redownloadCustomModeBinaries = 1;
+			DPRINTF("training type id %d != %d\n", gameConfig.trainingConfig.type, module->Arg3);
+    }
 
 		// disable when module id doesn't match mode
 		// unless mode is forced (negative mode)

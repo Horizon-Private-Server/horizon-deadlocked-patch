@@ -539,6 +539,9 @@ void modeInitTarget(SimulatedPlayer_t *sPlayer)
 //--------------------------------------------------------------------------
 void modeProcessPlayer(int pIndex)
 {
+  if (pIndex != 0)
+    return;
+    
   Player* player = playerGetAll()[pIndex];
 
   // infinite health
