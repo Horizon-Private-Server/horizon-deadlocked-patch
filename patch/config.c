@@ -217,7 +217,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
-  { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
+  // { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements },
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
@@ -2292,52 +2292,56 @@ void configMenuDisable(void)
   
   isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 0;
 
-  // force game config to preset
-  switch (preset)
-  {
-    case 1: // competitive
-    {
-      gameConfig.grNoHealthBoxes = 0;
-      gameConfig.grNoNames = 0;
-      gameConfig.grV2s = 0;
-      gameConfig.grVampire = 0;
-
-      gameConfig.grBetterFlags = 1;
-      gameConfig.grBetterHills = 1;
-      gameConfig.grFusionShotsAlwaysHit = 1;
-      gameConfig.grOvertime = 1;
-      gameConfig.grHalfTime = 1;
-      gameConfig.grNoInvTimer = 1;
-      gameConfig.grNoPacks = 1;
-      gameConfig.grNoPickups = 1;
-      //gameConfig.grNoSniperHelpers = 1;
-      gameConfig.grCqPersistentCapture = 1;
-      gameConfig.grCqDisableTurrets = 1;
-      gameConfig.grCqDisableUpgrades = 1;
-      break;
-    }
-    case 2: // 1v1
-    {
-      gameConfig.grNoHealthBoxes = 1;
-      gameConfig.grNoNames = 0;
-      gameConfig.grV2s = 2;
-      gameConfig.grVampire = 3;
-
-      gameConfig.grFusionShotsAlwaysHit = 1;
-      gameConfig.grNoInvTimer = 1;
-      gameConfig.grNoPacks = 1;
-      gameConfig.grNoPickups = 1;
-      break;
-    }
-  }
-
   // send config to server for saving
   void * lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_CONFIG, sizeof(PatchConfig_t), &config);
 
-  // 
-  configTrySendGameConfig();
+  // update and send gameconfig
+  if (gameAmIHost())
+  {
+    // force game config to preset
+    switch (preset)
+    {
+      case 1: // competitive
+      {
+        gameConfig.grNoHealthBoxes = 0;
+        gameConfig.grNoNames = 0;
+        gameConfig.grV2s = 0;
+        gameConfig.grVampire = 0;
+
+        gameConfig.grBetterFlags = 1;
+        gameConfig.grBetterHills = 1;
+        gameConfig.grFusionShotsAlwaysHit = 1;
+        gameConfig.grOvertime = 1;
+        gameConfig.grHalfTime = 1;
+        gameConfig.grNoInvTimer = 1;
+        gameConfig.grNoPacks = 1;
+        gameConfig.grNoPickups = 1;
+        //gameConfig.grNoSniperHelpers = 1;
+        gameConfig.grCqPersistentCapture = 1;
+        gameConfig.grCqDisableTurrets = 1;
+        gameConfig.grCqDisableUpgrades = 1;
+        break;
+      }
+      case 2: // 1v1
+      {
+        gameConfig.grNoHealthBoxes = 1;
+        gameConfig.grNoNames = 0;
+        gameConfig.grV2s = 2;
+        gameConfig.grVampire = 3;
+
+        gameConfig.grFusionShotsAlwaysHit = 1;
+        gameConfig.grNoInvTimer = 1;
+        gameConfig.grNoPacks = 1;
+        gameConfig.grNoPickups = 1;
+        break;
+      }
+    }
+
+    // send
+    configTrySendGameConfig();
+  }
 
   // re-enable pad
   padEnableInput();

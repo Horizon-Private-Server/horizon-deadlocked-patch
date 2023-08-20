@@ -164,8 +164,8 @@ int renderTimeMs = 0;
 float averageRenderTimeMs = 0;
 int updateTimeMs = 0;
 float averageUpdateTimeMs = 0;
-int timeLocalPlayerPickedUpFlag[2] = {0,0};
-int localPlayerHasFlag[2] = {0,0};
+int timeFlagLastPickedUp[4] = {0,0,0,0};
+int flagHadEventThisFrame[4] = {0,0,0,0};
 int redownloadCustomModeBinaries = 0;
 ServerSetRanksRequest_t lastSetRanksRequest;
 
@@ -214,6 +214,16 @@ PatchStateContainer_t patchStateContainer;
 extern float _lodScale;
 extern void* _correctTieLod;
 extern MenuElem_ListData_t dataCustomMaps;
+
+struct FlagPVars
+{
+	VECTOR BasePosition;
+	short CarrierIdx;
+	short LastCarrierIdx;
+	short Team;
+	char UNK_16[6];
+	int TimeFlagDropped;
+};
 
 typedef struct ChangeTeamRequest {
 	u32 Seed;
@@ -1406,15 +1416,18 @@ void patchFusionReticule(void)
   patched = config.enableFusionReticule;
 }
 
-struct FlagPVars
+void flagGuberHandleEvent(Moby* moby, GuberEvent* event)
 {
-	VECTOR BasePosition;
-	short CarrierIdx;
-	short LastCarrierIdx;
-	short Team;
-	char UNK_16[6];
-	int TimeFlagDropped;
-};
+	struct FlagPVars* pvars = (struct FlagPVars*)moby->PVar;
+
+  // pass to flag event handler
+  ((void (*)(Moby*, GuberEvent*))0x00417bb8)(moby, event);
+
+  // indicate we had an event
+  if (pvars) {
+    flagHadEventThisFrame[pvars->Team] = 1;
+  }
+}
 
 void customFlagLogic(Moby* flagMoby)
 {
@@ -1422,9 +1435,25 @@ void customFlagLogic(Moby* flagMoby)
 	int i;
 	Player** players = playerGetAll();
 	int gameTime = gameGetTime();
+  static int initialized = 0;
 	GameOptions* gameOptions = gameGetOptions();
-	if (!isInGame())
-		return;
+	if (!isInGame()) {
+		initialized = 0;
+    return;
+  }
+
+  // initialize for each flag oclass
+  // since each flag is passed to this function iteratively
+  if (initialized < 4) {
+    
+    u32 mobyFunctionsPtr = (u32)mobyGetFunctions(flagMoby);
+    if (mobyFunctionsPtr) {
+      DPRINTF("flag event handler %08X\n", *(u32*)(mobyFunctionsPtr + 0x14));
+      *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&flagGuberHandleEvent;
+    }
+
+    initialized++;
+  }
 		
 	// validate flag
 	if (!flagMoby)
@@ -1436,12 +1465,20 @@ void customFlagLogic(Moby* flagMoby)
 		return;
 
 	// somehow a player is holding the flag without being the carrier
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player* player = players[i];
-		if (player && player->HeldMoby == flagMoby && pvars->CarrierIdx != player->PlayerId) {
-			player->HeldMoby = 0;
-		}
-	}
+  if (flagHadEventThisFrame[pvars->Team]) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* player = players[i];
+      if (player && player->HeldMoby == flagMoby && pvars->CarrierIdx != player->PlayerId) {
+        player->HeldMoby = 0;
+        DPRINTF("player %d is holding the flag, but the flag pvars reference a different player %d (%08X)\n", player->PlayerId, pvars->CarrierIdx, (u32)flagMoby);
+      } else if (player && player->HeldMoby == NULL && pvars->CarrierIdx == player->PlayerId) {
+        player->HeldMoby = flagMoby;
+        DPRINTF("player %d is not holding the flag, but the flag pvars have player as carrier (%08X)\n", player->PlayerId, (u32)flagMoby);
+      }
+    }
+
+    flagHadEventThisFrame[pvars->Team] = 0;
+  }
 	
 	// 
 	if (flagMoby->State != 1)
@@ -1500,7 +1537,7 @@ void customFlagLogic(Moby* flagMoby)
 		// skip if player is on teleport pad
 		if (player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_TELEPORT_PAD)
 			continue;
-		
+
 		// player must be within 2 units of flag
 		vector_subtract(t, flagMoby->Position, player->PlayerPosition);
 		float sqrDistance = vector_sqrmag(t);
@@ -1511,7 +1548,20 @@ void customFlagLogic(Moby* flagMoby)
 		if (player->Team != pvars->Team) {
 			if (!player->HeldMoby) {
 				flagPickup(flagMoby, i);
+        
+        timeFlagLastPickedUp[pvars->Team] = gameTime;
 				player->HeldMoby = flagMoby;
+        DPRINTF("local player %d picked up flag %X at %d\n", player->PlayerId, flagMoby->OClass, gameTime);
+
+        // broadcast to other clients
+        void* dmeConnection = netGetDmeServerConnection();
+        if (dmeConnection) {
+          ClientPickedUpFlag_t msg;
+          msg.GameTime = gameTime;
+          msg.PlayerId = player->PlayerId;
+          msg.FlagUID = guberGetUID(flagMoby);
+          netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, CUSTOM_MSG_ID_FLAG_PICKED_UP, sizeof(ClientPickedUpFlag_t), &msg);
+        }
 				return;
 			}
 		}
@@ -1547,42 +1597,55 @@ int onRemoteClientPickedUpFlag(void * connection, void * data)
 {
 	int i;
 	ClientPickedUpFlag_t msg;
+  Player** players;
 	memcpy(&msg, data, sizeof(msg));
 
 	// ignore if not in game
 	if (!isInGame())
-		return;
+	  return sizeof(ClientPickedUpFlag_t);
+
+	DPRINTF("remote player %d picked up flag %X at %d\n", msg.PlayerId, msg.FlagUID, msg.GameTime);
+
+  // get list of players
+  players = playerGetAll();
 
 	// get remote player or ignore message
 	Player* remotePlayer = playerGetAll()[msg.PlayerId];
 	if (!remotePlayer)
-		return;
+	  return sizeof(ClientPickedUpFlag_t);
 
-	// check if client picked up our flag
-	DPRINTF("remote player %d picked up flag %X at %d\n", msg.PlayerId, msg.FlagClass, msg.GameTime);
-  for (i = 0; i < 2; ++i) {
-    Player* localPlayer = playerGetFromSlot(i);
-    if (!localPlayer || !localPlayerHasFlag[i])
-      continue;
+  // get flag
+  GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(msg.FlagUID);
+  if (gm && gm->Moby)
+  {
+    Moby* flagMoby = gm->Moby;
+    struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
+    flagHadEventThisFrame[pvars->Team] = 1;
+    
+    // check if client picked up our flag
+    if (msg.GameTime > timeFlagLastPickedUp[pvars->Team])
+    {
+      // force
+      DPRINTF("forcing flag carrier to remote %d (%d > %d)\n", msg.PlayerId, msg.GameTime, timeFlagLastPickedUp[pvars->Team]);
+      timeFlagLastPickedUp[pvars->Team] = msg.GameTime;
+      flagPickup(flagMoby, msg.PlayerId);
 
-    if (remotePlayer->HeldMoby && remotePlayer->HeldMoby->OClass == msg.FlagClass) {
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        Player* player = players[i];
+        if (!player)
+          continue;
 
-      // reassign to us if they picked up before us
-      if (msg.GameTime < timeLocalPlayerPickedUpFlag[i]) {
-        flagPickup(remotePlayer->HeldMoby, localPlayer->PlayerId);
-        localPlayer->HeldMoby = remotePlayer->HeldMoby;
-        remotePlayer->HeldMoby = NULL;
-        DPRINTF("local player %d flag force pickup case A\n", i);
-      }
-      // reassign to us if they picked up at same time but are later player id
-      // we need some kind of priority ordering for this case
-      else if (msg.GameTime == timeLocalPlayerPickedUpFlag[i] && msg.PlayerId > localPlayer->PlayerId) {
-        flagPickup(remotePlayer->HeldMoby, localPlayer->PlayerId);
-        localPlayer->HeldMoby = remotePlayer->HeldMoby;
-        remotePlayer->HeldMoby = NULL;
-        DPRINTF("local player %d flag force pickup case B\n", i);
+        if (player->HeldMoby == flagMoby && player->PlayerId != msg.PlayerId) {
+          player->HeldMoby = NULL;
+          DPRINTF("forced p %d to drop flag\n", player->PlayerId);
+        } else if (player->HeldMoby != flagMoby && player->PlayerId == msg.PlayerId) {
+          player->HeldMoby = flagMoby;
+          DPRINTF("forced p %d to hold flag\n", player->PlayerId);
+        }
       }
     }
+
   }
 
 	return sizeof(ClientPickedUpFlag_t);
@@ -1610,69 +1673,13 @@ void runFlagPickupFix(void)
 
 	if (!isInGame()) {
 		// reset and exit
-		timeLocalPlayerPickedUpFlag[0] = timeLocalPlayerPickedUpFlag[1] = 0;
-		localPlayerHasFlag[0] = localPlayerHasFlag[1] = 0;
+    memset(timeFlagLastPickedUp, 0, sizeof(timeFlagLastPickedUp));
+    memset(flagHadEventThisFrame, 0, sizeof(flagHadEventThisFrame));
 		return;
 	}
 
-#if DEBUG
-  // drop flag
-  if (padGetButtonDown(0, PAD_UP | PAD_LEFT) > 0) {
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (players[i]) {
-        playerDropFlag(players[i], 0);
-        playerDropFlag(players[i], 1);
-        DPRINTF("force drop %d\n", i);
-      }
-    }
-  }
-#endif
-
-	// issue with this fix is that now two people can pick up the flag
-	// at the same time, causing both of them to hold the flag (one is invis)
-	// so to fix this we have to broadcast when we pick the flag up, with the game time
-	// and if a client receives this message and it tells them another person picked up the flag before them
-	// then we drop our flag
-	void * dmeConnection = netGetDmeServerConnection();
-	if (dmeConnection) {
-
-		netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_PICKED_UP, &onRemoteClientPickedUpFlag);
-
-		// update local player(s) flag time and picked up status
-		for (i = 0; i < 2; ++i) {
-			Player* localPlayer = playerGetFromSlot(i);
-			if (localPlayer) {
-				if (localPlayer->HeldMoby) {
-					short heldMobyOClass = localPlayer->HeldMoby->OClass;
-					if (heldMobyOClass == MOBY_ID_BLUE_FLAG || heldMobyOClass == MOBY_ID_RED_FLAG || heldMobyOClass == MOBY_ID_GREEN_FLAG || heldMobyOClass == MOBY_ID_ORANGE_FLAG) {
-						
-						// just picked up flag
-						if (!localPlayerHasFlag[i]) {
-							timeLocalPlayerPickedUpFlag[i] = gameGetTime();
-
-							DPRINTF("local player %d picked up flag %X at %d\n", localPlayer->PlayerId, localPlayer->HeldMoby->OClass, gameGetTime());
-
-							// broadcast to other clients
-							ClientPickedUpFlag_t msg;
-							msg.GameTime = gameGetTime();
-							msg.PlayerId = localPlayer->PlayerId;
-							msg.FlagClass = localPlayer->HeldMoby->OClass;
-							netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, CUSTOM_MSG_ID_FLAG_PICKED_UP, sizeof(ClientPickedUpFlag_t), &msg);
-						}
-						
-						localPlayerHasFlag[i] = 1;
-					}
-					else {
-						localPlayerHasFlag[i] = 0;
-					}
-				}
-				else {
-					localPlayerHasFlag[i] = 0;
-				}
-			}
-		}
-	}
-
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_PICKED_UP, &onRemoteClientPickedUpFlag);
+	
   // set pickup cooldown to 0.5 seconds
   //POKE_U16(0x00418aa0, 500);
 
@@ -1693,6 +1700,9 @@ void runFlagPickupFix(void)
         case MOBY_ID_GREEN_FLAG:
         case MOBY_ID_ORANGE_FLAG:
         {
+          if (padGetButtonDown(0, PAD_UP | PAD_LEFT) > 0) {
+            flagPickup(gm->Moby, -1);
+          }
 					customFlagLogic(gm->Moby);
 					break;
 				}

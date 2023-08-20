@@ -393,7 +393,7 @@ typedef struct ClientPickedUpFlag
 {
     int GameTime;
     int PlayerId;
-    int FlagClass;
+    u32 FlagUID;
 } ClientPickedUpFlag_t;
 
 typedef struct ClientRequestBootElf
