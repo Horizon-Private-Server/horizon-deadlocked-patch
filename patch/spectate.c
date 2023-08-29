@@ -291,7 +291,7 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 int findNextPlayerIndex(int currentPlayerIndex, int currentSpectateIndex, int direction)
 {
     Player ** players = playerGetAll();
-    int teamOnly = gameConfig.customModeId == CUSTOM_MODE_SEARCH_AND_DESTROY;
+    int teamOnly = gameConfig.customModeId == CUSTOM_MODE_SEARCH_AND_DESTROY || gameConfig.customModeId == CUSTOM_MODE_INFECTED;
     int newIndex = currentSpectateIndex;
 
     do 
@@ -330,7 +330,7 @@ void initialize(void)
 void processSpectate(void) 
 {
     GameSettings * gameSettings = gameGetSettings();
-	Player ** players = playerGetAll();
+	  Player ** players = playerGetAll();
     struct PlayerSpectateData * spectateData = 0;
     int i = 0;
     int direction = 0;
