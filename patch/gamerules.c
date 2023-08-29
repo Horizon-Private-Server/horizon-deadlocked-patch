@@ -1008,6 +1008,7 @@ void betterHillsLogic(void)
 		{
 			spawnPointSet(&BetterHillPoints[CATACROM_0D], 0x0D);
 			spawnPointSet(&BetterHillPoints[CATACROM_11], 0x11);
+      hillPointSetCount(8); // remove last hill (top of ramp area)
 			break;
 		}
 		case MAP_ID_SARATHOS:
@@ -1028,6 +1029,13 @@ void betterHillsLogic(void)
 		{
 			spawnPointSet(&BetterHillPoints[SHAAR_14], 0x14);
 			spawnPointSet(&BetterHillPoints[SHAAR_17], 0x17);
+      
+      // change third blue spawnpoint to 0x0E
+      Moby* mpInitMoby = mobyFindNextByOClass(mobyListGetStart(), 0x106A);
+      if (mpInitMoby && mpInitMoby->PVar) {
+        POKE_U32(mpInitMoby->PVar, 0x0E);
+      }
+
 			break;
 		}
 		case MAP_ID_VALIX: 
