@@ -311,13 +311,13 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 	.enableSingleplayerMusic = 0,
 	.levelOfDetail = 2,
 	.enablePlayerStateSync = 0,
-	.enableAutoMaps = 0,
+	.enableAutoMaps = 1,
 	.enableFpsCounter = 0,
 	.disableCircleToHackerRay = 0,
 	.playerAggTime = 0,
   .playerFov = 0,
   .preferredGameServer = 0,
-  .enableSingleTapChargeboot = 0
+  // .enableSingleTapChargeboot = 0
 };
 
 // 
@@ -1796,6 +1796,7 @@ void runFlagPickupFix(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
+/*
 void patchSingleTapChargeboot(void)
 {
   int i;
@@ -1827,6 +1828,7 @@ void patchSingleTapChargeboot(void)
     POKE_U32(0x0060DC48, 0x8C8301A4);
   }
 }
+*/
 
 /*
  * NAME :		patchFlagCaptureMessage_Hook
@@ -3331,6 +3333,7 @@ int onSetLobbyClientPatchConfig(void * connection, void * data)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
+/*
 int padMappedPadHooked(int padMask, int a1)
 {
   if (config.enableSingleTapChargeboot && padMask == 8) return 0x3; // R1 -> L2 or R2 (cboot)
@@ -3349,6 +3352,7 @@ int padMappedPadHooked(int padMask, int a1)
 
   return padMask;
 }
+*/
 
 /*
  * NAME :		onSetRanks
@@ -3972,7 +3976,7 @@ int main (void)
   patchFusionReticule();
 
   //
-  patchSingleTapChargeboot();
+  //patchSingleTapChargeboot();
 
 	// 
 	//patchWideStats();
@@ -4018,8 +4022,8 @@ int main (void)
 		HOOK_JAL(0x004C3A94, &drawHook);
 
     // hook Pad_MappedPad
-    HOOK_J(0x005282d8, &padMappedPadHooked);
-    POKE_U32(0x005282dc, 0);
+    //HOOK_J(0x005282d8, &padMappedPadHooked);
+    //POKE_U32(0x005282dc, 0);
 
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;

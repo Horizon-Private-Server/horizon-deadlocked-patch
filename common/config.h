@@ -30,7 +30,7 @@ typedef struct PatchConfig
   char enableFusionReticule;
   char playerFov;
   char preferredGameServer;
-  char enableSingleTapChargeboot;
+  // char enableSingleTapChargeboot;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
