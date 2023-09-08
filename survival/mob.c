@@ -429,6 +429,8 @@ void mobUpdate(Moby* moby)
 	int isOwner;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	GameOptions* gameOptions = gameGetOptions();
+  GameSettings* gameSettings = gameGetSettings();
+  Player** players = playerGetAll();
   int isFrozen = mobIsFrozen(moby);
 	if (!pvars || pvars->MobVars.Destroyed || !pvars->VTable)
 		return;
@@ -478,11 +480,20 @@ void mobUpdate(Moby* moby)
 	decTimerU8(&pvars->MobVars.Knockback.Ticks);
   
 	// validate owner
-	Player * ownerPlayer = playerGetAll()[(int)pvars->MobVars.Owner];
-	if (!ownerPlayer || !ownerPlayer->PlayerMoby) {
-		pvars->MobVars.Owner = gameGetHostId(); // default as host
-		//mobSendOwnerUpdate(moby, pvars->MobVars.Owner);
-	}
+	Player * ownerPlayer = NULL;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* p = players[i];
+    if (p && p->PlayerMoby && p->pNetPlayer && gameSettings->PlayerClients[i] == pvars->MobVars.Owner) {
+      ownerPlayer = p;
+      break;
+    }
+  }
+
+  // default owner to host
+	if (!ownerPlayer && gameAmIHost()) {
+		pvars->MobVars.Owner = gameGetHostId();
+		mobSendOwnerUpdate(moby, pvars->MobVars.Owner);
+  }
 	
 	// determine if I'm the owner
 	isOwner = mobAmIOwner(moby);
@@ -490,7 +501,7 @@ void mobUpdate(Moby* moby)
 	// change owner to target
 	if (isOwner && pvars->MobVars.Target) {
 		Player * targetPlayer = (Player*)guberGetObjectByMoby(pvars->MobVars.Target);
-		if (targetPlayer && targetPlayer->Guber.Id.GID.HostId != pvars->MobVars.Owner) {
+		if (targetPlayer && targetPlayer->PlayerMoby && targetPlayer->pNetPlayer && targetPlayer->Guber.Id.GID.HostId != pvars->MobVars.Owner) {
 			mobSendOwnerUpdate(moby, targetPlayer->Guber.Id.GID.HostId);
 		}
 	}
@@ -509,11 +520,6 @@ void mobUpdate(Moby* moby)
       pvars->MobVars.TimeLastGroundedTicks = 0;
     else
       pvars->MobVars.TimeLastGroundedTicks++;
-
-    // auto destruct after 15 seconds of falling
-    if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
-      pvars->MobVars.Respawn = 1;
-    }
   }
 
 	// 
@@ -621,6 +627,11 @@ void mobUpdate(Moby* moby)
 		// handle falling under map
 		if (moby->Position[2] < gameGetDeathHeight()) {
 			pvars->MobVars.Respawn = 1;
+    }
+
+    // auto destruct after 15 seconds of falling
+    else if (pvars->MobVars.TimeLastGroundedTicks > (TPS * 15)) {
+      pvars->MobVars.Respawn = 1;
     }
 
 		// respawn
@@ -1016,10 +1027,13 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
 	if (target)
 		pvars->MobVars.Target = target->SkinMoby;
 
+#if FIXEDTARGET
+  pvars->MobVars.Target = FIXEDTARGETMOBY;
+#endif
+
   // pass to mob
   if (pvars->VTable && pvars->VTable->OnStateUpdate)
 	  pvars->VTable->OnStateUpdate(moby, args);
-
 
 	//DPRINTF("mob target update event %08X, %d:%08X, %08X\n", (u32)moby, args->TargetUID, (u32)target, (u32)pvars->MobVars.Target);
 	return 0;
@@ -1152,6 +1166,12 @@ void mobNuke(int killedByPlayerId)
 	int i;
 	Player** players = playerGetAll();
 	u32 playerUid = 0;
+
+  // only let host destroy
+  if (!gameAmIHost())
+    return;
+
+  // get uid of player
 	if (killedByPlayerId >= 0 && killedByPlayerId < GAME_MAX_PLAYERS) {
 		Player* p = players[killedByPlayerId];
 		if (p) {
@@ -1159,12 +1179,16 @@ void mobNuke(int killedByPlayerId)
 		}
 	}
 
-	for (i = 0; i < MAX_MOBS_SPAWNED; ++i) {
-		Moby* m = AllMobsSorted[i];
-		if (m) {
-			mobDestroy(m, playerUid);
-		}
-	}
+  Moby* m = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+
+  while (m < mEnd) {
+    if (!mobyIsDestroyed(m) && mobyIsMob(m)) {
+      mobDestroy(m, playerUid);
+    }
+
+    ++m;
+  }
 }
 
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius)

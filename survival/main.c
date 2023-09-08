@@ -1421,8 +1421,7 @@ void processPlayer(int pIndex) {
 		//
 		if (actionCooldownTicks > 0 || player->timers.noInput) {
 			if (messageCooldownTicks == 1) {
-        //((void (*)(int))0x0054e5e8)(localPlayerIndex);
-        POKE_U32(0x0030E7E8, 0);
+        hudHidePopup();
       }
       return;
     }
@@ -1597,8 +1596,7 @@ void processPlayer(int pIndex) {
     */
 
 		if (!hasMessage && messageCooldownTicks == 1) {
-			//((void (*)(int))0x0054e5e8)(localPlayerIndex);
-      POKE_U32(0x0030E7E8, 0);
+      hudHidePopup();
 		}
 	} else {
 
@@ -2259,10 +2257,13 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   // wait for all clients to be ready
   // or for 15 seconds
   if (!gameState->AllClientsReady && waitingForClientsReady < (5 * TPS)) {
-    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    uiShowPopup(0, "Waiting For Players...");
     ++waitingForClientsReady;
     return;
   }
+
+  // hide waiting for players popup
+  hudHidePopup();
 
   //
   mapConfig->ClientsReady = 1;
@@ -2538,7 +2539,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       // force one mob type
       //manSpawnMobId = 0;
       //manSpawnMobId = 5;
-			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
