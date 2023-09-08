@@ -4020,7 +4020,7 @@ int main (void)
 		// hook render function
 		HOOK_JAL(0x004A84B0, &updateHook);
 		HOOK_JAL(0x004C3A94, &drawHook);
-
+      
     // hook Pad_MappedPad
     //HOOK_J(0x005282d8, &padMappedPadHooked);
     //POKE_U32(0x005282dc, 0);

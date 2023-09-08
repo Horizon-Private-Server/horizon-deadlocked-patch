@@ -594,7 +594,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 		PlayerScores[i].TeamId = p ? i : -1;
 		PlayerScores[i].UNK = playerIsLocal(p);
 		PlayerScores[i].Value = 0;
-		GAME_SCOREBOARD_ARRAY[i] = p ? &PlayerScores[i] : 0;
+		GAME_SCOREBOARD_ARRAY[i] = &PlayerScores[i];
 		
 		SortedPlayerScores[i] = &PlayerScores[i];
 	}

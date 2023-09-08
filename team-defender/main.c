@@ -289,7 +289,7 @@ void initialize(void)
 		TeamScores[i].TeamId = teamExists ? i : -1;
 		TeamScores[i].UNK = teamIsLocal;
 		TeamScores[i].Value = 0;
-		GAME_SCOREBOARD_ARRAY[i] = teamExists ? &TeamScores[i] : 0;
+		GAME_SCOREBOARD_ARRAY[i] = &TeamScores[i];
 		
 		SortedTeamScores[i] = &TeamScores[i];
 	}

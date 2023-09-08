@@ -1963,8 +1963,8 @@ void onMenuUpdate(int inGame)
       if (gameGetSettings())
       {
         int ping = gameGetPing();
-        sprintf(buf, "%d ms", ping);
-        gfxScreenSpaceText(0.9 * SCREEN_WIDTH, 0.1 * SCREEN_HEIGHT, 1, 1, 0x808080FF, buf, -1, 2);
+        sprintf(buf, "ping %d", ping);
+        gfxScreenSpaceText(0.88 * SCREEN_WIDTH, 0.15 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, buf, -1, 2);
       }
     }
 
