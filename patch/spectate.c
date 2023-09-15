@@ -291,7 +291,7 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 int findNextPlayerIndex(int currentPlayerIndex, int currentSpectateIndex, int direction)
 {
     Player ** players = playerGetAll();
-    int teamOnly = gameConfig.customModeId == CUSTOM_MODE_SEARCH_AND_DESTROY;
+    int teamOnly = gameConfig.customModeId == CUSTOM_MODE_SEARCH_AND_DESTROY || gameConfig.customModeId == CUSTOM_MODE_INFECTED;
     int newIndex = currentSpectateIndex;
 
     do 
@@ -330,7 +330,7 @@ void initialize(void)
 void processSpectate(void) 
 {
     GameSettings * gameSettings = gameGetSettings();
-	Player ** players = playerGetAll();
+	  Player ** players = playerGetAll();
     struct PlayerSpectateData * spectateData = 0;
     int i = 0;
     int direction = 0;
@@ -349,9 +349,9 @@ void processSpectate(void)
 
     // store currently spectating player
     if (SpectateData[0].Enabled)
-      *(char*)(PATCH_POINTERS + 13) = SpectateData[0].Index + 1;
+      PATCH_POINTERS_SPECTATE = SpectateData[0].Index + 1;
     else
-      *(char*)(PATCH_POINTERS + 13) = 0;
+      PATCH_POINTERS_SPECTATE = 0;
 
     // Loop through every player
     for (i = 0; i < GAME_MAX_PLAYERS; ++i)

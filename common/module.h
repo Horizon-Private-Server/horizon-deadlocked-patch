@@ -104,6 +104,11 @@ typedef struct GameModule
     char MapId;
 
     /*
+     * Argument 3, can be anything related to the custom mode.
+     */
+    char Arg3;
+
+    /*
      * Entrypoint of module to be invoked when in game.
      */
     ModuleStart GameEntrypoint;

@@ -56,12 +56,32 @@ struct PlayerFreecamData
     int IgnoreCharacterCamera;
     int LockStateId;
     VECTOR LastCameraPos;
-    float CharcterCameraPitch;
+    float CharacterCameraPitch;
     float CharacterCameraYaw;
     float SpectateCameraPitch;
     float SpectateCameraYaw;
     VECTOR LockedCharacterPosition;
+    VECTOR SavedFreecamPosition;
+    float SavedYaw;
+    float SavedPitch;
 } FreecamData[2];
+
+void clearFreecamData(struct PlayerFreecamData* data)
+{
+  // backup saved values
+  VECTOR lastSavedPosition;
+  float lastSavedYaw = data->SavedYaw;
+  float lastSavedPitch = data->SavedPitch;
+  vector_copy(lastSavedPosition, data->SavedFreecamPosition);
+
+  // clear
+  memset(data, 0, sizeof(struct PlayerFreecamData));
+
+  // write saved values back
+  vector_copy(data->SavedFreecamPosition, lastSavedPosition);
+  data->SavedYaw = lastSavedYaw;
+  data->SavedPitch = lastSavedPitch;
+}
 
 void freecamGetRotationMatrix(MATRIX output, struct PlayerFreecamData * freecamData)
 {
@@ -129,7 +149,7 @@ void enableFreecam(Player * player, struct PlayerFreecamData * data)
     data->SpectateCameraYaw = player->CameraYaw.Value;
   }
   vector_copy(data->LockedCharacterPosition, player->PlayerPosition);
-  data->CharcterCameraPitch = player->CameraPitch.Value;
+  data->CharacterCameraPitch = player->CameraPitch.Value;
   data->CharacterCameraYaw = player->CameraYaw.Value;
   POKE_U32(0x004C327C, 0);
   POKE_U32(0x004B3970, 0); // disable reticule
@@ -150,15 +170,16 @@ void enableFreecam(Player * player, struct PlayerFreecamData * data)
  */
 void disableFreecam(Player * player, struct PlayerFreecamData * data)
 {
-  memset(data, 0, sizeof(struct PlayerFreecamData));
+  clearFreecamData(data);
+
   player->timers.noInput = 0;
   player->CameraOffset[0] = -6;
-  player->CameraPitch.Value = data->CharcterCameraPitch;
+  player->CameraPitch.Value = data->CharacterCameraPitch;
   player->CameraYaw.Value = data->CharacterCameraYaw;
   POKE_U32(0x004C327C, 0x0C1302AA);
   POKE_U32(0x004B3970, 0x0C12CB28); // enable reticule
   POKE_U32(0x004b2428, 0x03E00008);
-  
+
   PlayerHUDFlags* hudFlags = hudGetPlayerFlags(player->LocalPlayerIndex);
   if (hudFlags)
     hudFlags->Flags.Raw = 0x333;
@@ -196,7 +217,7 @@ void resetFreecam(void)
   
   for (i = 0; i < 2; ++i) {
     if (FreecamData[i].Enabled) {
-      memset(&FreecamData[i], 0, sizeof(struct PlayerFreecamData));
+      clearFreecamData(&FreecamData[i]);
     }
   }
 }
@@ -305,6 +326,17 @@ void freecam(Player * currentPlayer)
     freecamData->IgnoreCharacterCamera = !freecamData->IgnoreCharacterCamera;
   }
 
+  if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_SELECT | PAD_TRIANGLE) > 0) {
+    vector_copy(freecamData->SavedFreecamPosition, freecamData->LastCameraPos);
+    freecamData->SavedYaw = freecamData->SpectateCameraYaw;
+    freecamData->SavedPitch = freecamData->SpectateCameraPitch;
+  }
+  else if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_SELECT | PAD_SQUARE) > 0 && vector_sqrmag(freecamData->SavedFreecamPosition) > 0.001) {
+    vector_copy(freecamData->LastCameraPos, freecamData->SavedFreecamPosition);
+    freecamData->SpectateCameraYaw = freecamData->SavedYaw;
+    freecamData->SpectateCameraPitch = freecamData->SavedPitch;
+  }
+
   // move camera to exact position by removing distance
   currentPlayer->CameraOffset[0] = 0;
 
@@ -350,7 +382,7 @@ void freecam(Player * currentPlayer)
       freecamData->ControlCharacter = 0;
 
       // save character rotation to start
-      freecamData->CharcterCameraPitch = currentPlayer->CameraPitch.Value;
+      freecamData->CharacterCameraPitch = currentPlayer->CameraPitch.Value;
       freecamData->CharacterCameraYaw = currentPlayer->CameraYaw.Value;
 
       // restore rotation to spectate camera rotation
@@ -365,13 +397,13 @@ void freecam(Player * currentPlayer)
       freecamData->ControlCharacter = 1;
 
       // restore rotation to character
-      currentPlayer->CameraPitch.Value = freecamData->CharcterCameraPitch;
+      currentPlayer->CameraPitch.Value = freecamData->CharacterCameraPitch;
       currentPlayer->CameraYaw.Value = freecamData->CharacterCameraYaw;
       return;
     }
 
     // restore rotation to character
-    //currentPlayer->CameraPitch.Value = freecamData->CharcterCameraPitch;
+    //currentPlayer->CameraPitch.Value = freecamData->CharacterCameraPitch;
     //currentPlayer->CameraYaw.Value = freecamData->CharacterCameraYaw;
 
     // disable character input
@@ -448,9 +480,9 @@ void processFreecam(void)
   // First, we have to ensure we are in-game
 	if (!gameSettings || !isInGame()) 
   {
-    FreecamData[0].Enabled = 0;
-    FreecamData[1].Enabled = 0;
-    FreecamInitialized = 0;
+    clearFreecamData(&FreecamData[0]);
+    clearFreecamData(&FreecamData[1]);
+    //FreecamInitialized = 0;
     return;
   }
 

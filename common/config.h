@@ -4,8 +4,12 @@
 /*
  * Fixed pointers to patch container for use by external modules.
  */
-#define PATCH_POINTERS			    ((void*)0x000CFFC0)
-#define PATCH_DZO_INTEROP_FUNCS	(*(DzoInteropFunctions_t**)0x000CFFC8)
+#define PATCH_POINTERS			      ((void*)0x000CFFC0)
+#define PATCH_DZO_INTEROP_FUNCS	  (*(DzoInteropFunctions_t**)0x000CFFC8)
+#define PATCH_POINTERS_CLIENT     (*(u8*)(PATCH_POINTERS + 12))
+#define PATCH_POINTERS_SPECTATE   (*(u8*)(PATCH_POINTERS + 13))
+#define PATCH_POINTERS_PATCHMENU  (*(u8*)(PATCH_POINTERS + 14))
+#define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
 typedef struct PatchConfig
 {
@@ -26,6 +30,7 @@ typedef struct PatchConfig
   char enableFusionReticule;
   char playerFov;
   char preferredGameServer;
+  // char enableSingleTapChargeboot;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
@@ -52,6 +57,9 @@ typedef struct PayloadConfig
 typedef struct TrainingConfig
 {
 	u8 type;
+  u8 variant;
+  u8 aggression;
+  u8 opt3;
 } TrainingConfig_t;
 
 typedef struct PatchGameConfig
@@ -182,6 +190,15 @@ enum TRAINING_TYPE
 	TRAINING_TYPE_CYCLE,
 	TRAINING_TYPE_B6,
 	TRAINING_TYPE_MAX
+};
+
+enum TRAINING_AGGRESSION
+{
+	TRAINING_AGGRESSION_AGGRO,
+	TRAINING_AGGRESSION_AGGRO_NO_DAMAGE,
+	TRAINING_AGGRESSION_PASSIVE,
+	TRAINING_AGGRESSION_IDLE,
+  TRAINING_AGGRESSION_MAX
 };
 
 enum CLIENT_TYPE

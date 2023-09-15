@@ -261,6 +261,8 @@ enum CustomDzoCommandId
 {
   CUSTOM_DZO_CMD_ID_SND_DRAW_TIMER = 1,
   CUSTOM_DZO_CMD_ID_SND_DRAW_ROUND_RESULT = 2,
+  CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD = 3,
+  CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_REVIVE_MSG = 4,
 };
 
 typedef struct ServerDownloadDataRequest
@@ -391,7 +393,7 @@ typedef struct ClientPickedUpFlag
 {
     int GameTime;
     int PlayerId;
-    int FlagClass;
+    u32 FlagUID;
 } ClientPickedUpFlag_t;
 
 typedef struct ClientRequestBootElf

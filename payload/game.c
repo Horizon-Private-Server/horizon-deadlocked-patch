@@ -1587,11 +1587,13 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   // wait for all clients to be ready
   // or for 5 seconds
   if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
-    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    uiShowPopup(0, "Waiting For Players...");
     ++waitingForClientsReady;
     return;
   }
 
+  // hide waiting for players popup
+  hudHidePopup();
 
 	// reset destroyed mobies list
 	memset(payloadDestroyedMobies, 0, sizeof(payloadDestroyedMobies));

@@ -122,6 +122,7 @@ struct TrainingState
 	int GameOver;
 	int WinningTeam;
 	int IsHost;
+  enum TRAINING_AGGRESSION AggroMode;
 	enum TRAINING_TYPE TrainingType;
 	int TargetLastSpawnIdx;
 	int ComboCounter;
@@ -185,6 +186,8 @@ extern const float TARGET_BUFFER_SPAWN_DISTANCE[TRAINING_TYPE_MAX];
 
 extern const char* NAMES[];
 extern const int NAMES_COUNT;
+
+extern const char* TRAINING_AGGRO_NAMES[];
 
 void updateTeamScore(int team);
 

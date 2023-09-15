@@ -35,6 +35,7 @@
 #include <libdl/collision.h>
 #include "module.h"
 #include "messageid.h"
+#include "config.h"
 #include "include/mob.h"
 #include "include/drop.h"
 #include "include/game.h"
@@ -102,6 +103,8 @@ int snackItemsCount = 0;
 
 int defaultSpawnParamsCooldowns[MAX_MOB_SPAWN_PARAMS];
 
+PatchConfig_t* playerConfig = NULL;
+
 int playerStates[GAME_MAX_PLAYERS];
 int playerStateTimers[GAME_MAX_PLAYERS];
 
@@ -117,6 +120,27 @@ SoundDef TestSoundDef =
 	0x10,		// Flags
 	0xF5,		// Index
 	3			  // Bank
+};
+
+struct CustomDzoCommandSurvivalDrawHud
+{
+  int Tokens;
+  int EnemiesAlive;
+  int CurrentRoundNumber;
+  int HeldItem;
+  int StartRoundTimer;
+  float XpPercent;
+  char HasRoundCompleteMessage;
+  char HasDblPoints;
+  char HasDblXp;
+  char RoundCompleteMessage[64];
+} dzoDrawHudCmd;
+
+struct CustomDzoCommandSurvivalDrawReviveMsg
+{
+  VECTOR Position;
+  int Seconds;
+  int PlayerIdx;
 };
 
 //--------------------------------------------------------------------------
@@ -222,6 +246,10 @@ void drawRoundMessage(const char * message, float scale, int yPixelsOffset)
 	int fw = gfxGetFontWidth(message, -1, scale);
 	float x = 0.5;
 	float y = 0.16;
+
+  // move to dzo
+  dzoDrawHudCmd.HasRoundCompleteMessage = 1;
+  strncpy(dzoDrawHudCmd.RoundCompleteMessage, message, sizeof(dzoDrawHudCmd.RoundCompleteMessage));
 
 	// draw message
 	y *= SCREEN_HEIGHT;
@@ -1264,6 +1292,7 @@ void processPlayer(int pIndex) {
     if (gfxWorldSpaceToScreenSpace(pos, &x, &y)) {
       sprintf(strBuf, "\x18  %02d", reviveCooldownTicks/60);
       gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
+      dzoDrawReviveMsg(pIndex, pos, reviveCooldownTicks/60);
     }
 	}
 
@@ -1392,7 +1421,7 @@ void processPlayer(int pIndex) {
 		//
 		if (actionCooldownTicks > 0 || player->timers.noInput) {
 			if (messageCooldownTicks == 1) {
-        ((void (*)(int))0x0054e5e8)(localPlayerIndex);
+        hudHidePopup();
       }
       return;
     }
@@ -1567,7 +1596,7 @@ void processPlayer(int pIndex) {
     */
 
 		if (!hasMessage && messageCooldownTicks == 1) {
-			((void (*)(int))0x0054e5e8)(localPlayerIndex);
+      hudHidePopup();
 		}
 	} else {
 
@@ -2017,6 +2046,41 @@ void spawnDemonBell(void)
 }
 
 //--------------------------------------------------------------------------
+void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds)
+{
+  struct CustomDzoCommandSurvivalDrawReviveMsg cmd;
+  if (!PATCH_DZO_INTEROP_FUNCS)
+    return;
+
+  vector_copy(cmd.Position, wsPosition);
+  cmd.Seconds = seconds;
+  cmd.PlayerIdx = playerId;
+  PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_REVIVE_MSG, sizeof(cmd), &cmd);
+}
+
+//--------------------------------------------------------------------------
+void updateDzoHud(void)
+{
+  if (!PATCH_DZO_INTEROP_FUNCS)
+    return;
+
+  int gameTime = gameGetTime();
+
+  dzoDrawHudCmd.Tokens = State.LocalPlayerState->State.CurrentTokens;
+  dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
+  dzoDrawHudCmd.CurrentRoundNumber = State.RoundNumber;
+  dzoDrawHudCmd.EnemiesAlive = State.RoundMobCount;
+  dzoDrawHudCmd.StartRoundTimer = State.RoundEndTime - gameTime;
+  dzoDrawHudCmd.HasDblPoints = State.LocalPlayerState->IsDoublePoints;
+  dzoDrawHudCmd.HasDblXp = State.LocalPlayerState->IsDoubleXP;
+  dzoDrawHudCmd.XpPercent = State.LocalPlayerState->State.XP / (float)getXpForNextToken(State.LocalPlayerState->State.TotalTokens);
+  PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD, sizeof(dzoDrawHudCmd), &dzoDrawHudCmd);
+
+  // reset
+  dzoDrawHudCmd.HasRoundCompleteMessage = 0;
+}
+
+//--------------------------------------------------------------------------
 void resetRoundState(void)
 {
 	GameSettings* gameSettings = gameGetSettings();
@@ -2193,10 +2257,13 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   // wait for all clients to be ready
   // or for 15 seconds
   if (!gameState->AllClientsReady && waitingForClientsReady < (5 * TPS)) {
-    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    uiShowPopup(0, "Waiting For Players...");
     ++waitingForClientsReady;
     return;
   }
+
+  // hide waiting for players popup
+  hudHidePopup();
 
   //
   mapConfig->ClientsReady = 1;
@@ -2435,6 +2502,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	// Determine if host
 	State.IsHost = gameAmIHost();
 
+  // 
+  playerConfig = config;
+
 	if (!Initialized) {
 		initialize(gameConfig, gameState);
 		return;
@@ -2465,17 +2535,25 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	{
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
+
+      // force one mob type
       //manSpawnMobId = 0;
+      //manSpawnMobId = 5;
 			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+
+      // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
         manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
       }
-      int manSpawnedId = manSpawnMobId; //manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
+
+      // build spawn position
 			VECTOR t = {1,1,1,0};
-      vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnedId].Config.CollRadius*2);
+      vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnMobId].Config.CollRadius*2);
 			vector_add(t, t, localPlayer->PlayerPosition);
       
-			mobCreate(manSpawnedId, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[manSpawnedId].Config);
+      // spawn
+			mobCreate(manSpawnMobId, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[manSpawnMobId].Config);
+      manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
 		}
     else if (padGetButtonDown(0, PAD_L1 | PAD_RIGHT) > 0) {
       State.Freeze = 1;
@@ -2501,7 +2579,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       t[1] += (manSpawnMobId / 8) * 2;
 
       int id = manSpawnMobId++ % mapConfig->DefaultSpawnParamsCount;
-      mobCreate(id, t, 0, -1, &mapConfig->DefaultSpawnParams[id].Config);
+      mobCreate(id, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[id].Config);
     }
   }
 #endif
@@ -2843,6 +2921,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			State.GameOver = 2;
 		}
 	}
+
+  //
+  updateDzoHud();
 
 	// last
 	dlPostUpdate();

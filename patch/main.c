@@ -164,8 +164,8 @@ int renderTimeMs = 0;
 float averageRenderTimeMs = 0;
 int updateTimeMs = 0;
 float averageUpdateTimeMs = 0;
-int timeLocalPlayerPickedUpFlag[2] = {0,0};
-int localPlayerHasFlag[2] = {0,0};
+int timeFlagLastPickedUp[4] = {0,0,0,0};
+int flagHadEventThisFrame[4] = {0,0,0,0};
 int redownloadCustomModeBinaries = 0;
 ServerSetRanksRequest_t lastSetRanksRequest;
 
@@ -214,6 +214,16 @@ PatchStateContainer_t patchStateContainer;
 extern float _lodScale;
 extern void* _correctTieLod;
 extern MenuElem_ListData_t dataCustomMaps;
+
+struct FlagPVars
+{
+	VECTOR BasePosition;
+	short CarrierIdx;
+	short LastCarrierIdx;
+	short Team;
+	char UNK_16[6];
+	int TimeFlagDropped;
+};
 
 typedef struct ChangeTeamRequest {
 	u32 Seed;
@@ -295,18 +305,19 @@ const PlayerStateCondition_t stateForceRemoteConditions[] = {
 // 
 int isUnloading __attribute__((section(".config"))) = 0;
 PatchConfig_t config __attribute__((section(".config"))) = {
-	.framelimiter = 0,
+	.framelimiter = 2,
 	.enableGamemodeAnnouncements = 0,
 	.enableSpectate = 0,
 	.enableSingleplayerMusic = 0,
 	.levelOfDetail = 2,
 	.enablePlayerStateSync = 0,
-	.enableAutoMaps = 0,
+	.enableAutoMaps = 1,
 	.enableFpsCounter = 0,
 	.disableCircleToHackerRay = 0,
 	.playerAggTime = 0,
   .playerFov = 0,
-  .preferredGameServer = 0
+  .preferredGameServer = 0,
+  // .enableSingleTapChargeboot = 0
 };
 
 // 
@@ -1161,6 +1172,30 @@ void writeFov(int cameraIdx, int a1, int a2, u32 ra, float fov, float f13, float
 }
 
 /*
+ * NAME :		initFovHook
+ * 
+ * DESCRIPTION :
+ * 			Called when FOV is initialized.
+ *      Ensures custom FOV is applied on initialization.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void initFovHook(int cameraIdx)
+{
+  // call base
+  ((void (*)(int))0x004ae9e0)(cameraIdx);
+
+  GameCamera* camera = cameraGetGameCamera(cameraIdx);
+  writeFov(0, 0, 3, 0, camera->fov.ideal, 0.05, 0.2, 0);
+}
+
+/*
  * NAME :		patchFov
  * 
  * DESCRIPTION :
@@ -1186,6 +1221,8 @@ void patchFov(void)
   // replace SetFov function
   HOOK_J(0x004AEA90, &writeFov);
   POKE_U32(0x004AEA94, 0x03E0382D);
+  
+  HOOK_JAL(0x004B25C0, &initFovHook);
 
   // initialize fov at start of game
   if (!ingame || lastFov != config.playerFov) {
@@ -1219,11 +1256,12 @@ void patchFrameSkip()
 	static int autoDisableDelayTicks = 0;
 	
 	int addrValue = FRAME_SKIP_WRITE0;
-	int disableFramelimiter = config.framelimiter == 2;
+  int dzoClient = CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT; // force framelimiter off for dzo
+	int disableFramelimiter = config.framelimiter == 2 || dzoClient;
 	int totalTimeMs = renderTimeMs + updateTimeMs;
 	float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
 
-	if (config.framelimiter == 1) // auto
+	if (!dzoClient && config.framelimiter == 1) // auto
 	{
 		// already disabled, to re-enable must have instantaneous high total time
 		if (disableByAuto && totalTimeMs > 15.0) {
@@ -1378,15 +1416,18 @@ void patchFusionReticule(void)
   patched = config.enableFusionReticule;
 }
 
-struct FlagPVars
+void flagGuberHandleEvent(Moby* moby, GuberEvent* event)
 {
-	VECTOR BasePosition;
-	short CarrierIdx;
-	short LastCarrierIdx;
-	short Team;
-	char UNK_16[6];
-	int TimeFlagDropped;
-};
+	struct FlagPVars* pvars = (struct FlagPVars*)moby->PVar;
+
+  // pass to flag event handler
+  ((void (*)(Moby*, GuberEvent*))0x00417bb8)(moby, event);
+
+  // indicate we had an event
+  if (pvars) {
+    flagHadEventThisFrame[pvars->Team] = 1;
+  }
+}
 
 void customFlagLogic(Moby* flagMoby)
 {
@@ -1394,9 +1435,25 @@ void customFlagLogic(Moby* flagMoby)
 	int i;
 	Player** players = playerGetAll();
 	int gameTime = gameGetTime();
+  static int initialized = 0;
 	GameOptions* gameOptions = gameGetOptions();
-	if (!isInGame())
-		return;
+	if (!isInGame()) {
+		initialized = 0;
+    return;
+  }
+
+  // initialize for each flag oclass
+  // since each flag is passed to this function iteratively
+  if (initialized < 4) {
+    
+    u32 mobyFunctionsPtr = (u32)mobyGetFunctions(flagMoby);
+    if (mobyFunctionsPtr) {
+      DPRINTF("flag event handler %08X\n", *(u32*)(mobyFunctionsPtr + 0x14));
+      *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&flagGuberHandleEvent;
+    }
+
+    initialized++;
+  }
 		
 	// validate flag
 	if (!flagMoby)
@@ -1408,12 +1465,20 @@ void customFlagLogic(Moby* flagMoby)
 		return;
 
 	// somehow a player is holding the flag without being the carrier
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player* player = players[i];
-		if (player && player->HeldMoby == flagMoby && pvars->CarrierIdx != player->PlayerId) {
-			player->HeldMoby = 0;
-		}
-	}
+  if (flagHadEventThisFrame[pvars->Team]) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* player = players[i];
+      if (player && player->HeldMoby == flagMoby && pvars->CarrierIdx != player->PlayerId) {
+        player->HeldMoby = 0;
+        DPRINTF("player %d is holding the flag, but the flag pvars reference a different player %d (%08X)\n", player->PlayerId, pvars->CarrierIdx, (u32)flagMoby);
+      } else if (player && player->HeldMoby == NULL && pvars->CarrierIdx == player->PlayerId) {
+        player->HeldMoby = flagMoby;
+        DPRINTF("player %d is not holding the flag, but the flag pvars have player as carrier (%08X)\n", player->PlayerId, (u32)flagMoby);
+      }
+    }
+
+    flagHadEventThisFrame[pvars->Team] = 0;
+  }
 	
 	// 
 	if (flagMoby->State != 1)
@@ -1472,7 +1537,7 @@ void customFlagLogic(Moby* flagMoby)
 		// skip if player is on teleport pad
 		if (player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_TELEPORT_PAD)
 			continue;
-		
+
 		// player must be within 2 units of flag
 		vector_subtract(t, flagMoby->Position, player->PlayerPosition);
 		float sqrDistance = vector_sqrmag(t);
@@ -1483,7 +1548,20 @@ void customFlagLogic(Moby* flagMoby)
 		if (player->Team != pvars->Team) {
 			if (!player->HeldMoby) {
 				flagPickup(flagMoby, i);
+        
+        timeFlagLastPickedUp[pvars->Team] = gameTime;
 				player->HeldMoby = flagMoby;
+        DPRINTF("local player %d picked up flag %X at %d\n", player->PlayerId, flagMoby->OClass, gameTime);
+
+        // broadcast to other clients
+        void* dmeConnection = netGetDmeServerConnection();
+        if (dmeConnection) {
+          ClientPickedUpFlag_t msg;
+          msg.GameTime = gameTime;
+          msg.PlayerId = player->PlayerId;
+          msg.FlagUID = guberGetUID(flagMoby);
+          netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, CUSTOM_MSG_ID_FLAG_PICKED_UP, sizeof(ClientPickedUpFlag_t), &msg);
+        }
 				return;
 			}
 		}
@@ -1519,34 +1597,56 @@ int onRemoteClientPickedUpFlag(void * connection, void * data)
 {
 	int i;
 	ClientPickedUpFlag_t msg;
+  Player** players;
 	memcpy(&msg, data, sizeof(msg));
 
 	// ignore if not in game
 	if (!isInGame())
-		return;
+	  return sizeof(ClientPickedUpFlag_t);
+
+	DPRINTF("remote player %d picked up flag %X at %d\n", msg.PlayerId, msg.FlagUID, msg.GameTime);
+
+  // get list of players
+  players = playerGetAll();
 
 	// get remote player or ignore message
 	Player* remotePlayer = playerGetAll()[msg.PlayerId];
 	if (!remotePlayer)
-		return;
+	  return sizeof(ClientPickedUpFlag_t);
 
-	// check if client picked up our flag
-	DPRINTF("remote player %d picked up flag %X at %d\n", msg.PlayerId, msg.FlagClass, msg.GameTime);
-	for (i = 0; i < 2; ++i) {
-		Player* localPlayer = playerGetFromSlot(i);
-		if (localPlayer && localPlayer->HeldMoby && localPlayer->HeldMoby->OClass == msg.FlagClass) {
+  // get flag
+  GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(msg.FlagUID);
+  if (gm && gm->Moby)
+  {
+    Moby* flagMoby = gm->Moby;
+    struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
+    flagHadEventThisFrame[pvars->Team] = 1;
+    
+    // check if client picked up our flag
+    if (msg.GameTime > timeFlagLastPickedUp[pvars->Team])
+    {
+      // force
+      DPRINTF("forcing flag carrier to remote %d (%d > %d)\n", msg.PlayerId, msg.GameTime, timeFlagLastPickedUp[pvars->Team]);
+      timeFlagLastPickedUp[pvars->Team] = msg.GameTime;
+      flagPickup(flagMoby, msg.PlayerId);
 
-			// drop if they picked up before us
-			if (msg.GameTime > timeLocalPlayerPickedUpFlag[i]) {
-				playerDropFlag(localPlayer, 0);
-			}
-			// drop if they picked up at same time but are earlier player id
-			// we need some kind of priority ordering for this case
-			else if (msg.GameTime == timeLocalPlayerPickedUpFlag[i] && msg.PlayerId < localPlayer->PlayerId) {
-				playerDropFlag(localPlayer, 0);
-			}
-		}
-	}
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        Player* player = players[i];
+        if (!player)
+          continue;
+
+        if (player->HeldMoby == flagMoby && player->PlayerId != msg.PlayerId) {
+          player->HeldMoby = NULL;
+          DPRINTF("forced p %d to drop flag\n", player->PlayerId);
+        } else if (player->HeldMoby != flagMoby && player->PlayerId == msg.PlayerId) {
+          player->HeldMoby = flagMoby;
+          DPRINTF("forced p %d to hold flag\n", player->PlayerId);
+        }
+      }
+    }
+
+  }
 
 	return sizeof(ClientPickedUpFlag_t);
 }
@@ -1573,56 +1673,13 @@ void runFlagPickupFix(void)
 
 	if (!isInGame()) {
 		// reset and exit
-		timeLocalPlayerPickedUpFlag[0] = timeLocalPlayerPickedUpFlag[1] = 0;
-		localPlayerHasFlag[0] = localPlayerHasFlag[1] = 0;
+    memset(timeFlagLastPickedUp, 0, sizeof(timeFlagLastPickedUp));
+    memset(flagHadEventThisFrame, 0, sizeof(flagHadEventThisFrame));
 		return;
 	}
 
-	// issue with this fix is that now two people can pick up the flag
-	// at the same time, causing both of them to hold the flag (one is invis)
-	// so to fix this we have to broadcast when we pick the flag up, with the game time
-	// and if a client receives this message and it tells them another person picked up the flag before them
-	// then we drop our flag
-	void * dmeConnection = netGetDmeServerConnection();
-	if (dmeConnection && 0) {
-
-		netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_PICKED_UP, &onRemoteClientPickedUpFlag);
-
-		// update local player(s) flag time and picked up status
-		for (i = 0; i < 2; ++i) {
-			Player* localPlayer = playerGetFromSlot(i);
-			if (localPlayer) {
-				if (localPlayer->HeldMoby) {
-					short heldMobyOClass = localPlayer->HeldMoby->OClass;
-					if (heldMobyOClass == MOBY_ID_BLUE_FLAG || heldMobyOClass == MOBY_ID_RED_FLAG || heldMobyOClass == MOBY_ID_GREEN_FLAG || heldMobyOClass == MOBY_ID_ORANGE_FLAG) {
-						
-						// just picked up flag
-						if (!localPlayerHasFlag[i]) {
-							timeLocalPlayerPickedUpFlag[i] = gameGetTime();
-
-							DPRINTF("local player %d picked up flag %X at %d\n", localPlayer->PlayerId, localPlayer->HeldMoby->OClass, gameGetTime());
-
-							// broadcast to other clients
-							ClientPickedUpFlag_t msg;
-							msg.GameTime = gameGetTime();
-							msg.PlayerId = localPlayer->PlayerId;
-							msg.FlagClass = localPlayer->HeldMoby->OClass;
-							netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, CUSTOM_MSG_ID_FLAG_PICKED_UP, sizeof(ClientPickedUpFlag_t), &msg);
-						}
-						
-						localPlayerHasFlag[i] = 1;
-					}
-					else {
-						localPlayerHasFlag[i] = 0;
-					}
-				}
-				else {
-					localPlayerHasFlag[i] = 0;
-				}
-			}
-		}
-	}
-
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_PICKED_UP, &onRemoteClientPickedUpFlag);
+	
   // set pickup cooldown to 0.5 seconds
   //POKE_U16(0x00418aa0, 500);
 
@@ -1643,6 +1700,9 @@ void runFlagPickupFix(void)
         case MOBY_ID_GREEN_FLAG:
         case MOBY_ID_ORANGE_FLAG:
         {
+          if (padGetButtonDown(0, PAD_UP | PAD_LEFT) > 0) {
+            flagPickup(gm->Moby, -1);
+          }
 					customFlagLogic(gm->Moby);
 					break;
 				}
@@ -1723,6 +1783,54 @@ void runFlagPickupFix(void)
 }
 
 /*
+ * NAME :		patchSingleTapChargeboot
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+/*
+void patchSingleTapChargeboot(void)
+{
+  int i;
+  int patch = 0;
+  if (!isInGame()) return;
+
+  // 
+  for (i = 0; i < 2; ++i) {
+    Player* p = playerGetFromSlot(i);
+    if (!p)
+      continue;
+    if (!p->Paddata)
+      continue;
+
+    u32 padData = *(u32*)((u32)p->Paddata + 0x1A4);
+
+    // chargeDownTimer
+    // when non-zero, game is expecting another L2 tap to cboot
+    // write value here when R2 is tapped
+    if (config.enableSingleTapChargeboot && (padData & 0x2)) {
+      POKE_U16((u32)p + 0x2E50, 20);
+      patch = 1;
+    }
+  }
+
+  if (patch) {
+    POKE_U32(0x0060DC48, 0x24030002);
+  } else {
+    POKE_U32(0x0060DC48, 0x8C8301A4);
+  }
+}
+*/
+
+/*
  * NAME :		patchFlagCaptureMessage_Hook
  * 
  * DESCRIPTION :
@@ -1754,7 +1862,7 @@ void patchFlagCaptureMessage_Hook(int localPlayerIdx, int msgStringId, GuberEven
   }
 
   // flag captured
-  if (gs && teamCount < 3 && event && event->NetEvent.EventID == 1) {
+  if (gs && teamCount < 3 && event && event->NetEvent.EventID == 1 && event->NetEvent.NetData[0] == 1) {
 
     // pid of player who captured the flag
     int pid = event->NetEvent.NetData[1];
@@ -2207,6 +2315,7 @@ int runSendGameUpdate(void)
 	static int newGame = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
+  GameData * gameData = gameGetData();
 	int gameTime = gameGetTime();
 	int i;
 	void * connection = netGetLobbyServerConnection();
@@ -2247,12 +2356,21 @@ int runSendGameUpdate(void)
 	{
 		memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
 
-		for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
-		{
-			ScoreboardItem * item = GAME_SCOREBOARD_ARRAY[i];
-			if (item)
-				patchStateContainer.GameStateUpdate.TeamScores[item->TeamId] = item->Value;
-		}
+    if (gameSettings->GameRules == GAMERULE_JUGGY) {
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        int team = gameSettings->PlayerTeams[i];
+        if (team >= 0 && team < GAME_MAX_PLAYERS)
+          patchStateContainer.GameStateUpdate.TeamScores[team] = gameData->PlayerStats.Kills[i];
+      }
+    } else {
+      for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
+      {
+        ScoreboardItem * item = GAME_SCOREBOARD_ARRAY[i];
+        if (item)
+          patchStateContainer.GameStateUpdate.TeamScores[item->TeamId] = item->Value;
+      }
+    }
 	}
 
 	// copy teams over
@@ -2280,6 +2398,12 @@ void runEnableSingleplayerMusic(void)
 	static int FinishedConvertingTracks = 0;
 	static int AddedTracks = 0;
   static int Loading = 0;
+
+  // there's an crash issue when loading sp music
+  // in survival
+  // so reject it then
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && !isInMenus())
+    return;
 
   // indicate to user we're loading sp music
   // running uiRunCallbacks triggers our vsync hook and reinvokes this method
@@ -2667,8 +2791,8 @@ u64 hookedProcessLevel()
 	// Start at the first game module
 	GameModule * module = GLOBAL_GAME_MODULES_START;
 
-  // increase wait for players to 50 seconds
-  POKE_U32(0x0021E1E8, 50 * 60);
+  // increase wait for players to 32 seconds
+  POKE_U32(0x0021E1E8, 32 * 60);
 
 	// call gamerules level load
 	grLoadStart();
@@ -3195,6 +3319,42 @@ int onSetLobbyClientPatchConfig(void * connection, void * data)
 }
 
 /*
+ * NAME :		padMappedPadHooked
+ * 
+ * DESCRIPTION :
+ * 			Replaces game's built in Pad_MappedPad function
+ *      which remaps input masks.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+/*
+int padMappedPadHooked(int padMask, int a1)
+{
+  if (config.enableSingleTapChargeboot && padMask == 8) return 0x3; // R1 -> L2 or R2 (cboot)
+
+  // not third person
+  if (*(char*)(0x00171de0 + a1) != 0) {
+    if (padMask == 0x08) return 1; // R1 -> L2 (cboot)
+    if (padMask < 9) {
+      if (padMask == 4) return 1; // L1 -> L2 (ADS)
+    } else {
+      if (padMask == 0x10 && config.enableSingleTapChargeboot) return 0x10; // Triangle -> Triangle (quick select)
+      if (padMask == 0x10) return 0x12; // Triangle -> Triangle or R2 (quick select)
+      if (padMask == 0x40) return 0x44; // Cross -> Cross or L1 (jump)
+    }
+  }
+
+  return padMask;
+}
+*/
+
+/*
  * NAME :		onSetRanks
  * 
  * DESCRIPTION :
@@ -3425,6 +3585,59 @@ int onCustomModeDownloadInitiated(void * connection, void * data)
 	return 0;
 }
 
+void sendClientType(void)
+{
+  static int sendCounter = -1;
+
+  // get
+  int currentClientType = PATCH_POINTERS_CLIENT;
+  int accountId = *(int*)0x00172194;
+  void* lobbyConnection = netGetLobbyServerConnection();
+
+  // if we're not logged in, update last account id to -1
+  if (accountId < 0) {
+    lastAccountId = accountId;
+  }
+
+  // if we're not connected to the server
+  // which can happen as we transition from lobby to game server
+  // or vice-versa, or when we've logged out/disconnected
+  // reset sendCounter, indicating it's time to recheck if we need to send the client type
+  if (!lobbyConnection) {
+    sendCounter = -1;
+    return;
+  }
+
+  if (sendCounter > 0) {
+    // tick down until we hit 0
+    --sendCounter;
+  } else if (sendCounter < 0) {
+
+    // if relogged in
+    // or client type has changed
+    // trigger send in 60 ticks
+    if (lobbyConnection && accountId > 0 && (lastAccountId != accountId || lastClientType != currentClientType)) {
+      sendCounter = 60;
+    }
+
+  } else {
+
+    lastClientType = currentClientType;
+    lastAccountId = accountId;
+
+    // keep trying to send until it succeeds
+    if (netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(int), &currentClientType) != 0) {
+      // failed, wait another second
+      sendCounter = 60;
+    } else {
+      // success
+      sendCounter = -1;
+      DPRINTF("sent %d %d\n", gameGetTime(), currentClientType);
+    }
+  }
+
+}
+
 void runPayloadDownloadRequester(void)
 {
 	GameModule * module = GLOBAL_GAME_MODULES_START;
@@ -3454,6 +3667,12 @@ void runPayloadDownloadRequester(void)
 			redownloadCustomModeBinaries = 1;
 			DPRINTF("map id %d != %d\n", gameConfig.customMapId, module->MapId);
 		}
+    
+    // redownload if training mode changed
+    if (!redownloadCustomModeBinaries && module->State && module->ModeId == CUSTOM_MODE_TRAINING && gameConfig.trainingConfig.type != module->Arg3) {
+			redownloadCustomModeBinaries = 1;
+			DPRINTF("training type id %d != %d\n", gameConfig.trainingConfig.type, module->Arg3);
+    }
 
 		// disable when module id doesn't match mode
 		// unless mode is forced (negative mode)
@@ -3537,7 +3756,6 @@ void onOnlineMenu(void)
     }
   }
 
-	// 
 	if (showNoMapPopup)
 	{
 		if (mapOverrideResponse == -1)
@@ -3633,18 +3851,6 @@ int main (void)
   POKE_U32(PATCH_POINTERS + 4, &gameConfig);
   //POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
 
-  // send client type to server on change
-  int currentClientType = *(u8*)(PATCH_POINTERS + 12);
-  int accountId = *(int*)0x00172194;
-  if (currentClientType != lastClientType || lastAccountId != accountId) {
-    void* lobbyConnection = netGetLobbyServerConnection();
-    if (lobbyConnection) {
-      lastClientType = currentClientType;
-      lastAccountId = accountId;
-      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(currentClientType), &currentClientType);
-    }
-  }
-
 	// invoke exception display installer
 	if (*(u32*)EXCEPTION_DISPLAY_ADDR != 0)
 	{
@@ -3690,6 +3896,9 @@ int main (void)
 	// run test patch logic
 	runTestLogic();
 #endif
+
+  //
+  sendClientType();
 
 	// 
 	runCheckGameMapInstalled();
@@ -3766,6 +3975,9 @@ int main (void)
   //
   patchFusionReticule();
 
+  //
+  //patchSingleTapChargeboot();
+
 	// 
 	//patchWideStats();
 
@@ -3808,6 +4020,10 @@ int main (void)
 		// hook render function
 		HOOK_JAL(0x004A84B0, &updateHook);
 		HOOK_JAL(0x004C3A94, &drawHook);
+      
+    // hook Pad_MappedPad
+    //HOOK_J(0x005282d8, &padMappedPadHooked);
+    //POKE_U32(0x005282dc, 0);
 
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
@@ -3979,7 +4195,7 @@ int main (void)
 	if (config.enableSpectate)
 		processSpectate();
   else
-    *(char*)(PATCH_POINTERS + 13) = 0;
+    PATCH_POINTERS_SPECTATE = 0;
 
   // Process freecam
   if (isInGame() && gameConfig.drFreecam) {

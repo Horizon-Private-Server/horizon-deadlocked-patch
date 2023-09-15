@@ -526,10 +526,13 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   // wait for all clients to be ready
   // or for 15 seconds
   if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
-    gfxScreenSpaceText(0.5, 0.5, 1, 1, 0x80FFFFFF, "Waiting For Players...", -1, 4);
+    uiShowPopup(0, "Waiting For Players...");
     ++waitingForClientsReady;
     return;
   }
+
+  // hide waiting for players popup
+  hudHidePopup();
 
 	// Reset states to 0
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -594,7 +597,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 		PlayerScores[i].TeamId = p ? i : -1;
 		PlayerScores[i].UNK = playerIsLocal(p);
 		PlayerScores[i].Value = 0;
-		GAME_SCOREBOARD_ARRAY[i] = p ? &PlayerScores[i] : 0;
+		GAME_SCOREBOARD_ARRAY[i] = p ? &PlayerScores[i] : GAME_SCOREBOARD_ARRAY[i];
 		
 		SortedPlayerScores[i] = &PlayerScores[i];
 	}

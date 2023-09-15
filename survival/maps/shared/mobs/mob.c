@@ -297,6 +297,7 @@ void mobMove(Moby* moby)
   int i;
   const VECTOR up = {0,0,1,0};
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  int isOwner = mobAmIOwner(moby);
 
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
   u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
@@ -345,9 +346,11 @@ void mobMove(Moby* moby)
           pvars->MobVars.MoveVars.Grounded = 1;
 
           // check if we've hit death barrier
-          int hitId = CollLine_Fix_GetHitCollisionId() & 0x0F;
-          if (hitId == 0x4 || hitId == 0xb || hitId == 0x0d) {
-            pvars->MobVars.Respawn = 1;
+          if (isOwner) {
+            int hitId = CollLine_Fix_GetHitCollisionId() & 0x0F;
+            if (hitId == 0x4 || hitId == 0xb || hitId == 0x0d) {
+              pvars->MobVars.Respawn = 1;
+            }
           }
 
           // force position to above ground

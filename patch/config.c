@@ -17,6 +17,7 @@
 #define LINE_HEIGHT_3_2     (0.075)
 #define DEFAULT_GAMEMODE    (0)
 #define CHARACTER_TWEAKER_RANGE (10)
+#define DZO_MAX_CMAPS       (10)
 
 // config
 extern PatchConfig_t config;
@@ -88,6 +89,7 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
 void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -97,10 +99,12 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value);
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -200,7 +204,7 @@ MenuElem_ListData_t dataGameServers = {
 MenuElem_RangeData_t dataFieldOfView = {
     .value = &config.playerFov,
     .stateHandler = NULL,
-    .minValue = 0,
+    .minValue = -5,
     .maxValue = 5,
 };
 
@@ -213,7 +217,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
-  { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
+  // { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements },
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
@@ -221,6 +225,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
   { "Fusion Reticule", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
+  // { "R2 Single Tap Chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
@@ -490,13 +495,37 @@ MenuElem_ListData_t dataPayloadContestMode = {
 // training type
 MenuElem_ListData_t dataTrainingType = {
     &gameConfig.trainingConfig.type,
-    menuStateHandler_SelectedTrainingTypeOverride,
+    NULL, //menuStateHandler_SelectedTrainingTypeOverride,
     2,
     {
       "Fusion",
       "Cycle",
       "B6",
     }
+};
+
+// training variant
+MenuElem_ListData_t dataTrainingVariant = {
+  &gameConfig.trainingConfig.variant,
+  NULL,
+  2,
+  {
+    "Ranked",
+    "Endless"
+  }
+};
+
+// training aggression
+MenuElem_ListData_t dataTrainingAggression = {
+  &gameConfig.trainingConfig.aggression,
+  menuStateHandler_SelectedTrainingAggressionOverride,
+  4,
+  {
+    "Aggressive",
+    "Aggressive No Damage",
+    "Passive",
+    "Idle"
+  }
 };
 
 // player size list item
@@ -617,6 +646,8 @@ MenuElem_t menuElementsGameSettings[] = {
 
   // TRAINING SETTINGS
   { "Training Type", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingType },
+  { "Training Variant", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingVariant },
+  { "Bot Aggression", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingAggression },
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -629,8 +660,8 @@ MenuElem_t menuElementsGameSettings[] = {
   { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades },
   { "Damage cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
-  { "Fusion Reticule", listActionHandler, menuStateHandler_SettingStateHandler, &dataFusionReticule },
-  { "Healthbars", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grHealthBars },
+  { "Fusion Reticule", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
+  { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
   { "Healthboxes", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
@@ -874,6 +905,15 @@ void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* sta
 }
 
 // 
+void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT)
+    *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
+  else
+    *state = ELEMENT_HIDDEN;
+}
+
+// 
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE;
@@ -963,6 +1003,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
         case CUSTOM_MAP_TORVAL_LOST_FACTORY:
         case CUSTOM_MAP_TORVAL_SP:
         case CUSTOM_MAP_TYHRRANOSIS:
+        case CUSTOM_MAP_NONE:
           return 1;
       }
 
@@ -1098,6 +1139,7 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
   GameSettings* gs = gameGetSettings();
   char v = *value;
 
+  return 1;
   if (gs)
   {
     switch (gs->GameRules)
@@ -1118,6 +1160,51 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
         *value = TRAINING_TYPE_CYCLE;
         return 0;
       }
+    }
+  }
+
+  return 0;
+}
+
+// 
+int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value)
+{
+  if (!value)
+    return 0;
+
+  GameSettings* gs = gameGetSettings();
+  char v = *value;
+
+  switch (gameConfig.trainingConfig.type)
+  {
+    case TRAINING_TYPE_FUSION:
+    {
+      // if ranked variant, force passive
+      if (gameConfig.trainingConfig.variant == 0)
+      {
+        *value = TRAINING_AGGRESSION_PASSIVE;
+        return 0;
+      }
+
+      // force PASSIVE or IDLE for endless
+      if (v != TRAINING_AGGRESSION_PASSIVE && v != TRAINING_AGGRESSION_IDLE)
+      {
+        *value = TRAINING_AGGRESSION_PASSIVE;
+        return 0;
+      }
+
+      return 1;
+    }
+    case TRAINING_TYPE_CYCLE:
+    {
+      // if ranked variant, force aggro
+      if (gameConfig.trainingConfig.variant == 0)
+      {
+        *value = TRAINING_AGGRESSION_AGGRO;
+        return 0;
+      }
+
+      return 1;
     }
   }
 
@@ -1148,6 +1235,17 @@ void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* el
   GameSettings* gs = gameGetSettings();
 
   if (gameConfig.customModeId != CUSTOM_MODE_TRAINING)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+
+  if (gameConfig.customModeId != CUSTOM_MODE_TRAINING || gameConfig.trainingConfig.type != TRAINING_TYPE_CYCLE)
     *state = ELEMENT_HIDDEN;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
@@ -1865,8 +1963,8 @@ void onMenuUpdate(int inGame)
       if (gameGetSettings())
       {
         int ping = gameGetPing();
-        sprintf(buf, "%d ms", ping);
-        gfxScreenSpaceText(0.9 * SCREEN_WIDTH, 0.1 * SCREEN_HEIGHT, 1, 1, 0x808080FF, buf, -1, 2);
+        sprintf(buf, "ping %d", ping);
+        gfxScreenSpaceText(0.88 * SCREEN_WIDTH, 0.15 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, buf, -1, 2);
       }
     }
 
@@ -2192,54 +2290,58 @@ void configMenuDisable(void)
   if (!isConfigMenuActive)
     return;
   
-  isConfigMenuActive = 0;
-
-  // force game config to preset
-  switch (preset)
-  {
-    case 1: // competitive
-    {
-      gameConfig.grNoHealthBoxes = 0;
-      gameConfig.grNoNames = 0;
-      gameConfig.grV2s = 0;
-      gameConfig.grVampire = 0;
-
-      gameConfig.grBetterFlags = 1;
-      gameConfig.grBetterHills = 1;
-      gameConfig.grFusionShotsAlwaysHit = 1;
-      gameConfig.grOvertime = 1;
-      gameConfig.grHalfTime = 1;
-      gameConfig.grNoInvTimer = 1;
-      gameConfig.grNoPacks = 1;
-      gameConfig.grNoPickups = 1;
-      gameConfig.grNoSniperHelpers = 1;
-      gameConfig.grCqPersistentCapture = 1;
-      gameConfig.grCqDisableTurrets = 1;
-      gameConfig.grCqDisableUpgrades = 1;
-      break;
-    }
-    case 2: // 1v1
-    {
-      gameConfig.grNoHealthBoxes = 1;
-      gameConfig.grNoNames = 0;
-      gameConfig.grV2s = 2;
-      gameConfig.grVampire = 3;
-
-      gameConfig.grFusionShotsAlwaysHit = 1;
-      gameConfig.grNoInvTimer = 1;
-      gameConfig.grNoPacks = 1;
-      gameConfig.grNoPickups = 1;
-      break;
-    }
-  }
+  isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 0;
 
   // send config to server for saving
   void * lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_CONFIG, sizeof(PatchConfig_t), &config);
 
-  // 
-  configTrySendGameConfig();
+  // update and send gameconfig
+  if (gameAmIHost())
+  {
+    // force game config to preset
+    switch (preset)
+    {
+      case 1: // competitive
+      {
+        gameConfig.grNoHealthBoxes = 0;
+        gameConfig.grNoNames = 0;
+        gameConfig.grV2s = 0;
+        gameConfig.grVampire = 0;
+
+        gameConfig.grBetterFlags = 1;
+        gameConfig.grBetterHills = 1;
+        gameConfig.grFusionShotsAlwaysHit = 1;
+        gameConfig.grOvertime = 1;
+        gameConfig.grHalfTime = 1;
+        gameConfig.grNoInvTimer = 1;
+        gameConfig.grNoPacks = 1;
+        gameConfig.grNoPickups = 1;
+        //gameConfig.grNoSniperHelpers = 1;
+        gameConfig.grCqPersistentCapture = 1;
+        gameConfig.grCqDisableTurrets = 1;
+        gameConfig.grCqDisableUpgrades = 1;
+        break;
+      }
+      case 2: // 1v1
+      {
+        gameConfig.grNoHealthBoxes = 1;
+        gameConfig.grNoNames = 0;
+        gameConfig.grV2s = 2;
+        gameConfig.grVampire = 3;
+
+        gameConfig.grFusionShotsAlwaysHit = 1;
+        gameConfig.grNoInvTimer = 1;
+        gameConfig.grNoPacks = 1;
+        gameConfig.grNoPickups = 1;
+        break;
+      }
+    }
+
+    // send
+    configTrySendGameConfig();
+  }
 
   // re-enable pad
   padEnableInput();
@@ -2249,7 +2351,7 @@ void configMenuDisable(void)
 void configMenuEnable(void)
 {
   // enable
-  isConfigMenuActive = 1;
+  isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 1;
 
   // return to first tab if current is hidden
   int state = 0;
