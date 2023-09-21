@@ -405,6 +405,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Marcadia Palace",
       "Metropolis MP",
       "Mining Facility SP",
+      "Mountain Pass",
       "Shaar SP",
       "Snivelak",
       "Spleef",

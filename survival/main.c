@@ -2177,6 +2177,14 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	HOOK_JAL(0x00446948, &setPlayerShieldCooldownTimer);
   POKE_U32(0x00446954, 0);
 
+  // disable guber event delay until createTime+relDispatchTime reached
+  // when players desync, their net time falls behind everyone else's
+  // causing events that they receive to be delayed for long periods of time
+  // leading to even more desyncing issues
+  // since survival can cause a lot of frame lag, especially for players on emu/dzo
+  // this fix is required to ensure that important mob guber events trigger on everyone's screen
+  POKE_U32(0x00611518, 0x24040000);
+
 	// set default ammo for flail to 8
 	//*(u8*)0x0039A3B4 = 8;
 
