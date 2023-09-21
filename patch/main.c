@@ -1015,7 +1015,7 @@ int patchComputePoints_Hook(int playerIdx)
   int i;
   int winningTeam = *(int*)(0x001e0d78 + 0x1C);
 
-  if (gameData && gameSettings) {
+  if (gameData && gameSettings && !gameConfig.customModeId) {
 
     int gameOver = gameData->GameIsOver;
 
