@@ -101,6 +101,8 @@
 #define GAME_SCOREBOARD_ARRAY               ((ScoreboardItem**)0x002FA04C)
 #define GAME_SCOREBOARD_ITEM_COUNT          (*(u32*)0x002F9FCC)
 
+#define KOTH_BONUS_POINTS_FACTOR    (0.2)
+
 // 
 void processSpectate(void);
 void runMapLoader(void);
@@ -971,6 +973,26 @@ void patchWideStats(void)
 }
 
 /*
+ * NAME :		getPlayerScore
+ * 
+ * DESCRIPTION :
+ * 			Returns game points for the given player idx.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int getPlayerScore(int playerIdx)
+{
+  if (!isInGame()) return 0;
+  return ((int (*)(int))0x00625510)(playerIdx);
+}
+
+/*
  * NAME :		patchComputePoints_Hook
  * 
  * DESCRIPTION :
@@ -989,17 +1011,49 @@ void patchWideStats(void)
 int patchComputePoints_Hook(int playerIdx)
 {
   GameData* gameData = gameGetData();
-  int basePoints = ((int (*)(int))0x00625510)(playerIdx);
+  GameSettings* gameSettings = gameGetSettings();
+  int basePoints = getPlayerScore(playerIdx);
   int newPoints = basePoints;
+  int i;
+  int winningTeam = *(int*)(0x001e0d78 + 0x1C);
 
-  if (gameData) {
-    
-    // saves are worth half a cap (10 pts)
-    newPoints += gameData->PlayerStats.CtfFlagsSaved[playerIdx] * 5;
+  if (gameData && gameSettings) {
+
+    int gameOver = gameData->GameIsOver;
+
+    switch (gameSettings->GameRules)
+    {
+      case GAMERULE_CTF:
+      {
+        if (gameOver) {
+          newPoints = (winningTeam == gameSettings->PlayerTeams[playerIdx]) ? 10 : 0;
+        }
+
+        break;
+      }
+      case GAMERULE_KOTH:
+      {
+        if (gameOver) {
+
+          // find best score
+          int bestScore = 0;
+          for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+            int score = getPlayerScore(i);
+            if (score > bestScore)
+              bestScore = score;
+          }
+
+          // award winning team fraction of best score as a bonus
+          newPoints += (winningTeam == gameSettings->PlayerTeams[playerIdx]) ? (bestScore * KOTH_BONUS_POINTS_FACTOR) : 0;
+        }
+
+        break;
+      }
+    }
 
   }
 
-  //DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
+  DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
 
   return newPoints;
 }
@@ -1020,6 +1074,9 @@ int patchComputePoints_Hook(int playerIdx)
  */
 void patchComputePoints(void)
 {
+  // write RANK_SPREAD so that a 10 is possible
+  *(float*)0x001737B0 = 10000.0;
+
   if (!isInGame())
     return;
 
@@ -2316,6 +2373,7 @@ int runSendGameUpdate(void)
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
   GameData * gameData = gameGetData();
+  Player** players = playerGetAll();
 	int gameTime = gameGetTime();
 	int i;
 	void * connection = netGetLobbyServerConnection();
@@ -2351,6 +2409,9 @@ int runSendGameUpdate(void)
 		newGame = 0;
 	}
 
+	// copy teams over
+	memcpy(patchStateContainer.GameStateUpdate.Teams, gameSettings->PlayerTeams, sizeof(patchStateContainer.GameStateUpdate.Teams));
+
 	// 
 	if (isInGame())
 	{
@@ -2359,9 +2420,11 @@ int runSendGameUpdate(void)
     if (gameSettings->GameRules == GAMERULE_JUGGY) {
       for (i = 0; i < GAME_MAX_PLAYERS; ++i)
       {
-        int team = gameSettings->PlayerTeams[i];
-        if (team >= 0 && team < GAME_MAX_PLAYERS)
+        Player* player = players[i];
+        if (player) {
+          int team = patchStateContainer.GameStateUpdate.Teams[i] = playerGetJuggSafeTeam(player);
           patchStateContainer.GameStateUpdate.TeamScores[team] = gameData->PlayerStats.Kills[i];
+        }
       }
     } else {
       for (i = 0; i < GAME_SCOREBOARD_ITEM_COUNT; ++i)
@@ -2372,9 +2435,6 @@ int runSendGameUpdate(void)
       }
     }
 	}
-
-	// copy teams over
-	memcpy(patchStateContainer.GameStateUpdate.Teams, gameSettings->PlayerTeams, sizeof(patchStateContainer.GameStateUpdate.Teams));
 
 	return 1;
 }

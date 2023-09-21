@@ -128,8 +128,8 @@ typedef struct GameModule
 
 typedef struct UpdateGameStateRequest {
 	char TeamsEnabled;
-    char PADDING;
-    short Version;
+  char PADDING;
+  short Version;
 	int RoundNumber;
 	int TeamScores[GAME_MAX_PLAYERS];
 	char ClientIds[GAME_MAX_PLAYERS];
