@@ -200,9 +200,9 @@ enum CustomMessageId
     CUSTOM_MSG_ID_SERVER_SHOW_SNACK_MESSAGE_REQUEST = 34,
 
     /*
-     * Sent from a client to other clients when they pick up the flag.
+     * Sent from a client to the host when they pick up the flag.
      */
-    CUSTOM_MSG_ID_FLAG_PICKED_UP = 35,
+    CUSTOM_MSG_ID_FLAG_REQUEST_PICKUP = 35,
 
     /*
      * Sent from a client to the server when they want the custom gamemode binary sent to them.
@@ -389,12 +389,12 @@ typedef struct SetGameStartTimeRequest
     int SecondsUntilStart;
 } SetGameStartTimeRequest_t;
 
-typedef struct ClientPickedUpFlag
+typedef struct ClientRequestPickUpFlag
 {
     int GameTime;
     int PlayerId;
     u32 FlagUID;
-} ClientPickedUpFlag_t;
+} ClientRequestPickUpFlag_t;
 
 typedef struct ClientRequestBootElf
 {

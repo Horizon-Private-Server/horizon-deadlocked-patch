@@ -30,7 +30,7 @@ typedef struct PatchConfig
   char enableFusionReticule;
   char playerFov;
   char preferredGameServer;
-  // char enableSingleTapChargeboot;
+  char fixedCycleOrder;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
@@ -41,6 +41,14 @@ typedef struct SurvivalConfig
 {
 	//u8 difficulty;
 } SurvivalConfig_t;
+
+enum FixedCycleOrderMode
+{
+  FIXED_CYCLE_ORDER_OFF = 0,
+  FIXED_CYCLE_ORDER_MAG_FUS_B6 = 1,
+  FIXED_CYCLE_ORDER_MAG_B6_FUS = 2,
+  FIXED_CYCLE_ORDER_COUNT = 3
+};
 
 enum PayloadContestMode
 {

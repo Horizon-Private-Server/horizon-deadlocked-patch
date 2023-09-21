@@ -166,8 +166,6 @@ int renderTimeMs = 0;
 float averageRenderTimeMs = 0;
 int updateTimeMs = 0;
 float averageUpdateTimeMs = 0;
-int timeFlagLastPickedUp[4] = {0,0,0,0};
-int flagHadEventThisFrame[4] = {0,0,0,0};
 int redownloadCustomModeBinaries = 0;
 ServerSetRanksRequest_t lastSetRanksRequest;
 
@@ -1473,45 +1471,195 @@ void patchFusionReticule(void)
   patched = config.enableFusionReticule;
 }
 
-void flagGuberHandleEvent(Moby* moby, GuberEvent* event)
+/*
+ * NAME :		patchCycleOrder
+ * 
+ * DESCRIPTION :
+ * 			Forces the configured cycle order when applicable.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchCycleOrder(void)
 {
-	struct FlagPVars* pvars = (struct FlagPVars*)moby->PVar;
+  int i;
+  int order[3];
 
-  // pass to flag event handler
-  ((void (*)(Moby*, GuberEvent*))0x00417bb8)(moby, event);
+  if (!isInGame()) return;
+  if (config.fixedCycleOrder == FIXED_CYCLE_ORDER_OFF) return;
 
-  // indicate we had an event
-  if (pvars) {
-    flagHadEventThisFrame[pvars->Team] = 1;
+  for (i = 0; i < 2; ++i) {
+
+    // check we're holding the three cycle weapons
+    int w0 = playerGetLocalEquipslot(i, 0);
+    int w1 = playerGetLocalEquipslot(i, 1);
+    int w2 = playerGetLocalEquipslot(i, 2);
+    int mask = (1 << w0) | (1 << w1) | (1 << w2);
+    int cycleMask = (1 << WEAPON_ID_MAGMA_CANNON) | (1 << WEAPON_ID_FUSION_RIFLE) | (1 << WEAPON_ID_B6);
+    if (cycleMask != mask) return;
+
+    // get order
+    switch (config.fixedCycleOrder)
+    {
+      case FIXED_CYCLE_ORDER_MAG_FUS_B6:
+      {
+        order[0] = WEAPON_ID_MAGMA_CANNON;
+        order[1] = WEAPON_ID_FUSION_RIFLE;
+        order[2] = WEAPON_ID_B6;
+        break;
+      }
+      case FIXED_CYCLE_ORDER_MAG_B6_FUS:
+      {
+        order[0] = WEAPON_ID_MAGMA_CANNON;
+        order[1] = WEAPON_ID_B6;
+        order[2] = WEAPON_ID_FUSION_RIFLE;
+        break;
+      }
+      default: return;
+    }
+
+    // determine where in order we are based on first equipped weapon
+    int index = 0;
+    while (order[index] != w0 && index < 2)
+      ++index;
+    
+    // update other two weapons to match order if not already
+    int e1 = order[(index + 1) % 3];
+    int e2 = order[(index + 2) % 3];
+    if (w1 != e1) playerSetLocalEquipslot(i, 1, e1);
+    if (w2 != e2) playerSetLocalEquipslot(i, 2, e2);
   }
 }
 
+/*
+ * NAME :		flagHandlePickup
+ * 
+ * DESCRIPTION :
+ * 			Gives flag to player or returns flag by player.
+ *      Does some additional error checking to prevent multiple players
+ *      from interacting with the flag at the same time.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void flagHandlePickup(Moby* flagMoby, int pIdx)
+{
+  Player* player = playerGetAll()[pIdx];
+  if (!player || !flagMoby) return;
+	struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
+  if (!pvars) return;
+
+	if (flagMoby->State != 1)
+		return;
+
+	// flag is currently returning
+	if (flagIsReturning(flagMoby))
+		return;
+
+	// flag is currently being picked up
+	if (flagIsBeingPickedUp(flagMoby))
+		return;
+	
+  // only allow actions by living players
+  if (playerIsDead(player) || player->Health <= 0)
+    return;
+
+  if (player->Team == pvars->Team) {
+    flagReturnToBase(flagMoby, 0, pIdx);
+  } else {
+    flagPickup(flagMoby, pIdx);
+    player->HeldMoby = flagMoby;
+  }
+
+  DPRINTF("player %d picked up flag %X at %d\n", player->PlayerId, flagMoby->OClass, gameGetTime());
+}
+
+/*
+ * NAME :		flagRequestPickup
+ * 
+ * DESCRIPTION :
+ * 			Requests to either pickup or return the given flag.
+ *      If host, this request is automatically passed to the handler.
+ *      If not host, this request is sent over the net to the host.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void flagRequestPickup(Moby* flagMoby, int pIdx)
+{
+  static int requestCounters[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+
+  Player* player = playerGetAll()[pIdx];
+  if (!player || !flagMoby) return;
+	struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
+  if (!pvars) return;
+
+  if (gameAmIHost())
+  {
+    // handle locally
+    flagHandlePickup(flagMoby, pIdx);
+  }
+  else if (requestCounters[pIdx] == 0)
+  {
+    // send request to host
+    void* dmeConnection = netGetDmeServerConnection();
+    if (dmeConnection) {
+      ClientRequestPickUpFlag_t msg;
+      msg.GameTime = gameGetTime();
+      msg.PlayerId = player->PlayerId;
+      msg.FlagUID = guberGetUID(flagMoby);
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, gameGetHostId(), CUSTOM_MSG_ID_FLAG_REQUEST_PICKUP, sizeof(ClientRequestPickUpFlag_t), &msg);
+      requestCounters[pIdx] = 10;
+      DPRINTF("sent request flag pickup %d\n", gameGetTime());
+    }
+  }
+  else
+  {
+    requestCounters[pIdx]--;
+  }
+}
+
+/*
+ * NAME :		customFlagLogic
+ * 
+ * DESCRIPTION :
+ * 			Reimplements flag pickup logic but runs through our host authoritative logic.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
 void customFlagLogic(Moby* flagMoby)
 {
 	VECTOR t;
 	int i;
 	Player** players = playerGetAll();
 	int gameTime = gameGetTime();
-  static int initialized = 0;
 	GameOptions* gameOptions = gameGetOptions();
+
 	if (!isInGame()) {
-		initialized = 0;
     return;
   }
 
-  // initialize for each flag oclass
-  // since each flag is passed to this function iteratively
-  if (initialized < 4) {
-    
-    u32 mobyFunctionsPtr = (u32)mobyGetFunctions(flagMoby);
-    if (mobyFunctionsPtr) {
-      DPRINTF("flag event handler %08X\n", *(u32*)(mobyFunctionsPtr + 0x14));
-      *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&flagGuberHandleEvent;
-    }
-
-    initialized++;
-  }
-		
 	// validate flag
 	if (!flagMoby)
 		return;
@@ -1521,22 +1669,6 @@ void customFlagLogic(Moby* flagMoby)
 	if (!pvars)
 		return;
 
-	// somehow a player is holding the flag without being the carrier
-  if (flagHadEventThisFrame[pvars->Team]) {
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      Player* player = players[i];
-      if (player && player->HeldMoby == flagMoby && pvars->CarrierIdx != player->PlayerId) {
-        player->HeldMoby = 0;
-        DPRINTF("player %d is holding the flag, but the flag pvars reference a different player %d (%08X)\n", player->PlayerId, pvars->CarrierIdx, (u32)flagMoby);
-      } else if (player && player->HeldMoby == NULL && pvars->CarrierIdx == player->PlayerId) {
-        player->HeldMoby = flagMoby;
-        DPRINTF("player %d is not holding the flag, but the flag pvars have player as carrier (%08X)\n", player->PlayerId, (u32)flagMoby);
-      }
-    }
-
-    flagHadEventThisFrame[pvars->Team] = 0;
-  }
-	
 	// 
 	if (flagMoby->State != 1)
 		return;
@@ -1604,21 +1736,7 @@ void customFlagLogic(Moby* flagMoby)
 		// player is on different team than flag and player isn't already holding flag
 		if (player->Team != pvars->Team) {
 			if (!player->HeldMoby) {
-				flagPickup(flagMoby, i);
-        
-        timeFlagLastPickedUp[pvars->Team] = gameTime;
-				player->HeldMoby = flagMoby;
-        DPRINTF("local player %d picked up flag %X at %d\n", player->PlayerId, flagMoby->OClass, gameTime);
-
-        // broadcast to other clients
-        void* dmeConnection = netGetDmeServerConnection();
-        if (dmeConnection) {
-          ClientPickedUpFlag_t msg;
-          msg.GameTime = gameTime;
-          msg.PlayerId = player->PlayerId;
-          msg.FlagUID = guberGetUID(flagMoby);
-          netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, CUSTOM_MSG_ID_FLAG_PICKED_UP, sizeof(ClientPickedUpFlag_t), &msg);
-        }
+        flagRequestPickup(flagMoby, i);
 				return;
 			}
 		}
@@ -1627,7 +1745,7 @@ void customFlagLogic(Moby* flagMoby)
 			vector_subtract(t, pvars->BasePosition, flagMoby->Position);
 			float sqrDistanceToBase = vector_sqrmag(t);
 			if (sqrDistanceToBase > 0.1) {
-				flagReturnToBase(flagMoby, 0, i);
+        flagRequestPickup(flagMoby, i);
 				return;
 			}
 		}
@@ -1637,10 +1755,10 @@ void customFlagLogic(Moby* flagMoby)
 }
 
 /*
- * NAME :		onRemoteClientPickedUpFlag
+ * NAME :		onRemoteClientRequestPickUpFlag
  * 
  * DESCRIPTION :
- * 			Handles when a remote client sends the CUSTOM_MSG_ID_FLAG_PICKED_UP message.
+ * 			Handles when a remote client sends the CUSTOM_MSG_ID_FLAG_REQUEST_PICKUP message.
  * 
  * NOTES :
  * 
@@ -1650,18 +1768,18 @@ void customFlagLogic(Moby* flagMoby)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int onRemoteClientPickedUpFlag(void * connection, void * data)
+int onRemoteClientRequestPickUpFlag(void * connection, void * data)
 {
 	int i;
-	ClientPickedUpFlag_t msg;
+	ClientRequestPickUpFlag_t msg;
   Player** players;
 	memcpy(&msg, data, sizeof(msg));
 
 	// ignore if not in game
-	if (!isInGame())
-	  return sizeof(ClientPickedUpFlag_t);
+	if (!isInGame() || !gameAmIHost())
+	  return sizeof(ClientRequestPickUpFlag_t);
 
-	DPRINTF("remote player %d picked up flag %X at %d\n", msg.PlayerId, msg.FlagUID, msg.GameTime);
+	DPRINTF("remote player %d requested pick up flag %X at %d\n", msg.PlayerId, msg.FlagUID, msg.GameTime);
 
   // get list of players
   players = playerGetAll();
@@ -1669,43 +1787,17 @@ int onRemoteClientPickedUpFlag(void * connection, void * data)
 	// get remote player or ignore message
 	Player* remotePlayer = playerGetAll()[msg.PlayerId];
 	if (!remotePlayer)
-	  return sizeof(ClientPickedUpFlag_t);
+	  return sizeof(ClientRequestPickUpFlag_t);
 
   // get flag
   GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(msg.FlagUID);
   if (gm && gm->Moby)
   {
     Moby* flagMoby = gm->Moby;
-    struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
-    flagHadEventThisFrame[pvars->Team] = 1;
-    
-    // check if client picked up our flag
-    if (msg.GameTime > timeFlagLastPickedUp[pvars->Team])
-    {
-      // force
-      DPRINTF("forcing flag carrier to remote %d (%d > %d)\n", msg.PlayerId, msg.GameTime, timeFlagLastPickedUp[pvars->Team]);
-      timeFlagLastPickedUp[pvars->Team] = msg.GameTime;
-      flagPickup(flagMoby, msg.PlayerId);
-
-      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-      {
-        Player* player = players[i];
-        if (!player)
-          continue;
-
-        if (player->HeldMoby == flagMoby && player->PlayerId != msg.PlayerId) {
-          player->HeldMoby = NULL;
-          DPRINTF("forced p %d to drop flag\n", player->PlayerId);
-        } else if (player->HeldMoby != flagMoby && player->PlayerId == msg.PlayerId) {
-          player->HeldMoby = flagMoby;
-          DPRINTF("forced p %d to hold flag\n", player->PlayerId);
-        }
-      }
-    }
-
+    flagHandlePickup(flagMoby, msg.PlayerId);
   }
 
-	return sizeof(ClientPickedUpFlag_t);
+	return sizeof(ClientRequestPickUpFlag_t);
 }
 
 /*
@@ -1729,13 +1821,10 @@ void runFlagPickupFix(void)
 	Player** players = playerGetAll();
 
 	if (!isInGame()) {
-		// reset and exit
-    memset(timeFlagLastPickedUp, 0, sizeof(timeFlagLastPickedUp));
-    memset(flagHadEventThisFrame, 0, sizeof(flagHadEventThisFrame));
 		return;
 	}
 
-  netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_PICKED_UP, &onRemoteClientPickedUpFlag);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_REQUEST_PICKUP, &onRemoteClientRequestPickUpFlag);
 	
   // set pickup cooldown to 0.5 seconds
   //POKE_U16(0x00418aa0, 500);
@@ -1757,9 +1846,6 @@ void runFlagPickupFix(void)
         case MOBY_ID_GREEN_FLAG:
         case MOBY_ID_ORANGE_FLAG:
         {
-          if (padGetButtonDown(0, PAD_UP | PAD_LEFT) > 0) {
-            flagPickup(gm->Moby, -1);
-          }
 					customFlagLogic(gm->Moby);
 					break;
 				}
@@ -4034,6 +4120,9 @@ int main (void)
 
   //
   patchFusionReticule();
+
+  //
+  patchCycleOrder();
 
   //
   //patchSingleTapChargeboot();
