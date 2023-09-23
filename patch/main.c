@@ -1011,42 +1011,44 @@ int patchComputePoints_Hook(int playerIdx)
   GameData* gameData = gameGetData();
   GameSettings* gameSettings = gameGetSettings();
   int basePoints = getPlayerScore(playerIdx);
+  if (!gameData) return basePoints;
+
   int newPoints = basePoints;
   int i;
-  int winningTeam = *(int*)(0x001e0d78 + 0x1C);
 
   if (gameData && gameSettings && !gameConfig.customModeId) {
-
-    int gameOver = gameData->GameIsOver;
 
     switch (gameSettings->GameRules)
     {
       case GAMERULE_CTF:
       {
-        if (gameOver) {
-          newPoints = (winningTeam == gameSettings->PlayerTeams[playerIdx]) ? 10 : 0;
-        }
-
-        break;
-      }
-      case GAMERULE_KOTH:
-      {
-        if (gameOver) {
-
-          // find best score
-          int bestScore = 0;
-          for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-            int score = getPlayerScore(i);
-            if (score > bestScore)
-              bestScore = score;
+        // set player points
+        // equal to number of caps for team
+        int team = gameSettings->PlayerTeams[playerIdx];
+        newPoints = 0;
+        for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+          if (team == gameSettings->PlayerTeams[i]) {
+            newPoints += getPlayerScore(i);
           }
-
-          // award winning team fraction of best score as a bonus
-          newPoints += (winningTeam == gameSettings->PlayerTeams[playerIdx]) ? (bestScore * KOTH_BONUS_POINTS_FACTOR) : 0;
         }
 
         break;
       }
+      // case GAMERULE_KOTH:
+      // {
+      //   // find best score
+      //   int bestScore = 0;
+      //   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      //     int score = getPlayerScore(i);
+      //     if (score > bestScore)
+      //       bestScore = score;
+      //   }
+
+      //   // award winning team fraction of best score as a bonus
+      //   newPoints += (winningTeam == gameSettings->PlayerTeams[playerIdx]) ? (bestScore * KOTH_BONUS_POINTS_FACTOR) : 0;
+
+      //   break;
+      // }
     }
 
   }
