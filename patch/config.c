@@ -208,6 +208,18 @@ MenuElem_RangeData_t dataFieldOfView = {
     .maxValue = 5,
 };
 
+// fixed cycle order
+MenuElem_ListData_t dataFixedCycleOrder = {
+  .value = &config.fixedCycleOrder,
+  .stateHandler = NULL,
+  .count = FIXED_CYCLE_ORDER_COUNT,
+  .items = {
+    "Off",
+    "Mag -> Fusion -> B6",
+    "Mag -> B6 -> Fusion"
+  }
+};
+
 // general tab menu items
 MenuElem_t menuElementsGeneral[] = {
 #ifdef DEBUG
@@ -222,10 +234,10 @@ MenuElem_t menuElementsGeneral[] = {
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
   { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
+  { "Fixed Cycle Order", listActionHandler, menuStateAlwaysEnabledHandler, &dataFixedCycleOrder },
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
   { "Fusion Reticule", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
-  // { "R2 Single Tap Chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
@@ -405,6 +417,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Marcadia Palace",
       "Metropolis MP",
       "Mining Facility SP",
+      "Mountain Pass",
       "Shaar SP",
       "Snivelak",
       "Spleef",
