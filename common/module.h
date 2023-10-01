@@ -151,6 +151,7 @@ typedef struct PatchStateContainer
     int CustomGameStatsSize;
     int ClientsReadyMask;
     int AllClientsReady;
+    int VoteToEndPassed;
 } PatchStateContainer_t;
 
 

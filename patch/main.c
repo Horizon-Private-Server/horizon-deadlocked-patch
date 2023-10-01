@@ -168,6 +168,8 @@ int updateTimeMs = 0;
 float averageUpdateTimeMs = 0;
 int redownloadCustomModeBinaries = 0;
 ServerSetRanksRequest_t lastSetRanksRequest;
+VoteToEndState_t voteToEndState;
+int flagRequestCounters[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
 
 extern int dlIsActive;
 
@@ -317,13 +319,93 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 	.playerAggTime = 0,
   .playerFov = 0,
   .preferredGameServer = 0,
-  // .enableSingleTapChargeboot = 0
+  .enableSingleTapChargeboot = 0
 };
 
 // 
 PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 PatchGameConfig_t gameConfig;
 PatchGameConfig_t gameConfigHostBackup;
+
+/*
+ * NAME :		INetUpdate
+ * 
+ * DESCRIPTION :
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void INetUpdate(void)
+{
+  ((void (*)(void))0x01e9e798)();
+}
+
+void adjustPlayerSyncSettings(void)
+{
+
+}
+
+/*
+ * NAME :		runSingletapChargeboot
+ * 
+ * DESCRIPTION :
+ * 			If enabled, double taps L2 when briefly after L2 is released in game.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runSingletapChargeboot(struct PAD* pad, u8* rdata)
+{
+  static char wasL2PressedLastFrame = 0;
+  static int framesL2LastHeldFor = 0;
+  static int secondTapCountdown = 0;
+  static int secondTapForTicks = 0;
+  const int MAX_FRAMES_L2_HELD_FOR_SECOND_TAP = 10;
+
+  if (!config.enableSingleTapChargeboot) return;
+
+  // check if L2 is pressed this frame
+  char isL2PressedThisFrame = (rdata[3] & 1) == 0;
+
+  // count how many frames L2 is held for
+  if (isL2PressedThisFrame) {
+    wasL2PressedLastFrame = 1;
+    framesL2LastHeldFor += 1;
+  } else if (wasL2PressedLastFrame) {
+    wasL2PressedLastFrame = 0;
+
+    // if L2 was held within singletap threshold, prepare second tap
+    if (framesL2LastHeldFor < MAX_FRAMES_L2_HELD_FOR_SECOND_TAP) {
+      secondTapCountdown = 2;
+      secondTapForTicks = 1;
+    }
+
+    framesL2LastHeldFor = 0;
+  }
+
+  // stall second tap by countdown
+  // then hold L2 for set number of ticks
+  if (secondTapCountdown > 0) {
+    --secondTapCountdown;
+
+    if (secondTapCountdown == 0) {
+      rdata[3] &= ~1;
+    }
+  } else if (secondTapForTicks > 0) {
+      rdata[3] &= ~1;
+    --secondTapForTicks;
+  }
+}
 
 /*
  * NAME :		patchCameraSpeed
@@ -341,7 +423,7 @@ PatchGameConfig_t gameConfigHostBackup;
  */
 void patchCameraSpeed()
 {
-	const u16 SPEED = 0x100;
+	const u16 SPEED = 0x140;
 	char buffer[16];
 
 	// Check if the value is the default max of 64
@@ -1025,13 +1107,7 @@ int patchComputePoints_Hook(int playerIdx)
         // set player points
         // equal to number of caps for team
         int team = gameSettings->PlayerTeams[playerIdx];
-        newPoints = 0;
-        for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-          if (team == gameSettings->PlayerTeams[i]) {
-            newPoints += getPlayerScore(i);
-          }
-        }
-
+        newPoints = gameData->TeamStats.FlagCaptureCounts[team];
         break;
       }
       // case GAMERULE_KOTH:
@@ -1053,7 +1129,9 @@ int patchComputePoints_Hook(int playerIdx)
 
   }
 
-  DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
+  if (gameData && gameData->GameIsOver) {
+    DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
+  }
 
   return newPoints;
 }
@@ -1146,19 +1224,18 @@ void patchKillStealing()
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void patchAggTime(void)
+void patchAggTime(int aggTimeMs)
 {
-	int aggTime = 30 + (config.playerAggTime * 5);
 	u16* currentAggTime = (u16*)0x0015ac04;
 
 	// only update on change
-	if (*currentAggTime == aggTime)
+	if (*currentAggTime == aggTimeMs)
 		return;
 
-	*currentAggTime = aggTime;
+	*currentAggTime = aggTimeMs;
 	void * connection = netGetDmeServerConnection();
 	if (connection)
-		netSetSendAggregationInterval(connection, 0, aggTime);
+		netSetSendAggregationInterval(connection, 0, aggTimeMs);
 }
 
 /*
@@ -1604,8 +1681,8 @@ void flagHandlePickup(Moby* flagMoby, int pIdx)
  */
 void flagRequestPickup(Moby* flagMoby, int pIdx)
 {
-  static int requestCounters[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
-
+  
+  int gameTime = gameGetTime();
   Player* player = playerGetAll()[pIdx];
   if (!player || !flagMoby) return;
 	struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
@@ -1616,7 +1693,7 @@ void flagRequestPickup(Moby* flagMoby, int pIdx)
     // handle locally
     flagHandlePickup(flagMoby, pIdx);
   }
-  else if (requestCounters[pIdx] == 0)
+  else if (flagRequestCounters[pIdx] == 0)
   {
     // send request to host
     void* dmeConnection = netGetDmeServerConnection();
@@ -1626,13 +1703,9 @@ void flagRequestPickup(Moby* flagMoby, int pIdx)
       msg.PlayerId = player->PlayerId;
       msg.FlagUID = guberGetUID(flagMoby);
       netSendCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, gameGetHostId(), CUSTOM_MSG_ID_FLAG_REQUEST_PICKUP, sizeof(ClientRequestPickUpFlag_t), &msg);
-      requestCounters[pIdx] = 10;
-      DPRINTF("sent request flag pickup %d\n", gameGetTime());
+      flagRequestCounters[pIdx] = 10;
+      DPRINTF("sent request flag pickup %d\n", gameTime);
     }
-  }
-  else
-  {
-    requestCounters[pIdx]--;
   }
 }
 
@@ -1823,8 +1896,14 @@ void runFlagPickupFix(void)
 	Player** players = playerGetAll();
 
 	if (!isInGame()) {
+    memset(flagRequestCounters, 0, sizeof(flagRequestCounters));
 		return;
 	}
+
+  // decrement request counters
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (flagRequestCounters[i] > 0) flagRequestCounters[i] -= 1;
+  }
 
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_REQUEST_PICKUP, &onRemoteClientRequestPickUpFlag);
 	
@@ -1834,6 +1913,9 @@ void runFlagPickupFix(void)
 	// disable normal flag update code
 	POKE_U32(0x00418858, 0x03E00008);
 	POKE_U32(0x0041885C, 0x0000102D);
+
+  // allow flag to land on swimmable water
+  POKE_U32(0x0038E130, 0x004176B0);
 
 	// run custom flag update on flags
 	GuberMoby* gm = guberMobyGetFirst();
@@ -2318,6 +2400,203 @@ void runCorrectPlayerChargebootRotation(void)
 			}
 		}
 	}
+}
+
+/*
+ * NAME :		onClientVoteToEndStateUpdateRemote
+ * 
+ * DESCRIPTION :
+ * 			Receives when the host updates the vote to end state.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onClientVoteToEndStateUpdateRemote(void * connection, void * data)
+{
+  memcpy(&voteToEndState, data, sizeof(voteToEndState));
+	return sizeof(voteToEndState);
+}
+
+/*
+ * NAME :		onClientVoteToEndRemote
+ * 
+ * DESCRIPTION :
+ * 			Receives when another client has voted to end.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onClientVoteToEndRemote(void * connection, void * data)
+{
+  int playerId;
+  memcpy(&playerId, data, sizeof(playerId));
+	onClientVoteToEnd(playerId);
+
+	return sizeof(playerId);
+}
+
+/*
+ * NAME :		onClientVoteToEnd
+ * 
+ * DESCRIPTION :
+ * 			Handles when a client votes to end.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onClientVoteToEnd(int playerId)
+{
+  int i;
+  GameSettings* gs = gameGetSettings();
+  if (!gs) return;
+  if (!gameAmIHost()) return;
+
+  // set
+  voteToEndState.Votes[playerId] = 1;
+
+  // tally votes
+  voteToEndState.Count = 0;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    if (voteToEndState.Votes[i]) voteToEndState.Count += 1;
+
+  // set timeout
+  if (voteToEndState.TimeoutTime <= 0)
+    voteToEndState.TimeoutTime = gameGetTime() + TIME_SECOND*30;
+
+  // send update
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED, sizeof(voteToEndState), &voteToEndState);
+  DPRINTF("End player:%d timeout:%d\n", playerId, voteToEndState.TimeoutTime - gameGetTime());
+}
+
+/*
+ * NAME :		sendClientVoteForEnd
+ * 
+ * DESCRIPTION :
+ * 			Broadcasts to all other clients in lobby that this client has voted to end.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void sendClientVoteForEnd(void)
+{
+  Player* p1 = playerGetFromSlot(0);
+  if (!p1) return;
+
+  int playerId = p1->PlayerId;
+  if (!gameAmIHost()) {
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_VOTED_TO_END, 4, &playerId);
+  } else {
+    onClientVoteToEnd(playerId);
+  }
+}
+
+/*
+ * NAME :		voteToEndNumberOfVotesRequired
+ * 
+ * DESCRIPTION :
+ * 			Returns the number of votes required for the vote to pass.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int voteToEndNumberOfVotesRequired(void)
+{
+  GameSettings* gs = gameGetSettings();
+  int i;
+  int playerCount = 0;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (gs->PlayerClients[i] >= 0) playerCount += 1;
+  }
+
+  return (int)(playerCount * 0.75) + 1;
+}
+
+/*
+ * NAME :		runVoteToEndLogic
+ * 
+ * DESCRIPTION :
+ * 			Handles all logic related to when a team Ends.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runVoteToEndLogic(void)
+{
+  if (!isInGame()) { patchStateContainer.VoteToEndPassed = 0; memset(&voteToEndState, 0, sizeof(voteToEndState)); return; }
+  if (gameHasEnded()) return;
+  if (voteToEndState.Count <= 0 || voteToEndState.TimeoutTime <= 0) return;
+
+  int i;
+  int gameTime = gameGetTime();
+  GameData* gameData = gameGetData();
+  GameSettings* gs = gameGetSettings();
+  char buf[64];
+
+  int votesNeeded = voteToEndNumberOfVotesRequired();
+  if (voteToEndState.Count >= votesNeeded && gameAmIHost()) {
+
+    // reset
+    memset(&voteToEndState, 0, sizeof(voteToEndState));
+
+    // pass to modules
+    patchStateContainer.VoteToEndPassed = 1;
+
+    // end game
+    gameEnd(1);
+    return;
+  }
+
+  if (voteToEndState.TimeoutTime > gameTime) {
+    // draw
+    int secondsLeft = (voteToEndState.TimeoutTime - gameTime) / TIME_SECOND;
+    snprintf(buf, sizeof(buf), "Vote to End (%d/%d)    %d...", voteToEndState.Count, votesNeeded, secondsLeft);
+    gfxScreenSpaceText(12, SCREEN_HEIGHT - 18, 1, 1, 0x80000000, buf, -1, 0);
+    gfxScreenSpaceText(10, SCREEN_HEIGHT - 20, 1, 1, 0x80FFFFFF, buf, -1, 0);
+
+    // pass to dzo
+    if (PATCH_DZO_INTEROP_FUNCS) {
+      CustomDzoCommandDrawVoteToEnd_t cmd;
+      cmd.SecondsLeft = secondsLeft;
+      cmd.Count = voteToEndState.Count;
+      cmd.VotesRequired = votesNeeded;
+      PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_VOTE_TO_END, sizeof(cmd), &cmd);
+    }
+  } else if (gameAmIHost() && voteToEndState.TimeoutTime < gameTime) {
+    // reset
+    memset(&voteToEndState, 0, sizeof(voteToEndState));
+    netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED, sizeof(voteToEndState), &voteToEndState);
+  }
 }
 
 /*
@@ -3688,6 +3967,29 @@ void drawHook(u64 a0)
 }
 
 /*
+ * NAME :		updatePad
+ * 
+ * DESCRIPTION :
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void updatePad(struct PAD* pad, u8* rdata, int size)
+{
+  // need to run this before UpdatePad
+  runSingletapChargeboot(pad, rdata);
+
+	((void (*)(struct PAD*, u8*, int))pad->RawPadInputCallback)(pad, rdata, size);
+  
+  //runSingletapChargeboot();
+}
+
+/*
  * NAME :		updateHook
  * 
  * DESCRIPTION :
@@ -3726,6 +4028,20 @@ void updateHook(void)
 	}
 }
 
+/*
+ * NAME :		onCustomModeDownloadInitiated
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
 int onCustomModeDownloadInitiated(void * connection, void * data)
 {
 	DPRINTF("requested mode binaries started %d\n", dlIsActive);
@@ -3733,6 +4049,20 @@ int onCustomModeDownloadInitiated(void * connection, void * data)
 	return 0;
 }
 
+/*
+ * NAME :		sendClientType
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
 void sendClientType(void)
 {
   static int sendCounter = -1;
@@ -3786,6 +4116,20 @@ void sendClientType(void)
 
 }
 
+/*
+ * NAME :		runPayloadDownloadRequester
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
 void runPayloadDownloadRequester(void)
 {
 	GameModule * module = GLOBAL_GAME_MODULES_START;
@@ -3839,6 +4183,66 @@ void runPayloadDownloadRequester(void)
 }
 
 /*
+ * NAME :		onBeforeVSync
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void* onBeforeVSync(void)
+{
+  int hasDmeConnection = netGetDmeServerConnection() != 0;
+
+  // manually call INetUpdate before and after vsync
+  // to reduce latency for processing network messages
+  // only works in game (with dme connection)
+  if (hasDmeConnection) INetUpdate();
+
+  // sceGsGetGParam
+  return ((void* (*)(void))0x001384e0)();
+}
+
+#if PINGTEST
+int onReceivePing(void* connection, void* data)
+{
+  struct PingRequest request;
+  int clientId = gameGetMyClientId();
+
+  memcpy(&request, data, sizeof(request));
+
+  if (request.SourceClientId == clientId) {
+    DPRINTF("client:%d rtt:%lld\n", request.ReturnedFromClientId, (timerGetSystemTime() - request.Time) / SYSTEM_TIME_TICKS_PER_MS);
+  } else {
+    request.ReturnedFromClientId = clientId;
+    netSendCustomAppMessage(0, connection, request.SourceClientId, 150, sizeof(request), &request);
+  }
+
+  return sizeof(struct PingRequest);
+}
+
+void runLagTestLogic(void)
+{
+  struct PingRequest request;
+
+  netInstallCustomMsgHandler(150, &onReceivePing);
+
+  void* dmeConnection = netGetDmeServerConnection();
+  if (dmeConnection && padGetButtonDown(0, PAD_UP | PAD_L1) > 0) {
+    request.Time = timerGetSystemTime();
+    request.SourceClientId = gameGetMyClientId();
+    netBroadcastCustomAppMessage(0, dmeConnection, 150, sizeof(request), &request);
+  }
+}
+#endif
+
+/*
  * NAME :		onOnlineMenu
  * 
  * DESCRIPTION :
@@ -3870,6 +4274,7 @@ void onOnlineMenu(void)
 		onConfigInitialize();
     PATCH_DZO_INTEROP_FUNCS = 0;
 		memset(lobbyPlayerConfigs, 0, sizeof(lobbyPlayerConfigs));
+		memset(&voteToEndState, 0, sizeof(voteToEndState));
 		hasInitialized = 1;
 	}
 
@@ -4031,9 +4436,22 @@ int main (void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
 	netInstallCustomMsgHandler(CUSTOM_MSG_RESPONSE_CUSTOM_MODE_PATCH, &onCustomModeDownloadInitiated);
 	netInstallCustomMsgHandler(CUSTOM_MSG_CLIENT_READY, &onClientReadyRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_VOTED_TO_END, &onClientVoteToEndRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED, &onClientVoteToEndStateUpdateRemote);
 
 	// Run map loader
 	runMapLoader();
+
+#if PINGTEST
+  runLagTestLogic();
+#endif
+
+  // install our vsync hook
+  if (isUnloading) POKE_U32(0x00138d7c, 0x0C04E138);
+  else HOOK_JAL(0x00138d7c, &onBeforeVSync);
+
+  // force agg time
+  //patchAggTime(30 + config.playerAggTime * 5);
 
 #if COMP
 	// run comp patch logic
@@ -4062,6 +4480,9 @@ int main (void)
 
 	// 
 	runFpsCounter();
+
+  // 
+  runVoteToEndLogic();
 
 	// Run add singleplayer music
   if (isInMenus()) {
@@ -4138,9 +4559,6 @@ int main (void)
   // 
   patchFov();
 
-	// 
-	//patchAggTime();
-
 	//
 	patchLevelOfDetail();
 
@@ -4171,10 +4589,14 @@ int main (void)
 		// hook render function
 		HOOK_JAL(0x004A84B0, &updateHook);
 		HOOK_JAL(0x004C3A94, &drawHook);
+    HOOK_JAL(0x005281F0, &updatePad);
       
     // hook Pad_MappedPad
     //HOOK_J(0x005282d8, &padMappedPadHooked);
     //POKE_U32(0x005282dc, 0);
+
+    // disable guber wait for dispatchTime
+    POKE_U32(0x00611518, 0x24040000);
 
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
@@ -4241,7 +4663,7 @@ int main (void)
 		averageRenderTimeMs = 0;
 		updateTimeMs = 0;
 		averageUpdateTimeMs = 0;
-
+    
 		//
 		grLobbyStart();
 

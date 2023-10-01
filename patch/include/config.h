@@ -8,6 +8,9 @@ enum PatchGameNetMessage
   // RotatingWeaponsChanged
   CUSTOM_MSG_ROTATING_WEAPONS_CHANGED = CUSTOM_MSG_ID_PATCH_IN_GAME_START,
   CUSTOM_MSG_CLIENT_READY,
+  CUSTOM_MSG_PLAYER_VOTED_TO_END,
+  CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED,
+  CUSTOM_MSG_DZO_COSMETICS_UPDATE
 };
 
 enum ActionType
@@ -38,6 +41,7 @@ enum LabelType
 struct MenuElem;
 struct TabElem;
 struct MenuElem_ListData;
+struct MenuElem_RangeData;
 
 typedef void (*ActionHandler)(struct TabElem* tab, struct MenuElem* element, int actionType, void * actionArg);
 typedef void (*ButtonSelectHandler)(struct TabElem* tab, struct MenuElem* element);
@@ -87,6 +91,20 @@ typedef struct FreecamSettings
   char airwalk;
   char lockStateToggle;
 } FreecamSettings_t;
+
+typedef struct VoteToEndState
+{
+  int TimeoutTime;
+  int Count;
+  char Votes[GAME_MAX_PLAYERS];
+} VoteToEndState_t;
+
+typedef struct CustomDzoCommandDrawVoteToEnd
+{
+  int SecondsLeft;
+  int Count;
+  int VotesRequired;
+} CustomDzoCommandDrawVoteToEnd_t;
 
 extern int isConfigMenuActive;
 

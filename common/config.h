@@ -31,6 +31,7 @@ typedef struct PatchConfig
   char playerFov;
   char preferredGameServer;
   char fixedCycleOrder;
+  char enableSingleTapChargeboot;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];

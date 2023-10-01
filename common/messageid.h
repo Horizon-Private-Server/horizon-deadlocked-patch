@@ -263,6 +263,7 @@ enum CustomDzoCommandId
   CUSTOM_DZO_CMD_ID_SND_DRAW_ROUND_RESULT = 2,
   CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD = 3,
   CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_REVIVE_MSG = 4,
+  CUSTOM_DZO_CMD_ID_VOTE_TO_END = 5
 };
 
 typedef struct ServerDownloadDataRequest
@@ -407,6 +408,13 @@ typedef struct ServerResponseBootElf
     u32 Address;
     u32 Size;
 } ServerResponseBootElf_t;
+
+struct PingRequest
+{
+  long Time;
+  int SourceClientId;
+  int ReturnedFromClientId;
+};
 
 
 #endif // _MESSAGEID_H_

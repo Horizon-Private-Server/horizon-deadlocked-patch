@@ -198,6 +198,7 @@ void gateUpdate(Moby* moby)
 {
   VECTOR delta;
   char buf[32];
+  int i;
   if (!moby || !moby->PVar)
     return;
     
@@ -256,13 +257,16 @@ void gateUpdate(Moby* moby)
 
   // handle interact
   if (pvars->Cost > 0 && moby->State == GATE_STATE_ACTIVATED) {
-    Player* lp = playerGetFromSlot(0);
-    if (lp) {
-      
-      // draw help popup
-      snprintf(buf, 32, "\x11 %d Tokens to Open", pvars->Cost);
-      if (gateCanInteract(moby, lp->PlayerPosition) && tryPlayerInteract(moby, lp, buf, 0, 1, PLAYER_GATE_COOLDOWN_TICKS, 10000)) {
-        gatePayToken(moby, lp->PlayerId);
+    for (i = 0; i < 2; ++i) {
+      Player* lp = playerGetFromSlot(i);
+      if (lp) {
+        
+        // draw help popup
+        snprintf(buf, 32, "\x11 %d Tokens to Open", pvars->Cost);
+        if (gateCanInteract(moby, lp->PlayerPosition) && tryPlayerInteract(moby, lp, buf, 0, 1, PLAYER_GATE_COOLDOWN_TICKS, 10000)) {
+          gatePayToken(moby, lp->PlayerId);
+          break;
+        }
       }
     }
   }

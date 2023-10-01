@@ -7,6 +7,7 @@
 #include <libdl/gamesettings.h>
 #include <libdl/string.h>
 #include <libdl/game.h>
+#include <libdl/player.h>
 #include <libdl/map.h>
 #include <libdl/utils.h>
 #include "messageid.h"
@@ -28,6 +29,8 @@ extern PatchGameConfig_t gameConfigHostBackup;
 
 extern char aa_value;
 extern int redownloadCustomModeBinaries;
+
+extern VoteToEndState_t voteToEndState;
 
 // 
 int isConfigMenuActive = 0;
@@ -95,6 +98,7 @@ void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int
 void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
@@ -111,6 +115,7 @@ void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element,
 void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void voteToEndSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -136,6 +141,7 @@ void navTab(int direction);
 int mapsGetInstallationResult(void);
 int mapsPromptEnableCustomMaps(void);
 int mapsDownloadingModules(void);
+void sendClientVoteForEnd(void);
 
 // level of detail list item
 MenuElem_ListData_t dataLevelOfDetail = {
@@ -185,8 +191,8 @@ MenuElem_RangeData_t dataMinimapSmallZoom = {
 MenuElem_RangeData_t dataPlayerAggTime = {
     .value = &config.playerAggTime,
     .stateHandler = NULL,
-    .minValue = -5,
-    .maxValue = 5,
+    .minValue = -6,
+    .maxValue = 6,
 };
 
 // game servers
@@ -226,6 +232,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Redownload patch", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadPatchSelectHandler },
   { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
+  { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler },
   { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
@@ -244,6 +251,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
   { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
+  { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot },
   { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate },
   { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
 };
@@ -899,6 +907,13 @@ void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
 }
 
+// 
+void voteToEndSelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  sendClientVoteForEnd();
+  configMenuDisable();
+}
+
 //------------------------------------------------------------------------------
 void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
@@ -1310,6 +1325,27 @@ void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, i
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+  GameData* gameData = gameGetData();
+  int i = 0;
+  
+  // if playing game with only 2 teams
+  // then we can End
+  if (isInGame() && gameData && gameData->NumStartTeams <= 2) {
+    Player* p = playerGetFromSlot(0);
+    if (p) {
+      *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
+      if (!voteToEndState.Votes[p->PlayerId]) *state |= ELEMENT_EDITABLE;
+      return;
+    }
+  }
+  
+  *state = ELEMENT_HIDDEN;
 }
 
 int getMenuElementState(TabElem_t* tab, MenuElem_t* element)
