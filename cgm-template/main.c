@@ -45,6 +45,24 @@ void frameTick(void);
 void setLobbyGameOptions(void);
 void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
+int getTeamCount(void)
+{
+	int i;
+	int count = 0;
+	char teams[GAME_MAX_PLAYERS];
+	Player** players = playerGetAll();
+
+	memset(teams, 0, sizeof(teams));
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		if (players[i] && !teams[players[i]->Team]) {
+			++count;
+			teams[players[i]->Team] = 1;
+		}
+	}
+
+	return count;
+}
+
 //--------------------------------------------------------------------------
 void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
@@ -54,6 +72,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	int i;
 	char buffer[32];
 	int gameTime = gameGetTime();
+	static int teamsAtStart = 0;
 
 	//
 	dlPreUpdate();
@@ -71,20 +90,32 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	if (!Initialized)
 	{
 		initialize(gameConfig, gameState);
+		teamsAtStart = getTeamCount();
 		return;
 	}
 
-  // handle tick
-	if (!gameHasEnded())
+	//
+	if (!State.GameOver)
 	{
+		// end if all but one team left
+		int teamsLeft = getTeamCount();
+		if (teamsLeft <= 1 && teamsLeft < teamsAtStart)
+			State.GameOver = 1;
+
+		// handle frame tick
 		frameTick();
 		gameTick();
 	}
-  
-  // end game
-  if (gameHasEnded() && State.IsHost) {
-    sendTeamScore();
-  }
+	else
+	{
+		// end game
+		if (State.GameOver == 1)
+		{
+			gameSetWinner(State.WinningTeam, 1);
+			gameEnd(4);
+			State.GameOver = 2;
+		}
+	}
 
 	dlPostUpdate();
 	return;
@@ -107,9 +138,6 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 				}
 			}
 		}
-
-    // use team stats for bottom summary
-    POKE_U32(0x0073dbf4, 0);
 
 		Initialized = 2;
 	}

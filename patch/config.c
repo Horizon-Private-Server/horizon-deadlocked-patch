@@ -450,38 +450,36 @@ MenuElem_ListData_t dataCustomModes = {
     menuStateHandler_SelectedGameModeOverride,
     CUSTOM_MODE_COUNT,
     {
-      "None",
-      "Gun Game",
-      "Infected",
-      // "Infinite Climber",
-      "Payload",
-      "Search and Destroy",
-      "Survival",
-      "1000 Kills",
-      "Training",
+      [CUSTOM_MODE_NONE] "None",
+      [CUSTOM_MODE_GUN_GAME] "Gun Game",
+      [CUSTOM_MODE_INFECTED] "Infected",
+      [CUSTOM_MODE_PAYLOAD] "Payload",
+      [CUSTOM_MODE_SEARCH_AND_DESTROY] "Search and Destroy",
+      [CUSTOM_MODE_SURVIVAL] "Survival",
+      [CUSTOM_MODE_1000_KILLS] "1000 Kills",
+      [CUSTOM_MODE_TRAINING] "Training",
+      [CUSTOM_MODE_TEAM_DEFENDER] "Team Defender",
 #if DEV
-      "Gridiron",
-      "Team Defenders",
-      "Anim Extractor",
+      [CUSTOM_MODE_GRIDIRON] "Gridiron",
+      [CUSTOM_MODE_ANIM_EXTRACTOR] "Anim Extractor",
 #endif
     }
 };
 
 // 
 const char* CustomModeShortNames[] = {
-  NULL,
-  NULL,
-  NULL,
-  //"Climber",
-  NULL,
-  "SND",
-  NULL,
-  NULL,
-  NULL,
+  [CUSTOM_MODE_NONE] NULL,
+  [CUSTOM_MODE_GUN_GAME] NULL,
+  [CUSTOM_MODE_INFECTED] NULL,
+  [CUSTOM_MODE_PAYLOAD] NULL,
+  [CUSTOM_MODE_SEARCH_AND_DESTROY] "SND",
+  [CUSTOM_MODE_SURVIVAL] NULL,
+  [CUSTOM_MODE_1000_KILLS] NULL,
+  [CUSTOM_MODE_TRAINING] NULL,
+  [CUSTOM_MODE_TEAM_DEFENDER] NULL,
 #if DEV
-  NULL,
-  NULL,
-  NULL,
+  [CUSTOM_MODE_GRIDIRON] NULL,
+  [CUSTOM_MODE_ANIM_EXTRACTOR] NULL,
 #endif
 };
 
@@ -1118,6 +1116,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
       case CUSTOM_MODE_1000_KILLS:
       case CUSTOM_MODE_SURVIVAL:
       case CUSTOM_MODE_PAYLOAD:
+      case CUSTOM_MODE_TEAM_DEFENDER:
       {
         if (gs->GameRules == GAMERULE_DM)
           return 1;
@@ -1143,9 +1142,8 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
       }
 #if DEV
       case CUSTOM_MODE_GRIDIRON:
-      case CUSTOM_MODE_TEAM_DEFENDER:
       {
-        if (gs->GameRules == GAMERULE_CTF)
+        if (gs->GameRules == GAMERULE_DM)
           return 1;
           
         *value = CUSTOM_MODE_NONE;

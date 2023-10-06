@@ -1703,7 +1703,7 @@ void flagRequestPickup(Moby* flagMoby, int pIdx)
       msg.PlayerId = player->PlayerId;
       msg.FlagUID = guberGetUID(flagMoby);
       netSendCustomAppMessage(NET_DELIVERY_CRITICAL, dmeConnection, gameGetHostId(), CUSTOM_MSG_ID_FLAG_REQUEST_PICKUP, sizeof(ClientRequestPickUpFlag_t), &msg);
-      flagRequestCounters[pIdx] = 10;
+      flagRequestCounters[pIdx] = 2;
       DPRINTF("sent request flag pickup %d\n", gameTime);
     }
   }
