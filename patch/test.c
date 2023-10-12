@@ -146,6 +146,9 @@ int frame = 0;
 float lastTime = 0;
 u32 currentFrameJointMatrixAddr = 0;
 
+VECTOR b6ExplosionPositions[64];
+int b6ExplosionPositionCount = 0;
+
 void bp(void) {
 
 }
@@ -806,6 +809,59 @@ void runRenderCboot(void)
   TestMoby->UpdateDist = 0xFF;
 }
 
+drawB6Visualizer(void)
+{
+  int i;
+
+  for (i = 0; i < b6ExplosionPositionCount; ++i) {
+    drawEffectQuad(b6ExplosionPositions[i], 4, 1);
+  }
+}
+
+renderB6Visualizer(Moby* m)
+{
+  gfxRegisterDrawFunction((void**)0x0022251C, &drawB6Visualizer, m);
+}
+
+void runB6HitVisualizer(void)
+{
+  VECTOR off = {0,0,2,0};
+
+  if (isUnloading) {
+    if (TestMoby) {
+      mobyDestroy(TestMoby);
+      TestMoby = NULL;
+    }
+    return;
+  }
+
+  if (!TestMoby) {
+    Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
+    m->Scale *= 0.1;
+    m->PUpdate = &renderB6Visualizer;
+    m->CollActive = 0;
+    vector_add(m->Position, playerGetFromSlot(0)->PlayerPosition, off);
+  }
+
+  // 
+  TestMoby->DrawDist = 0xFF;
+  TestMoby->UpdateDist = 0xFF;
+
+  // check for b6
+  Moby* m = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+  while (m < mEnd)
+  {
+    if (!mobyIsDestroyed(m) && m->OClass == MOBY_ID_B6_BALL0 && m->State == 4) {
+      DPRINTF("%08X\n", (u32)m->PUpdate);
+      vector_copy(b6ExplosionPositions[b6ExplosionPositionCount], m->Position);
+      b6ExplosionPositionCount = (b6ExplosionPositionCount + 1) % 64;
+    }
+
+    ++m;
+  }
+}
+
 void runTestLogic(void)
 {
   //runHitmarkerLogic();
@@ -815,7 +871,10 @@ void runTestLogic(void)
     //runAnimJointThing();
     //runDrawQuad();
     //runCameraHeight();
-    runRenderCboot();
+    //runRenderCboot();
+    runB6HitVisualizer();
+
+    playerGetFromSlot(0)->Health = 50;
 
     if (padGetButton(0, PAD_L1 | PAD_CIRCLE) > 0) {
       *(float*)0x00347BD8 = 0.125;

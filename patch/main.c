@@ -1454,13 +1454,13 @@ void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0,
 		// haven't determined a way to fix this yet but
 		if (player->Gadgets[0].id != message->GadgetId) {
 			//DPRINTF("remote gadgetevent %d from weapon %d but player holding %d\n", message->GadgetEventType, message->GadgetId, player->Gadgets[0].id);
-			playerEquipWeapon(player, message->GadgetId);
+			//playerEquipWeapon(player, message->GadgetId);
 		}
 
 		// set weapon shot event time to now if its in the future
 		// because the client is probably lagging behind
-		if (player->Gadgets[0].id == message->GadgetId && (delta > 0 || delta < -TIME_SECOND)) {
-			a2 = gameGetTime();
+		if (player->Gadgets[0].id == message->GadgetId) {
+			message->ActiveTime = a2 = gameGetTime();
 		}
 	}
 
@@ -1654,7 +1654,7 @@ void flagHandlePickup(Moby* flagMoby, int pIdx)
     return;
 
   if (player->Team == pvars->Team) {
-    flagReturnToBase(flagMoby, 0, pIdx);
+    if (!flagIsAtBase(flagMoby)) flagReturnToBase(flagMoby, 0, pIdx);
   } else {
     flagPickup(flagMoby, pIdx);
     player->HeldMoby = flagMoby;
@@ -2010,54 +2010,6 @@ void runFlagPickupFix(void)
 }
 
 /*
- * NAME :		patchSingleTapChargeboot
- * 
- * DESCRIPTION :
- * 			
- * 
- * NOTES :
- * 
- * ARGS : 
- * 
- * RETURN :
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-/*
-void patchSingleTapChargeboot(void)
-{
-  int i;
-  int patch = 0;
-  if (!isInGame()) return;
-
-  // 
-  for (i = 0; i < 2; ++i) {
-    Player* p = playerGetFromSlot(i);
-    if (!p)
-      continue;
-    if (!p->Paddata)
-      continue;
-
-    u32 padData = *(u32*)((u32)p->Paddata + 0x1A4);
-
-    // chargeDownTimer
-    // when non-zero, game is expecting another L2 tap to cboot
-    // write value here when R2 is tapped
-    if (config.enableSingleTapChargeboot && (padData & 0x2)) {
-      POKE_U16((u32)p + 0x2E50, 20);
-      patch = 1;
-    }
-  }
-
-  if (patch) {
-    POKE_U32(0x0060DC48, 0x24030002);
-  } else {
-    POKE_U32(0x0060DC48, 0x8C8301A4);
-  }
-}
-*/
-
-/*
  * NAME :		patchFlagCaptureMessage_Hook
  * 
  * DESCRIPTION :
@@ -2132,6 +2084,72 @@ void patchFlagCaptureMessage(void)
 }
 
 /*
+ * NAME :		runHealthPickupFix
+ * 
+ * DESCRIPTION :
+ * 			Ensures that player's don't "lag through" the health.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runHealthPickupFix(void)
+{
+	if (!isInGame()) return;
+
+  typedef void (*guberMobyMasterVTableUpdate_func)(void * guber);
+
+	// run master update on healthboxes
+	GuberMoby* gm = guberMobyGetFirst();
+  while (gm)
+  {
+    if (gm->Moby)
+    {
+      switch (gm->Moby->OClass)
+      {
+        case MOBY_ID_HEALTH_BOX_MULT:
+        {
+					((guberMobyMasterVTableUpdate_func)(0x00411F60))(gm->Moby);
+					break;
+				}
+			}
+		}
+    gm = (GuberMoby*)gm->Guber.Prev;
+	}
+}
+
+void onB6SetStateExplode(Moby* moby, int state, int a2)
+{
+  VECTOR p, n, d, o;
+  const float maxDistFromHit = 0.25;
+
+  vector_copy(p, CollLine_Fix_GetHitPosition());
+  vector_copy(n, CollLine_Fix_GetHitNormal());
+  vector_normalize(n, n);
+  vector_subtract(d, p, moby->Position);
+  float dist = vector_length(d);
+
+  printf("\np:");
+  vector_print(p);
+  printf("\nn:");
+  vector_print(n);
+  printf("\nm:");
+  vector_print(moby->Position);
+  printf("\ndist: %f\n", dist);
+
+  if (dist > maxDistFromHit) {
+    vector_scale(o, n, maxDistFromHit);
+    vector_add(moby->Position, p, o);
+  }
+
+  mobySetState(moby, state, a2);
+}
+
+/*
  * NAME :		runFixB6EatOnDownSlope
  * 
  * DESCRIPTION :
@@ -2167,6 +2185,10 @@ void runFixB6EatOnDownSlope(void)
     ++i;
   }
 
+  // patch b6 dist collision calculation to shorter
+  // so it explodes closer to target
+  POKE_U16(0x003f693c, 0xBD80);
+
   // patch b6 grounded damage check to read our isGrounded state
   POKE_U16(0x003B56E8, 0x30C);
 }
@@ -2192,7 +2214,6 @@ void patchWeaponShotLag(void)
 		return;
 
 	// send all shots reliably
-	/*
 	u32* ptr = (u32*)0x00627AB4;
 	if (*ptr == 0x906407F8) {
 		// change to reliable
@@ -2200,10 +2221,9 @@ void patchWeaponShotLag(void)
 
 		// get rid of additional 3 packets sent
 		// since its reliable we don't need redundancy
-		*(u32*)0x0060F474 = 0;
-		*(u32*)0x0060F4C4 = 0;
+		//*(u32*)0x0060F474 = 0;
+		//*(u32*)0x0060F4C4 = 0;
 	}
-	*/
 
 	// patches fusion shot so that remote shots aren't given additional "shake"
 	// ie, remote shots go in the same direction that is sent by the source client
@@ -2228,6 +2248,9 @@ void patchWeaponShotLag(void)
 	if (*(u32*)0x003FCE8C == 0x910407F8)
 		*(u32*)0x003FCE8C = 0x24040040;
 		
+  // extend player from 7.2 seconds to 32.7 seconds
+  POKE_U16(0x00613FAC, 0x8000);
+
 	// fix b6 eating on down slope
 	runFixB6EatOnDownSlope();
 }
@@ -4520,6 +4543,9 @@ int main (void)
 	// Ensures that player's don't lag through the flag
 	runFlagPickupFix();
 
+  // 
+  runHealthPickupFix();
+
   //
   patchFlagCaptureMessage();
 
@@ -4546,9 +4572,6 @@ int main (void)
 
   //
   patchCycleOrder();
-
-  //
-  //patchSingleTapChargeboot();
 
 	// 
 	//patchWideStats();
@@ -4596,7 +4619,7 @@ int main (void)
     //POKE_U32(0x005282dc, 0);
 
     // disable guber wait for dispatchTime
-    POKE_U32(0x00611518, 0x24040000);
+    //POKE_U32(0x00611518, 0x24040000);
 
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;

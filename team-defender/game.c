@@ -248,7 +248,7 @@ void flagUpdate(Moby* flagMoby)
     if (!carrierPlayer || carrierPlayer->HeldMoby != flagMoby || playerIsDead(carrierPlayer)) {
 
       // send drop event
-      if (State.IsHost) {
+      if ((!carrierPlayer && State.IsHost) || (carrierPlayer && carrierPlayer->IsLocal)) {
         GuberEvent* event = guberEventCreateEvent(guber, 2, 0, 0xFA);
         if (event) {
           guberEventWrite(event, flagMoby->Position, 0x0C);
