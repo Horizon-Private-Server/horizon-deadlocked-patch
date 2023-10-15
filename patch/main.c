@@ -76,8 +76,9 @@
 #define KILL_STEAL_WHO_HIT_ME_PATCH				(*(u32*)0x005E07C8)
 #define KILL_STEAL_WHO_HIT_ME_PATCH2			(*(u32*)0x005E11B0)
 
-#define FRAME_SKIP_WRITE0				(*(u32*)0x004A9400)
-#define FRAME_SKIP						(*(u32*)0x0021E1D8)
+#define FRAME_SKIP_WRITE0				          (*(u32*)0x004A9400)
+#define FRAME_SKIP						            (*(u32*)0x0021E1D8)
+#define FRAME_SKIP_TARGET_FPS             (*(u32*)0x0021DF60)
 
 #define VOICE_UPDATE_FUNC				((u32*)0x00161e60)
 
@@ -1395,6 +1396,10 @@ void patchFrameSkip()
 	int totalTimeMs = renderTimeMs + updateTimeMs;
 	float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
 
+  GameSettings* gs = gameGetSettings();
+  int intelligentFps = 60;
+  if (gs && gs->PlayerCount > 6) intelligentFps = 30;
+
 	if (!dzoClient && config.framelimiter == 1) // auto
 	{
 		// already disabled, to re-enable must have instantaneous high total time
@@ -1424,10 +1429,12 @@ void patchFrameSkip()
 	{
 		FRAME_SKIP_WRITE0 = 0;
 		FRAME_SKIP = 0;
+    FRAME_SKIP_TARGET_FPS = 60;
 	}
 	else if (!disableFramelimiter && addrValue == 0)
 	{
 		FRAME_SKIP_WRITE0 = 0xAF848859;
+    FRAME_SKIP_TARGET_FPS = intelligentFps;
 	}
 }
 
@@ -2338,12 +2345,12 @@ int patchStateUpdate_Hook(void * a0, void * a1)
 			return 0;
 
 		// set to 1 to force full state update
-		*(u8*)((u32)p + 0x31cf) = 1;
+		//*(u8*)((u32)p + 0x31cf) = 1;
 	}
 	else
 	{
 		// set to 1 to force full state update
-		*(u8*)((u32)p + 0x31cf) = 1;
+		//*(u8*)((u32)p + 0x31cf) = 1;
 	}
 
 	return v0;
@@ -2389,6 +2396,7 @@ void runCorrectPlayerChargebootRotation(void)
 	int i;
 	VECTOR t;
 	Player** players = playerGetAll();
+  static int heldTriangleTimers[GAME_MAX_PLAYERS];
 
 	if (!isInGame())
 		return;
@@ -2396,32 +2404,42 @@ void runCorrectPlayerChargebootRotation(void)
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player* p = players[i];
 
-		// only apply to remote players chargebooting
-		if (p && !p->IsLocal && p->PlayerState == PLAYER_STATE_CHARGE) {
+    if (p) {
 
-			// get horizontal velocity
-			vector_copy(t, p->Velocity);
-			t[2] = 0;
-			float speed = vector_length(t);
+      // fix mag slide
+      if (p->PlayerState == PLAYER_STATE_COMBO_ATTACK && p->timers.state > 40) {
+        p->PlayerState = 0;
+        DPRINTF("stopped mag slide\n");
+      }
 
-			// apply threshold to prevent small velocity from affecting rotation
-			if (speed > 0.05) {
+      // sync triangle cancelling
+      if (!p->IsLocal && playerPadGetButton(p, PAD_TRIANGLE) > 0) {
+        heldTriangleTimers[i]++;
+        if (heldTriangleTimers[i] > 12) {
+          p->timers.noInput = 1;
+        }
+      } else {
+        heldTriangleTimers[i] = 0;
+      }
 
-				// convert velocity to yaw
-				float yaw = atan2f(t[1] / speed, t[0] / speed);
+      // only apply to remote players chargebooting
+      if (!p->IsLocal && p->PlayerState == PLAYER_STATE_CHARGE) {
 
-				// get delta between angles
-				float dt = clampAngle(yaw - p->PlayerRotation[2]);
-				
-				// if delta is small, ignore
-				if (fabsf(dt) > 0.001) {
 
-					// apply delta rotation to hero turn function
-					// at interpolation speed of 1/5 second
-					((void (*)(Player*, float, float, float))0x005e4850)(p, 0, 0, dt * 0.01666 * 5);
-				}
-			}
-		}
+        float yaw = *(float*)((u32)p + 0x3a58);
+
+        // get delta between angles
+        float dt = clampAngle(yaw - p->PlayerRotation[2]);
+        
+        // if delta is small, ignore
+        if (fabsf(dt) > 0.001) {
+
+          // apply delta rotation to hero turn function
+          // at interpolation speed of 1/5 second
+          ((void (*)(Player*, float, float, float))0x005e4850)(p, 0, 0, dt * 0.01666 * 5);
+        }
+      }
+    }
 	}
 }
 
@@ -3071,6 +3089,79 @@ int checkStateCondition(const PlayerStateCondition_t * condition, int localState
 }
 
 /*
+ * NAME :		runPlayerPositionSmooth
+ * 
+ * DESCRIPTION :
+ * 
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runPlayerPositionSmooth(void)
+{
+  static VECTOR smoothVelocity[GAME_MAX_PLAYERS];
+  static int applySmoothVelocityForFrames[GAME_MAX_PLAYERS];
+
+  Player ** players = playerGetAll();
+	int i;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player* p = players[i];
+    if (p && !playerIsLocal(p))
+    {
+      // determine if the player has strayed too far from the remote player's position
+      // it is critical that we run this each frame, regardless if we're already smoothing the player's velocity
+      // in case something has changed, we want to recalcuate the smooth velocity instantly
+      // instead of waiting for the (possibly) 10 smoothing frames to complete
+      if (p->pNetPlayer && p->pNetPlayer->pNetPlayerData && p->PlayerMoby) {
+        VECTOR dt, rPos;
+        vector_copy(dt, (float*)((u32)p + 0x3a40));
+
+        // apply when remote player's simulated position
+        // is more than 2 units from the received position
+        // at the time of receipt
+        // meaning, this value only updates when receivedSyncPos (0x3a20) is updated
+        // not every tick
+        float dist = vector_length(dt);
+        if (dist > 2) {
+          
+          // reset syncPosDifference
+          // since it updates every 4 frames (I think)
+          // and we don't want to run this 4 times in a row on the same data
+          vector_write((float*)((u32)p + 0x3a40), 0);
+
+          // we want to apply this delta over multiple frames for the smoothest result
+          // however there are cases where we want to teleport
+          // in cases where the player has fallen under the ground on our screen
+          // we want to teleport them back up, since gravity will counteract our interpolation
+          int applyOverTicks = 10;
+          if (fabsf(dt[2] / dist) > 0.8) applyOverTicks = 1;
+
+          // indicate number of ticks to apply additives over
+          // scale dt by number of ticks to add
+          // so that we add exactly dt over those frames
+          applySmoothVelocityForFrames[i] = applyOverTicks;
+          vector_scale(smoothVelocity[i], dt, 1.0 / applyOverTicks);
+        }
+      }
+
+      // apply adds
+      if (applySmoothVelocityForFrames[i] > 0) {
+        vector_add(p->PlayerPosition, p->PlayerPosition, smoothVelocity[i]);
+        vector_copy(p->PlayerMoby->Position, p->PlayerPosition);
+        --applySmoothVelocityForFrames[i];
+      }
+    }
+  }
+}
+
+/*
  * NAME :		runPlayerStateSync
  * 
  * DESCRIPTION :
@@ -3126,7 +3217,7 @@ void runPlayerStateSync(void)
 					{
 						if (checkStateCondition(condition, localState, remoteState))
 						{
-							DPRINTF("%d skipping remote player %08x (%d) state (%d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, pStateTimer);
+							//DPRINTF("%d skipping remote player %08x (%d) state (%d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, pStateTimer);
 							skip = 1;
 							break;
 						}
@@ -3149,10 +3240,10 @@ void runPlayerStateSync(void)
 						if (checkStateCondition(condition, localState, remoteState))
 						{
 							if (condition->MaxTicks > 0 && remoteState != condition->StateId) {
-								DPRINTF("%d changing remote player %08x (%d) state ticks to %d (from %d) state:%d\n", j, (u32)p, p->PlayerId, condition->MaxTicks, p->timers.state, localState);
+								//DPRINTF("%d changing remote player %08x (%d) state ticks to %d (from %d) state:%d\n", j, (u32)p, p->PlayerId, condition->MaxTicks, p->timers.state, localState);
 								p->timers.state = condition->MaxTicks;
 							} else {
-								DPRINTF("%d changing remote player %08x (%d) state to %d (from %d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, localState, pStateTimer);
+								//DPRINTF("%d changing remote player %08x (%d) state to %d (from %d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, localState, pStateTimer);
 								vtable->UpdateState(p, remoteState, 1, 1, 1);
 								p->timers.state = remoteStateTicks;
 							}
@@ -4494,6 +4585,9 @@ int main (void)
 
 	// Run game start messager
 	runGameStartMessager();
+
+  //
+  runPlayerPositionSmooth();
 
 	// Run sync player state
 	runPlayerStateSync();
