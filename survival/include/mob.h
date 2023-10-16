@@ -117,6 +117,7 @@ struct MobConfig {
 
 struct MobSpawnParams {
 	int Cost;
+  int MaxSpawnedAtOnce;
 	int MinRound;
 	int CooldownTicks;
 	float Probability;

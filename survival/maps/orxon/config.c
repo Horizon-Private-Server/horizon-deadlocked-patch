@@ -87,6 +87,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	[MOB_SPAWN_PARAM_TITAN]
 	{
 		.Cost = 1000,
+    .MaxSpawnedAtOnce = 5,
 		.MinRound = 10,
 		.CooldownTicks = TPS * 10,
 		.Probability = 0.01,
@@ -121,6 +122,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	[MOB_SPAWN_PARAM_GHOST]
 	{
 		.Cost = 10,
+    .MaxSpawnedAtOnce = 0,
 		.MinRound = 4,
 		.CooldownTicks = TPS * 1,
 		.Probability = 0.05,
@@ -153,6 +155,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	[MOB_SPAWN_PARAM_EXPLOSION]
 	{
 		.Cost = 10,
+    .MaxSpawnedAtOnce = 0,
 		.MinRound = 6,
 		.CooldownTicks = TPS * 2,
 		.Probability = 0.08,
@@ -185,6 +188,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	[MOB_SPAWN_PARAM_ACID]
 	{
 		.Cost = 20,
+    .MaxSpawnedAtOnce = 0,
 		.MinRound = 10,
 		.Probability = 0.09,
 		.CooldownTicks = TPS * 1,
@@ -217,6 +221,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	[MOB_SPAWN_PARAM_FREEZE]
 	{
 		.Cost = 20,
+    .MaxSpawnedAtOnce = 0,
 		.MinRound = 8,
 		.CooldownTicks = TPS * 1,
 		.Probability = 0.1,
@@ -249,6 +254,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	[MOB_SPAWN_PARAM_RUNNER]
 	{
 		.Cost = 10,
+    .MaxSpawnedAtOnce = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 0.1,
@@ -281,6 +287,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	[MOB_SPAWN_PARAM_NORMAL]
 	{
 		.Cost = 5,
+    .MaxSpawnedAtOnce = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 1.0,

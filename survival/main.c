@@ -2558,6 +2558,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			VECTOR t = {1,1,1,0};
       vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnMobId].Config.CollRadius*2);
 			vector_add(t, t, localPlayer->PlayerPosition);
+
+      //DPRINTF("spawning mob type %d\n", manSpawnMobId);
       
       // spawn
 			mobCreate(manSpawnMobId, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[manSpawnMobId].Config);

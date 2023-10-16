@@ -8,7 +8,7 @@ EE_INCS := -I../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := RELEASE
+BUILD_CONFIG := DEBUG
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
@@ -40,10 +40,12 @@ all: $(EE_BIN) maps clean copy
 
 maps:
 	cd maps/orxon && $(MAKE)
+	cd maps/mpass && $(MAKE)
 
 clean:
 	rm -f *.irx *.o
 	cd maps/orxon && $(MAKE) clean
+	cd maps/mpass && $(MAKE) clean
  
 include $(CURDIR)/../Makefile.pref
 include $(CURDIR)/../Makefile.eeglobal

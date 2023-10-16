@@ -34,8 +34,9 @@
 #include "messageid.h"
 #include "maputils.h"
 
+#if POWER
 void powerOnMysteryBoxActivatePower(void);
-
+#endif
 
 char* ITEM_NAMES[] = {
   [MYSTERY_BOX_ITEM_RESET_GATE] "",
@@ -171,13 +172,9 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
 }
 
 //--------------------------------------------------------------------------
-void mboxSetRandomRespawn(Moby* moby, int random)
+void mboxGetRandomRespawn(int random, VECTOR outPos, VECTOR outRot)
 {
   int i;
-  if (!moby || !moby->PVar)
-    return;
-
-  struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
 
   // find next spawn point
   if (MapConfig.BakedConfig) {
@@ -190,8 +187,8 @@ void mboxSetRandomRespawn(Moby* moby, int random)
           --r;
           foundSpot = 1;
           if (!r) {
-            memcpy(pvars->SpawnpointPosition, MapConfig.BakedConfig->BakedSpawnPoints[i].Position, 12);
-            memcpy(pvars->SpawnpointRotation, MapConfig.BakedConfig->BakedSpawnPoints[i].Rotation, 12);
+            memcpy(outPos, MapConfig.BakedConfig->BakedSpawnPoints[i].Position, 12);
+            memcpy(outRot, MapConfig.BakedConfig->BakedSpawnPoints[i].Rotation, 12);
             foundSpot = 0;
             break;
           }
@@ -199,6 +196,21 @@ void mboxSetRandomRespawn(Moby* moby, int random)
       }
     }
   }
+}
+
+//--------------------------------------------------------------------------
+void mboxSetRandomRespawn(Moby* moby, int random)
+{
+  int i;
+  VECTOR p;
+  VECTOR r;
+  if (!moby || !moby->PVar)
+    return;
+
+  struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
+
+  // find next spawn point
+  mboxGetRandomRespawn(random, pvars->SpawnpointPosition, pvars->SpawnpointRotation);
 
   if (MapConfig.State)
     pvars->RoundHidden = MapConfig.State->RoundNumber;
@@ -609,7 +621,9 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
         }
         case MYSTERY_BOX_ITEM_ACTIVATE_POWER:
         {
+#if POWER
           powerOnMysteryBoxActivatePower();
+#endif
           break;
         }
         case MYSTERY_BOX_ITEM_UPGRADE_WEAPON:
@@ -720,8 +734,11 @@ void mboxSpawn(void)
 
   // spawn
   if (gameAmIHost()) {
-    VECTOR p = {466.99,580.91,434.0623,0};
-    VECTOR r = {0,0,MATH_PI,0};
+
+    VECTOR p = {639.44,847.07,499.28,0};
+    VECTOR r = {0,0,0,0};
+    mboxGetRandomRespawn(rand(10), p, r);
+
     mboxCreate(p, r);
   }
 

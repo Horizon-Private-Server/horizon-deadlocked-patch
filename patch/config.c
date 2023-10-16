@@ -434,6 +434,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Tyhrranosis",
       // -- SURVIVAL MAPS --
       [CUSTOM_MAP_SURVIVAL_MINING_FACILITY] "Orxon",
+      [CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS] "Mountain Pass",
     }
 };
 
