@@ -1,8 +1,8 @@
 /***************************************************
- * FILENAME :		cycle.c
+ * FILENAME :		rush.c
  * 
  * DESCRIPTION :
- * 		Contains all code specific to the cycle training mode.
+ * 		Contains all code specific to the rushing training mode.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -42,14 +42,15 @@
 #define MAX_SPAWNED_TARGETS							(3)
 #define TARGET_RESPAWN_DELAY						(TIME_SECOND * 1)
 #define TARGET_POINTS_LIFETIME					(TIME_SECOND * 10)
-#define TARGET_LIFETIME_TICKS						(TPS * 60)
+#define TARGET_LIFETIME_TICKS						(TPS * 10)
 #define TICKS_TO_RESPAWN								(TPS * 0.5)
 #define TIMELIMIT_MINUTES								(5)
-#define TARGET_MAX_DIST_FROM_HILL				(50)
-#define COMBO_MAX_TIME_OUT_HILL_MS			(TIME_SECOND * 3)
+#define TARGET_MAX_DIST_FROM_SPAWN_POS	(10)
 #define MAX_B6_BALL_RING_SIZE						(5)
 #define TARGET_B6_JUMP_REACTION_TIME		(TPS * 0.25)
-#define TARGET_TEAM											(TEAM_PURPLE)
+#define MAX_SPAWNPOINTS                 (120)
+#define MAX_REC_SPAWNPOINTS             (5)
+#define MIN_SPAWN_DISTANCE_FROM_PLAYER  (20)
 
 //--------------------------------------------------------------------------
 //-------------------------- FORWARD DECLARATIONS --------------------------
@@ -66,16 +67,17 @@ int shouldDrawHud(void);
 extern int Initialized;
 extern struct TrainingMapConfig Config;
 
-Moby* HillMoby = NULL;
-int TargetTeam = TARGET_TEAM;
+long TimeSinceLastCap = 0;
 
-long TimeLastInHill = 0;
+int TargetTeam = 0;
 
 int last_names_idx = 0;
 
 const float ComboMultiplierFactor = 0.2;
 const int SimPlayerCount = MAX_SPAWNED_TARGETS;
 SimulatedPlayer_t SimPlayers[MAX_SPAWNED_TARGETS];
+int FrequentedSpawnPoints[MAX_SPAWNPOINTS];
+int RecommendedSpawnPoints[MAX_REC_SPAWNPOINTS];
 
 int B6BallsRingIndex = 0;
 Moby* B6Balls[MAX_B6_BALL_RING_SIZE];
@@ -94,18 +96,20 @@ struct TrainingMapConfig Config __attribute__((section(".config"))) = {
 void modeInitialize(void)
 {
 	memset(B6Balls, 0, sizeof(B6Balls));
+  memset(RecommendedSpawnPoints, 0, sizeof(RecommendedSpawnPoints));
+  modeResetFrequentedSpawnpoints();
 
 	cheatsApplyNoPacks();
 	cheatsDisableHealthboxes();
 
 	// 
 	HOOK_JAL(0x003F5FDC, &modeOnCreateB6Bomb);
+  TimeSinceLastCap = timerGetSystemTime();
+  State.ComboCounter = 0;
 
-	// disable ADS
-#if !DEBUG
-	POKE_U16(0x00528320, 0x000F);
-	POKE_U16(0x00528326, 0);
-#endif
+  // 
+  Player* p = playerGetFromSlot(0);
+  if (p) TargetTeam = (((p->Team % 2) + 1) % 2) + (p->Team / 2);
 }
 
 //--------------------------------------------------------------------------
@@ -124,108 +128,200 @@ Moby* modeOnCreateB6Bomb(int oclass, int pvarSize)
 }
 
 //--------------------------------------------------------------------------
-//---------------------------------- HILL ----------------------------------
+//----------------------------------- CTF ----------------------------------
 //--------------------------------------------------------------------------
-int modeGetHillSpawnPointIdx(void)
+Moby* modeGetOurFlag(void)
 {
-	if (!HillMoby || !HillMoby->PVar)
-		return 1;
+  static Moby* flag = NULL;
+  Moby* m = mobyListGetStart();
+  Player* p = playerGetFromSlot(0);
 
-	return *(int*)((u32)HillMoby->PVar + 0x80);
+  if (!p || !m) return flag;
+
+  switch (p->Team)
+  {
+    case TEAM_BLUE: flag = mobyFindNextByOClass(m, MOBY_ID_BLUE_FLAG); break;
+    case TEAM_RED: flag = mobyFindNextByOClass(m, MOBY_ID_RED_FLAG); break;
+    case TEAM_GREEN: flag = mobyFindNextByOClass(m, MOBY_ID_GREEN_FLAG); break;
+    case TEAM_ORANGE: flag = mobyFindNextByOClass(m, MOBY_ID_ORANGE_FLAG); break;
+  }
+
+  return flag;
 }
 
 //--------------------------------------------------------------------------
-int modePlayerIsInHill(void)
+Moby* modeGetTargetFlag(void)
 {
-	return *(int*)0x0036E150;
+  static Moby* flag = NULL;
+  Moby* m = mobyListGetStart();
+
+  if (!m) return flag;
+
+  switch (TargetTeam)
+  {
+    case TEAM_BLUE: flag = mobyFindNextByOClass(m, MOBY_ID_BLUE_FLAG); break;
+    case TEAM_RED: flag = mobyFindNextByOClass(m, MOBY_ID_RED_FLAG); break;
+    case TEAM_GREEN: flag = mobyFindNextByOClass(m, MOBY_ID_GREEN_FLAG); break;
+    case TEAM_ORANGE: flag = mobyFindNextByOClass(m, MOBY_ID_ORANGE_FLAG); break;
+  }
+
+  return flag;
 }
+
 
 //--------------------------------------------------------------------------
 //--------------------------------- SPAWN ----------------------------------
 //--------------------------------------------------------------------------
-void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
+int modeIsPlayerNearSpawnPoint(int spIdx)
 {
-	VECTOR targetSpawnOffset;
+  SpawnPoint* sp = spawnPointGet(spIdx);
   VECTOR dt;
   int i;
-  int r = 100;
 
-	vector_write(outRot, 0);
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* p = players[i];
+    if (!p || playerIsDead(p)) continue;
 
-	if (player->Team == TARGET_TEAM)
-	{
-		SimulatedPlayer_t* sPlayer = &SimPlayers[player->PlayerId - 1];
+    vector_subtract(dt, p->PlayerPosition, &sp->M0[12]);
+    if (vector_sqrmag(dt) < (MIN_SPAWN_DISTANCE_FROM_PLAYER*MIN_SPAWN_DISTANCE_FROM_PLAYER)) return 1;
+  }
 
-		while (r) {
+  return 0;
+}
 
-			int targetSpawnPointIdx = modeGetHillSpawnPointIdx();
-			SpawnPoint* sp = spawnPointGet(targetSpawnPointIdx);
+//--------------------------------------------------------------------------
+void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
+{
+  playerGetSpawnpoint(player, outPos, outRot, 1);
 
+  if (player->PlayerId == 0) {
+    Moby* flag = modeGetOurFlag();
+    if (flag) {
+      vector_copy(outPos, flag->Position);
+      vector_write(outRot, 0);
+    }
+  } else {
 
-			targetSpawnOffset[0] = randRange(-1, 1);
-			targetSpawnOffset[1] = randRange(-1, 1);
-			targetSpawnOffset[2] = 1;
-			vector_normalize(targetSpawnOffset, targetSpawnOffset);
-			vector_scale(targetSpawnOffset, targetSpawnOffset, randRange(0, 1));
-			State.TargetLastSpawnIdx = targetSpawnPointIdx;
-			sPlayer->TicksToRespawn = TICKS_TO_RESPAWN;
+    // try use recommended spawns
+    int r = 1 + rand(MAX_REC_SPAWNPOINTS);
+    int i = 0, loop = 0;
+    while (r) {
+      loop = 0;
+      i = (i + 1) % MAX_REC_SPAWNPOINTS;
 
-			vector_scale(targetSpawnOffset, targetSpawnOffset, vector_length(&sp->M0[0]));
-      targetSpawnOffset[2] = 1;
-			vector_add(targetSpawnOffset, &sp->M0[12], targetSpawnOffset);
-			vector_copy(outPos, targetSpawnOffset);
-				
-			// snap to ground
-			targetSpawnOffset[2] -= 4;
-			if (CollLine_Fix(outPos, targetSpawnOffset, 2, NULL, 0)) {
-        int hitColId = CollLine_Fix_GetHitCollisionId() & 0xF;
-        if (hitColId == 0xF || hitColId == 0xE) {
-				  vector_copy(outPos, CollLine_Fix_GetHitPosition());
-				  break;
-        }
-			}
+      while ((RecommendedSpawnPoints[i] == 0 || modeIsPlayerNearSpawnPoint(RecommendedSpawnPoints[i])) && loop < MAX_REC_SPAWNPOINTS) {
+        i = (i + 1) % MAX_REC_SPAWNPOINTS;
+        ++loop;
+      }
 
+      if (loop >= MAX_REC_SPAWNPOINTS) return;
       --r;
-		}
-	}
-	else
-	{
-		// reset combo
-		State.ComboCounter = 0;
+    }
 
-    // get hill sp
-    int targetSpawnPointIdx = modeGetHillSpawnPointIdx();
-    SpawnPoint* hillSp = spawnPointGet(targetSpawnPointIdx);
-    int spCount = spawnPointGetCount();
-    int bestSpIdx = 0;
-    float bestSpIdxDist = 100000;
+    if (RecommendedSpawnPoints[i]) {
+      SpawnPoint* sp = spawnPointGet(RecommendedSpawnPoints[i]);
+      vector_copy(outPos, &sp->M0[12]);
+      DPRINTF("spawning with recommended %d\n", RecommendedSpawnPoints[i]);
+    }
+  }
 
-    // find closest spawn point to hill
-    for (i = 0; i < spCount; ++i)
-    {
-      if (spawnPointIsPlayer(i)) {
-        SpawnPoint* sp = spawnPointGet(i);
-        vector_subtract(dt, &sp->M0[12], &hillSp->M0[12]);
-        float dist = vector_length(dt);
-        if (dist < bestSpIdxDist && fabsf(dt[2] / dist) < 0.5 && dist > 30) {
-        
-          bestSpIdx = i;
-          bestSpIdxDist = dist;
+}
+
+//--------------------------------------------------------------------------
+void modeTallyNearbySpawnpoints(void)
+{
+  int i;
+  VECTOR dt;
+  Player* p = playerGetFromSlot(0);
+  if (!p || playerIsDead(p)) return;
+
+  int spCount = spawnPointGetCount();
+  for (i = 0; i < spCount && i < FrequentedSpawnPoints; ++i) {
+    if (!spawnPointIsPlayer(i)) continue;
+
+    // give score to nearby spawn points
+    // closer to sp, more points it gets
+    vector_subtract(dt, p->PlayerPosition, &spawnPointGet(i)->M0[12]);
+    float dist = vector_sqrmag(dt);
+    int score = maxf(0, (400 - dist));
+    FrequentedSpawnPoints[i] += score;
+  }
+}
+
+//--------------------------------------------------------------------------
+void modeResetFrequentedSpawnpoints(void)
+{
+  memset(FrequentedSpawnPoints, 0, sizeof(FrequentedSpawnPoints));
+}
+
+//--------------------------------------------------------------------------
+void modeGenerateRecommendedSpawnpoints(void)
+{
+  int i,j;
+
+  int pts[MAX_REC_SPAWNPOINTS];
+  int idxs[MAX_REC_SPAWNPOINTS];
+  int count = 0;
+
+  memset(pts, 0, sizeof(pts));
+  memset(idxs, 0, sizeof(idxs));
+
+  for (i = 0; i < MAX_SPAWNPOINTS; ++i) {
+    int score = FrequentedSpawnPoints[i];
+    int add = 0;
+    if (score > 0) {
+      if (count < MAX_REC_SPAWNPOINTS) {
+        add = 1;
+      } else {
+        for (j = 0; j < MAX_REC_SPAWNPOINTS; ++j) {
+          if (score > pts[j]) {
+            add = 1;
+            break;
+          }
         }
       }
     }
 
-    SpawnPoint* targetSp = spawnPointGet(bestSpIdx);
-    
-		// respawn
-		vector_copy(outPos, &targetSp->M0[12]);
-		outPos[2] += 1;
-		
-    // face hill
-    vector_subtract(dt, &hillSp->M0[12], outPos);
-    float yaw = atan2f(dt[1], dt[0]);
-    outRot[2] = yaw;
-	}
+    if (add) {
+      for (j = 0; j < (MAX_REC_SPAWNPOINTS-1); ++j) {
+        if (score > pts[j]) {
+          memmove(&pts[j+1], &pts[j], sizeof(int) * (MAX_REC_SPAWNPOINTS - j - 1));
+          memmove(&idxs[j+1], &idxs[j], sizeof(int) * (MAX_REC_SPAWNPOINTS - j - 1));
+          break;
+        }
+      }
+
+      pts[j] = score;
+      idxs[j] = i;
+      count = j+1;
+    }
+  }
+  
+  if (count) {
+
+    // merge old into new
+    for (i = 0; i < MAX_REC_SPAWNPOINTS && count < MAX_REC_SPAWNPOINTS; ++i) {
+      for (j = 0; j < count; ++j) {
+        if (RecommendedSpawnPoints[i] == idxs[j]) break;
+      }
+
+      if (j == count) {
+        idxs[j] = RecommendedSpawnPoints[i];
+        ++count;
+      }
+    }
+
+    memcpy(RecommendedSpawnPoints, idxs, sizeof(idxs));
+  }
+  
+#if DEBUG
+  printf("new %d recommended spawn pts: ", count);
+  for (i = 0; i < count; ++i)
+    printf("%d ", idxs[i]);
+  printf("\n");
+#endif
+
 }
 
 //--------------------------------------------------------------------------
@@ -252,63 +348,7 @@ int modeGetJumpTicks(void)
 //--------------------------------------------------------------------------
 void modeOnTargetHit(SimulatedPlayer_t* target, MobyColDamage* colDamage)
 {
-	VECTOR delta = {0,0,0,0};
-	struct TrainingTargetMobyPVar* pvar = &target->Vars;
-	Player* lPlayer = playerGetFromSlot(0);
-
-	if (colDamage) { DPRINTF("target hit by %08X : %04X\n", (u32)colDamage->Damager, colDamage->Damager ? colDamage->Damager->OClass : -1); }
-
-	// give points
-	if (pvar && colDamage && !gameHasEnded()) {
-		int gadgetId = getGadgetIdFromMoby(colDamage->Damager);
-		float pointMultiplier = 1;
-		int pointAdditive = 0;
-		int timeToKillMs = (timerGetSystemTime() - State.TimeLastKill) / SYSTEM_TIME_TICKS_PER_MS;
-
-		// assign base points by gadget
-		switch (gadgetId)
-		{
-			case WEAPON_ID_FUSION_RIFLE: pointAdditive += 500; break;
-			case WEAPON_ID_B6: pointAdditive += 200; break;
-			case WEAPON_ID_MAGMA_CANNON: pointAdditive += 100; break;
-			case WEAPON_ID_WRENCH: pointAdditive += 50; break;
-		}
-
-		// handle special sniper point bonuses
-		if (gadgetId == WEAPON_ID_FUSION_RIFLE) {
-			
-			// give bonus if jump snipe
-			if (lPlayer->PlayerState == PLAYER_STATE_JUMP || lPlayer->PlayerState == PLAYER_STATE_RUN_JUMP)
-				pointMultiplier += 0.25;
-			if (lPlayer->PlayerState == PLAYER_STATE_FLIP_JUMP)
-				pointMultiplier += 0.5;
-		}
-		else if (colDamage->Damager && colDamage->Damager->OClass == MOBY_ID_B6_BALL0) {
-
-			// give bonus by accuracy of b6
-			vector_subtract(delta, colDamage->Damager->Position, target->Player->PlayerPosition);
-			float distance = vector_length(delta);
-			pointMultiplier += 0.25 * (1 - clamp((distance - 2) / 5, 0, 1));
-		}
-
-		// determine time since last kill within range [0,1]
-		// where 1 is the longest amount of time before we don't add bonus points
-		// and 0 is time to kill <= 1 second
-		float timeToKillR = powf(clamp(timeToKillMs / (float)TARGET_POINTS_LIFETIME, 0, 1), 0.5);
-
-		// max points for quick kill is 1000
-		int points = 200 * (1 - timeToKillR);
-
-		// add additional points before multiplication
-		points += pointAdditive;
-
-		DPRINTF("hit %d -> %d (%.2f x)\n", points, (int)(points * pointMultiplier), pointMultiplier);
-
-		// give points
-		target->Points += (int)(points * pointMultiplier * (colDamage->DamageHp / 50));
-		if (gadgetId == WEAPON_ID_FUSION_RIFLE)
-			State.Hits += 1;
-	}
+  
 }
 
 //--------------------------------------------------------------------------
@@ -321,72 +361,6 @@ void modeOnTargetKilled(SimulatedPlayer_t* target, MobyColDamage* colDamage)
 	// kill target
 	target->Player->Health = 0;
 
-	if (colDamage) { DPRINTF("target hit by %08X : %04X\n", (u32)colDamage->Damager, colDamage->Damager ? colDamage->Damager->OClass : -1); }
-
-	// give points
-	if (pvar && colDamage && !gameHasEnded()) {
-		int gadgetId = getGadgetIdFromMoby(colDamage->Damager);
-		float pointMultiplier = 2;
-		int pointAdditive = 0;
-		int timeToKillMs = (timerGetSystemTime() - State.TimeLastKill) / SYSTEM_TIME_TICKS_PER_MS;
-
-		// assign base points by gadget
-		switch (gadgetId)
-		{
-			case WEAPON_ID_FUSION_RIFLE: pointAdditive += 500; break;
-			case WEAPON_ID_B6: pointAdditive += 200; break;
-			case WEAPON_ID_MAGMA_CANNON: pointAdditive += 100; break;
-			case WEAPON_ID_WRENCH: pointAdditive += 50; break;
-		}
-
-		// add combo multiplier
-		pointMultiplier += getComboMultiplier();
-
-		// increment combo
-		if (modePlayerIsInHill())
-			incCombo();
-
-		// handle special sniper point bonuses
-		if (gadgetId == WEAPON_ID_FUSION_RIFLE) {
-			
-			// give bonus if jump snipe
-			if (lPlayer->PlayerState == PLAYER_STATE_JUMP || lPlayer->PlayerState == PLAYER_STATE_RUN_JUMP)
-				pointMultiplier += 0.25;
-			if (lPlayer->PlayerState == PLAYER_STATE_FLIP_JUMP)
-				pointMultiplier += 0.5;
-		}
-		else if (colDamage->Damager && colDamage->Damager->OClass == MOBY_ID_B6_BALL0) {
-
-			// give bonus by accuracy of b6
-			vector_subtract(delta, colDamage->Damager->Position, target->Player->PlayerPosition);
-			float distance = vector_length(delta);
-			pointMultiplier += 0.25 * (1 - clamp((distance - 2) / 5, 0, 1));
-		}
-
-		// determine time since last kill within range [0,1]
-		// where 1 is the longest amount of time before we don't add bonus points
-		// and 0 is time to kill <= 1 second
-		float timeToKillR = powf(clamp((timeToKillMs - (TIME_SECOND * 1)) / (float)TARGET_POINTS_LIFETIME, 0, 1), 0.5);
-
-		// max points for quick kill is 5000
-		int points = 5000 * (1 - timeToKillR);
-
-		// add additional points before multiplication
-		points += pointAdditive;
-
-		points += target->Points;
-    target->Points = 0;
-
-		DPRINTF("killed %d -> %d (%.2f x)\n", points, (int)(points * pointMultiplier), pointMultiplier);
-
-		// give points
-		State.Points += (int)(points * pointMultiplier);
-		State.Kills += 1;
-		if (gadgetId == WEAPON_ID_FUSION_RIFLE)
-			State.Hits += 1;
-		State.TimeLastKill = timerGetSystemTime();
-	}
-	
 	// 
 	target->TicksToRespawn = TICKS_TO_RESPAWN;
 	State.TargetsDestroyed += 1;
@@ -400,6 +374,7 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 {
 	int i;
 	VECTOR delta, targetPos;
+  VECTOR projectedPlayerPos;
 	Player* player = playerGetFromSlot(0);
 	if (!sPlayer || !player || !sPlayer->Active)
 		return;
@@ -419,15 +394,38 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	u32 strafeStopTicksFor = decTimerU32(&sPlayer->TicksToStrafeStopFor);
 	u32 cycleTicks = decTimerU32(&sPlayer->TicksToCycle);
 	u32 fireDelayTicks = decTimerU32(&sPlayer->TicksFireDelay);
-	
+  u32 ticksSinceSeenPlayer = decTimerU32(&sPlayer->TicksSinceSeenPlayer);
+  
 	// set camera type to lock strafe
 	POKE_U32(0x001711D4 + (4*sPlayer->Idx), 1);
 
-	// kill if too far from hill
-	int hillSpIdx = modeGetHillSpawnPointIdx();
-	SpawnPoint* sp = spawnPointGet(hillSpIdx);
-	vector_subtract(delta, target->PlayerPosition, &sp->M0[12]);
-	if (vector_sqrmag(delta) > (TARGET_MAX_DIST_FROM_HILL*TARGET_MAX_DIST_FROM_HILL)) {
+	// kill if too far from spawn pos
+	vector_subtract(delta, target->PlayerPosition, pvar->SpawnPos);
+	if (vector_sqrmag(delta) > (TARGET_MAX_DIST_FROM_SPAWN_POS*TARGET_MAX_DIST_FROM_SPAWN_POS)) {
+		modeOnTargetKilled(sPlayer, 0);
+		return;
+	}
+
+  // compute next position of player
+  vector_scale(delta, player->Velocity, 5);
+  vector_add(projectedPlayerPos, player->PlayerPosition, delta);
+
+  // get distance to target
+	vector_subtract(delta, projectedPlayerPos, target->PlayerPosition);
+	float len = vector_length(delta);
+
+  // check if can see target
+  VECTOR targetPosUp = {0,0,1,0};
+  VECTOR playerPosUp = {0,0,1,0};
+  vector_add(targetPosUp, targetPosUp, target->PlayerPosition);
+  vector_add(playerPosUp, playerPosUp, player->PlayerPosition);
+  int canSeeTarget = !CollLine_Fix(targetPosUp, playerPosUp, 2, 0, 0);
+  if (canSeeTarget) sPlayer->TicksSinceSeenPlayer = 0;
+  else sPlayer->TicksSinceSeenPlayer += 1;
+
+  // kill if not near target and life ran out
+	u32 lifeTicks = decTimerU32(&pvar->LifeTicks);
+	if (!lifeTicks && ((len > 40 && sPlayer->TicksSinceSeenPlayer > 30) || playerIsDead(player))) {
 		modeOnTargetKilled(sPlayer, 0);
 		return;
 	}
@@ -436,22 +434,23 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
   if (State.AggroMode == TRAINING_AGGRESSION_IDLE)
     return;
 
-	// face player
-	vector_copy(delta, player->PlayerPosition);
-	delta[2] += 1;
-	vector_subtract(delta, delta, target->PlayerPosition);
-	float len = vector_length(delta);
-	float targetYaw = atan2f(delta[1] / len, delta[0] / len);
-	float targetPitch = asinf(-delta[2] / len);
-	sPlayer->Yaw = lerpfAngle(sPlayer->Yaw, targetYaw, 0.05);
+  // is player facing us or near us
+  int shouldStrafe = vector_innerproduct(delta, player->CameraForward) < 0 || len < 40;
 	
+	// face player
+	float targetYaw = atan2f(delta[1] / len, delta[0] / len);
+	float targetPitch = asinf((-delta[2] + 1) / len);
+	sPlayer->Yaw = lerpfAngle(sPlayer->Yaw, targetYaw, 0.11);
+	sPlayer->Pitch = lerpfAngle(sPlayer->Pitch, targetPitch, 0.11);
+
 	MATRIX m;
 	matrix_unit(m);
-	matrix_rotate_y(m, m, targetPitch);
+	matrix_rotate_y(m, m, sPlayer->Pitch);
 	matrix_rotate_z(m, m, sPlayer->Yaw);
 	memcpy(target->Camera->uMtx, m, sizeof(VECTOR) * 3);
 	vector_copy(target->CameraDir, &m[4]);
 	target->CameraYaw.Value = sPlayer->Yaw;
+	target->CameraPitch.Value = sPlayer->Pitch;
 
 	// jump if b6 is near
 	if (jumpTicks > TARGET_B6_JUMP_REACTION_TIME) {
@@ -478,14 +477,15 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	}
 
 	// jump
-	if (jumpTicksFor) {
+	if (jumpTicksFor && shouldStrafe) {
 		pad->btns &= ~PAD_CROSS;
 	}
 
 	// cycle
 	if (cycleTicks == 1 && State.AggroMode < TRAINING_AGGRESSION_PASSIVE) {
 		sPlayer->CycleIdx = (sPlayer->CycleIdx + 1 /*+rand(3)*/) % 3;
-		sPlayer->TicksFireDelay = randRangeInt(5, 20);
+    if (len > 30) sPlayer->CycleIdx = 1;
+		sPlayer->TicksFireDelay = randRangeInt(3, 10);
 		playerEquipWeapon(target, sPlayer->CycleIdx ? (sPlayer->CycleIdx == 1 ? WEAPON_ID_FUSION_RIFLE : WEAPON_ID_B6) : WEAPON_ID_MAGMA_CANNON );
 		//playerEquipWeapon(target, WEAPON_ID_FUSION_RIFLE);
 	}
@@ -494,11 +494,11 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	if (!fireDelayTicks && target->timers.gadgetRefire == 0 && State.AggroMode < TRAINING_AGGRESSION_PASSIVE) {
 		u32 fireTicks = decTimerU32(&sPlayer->TicksToFire);
 		if (!fireTicks) {
-			if (target->WeaponHeldId == WEAPON_ID_FUSION_RIFLE && strafeStopTicksFor > 10) {
+			if (target->WeaponHeldId == WEAPON_ID_FUSION_RIFLE && (strafeStopTicksFor <= 0 || strafeStopTicksFor > 5)) {
 				sPlayer->TicksToFire = 1;
 			} else {
 				pad->btns &= ~PAD_R1;
-				sPlayer->TicksToFire = randRangeInt(5, 60);
+				sPlayer->TicksToFire = randRangeInt(10, 30);
 				sPlayer->TicksToCycle = randRangeInt(2, 10);
 			}
 		}
@@ -526,11 +526,12 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	vector_normalize(delta, delta);
 
 	if (!strafeStopTicks) {
-		sPlayer->TicksToStrafeStop = randRangeInt(TPS * 1, TPS * 3);
+    if (target->WeaponHeldId == WEAPON_ID_FUSION_RIFLE) sPlayer->TicksToStrafeStop = randRangeInt(TPS * 0.7, TPS * 1.0);
+		else sPlayer->TicksToStrafeStop = randRangeInt(TPS * 1, TPS * 3);
 		sPlayer->TicksToStrafeStopFor = randRangeInt(10, 20);
 	}
 
-	if (strafeStopTicksFor) {
+	if (strafeStopTicksFor || !shouldStrafe) {
 		delta[0] = delta[1] = 0;
 	}
 
@@ -570,16 +571,43 @@ void modeInitTarget(SimulatedPlayer_t *sPlayer)
 //--------------------------------------------------------------------------
 //-------------------------------- GAMEPLAY --------------------------------
 //--------------------------------------------------------------------------
+int modeGetPlayerCurrentTimeMs(void)
+{
+  int capTimeMs = (int)((timerGetSystemTime() - TimeSinceLastCap) / SYSTEM_TIME_TICKS_PER_MS);
+
+  return maxf(0, capTimeMs - State.ComboCounter * TIME_SECOND * 10);
+}
+
+//--------------------------------------------------------------------------
 void modeProcessPlayer(int pIndex)
 {
   if (pIndex != 0)
     return;
     
   Player* player = playerGetAll()[pIndex];
+  GameData* gameData = gameGetData();
 
   // infinite health
 	if (player && State.AggroMode == TRAINING_AGGRESSION_AGGRO_NO_DAMAGE && !playerIsDead(player)) {
     player->Health = player->MaxHealth;
+  }
+
+  // heal on cap
+  static int caps = 0;
+  if (gameData && gameData->PlayerStats.CtfFlagsCaptures[pIndex] != caps) {
+    caps = gameData->PlayerStats.CtfFlagsCaptures[pIndex];
+
+    // heal
+    player->Health = player->MaxHealth;
+
+    // points
+    float capTime = modeGetPlayerCurrentTimeMs() / 1000.0;
+    State.Points += 1000 / logf(capTime * 0.05);
+
+    // reset combo
+    State.ComboCounter = 0;
+    
+    TimeSinceLastCap = timerGetSystemTime();
   }
 }
 
@@ -587,37 +615,38 @@ void modeProcessPlayer(int pIndex)
 void modeTick(void)
 {
 	char buf[32];
+  static int tallyTicker = 60;
+  static int recSpTicker = 10;
+  static int resetTallyTicker = 60;
 
-	// update time last in hill
-	if (modePlayerIsInHill())
-		TimeLastInHill = timerGetSystemTime();
+	// draw computed time since last cap
+  int capTimeMs = modeGetPlayerCurrentTimeMs();
+	if (shouldDrawHud()) {
+		float timeT = clamp(powf(capTimeMs / (float)60000, 2), 0, 1);
+		u32 color = colorLerp(0x8029E5E6, 0x800000FF, timeT);
 
-	// reset combo after max seconds outside hill
-	int timeSinceLastInHill = (timerGetSystemTime() - TimeLastInHill) / SYSTEM_TIME_TICKS_PER_MS;
-	if (timeSinceLastInHill > COMBO_MAX_TIME_OUT_HILL_MS)
-		State.ComboCounter = 0;
-
-	// draw combo
-	float multiplier = 1 + getComboMultiplier();
-	if (multiplier > 1 && shouldDrawHud()) {
-		u32 color = 0x8029E5E6;
-		float timeT = clamp(powf(timeSinceLastInHill / (float)COMBO_MAX_TIME_OUT_HILL_MS, 0.5), 0, 1);
-		if (timeT < 1 && timeT > 0.2)
-			color = colorLerp(color, 0x800000FF, timeT);
-
-		snprintf(buf, 32, "x%.1f", multiplier);
+		snprintf(buf, 32, "%02d", capTimeMs / 1000);
 		gfxScreenSpaceText(32+1, 130+1, 1, 1, 0x40000000, buf, -1, 1);
 		gfxScreenSpaceText(32, 130, 1, 1, color, buf, -1, 1);
 	}
 
-	// find hill moby
-	if (!HillMoby) {
-		HillMoby = mobyFindNextByOClass(mobyListGetStart(), 0x2604);
-		DPRINTF("hill moby %08X\n", (u32)HillMoby);
-    if (HillMoby) {
-      playerRespawn(playerGetFromSlot(0));
+  --tallyTicker;
+  if (tallyTicker <= 0) {
+    modeTallyNearbySpawnpoints();
+    tallyTicker = 60;
+
+    --recSpTicker;
+    if (recSpTicker <= 0) {
+      recSpTicker = 10;
+      modeGenerateRecommendedSpawnpoints();
     }
-	}
+
+    --resetTallyTicker;
+    if (resetTallyTicker <= 0) {
+      resetTallyTicker = 60;
+      modeResetFrequentedSpawnpoints();
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -625,11 +654,12 @@ void modeTick(void)
 //--------------------------------------------------------------------------
 void modeSetEndGameScoreboard(PatchGameConfig_t * gameConfig)
 {
+  GameData * gameData = gameGetData();
 	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
 	int i;
 	
   // title
-  snprintf((char*)0x003D3AE0, 0x3F, "Cycle %s (%s)"
+  snprintf((char*)0x003D3AE0, 0x3F, "Rush %s (%s)"
     , gameConfig->trainingConfig.variant == 0 ? "Ranked" : "Endless"
     , TRAINING_AGGRO_NAMES[gameConfig->trainingConfig.aggression]);
 	
@@ -637,7 +667,7 @@ void modeSetEndGameScoreboard(PatchGameConfig_t * gameConfig)
 	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
 	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
 	strncpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
-	strncpy((char*)(uiElements[21] + 0x60), "COMBO", 6);
+	strncpy((char*)(uiElements[21] + 0x60), "CAPS", 6);
 
 	// first team score
 	sprintf((char*)(uiElements[1] + 0x60), "%d", State.Points);
@@ -652,16 +682,11 @@ void modeSetEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		if (pid != 0 || name[0] == 0)
 			continue;
 
-		// fusion accuracy
-		float accuracy = 0;
-		if (State.ShotsFired > 0)
-			accuracy = 100 * (State.Hits / (float)State.ShotsFired);
-
 		// set points
 		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", State.Points);
 		sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%d", State.Kills);
 		sprintf((char*)(uiElements[22 + (i*4) + 2] + 0x60), "%d", *(int*)(0x001e0d78 + 0x6b8));
-		sprintf((char*)(uiElements[22 + (i*4) + 3] + 0x60), "%d", State.BestCombo);
+		sprintf((char*)(uiElements[22 + (i*4) + 3] + 0x60), "%d", gameData->PlayerStats.CtfFlagsCaptures[pid]);
 	}
 }
 
@@ -702,9 +727,13 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.Homenodes = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_12 = 0; // CTF
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_13 = 1; // KOTH
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_25 = 3; // NORMAL SPAWNS
+	gameOptions->GameFlags.MultiplayerGameFlags.CapsToWin = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.CrazyMode = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.FlagReturn = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.FlagVehicleCarry = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_12 = 1; // CTF
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_13 = 0; // KOTH
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_25 = 2; // CTF SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = endless ? 0 : TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
@@ -713,8 +742,8 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.HillArmor = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.HillSharing = 1;
 	
-  if (!endless) gameSettings->GameLevel = 54; // ghost station
-  gameSettings->GameRules = GAMERULE_KOTH;
+  if (!endless) gameSettings->GameLevel = 53; // maraxus
+  gameSettings->GameRules = GAMERULE_CTF;
 
   gameOptions->WeaponFlags.Chargeboots = 1;
   gameOptions->WeaponFlags.DualVipers = 0;

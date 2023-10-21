@@ -515,11 +515,11 @@ MenuElem_ListData_t dataPayloadContestMode = {
 MenuElem_ListData_t dataTrainingType = {
     &gameConfig.trainingConfig.type,
     NULL, //menuStateHandler_SelectedTrainingTypeOverride,
-    2,
+    TRAINING_TYPE_MAX,
     {
-      "Fusion",
-      "Cycle",
-      "B6",
+      [TRAINING_TYPE_FUSION] "Fusion",
+      [TRAINING_TYPE_CYCLE] "Cycle",
+      [TRAINING_TYPE_RUSH] "Rushing",
     }
 };
 
@@ -1046,6 +1046,11 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
     }
     case CUSTOM_MODE_TRAINING:
     {
+      // endless cycle supports custom maps
+      if (gameConfig.trainingConfig.type == TRAINING_TYPE_CYCLE && gameConfig.trainingConfig.variant != 0) {
+        if (v < CUSTOM_MAP_SURVIVAL_START) return 1;
+      }
+
       *value = CUSTOM_MAP_NONE;
       return 0;
     }
@@ -1134,7 +1139,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
       }
       case CUSTOM_MODE_TRAINING:
       {
-        if (gs->GameRules == GAMERULE_DM || gs->GameRules == GAMERULE_KOTH)
+        if (gs->GameRules == GAMERULE_DM || gs->GameRules == GAMERULE_KOTH || gs->GameRules == GAMERULE_CTF)
           return 1;
 
         *value = CUSTOM_MODE_NONE;
@@ -1186,6 +1191,14 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
         *value = TRAINING_TYPE_CYCLE;
         return 0;
       }
+      case GAMERULE_CTF:
+      {
+        if (v == TRAINING_TYPE_RUSH)
+          return 1;
+
+        *value = TRAINING_TYPE_RUSH;
+        return 0;
+      }
     }
   }
 
@@ -1222,6 +1235,17 @@ int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* lis
       return 1;
     }
     case TRAINING_TYPE_CYCLE:
+    {
+      // if ranked variant, force aggro
+      if (gameConfig.trainingConfig.variant == 0)
+      {
+        *value = TRAINING_AGGRESSION_AGGRO;
+        return 0;
+      }
+
+      return 1;
+    }
+    case TRAINING_TYPE_RUSH:
     {
       // if ranked variant, force aggro
       if (gameConfig.trainingConfig.variant == 0)
