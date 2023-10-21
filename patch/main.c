@@ -3120,8 +3120,9 @@ void runPlayerPositionSmooth(void)
       // in case something has changed, we want to recalcuate the smooth velocity instantly
       // instead of waiting for the (possibly) 10 smoothing frames to complete
       if (p->pNetPlayer && p->pNetPlayer->pNetPlayerData && p->PlayerMoby) {
-        VECTOR dt, rPos;
+        VECTOR dt, rPos, lPos = {0,0,1,0};
         vector_copy(dt, (float*)((u32)p + 0x3a40));
+        vector_copy(rPos, (float*)((u32)p + 0x3a20));
 
         // apply when remote player's simulated position
         // is more than 2 units from the received position
@@ -3141,7 +3142,11 @@ void runPlayerPositionSmooth(void)
           // in cases where the player has fallen under the ground on our screen
           // we want to teleport them back up, since gravity will counteract our interpolation
           int applyOverTicks = 10;
-          if (fabsf(dt[2] / dist) > 0.8) applyOverTicks = 1;
+          rPos[2] += 1;
+          vector_add(lPos, lPos, p->PlayerPosition);
+          if (dt[2] > 0 && (dt[2] / dist) > 0.8 && CollLine_Fix(lPos, rPos, 2, p->PlayerMoby, 0)) {
+            applyOverTicks = 1;
+          }
 
           // indicate number of ticks to apply additives over
           // scale dt by number of ticks to add
@@ -4638,7 +4643,7 @@ int main (void)
 	runFlagPickupFix();
 
   // 
-  runHealthPickupFix();
+  //runHealthPickupFix();
 
   //
   patchFlagCaptureMessage();
