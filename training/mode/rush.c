@@ -42,15 +42,24 @@
 #define MAX_SPAWNED_TARGETS							(3)
 #define TARGET_RESPAWN_DELAY						(TIME_SECOND * 1)
 #define TARGET_POINTS_LIFETIME					(TIME_SECOND * 10)
-#define TARGET_LIFETIME_TICKS						(TPS * 10)
+#define TARGET_LIFETIME_TICKS						(TPS * 5)
 #define TICKS_TO_RESPAWN								(TPS * 0.5)
 #define TIMELIMIT_MINUTES								(5)
 #define TARGET_MAX_DIST_FROM_SPAWN_POS	(10)
 #define MAX_B6_BALL_RING_SIZE						(5)
 #define TARGET_B6_JUMP_REACTION_TIME		(TPS * 0.25)
 #define MAX_SPAWNPOINTS                 (120)
-#define MAX_REC_SPAWNPOINTS             (5)
+#define MAX_REC_SPAWNPOINTS             (1)
 #define MIN_SPAWN_DISTANCE_FROM_PLAYER  (20)
+
+//
+enum REC_SPAWN_TYPES
+{
+  REC_SPAWN_TYPE_DEF,
+  REC_SPAWN_TYPE_MID,
+  REC_SPAWN_TYPE_ATT,
+  REC_SPAWN_TYPE_COUNT
+};
 
 //--------------------------------------------------------------------------
 //-------------------------- FORWARD DECLARATIONS --------------------------
@@ -77,7 +86,7 @@ const float ComboMultiplierFactor = 0.2;
 const int SimPlayerCount = MAX_SPAWNED_TARGETS;
 SimulatedPlayer_t SimPlayers[MAX_SPAWNED_TARGETS];
 int FrequentedSpawnPoints[MAX_SPAWNPOINTS];
-int RecommendedSpawnPoints[MAX_REC_SPAWNPOINTS];
+int RecommendedSpawnPoints[REC_SPAWN_TYPE_COUNT][MAX_REC_SPAWNPOINTS];
 
 int B6BallsRingIndex = 0;
 Moby* B6Balls[MAX_B6_BALL_RING_SIZE];
@@ -97,7 +106,7 @@ void modeInitialize(void)
 {
 	memset(B6Balls, 0, sizeof(B6Balls));
   memset(RecommendedSpawnPoints, 0, sizeof(RecommendedSpawnPoints));
-  modeResetFrequentedSpawnpoints();
+  memset(FrequentedSpawnPoints, 0, sizeof(FrequentedSpawnPoints));
 
 	cheatsApplyNoPacks();
 	cheatsDisableHealthboxes();
@@ -179,7 +188,7 @@ int modeIsPlayerNearSpawnPoint(int spIdx)
   int i;
 
   Player** players = playerGetAll();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
     Player* p = players[i];
     if (!p || playerIsDead(p)) continue;
 
@@ -193,6 +202,8 @@ int modeIsPlayerNearSpawnPoint(int spIdx)
 //--------------------------------------------------------------------------
 void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
 {
+  VECTOR up = {0,0,1,0};
+
   playerGetSpawnpoint(player, outPos, outRot, 1);
 
   if (player->PlayerId == 0) {
@@ -204,13 +215,16 @@ void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int fir
   } else {
 
     // try use recommended spawns
+    int recIdx = player->PlayerId - 1;
     int r = 1 + rand(MAX_REC_SPAWNPOINTS);
     int i = 0, loop = 0;
+    modeGenerateRecommendedSpawnpoints(recIdx);
     while (r) {
       loop = 0;
       i = (i + 1) % MAX_REC_SPAWNPOINTS;
 
-      while ((RecommendedSpawnPoints[i] == 0 || modeIsPlayerNearSpawnPoint(RecommendedSpawnPoints[i])) && loop < MAX_REC_SPAWNPOINTS) {
+      //while ((RecommendedSpawnPoints[recIdx][i] == 0 || modeIsPlayerNearSpawnPoint(RecommendedSpawnPoints[recIdx][i])) && loop < MAX_REC_SPAWNPOINTS) {
+      while (RecommendedSpawnPoints[recIdx][i] == 0 && loop < MAX_REC_SPAWNPOINTS) {
         i = (i + 1) % MAX_REC_SPAWNPOINTS;
         ++loop;
       }
@@ -219,10 +233,10 @@ void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int fir
       --r;
     }
 
-    if (RecommendedSpawnPoints[i]) {
-      SpawnPoint* sp = spawnPointGet(RecommendedSpawnPoints[i]);
-      vector_copy(outPos, &sp->M0[12]);
-      DPRINTF("spawning with recommended %d\n", RecommendedSpawnPoints[i]);
+    if (RecommendedSpawnPoints[recIdx][i]) {
+      SpawnPoint* sp = spawnPointGet(RecommendedSpawnPoints[recIdx][i]);
+      vector_add(outPos, up, &sp->M0[12]);
+      DPRINTF("spawning %d with recommended %d %f %f %f\n", recIdx, RecommendedSpawnPoints[recIdx][i], outPos[0], outPos[1], outPos[2]);
     }
   }
 
@@ -237,7 +251,7 @@ void modeTallyNearbySpawnpoints(void)
   if (!p || playerIsDead(p)) return;
 
   int spCount = spawnPointGetCount();
-  for (i = 0; i < spCount && i < FrequentedSpawnPoints; ++i) {
+  for (i = 0; i < spCount && i < MAX_SPAWNPOINTS; ++i) {
     if (!spawnPointIsPlayer(i)) continue;
 
     // give score to nearby spawn points
@@ -252,13 +266,76 @@ void modeTallyNearbySpawnpoints(void)
 //--------------------------------------------------------------------------
 void modeResetFrequentedSpawnpoints(void)
 {
-  memset(FrequentedSpawnPoints, 0, sizeof(FrequentedSpawnPoints));
+  int i;
+  for (i = 0; i < MAX_SPAWNPOINTS; ++i) {
+    DPRINTF("%d=>%d ", FrequentedSpawnPoints[i], FrequentedSpawnPoints[i] / 5);
+    FrequentedSpawnPoints[i] /= 5;
+  }
+  DPRINTF("\n");
 }
 
 //--------------------------------------------------------------------------
-void modeGenerateRecommendedSpawnpoints(void)
+int modeComputeSpawnpointScore(enum REC_SPAWN_TYPES type, int spIdx)
+{
+  if (spIdx >= spawnPointGetCount()) return 0;
+  if (!spawnPointIsPlayer(spIdx)) return 0;
+
+  int i,j;
+  VECTOR dt;
+  VECTOR spPos;
+  VECTOR up = {0,0,1,0};
+  SpawnPoint* sp = spawnPointGet(spIdx);
+  int score = FrequentedSpawnPoints[spIdx];
+
+  Moby* targetFlag = modeGetTargetFlag();
+  Moby* playerFlag = modeGetOurFlag();
+  Player* player = playerGetFromSlot(0);
+
+  vector_add(spPos, up, &sp->M0[12]);
+
+  switch (type)
+  {
+    case REC_SPAWN_TYPE_DEF:
+    {
+      vector_subtract(dt, spPos, (float*)targetFlag->PVar);
+      if (vector_sqrmag(dt) > (50*50)) return 0;
+      break;
+    }
+    case REC_SPAWN_TYPE_ATT:
+    {
+      vector_subtract(dt, spPos, (float*)playerFlag->PVar);
+      if (vector_sqrmag(dt) > (50*50)) return 0;
+      break;
+    }
+    case REC_SPAWN_TYPE_MID:
+    {
+      // try and spawn towards where player is going
+      Moby* target = targetFlag;
+      if (!flagIsAtBase(targetFlag))
+        target = playerFlag;
+
+      vector_subtract(dt, spPos, targetFlag->Position);
+      float distToFlag = vector_length(dt);
+      vector_subtract(dt, spPos, (float*)target->PVar);
+      float distToTarget = vector_length(dt);
+
+      score += (200 / distToFlag) + (100 / distToTarget);
+      break;
+    }
+  }
+
+  vector_add(dt, player->PlayerPosition, up);
+  int canSeePlayer = !CollLine_Fix(spPos, dt, 2, 0, 0);
+
+  score += (canSeePlayer ? 500 : 0);
+  return score;
+}
+
+//--------------------------------------------------------------------------
+void modeGenerateRecommendedSpawnpoints(enum REC_SPAWN_TYPES type)
 {
   int i,j;
+  VECTOR dt;
 
   int pts[MAX_REC_SPAWNPOINTS];
   int idxs[MAX_REC_SPAWNPOINTS];
@@ -268,8 +345,9 @@ void modeGenerateRecommendedSpawnpoints(void)
   memset(idxs, 0, sizeof(idxs));
 
   for (i = 0; i < MAX_SPAWNPOINTS; ++i) {
-    int score = FrequentedSpawnPoints[i];
     int add = 0;
+
+    int score = modeComputeSpawnpointScore(type, i);
     if (score > 0) {
       if (count < MAX_REC_SPAWNPOINTS) {
         add = 1;
@@ -303,16 +381,16 @@ void modeGenerateRecommendedSpawnpoints(void)
     // merge old into new
     for (i = 0; i < MAX_REC_SPAWNPOINTS && count < MAX_REC_SPAWNPOINTS; ++i) {
       for (j = 0; j < count; ++j) {
-        if (RecommendedSpawnPoints[i] == idxs[j]) break;
+        if (RecommendedSpawnPoints[type][i] == idxs[j]) break;
       }
 
       if (j == count) {
-        idxs[j] = RecommendedSpawnPoints[i];
+        idxs[j] = RecommendedSpawnPoints[type][i];
         ++count;
       }
     }
 
-    memcpy(RecommendedSpawnPoints, idxs, sizeof(idxs));
+    memcpy(RecommendedSpawnPoints[type], idxs, sizeof(idxs));
   }
   
 #if DEBUG
@@ -394,7 +472,6 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	u32 strafeStopTicksFor = decTimerU32(&sPlayer->TicksToStrafeStopFor);
 	u32 cycleTicks = decTimerU32(&sPlayer->TicksToCycle);
 	u32 fireDelayTicks = decTimerU32(&sPlayer->TicksFireDelay);
-  u32 ticksSinceSeenPlayer = decTimerU32(&sPlayer->TicksSinceSeenPlayer);
   
 	// set camera type to lock strafe
 	POKE_U32(0x001711D4 + (4*sPlayer->Idx), 1);
@@ -425,7 +502,7 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 
   // kill if not near target and life ran out
 	u32 lifeTicks = decTimerU32(&pvar->LifeTicks);
-	if (!lifeTicks && ((len > 40 && sPlayer->TicksSinceSeenPlayer > 30) || playerIsDead(player))) {
+	if (!lifeTicks && ((len > 20 && sPlayer->TicksSinceSeenPlayer > 30) || playerIsDead(player))) {
 		modeOnTargetKilled(sPlayer, 0);
 		return;
 	}
@@ -586,6 +663,7 @@ void modeProcessPlayer(int pIndex)
     
   Player* player = playerGetAll()[pIndex];
   GameData* gameData = gameGetData();
+  Moby* targetFlag = modeGetTargetFlag();
 
   // infinite health
 	if (player && State.AggroMode == TRAINING_AGGRESSION_AGGRO_NO_DAMAGE && !playerIsDead(player)) {
@@ -615,9 +693,13 @@ void modeProcessPlayer(int pIndex)
 void modeTick(void)
 {
 	char buf[32];
+  int i;
   static int tallyTicker = 60;
   static int recSpTicker = 10;
-  static int resetTallyTicker = 60;
+  static int resetTallyTicker = 10;
+
+  Player* player = playerGetFromSlot(0);
+  Moby* targetFlag = modeGetTargetFlag();
 
 	// draw computed time since last cap
   int capTimeMs = modeGetPlayerCurrentTimeMs();
@@ -638,13 +720,32 @@ void modeTick(void)
     --recSpTicker;
     if (recSpTicker <= 0) {
       recSpTicker = 10;
-      modeGenerateRecommendedSpawnpoints();
+      //modeGenerateRecommendedSpawnpoints(REC_SPAWN_TYPE_DEF);
+      //modeGenerateRecommendedSpawnpoints(REC_SPAWN_TYPE_MID);
+      //modeGenerateRecommendedSpawnpoints(REC_SPAWN_TYPE_ATT);
     }
 
     --resetTallyTicker;
     if (resetTallyTicker <= 0) {
-      resetTallyTicker = 60;
+      resetTallyTicker = 10;
       modeResetFrequentedSpawnpoints();
+    }
+  }
+  
+  // reset flag when player dies
+  if (player && targetFlag && playerIsDead(player) && !flagIsAtBase(targetFlag)) {
+    flagReturnToBase(targetFlag, 0, -1);
+
+    // reset bots
+    if (0) {
+      modeResetFrequentedSpawnpoints();
+      tallyTicker = 60;
+      recSpTicker = 10;
+      resetTallyTicker = 60;
+      memset(RecommendedSpawnPoints, 0, sizeof(RecommendedSpawnPoints));
+      for (i = 0; i < SimPlayerCount; ++i) {
+        spawnTarget(&SimPlayers[i]);
+      }
     }
   }
 }
@@ -708,11 +809,13 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameConfig->grV2s = 0;
 	gameConfig->grVampire = 0;
 	gameConfig->grBetterHills = 1;
+	gameConfig->grHalfTime = 0;
+	gameConfig->grOvertime = 0;
 	gameConfig->prPlayerSize = 0;
 	gameConfig->prRotatingWeapons = 0;
 
 	// teams
-	gameSettings->PlayerTeams[0] = 0;
+	if (!endless) gameSettings->PlayerTeams[0] = (gameSettings->PlayerTeams[0] % 4);
 
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;

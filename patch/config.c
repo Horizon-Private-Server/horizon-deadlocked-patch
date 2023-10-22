@@ -1047,7 +1047,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
     case CUSTOM_MODE_TRAINING:
     {
       // endless cycle supports custom maps
-      if (gameConfig.trainingConfig.type == TRAINING_TYPE_CYCLE && gameConfig.trainingConfig.variant != 0) {
+      if ((gameConfig.trainingConfig.type == TRAINING_TYPE_CYCLE || gameConfig.trainingConfig.type == TRAINING_TYPE_RUSH) && gameConfig.trainingConfig.variant != 0) {
         if (v < CUSTOM_MAP_SURVIVAL_START) return 1;
       }
 
