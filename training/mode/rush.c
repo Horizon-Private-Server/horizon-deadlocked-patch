@@ -43,14 +43,15 @@
 #define TARGET_RESPAWN_DELAY						(TIME_SECOND * 1)
 #define TARGET_POINTS_LIFETIME					(TIME_SECOND * 10)
 #define TARGET_LIFETIME_TICKS						(TPS * 5)
-#define TICKS_TO_RESPAWN								(TPS * 0.5)
+#define TICKS_TO_RESPAWN								(TPS * 5)
+#define TICKS_TO_QUICK_RESPAWN					(TPS * 0.5)
 #define TIMELIMIT_MINUTES								(5)
 #define TARGET_MAX_DIST_FROM_SPAWN_POS	(10)
 #define MAX_B6_BALL_RING_SIZE						(5)
 #define TARGET_B6_JUMP_REACTION_TIME		(TPS * 0.25)
 #define MAX_SPAWNPOINTS                 (120)
-#define MAX_REC_SPAWNPOINTS             (1)
-#define MIN_SPAWN_DISTANCE_FROM_PLAYER  (20)
+#define MAX_REC_SPAWNPOINTS             (2)
+#define MIN_SPAWN_DISTANCE_FROM_PLAYER  (10)
 
 //
 enum REC_SPAWN_TYPES
@@ -86,6 +87,7 @@ const float ComboMultiplierFactor = 0.2;
 const int SimPlayerCount = MAX_SPAWNED_TARGETS;
 SimulatedPlayer_t SimPlayers[MAX_SPAWNED_TARGETS];
 int FrequentedSpawnPoints[MAX_SPAWNPOINTS];
+int FrequentedSpawnPointsTotal = 0;
 int RecommendedSpawnPoints[REC_SPAWN_TYPE_COUNT][MAX_REC_SPAWNPOINTS];
 
 int B6BallsRingIndex = 0;
@@ -188,7 +190,7 @@ int modeIsPlayerNearSpawnPoint(int spIdx)
   int i;
 
   Player** players = playerGetAll();
-  for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     Player* p = players[i];
     if (!p || playerIsDead(p)) continue;
 
@@ -260,6 +262,7 @@ void modeTallyNearbySpawnpoints(void)
     float dist = vector_sqrmag(dt);
     int score = maxf(0, (400 - dist));
     FrequentedSpawnPoints[i] += score;
+    FrequentedSpawnPointsTotal += score;
   }
 }
 
@@ -267,11 +270,10 @@ void modeTallyNearbySpawnpoints(void)
 void modeResetFrequentedSpawnpoints(void)
 {
   int i;
+  FrequentedSpawnPointsTotal = 0;
   for (i = 0; i < MAX_SPAWNPOINTS; ++i) {
-    DPRINTF("%d=>%d ", FrequentedSpawnPoints[i], FrequentedSpawnPoints[i] / 5);
-    FrequentedSpawnPoints[i] /= 5;
+    FrequentedSpawnPointsTotal += FrequentedSpawnPoints[i] /= 15;
   }
-  DPRINTF("\n");
 }
 
 //--------------------------------------------------------------------------
@@ -283,15 +285,22 @@ int modeComputeSpawnpointScore(enum REC_SPAWN_TYPES type, int spIdx)
   int i,j;
   VECTOR dt;
   VECTOR spPos;
+  VECTOR playerPos;
   VECTOR up = {0,0,1,0};
   SpawnPoint* sp = spawnPointGet(spIdx);
-  int score = FrequentedSpawnPoints[spIdx];
+  int score = (FrequentedSpawnPoints[spIdx] / (float)(FrequentedSpawnPointsTotal+1)) * 500;
 
   Moby* targetFlag = modeGetTargetFlag();
   Moby* playerFlag = modeGetOurFlag();
   Player* player = playerGetFromSlot(0);
 
   vector_add(spPos, up, &sp->M0[12]);
+  vector_add(playerPos, player->PlayerPosition, up);
+  int canSeePlayer = !CollLine_Fix(spPos, playerPos, 2, 0, 0);
+
+  vector_scale(dt, player->Velocity, 30);
+  vector_add(dt, dt, playerPos);
+  int willSeePlayer = !CollLine_Fix(spPos, dt, 2, 0, 0);
 
   switch (type)
   {
@@ -309,6 +318,8 @@ int modeComputeSpawnpointScore(enum REC_SPAWN_TYPES type, int spIdx)
     }
     case REC_SPAWN_TYPE_MID:
     {
+      if (modeIsPlayerNearSpawnPoint(spIdx)) return 0;
+
       // try and spawn towards where player is going
       Moby* target = targetFlag;
       if (!flagIsAtBase(targetFlag))
@@ -319,15 +330,17 @@ int modeComputeSpawnpointScore(enum REC_SPAWN_TYPES type, int spIdx)
       vector_subtract(dt, spPos, (float*)target->PVar);
       float distToTarget = vector_length(dt);
 
-      score += (200 / distToFlag) + (100 / distToTarget);
+      if (!canSeePlayer)
+        distToFlag = 10000;
+      if (target == playerFlag)
+        score /= 5;
+
+      score += (200 / distToFlag) + (1000 / distToTarget);
       break;
     }
   }
 
-  vector_add(dt, player->PlayerPosition, up);
-  int canSeePlayer = !CollLine_Fix(spPos, dt, 2, 0, 0);
-
-  score += (canSeePlayer ? 500 : 0);
+  score += (canSeePlayer ? 300 : 0) + (willSeePlayer ? 500 : 0);
   return score;
 }
 
@@ -396,7 +409,7 @@ void modeGenerateRecommendedSpawnpoints(enum REC_SPAWN_TYPES type)
 #if DEBUG
   printf("new %d recommended spawn pts: ", count);
   for (i = 0; i < count; ++i)
-    printf("%d ", idxs[i]);
+    printf("%d:%d ", idxs[i], pts[i]);
   printf("\n");
 #endif
 
@@ -439,8 +452,13 @@ void modeOnTargetKilled(SimulatedPlayer_t* target, MobyColDamage* colDamage)
 	// kill target
 	target->Player->Health = 0;
 
+  // give health to killer
+  if (colDamage) {
+    lPlayer->Health = lPlayer->MaxHealth;
+  }
+
 	// 
-	target->TicksToRespawn = TICKS_TO_RESPAWN;
+	target->TicksToRespawn = colDamage ? TICKS_TO_RESPAWN : TICKS_TO_QUICK_RESPAWN;
 	State.TargetsDestroyed += 1;
 	
 	// deactivate
@@ -476,6 +494,9 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	// set camera type to lock strafe
 	POKE_U32(0x001711D4 + (4*sPlayer->Idx), 1);
 
+  // no
+  if (playerIsDead(target)) return;
+
 	// kill if too far from spawn pos
 	vector_subtract(delta, target->PlayerPosition, pvar->SpawnPos);
 	if (vector_sqrmag(delta) > (TARGET_MAX_DIST_FROM_SPAWN_POS*TARGET_MAX_DIST_FROM_SPAWN_POS)) {
@@ -502,8 +523,8 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 
   // kill if not near target and life ran out
 	u32 lifeTicks = decTimerU32(&pvar->LifeTicks);
-	if (!lifeTicks && ((len > 20 && sPlayer->TicksSinceSeenPlayer > 30) || playerIsDead(player))) {
-		modeOnTargetKilled(sPlayer, 0);
+	if (!lifeTicks && ((len > 20 && sPlayer->TicksSinceSeenPlayer > (TPS * 5)) || playerIsDead(player))) {
+    if (!playerIsDead(target)) modeOnTargetKilled(sPlayer, 0);
 		return;
 	}
 
@@ -517,8 +538,8 @@ void modeUpdateTarget(SimulatedPlayer_t *sPlayer)
 	// face player
 	float targetYaw = atan2f(delta[1] / len, delta[0] / len);
 	float targetPitch = asinf((-delta[2] + 1) / len);
-	sPlayer->Yaw = lerpfAngle(sPlayer->Yaw, targetYaw, 0.11);
-	sPlayer->Pitch = lerpfAngle(sPlayer->Pitch, targetPitch, 0.11);
+	sPlayer->Yaw = lerpfAngle(sPlayer->Yaw, targetYaw, 0.13);
+	sPlayer->Pitch = lerpfAngle(sPlayer->Pitch, targetPitch, 0.13);
 
 	MATRIX m;
 	matrix_unit(m);
@@ -638,7 +659,8 @@ void modeInitTarget(SimulatedPlayer_t *sPlayer)
 	sPlayer->Active = 1;
 
 	last_names_idx = (last_names_idx + 1 + rand(NAMES_COUNT)) % NAMES_COUNT;
-	strncpy(gs->PlayerNames[sPlayer->Player->PlayerId], NAMES[last_names_idx], 16);
+  if (gs->PlayerNames[sPlayer->Player->PlayerId][0] == 0)
+	  strncpy(gs->PlayerNames[sPlayer->Player->PlayerId], NAMES[last_names_idx], 16);
 
 #if DEBUG
 	sprintf(gs->PlayerNames[sPlayer->Player->PlayerId], "%d", sPlayer->Idx);
@@ -658,16 +680,23 @@ int modeGetPlayerCurrentTimeMs(void)
 //--------------------------------------------------------------------------
 void modeProcessPlayer(int pIndex)
 {
+  static int playerDeadLastFrame = 0;
   if (pIndex != 0)
     return;
     
   Player* player = playerGetAll()[pIndex];
   GameData* gameData = gameGetData();
   Moby* targetFlag = modeGetTargetFlag();
+  int playerDead = playerIsDead(player);
 
   // infinite health
-	if (player && State.AggroMode == TRAINING_AGGRESSION_AGGRO_NO_DAMAGE && !playerIsDead(player)) {
+	if (player && State.AggroMode == TRAINING_AGGRESSION_AGGRO_NO_DAMAGE && !playerDead) {
     player->Health = player->MaxHealth;
+  }
+
+  // reset time since last cap on each player spawn
+  if (!playerDead && playerDeadLastFrame) {
+    TimeSinceLastCap = timerGetSystemTime();
   }
 
   // heal on cap
@@ -687,6 +716,8 @@ void modeProcessPlayer(int pIndex)
     
     TimeSinceLastCap = timerGetSystemTime();
   }
+
+  playerDeadLastFrame = playerDead;
 }
 
 //--------------------------------------------------------------------------
@@ -732,6 +763,32 @@ void modeTick(void)
     }
   }
   
+  if (0)
+  {
+    static int renderSpawnsTicker = 0;
+    if (renderSpawnsTicker <= 0) {
+      modeGenerateRecommendedSpawnpoints(REC_SPAWN_TYPE_MID);
+      renderSpawnsTicker = 60;
+    } else {
+      renderSpawnsTicker--;
+    }
+
+    int x,y;
+    for (i = 0; i < MAX_REC_SPAWNPOINTS; ++i) {
+      int spIdx = RecommendedSpawnPoints[REC_SPAWN_TYPE_MID][i];
+      if (spIdx > 0) {
+        SpawnPoint* sp = spawnPointGet(spIdx);
+        if (gfxWorldSpaceToScreenSpace(&sp->M0[12], &x, &y)) {
+          gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
+        }
+      }
+    }
+
+    if (gfxWorldSpaceToScreenSpace((float*)modeGetOurFlag()->PVar, &x, &y)) {
+      gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
+    }
+  }
+
   // reset flag when player dies
   if (player && targetFlag && playerIsDead(player) && !flagIsAtBase(targetFlag)) {
     flagReturnToBase(targetFlag, 0, -1);
