@@ -244,7 +244,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Fixed Cycle Order", listActionHandler, menuStateAlwaysEnabledHandler, &dataFixedCycleOrder },
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
-  { "Fusion Reticule", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
+  { "Fusion Reticle", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
@@ -670,23 +670,24 @@ MenuElem_t menuElementsGameSettings[] = {
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Better flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags },
-  { "Better hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills },
+  { "Better Flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags },
+  { "Better Hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills },
   { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime },
   { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime },
   { "CQ Save Capture Progress", toggleActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqPersistentCapture },
   { "CQ Turrets", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableTurrets },
   { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades },
-  { "Damage cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
+  { "Damage Cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
-  { "Fusion Reticule", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
+  { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
   { "Healthboxes", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
+  { "New Player Sync", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNewPlayerSync },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
   { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire },
-  { "Weapon packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks },
-  { "Weapon pickups", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPickups },
+  { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks },
+  { "Weapon Pickups", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPickups },
 
   // PARTY RULES
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -1353,12 +1354,9 @@ void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, i
 void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   GameSettings* gs = gameGetSettings();
-  GameData* gameData = gameGetData();
   int i = 0;
   
-  // if playing game with only 2 teams
-  // then we can End
-  if (isInGame() && gameData && gameData->NumStartTeams <= 2) {
+  if (isInGame()) {
     Player* p = playerGetFromSlot(0);
     if (p) {
       *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;

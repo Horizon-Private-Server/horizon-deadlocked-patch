@@ -1131,7 +1131,7 @@ int patchComputePoints_Hook(int playerIdx)
   }
 
   if (gameData && gameData->GameIsOver) {
-    DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
+    //DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
   }
 
   return newPoints;
@@ -2221,16 +2221,16 @@ void patchWeaponShotLag(void)
 		return;
 
 	// send all shots reliably
-	u32* ptr = (u32*)0x00627AB4;
-	if (*ptr == 0x906407F8) {
+	//u32* ptr = (u32*)0x00627AB4;
+	//if (*ptr == 0x906407F8) {
 		// change to reliable
-		*ptr = 0x24040000 | 0x40;
+		//*ptr = 0x24040000 | 0x40;
 
 		// get rid of additional 3 packets sent
 		// since its reliable we don't need redundancy
 		//*(u32*)0x0060F474 = 0;
 		//*(u32*)0x0060F4C4 = 0;
-	}
+	//}
 
 	// patches fusion shot so that remote shots aren't given additional "shake"
 	// ie, remote shots go in the same direction that is sent by the source client
@@ -2568,6 +2568,7 @@ void sendClientVoteForEnd(void)
 int voteToEndNumberOfVotesRequired(void)
 {
   GameSettings* gs = gameGetSettings();
+  GameData* gameData = gameGetData();
   int i;
   int playerCount = 0;
 
@@ -2575,7 +2576,8 @@ int voteToEndNumberOfVotesRequired(void)
     if (gs->PlayerClients[i] >= 0) playerCount += 1;
   }
 
-  return (int)(playerCount * 0.75) + 1;
+  if (gameData->NumStartTeams > 2) return playerCount;
+  else return (int)(playerCount * 0.75) + 1;
 }
 
 /*
@@ -4068,6 +4070,7 @@ void drawHook(u64 a0)
 
 	long t0 = timerGetSystemTime();
 	((void (*)(u64))0x004c3240)(a0);
+  playerSyncTick();
 	long t1 = timerGetSystemTime();
 
 	renderTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
@@ -4104,8 +4107,6 @@ void updatePad(struct PAD* pad, u8* rdata, int size)
   runSingletapChargeboot(pad, rdata);
 
 	((void (*)(struct PAD*, u8*, int))pad->RawPadInputCallback)(pad, rdata, size);
-  
-  //runSingletapChargeboot();
 }
 
 /*
@@ -4569,6 +4570,9 @@ int main (void)
   if (isUnloading) POKE_U32(0x00138d7c, 0x0C04E138);
   else HOOK_JAL(0x00138d7c, &onBeforeVSync);
 
+  // force to 15 ms
+  patchAggTime(15);
+
   // force agg time
   //patchAggTime(30 + config.playerAggTime * 5);
 
@@ -4591,14 +4595,12 @@ int main (void)
 	// Run game start messager
 	runGameStartMessager();
 
-  //
-  runPlayerPositionSmooth();
-
-	// Run sync player state
-	runPlayerStateSync();
-
-	// 
-	runCorrectPlayerChargebootRotation();
+  // old lag fixes
+  if (!gameConfig.grNewPlayerSync) {
+    runPlayerPositionSmooth();
+    runPlayerStateSync();
+    runCorrectPlayerChargebootRotation();
+  }
 
 	// 
 	runFpsCounter();

@@ -90,6 +90,8 @@ const int patches[][3] = {
   { 1, 0x004aea94, 0x3C030023 }, // SetFov patch
   { 1, 0x005282d8, 0x3C020022 }, // Pad_MappedPad patch
   { 1, 0x005282dc, 0x8C42E694 }, // Pad_MappedPad patch
+  { 1, 0x0060684c, 0x0C1833B0 }, // player sync wrench patch
+  { 1, 0x006265a4, 0x0C189544 }, // ComputePoints patch
 	// spectator
 	{ 1, 0x0054F46C, 0x0C1734F4 }, // healthbar
 	{ 1, 0x0054f898, 0x0C1734F4 }, // healthbar
