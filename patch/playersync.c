@@ -17,12 +17,14 @@ typedef struct PlayerSyncStateUpdateUnpacked
 {
   VECTOR Position;
   VECTOR Rotation;
-  VECTOR CameraPosition;
   int GameTime;
+  float CameraDistance;
+  float CameraHeight;
   float CameraYaw;
   float CameraPitch;
   float Health;
   short NoInput;
+  u16 PadBits;
   u8 MoveX;
   u8 MoveY;
   u8 State;
@@ -35,6 +37,7 @@ typedef struct PlayerSyncStateUpdateUnpacked
 typedef struct PlayerSyncPlayerData
 {
   VECTOR LastReceivedPosition;
+  VECTOR LastCameraPos;
   int LastNetTime;
   int LastState;
   int LastStateTime;
@@ -70,7 +73,7 @@ int playerSyncCmdDelta(int fromCmdId, int toCmdId)
 float playerSyncLerpAngleIfDelta(float from, float to, float lerpAmount, float minAngleBetween)
 {
   float dt = clampAngle(from - to);
-  //if (dt < minAngleBetween) return to;
+  if (dt < minAngleBetween) return from;
 
   return lerpfAngle(from, to, lerpAmount);
 }
@@ -113,6 +116,7 @@ void playerSyncHandlePlayerState(Player* player)
   PlayerVTable* vtable = playerGetVTable(player);
   float tPos = 0.15;
   float tRot = 0.15;
+  float tCam = 0.5;
   int padIdx = 0;
 
   // reset pad
@@ -126,7 +130,7 @@ void playerSyncHandlePlayerState(Player* player)
 
   // extrapolate
   if (data->TicksSinceLastUpdate > 0 && !playerIsDead(player)) {
-    vector_add(stateCurrent->Position, stateCurrent->Position, player->Velocity);
+    //vector_add(stateCurrent->Position, stateCurrent->Position, player->Velocity);
   }
 
   // snap position
@@ -134,30 +138,36 @@ void playerSyncHandlePlayerState(Player* player)
   if (vector_sqrmag(dt) > (5*5)) {
     vector_copy(player->PlayerPosition, data->LastReceivedPosition);
     vector_copy(stateCurrent->Position, data->LastReceivedPosition);
+    DPRINTF("tp\n");
   }
 
-  // lerp position
-  vector_lerp(player->PlayerPosition, player->PlayerPosition, stateCurrent->Position, tPos);
+  // lerp position if distance is greater than threshold
+  vector_subtract(dt, stateCurrent->Position, player->PlayerPosition);
+  if (vector_sqrmag(dt) > (0.1*0.1)) {
+    vector_lerp(player->PlayerPosition, player->PlayerPosition, stateCurrent->Position, tPos);
+  }
+
   vector_copy(player->PlayerMoby->Position, player->PlayerPosition);
   vector_copy(player->RemoteHero.receivedSyncPos, player->PlayerPosition);
   vector_copy(player->RemoteHero.posAtSyncFrame, player->PlayerPosition);
   vector_copy(player->pNetPlayer->pNetPlayerData->vPosition, player->PlayerPosition);
 
   // lerp rotation
-  //printf("%f %f %f\n", stateCurrent->Rotation[0], stateCurrent->Rotation[1], stateCurrent->Rotation[2]);
-  player->PlayerRotation[0] = playerSyncLerpAngleIfDelta(player->PlayerRotation[0], stateCurrent->Rotation[0], tRot, 2/255.0);
-  player->PlayerRotation[1] = playerSyncLerpAngleIfDelta(player->PlayerRotation[1], stateCurrent->Rotation[1], tRot, 2/255.0);
-  player->PlayerRotation[2] = playerSyncLerpAngleIfDelta(player->PlayerRotation[2], stateCurrent->Rotation[2], tRot, 2/255.0);
+  player->PlayerRotation[0] = lerpfAngle(player->PlayerRotation[0], stateCurrent->Rotation[0], tRot);
+  player->PlayerRotation[1] = lerpfAngle(player->PlayerRotation[1], stateCurrent->Rotation[1], tRot);
+  player->PlayerRotation[2] = lerpfAngle(player->PlayerRotation[2], stateCurrent->Rotation[2], tRot);
   vector_copy(player->RemoteHero.receivedSyncRot, player->PlayerRotation);
 
   // lerp camera position
-  vector_lerp(player->CameraPos, player->CameraPos, stateCurrent->CameraPosition, tPos);
+  vector_write(player->CameraOffset, 0);
+  vector_write(player->CameraRotOffset, 0);
+  player->CameraOffset[0] = -stateCurrent->CameraDistance;
   vector_copy(&player->CameraMatrix[12], player->CameraPos);
   vector_copy((float*)((u32)player + 0x2cd0), player->CameraPos);
 
   // lerp camera rotations
-  player->CameraYaw.Value = lerpfAngle(player->CameraYaw.Value, stateCurrent->CameraYaw, tRot);
-  player->CameraPitch.Value = lerpfAngle(player->CameraPitch.Value, stateCurrent->CameraPitch, tRot);
+  player->CameraYaw.Value = lerpfAngle(player->CameraYaw.Value, stateCurrent->CameraYaw, tCam);
+  player->CameraPitch.Value = lerpfAngle(player->CameraPitch.Value, stateCurrent->CameraPitch, tCam);
 
   // compute matrix
   matrix_unit(m);
@@ -186,7 +196,6 @@ void playerSyncHandlePlayerState(Player* player)
   // set net camera rotation
   if (player->pNetPlayer) {
     vector_pack(camRot, player->pNetPlayer->padMessageElems[padIdx].msg.cameraRot);
-    //player->pNetPlayer->padMessageElems[padIdx].msg.playerPos
   }
 
   // set joystick
@@ -201,10 +210,6 @@ void playerSyncHandlePlayerState(Player* player)
   *(float*)((u32)player + 0x0124) = -moveY;
   *(float*)((u32)player + 0x17b0) = -moveY;
 
-  // 
-  player->RemoteHero.stateAtSyncFrame = player->PlayerState;
-  player->RemoteHero.receivedState = stateCurrent->State;
-
   struct tNW_Player* netPlayer = player->pNetPlayer;
   if (netPlayer) {
     netPlayer->padMessageElems[padIdx].msg.pad_data[4] = 0x7F;
@@ -213,10 +218,20 @@ void playerSyncHandlePlayerState(Player* player)
     netPlayer->padMessageElems[padIdx].msg.pad_data[7] = stateCurrent->MoveY;
   }
 
+  // flail is not synced very well
+  // so we're gonna pass R1 pad through to try and sync it up better
+  // still not perfect
+  if (!player->timers.noInput && (stateCurrent->PadBits & PAD_R1) == 0 && player->WeaponHeldId == WEAPON_ID_FLAIL) {
+    data->Pad[3] &= ~0x08;
+  }
+
+  // set remote received state
+  player->RemoteHero.stateAtSyncFrame = player->PlayerState;
+  player->RemoteHero.receivedState = stateCurrent->State;
+
   // update state
   if (stateCurrent->StateId != data->LastStateId) {
     int skip = 0;
-    int forced = 0;
     int playerState = player->PlayerState;
 
     // from
@@ -246,20 +261,6 @@ void playerSyncHandlePlayerState(Player* player)
         skip = 1;
         break;
       }
-      case PLAYER_STATE_DEATH:
-      case PLAYER_STATE_DROWN:
-      case PLAYER_STATE_DEATH_FALL:
-      case PLAYER_STATE_DEATHSAND_SINK:
-      case PLAYER_STATE_LAVA_DEATH:
-      case PLAYER_STATE_DEATH_NO_FALL:
-      case PLAYER_STATE_WAIT_FOR_RESURRECT:
-      {
-        if (stateCurrent->State != playerState) {
-          player->PlayerState = 0;
-          forced = 1;
-        }
-        break;
-      }
     }
 
     // to
@@ -278,13 +279,22 @@ void playerSyncHandlePlayerState(Player* player)
         }
         break;
       }
+      case PLAYER_STATE_FLAIL_ATTACK:
+      {
+        // let pad handle flail
+        skip = 1;
+        break;
+      }
       case PLAYER_STATE_GET_HIT:
       {
+        // let game handle flinchings
         skip = 1;
         break;
       }
       case PLAYER_STATE_SWING:
       {
+        // force R1 when on swingshot
+        // let game handle the rest
         data->Pad[3] &= ~0x08;
         skip = 1;
         break;
@@ -292,13 +302,23 @@ void playerSyncHandlePlayerState(Player* player)
     }
 
     if (!skip) {
-      DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateCurrent->State, player->PlayerState);
+      //DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateCurrent->State, player->PlayerState);
       vtable->UpdateState(player, stateCurrent->State, 1, 1, 1);
       data->LastStateId = stateCurrent->StateId;
       data->LastState = stateCurrent->State;
+
     } else {
       data->LastStateTime = player->timers.state;
     }
+  }
+
+  // handles case where player fires while still chargebooting
+  // causing them to stop on remote client's screen
+  // if they do fire and stop, the client should tell the remote clients
+  // the remote clients should assume they didn't stop
+  // this fixes wrench lag
+  if (player->timers.state < 0x3D && player->PlayerState == PLAYER_STATE_CHARGE) {
+    *(char*)((u32)player + 0x265a) = 0;
   }
 
   //
@@ -322,15 +342,16 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
 
   // unpack
   memcpy(unpacked.Position, msg.Position, sizeof(float) * 3);
-  memcpy(unpacked.CameraPosition, msg.CameraPosition, sizeof(float) * 3);
   memcpy(unpacked.Rotation, msg.Rotation, sizeof(float) * 3);
   unpacked.GameTime = msg.GameTime;
+  unpacked.CameraDistance = msg.CameraDistance / 1024.0;
   unpacked.CameraYaw = msg.CameraYaw / 10240.0;
   unpacked.CameraPitch = msg.CameraPitch / 10240.0;
   unpacked.NoInput = msg.NoInput;
   unpacked.Health = msg.Health;
   unpacked.MoveX = msg.MoveX;
   unpacked.MoveY = msg.MoveY;
+  unpacked.PadBits = (msg.PadBits1 << 8) | (msg.PadBits0);
   unpacked.State = msg.State;
   unpacked.StateId = msg.StateId;
   unpacked.PlayerIdx = msg.PlayerIdx;
@@ -355,6 +376,7 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
 //--------------------------------------------------------------------------
 void playerSyncBroadcastPlayerState(Player* player)
 {
+  VECTOR dt;
   PlayerSyncStateUpdatePacked_t msg;
   void * connection = netGetDmeServerConnection();
   if (!connection || !player || !player->IsLocal) return;
@@ -371,17 +393,28 @@ void playerSyncBroadcastPlayerState(Player* player)
   }
   data->LastStateTime = player->timers.state;
 
+  // compute camera yaw and pitch
+  float yaw = player->Camera->rot[2];
+  float pitch = player->Camera->rot[1];
+
+  // compute camera distance
+  vector_subtract(dt, player->Camera->pos, player->CameraPos);
+  float dist = vector_length(dt);
+
   memcpy(msg.Position, player->PlayerPosition, sizeof(float) * 3);
-  memcpy(msg.CameraPosition, player->CameraPos, sizeof(float) * 3);
   memcpy(msg.Rotation, player->PlayerRotation, sizeof(float) * 3);
   msg.GameTime = data->LastNetTime = gameGetTime();
   msg.PlayerIdx = player->PlayerId;
-  msg.CameraYaw = (short)(player->CameraYaw.Value * 10240.0);
-  msg.CameraPitch = (short)(player->CameraPitch.Value * 10240.0);
+  msg.CameraDistance = (short)(dist * 1024.0);
+  msg.CameraPitch = (short)(pitch * 10240.0);
+  msg.CameraYaw = (short)(yaw * 10240.0);
+  msg.CameraPitch = (short)(pitch * 10240.0);
   msg.NoInput = player->timers.noInput;
   msg.Health = (short)player->Health;
   msg.MoveX = ((struct PAD*)player->Paddata)->rdata[6];
   msg.MoveY = ((struct PAD*)player->Paddata)->rdata[7];
+  msg.PadBits0 = ((struct PAD*)player->Paddata)->rdata[2];
+  msg.PadBits1 = ((struct PAD*)player->Paddata)->rdata[3];
   msg.State = player->PlayerState;
   msg.StateId = data->LastStateId;
   msg.CmdId = data->StateUpdateCmdId = (data->StateUpdateCmdId + 1) % CMD_BUFFER_SIZE;
@@ -406,6 +439,11 @@ void playerSyncTick(void)
 
   // net
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE, &playerSyncOnReceivePlayerState);
+
+#if DEBUG
+  // always on
+  gameConfig.grNewPlayerSync = 1;
+#endif
 
   if (!gameConfig.grNewPlayerSync) return;
   

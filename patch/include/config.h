@@ -111,13 +111,15 @@ typedef struct CustomDzoCommandDrawVoteToEnd
 typedef struct PlayerSyncStateUpdatePacked
 {
   float Position[3];
-  float CameraPosition[3];
   float Rotation[3];
   int GameTime;
+  short CameraDistance;
   short CameraYaw;
   short CameraPitch;
   short NoInput;
   short Health;
+  u8 PadBits0;
+  u8 PadBits1;
   u8 MoveX;
   u8 MoveY;
   char State;

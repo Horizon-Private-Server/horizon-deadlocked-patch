@@ -193,7 +193,8 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 
     currentPlayer->CameraPitchMin = playerToSpectate->CameraPitchMin;
     currentPlayer->CameraPitchMax = playerToSpectate->CameraPitchMax;
-    currentPlayer->CameraOffset[0] = -6;
+    //currentPlayer->CameraOffset[0] = -6;
+    vector_copy(currentPlayer->CameraOffset, playerToSpectate->CameraOffset);
 
     if (playerToSpectate->Vehicle)
     {
@@ -285,6 +286,7 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
         // Interpolate camera towards target player
         vector_lerp(spectateData->LastCameraPos, spectateData->LastCameraPos, playerToSpectate->CameraPos, 1 - powf(MATH_E, -CAMERA_POSITION_SHARPNESS * MATH_DT));
         vector_copy(currentPlayer->CameraPos, spectateData->LastCameraPos);
+
     }
 }
 

@@ -1467,7 +1467,7 @@ void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0,
 		// set weapon shot event time to now if its in the future
 		// because the client is probably lagging behind
 		if (player->Gadgets[0].id == message->GadgetId) {
-			message->ActiveTime = a2 = gameGetTime();
+			message->ActiveTime = a2 = gameGetTime() - 1;
 		}
 	}
 
@@ -4714,7 +4714,11 @@ int main (void)
 		HOOK_JAL(0x004A84B0, &updateHook);
 		HOOK_JAL(0x004C3A94, &drawHook);
     HOOK_JAL(0x005281F0, &updatePad);
-      
+    
+    // prevents wrench lag
+    // by patching 1 frame where mag shot won't stop player when cbooting
+    POKE_U16(0x003EF658, 0x0017);
+
     // hook Pad_MappedPad
     //HOOK_J(0x005282d8, &padMappedPadHooked);
     //POKE_U32(0x005282dc, 0);
