@@ -1454,8 +1454,9 @@ void patchFrameSkip()
  */
 void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0, struct tNW_GadgetEventMessage * message)
 {
-	if (player && message && message->GadgetEventType == 8) {
+	if (player && message) { // && message->GadgetEventType == 8) {
 		int delta = a2 - gameGetTime();
+
 
 		// client is not holding correct weapon on our screen
 		// haven't determined a way to fix this yet but
@@ -4070,7 +4071,6 @@ void drawHook(u64 a0)
 
 	long t0 = timerGetSystemTime();
 	((void (*)(u64))0x004c3240)(a0);
-  playerSyncTick();
 	long t1 = timerGetSystemTime();
 
 	renderTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
@@ -4131,6 +4131,7 @@ void updateHook(void)
 
 	long t0 = timerGetSystemTime();
 	((void (*)(void))0x005986b0)();
+  playerSyncTick();
 	long t1 = timerGetSystemTime();
 
 	updateTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
@@ -4717,7 +4718,7 @@ int main (void)
     
     // prevents wrench lag
     // by patching 1 frame where mag shot won't stop player when cbooting
-    POKE_U16(0x003EF658, 0x0017);
+    //POKE_U16(0x003EF658, 0x0017);
 
     // hook Pad_MappedPad
     //HOOK_J(0x005282d8, &padMappedPadHooked);
@@ -4797,6 +4798,11 @@ int main (void)
 
 		// 
 		patchStagingRankNumber();
+    
+    // tick player sync
+    // normally is only called in game
+    // this lets it handle out of game logic
+    playerSyncTick();
 
 		// Hook menu loop
 		if (*(u32*)0x00594CBC == 0)

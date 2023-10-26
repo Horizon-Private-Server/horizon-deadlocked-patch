@@ -2,6 +2,7 @@
 #include <libdl/utils.h>
 #include <libdl/player.h>
 #include <libdl/net.h>
+#include <libdl/stdlib.h>
 #include <libdl/stdio.h>
 #include <libdl/math.h>
 #include <libdl/math3d.h>
@@ -9,9 +10,11 @@
 #include <libdl/graphics.h>
 
 #include "config.h"
+#include "module.h"
 #include "include/config.h"
 
-#define CMD_BUFFER_SIZE           (64)
+#define PLAYER_SYNC_DATAS_PTR     (*(PlayerSyncPlayerData_t**)0x000CFFB0)
+#define CMD_BUFFER_SIZE           (40)
 
 typedef struct PlayerSyncStateUpdateUnpacked
 {
@@ -37,7 +40,6 @@ typedef struct PlayerSyncStateUpdateUnpacked
 typedef struct PlayerSyncPlayerData
 {
   VECTOR LastReceivedPosition;
-  VECTOR LastCameraPos;
   int LastNetTime;
   int LastState;
   int LastStateTime;
@@ -55,7 +57,7 @@ extern PatchConfig_t config;
 // game config
 extern PatchGameConfig_t gameConfig;
 
-PlayerSyncPlayerData_t playerSyncDatas[GAME_MAX_PLAYERS];
+extern PatchStateContainer_t patchStateContainer;
 
 //--------------------------------------------------------------------------
 int playerSyncCmdDelta(int fromCmdId, int toCmdId)
@@ -79,15 +81,26 @@ float playerSyncLerpAngleIfDelta(float from, float to, float lerpAmount, float m
 }
 
 //--------------------------------------------------------------------------
+void playerSyncOnPlayerUpdateSetState(Player* player, int toState, int a2, int a3, int t0)
+{
+  // prevent synced players from bonking on our screens
+  // if the bonk, they'll send that as a state update
+  if (!player->IsLocal && toState == PLAYER_STATE_JUMP_BOUNCE) return;
+
+  PlayerVTable* vtable = playerGetVTable(player);
+  vtable->UpdateState(player, toState, a2, a3, t0);
+}
+
+//--------------------------------------------------------------------------
 int playerSyncHandlePlayerPadHook(Player* player)
 {
   int padIdx = 0;
-
+  
   // enable pad
-  if (!player->IsLocal) {
+  if (!player->IsLocal && PLAYER_SYNC_DATAS_PTR) {
 
     // get player sync data
-    PlayerSyncPlayerData_t* data = &playerSyncDatas[player->PlayerId];
+    PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
   
     // process input
     ((void (*)(struct PAD*))0x00527e08)(player->Paddata);
@@ -107,9 +120,9 @@ void playerSyncHandlePlayerState(Player* player)
   MATRIX m, mInv;
   VECTOR dt;
   int i;
-  if (!player || player->IsLocal || !player->PlayerMoby) return;
+  if (!player || player->IsLocal || !player->PlayerMoby || !PLAYER_SYNC_DATAS_PTR) return;
 
-  PlayerSyncPlayerData_t* data = &playerSyncDatas[player->PlayerId];
+  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
   PlayerSyncStateUpdateUnpacked_t* stateCurrent = &data->StateUpdates[data->StateUpdateCmdId];
   if (!stateCurrent->Valid) return;
   
@@ -150,7 +163,6 @@ void playerSyncHandlePlayerState(Player* player)
   vector_copy(player->PlayerMoby->Position, player->PlayerPosition);
   vector_copy(player->RemoteHero.receivedSyncPos, player->PlayerPosition);
   vector_copy(player->RemoteHero.posAtSyncFrame, player->PlayerPosition);
-  vector_copy(player->pNetPlayer->pNetPlayerData->vPosition, player->PlayerPosition);
 
   // lerp rotation
   player->PlayerRotation[0] = lerpfAngle(player->PlayerRotation[0], stateCurrent->Rotation[0], tRot);
@@ -302,7 +314,7 @@ void playerSyncHandlePlayerState(Player* player)
     }
 
     if (!skip) {
-      //DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateCurrent->State, player->PlayerState);
+      DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateCurrent->State, player->PlayerState);
       vtable->UpdateState(player, stateCurrent->State, 1, 1, 1);
       data->LastStateId = stateCurrent->StateId;
       data->LastState = stateCurrent->State;
@@ -326,6 +338,7 @@ void playerSyncHandlePlayerState(Player* player)
     player->pNetPlayer->pNetPlayerData->lastKeepAlive = data->LastNetTime;
     player->pNetPlayer->pNetPlayerData->timeStamp = data->LastNetTime;
     player->pNetPlayer->pNetPlayerData->hitPoints = stateCurrent->Health;
+    vector_copy(player->pNetPlayer->pNetPlayerData->vPosition, player->PlayerPosition);
   }
   data->TicksSinceLastUpdate += 1;
 }
@@ -333,7 +346,7 @@ void playerSyncHandlePlayerState(Player* player)
 //--------------------------------------------------------------------------
 int playerSyncOnReceivePlayerState(void* connection, void* data)
 {
-  if (!isInGame()) return sizeof(PlayerSyncStateUpdatePacked_t);
+  if (!isInGame() || !PLAYER_SYNC_DATAS_PTR) return sizeof(PlayerSyncStateUpdatePacked_t);
   if (!gameConfig.grNewPlayerSync) return sizeof(PlayerSyncStateUpdatePacked_t);
 
   PlayerSyncStateUpdatePacked_t msg;
@@ -358,15 +371,18 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
   unpacked.CmdId = msg.CmdId;
   unpacked.Valid = 1;
 
+  // target sync player data
+  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[msg.PlayerIdx];
+
   // move into buffer
-  memcpy(&playerSyncDatas[msg.PlayerIdx].StateUpdates[msg.CmdId], &unpacked, sizeof(unpacked));
-  int cmdDt = playerSyncCmdDelta(playerSyncDatas[unpacked.PlayerIdx].StateUpdateCmdId, unpacked.CmdId);
-  //DPRINTF("%d => %d (%d)\n", playerSyncDatas[unpacked.PlayerIdx].StateUpdateCmdId, unpacked.CmdId, cmdDt);
+  memcpy(data->StateUpdates[msg.CmdId], &unpacked, sizeof(unpacked));
+  int cmdDt = playerSyncCmdDelta(data->StateUpdateCmdId, unpacked.CmdId);
+  //DPRINTF("%d => %d (%d)\n", data->StateUpdateCmdId, unpacked.CmdId, cmdDt);
   if (cmdDt > 0) {
-    playerSyncDatas[unpacked.PlayerIdx].LastNetTime = unpacked.GameTime;
-    playerSyncDatas[unpacked.PlayerIdx].StateUpdateCmdId = unpacked.CmdId;
-    playerSyncDatas[unpacked.PlayerIdx].TicksSinceLastUpdate = 0;
-    vector_copy(playerSyncDatas[unpacked.PlayerIdx].LastReceivedPosition, unpacked.Position);
+    data->LastNetTime = unpacked.GameTime;
+    data->StateUpdateCmdId = unpacked.CmdId;
+    data->TicksSinceLastUpdate = 0;
+    vector_copy(data->LastReceivedPosition, unpacked.Position);
   }
 
   //DPRINTF("recv player sync state %d time:%d dt:%d\n", msg.PlayerIdx, msg.GameTime, msg.GameTime - gameGetTime());
@@ -379,9 +395,9 @@ void playerSyncBroadcastPlayerState(Player* player)
   VECTOR dt;
   PlayerSyncStateUpdatePacked_t msg;
   void * connection = netGetDmeServerConnection();
-  if (!connection || !player || !player->IsLocal) return;
+  if (!connection || !player || !player->IsLocal || !PLAYER_SYNC_DATAS_PTR) return;
 
-  PlayerSyncPlayerData_t* data = &playerSyncDatas[player->PlayerId];
+  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
 
   // set cur frame
   player->LocalHero.UNK_LOCALHERO[0x1EE] = 0;
@@ -431,14 +447,18 @@ int playerSyncDisablePlayerStateUpdates(void)
 //--------------------------------------------------------------------------
 void playerSyncTick(void)
 {
+  static int delay = 50;
+  static int initialized = 0;
   int i;
-  if (!isInGame()) {
-    memset(playerSyncDatas, 0, sizeof(playerSyncDatas));
-    return;
-  }
 
   // net
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE, &playerSyncOnReceivePlayerState);
+
+  if (!isInGame()) {
+    delay = 50;
+    initialized = 0;
+    return;
+  }
 
 #if DEBUG
   // always on
@@ -447,12 +467,43 @@ void playerSyncTick(void)
 
   if (!gameConfig.grNewPlayerSync) return;
   
+  // allocate buffer
+  if (PLAYER_SYNC_DATAS_PTR == 0) {
+    PLAYER_SYNC_DATAS_PTR = malloc(sizeof(PlayerSyncPlayerData_t) * GAME_MAX_PLAYERS);
+    initialized = 0;
+  }
+
+  // not enough memory to allocate
+  // fail and disable
+  if (PLAYER_SYNC_DATAS_PTR == 0) {
+    gameConfig.grNewPlayerSync = 0;
+    return;
+  }
+
+  // reset buffer
+  if (!initialized && PLAYER_SYNC_DATAS_PTR) {
+    memset(PLAYER_SYNC_DATAS_PTR, 0, sizeof(PlayerSyncPlayerData_t) * GAME_MAX_PLAYERS);
+  }
+
+  // init
+  initialized = 1;
+
   // hooks
   HOOK_JAL(0x0060eb80, &playerSyncDisablePlayerStateUpdates);
   HOOK_JAL(0x0060684c, &playerSyncHandlePlayerPadHook);
+  //HOOK_JAL(0x0060cd44, &playerSyncOnPlayerUpdateSetState);
 
   // player link always healthy
   POKE_U32(0x005F7BDC, 0x24020001);
+
+  // fix weird overflow caused by player sync
+  POKE_U32(0x004BAD64, 0x00412023);
+
+  // delay
+  if (delay) {
+    --delay;
+    return;
+  }
 
   // player updates
   Player** players = playerGetAll();
