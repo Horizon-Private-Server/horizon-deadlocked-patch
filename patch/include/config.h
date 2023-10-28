@@ -2,6 +2,7 @@
 #define __PATCH_CONFIG_H__
 
 #include "messageid.h"
+#include <libdl/gamesettings.h>
 
 enum PatchGameNetMessage
 {
@@ -10,7 +11,8 @@ enum PatchGameNetMessage
   CUSTOM_MSG_CLIENT_READY,
   CUSTOM_MSG_PLAYER_VOTED_TO_END,
   CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED,
-  CUSTOM_MSG_DZO_COSMETICS_UPDATE
+  CUSTOM_MSG_DZO_COSMETICS_UPDATE,
+  CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE
 };
 
 enum ActionType
@@ -105,6 +107,26 @@ typedef struct CustomDzoCommandDrawVoteToEnd
   int Count;
   int VotesRequired;
 } CustomDzoCommandDrawVoteToEnd_t;
+
+typedef struct PlayerSyncStateUpdatePacked
+{
+  float Position[3];
+  float Rotation[3];
+  int GameTime;
+  short CameraDistance;
+  short CameraYaw;
+  short CameraPitch;
+  short NoInput;
+  short Health;
+  u8 PadBits0;
+  u8 PadBits1;
+  u8 MoveX;
+  u8 MoveY;
+  char State;
+  char StateId;
+  char PlayerIdx;
+  u8 CmdId;
+} PlayerSyncStateUpdatePacked_t;
 
 extern int isConfigMenuActive;
 

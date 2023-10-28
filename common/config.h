@@ -94,6 +94,7 @@ typedef struct PatchGameConfig
   char grCqPersistentCapture;
   char grCqDisableTurrets;
   char grCqDisableUpgrades;
+  char grNewPlayerSync;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;
@@ -199,7 +200,7 @@ enum TRAINING_TYPE
 {
 	TRAINING_TYPE_FUSION,
 	TRAINING_TYPE_CYCLE,
-	TRAINING_TYPE_B6,
+  TRAINING_TYPE_RUSH,
 	TRAINING_TYPE_MAX
 };
 

@@ -555,7 +555,9 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_12 = 0; // CTF
 	gameOptions->GameFlags.MultiplayerGameFlags.UNK_13 = 0; // KOTH
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_25 = 3; // NORMAL SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = endless ? 0 : TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;

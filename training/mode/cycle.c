@@ -146,6 +146,9 @@ int modePlayerIsInHill(void)
 void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
 {
 	VECTOR targetSpawnOffset;
+  VECTOR dt;
+  int i;
+  int r = 100;
 
 	vector_write(outRot, 0);
 
@@ -153,7 +156,7 @@ void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int fir
 	{
 		SimulatedPlayer_t* sPlayer = &SimPlayers[player->PlayerId - 1];
 
-		while (1) {
+		while (r) {
 
 			int targetSpawnPointIdx = modeGetHillSpawnPointIdx();
 			SpawnPoint* sp = spawnPointGet(targetSpawnPointIdx);
@@ -161,22 +164,28 @@ void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int fir
 
 			targetSpawnOffset[0] = randRange(-1, 1);
 			targetSpawnOffset[1] = randRange(-1, 1);
-			targetSpawnOffset[2] = 0;
+			targetSpawnOffset[2] = 1;
 			vector_normalize(targetSpawnOffset, targetSpawnOffset);
 			vector_scale(targetSpawnOffset, targetSpawnOffset, randRange(0, 1));
 			State.TargetLastSpawnIdx = targetSpawnPointIdx;
 			sPlayer->TicksToRespawn = TICKS_TO_RESPAWN;
 
 			vector_scale(targetSpawnOffset, targetSpawnOffset, vector_length(&sp->M0[0]));
+      targetSpawnOffset[2] = 1;
 			vector_add(targetSpawnOffset, &sp->M0[12], targetSpawnOffset);
 			vector_copy(outPos, targetSpawnOffset);
 				
 			// snap to ground
 			targetSpawnOffset[2] -= 4;
 			if (CollLine_Fix(outPos, targetSpawnOffset, 2, NULL, 0)) {
-				vector_copy(outPos, CollLine_Fix_GetHitPosition());
-				break;
+        int hitColId = CollLine_Fix_GetHitCollisionId() & 0xF;
+        if (hitColId == 0xF || hitColId == 0xE) {
+				  vector_copy(outPos, CollLine_Fix_GetHitPosition());
+				  break;
+        }
 			}
+
+      --r;
 		}
 	}
 	else
@@ -184,14 +193,38 @@ void modeGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int fir
 		// reset combo
 		State.ComboCounter = 0;
 
-		// respawn
-		float theta = (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU;
-		vector_copy(outPos, Config.PlayerSpawnPoint);
-		outPos[0] += cosf(theta) * 1.5;
-		outPos[1] += sinf(theta) * 1.5;
-		outPos[2] += 1;
+    // get hill sp
+    int targetSpawnPointIdx = modeGetHillSpawnPointIdx();
+    SpawnPoint* hillSp = spawnPointGet(targetSpawnPointIdx);
+    int spCount = spawnPointGetCount();
+    int bestSpIdx = 0;
+    float bestSpIdxDist = 100000;
 
-		outRot[2] = Config.PlayerSpawnPoint[3];
+    // find closest spawn point to hill
+    for (i = 0; i < spCount; ++i)
+    {
+      if (spawnPointIsPlayer(i)) {
+        SpawnPoint* sp = spawnPointGet(i);
+        vector_subtract(dt, &sp->M0[12], &hillSp->M0[12]);
+        float dist = vector_length(dt);
+        if (dist < bestSpIdxDist && fabsf(dt[2] / dist) < 0.5 && dist > 30) {
+        
+          bestSpIdx = i;
+          bestSpIdxDist = dist;
+        }
+      }
+    }
+
+    SpawnPoint* targetSp = spawnPointGet(bestSpIdx);
+    
+		// respawn
+		vector_copy(outPos, &targetSp->M0[12]);
+		outPos[2] += 1;
+		
+    // face hill
+    vector_subtract(dt, &hillSp->M0[12], outPos);
+    float yaw = atan2f(dt[1], dt[0]);
+    outRot[2] = yaw;
 	}
 }
 
@@ -581,6 +614,9 @@ void modeTick(void)
 	if (!HillMoby) {
 		HillMoby = mobyFindNextByOClass(mobyListGetStart(), 0x2604);
 		DPRINTF("hill moby %08X\n", (u32)HillMoby);
+    if (HillMoby) {
+      playerRespawn(playerGetFromSlot(0));
+    }
 	}
 }
 
@@ -646,7 +682,7 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameConfig->grNoInvTimer = 1;
 	gameConfig->grV2s = 0;
 	gameConfig->grVampire = 0;
-	gameConfig->grBetterHills = 0;
+	gameConfig->grBetterHills = 1;
 	gameConfig->prPlayerSize = 0;
 	gameConfig->prRotatingWeapons = 0;
 
@@ -666,7 +702,9 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.Homenodes = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_12 = 0; // CTF
 	gameOptions->GameFlags.MultiplayerGameFlags.UNK_13 = 1; // KOTH
+	gameOptions->GameFlags.MultiplayerGameFlags.UNK_25 = 3; // NORMAL SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = endless ? 0 : TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
@@ -675,7 +713,7 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.HillArmor = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.HillSharing = 1;
 	
-  gameSettings->GameLevel = 54; // ghost station
+  if (!endless) gameSettings->GameLevel = 54; // ghost station
   gameSettings->GameRules = GAMERULE_KOTH;
 
   gameOptions->WeaponFlags.Chargeboots = 1;

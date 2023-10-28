@@ -149,6 +149,7 @@ typedef struct SimulatedPlayer {
 	u32 TicksToAimPitch;
 	u32 TicksToTbag;
 	u32 TicksAimNearPlayer;
+  u32 TicksSinceSeenPlayer;
 	int SniperFireStopForTicks;
 	int StrafeDir;
 	int Idx;
