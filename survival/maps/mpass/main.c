@@ -33,6 +33,7 @@
 #include "mob.h"
 #include "pathfind.h"
 #include "mpass.h"
+#include "bigal.h"
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
 void gateInit(void);
@@ -42,6 +43,8 @@ void configInit(void);
 void pathTick(void);
 
 int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 
 char LocalPlayerStrBuffer[2][48];
 
@@ -95,9 +98,17 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
 {
   switch (spawnParamsIdx)
   {
+    case MOB_SPAWN_PARAM_RUNNER:
+    {
+      return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+    }
     case MOB_SPAWN_PARAM_NORMAL:
     {
       return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+    }
+    case MOB_SPAWN_PARAM_SWARMER:
+    {
+      return swarmerCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
     default:
     {
@@ -138,6 +149,7 @@ void initialize(void)
   mboxInit();
   mobInit();
   configInit();
+  bigalInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
   // only have gate collision on when processing players
@@ -196,6 +208,7 @@ int main (void)
   if (MapConfig.ClientsReady || !netGetDmeServerConnection())
   {
     mboxSpawn();
+    bigalSpawn();
     gateSpawn(GateLocations, GateLocationsCount);
   }
 

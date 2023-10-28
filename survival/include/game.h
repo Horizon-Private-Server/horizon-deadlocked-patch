@@ -17,6 +17,9 @@
 #define ZOMBIE_MOBY_OCLASS										(0x20F6)
 #define EXECUTIONER_MOBY_OCLASS							  (0x2468)
 #define TREMOR_MOBY_OCLASS							      (0x24D3)
+#define SWARMER_MOBY_OCLASS							      (0x2695)
+
+#define BIGAL_MOBY_OCLASS                     (0x2124)
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
 
@@ -156,6 +159,7 @@ enum MobStatId
   MOB_STAT_ZOMBIE_EXPLODE     = 5,
   MOB_STAT_TREMOR             = 6,
   MOB_STAT_EXECUTIONER        = 7,
+  MOB_STAT_SWARMER            = 8,
   MOB_STAT_COUNT
 };
 

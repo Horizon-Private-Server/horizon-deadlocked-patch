@@ -227,5 +227,6 @@ int mobyIsMob(Moby* moby)
   return moby->OClass == ZOMBIE_MOBY_OCLASS
     || moby->OClass == EXECUTIONER_MOBY_OCLASS
     || moby->OClass == TREMOR_MOBY_OCLASS
+    || moby->OClass == SWARMER_MOBY_OCLASS
     ;
 }

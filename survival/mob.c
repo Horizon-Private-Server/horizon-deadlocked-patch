@@ -214,6 +214,7 @@ int mobyComputeComplexity(Moby * moby)
   {
     case ZOMBIE_MOBY_OCLASS: return 650;
     case TREMOR_MOBY_OCLASS: return 900;
+    case SWARMER_MOBY_OCLASS: return 500;
     case EXECUTIONER_MOBY_OCLASS: return 1500;
   }
 

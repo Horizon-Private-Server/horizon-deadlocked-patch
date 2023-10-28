@@ -47,6 +47,10 @@ extern int aaa;
 #include "tremor.c"
 #endif
 
+#if MOB_SWARMER
+#include "swarmer.c"
+#endif
+
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
 {
@@ -553,6 +557,13 @@ void mobOnSpawned(Moby* moby)
     case TREMOR_MOBY_OCLASS:
     {
       pvars->VTable = &TremorVTable;
+      break;
+    }
+#endif
+#if MOB_SWARMER
+    case SWARMER_MOBY_OCLASS:
+    {
+      pvars->VTable = &SwarmerVTable;
       break;
     }
 #endif

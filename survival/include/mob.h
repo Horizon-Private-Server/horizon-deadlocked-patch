@@ -10,6 +10,7 @@
 #include "zombie.h"
 #include "executioner.h"
 #include "tremor.h"
+#include "swarmer.h"
 #include "game.h"
 
 enum MobAction
