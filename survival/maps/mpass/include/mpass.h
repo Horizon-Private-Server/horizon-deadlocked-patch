@@ -2,6 +2,8 @@
 #define _SURVIVAL_MPASS_H_
 
 #include "bigalpath.h"
+#include "bigal.h"
+#include "statue.h"
 
 // ordered from least to most probable
 // never more than MAX_MOB_SPAWN_PARAMS total spawn params

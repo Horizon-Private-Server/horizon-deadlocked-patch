@@ -119,6 +119,17 @@ struct MobSpawnParams defaultSpawnParams[] = {
 
 const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct MobSpawnParams);
 
+// Locations of where to spawn statues
+VECTOR statueSpawnPositionRotations[] = {
+  { 543.3, 733.2, 505.52, 0 },
+  { 0, 0, -180 * MATH_DEG2RAD, 0 },
+  { 464.5, 878.09, 505.07, 0 },
+  { 0, 0, -165 * MATH_DEG2RAD, 0 },
+  { 612.77, 940.64, 510.43, 0 },
+  { 7.23 * MATH_DEG2RAD, 0, -44.605 * MATH_DEG2RAD, 0 },
+};
+
+const int statueSpawnPositionRotationsCount = sizeof(statueSpawnPositionRotations) / (sizeof(VECTOR) * 2);
 
 u32 MobPrimaryColors[] = {
 	[MOB_SPAWN_PARAM_RUNNER] 	0x00464443,

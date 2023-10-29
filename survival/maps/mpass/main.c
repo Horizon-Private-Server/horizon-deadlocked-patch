@@ -150,6 +150,7 @@ void initialize(void)
   mobInit();
   configInit();
   bigalInit();
+  statueInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
   // only have gate collision on when processing players
@@ -209,6 +210,7 @@ int main (void)
   {
     mboxSpawn();
     bigalSpawn();
+    statueSpawn();
     gateSpawn(GateLocations, GateLocationsCount);
   }
 
