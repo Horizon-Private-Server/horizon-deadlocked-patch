@@ -215,6 +215,7 @@ int mobyComputeComplexity(Moby * moby)
     case ZOMBIE_MOBY_OCLASS: return 650;
     case TREMOR_MOBY_OCLASS: return 900;
     case SWARMER_MOBY_OCLASS: return 500;
+    case REACTOR_MOBY_OCLASS: return 2000;
     case EXECUTIONER_MOBY_OCLASS: return 1500;
   }
 
@@ -473,6 +474,8 @@ void mobUpdate(Moby* moby)
 	u16 nextActionTicks = decTimerU16(&pvars->MobVars.NextActionDelayTicks);
 	decTimerU16(&pvars->MobVars.ActionCooldownTicks);
 	decTimerU16(&pvars->MobVars.AttackCooldownTicks);
+	decTimerU16(&pvars->MobVars.Attack2CooldownTicks);
+	decTimerU16(&pvars->MobVars.Attack3CooldownTicks);
 	u16 scoutCooldownTicks = decTimerU16(&pvars->MobVars.ScoutCooldownTicks);
 	decTimerU16(&pvars->MobVars.FlinchCooldownTicks);
 	decTimerU16(&pvars->MobVars.TimeBombTicks);
@@ -1296,6 +1299,7 @@ void mobTick(void)
 
       // get position of right hand joint
       mobyGetJointMatrix(m, aaa1, jointMtx);
+      //mobyComputeJointWorldMatrix(m, aaa1, jointMtx);
       
       int x,y;
       if (gfxWorldSpaceToScreenSpace(&jointMtx[12], &x, &y)) {

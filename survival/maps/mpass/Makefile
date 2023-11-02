@@ -3,7 +3,7 @@ EE_OBJS = main.o config.o path.o bigalpath.o bigal.o statue.o ../shared/gate.o .
 EE_ELF = mpass.elf
 EE_BIN = mpass.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
-EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_TREMOR -DMOB_SWARMER -DGATE -fno-builtin -nostdlib -nostartfiles -L.
+EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_TREMOR -DMOB_SWARMER -DMOB_REACTOR -DGATE -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
 BUILD_CONFIG := DEBUG

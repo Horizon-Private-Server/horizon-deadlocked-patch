@@ -51,6 +51,10 @@ extern int aaa;
 #include "swarmer.c"
 #endif
 
+#if MOB_REACTOR
+#include "reactor.c"
+#endif
+
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
 {
@@ -564,6 +568,13 @@ void mobOnSpawned(Moby* moby)
     case SWARMER_MOBY_OCLASS:
     {
       pvars->VTable = &SwarmerVTable;
+      break;
+    }
+#endif
+#if MOB_REACTOR
+    case REACTOR_MOBY_OCLASS:
+    {
+      pvars->VTable = &ReactorVTable;
       break;
     }
 #endif

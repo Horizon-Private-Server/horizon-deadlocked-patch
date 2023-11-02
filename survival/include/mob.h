@@ -9,6 +9,7 @@
 #include <libdl/sound.h>
 #include "zombie.h"
 #include "executioner.h"
+#include "reactor.h"
 #include "tremor.h"
 #include "swarmer.h"
 #include "game.h"
@@ -24,6 +25,8 @@ enum MobAction
 	MOB_ACTION_LOOK_AT_TARGET,
   MOB_ACTION_DIE,
 	MOB_ACTION_ATTACK,
+	MOB_ACTION_ATTACK_2,
+	MOB_ACTION_ATTACK_3,
 	MOB_ACTION_TIME_BOMB,
   MOB_ACTION_TIME_BOMB_EXPLODE
 };
@@ -186,6 +189,8 @@ struct MobVars {
 	u16 NextActionDelayTicks;
 	u16 ActionCooldownTicks;
 	u16 AttackCooldownTicks;
+	u16 Attack2CooldownTicks;
+	u16 Attack3CooldownTicks;
 	u16 ScoutCooldownTicks;
 	u16 FlinchCooldownTicks;
 	u16 AutoDirtyCooldownTicks;

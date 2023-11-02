@@ -222,10 +222,12 @@ int handleEvent(Moby* moby, GuberEvent* event)
 
 	switch (moby->OClass)
 	{
-		case ZOMBIE_MOBY_OCLASS: return mobHandleEvent(moby, event);
-		case EXECUTIONER_MOBY_OCLASS: return mobHandleEvent(moby, event);
-		case TREMOR_MOBY_OCLASS: return mobHandleEvent(moby, event);
-    case SWARMER_MOBY_OCLASS: return mobHandleEvent(moby, event);
+		case ZOMBIE_MOBY_OCLASS:
+		case EXECUTIONER_MOBY_OCLASS:
+		case TREMOR_MOBY_OCLASS:
+    case SWARMER_MOBY_OCLASS: 
+    case REACTOR_MOBY_OCLASS:
+      return mobHandleEvent(moby, event);
 		case DROP_MOBY_OCLASS: return dropHandleEvent(moby, event);
 		case UPGRADE_MOBY_OCLASS: return upgradeHandleEvent(moby, event);
     case DEMONBELL_MOBY_OCLASS: return demonbellHandleEvent(moby, event);

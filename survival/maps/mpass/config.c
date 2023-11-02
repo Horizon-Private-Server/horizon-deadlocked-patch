@@ -16,6 +16,39 @@ const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct S
 // These must be ordered from least probable to most probable
 // SHOULD NEVER EXCEED MAX_MOB_SPAWN_PARAMS
 struct MobSpawnParams defaultSpawnParams[] = {
+	// reactor
+  [MOB_SPAWN_PARAM_REACTOR]
+	{
+		.Cost = 10,
+    .MaxSpawnedAtOnce = 1,
+		.MinRound = 0,
+		.CooldownTicks = 0,
+		.Probability = 0.01,
+    .StatId = MOB_STAT_REACTOR,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER,
+		.Name = "Reactor",
+		.Config = {
+			.Xp = 15,
+			.Bangles = REACTOR_BANGLE_SHOULDER_PLATES,
+			.Damage = MOB_BASE_DAMAGE * 1.0,
+			.MaxDamage = MOB_BASE_DAMAGE * 5,
+      .DamageScale = 1.0,
+			.Speed = MOB_BASE_SPEED * 0.85,
+			.MaxSpeed = MOB_BASE_SPEED * 2.0,
+      .SpeedScale = 0.5,
+			.Health = MOB_BASE_HEALTH * 25.0,
+			.MaxHealth = 0,
+      .HealthScale = 1.0,
+			.Bolts = MOB_BASE_BOLTS * 1.0,
+			.AttackRadius = REACTOR_MELEE_ATTACK_RADIUS * 1.0,
+			.HitRadius = REACTOR_MELEE_HIT_RADIUS * 1.5,
+      .CollRadius = REACTOR_BASE_COLL_RADIUS * 4.0,
+			.ReactionTickCount = REACTOR_BASE_REACTION_TICKS * 0.35,
+			.AttackCooldownTickCount = REACTOR_BASE_ATTACK_COOLDOWN_TICKS * 1.5,
+			.MaxCostMutation = 2,
+			.MobAttribute = 0,
+		}
+	},
 	// runner zombie
   [MOB_SPAWN_PARAM_RUNNER]
 	{
@@ -56,7 +89,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .MaxSpawnedAtOnce = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
-		.Probability = 1.0,
+		.Probability = 0.5,
     .StatId = MOB_STAT_ZOMBIE,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Zombie",
@@ -132,18 +165,21 @@ VECTOR statueSpawnPositionRotations[] = {
 const int statueSpawnPositionRotationsCount = sizeof(statueSpawnPositionRotations) / (sizeof(VECTOR) * 2);
 
 u32 MobPrimaryColors[] = {
+	[MOB_SPAWN_PARAM_REACTOR] 	0x00464443,
 	[MOB_SPAWN_PARAM_RUNNER] 	0x00464443,
 	[MOB_SPAWN_PARAM_NORMAL] 	0x00464443,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x00464443,
 };
 
 u32 MobSecondaryColors[] = {
+	[MOB_SPAWN_PARAM_REACTOR] 0x80808080,
 	[MOB_SPAWN_PARAM_RUNNER] 	0x80808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x80808080,
 };
 
 u32 MobLODColors[] = {
+	[MOB_SPAWN_PARAM_REACTOR] 0x00808080,
 	[MOB_SPAWN_PARAM_RUNNER] 	0x00808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x00808080,

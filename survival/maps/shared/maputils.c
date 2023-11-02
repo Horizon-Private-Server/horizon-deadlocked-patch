@@ -228,5 +228,6 @@ int mobyIsMob(Moby* moby)
     || moby->OClass == EXECUTIONER_MOBY_OCLASS
     || moby->OClass == TREMOR_MOBY_OCLASS
     || moby->OClass == SWARMER_MOBY_OCLASS
+    || moby->OClass == REACTOR_MOBY_OCLASS
     ;
 }

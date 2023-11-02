@@ -18,6 +18,7 @@
 #define EXECUTIONER_MOBY_OCLASS							  (0x2468)
 #define TREMOR_MOBY_OCLASS							      (0x24D3)
 #define SWARMER_MOBY_OCLASS							      (0x2695)
+#define REACTOR_MOBY_OCLASS							      (0x20BE)
 
 #define BIGAL_MOBY_OCLASS                     (0x2124)
 
@@ -160,6 +161,7 @@ enum MobStatId
   MOB_STAT_TREMOR             = 6,
   MOB_STAT_EXECUTIONER        = 7,
   MOB_STAT_SWARMER            = 8,
+  MOB_STAT_REACTOR            = 9,
   MOB_STAT_COUNT
 };
 

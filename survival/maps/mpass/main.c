@@ -45,6 +45,7 @@ void pathTick(void);
 int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 
 char LocalPlayerStrBuffer[2][48];
 
@@ -98,6 +99,10 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
 {
   switch (spawnParamsIdx)
   {
+    case MOB_SPAWN_PARAM_REACTOR:
+    {
+      return reactorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+    }
     case MOB_SPAWN_PARAM_RUNNER:
     {
       return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
@@ -221,13 +226,14 @@ int main (void)
 
 #if DEBUG
   static int tpPlayerToSpawn = 0;
+
   if (!tpPlayerToSpawn) {
     tpPlayerToSpawn = 1;
-
     Player* localPlayer = playerGetFromSlot(0);
+
     if (localPlayer && localPlayer->SkinMoby) {
-      VECTOR pStart = { 328.6, 544.85, 434, 0 };
-      VECTOR pRotStart = { 0, 0, 0, 0 };
+      VECTOR pStart = { 658.3901, 828.0401, 499.7961, 0 };
+      VECTOR pRotStart = { 0, 0, MATH_PI, 0 };
       playerSetPosRot(localPlayer, pStart, pRotStart);
     }
   }
