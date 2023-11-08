@@ -1454,7 +1454,7 @@ void patchFrameSkip()
  */
 void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0, struct tNW_GadgetEventMessage * message)
 {
-	if (player && message) { // && message->GadgetEventType == 8) {
+	if (player && message && message->GadgetEventType == 8) {
 		int delta = a2 - gameGetTime();
 
 
@@ -4572,7 +4572,7 @@ int main (void)
   else HOOK_JAL(0x00138d7c, &onBeforeVSync);
 
   // force to 15 ms
-  patchAggTime(15);
+  //patchAggTime(15);
 
   // force agg time
   //patchAggTime(30 + config.playerAggTime * 5);
