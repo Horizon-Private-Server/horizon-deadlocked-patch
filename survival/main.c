@@ -1794,7 +1794,7 @@ void forcePlayerHUD(void)
 	int i;
 
 	// replace normal scoreboard with bolt counter
-	for (i = 0; i < 2; ++i)
+	for (i = 0; i < GAME_MAX_LOCALS; ++i)
 	{
 		PlayerHUDFlags* hudFlags = hudGetPlayerFlags(i);
 		if (hudFlags) {
@@ -2668,7 +2668,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     gfxScreenSpaceText(480, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
     // draw dread tokens
-    for (i = 0; i < 2; ++i) {
+    // TODO: add support for 3,4 local players
+    for (i = 0; i < GAME_MAX_LOCALS; ++i) {
       Player* p = playerGetFromSlot(i);
       if (p && p->PlayerMoby) {
         float y = 57 + (i * 0.5 * SCREEN_HEIGHT);

@@ -161,7 +161,7 @@ char showMiscPopup = 0;
 char miscPopupTitle[32];
 char miscPopupBody[64];
 const char * patchConfigStr = "PATCH CONFIG";
-char weaponOrderBackup[2][3] = { {0,0,0}, {0,0,0} };
+char weaponOrderBackup[GAME_MAX_LOCALS][3] = { {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0} };
 float lastFps = 0;
 int renderTimeMs = 0;
 float averageRenderTimeMs = 0;
@@ -367,13 +367,21 @@ void adjustPlayerSyncSettings(void)
  */
 void runSingletapChargeboot(struct PAD* pad, u8* rdata)
 {
-  static char wasL2PressedLastFrame = 0;
-  static int framesL2LastHeldFor = 0;
-  static int secondTapCountdown = 0;
-  static int secondTapForTicks = 0;
   const int MAX_FRAMES_L2_HELD_FOR_SECOND_TAP = 10;
-
+  static char s_wasL2PressedLastFrame[PAD_PORT_MAX * PAD_SLOT_MAX] = {};
+  static int s_framesL2LastHeldFor[PAD_PORT_MAX * PAD_SLOT_MAX] = {};
+  static int s_secondTapCountdown[PAD_PORT_MAX * PAD_SLOT_MAX] = {};
+  static int s_secondTapForTicks[PAD_PORT_MAX * PAD_SLOT_MAX] = {};
+  
   if (!config.enableSingleTapChargeboot) return;
+
+  // get pad idx
+  int padIdx = (pad->port*PAD_SLOT_MAX) + pad->slot;
+  if (padIdx >= (PAD_PORT_MAX * PAD_SLOT_MAX)) return;
+  char wasL2PressedLastFrame = s_wasL2PressedLastFrame[padIdx];
+  int framesL2LastHeldFor = s_framesL2LastHeldFor[padIdx];
+  int secondTapCountdown = s_secondTapCountdown[padIdx];
+  int secondTapForTicks = s_secondTapForTicks[padIdx];
 
   // check if L2 is pressed this frame
   char isL2PressedThisFrame = (rdata[3] & 1) == 0;
@@ -397,15 +405,21 @@ void runSingletapChargeboot(struct PAD* pad, u8* rdata)
   // stall second tap by countdown
   // then hold L2 for set number of ticks
   if (secondTapCountdown > 0) {
-    --secondTapCountdown;
+    secondTapCountdown -= 1;
 
     if (secondTapCountdown == 0) {
       rdata[3] &= ~1;
     }
   } else if (secondTapForTicks > 0) {
-      rdata[3] &= ~1;
-    --secondTapForTicks;
+    rdata[3] &= ~1;
+    secondTapForTicks -= 1;
   }
+
+  // update
+  s_wasL2PressedLastFrame[padIdx] = wasL2PressedLastFrame;
+  s_framesL2LastHeldFor[padIdx] = framesL2LastHeldFor;
+  s_secondTapCountdown[padIdx] = secondTapCountdown;
+  s_secondTapForTicks[padIdx] = secondTapForTicks;
 }
 
 /*
@@ -1580,7 +1594,7 @@ void patchCycleOrder(void)
   if (!isInGame()) return;
   if (config.fixedCycleOrder == FIXED_CYCLE_ORDER_OFF) return;
 
-  for (i = 0; i < 2; ++i) {
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
 
     // check we're holding the three cycle weapons
     int w0 = playerGetLocalEquipslot(i, 0);
@@ -1982,7 +1996,7 @@ void runFlagPickupFix(void)
 					}
 
 					if (!flagUpdateRan) {
-						for (i = 0; i < 2; ++i) {
+						for (i = 0; i < GAME_MAX_LOCALS; ++i) {
 							// get local player
 							Player* localPlayer = playerGetFromSlot(i);
 							if (localPlayer) {
@@ -2177,7 +2191,7 @@ void runFixB6EatOnDownSlope(void)
 {
   int i = 0;
 
-  while (i < 2)
+  while (i < GAME_MAX_LOCALS)
   {
     Player* p = playerGetFromSlot(i);
     if (p) {
@@ -4101,12 +4115,12 @@ void drawHook(u64 a0)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void updatePad(struct PAD* pad, u8* rdata, int size)
+void updatePad(struct PAD* pad, u8* rdata, int size, u32 a3)
 {
   // need to run this before UpdatePad
   runSingletapChargeboot(pad, rdata);
 
-	((void (*)(struct PAD*, u8*, int))pad->RawPadInputCallback)(pad, rdata, size);
+	((void (*)(struct PAD*, u8*, int, u32))pad->RawPadInputCallback)(pad, rdata, size, a3);
 }
 
 /*
@@ -4713,7 +4727,9 @@ int main (void)
 	{
 		// hook render function
 		HOOK_JAL(0x004A84B0, &updateHook);
+		HOOK_JAL(0x004A9C10, &updateHook);
 		HOOK_JAL(0x004C3A94, &drawHook);
+		HOOK_JAL(0x004A9A48, &drawHook);
     HOOK_JAL(0x005281F0, &updatePad);
     
     // prevents wrench lag

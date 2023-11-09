@@ -415,7 +415,7 @@ void updateScoreboard(void)
 	// Set hud flags
 	if (gameGetTime() > (InitializedTime + 50))
 	{
-		for (i = 0; i < 2; ++i)
+		for (i = 0; i < GAME_MAX_LOCALS; ++i)
 		{
 			PlayerHUDFlags * hud = hudGetPlayerFlags(i);
 			if (!hud->Flags.NormalScoreboard)

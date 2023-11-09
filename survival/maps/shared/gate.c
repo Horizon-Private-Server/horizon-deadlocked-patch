@@ -257,7 +257,7 @@ void gateUpdate(Moby* moby)
 
   // handle interact
   if (pvars->Cost > 0 && moby->State == GATE_STATE_ACTIVATED) {
-    for (i = 0; i < 2; ++i) {
+    for (i = 0; i < GAME_MAX_LOCALS; ++i) {
       Player* lp = playerGetFromSlot(i);
       if (lp) {
         

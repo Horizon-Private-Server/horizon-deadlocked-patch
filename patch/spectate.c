@@ -60,7 +60,7 @@ struct PlayerSpectateData
     VECTOR LastCameraPos;
     float LastCameraYaw;
     float LastCameraPitch;
-} SpectateData[2];
+} SpectateData[GAME_MAX_LOCALS];
 
 
 /*
@@ -358,8 +358,7 @@ void processSpectate(void)
     // Loop through every player
     for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	  {
-      if (!players[i])
-      continue;
+      if (!players[i]) continue;
 
       Player * player = players[i];
 

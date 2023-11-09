@@ -64,7 +64,7 @@ struct PlayerFreecamData
     VECTOR SavedFreecamPosition;
     float SavedYaw;
     float SavedPitch;
-} FreecamData[2];
+} FreecamData[GAME_MAX_LOCALS];
 
 void clearFreecamData(struct PlayerFreecamData* data)
 {
@@ -215,7 +215,7 @@ void resetFreecam(void)
     }
   }
   
-  for (i = 0; i < 2; ++i) {
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
     if (FreecamData[i].Enabled) {
       clearFreecamData(&FreecamData[i]);
     }
