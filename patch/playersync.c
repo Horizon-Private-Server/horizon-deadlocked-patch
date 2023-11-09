@@ -462,7 +462,7 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  //gameConfig.grNewPlayerSync = 1;
+  gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;
