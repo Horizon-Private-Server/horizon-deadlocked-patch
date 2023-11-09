@@ -434,7 +434,7 @@ void playerSyncBroadcastPlayerState(Player* player)
   msg.State = player->PlayerState;
   msg.StateId = data->LastStateId;
   msg.CmdId = data->StateUpdateCmdId = (data->StateUpdateCmdId + 1) % CMD_BUFFER_SIZE;
-  
+
   netBroadcastCustomAppMessage(0, connection, CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE, sizeof(msg), &msg);
 }
 

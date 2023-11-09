@@ -354,7 +354,7 @@ void onSetRoundComplete(int gameTime, enum RoundOutcome outcome, int roundDurati
 
 	// draw win/lose popup
 	if (!isGameOver) {
-		for (i = 0; i < 2; ++i)
+		for (i = 0; i < GAME_MAX_LOCALS; ++i)
 		{
 			Player * p = playerGetFromSlot(i);
 			if (p) {

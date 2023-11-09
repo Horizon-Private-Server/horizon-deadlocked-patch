@@ -46,7 +46,9 @@ const int patches[][3] = {
 	{ 0, 0x00594CB8, 0x0C1C1FCA }, // menu loop hook
 	{ 0, 0x0015b290, 0x03E00008 }, // nwUpdate hook
 	{ 1, 0x004C3A94, 0x0C130C90 }, // draw hook
+	{ 1, 0x004A9A48, 0x0C130C90 }, // draw hook
 	{ 1, 0x004a84b0, 0x0C1661AC }, // update hook
+	{ 1, 0x004A9C10, 0x0C1661AC }, // update hook
   { 1, 0x005281F0, 0x0100F809 }, // update pad RawPadInputCallback
 	{ 1, 0x004a84a8, 0x0C05873C }, // 
 	{ 0, 0x0075AC3C, 0x0C1DEE28 }, // get rank numbers
