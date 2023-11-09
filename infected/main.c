@@ -77,6 +77,36 @@ char InfectedPopupBuffer[64];
 const char * InfectedPopupFormat = "%s has been infected!";
 
 /*
+ * NAME :		destroyMinesFromPlayer
+ * 
+ * DESCRIPTION :
+ * 			Destroys all mines owned by the given player
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 		player:	Player
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void destroyMinesFromPlayer(Player *player)
+{
+  if (!player) return;
+  
+  Moby* moby = mobyListGetStart();
+	while ((moby = mobyFindNextByOClass(moby, MOBY_ID_MINE_LAUNCHER_MINE)))
+	{
+		if (!mobyIsDestroyed(moby) && moby->PParent == player->PlayerMoby) {
+      moby->State = 3; // destroy
+    }
+
+		++moby;
+	}
+}
+
+/*
  * NAME :		isInfected
  * 
  * DESCRIPTION :
@@ -114,17 +144,22 @@ inline int isInfected(int playerId)
 void infect(int playerId)
 {
 	InfectedMask |= (1 << playerId);
+  Player** players = playerGetAll();
 
 	GameSettings * gameSettings = gameGetSettings();
 	if (!gameSettings)
 		return;
 
+  // popup
 	InfectedPopupBuffer[0] = 0;
 	sprintf(InfectedPopupBuffer, InfectedPopupFormat, gameSettings->PlayerNames[playerId]);
 	InfectedPopupBuffer[63] = 0;
 
 	uiShowPopup(0, InfectedPopupBuffer);
 	uiShowPopup(1, InfectedPopupBuffer);
+
+  // destroy player's mines  
+  destroyMinesFromPlayer(players[playerId]);
 }
 
 /*
@@ -149,7 +184,6 @@ void processPlayer(Player * player)
 
 	int teamId = player->Team;
 	GameData * gameData = gameGetData();
-
 	// 
 	if (isInfected(player->PlayerId))
 	{
@@ -157,12 +191,26 @@ void processPlayer(Player * player)
 		if (teamId != INFECTED_TEAM)
 			playerSetTeam(player, INFECTED_TEAM);
 
-		player->Speed = 4.0;
+    // force health to max 10  
+    player->MaxHealth = 10;
+    if (player->Health > 10) player->Health = 10;
+
+    // set speed and give quad effect
+		player->Speed = 2.0;
 		player->DamageMultiplier = 1.001;
 		player->timers.damageMuliplierTimer = 0x1000;
 		
-		// Force wrench
+    // force flail
+    if (player->IsLocal) {
+      player->GadgetBox[WEAPON_ID_FLAIL].Level = 0;
+      playerSetLocalEquipslot(player->LocalPlayerIndex, 0, WEAPON_ID_FLAIL);
+      playerSetLocalEquipslot(player->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
+      playerSetLocalEquipslot(player->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
+    }
+
+		// Force wrench or flail
 		if (player->WeaponHeldId != WEAPON_ID_WRENCH &&
+      player->WeaponHeldId != WEAPON_ID_FLAIL &&
 			player->WeaponHeldId != WEAPON_ID_SWINGSHOT)
 			playerEquipWeapon(player, WEAPON_ID_WRENCH);
 	}

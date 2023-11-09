@@ -4144,11 +4144,12 @@ void updateHook(void)
 	static long ticksIntervalStarted = 0;
 
   // trigger config menu update
-  onConfigGameMenu();
+  if (playerGetNumLocals() > 1)
+    onConfigGameMenu();
 
 	long t0 = timerGetSystemTime();
-	((void (*)(void))0x005986b0)();
   playerSyncTick();
+	((void (*)(void))0x005986b0)();
 	long t1 = timerGetSystemTime();
 
 	updateTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
@@ -4793,6 +4794,10 @@ int main (void)
 		GameOptions* gameOptions = gameGetOptions();
 	  if (gameOptions && gameOptions->GameFlags.MultiplayerGameFlags.Survivor)
 			gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0xFF;
+
+    // trigger config menu update
+    if (playerGetNumLocals() == 1)
+      onConfigGameMenu();
 
 #if MAPEDITOR
 		// trigger map editor update

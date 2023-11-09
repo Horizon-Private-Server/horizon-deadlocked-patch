@@ -107,6 +107,34 @@ void htReset(void)
 }
 
 /*
+ * NAME :		htDestroyPlayerObjects
+ * 
+ * DESCRIPTION :
+ * 			Destroys all player owned/created mobys.
+ *        * Mines
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void htDestroyPlayerObjects(void)
+{
+  Moby* moby = mobyListGetStart();
+	while ((moby = mobyFindNextByOClass(moby, MOBY_ID_MINE_LAUNCHER_MINE)))
+	{
+		if (!mobyIsDestroyed(moby)) {
+      moby->State = 3; // destroy
+    }
+
+		++moby;
+	}
+}
+
+/*
  * NAME :		getFlags
  * 
  * DESCRIPTION :
@@ -166,8 +194,11 @@ void htCtfBegin(void)
 	// Make sure we have the flag mobies
 	getFlags();
 
+  // destroy player objects
+  htDestroyPlayerObjects();
+
 	// Indicate when the intermission should end
-	HalfTimeEnd = gameGetTime() + (TIME_SECOND * 5);
+	HalfTimeEnd = gameGetTime() + (TIME_SECOND * 3);
 	HalfTimeState = HT_INTERMISSION;
 
 	// Disable saving or pickup up flag
@@ -536,8 +567,11 @@ void otCtfBegin(void)
 	// Make sure we have the flag mobies
 	getFlags();
 
+  // destroy player objects
+  htDestroyPlayerObjects();
+
 	// Indicate when the intermission should end
-	OvertimeEnd = gameGetTime() + (TIME_SECOND * 5);
+	OvertimeEnd = gameGetTime() + (TIME_SECOND * 3);
 	OvertimeState = OT_INTERMISSION;
 
 	// Disable saving or pickup up flag
