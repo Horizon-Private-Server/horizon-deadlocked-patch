@@ -192,7 +192,6 @@ void processPlayer(Player * player)
 			playerSetTeam(player, INFECTED_TEAM);
 
     // force health to max 10  
-    player->MaxHealth = 10;
     if (player->Health > 10) player->Health = 10;
 
     // set speed and give quad effect
@@ -200,9 +199,16 @@ void processPlayer(Player * player)
 		player->DamageMultiplier = 1.001;
 		player->timers.damageMuliplierTimer = 0x1000;
 		
-    // force flail
+    // give flail to infected
+    if (player->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Level < 0)
+      player->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Level = 0;
+
+    // infected always have ammo
+    if (player->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Ammo <= 0)
+      player->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, WEAPON_ID_FLAIL);
+
+    // force only flail in cycle wheel
     if (player->IsLocal) {
-      player->GadgetBox[WEAPON_ID_FLAIL].Level = 0;
       playerSetLocalEquipslot(player->LocalPlayerIndex, 0, WEAPON_ID_FLAIL);
       playerSetLocalEquipslot(player->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
       playerSetLocalEquipslot(player->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
@@ -484,6 +490,10 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Lockdown = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 5;
 
   // set everyone to blue
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {

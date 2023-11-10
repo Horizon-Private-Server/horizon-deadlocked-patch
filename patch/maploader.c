@@ -89,12 +89,15 @@ int rpcInit = 0;
 // 
 char membuffer[256];
 
+#define MASS_PATH_PREFIX      "mass:"
+#define HOST_PATH_PREFIX      "host:"
+
 // paths for level specific files
-char * fWad = "dl/%s.wad";
-char * fBg = "dl/%s.bg";
-char * fMap = "dl/%s.map";
-char * fVersion = "dl/%s.version";
-char * fGlobalVersion = "dl/version";
+char * fWad = MASS_PATH_PREFIX "dl/%s.wad";
+char * fBg = MASS_PATH_PREFIX "dl/%s.bg";
+char * fMap = MASS_PATH_PREFIX "dl/%s.map";
+char * fVersion = MASS_PATH_PREFIX "dl/%s.version";
+char * fGlobalVersion = MASS_PATH_PREFIX "dl/version";
 
 typedef struct MapOverrideMessage
 {
@@ -461,6 +464,8 @@ int readFile(char * path, void * buffer, int length)
 {
 	int r, fd, fSize;
 
+  DPRINTF("read file (%s)\n", path);
+
 	// Open
 	rpcUSBopen(path, FIO_O_RDONLY);
 	rpcUSBSync(0, NULL, &fd);
@@ -497,6 +502,8 @@ int readFile(char * path, void * buffer, int length)
 	// Close file
 	rpcUSBclose(fd);
 	rpcUSBSync(0, NULL, NULL);
+
+  DPRINTF("finished reading %s (%d)\n", path, length);
 
 	return r;
 }
