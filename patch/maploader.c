@@ -999,7 +999,7 @@ void onMapLoaderOnlineMenu(void)
 		// enable input
 		padEnableInput();
 
-		uiShowOkDialog("Custom Maps", "Custom maps have been enabled.");
+		//uiShowOkDialog("Custom Maps", "Custom maps have been enabled.");
 
 		actionState = ACTION_NONE;
 		LOAD_MODULES_RESULT = 1;
@@ -1156,7 +1156,7 @@ void runMapLoader(void)
 			initialized = 2;
 		}
 #else
-		if (config.enableAutoMaps && LOAD_MODULES_RESULT == 0)
+		if (/*config.enableAutoMaps &&*/ LOAD_MODULES_RESULT == 0)
 		{
 			initialized = 2;
 		}
