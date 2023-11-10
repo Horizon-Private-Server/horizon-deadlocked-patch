@@ -243,6 +243,11 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	}
 	else
 	{
+    // check if host fs exists
+    useHost = 1;
+    if (!readGlobalVersion(NULL)) useHost = 0;
+
+    // read local global version
     readLocalGlobalVersion();
 		if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
 		{
@@ -1010,10 +1015,6 @@ void onMapLoaderOnlineMenu(void)
 		padEnableInput();
 
 		//uiShowOkDialog("Custom Maps", "Custom maps have been enabled.");
-
-    // check if host fs exists
-    useHost = 1;
-    if (!readGlobalVersion(NULL)) useHost = 0;
 
 		actionState = ACTION_NONE;
 		LOAD_MODULES_RESULT = 1;
