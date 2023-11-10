@@ -88,16 +88,17 @@ int rpcInit = 0;
 
 // 
 char membuffer[256];
+int useHost = 0;
 
 #define MASS_PATH_PREFIX      "mass:"
 #define HOST_PATH_PREFIX      "host:"
 
 // paths for level specific files
-char * fWad = MASS_PATH_PREFIX "dl/%s.wad";
-char * fBg = MASS_PATH_PREFIX "dl/%s.bg";
-char * fMap = MASS_PATH_PREFIX "dl/%s.map";
-char * fVersion = MASS_PATH_PREFIX "dl/%s.version";
-char * fGlobalVersion = MASS_PATH_PREFIX "dl/version";
+char * fWad = "%sdl/%s.wad";
+char * fBg = "%sdl/%s.bg";
+char * fMap = "%sdl/%s.map";
+char * fVersion = "%sdl/%s.version";
+char * fGlobalVersion = "%sdl/version";
 
 typedef struct MapOverrideMessage
 {
@@ -150,6 +151,13 @@ struct MapDownloadState
 		int Cancel;
 } DownloadState;
 #endif
+
+//------------------------------------------------------------------------------
+char * getMapPathPrefix(void)
+{
+  if (useHost) return HOST_PATH_PREFIX;
+  return MASS_PATH_PREFIX;
+}
 
 //------------------------------------------------------------------------------
 int onSetMapOverride(void * connection, void * data)
@@ -284,7 +292,7 @@ int onServerSentMapChunk(void * connection, void * data)
 	{
 		// open
 		if (DownloadState.Fd < 0) {
-			sprintf(membuffer, msg->Id == 0 ? fWad : fBg, DownloadState.MapFileName);
+			sprintf(membuffer, msg->Id == 0 ? fWad : fBg, getMapPathPrefix(), DownloadState.MapFileName);
 			DownloadState.Fd = usbOpen(membuffer, FIO_O_CREAT | FIO_O_WRONLY | FIO_O_TRUNC);
 
 			// failed to open
@@ -314,7 +322,7 @@ int onServerSentMapChunk(void * connection, void * data)
 					DownloadState.Enabled = 2;
 
 					// save version
-					sprintf(membuffer, fVersion, DownloadState.MapFileName);
+					sprintf(membuffer, fVersion, getMapPathPrefix(), DownloadState.MapFileName);
 					int fd = usbOpen(membuffer, FIO_O_CREAT | FIO_O_WRONLY | FIO_O_TRUNC);
 					if (fd < 0)
 					{
@@ -370,7 +378,7 @@ int onServerSentMapInitiated(void * connection, void * data)
 
 	// just create the version file to reset it
 	// and also to verify that the usb drive is present
-	sprintf(membuffer, fVersion, DownloadState.MapFileName);
+	sprintf(membuffer, fVersion, getMapPathPrefix(), DownloadState.MapFileName);
 	int fd = usbOpen(membuffer, FIO_O_CREAT | FIO_O_WRONLY | FIO_O_TRUNC);
 	if (fd < 0)
 	{
@@ -513,15 +521,17 @@ int readGlobalVersion(int * version)
 {
 	int r;
   char buf[4];
+  char filename[128];
 
-	r = readFile(fGlobalVersion, (void*)buf, 4);
+  snprintf(filename, sizeof(filename), fGlobalVersion, getMapPathPrefix());
+	r = readFile(filename, (void*)buf, 4);
 	if (r != 4)
 	{
-		DPRINTF("error reading file (%s)\n", fGlobalVersion);
+		DPRINTF("error reading file (%s)\n", filename);
 		return 0;
 	}
 
-  *version = *(int*)buf;
+  if (version) *version = *(int*)buf;
 	return 1;
 }
 
@@ -531,7 +541,7 @@ int readLevelVersion(char * name, int * version)
 	int r;
 
 	// Generate version filename
-	sprintf(membuffer, fVersion, name);
+	sprintf(membuffer, fVersion, getMapPathPrefix(), name);
 
 	// read
 	r = readFile(membuffer, (void*)version, 4);
@@ -548,7 +558,7 @@ int readLevelVersion(char * name, int * version)
 int getLevelSizeUsb()
 {
 	// Generate wad filename
-	sprintf(membuffer, fWad, State.MapFileName);
+	sprintf(membuffer, fWad, getMapPathPrefix(), State.MapFileName);
 
 	// get file length
 	State.LoadingFileSize = readFileLength(membuffer);
@@ -567,7 +577,7 @@ int getLevelSizeUsb()
 int readLevelMapUsb(u8 * buf, int size)
 {
 	// Generate toc filename
-	sprintf(membuffer, fMap, State.MapFileName);
+	sprintf(membuffer, fMap, getMapPathPrefix(), State.MapFileName);
 
 	// read
 	return readFile(membuffer, (void*)buf, size) > 0;
@@ -584,7 +594,7 @@ int readLevelBgUsb(u8 * buf, int size)
 	}
 
 	// Generate toc filename
-	sprintf(membuffer, fBg, State.MapFileName);
+	sprintf(membuffer, fBg, getMapPathPrefix(), State.MapFileName);
 
 	// read
 	return readFile(membuffer, (void*)buf, size) > 0;
@@ -671,7 +681,7 @@ int openLevelUsb()
 	}
 
 	// Generate wad filename
-	sprintf(membuffer, fWad, State.MapFileName);
+	sprintf(membuffer, fWad, getMapPathPrefix(), State.MapFileName);
 
 	// open wad file
 	rpcUSBopen(membuffer, FIO_O_RDONLY);
@@ -1000,6 +1010,10 @@ void onMapLoaderOnlineMenu(void)
 		padEnableInput();
 
 		//uiShowOkDialog("Custom Maps", "Custom maps have been enabled.");
+
+    // check if host fs exists
+    useHost = 1;
+    if (!readGlobalVersion(NULL)) useHost = 0;
 
 		actionState = ACTION_NONE;
 		LOAD_MODULES_RESULT = 1;
