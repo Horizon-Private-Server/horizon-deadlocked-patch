@@ -16,6 +16,7 @@
 #include <libdl/stdio.h>
 #include <libdl/time.h>
 #include "module.h"
+#include "include/game.h"
 #include <libdl/game.h>
 #include <libdl/gamesettings.h>
 #include <libdl/graphics.h>
@@ -25,55 +26,18 @@
 #include <libdl/string.h>
 #include <libdl/utils.h>
 
-/*
- * Infected team.
- */
-#define INFECTED_TEAM			(TEAM_GREEN)
 
-/*
- * 
- */
-struct InfectedGameData
-{
-	u32 Version;
-	int Infections[GAME_MAX_PLAYERS];
-	char IsInfected[GAME_MAX_PLAYERS];
-	char IsFirstInfected[GAME_MAX_PLAYERS];
-};
+void initializeScoreboard(void);
+void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
-/*
- *
- */
-int InfectedMask = 0;
-
-/*
- *
- */
-int WinningTeam = 0;
-
-/*
- *
- */
 int Initialized = 0;
-
-/*
- *
- */
+int WinningTeam = 0;
+int InfectedMask = 0;
 char FirstInfected[GAME_MAX_PLAYERS];
-
-/*
- *
- */
 int Infections[GAME_MAX_PLAYERS];
-
-/*
- * 
- */
+int SurvivorCount = 0;
+int InfectedCount = 0;
 char InfectedPopupBuffer[64];
-
-/*
- *
- */
 const char * InfectedPopupFormat = "%s has been infected!";
 
 /*
@@ -363,6 +327,8 @@ void initialize(void)
 	// 
 	memset(FirstInfected, 0, sizeof(FirstInfected));
 	memset(Infections, 0, sizeof(Infections));
+  
+  initializeScoreboard();
 
 	// hook into player kill event
 	*(u32*)0x00621c7c = 0x0C000000 | ((u32)&onPlayerKill >> 2);
@@ -391,7 +357,6 @@ void initialize(void)
 void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
 {
 	int i = 0;
-	int infectedCount = 0;
 	int playerCount = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
@@ -413,6 +378,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		// If one player isn't infected then their team
 		// is set to winning team
 		WinningTeam = INFECTED_TEAM;
+    SurvivorCount = 0;
+    InfectedCount = 0;
 
 		// Iterate through players
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -427,10 +394,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			++playerCount;
 			if (isInfected(players[i]->PlayerId))
 			{
-				++infectedCount;
+				++InfectedCount;
 			}
 			else
 			{
+        ++SurvivorCount;
 				WinningTeam = players[i]->Team;
 			}
 		}
@@ -442,12 +410,12 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	if (!gameHasEnded())
 	{
 		// If no survivors then end game
-		if (playerCount == infectedCount && gameOptions->GameFlags.MultiplayerGameFlags.Timelimit > 0)
+		if (playerCount == InfectedCount && gameOptions->GameFlags.MultiplayerGameFlags.Timelimit > 0)
 		{
 			// End game
 			gameEnd(2);
 		}
-		else if (infectedCount == 0)
+		else if (InfectedCount == 0)
 		{
 			// Infect first player after 10 seconds
 			if ((gameGetTime() - gameSettings->GameStartTime) > (10 * TIME_SECOND))
@@ -490,6 +458,7 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Lockdown = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
@@ -534,6 +503,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 			if (initializedScoreboard)
 				break;
 
+      setEndGameScoreboard(gameConfig);
 			initializedScoreboard = 1;
 
 			// patch rank computation to keep rank unchanged for base mode
