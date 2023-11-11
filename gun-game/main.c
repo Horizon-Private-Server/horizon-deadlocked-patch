@@ -744,6 +744,8 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 2;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
 }
 
 void setEndGameScoreboard(void)

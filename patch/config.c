@@ -233,7 +233,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
   { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler },
-  { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
+  // { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
   // { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
@@ -253,7 +253,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
   { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot },
   { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate },
-  { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
+  // { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
 };
 
 #if TWEAKERS
@@ -748,7 +748,7 @@ TabElem_t tabElements[] = {
   { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter)/sizeof(MenuElem_t) },
 #endif
   { "Game Settings", tabGameSettingsStateHandler, menuElementsGameSettings, sizeof(menuElementsGameSettings)/sizeof(MenuElem_t) },
-  { "Custom Maps", tabCustomMapStateHandler, menuElementsCustomMap, sizeof(menuElementsCustomMap)/sizeof(MenuElem_t) },
+  // { "Custom Maps", tabCustomMapStateHandler, menuElementsCustomMap, sizeof(menuElementsCustomMap)/sizeof(MenuElem_t) },
 #if MAPEDITOR
   { "Map Editor", tabDefaultStateHandler, menuElementsMapEditor, sizeof(menuElementsMapEditor)/sizeof(MenuElem_t) },
 #endif
@@ -843,7 +843,7 @@ void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   ClientRequestBootElf_t request;
   request.BootElfId = 1;
-  
+
   // close menu
   configMenuDisable();
 

@@ -605,6 +605,47 @@ void patchResurrectWeaponOrdering(void)
 }
 
 /*
+ * NAME :		hasSonyMACAddress
+ * 
+ * DESCRIPTION :
+ * 			    Returns non-zero if the client's MAC address is a known sony mac address.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int hasSonyMACAddress(void)
+{
+  int i;
+  static int hasSonyMACAddressResult = -1;
+  void* cd = (void*)0x001B26C0;
+  void* net_buf = (void*)0x001B2700;
+  u8 buf[16];
+
+  // use cached result
+  // since the MAC address isn't going to change in the lifetime of the patch
+  if (hasSonyMACAddressResult >= 0) return hasSonyMACAddressResult;
+
+  // sceInetInterfaceControl get physical address
+  int r = ((int (*)(void* cd, void* net_buf, int interface_id, int code, void* ptr, int len))0x01E9BE70)(cd, net_buf, 1, 13, buf, sizeof(buf));
+  if (r) return 1;
+
+  // check if the first half of our mac address
+  // matches any known sony mac addresses
+  u32 firstHalfMacAddress = (buf[0] << 16) | (buf[1] << 8) | (buf[2] << 0);
+  DPRINTF("mac %02X:%02X:%02X:%02X:%02X:%02X\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+  for (i = 0; i < SONY_MAC_ADDRESSES_COUNT; ++i) {
+    if (SONY_MAC_ADDRESSES[i] == firstHalfMacAddress) { return hasSonyMACAddressResult = 1; }
+  }
+
+  return hasSonyMACAddressResult = 0;
+}
+
+/*
  * NAME :		patchLevelOfDetail
  * 
  * DESCRIPTION :
@@ -1405,8 +1446,8 @@ void patchFrameSkip()
 	static int autoDisableDelayTicks = 0;
 	
 	int addrValue = FRAME_SKIP_WRITE0;
-  int dzoClient = CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT; // force framelimiter off for dzo
-	int disableFramelimiter = config.framelimiter == 2 || dzoClient;
+  int emuClient = CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT || PATCH_POINTERS_CLIENT == CLIENT_TYPE_PCSX2; // force framelimiter off for dzo/emu
+	int disableFramelimiter = config.framelimiter == 2 || emuClient;
 	int totalTimeMs = renderTimeMs + updateTimeMs;
 	float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
 
@@ -1414,7 +1455,7 @@ void patchFrameSkip()
   int intelligentFps = 60;
   if (gs && gs->PlayerCount > 6) intelligentFps = 30;
 
-	if (!dzoClient && config.framelimiter == 1) // auto
+	if (!emuClient && config.framelimiter == 1) // auto
 	{
 		// already disabled, to re-enable must have instantaneous high total time
 		if (disableByAuto && totalTimeMs > 15.0) {
@@ -4206,6 +4247,12 @@ void sendClientType(void)
 {
   static int sendCounter = -1;
 
+  // if the client type is 0 (normal)
+  // then it is possible we're on an emulator
+  // so let's check if we are on an emu
+  if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_NORMAL && !hasSonyMACAddress())
+    PATCH_POINTERS_CLIENT = CLIENT_TYPE_PCSX2;
+
   // get
   int currentClientType = PATCH_POINTERS_CLIENT;
   int accountId = *(int*)0x00172194;
@@ -4617,7 +4664,7 @@ int main (void)
   // old lag fixes
   if (!gameConfig.grNewPlayerSync) {
     runPlayerPositionSmooth();
-    runPlayerStateSync();
+    //runPlayerStateSync();
     runCorrectPlayerChargebootRotation();
   }
 
