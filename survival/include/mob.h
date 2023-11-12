@@ -14,23 +14,6 @@
 #include "swarmer.h"
 #include "game.h"
 
-enum MobAction
-{
-	MOB_ACTION_SPAWN,
-	MOB_ACTION_IDLE,
-	MOB_ACTION_JUMP,
-	MOB_ACTION_WALK,
-	MOB_ACTION_FLINCH,
-	MOB_ACTION_BIG_FLINCH,
-	MOB_ACTION_LOOK_AT_TARGET,
-  MOB_ACTION_DIE,
-	MOB_ACTION_ATTACK,
-	MOB_ACTION_ATTACK_2,
-	MOB_ACTION_ATTACK_3,
-	MOB_ACTION_TIME_BOMB,
-  MOB_ACTION_TIME_BOMB_EXPLODE
-};
-
 enum MobAttributeType
 {
 	MOB_ATTRIBUTE_NONE = 0,
@@ -71,12 +54,12 @@ struct MobStateUpdateEventArgs;
 
 typedef void (*MobGenericCallback_func)(Moby* moby);
 typedef Moby* (*MobGetNextTarget_func)(Moby* moby);
-typedef enum MobAction (*MobGetPreferredAction_func)(Moby* moby);
+typedef int (*MobGetPreferredAction_func)(Moby* moby);
 typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
 typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
 typedef void (*MobOnStateUpdate_func)(Moby* moby, struct MobStateUpdateEventArgs* e);
-typedef void (*MobForceLocalAction_func)(Moby* moby, enum MobAction action);
+typedef void (*MobForceLocalAction_func)(Moby* moby, int action);
 typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 typedef short (*MobGetArmor_func)(Moby* moby);
 
@@ -212,6 +195,7 @@ struct MobVars {
 	char Destroyed;
 	char Order;
 	char Random;
+	char DynamicRandom;
   char BlipType;
 };
 
@@ -266,7 +250,8 @@ struct MobPVar {
   struct MoveVars_V2 * MoveVarsPtr;
 	char _pad2[0x14];
  	struct FlashVars * FlashVarsPtr;
-	char _pad3[0x18];
+	char _pad3[0x14];
+ 	void * AdditionalMobVarsPtr;
 
 	struct TargetVars TargetVars;
 	struct ReactVars ReactVars;
@@ -299,6 +284,7 @@ struct MobStateUpdateEventArgs
   u8 PathCurrentEdgeIdx;
   char PathHasReachedStart;
   char PathHasReachedEnd;
+  char DynamicRandom;
 };
 
 struct MobSpawnEventArgs

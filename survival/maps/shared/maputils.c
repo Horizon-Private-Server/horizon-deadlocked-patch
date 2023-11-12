@@ -231,3 +231,12 @@ int mobyIsMob(Moby* moby)
     || moby->OClass == REACTOR_MOBY_OCLASS
     ;
 }
+
+//--------------------------------------------------------------------------
+void draw3DMarker(VECTOR position, float scale, u32 color)
+{
+  int x,y;
+  if (gfxWorldSpaceToScreenSpace(position, &x, &y)) {
+    gfxScreenSpaceText(x, y, scale, scale, color, "+", -1, 4);
+  }
+}

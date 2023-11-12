@@ -31,4 +31,6 @@ int isInDrawDist(Moby* moby);
 
 int mobyIsMob(Moby* moby);
 
+void draw3DMarker(VECTOR position, float scale, u32 color);
+
 #endif // SURVIVAL_MAP_UTILS_H

@@ -516,7 +516,7 @@ int readFile(char * path, void * buffer, int length)
 	rpcUSBclose(fd);
 	rpcUSBSync(0, NULL, NULL);
 
-  DPRINTF("finished reading %s (%d)\n", path, length);
+  DPRINTF("finished reading %s (%d/%d)\n", path, r, length);
 
 	return r;
 }
@@ -949,9 +949,9 @@ int mapsAllocateModuleBuffer(void)
 		}
 	}
 	if (!USB_SRV_MODULE_PTR) {
-		USB_SRV_MODULE_PTR = malloc(11400);
+		USB_SRV_MODULE_PTR = malloc(12000);
 		if (USB_SRV_MODULE_PTR) {
-			memset(USB_SRV_MODULE_PTR, 0, 11400);
+			memset(USB_SRV_MODULE_PTR, 0, 12000);
 			USB_SRV_MODULE_PTR = (void*)align((int)USB_SRV_MODULE_PTR, 0x10);
 		}
 	}

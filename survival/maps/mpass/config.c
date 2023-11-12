@@ -42,9 +42,9 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Bolts = MOB_BASE_BOLTS * 1.0,
 			.AttackRadius = REACTOR_MELEE_ATTACK_RADIUS * 1.0,
 			.HitRadius = REACTOR_MELEE_HIT_RADIUS * 1.5,
-      .CollRadius = REACTOR_BASE_COLL_RADIUS * 4.0,
+      .CollRadius = REACTOR_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = REACTOR_BASE_REACTION_TICKS * 0.35,
-			.AttackCooldownTickCount = REACTOR_BASE_ATTACK_COOLDOWN_TICKS * 1.5,
+			.AttackCooldownTickCount = REACTOR_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
 			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}

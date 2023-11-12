@@ -10,21 +10,7 @@
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../include/maputils.h"
-
-int mobAmIOwner(Moby* moby);
-int mobIsFrozen(Moby* moby);
-void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
-void mobSetAction(Moby* moby, int action);
-void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
-void mobTransAnim(Moby* moby, int animId, float startOff);
-int mobHasVelocity(struct MobPVar* pvars);
-void mobStand(Moby* moby);
-int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to);
-void mobMove(Moby* moby);
-void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed);
-void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed, float acceleration);
-void mobPostDrawQuad(Moby* moby, int texId, u32 color);
-void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
+#include "../include/shared.h"
 
 void executionerPreUpdate(Moby* moby);
 void executionerPostUpdate(Moby* moby);
@@ -35,10 +21,10 @@ void executionerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void executionerOnDamage(Moby* moby, struct MobDamageEventArgs e);
 void executionerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
 Moby* executionerGetNextTarget(Moby* moby);
-enum MobAction executionerGetPreferredAction(Moby* moby);
+enum ExecutionerAction executionerGetPreferredAction(Moby* moby);
 void executionerDoAction(Moby* moby);
 void executionerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
-void executionerForceLocalAction(Moby* moby, enum MobAction action);
+void executionerForceLocalAction(Moby* moby, enum ExecutionerAction action);
 short executionerGetArmor(Moby* moby);
 
 void executionerPlayHitSound(Moby* moby);
@@ -152,7 +138,7 @@ void executionerPostUpdate(Moby* moby)
     }
   }
 
-	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
+	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == EXECUTIONER_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
 		moby->AnimSpeed = animSpeed;
@@ -167,7 +153,7 @@ void executionerPostDraw(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
-  mobPostDrawQuad(moby, 127, color);
+  mobPostDrawQuad(moby, 127, color, 1);
 }
 
 //--------------------------------------------------------------------------
@@ -234,16 +220,15 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs e)
 	float damage = e.DamageQuarters / 4.0;
   float newHp = pvars->MobVars.Health - damage;
 
-	int canFlinch = pvars->MobVars.Action != MOB_ACTION_FLINCH 
-            && pvars->MobVars.Action != MOB_ACTION_BIG_FLINCH
-            && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB 
+	int canFlinch = pvars->MobVars.Action != EXECUTIONER_ACTION_FLINCH 
+            && pvars->MobVars.Action != EXECUTIONER_ACTION_BIG_FLINCH
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
   int isShock = e.DamageFlags & 0x40;
 
 	// destroy
 	if (newHp <= 0) {
-    executionerForceLocalAction(moby, MOB_ACTION_DIE);
+    executionerForceLocalAction(moby, EXECUTIONER_ACTION_DIE);
     pvars->MobVars.LastHitBy = e.SourceUID;
     pvars->MobVars.LastHitByOClass = e.SourceOClass;
 	}
@@ -260,13 +245,13 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs e)
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     if (canFlinch) {
       if (isShock) {
-        mobSetAction(moby, MOB_ACTION_FLINCH);
+        mobSetAction(moby, EXECUTIONER_ACTION_FLINCH);
       }
       else if (e.Knockback.Force || randRangeInt(0, 10) < e.Knockback.Power) {
-        mobSetAction(moby, MOB_ACTION_BIG_FLINCH);
+        mobSetAction(moby, EXECUTIONER_ACTION_BIG_FLINCH);
       }
       else if (randRange(0, 1) < (EXECUTIONER_FLINCH_PROBABILITY * damageRatio)) {
-        mobSetAction(moby, MOB_ACTION_FLINCH);
+        mobSetAction(moby, EXECUTIONER_ACTION_FLINCH);
       }
     }
 	}
@@ -321,7 +306,7 @@ Moby* executionerGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-enum MobAction executionerGetPreferredAction(Moby* moby)
+enum ExecutionerAction executionerGetPreferredAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -333,22 +318,22 @@ enum MobAction executionerGetPreferredAction(Moby* moby)
 	if (executionerIsSpawning(pvars))
 		return -1;
 
-	if (pvars->MobVars.Action == MOB_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
-		return MOB_ACTION_WALK;
+	if (pvars->MobVars.Action == EXECUTIONER_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
+		return EXECUTIONER_ACTION_WALK;
   }
 
   // wait for grounded to stop flinch
-  if ((pvars->MobVars.Action == MOB_ACTION_FLINCH || pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
+  if ((pvars->MobVars.Action == EXECUTIONER_ACTION_FLINCH || pvars->MobVars.Action == EXECUTIONER_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
     return -1;
 
   // jump if we've hit a slope and are grounded
-  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.WallSlope > EXECUTIONER_MAX_WALKABLE_SLOPE) {
-    return MOB_ACTION_JUMP;
+  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > EXECUTIONER_MAX_WALKABLE_SLOPE) {
+    return EXECUTIONER_ACTION_JUMP;
   }
 
   // jump if we've hit a jump point on the path
   if (pathShouldJump(moby)) {
-    return MOB_ACTION_JUMP;
+    return EXECUTIONER_ACTION_JUMP;
   }
 
 	// prevent action changing too quickly
@@ -365,14 +350,14 @@ enum MobAction executionerGetPreferredAction(Moby* moby)
 
 		if (distSqr <= attackRadiusSqr) {
 			if (executionerCanAttack(pvars))
-				return MOB_ACTION_ATTACK;
-			return MOB_ACTION_WALK;
+				return EXECUTIONER_ACTION_ATTACK;
+			return EXECUTIONER_ACTION_WALK;
 		} else {
-			return MOB_ACTION_WALK;
+			return EXECUTIONER_ACTION_WALK;
 		}
 	}
 	
-	return MOB_ACTION_IDLE;
+	return EXECUTIONER_ACTION_IDLE;
 }
 
 //--------------------------------------------------------------------------
@@ -385,22 +370,24 @@ void executionerDoAction(Moby* moby)
   float difficulty = 1;
   float turnSpeed = pvars->MobVars.MoveVars.Grounded ? EXECUTIONER_TURN_RADIANS_PER_SEC : EXECUTIONER_TURN_AIR_RADIANS_PER_SEC;
   float acceleration = pvars->MobVars.MoveVars.Grounded ? EXECUTIONER_MOVE_ACCELERATION : EXECUTIONER_MOVE_AIR_ACCELERATION;
+  int isInAirFromFlinching = !pvars->MobVars.MoveVars.Grounded 
+                      && (pvars->MobVars.LastAction == EXECUTIONER_ACTION_FLINCH || pvars->MobVars.LastAction == EXECUTIONER_ACTION_BIG_FLINCH);
 
   if (MapConfig.State)
     difficulty = MapConfig.State->Difficulty;
 
 	switch (pvars->MobVars.Action)
 	{
-		case MOB_ACTION_SPAWN:
+		case EXECUTIONER_ACTION_SPAWN:
 		{
       mobTransAnim(moby, EXECUTIONER_ANIM_SPAWN, 0);
       mobStand(moby);
 			break;
 		}
-		case MOB_ACTION_FLINCH:
-		case MOB_ACTION_BIG_FLINCH:
+		case EXECUTIONER_ACTION_FLINCH:
+		case EXECUTIONER_ACTION_BIG_FLINCH:
 		{
-      int animFlinchId = pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH ? EXECUTIONER_ANIM_BIG_FLINCH : EXECUTIONER_ANIM_FLINCH;
+      int animFlinchId = pvars->MobVars.Action == EXECUTIONER_ACTION_BIG_FLINCH ? EXECUTIONER_ANIM_BIG_FLINCH : EXECUTIONER_ANIM_FLINCH;
 
       mobTransAnim(moby, animFlinchId, 0);
       
@@ -415,21 +402,23 @@ void executionerDoAction(Moby* moby)
       }
 			break;
 		}
-		case MOB_ACTION_IDLE:
+		case EXECUTIONER_ACTION_IDLE:
 		{
 			mobTransAnim(moby, EXECUTIONER_ANIM_IDLE, 0);
       mobStand(moby);
 			break;
 		}
-		case MOB_ACTION_JUMP:
+		case EXECUTIONER_ACTION_JUMP:
 			{
         // move
-        if (target) {
-          pathGetTargetPos(t, moby);
-          mobTurnTowards(moby, t, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
-        } else {
-          mobStand(moby);
+        if (!isInAirFromFlinching) {
+          if (target) {
+            pathGetTargetPos(t, moby);
+            mobTurnTowards(moby, t, turnSpeed);
+            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+          } else {
+            mobStand(moby);
+          }
         }
 
         // handle jumping
@@ -455,7 +444,7 @@ void executionerDoAction(Moby* moby)
         }
 				break;
 			}
-		case MOB_ACTION_LOOK_AT_TARGET:
+		case EXECUTIONER_ACTION_LOOK_AT_TARGET:
     {
       mobStand(moby);
       if (target) {
@@ -463,47 +452,49 @@ void executionerDoAction(Moby* moby)
       }
       break;
     }
-    case MOB_ACTION_WALK:
+    case EXECUTIONER_ACTION_WALK:
 		{
       int walkBackwards = 0;
 
-			if (target) {
+      if (!isInAirFromFlinching) {
+        if (target) {
 
-				float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+          float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
 
-				// determine next position
-				vector_copy(t, target->Position);
-				vector_subtract(t, t, moby->Position);
-				float dist = vector_length(t);
+          // determine next position
+          vector_copy(t, target->Position);
+          vector_subtract(t, t, moby->Position);
+          float dist = vector_length(t);
 
-        // walk backwards if too close
-        if (dist < EXECUTIONER_TOO_CLOSE_TO_TARGET_RADIUS) {
-          walkBackwards = 1;
+          // walk backwards if too close
+          if (dist < EXECUTIONER_TOO_CLOSE_TO_TARGET_RADIUS) {
+            walkBackwards = 1;
 
-          mobTurnTowards(moby, target->Position, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, -pvars->MobVars.Config.Speed, acceleration);
-        }
-        else if (dist > (pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius)) {
-
-          pathGetTargetPos(t, moby);
-				  vector_subtract(t, t, moby->Position);
-				  float dist = vector_length(t);
-          if (dist < 10.0) {
-            executionerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-            vector_add(t, t, t2);
+            mobTurnTowards(moby, target->Position, turnSpeed);
+            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, -pvars->MobVars.Config.Speed, acceleration);
           }
-          vector_scale(t, t, 1 / dist);
-          vector_add(t, moby->Position, t);
+          else if (dist > (pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius)) {
 
-          mobTurnTowards(moby, t, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+            pathGetTargetPos(t, moby);
+            vector_subtract(t, t, moby->Position);
+            float dist = vector_length(t);
+            if (dist < 10.0) {
+              executionerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+              vector_add(t, t, t2);
+            }
+            vector_scale(t, t, 1 / dist);
+            vector_add(t, moby->Position, t);
+
+            mobTurnTowards(moby, t, turnSpeed);
+            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+          } else {
+            mobStand(moby);
+          }
         } else {
+          // stand
           mobStand(moby);
         }
-      } else {
-        // stand
-        mobStand(moby);
-			}
+      }
 
 			// 
       if (moby->AnimSeqId == EXECUTIONER_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
@@ -515,7 +506,7 @@ void executionerDoAction(Moby* moby)
 				mobTransAnim(moby, EXECUTIONER_ANIM_IDLE, 0);
 			break;
 		}
-    case MOB_ACTION_DIE:
+    case EXECUTIONER_ACTION_DIE:
     {
       mobTransAnimLerp(moby, EXECUTIONER_ANIM_BIG_FLINCH, 5, 0);
 
@@ -526,7 +517,7 @@ void executionerDoAction(Moby* moby)
       mobStand(moby);
       break;
     }
-		case MOB_ACTION_ATTACK:
+		case EXECUTIONER_ACTION_ATTACK:
 		{
       int attack1AnimId = EXECUTIONER_ANIM_SWING;
 			mobTransAnim(moby, attack1AnimId, 0);
@@ -535,13 +526,15 @@ void executionerDoAction(Moby* moby)
 			int swingAttackReady = moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 4 && moby->AnimSeqT < 10;
 			u32 damageFlags = 0x00081801;
 
-			if (target) {
-        mobTurnTowards(moby, target->Position, turnSpeed);
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
-			} else {
-				// stand
-				mobStand(moby);
-			}
+      if (!isInAirFromFlinching) {
+        if (target) {
+          mobTurnTowards(moby, target->Position, turnSpeed);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
+        } else {
+          // stand
+          mobStand(moby);
+        }
+      }
 
 			// attribute damage
 			switch (pvars->MobVars.Config.MobAttribute)
@@ -575,7 +568,7 @@ void executionerDoDamage(Moby* moby, float radius, float amount, int damageFlags
 }
 
 //--------------------------------------------------------------------------
-void executionerForceLocalAction(Moby* moby, enum MobAction action)
+void executionerForceLocalAction(Moby* moby, enum ExecutionerAction action)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   float difficulty = 1;
@@ -586,13 +579,13 @@ void executionerForceLocalAction(Moby* moby, enum MobAction action)
 	// from
 	switch (pvars->MobVars.Action)
 	{
-		case MOB_ACTION_SPAWN:
+		case EXECUTIONER_ACTION_SPAWN:
 		{
 			// enable collision
 			moby->CollActive = 0;
 			break;
 		}
-		case MOB_ACTION_DIE:
+		case EXECUTIONER_ACTION_DIE:
 		{
       // can't undie
       return;
@@ -602,35 +595,29 @@ void executionerForceLocalAction(Moby* moby, enum MobAction action)
 	// to
 	switch (action)
 	{
-		case MOB_ACTION_SPAWN:
+		case EXECUTIONER_ACTION_SPAWN:
 		{
 			// disable collision
 			moby->CollActive = 1;
 			break;
 		}
-		case MOB_ACTION_WALK:
+		case EXECUTIONER_ACTION_WALK:
 		{
 			
 			break;
 		}
-		case MOB_ACTION_DIE:
+		case EXECUTIONER_ACTION_DIE:
 		{
 			
 			break;
 		}
-		case MOB_ACTION_ATTACK:
+		case EXECUTIONER_ACTION_ATTACK:
 		{
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
 			break;
 		}
-		case MOB_ACTION_TIME_BOMB:
-		{
-			pvars->MobVars.OpacityFlickerDirection = 4;
-			pvars->MobVars.TimeBombTicks = EXECUTIONER_TIMEBOMB_TICKS / clamp(difficulty, 0.5, 2);
-			break;
-		}
-		case MOB_ACTION_FLINCH:
-		case MOB_ACTION_BIG_FLINCH:
+		case EXECUTIONER_ACTION_FLINCH:
+		case EXECUTIONER_ACTION_BIG_FLINCH:
 		{
 			executionerPlayHitSound(moby);
 			pvars->MobVars.FlinchCooldownTicks = EXECUTIONER_FLINCH_COOLDOWN_TICKS;
@@ -691,13 +678,13 @@ void executionerPlayDeathSound(Moby* moby)
 //--------------------------------------------------------------------------
 int executionerIsAttacking(struct MobPVar* pvars)
 {
-	return pvars->MobVars.Action == MOB_ACTION_TIME_BOMB || (pvars->MobVars.Action == MOB_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
+	return pvars->MobVars.Action == EXECUTIONER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
 }
 
 //--------------------------------------------------------------------------
 int executionerIsSpawning(struct MobPVar* pvars)
 {
-	return pvars->MobVars.Action == MOB_ACTION_SPAWN && !pvars->MobVars.AnimationLooped;
+	return pvars->MobVars.Action == EXECUTIONER_ACTION_SPAWN && !pvars->MobVars.AnimationLooped;
 }
 
 //--------------------------------------------------------------------------

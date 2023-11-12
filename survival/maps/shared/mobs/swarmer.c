@@ -11,22 +11,7 @@
 #include "../../../include/mob.h"
 #include "../include/pathfind.h"
 #include "../include/maputils.h"
-
-int mobAmIOwner(Moby* moby);
-int mobIsFrozen(Moby* moby);
-void mobSpawnCorn(Moby* moby, int bangle);
-void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
-void mobSetAction(Moby* moby, int action);
-void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
-void mobTransAnim(Moby* moby, int animId, float startOff);
-int mobHasVelocity(struct MobPVar* pvars);
-void mobStand(Moby* moby);
-int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to);
-void mobMove(Moby* moby);
-void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed);
-void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed, float acceleration);
-void mobPostDrawQuad(Moby* moby, int texId, u32 color);
-void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
+#include "../include/shared.h"
 
 void swarmerPreUpdate(Moby* moby);
 void swarmerPostUpdate(Moby* moby);
@@ -37,10 +22,10 @@ void swarmerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs e);
 void swarmerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
 Moby* swarmerGetNextTarget(Moby* moby);
-enum MobAction swarmerGetPreferredAction(Moby* moby);
+enum SwarmerAction swarmerGetPreferredAction(Moby* moby);
 void swarmerDoAction(Moby* moby);
 void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
-void swarmerForceLocalAction(Moby* moby, enum MobAction action);
+void swarmerForceLocalAction(Moby* moby, enum SwarmerAction action);
 short swarmerGetArmor(Moby* moby);
 
 void swarmerPlayHitSound(Moby* moby);
@@ -159,7 +144,7 @@ void swarmerPostUpdate(Moby* moby)
     animSpeed = 1;
   }
 
-	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == MOB_ACTION_WALK)) {
+	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == SWARMER_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
 		moby->AnimSpeed = animSpeed;
@@ -174,7 +159,7 @@ void swarmerPostDraw(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
-  mobPostDrawQuad(moby, 127, color);
+  mobPostDrawQuad(moby, 127, color, 0);
 }
 
 //--------------------------------------------------------------------------
@@ -230,17 +215,17 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs e)
 	float damage = e.DamageQuarters / 4.0;
   float newHp = pvars->MobVars.Health - damage;
 
-	int canFlinch = pvars->MobVars.Action != MOB_ACTION_FLINCH 
-            && pvars->MobVars.Action != MOB_ACTION_BIG_FLINCH
-            && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB 
-            && pvars->MobVars.Action != MOB_ACTION_TIME_BOMB_EXPLODE
+	int canFlinch = pvars->MobVars.Action != SWARMER_ACTION_FLINCH 
+            && pvars->MobVars.Action != SWARMER_ACTION_BIG_FLINCH
+            && pvars->MobVars.Action != SWARMER_ACTION_TIME_BOMB 
+            && pvars->MobVars.Action != SWARMER_ACTION_TIME_BOMB_EXPLODE
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
   int isShock = e.DamageFlags & 0x40;
 
 	// destroy
 	if (newHp <= 0) {
-    tremorForceLocalAction(moby, MOB_ACTION_DIE);
+    tremorForceLocalAction(moby, SWARMER_ACTION_DIE);
     pvars->MobVars.LastHitBy = e.SourceUID;
     pvars->MobVars.LastHitByOClass = e.SourceOClass;
 	}
@@ -259,13 +244,13 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs e)
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     if (canFlinch) {
       if (isShock) {
-        mobSetAction(moby, MOB_ACTION_FLINCH);
+        mobSetAction(moby, SWARMER_ACTION_FLINCH);
       }
       else if (e.Knockback.Force || randRangeInt(0, 10) < e.Knockback.Power) {
-        mobSetAction(moby, MOB_ACTION_BIG_FLINCH);
+        mobSetAction(moby, SWARMER_ACTION_BIG_FLINCH);
       }
       else if (randRange(0, 1) < (SWARMER_FLINCH_PROBABILITY * damageRatio)) {
-        mobSetAction(moby, MOB_ACTION_FLINCH);
+        mobSetAction(moby, SWARMER_ACTION_FLINCH);
       }
     }
 	}
@@ -317,7 +302,7 @@ Moby* swarmerGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-enum MobAction swarmerGetPreferredAction(Moby* moby)
+enum SwarmerAction swarmerGetPreferredAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -329,22 +314,22 @@ enum MobAction swarmerGetPreferredAction(Moby* moby)
 	if (swarmerIsSpawning(pvars))
 		return -1;
 
-	if (pvars->MobVars.Action == MOB_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
-		return MOB_ACTION_WALK;
+	if (pvars->MobVars.Action == SWARMER_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
+		return SWARMER_ACTION_WALK;
   }
 
   // wait for grounded to stop flinch
-  if ((pvars->MobVars.Action == MOB_ACTION_FLINCH || pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
+  if ((pvars->MobVars.Action == SWARMER_ACTION_FLINCH || pvars->MobVars.Action == SWARMER_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
     return -1;
 
   // jump if we've hit a slope and are grounded
-  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.WallSlope > SWARMER_MAX_WALKABLE_SLOPE) {
-    return MOB_ACTION_JUMP;
+  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > SWARMER_MAX_WALKABLE_SLOPE) {
+    return SWARMER_ACTION_JUMP;
   }
 
   // jump if we've hit a jump point on the path
   if (pathShouldJump(moby)) {
-    return MOB_ACTION_JUMP;
+    return SWARMER_ACTION_JUMP;
   }
 
 	// prevent action changing too quickly
@@ -361,14 +346,14 @@ enum MobAction swarmerGetPreferredAction(Moby* moby)
 
 		if (distSqr <= attackRadiusSqr) {
 			if (swarmerCanAttack(pvars))
-				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? MOB_ACTION_ATTACK : MOB_ACTION_TIME_BOMB;
-			return MOB_ACTION_WALK;
+				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? SWARMER_ACTION_ATTACK : SWARMER_ACTION_TIME_BOMB;
+			return SWARMER_ACTION_WALK;
 		} else {
-			return MOB_ACTION_WALK;
+			return SWARMER_ACTION_WALK;
 		}
 	}
 	
-	return MOB_ACTION_IDLE;
+	return SWARMER_ACTION_IDLE;
 }
 
 //--------------------------------------------------------------------------
@@ -409,6 +394,8 @@ void swarmerDoAction(Moby* moby)
   float difficulty = 1;
   float turnSpeed = pvars->MobVars.MoveVars.Grounded ? SWARMER_TURN_RADIANS_PER_SEC : SWARMER_TURN_AIR_RADIANS_PER_SEC;
   float acceleration = pvars->MobVars.MoveVars.Grounded ? SWARMER_MOVE_ACCELERATION : SWARMER_MOVE_AIR_ACCELERATION;
+  int isInAirFromFlinching = !pvars->MobVars.MoveVars.Grounded 
+                      && (pvars->MobVars.LastAction == SWARMER_ACTION_FLINCH || pvars->MobVars.LastAction == SWARMER_ACTION_BIG_FLINCH);
 
   if (MapConfig.State)
     difficulty = MapConfig.State->Difficulty;
@@ -419,16 +406,16 @@ void swarmerDoAction(Moby* moby)
 
 	switch (pvars->MobVars.Action)
 	{
-		case MOB_ACTION_SPAWN:
+		case SWARMER_ACTION_SPAWN:
 		{
       mobTransAnim(moby, SWARMER_ANIM_ROAR, 0);
       mobStand(moby);
 			break;
 		}
-		case MOB_ACTION_FLINCH:
-		case MOB_ACTION_BIG_FLINCH:
+		case SWARMER_ACTION_FLINCH:
+		case SWARMER_ACTION_BIG_FLINCH:
 		{
-      int animFlinchId = pvars->MobVars.Action == MOB_ACTION_BIG_FLINCH ? SWARMER_ANIM_FLINCH_SPIN_AND_STAND2 : SWARMER_ANIM_FLINCH_SPIN_AND_STAND;
+      int animFlinchId = pvars->MobVars.Action == SWARMER_ACTION_BIG_FLINCH ? SWARMER_ANIM_FLINCH_SPIN_AND_STAND2 : SWARMER_ANIM_FLINCH_SPIN_AND_STAND;
 
       mobTransAnim(moby, animFlinchId, 0);
 
@@ -443,21 +430,23 @@ void swarmerDoAction(Moby* moby)
       }
 			break;
 		}
-		case MOB_ACTION_IDLE:
+		case SWARMER_ACTION_IDLE:
 		{
 			mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
       mobStand(moby);
 			break;
 		}
-		case MOB_ACTION_JUMP:
+		case SWARMER_ACTION_JUMP:
 			{
         // move
-        if (target) {
-          pathGetTargetPos(t, moby);
-          mobTurnTowards(moby, t, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
-        } else {
-          mobStand(moby);
+        if (!isInAirFromFlinching) {
+          if (target) {
+            pathGetTargetPos(t, moby);
+            mobTurnTowards(moby, t, turnSpeed);
+            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+          } else {
+            mobStand(moby);
+          }
         }
 
         // handle jumping
@@ -484,38 +473,40 @@ void swarmerDoAction(Moby* moby)
         }
 				break;
 			}
-		case MOB_ACTION_LOOK_AT_TARGET:
+		case SWARMER_ACTION_LOOK_AT_TARGET:
     {
       mobStand(moby);
       if (target)
         mobTurnTowards(moby, target->Position, turnSpeed);
       break;
     }
-    case MOB_ACTION_WALK:
+    case SWARMER_ACTION_WALK:
 		{
-			if (target) {
+      if (!isInAirFromFlinching) {
+        if (target) {
 
-				float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+          float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
 
-				// determine next position
-        pathGetTargetPos(t, moby);
-				//vector_copy(t, target->Position);
-				vector_subtract(t, t, moby->Position);
-				float dist = vector_length(t);
-        if (dist < 10.0) {
-				  swarmerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-				  vector_add(t, t, t2);
+          // determine next position
+          pathGetTargetPos(t, moby);
+          //vector_copy(t, target->Position);
+          vector_subtract(t, t, moby->Position);
+          float dist = vector_length(t);
+          if (dist < 10.0) {
+            swarmerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+            vector_add(t, t, t2);
+          }
+          vector_scale(t, t, 1 / dist);
+          vector_add(t, moby->Position, t);
+
+
+          mobTurnTowards(moby, t, turnSpeed);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+        } else {
+          // stand
+          mobStand(moby);
         }
-				vector_scale(t, t, 1 / dist);
-				vector_add(t, moby->Position, t);
-
-
-        mobTurnTowards(moby, t, turnSpeed);
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
-			} else {
-        // stand
-        mobStand(moby);
-			}
+      }
 
 			// 
       if (moby->AnimSeqId == SWARMER_ANIM_JUMP_AND_FALL && !pvars->MobVars.MoveVars.Grounded) {
@@ -527,7 +518,7 @@ void swarmerDoAction(Moby* moby)
 				mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
 			break;
 		}
-    case MOB_ACTION_DIE:
+    case SWARMER_ACTION_DIE:
     {
       // on destroy, give some upwards velocity for the backflip
       if (moby->AnimSeqId != SWARMER_ANIM_FLINCH_BACKFLIP_AND_STAND) {
@@ -545,7 +536,7 @@ void swarmerDoAction(Moby* moby)
       //mobStand(moby);
       break;
     }
-		case MOB_ACTION_ATTACK:
+		case SWARMER_ACTION_ATTACK:
 		{
       int attack1AnimId = SWARMER_ANIM_JUMP_FORWARD_BITE;
 			mobTransAnim(moby, attack1AnimId, 0);
@@ -558,13 +549,15 @@ void swarmerDoAction(Moby* moby)
       if (speedMult < 1)
 				speedMult = 1;
 
-			if (target) {
-        mobTurnTowards(moby, target->Position, turnSpeed);
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
-			} else {
-				// stand
-				mobStand(moby);
-			}
+      if (!isInAirFromFlinching) {
+        if (target) {
+          mobTurnTowards(moby, target->Position, turnSpeed);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
+        } else {
+          // stand
+          mobStand(moby);
+        }
+      }
 
 			// attribute damage
 			switch (pvars->MobVars.Config.MobAttribute)
@@ -598,7 +591,7 @@ void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, in
 }
 
 //--------------------------------------------------------------------------
-void swarmerForceLocalAction(Moby* moby, enum MobAction action)
+void swarmerForceLocalAction(Moby* moby, enum SwarmerAction action)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   float difficulty = 1;
@@ -609,13 +602,13 @@ void swarmerForceLocalAction(Moby* moby, enum MobAction action)
 	// from
 	switch (pvars->MobVars.Action)
 	{
-		case MOB_ACTION_SPAWN:
+		case SWARMER_ACTION_SPAWN:
 		{
 			// enable collision
 			moby->CollActive = 0;
 			break;
 		}
-    case MOB_ACTION_DIE:
+    case SWARMER_ACTION_DIE:
     {
       // can't undie
       return;
@@ -625,30 +618,30 @@ void swarmerForceLocalAction(Moby* moby, enum MobAction action)
 	// to
 	switch (action)
 	{
-		case MOB_ACTION_SPAWN:
+		case SWARMER_ACTION_SPAWN:
 		{
 			// disable collision
 			moby->CollActive = 1;
 			break;
 		}
-		case MOB_ACTION_WALK:
+		case SWARMER_ACTION_WALK:
 		{
 			
 			break;
 		}
-		case MOB_ACTION_DIE:
+		case SWARMER_ACTION_DIE:
 		{
 			// disable collision
 			moby->CollActive = 1;
 			break;
 		}
-		case MOB_ACTION_ATTACK:
+		case SWARMER_ACTION_ATTACK:
 		{
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
 			break;
 		}
-		case MOB_ACTION_FLINCH:
-		case MOB_ACTION_BIG_FLINCH:
+		case SWARMER_ACTION_FLINCH:
+		case SWARMER_ACTION_BIG_FLINCH:
 		{
 			swarmerPlayHitSound(moby);
 			pvars->MobVars.FlinchCooldownTicks = SWARMER_FLINCH_COOLDOWN_TICKS;
@@ -701,13 +694,13 @@ void swarmerPlayDeathSound(Moby* moby)
 //--------------------------------------------------------------------------
 int swarmerIsAttacking(struct MobPVar* pvars)
 {
-	return pvars->MobVars.Action == MOB_ACTION_TIME_BOMB || pvars->MobVars.Action == MOB_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == MOB_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
+	return pvars->MobVars.Action == SWARMER_ACTION_TIME_BOMB || pvars->MobVars.Action == SWARMER_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == SWARMER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
 }
 
 //--------------------------------------------------------------------------
 int swarmerIsSpawning(struct MobPVar* pvars)
 {
-	return pvars->MobVars.Action == MOB_ACTION_SPAWN && !pvars->MobVars.AnimationLooped;
+	return pvars->MobVars.Action == SWARMER_ACTION_SPAWN && !pvars->MobVars.AnimationLooped;
 }
 
 //--------------------------------------------------------------------------

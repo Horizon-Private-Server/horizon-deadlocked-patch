@@ -165,6 +165,15 @@ enum MobStatId
   MOB_STAT_COUNT
 };
 
+enum PassiveItemId
+{
+  PASSIVE_ITEM_NONE           = 0,
+  PASSIVE_ITEM_TRIPLE_JUMP    = 1,
+  PASSIVE_ITEM_LUCK           = 2,
+  PASSIVE_ITEM_INF_CBOOT      = 3,
+  PASSIVE_ITEM_ELEM_IMMUNITY  = 4,
+};
+
 struct MobConfig;
 struct MobSpawnEventArgs;
 
@@ -200,6 +209,7 @@ struct SurvivalPlayerState
 	int TotalTokens;
 	int CurrentTokens;
   int Item;
+  int ItemPassive;
   int BestRound;
   int TimesRolledMysteryBox;
   int TimesActivatedDemonBell;

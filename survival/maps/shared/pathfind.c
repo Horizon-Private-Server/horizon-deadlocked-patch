@@ -282,7 +282,7 @@ void pathGetPath(Moby* moby)
   // we should reuse both the last node we were at
   // and the node we're currently going towards for this depending on the final path
   int closestNodeIdxToMob = pathGetClosestNodeInSight(moby, &inSight);
-  DPRINTF("closest node to mob is %d (insight: %d)\n", closestNodeIdxToMob, inSight);
+  //DPRINTF("closest node to mob is %d (insight: %d)\n", closestNodeIdxToMob, inSight);
 
   int lastEdgeIdx = 255;
   if (pvars->MobVars.MoveVars.PathEdgeCount) {

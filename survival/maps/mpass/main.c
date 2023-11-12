@@ -73,10 +73,19 @@ const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
 //--------------------------------------------------------------------------
 void mobForceIntoMapBounds(Moby* moby)
 {
+  int i;
+  VECTOR min = { 370, 700, 470, 0 };
+  VECTOR max = { 730, 970, 530, 0 };
+
   if (!moby)
     return;
     
-  return;
+  for (i = 0; i < 3; ++i) {
+    if (moby->Position[i] < min[i])
+      moby->Position[i] = min[i];
+    else if (moby->Position[i] > max[i])
+      moby->Position[i] = max[i];
+  }
 }
 
 //--------------------------------------------------------------------------

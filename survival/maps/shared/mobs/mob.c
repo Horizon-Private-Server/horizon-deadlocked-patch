@@ -69,7 +69,41 @@ int mobIsFrozen(Moby* moby)
     return 0;
 
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  return MapConfig.State->Freeze && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_FREEZE && pvars->MobVars.Action != MOB_ACTION_DIE;
+  return MapConfig.State->Freeze && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_FREEZE && pvars->MobVars.Health > 0;
+}
+
+#if DEBUG
+
+VECTOR MoveCheckHit;
+VECTOR MoveCheckFinal;
+
+//--------------------------------------------------------------------------
+void mobPostDrawDebug(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  MATRIX jointMtx;
+  mobyGetJointMatrix(moby, 0, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x80FF0000);
+  mobyGetJointMatrix(moby, 1, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x80800000);
+  mobyGetJointMatrix(moby, 2, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x8000FF00);
+  mobyGetJointMatrix(moby, 3, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x80008000);
+
+
+  //draw3DMarker(MoveCheckHit, 1, 0x8000FF00);
+  //draw3DMarker(MoveCheckFinal, 1, 0x800000FF);
+}
+#endif
+
+//--------------------------------------------------------------------------
+void mobPreUpdate(Moby* moby)
+{
+#if DEBUG
+	gfxRegisterDrawFunction((void**)0x0022251C, &mobPostDrawDebug, moby);
+#endif
 }
 
 //--------------------------------------------------------------------------
@@ -239,17 +273,18 @@ void mobStand(Moby* moby)
 //--------------------------------------------------------------------------
 int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 {
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   VECTOR delta, horizontalDelta, reflectedDelta;
   VECTOR hitTo, hitFrom;
   VECTOR hitToEx, hitNormal;
+  VECTOR temp;
   VECTOR up = {0,0,0,0};
   float angle;
-  float collRadius = 0.5; // pvars->MobVars.Config.CollRadius;
-	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  float collRadius = pvars->MobVars.Config.CollRadius;
   if (!pvars)
     return 0;
 
-  up[2] = collRadius;
+  up[2] = collRadius; // 0.5;
 
   // offset hit scan to center of mob
   //vector_add(hitFrom, from, up);
@@ -267,17 +302,43 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 
   // move to further out to factor in the radius of the mob
   vector_normalize(hitToEx, delta);
-  vector_scale(hitToEx, hitToEx, collRadius);
+  vector_scale(hitToEx, hitToEx, pvars->MobVars.Config.CollRadius);
   vector_add(hitTo, hitTo, hitToEx);
+  vector_subtract(hitFrom, hitFrom, hitToEx);
 
   // check if we hit something
-  if (CollLine_Fix(hitFrom, hitTo, 2, moby, NULL)) {
+  if (CollLine_Fix(hitFrom, hitTo, 0, moby, NULL)) {
 
     vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
 
     // compute wall slope
     pvars->MobVars.MoveVars.WallSlope = getSignedSlope(horizontalDelta, hitNormal); //atan2f(1, vector_innerproduct(horizontalDelta, hitNormal)) - MATH_PI/2;
     pvars->MobVars.MoveVars.HitWall = 1;
+
+    // check if we hit another mob
+    Moby* hitMoby = CollLine_Fix_GetHitMoby();
+    if (hitMoby && mobyIsMob(hitMoby))
+      pvars->MobVars.MoveVars.HitWall = 0;
+
+#if DEBUG
+    vector_copy(MoveCheckHit, CollLine_Fix_GetHitPosition());
+#endif
+
+    // if the hit point is before to
+    // then we want to snap back before to
+    vector_subtract(to, CollLine_Fix_GetHitPosition(), up);
+    
+    //vector_projectonhorizontal(hitToEx, hitToEx);
+    vector_reflect(reflectedDelta, hitToEx, hitNormal);
+    //if (reflectedDelta[2] > delta[2])
+    //  reflectedDelta[2] = delta[2];
+
+    vector_add(outputPos, to, reflectedDelta);
+
+#if DEBUG
+    vector_copy(MoveCheckFinal, outputPos);
+#endif
+    return 1;
 
     // reflect velocity on hit normal and add back to starting position
     vector_reflect(reflectedDelta, delta, hitNormal);
@@ -298,6 +359,7 @@ void mobMove(Moby* moby)
 {
   VECTOR normalizedTargetDirection, planarTargetDirection;
   VECTOR targetVelocity;
+  VECTOR normalizedVelocity;
   VECTOR nextPos;
   VECTOR temp;
   VECTOR groundCheckFrom, groundCheckTo;
@@ -333,6 +395,10 @@ void mobMove(Moby* moby)
 
       // compute simulated velocity by multiplying velocity by number of ticks to simulate
       vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, MOB_MOVE_SKIP_TICKS);
+
+      // get horizontal normalized velocity
+      vector_normalize(normalizedVelocity, targetVelocity);
+      normalizedVelocity[2] = 0;
 
       // compute next position
       vector_add(nextPos, moby->Position, targetVelocity);
@@ -372,11 +438,13 @@ void mobMove(Moby* moby)
         vector_copy(groundCheckFrom, nextPos);
         groundCheckFrom[2] = moby->Position[2];
         vector_copy(groundCheckTo, nextPos);
+        groundCheckTo[2] += 3;
         //groundCheckTo[2] += ZOMBIE_BASE_STEP_HEIGHT;
         if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
           // force position to below ceiling
-          vector_copy(nextPos, CollLine_Fix_GetHitPosition());
-          nextPos[2] -= 0.01;
+          //vector_copy(nextPos, CollLine_Fix_GetHitPosition());
+          //nextPos[2] -= 0.01;
+          vector_copy(nextPos, moby->Position);
 
           // remove vertical velocity from velocity
           //vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
@@ -451,6 +519,8 @@ void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed)
 void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed, float acceleration)
 {
   VECTOR targetVelocity;
+  VECTOR fromToTarget;
+  VECTOR next, nextToTarget;
   VECTOR temp;
   float targetSpeed = speed * MATH_DT;
 
@@ -458,21 +528,8 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   if (!pvars)
     return;
 
-  if (!pvars->MobVars.MoveVars.Grounded && (pvars->MobVars.LastAction == MOB_ACTION_FLINCH || pvars->MobVars.LastAction == MOB_ACTION_BIG_FLINCH))
-    return;
-
   float collRadius = pvars->MobVars.Config.CollRadius + 0.5;
   
-  // stop when at target
-  if (pvars->MobVars.Target && targetSpeed > 0) {
-    vector_subtract(temp, pvars->MobVars.Target->Position, from);
-    //temp[2] = 0;
-    float sqrDistance = vector_sqrmag(temp);
-    if (sqrDistance < ((collRadius+PLAYER_COLL_RADIUS)*(collRadius+PLAYER_COLL_RADIUS))) {
-      targetSpeed = 0;
-    }
-  }
-
   // target velocity from rotation
   vector_fromyaw(targetVelocity, moby->Rotation[2]);
 
@@ -483,10 +540,40 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   vector_projectonhorizontal(temp, temp);
   vector_scale(temp, temp, acceleration * MATH_DT);
   vector_add(velocity, velocity, temp);
+  
+  // stop when at target
+  if (pvars->MobVars.Target && targetSpeed > 0) {
+    vector_subtract(fromToTarget, pvars->MobVars.Target->Position, from);
+    float distToTarget = vector_length(fromToTarget);
+    vector_add(next, from, velocity);
+    vector_subtract(nextToTarget, pvars->MobVars.Target->Position, next);
+    float distNextToTarget = vector_length(nextToTarget);
+
+    float min = collRadius + PLAYER_COLL_RADIUS;
+    float max = min + (targetSpeed * 0.2);
+
+    if (distNextToTarget == 0 || distToTarget == 0) return;
+
+    if (distNextToTarget > distToTarget) {
+      targetSpeed = 0;
+    }
+    // stop if we're already at the target
+    else if (distNextToTarget < min)
+      targetSpeed = 0;
+    else if (distNextToTarget < max)
+      targetSpeed *= (distToTarget - min) / (max - min);
+  }
+
+  // 
+  if (targetSpeed <= 0) {
+    vector_projectonvertical(velocity, velocity);
+    return;
+  }
+
 }
 
 //--------------------------------------------------------------------------
-void mobPostDrawQuad(Moby* moby, int texId, u32 color)
+void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 {
 	struct QuadDef quad;
 	float size = moby->Scale * 2;
@@ -528,7 +615,7 @@ void mobPostDrawQuad(Moby* moby, int texId, u32 color)
 		return;
 	
 	// set world matrix by joint
-	mobyGetJointMatrix(moby, 1, m2);
+	mobyGetJointMatrix(moby, jointId, m2);
 
 	// draw
 	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);

@@ -2161,7 +2161,12 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	*(u32*)0x003F2E70 = 0x24020000;
 
 	// Change mine update function to ours
-	*(u32*)0x002499D4 = (u32)&customMineMobyUpdate;
+  u32 mineUpdateFunc = 0x003c6c28;
+  u32* updateFuncs = (u32*)0x00249980;
+  for (i = 0; i < 113; ++i) {
+    if (*updateFuncs == mineUpdateFunc) { *updateFuncs = (u32)&customMineMobyUpdate; DPRINTF("set %08X to our mine func\n", (u32)updateFuncs); }
+    updateFuncs++;
+  }
 
 	// Change bangelize weapons call to ours
 	*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
@@ -2428,9 +2433,23 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 
 #if FIXEDTARGET
   FIXEDTARGETMOBY = mobySpawn(0xE7D, 0);
-  FIXEDTARGETMOBY->Position[0] = 384.3274536;
-  FIXEDTARGETMOBY->Position[1] = 579.9664307;
-  FIXEDTARGETMOBY->Position[2] = 480;
+  switch (gameConfig->customMapId)
+  {
+    case CUSTOM_MAP_SURVIVAL_MINING_FACILITY:
+    {
+      FIXEDTARGETMOBY->Position[0] = 384.3274536;
+      FIXEDTARGETMOBY->Position[1] = 579.9664307;
+      FIXEDTARGETMOBY->Position[2] = 480;
+      break;
+    }
+    case CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS:
+    {
+      FIXEDTARGETMOBY->Position[0] = 677.282;
+      FIXEDTARGETMOBY->Position[1] = 872.048;
+      FIXEDTARGETMOBY->Position[2] = 510;
+      break;
+    }
+  }
 #endif
 
 	Initialized = 1;
