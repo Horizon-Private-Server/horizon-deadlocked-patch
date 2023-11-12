@@ -4,6 +4,7 @@
 #include <libdl/graphics.h>
 #include <libdl/moby.h>
 #include <libdl/random.h>
+#include <libdl/sha1.h>
 #include <libdl/radar.h>
 #include <libdl/color.h>
 
@@ -34,6 +35,7 @@ void swarmerPlayDeathSound(Moby* moby);
 int swarmerIsAttacking(struct MobPVar* pvars);
 int swarmerIsSpawning(struct MobPVar* pvars);
 int swarmerCanAttack(struct MobPVar* pvars);
+int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars);
 
 struct MobVTable SwarmerVTable = {
   .PreUpdate = &swarmerPreUpdate,
@@ -135,6 +137,11 @@ void swarmerPostUpdate(Moby* moby)
 	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
   if (moby->AnimSeqId == SWARMER_ANIM_JUMP) {
     animSpeed = 0.9 * (1 - powf(moby->AnimSeqT / 35, 2));
+    if (pvars->MobVars.MoveVars.Grounded) {
+      animSpeed = 0.9;
+    }
+  } else if (moby->AnimSeqId == SWARMER_ANIM_JUMP_AND_FALL) {
+    //animSpeed = 0.9 * (1 - powf(moby->AnimSeqT / 15, 2));
     if (pvars->MobVars.MoveVars.Grounded) {
       animSpeed = 0.9;
     }
@@ -314,6 +321,14 @@ enum SwarmerAction swarmerGetPreferredAction(Moby* moby)
 	if (swarmerIsSpawning(pvars))
 		return -1;
 
+	if (pvars->MobVars.Action == SWARMER_ACTION_DODGE && !pvars->MobVars.MoveVars.Grounded) {
+		return -1;
+  }
+
+	if (pvars->MobVars.Action == SWARMER_ACTION_DODGE && pvars->MobVars.MoveVars.Grounded) {
+		return SWARMER_ACTION_WALK;
+  }
+
 	if (pvars->MobVars.Action == SWARMER_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
 		return SWARMER_ACTION_WALK;
   }
@@ -335,6 +350,11 @@ enum SwarmerAction swarmerGetPreferredAction(Moby* moby)
 	// prevent action changing too quickly
 	if (pvars->MobVars.ActionCooldownTicks)
 		return -1;
+
+  // check if a projectile is coming towards us
+  if (pvars->MobVars.MoveVars.Grounded && mobIsProjectileComing(moby)) {
+    return SWARMER_ACTION_DODGE;
+  }
 
 	// get next target
 	Moby * target = swarmerGetNextTarget(moby);
@@ -507,7 +527,7 @@ void swarmerDoAction(Moby* moby)
           mobStand(moby);
         }
       }
-
+      
 			// 
       if (moby->AnimSeqId == SWARMER_ANIM_JUMP_AND_FALL && !pvars->MobVars.MoveVars.Grounded) {
         // wait for jump to land
@@ -518,6 +538,45 @@ void swarmerDoAction(Moby* moby)
 				mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
 			break;
 		}
+    case SWARMER_ACTION_DODGE:
+    {
+      if (!pvars->MobVars.CurrentActionForTicks) {
+        // determine left or right flip
+        int leftOrRight = swarmerGetSideFlipLeftOrRight(pvars);
+        float dir = leftOrRight*2 - 1;
+
+        // compute velocity from forward and direction (strafe)
+        vector_fromyaw(t, moby->Rotation[2] + (MATH_PI/2)*dir);
+        vector_scale(t, t, pvars->MobVars.Config.Speed * 4 * MATH_DT);
+        t[2] = 4 * MATH_DT;
+        vector_copy(pvars->MobVars.MoveVars.Velocity, t);
+        pvars->MobVars.MoveVars.Grounded = 0;
+        
+        mobTransAnim(moby, SWARMER_ANIM_SIDE_FLIP, 0);
+      }
+      
+      // face target
+      if (target)
+        mobTurnTowards(moby, target->Position, SWARMER_TURN_RADIANS_PER_SEC);
+
+      // when we land, transition to idle
+      //if (pvars->MobVars.AnimationLooped && (moby->AnimSeqId == SWARMER_ANIM_FLINCH_SPIN_AND_STAND || moby->AnimSeqId == SWARMER_ANIM_FLINCH_SPIN_AND_STAND2)) {
+      if (pvars->MobVars.MoveVars.Grounded && moby->AnimSeqId == SWARMER_ANIM_SIDE_FLIP) {
+        mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
+        swarmerForceLocalAction(moby, SWARMER_ACTION_WALK);
+        break;
+      }
+
+      if (moby->AnimSeqId == SWARMER_ANIM_SIDE_FLIP && pvars->MobVars.AnimationLooped) {
+        mobTransAnim(moby, SWARMER_ANIM_JUMP_AND_FALL, 5);
+        break;
+      }
+
+      if (moby->AnimSeqId == SWARMER_ANIM_SIDE_FLIP) {
+        mobTransAnim(moby, SWARMER_ANIM_SIDE_FLIP, 0);
+      }
+      break;
+    }
     case SWARMER_ACTION_DIE:
     {
       // on destroy, give some upwards velocity for the backflip
@@ -707,4 +766,12 @@ int swarmerIsSpawning(struct MobPVar* pvars)
 int swarmerCanAttack(struct MobPVar* pvars)
 {
 	return pvars->MobVars.AttackCooldownTicks == 0;
+}
+
+//--------------------------------------------------------------------------
+int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars)
+{
+  int seed = pvars->MobVars.Random + pvars->MobVars.ActionId;
+  sha1(&seed, 4, &seed, 4);
+  return seed % 2;
 }

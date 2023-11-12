@@ -2567,9 +2567,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      //manSpawnMobId = 0;
+      manSpawnMobId = 2;
       //manSpawnMobId = 5;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
@@ -2587,16 +2587,16 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			mobCreate(manSpawnMobId, t, 0, -1, 0, &mapConfig->DefaultSpawnParams[manSpawnMobId].Config);
       manSpawnMobId = (manSpawnMobId + 1) % mapConfig->DefaultSpawnParamsCount;
 		}
-    else if (padGetButtonDown(0, PAD_L1 | PAD_RIGHT) > 0) {
-      State.Freeze = 1;
-      State.TimeOfFreeze = 0x6FFFFFFF;
-      DPRINTF("freeze\n");
-    }
-    else if (padGetButtonDown(0, PAD_L1 | PAD_LEFT) > 0) {
-      State.Freeze = 0;
-      State.TimeOfFreeze = 0;
-      DPRINTF("unfreeze\n");
-    }
+    // else if (padGetButtonDown(0, PAD_L1 | PAD_RIGHT) > 0) {
+    //   State.Freeze = 1;
+    //   State.TimeOfFreeze = 0x6FFFFFFF;
+    //   DPRINTF("freeze\n");
+    // }
+    // else if (padGetButtonDown(0, PAD_L1 | PAD_LEFT) > 0) {
+    //   State.Freeze = 0;
+    //   State.TimeOfFreeze = 0;
+    //   DPRINTF("unfreeze\n");
+    // }
 	}
 #endif
 
@@ -2977,7 +2977,6 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickupsRandom = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
@@ -2988,6 +2987,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 #if !DEBUG
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 #endif
 
 	// no vehicles

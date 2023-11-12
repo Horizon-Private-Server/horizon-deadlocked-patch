@@ -27,6 +27,7 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
 void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId);
 void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
 void mobPreUpdate(Moby* moby);
+int mobIsProjectileComing(Moby* moby);
 
 
 #endif // SURVIVAL_MAP_SHARED_H

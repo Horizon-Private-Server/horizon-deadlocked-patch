@@ -55,6 +55,11 @@ extern int aaa;
 #include "reactor.c"
 #endif
 
+#if DEBUG
+VECTOR MoveCheckHit;
+VECTOR MoveCheckFinal;
+#endif
+
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
 {
@@ -70,40 +75,6 @@ int mobIsFrozen(Moby* moby)
 
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   return MapConfig.State->Freeze && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_FREEZE && pvars->MobVars.Health > 0;
-}
-
-#if DEBUG
-
-VECTOR MoveCheckHit;
-VECTOR MoveCheckFinal;
-
-//--------------------------------------------------------------------------
-void mobPostDrawDebug(Moby* moby)
-{
-	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-
-  MATRIX jointMtx;
-  mobyGetJointMatrix(moby, 0, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x80FF0000);
-  mobyGetJointMatrix(moby, 1, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x80800000);
-  mobyGetJointMatrix(moby, 2, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x8000FF00);
-  mobyGetJointMatrix(moby, 3, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x80008000);
-
-
-  //draw3DMarker(MoveCheckHit, 1, 0x8000FF00);
-  //draw3DMarker(MoveCheckFinal, 1, 0x800000FF);
-}
-#endif
-
-//--------------------------------------------------------------------------
-void mobPreUpdate(Moby* moby)
-{
-#if DEBUG
-	gfxRegisterDrawFunction((void**)0x0022251C, &mobPostDrawDebug, moby);
-#endif
 }
 
 //--------------------------------------------------------------------------
@@ -249,6 +220,34 @@ void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff)
 void mobTransAnim(Moby* moby, int animId, float startOff)
 {
 	mobTransAnimLerp(moby, animId, 10, startOff);
+}
+
+//--------------------------------------------------------------------------
+int mobIsProjectileComing(Moby* moby)
+{
+  VECTOR t;
+  Moby* m = NULL;
+  Moby** mobys = (Moby**)0x0026BDA0;
+
+  while ((m = *mobys++)) {
+    if (!mobyIsDestroyed(m)) {
+      switch (m->OClass)
+      {
+        case MOBY_ID_B6_BALL0:
+        case MOBY_ID_ARBITER_ROCKET0:
+        case MOBY_ID_DUAL_VIPER_SHOT:
+        case MOBY_ID_MINE_LAUNCHER_MINE:
+        {
+          // projectile is within 5 units
+          vector_subtract(t, moby->Position, m->Position);
+          if (vector_sqrmag(t) < (7*7)) return 1;
+          break;
+        }
+      }
+    }
+  }
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------
@@ -619,6 +618,37 @@ void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 
 	// draw
 	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
+}
+
+#if DEBUG
+
+//--------------------------------------------------------------------------
+void mobPostDrawDebug(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  MATRIX jointMtx;
+  mobyGetJointMatrix(moby, 0, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x80FF0000);
+  mobyGetJointMatrix(moby, 1, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x80800000);
+  mobyGetJointMatrix(moby, 2, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x8000FF00);
+  mobyGetJointMatrix(moby, 3, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x80008000);
+
+
+  //draw3DMarker(MoveCheckHit, 1, 0x8000FF00);
+  //draw3DMarker(MoveCheckFinal, 1, 0x800000FF);
+}
+#endif
+
+//--------------------------------------------------------------------------
+void mobPreUpdate(Moby* moby)
+{
+#if DEBUG
+	gfxRegisterDrawFunction((void**)0x0022251C, &mobPostDrawDebug, moby);
+#endif
 }
 
 //--------------------------------------------------------------------------

@@ -1039,7 +1039,7 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
       pvars->VTable->ForceLocalAction(moby, args.Action);
 	}
 	
-	//DPRINTF("mob state update event %08X, %08X, %d\n", (u32)moby, (u32)event, args.Action);
+	DPRINTF("mob state update event %08X, %08X, %d\n", (u32)moby, (u32)event, args.Action);
 	return 0;
 }
 
