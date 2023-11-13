@@ -605,6 +605,54 @@ void patchResurrectWeaponOrdering(void)
 }
 
 /*
+ * NAME :		getMACAddress
+ * 
+ * DESCRIPTION :
+ * 			    Returns non-zero on success.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int getMACAddress(u8 output[6])
+{
+  int i;
+  static int hasMACAddress = 0;
+  static u8 macAddress[6];
+  void* cd = (void*)0x001B26C0;
+  void* net_buf = (void*)0x001B2700;
+  u8 buf[16];
+
+  if (padGetButtonDown(0, PAD_L1) <= 0) return 0;
+
+  // use cached result
+  // since the MAC address isn't going to change in the lifetime of the patch
+  if (0 && hasMACAddress)
+  {
+    memcpy(output, macAddress, 6);
+    return 1;
+  }
+
+  // sceInetInterfaceControl get physical address
+  int r = ((int (*)(void* cd, void* net_buf, int interface_id, int code, void* ptr, int len))0x01E9BE70)(cd, net_buf, 1, 13, buf, sizeof(buf));
+  if (r)
+  {
+    memset(output, 0, 6);
+    return 0;
+  }
+
+  //
+  memcpy(macAddress, buf, 6);
+  memcpy(output, buf, 6);
+  DPRINTF("mac %02X:%02X:%02X:%02X:%02X:%02X\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+  return hasMACAddress = 1;
+}
+
+/*
  * NAME :		hasSonyMACAddress
  * 
  * DESCRIPTION :
@@ -624,22 +672,29 @@ int hasSonyMACAddress(void)
   static int hasSonyMACAddressResult = -1;
   void* cd = (void*)0x001B26C0;
   void* net_buf = (void*)0x001B2700;
-  u8 buf[16];
+  u8 mac[6];
 
   // use cached result
   // since the MAC address isn't going to change in the lifetime of the patch
   if (hasSonyMACAddressResult >= 0) return hasSonyMACAddressResult;
 
-  // sceInetInterfaceControl get physical address
-  int r = ((int (*)(void* cd, void* net_buf, int interface_id, int code, void* ptr, int len))0x01E9BE70)(cd, net_buf, 1, 13, buf, sizeof(buf));
-  if (r) return 1;
+  // if we can't get the mac address, then assume we're on a PS2
+  // but don't save result so that we run again
+  if (!getMACAddress(mac)) return 1;
+  DPRINTF("mac %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+  // latest PCSX2 uses fixed 4 bytes followed by 2 bytes generated from the host net adapter
+  // we'll assume that any client matching the first 4 bytes are on pcsx2
+  // could have false positives
+  u32 firstWordMacAddress = *(u32*)mac;
+  if (firstWordMacAddress == 0x821F0400)
+    return hasSonyMACAddressResult = 0;
 
   // check if the first half of our mac address
   // matches any known sony mac addresses
-  u32 firstHalfMacAddress = (buf[0] << 16) | (buf[1] << 8) | (buf[2] << 0);
-  DPRINTF("mac %02X:%02X:%02X:%02X:%02X:%02X\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+  u32 firstHalfMacAddress = (mac[0] << 16) | (mac[1] << 8) | (mac[2] << 0);
   for (i = 0; i < SONY_MAC_ADDRESSES_COUNT; ++i) {
-    if (SONY_MAC_ADDRESSES[i] == firstHalfMacAddress) { return hasSonyMACAddressResult = 1; }
+    if (SONY_MAC_ADDRESSES[i] == firstHalfMacAddress) return hasSonyMACAddressResult = 1;
   }
 
   return hasSonyMACAddressResult = 0;
@@ -4246,6 +4301,8 @@ int onCustomModeDownloadInitiated(void * connection, void * data)
 void sendClientType(void)
 {
   static int sendCounter = -1;
+  
+  ClientSetClientTypeRequest_t msg;
 
   // if the client type is 0 (normal)
   // then it is possible we're on an emulator
@@ -4253,10 +4310,13 @@ void sendClientType(void)
   if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_NORMAL && !hasSonyMACAddress())
     PATCH_POINTERS_CLIENT = CLIENT_TYPE_PCSX2;
 
-  // get
-  int currentClientType = PATCH_POINTERS_CLIENT;
+  // get client type
+  msg.ClientType = PATCH_POINTERS_CLIENT;
   int accountId = *(int*)0x00172194;
   void* lobbyConnection = netGetLobbyServerConnection();
+
+  // get mac address
+  getMACAddress(msg.mac);
 
   // if we're not logged in, update last account id to -1
   if (accountId < 0) {
@@ -4280,23 +4340,23 @@ void sendClientType(void)
     // if relogged in
     // or client type has changed
     // trigger send in 60 ticks
-    if (lobbyConnection && accountId > 0 && (lastAccountId != accountId || lastClientType != currentClientType)) {
+    if (lobbyConnection && accountId > 0 && (lastAccountId != accountId || lastClientType != msg.ClientType)) {
       sendCounter = 60;
     }
 
   } else {
 
-    lastClientType = currentClientType;
+    lastClientType = msg.ClientType;
     lastAccountId = accountId;
 
     // keep trying to send until it succeeds
-    if (netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(int), &currentClientType) != 0) {
+    if (netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE, sizeof(ClientSetClientTypeRequest_t), &msg) != 0) {
       // failed, wait another second
       sendCounter = 60;
     } else {
       // success
       sendCounter = -1;
-      DPRINTF("sent %d %d\n", gameGetTime(), currentClientType);
+      DPRINTF("sent %d %d\n", gameGetTime(), msg.ClientType);
     }
   }
 

@@ -949,9 +949,9 @@ int mapsAllocateModuleBuffer(void)
 		}
 	}
 	if (!USB_SRV_MODULE_PTR) {
-		USB_SRV_MODULE_PTR = malloc(11400);
+		USB_SRV_MODULE_PTR = malloc(12000);
 		if (USB_SRV_MODULE_PTR) {
-			memset(USB_SRV_MODULE_PTR, 0, 11400);
+			memset(USB_SRV_MODULE_PTR, 0, 12000);
 			USB_SRV_MODULE_PTR = (void*)align((int)USB_SRV_MODULE_PTR, 0x10);
 		}
 	}
