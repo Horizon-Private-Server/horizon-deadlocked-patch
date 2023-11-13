@@ -153,3 +153,22 @@ Fix OPL crash on load
 ++Buff surge
 ++Add gate reset (resets gate 100% cost)
 ++Teams off ends game when only one team left
+
+
+Add timed team quad item
+Add timed team shield item
+Add emp heal item
+
+Triple jump blessing (hare)
+Infinite chargeboot blessing (bull)
+Ice resist blessing (hearth)
+Luck blessing (clover)
+Health regen blessing (vitality)
+Ammo regen blessing (hunt)
+
+Boss drops 5 alpha mods, 5 tokens, 2 random items
+Boss needs to charge into 3 statues to activate
+Statues activate teleporter only during post-boss round interim
+Post-boss round interim is 3 minutes long
+Blizzard as a mystery box punishment
+Increase mbox to 25k

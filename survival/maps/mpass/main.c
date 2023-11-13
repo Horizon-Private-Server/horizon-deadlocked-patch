@@ -172,6 +172,10 @@ void initialize(void)
   //HOOK_J(0x003bd864, &onAfterUpdateHeroes);
   HOOK_JAL(0x0051f648, &onBeforeUpdateHeroes2);
   //HOOK_J(0x0051f78c, &onAfterUpdateHeroes2);
+  
+  // have moby 0x1BC6 use glowColor for particle color
+  POKE_U32(0x004171D8, 0x8FA80070);
+  POKE_U32(0x00417200, 0x8D080060);
 
   DPRINTF("path %08X end %08X\n", (u32)&MOB_PATHFINDING_PATHS, (u32)&MOB_PATHFINDING_PATHS + (MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH * MOB_PATHFINDING_NODES_COUNT * MOB_PATHFINDING_NODES_COUNT));
 

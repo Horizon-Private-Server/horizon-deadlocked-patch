@@ -2567,9 +2567,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      manSpawnMobId = 2;
+      //manSpawnMobId = 2;
       //manSpawnMobId = 5;
-			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {

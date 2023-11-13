@@ -52,6 +52,7 @@ extern int aaa;
 #endif
 
 #if MOB_REACTOR
+#include "trailshot.c"
 #include "reactor.c"
 #endif
 
@@ -636,6 +637,8 @@ void mobPostDrawDebug(Moby* moby)
   draw3DMarker(&jointMtx[12], 1, 0x8000FF00);
   mobyGetJointMatrix(moby, 3, jointMtx);
   draw3DMarker(&jointMtx[12], 1, 0x80008000);
+  mobyGetJointMatrix(moby, 4, jointMtx);
+  draw3DMarker(&jointMtx[12], 1, 0x80000000);
 
 
   //draw3DMarker(MoveCheckHit, 1, 0x8000FF00);

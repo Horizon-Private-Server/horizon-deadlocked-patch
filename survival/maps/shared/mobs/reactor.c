@@ -34,6 +34,9 @@ void reactorPlayDeathSound(Moby* moby);
 int reactorIsAttacking(struct MobPVar* pvars);
 int reactorIsSpawning(struct MobPVar* pvars);
 int reactorCanAttack(struct MobPVar* pvars, enum ReactorAction action);
+void reactorFireTrailshot(Moby* moby);
+
+void trailshotSpawn(VECTOR position, VECTOR velocity, u32 color, int lifeTicks);
 
 struct MobVTable ReactorVTable = {
   .PreUpdate = &reactorPreUpdate,
@@ -133,6 +136,7 @@ void reactorPreUpdate(Moby* moby)
 //--------------------------------------------------------------------------
 void reactorPostUpdate(Moby* moby)
 {
+  MATRIX mtx;
   if (!moby || !moby->PVar)
     return;
     
@@ -148,11 +152,24 @@ void reactorPostUpdate(Moby* moby)
     }
   }
 
+  // stop animation if frozen or not visible and just walking
+  // we do want to make sure the mob animated when attacking even if not visible
 	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == REACTOR_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
 		moby->AnimSpeed = animSpeed;
 	}
+
+  // snap particle to joint
+  if (reactorVars->PrepShotWithFireParticleMoby1) {
+    mobyGetJointMatrix(moby, 3, mtx);
+    vector_copy(reactorVars->PrepShotWithFireParticleMoby1->Position, &mtx[12]);
+  }
+
+  if (reactorVars->PrepShotWithFireParticleMoby2) {
+    mobyGetJointMatrix(moby, 4, mtx);
+    vector_copy(reactorVars->PrepShotWithFireParticleMoby2->Position, &mtx[12]);
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -187,6 +204,7 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
 {
   
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
 
   // set scale
   moby->Scale = 0.6;
@@ -198,6 +216,21 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
   // targeting
 	pvars->TargetVars.targetHeight = 1.5;
   pvars->MobVars.BlipType = 5;
+
+  // create particle mobys
+  reactorVars->PrepShotWithFireParticleMoby1 = mobySpawn(0x1BC6, 0);
+  if (reactorVars->PrepShotWithFireParticleMoby1) {
+    reactorVars->PrepShotWithFireParticleMoby1->UpdateDist = 0xFF;
+    reactorVars->PrepShotWithFireParticleMoby1->GlowRGBA = 0x802060C0;
+  }
+
+  reactorVars->PrepShotWithFireParticleMoby2 = mobySpawn(0x1BC6, 0);
+  if (reactorVars->PrepShotWithFireParticleMoby2) {
+    reactorVars->PrepShotWithFireParticleMoby2->UpdateDist = 0xFF;
+    reactorVars->PrepShotWithFireParticleMoby2->GlowRGBA = 0x802060C0;
+  }
+
+  DPRINTF("PARTICLES %08X %08X\n", reactorVars->PrepShotWithFireParticleMoby1, reactorVars->PrepShotWithFireParticleMoby2);
 }
 
 //--------------------------------------------------------------------------
@@ -208,9 +241,21 @@ void reactorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
 
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+
+  // destroy particle mobys
+  if (reactorVars->PrepShotWithFireParticleMoby1) {
+    mobyDestroy(reactorVars->PrepShotWithFireParticleMoby1);
+    reactorVars->PrepShotWithFireParticleMoby1 = NULL;
+  }
+  
+  if (reactorVars->PrepShotWithFireParticleMoby2) {
+    mobyDestroy(reactorVars->PrepShotWithFireParticleMoby2);
+    reactorVars->PrepShotWithFireParticleMoby2 = NULL;
+  }
 
   // spawn explosion
   u32 expColor = 0x801E70D6;
@@ -379,8 +424,8 @@ enum ReactorAction reactorGetPreferredAction(Moby* moby)
 		}
 
     // far but in sight, fire laser
-    if (reactorCanAttack(pvars, REACTOR_ACTION_ATTACK_LASER)) {
-      return REACTOR_ACTION_ATTACK_LASER;
+    if (distSqr <= (REACTOR_SHOT_WITH_TRAIL_MAX_DIST*REACTOR_SHOT_WITH_TRAIL_MAX_DIST) && reactorCanAttack(pvars, REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL)) {
+      return REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL;
     }
 
     return REACTOR_ACTION_WALK;
@@ -694,7 +739,55 @@ void reactorDoAction(Moby* moby)
 			}
 			break;
 		}
-	}
+    case REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL:
+    {
+      int nextAnimId = moby->AnimSeqId;
+
+      switch (moby->AnimSeqId)
+      {
+        case REACTOR_ANIM_PREPPING_TWO_HAND_PULSE:
+        {
+          if (pvars->MobVars.AnimationLooped) {
+            nextAnimId = REACTOR_ANIM_FIRE_TWO_HAND_PULSE;
+          }
+          break;
+        }
+        case REACTOR_ANIM_FIRE_TWO_HAND_PULSE:
+        {
+          if (moby->AnimSeqT < 15) {
+            turnSpeed = 0;
+          } else {
+            turnSpeed = REACTOR_SHOT_WITH_TRAIL_TURN_RADIANS_PER_SEC;
+          }
+
+          if (moby->AnimSeqT >= 12 && reactorVars->LoopLastFiredTrailshot != pvars->MobVars.AnimationLooped) {
+            reactorVars->LoopLastFiredTrailshot = pvars->MobVars.AnimationLooped;
+            reactorFireTrailshot(moby);
+          }
+
+          // stop after n iterations
+          if (pvars->MobVars.AnimationLooped > 3) {
+            reactorForceLocalAction(moby, REACTOR_ACTION_IDLE);
+          }
+          break;
+        }
+      }
+
+      if (!pvars->MobVars.CurrentActionForTicks) {
+        nextAnimId = REACTOR_ANIM_PREPPING_TWO_HAND_PULSE;
+      }
+
+      // transition
+			reactorTransAnim(moby, nextAnimId, 0);
+    
+      // stand and face target
+      mobStand(moby);
+      if (target) {
+        mobTurnTowards(moby, target->Position, turnSpeed);
+      }
+      break;
+    }
+  }
 
   pvars->MobVars.CurrentActionForTicks ++;
 }
@@ -768,10 +861,11 @@ void reactorForceLocalAction(Moby* moby, enum ReactorAction action)
       reactorVars->ChargeChargeupTargetCount = REACTOR_CHARGE_ATTACK_MIN_STALL_LOOPS + ((u8)pvars->MobVars.DynamicRandom % (REACTOR_CHARGE_ATTACK_MAX_STALL_LOOPS - REACTOR_CHARGE_ATTACK_MIN_STALL_LOOPS));
 			break;
 		}
-		case REACTOR_ACTION_ATTACK_LASER:
+		case REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL:
 		{
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
-      pvars->MobVars.Attack3CooldownTicks = REACTOR_LASER_ATTACK_COOLDOWN_TICKS;
+      pvars->MobVars.Attack3CooldownTicks = REACTOR_SHOT_WITH_TRAIL_ATTACK_COOLDOWN_TICKS;
+      reactorVars->LoopLastFiredTrailshot = -1;
 			break;
 		}
 		case REACTOR_ACTION_FLINCH:
@@ -838,7 +932,7 @@ int reactorIsAttacking(struct MobPVar* pvars)
 {
 	return (pvars->MobVars.Action == REACTOR_ACTION_ATTACK_SWING && !pvars->MobVars.AnimationLooped)
         || pvars->MobVars.Action == REACTOR_ACTION_ATTACK_CHARGE
-        || pvars->MobVars.Action == REACTOR_ACTION_ATTACK_LASER;
+        || pvars->MobVars.Action == REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL;
 }
 
 //--------------------------------------------------------------------------
@@ -856,20 +950,39 @@ int reactorCanAttack(struct MobPVar* pvars, enum ReactorAction action)
   {
     case REACTOR_ACTION_ATTACK_SWING:
     {
-      // swing
       return 1;
     }
     case REACTOR_ACTION_ATTACK_CHARGE:
     {
-      // charge
+      return 0;
       return pvars->MobVars.Attack2CooldownTicks == 0;
     }
-    case REACTOR_ACTION_ATTACK_LASER:
+    case REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL:
     {
-      return 0;
-      // laser
       return pvars->MobVars.Attack3CooldownTicks == 0;
     }
     default: return 0;
   }
+}
+
+//--------------------------------------------------------------------------
+void reactorFireTrailshot(Moby* moby)
+{
+  VECTOR pos;
+  VECTOR vel;
+  VECTOR forward;
+  MATRIX mtx;
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  // get vel
+  vector_copy(forward, moby->M0_03);
+  vector_scale(vel, forward, REACTOR_SHOT_WITH_TRAIL_SHOT_SPEED);
+
+  // get pos
+  mobyGetJointMatrix(moby, 2, mtx);
+  vector_scale(forward, forward, 2);
+  vector_add(pos, &mtx[12], forward);
+
+  // spawn
+  trailshotSpawn(pos, vel, 0x80C06020, TPS * 10);
 }
