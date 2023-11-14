@@ -627,11 +627,9 @@ int getMACAddress(u8 output[6])
   void* net_buf = (void*)0x001B2700;
   u8 buf[16];
 
-  if (padGetButtonDown(0, PAD_L1) <= 0) return 0;
-
   // use cached result
   // since the MAC address isn't going to change in the lifetime of the patch
-  if (0 && hasMACAddress)
+  if (hasMACAddress)
   {
     memcpy(output, macAddress, 6);
     return 1;
