@@ -409,6 +409,12 @@ typedef struct ServerResponseBootElf
     u32 Size;
 } ServerResponseBootElf_t;
 
+typedef struct ClientSetClientTypeRequest
+{
+    int ClientType;
+    u8 mac[6];
+} ClientSetClientTypeRequest_t;
+
 struct PingRequest
 {
   long Time;
