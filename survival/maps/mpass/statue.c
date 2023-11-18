@@ -16,6 +16,7 @@
 #include "maputils.h"
 
 extern int aaa;
+extern Moby* reactorActiveMoby;
 
 SoundDef StatueSoundDef =
 {
@@ -57,6 +58,13 @@ void statueUpdate(Moby* moby)
       statueSetState(moby, STATUE_STATE_ACTIVATED);
     }
   }
+
+  // enable/disable target and react vars
+  if (reactorActiveMoby) {
+    moby->ModeBits |= 0x1020; 
+  } else {
+    moby->ModeBits &= ~0x1020;
+  }
   
   moby->GlowRGBA = (moby->State == STATUE_STATE_DEACTIVATED) ? 0x80000000 : activatedGlowColor;
   moby->CollDamage = -1;
@@ -81,7 +89,6 @@ int statueHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 
   pvars->TargetVarsPtr = &pvars->TargetVars;
   pvars->ReactVarsPtr = &pvars->ReactVars;
-  moby->ModeBits |= 0x1020; // enable target and react vars
 
   // set default state
 	mobySetState(moby, STATUE_STATE_DEACTIVATED, -1);

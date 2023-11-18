@@ -72,6 +72,8 @@ extern u32 MobPrimaryColors[];
 extern u32 MobSecondaryColors[];
 extern u32 MobLODColors[];
 
+Moby* reactorActiveMoby = NULL;
+
 //--------------------------------------------------------------------------
 void reactorTransAnim(Moby* moby, int animId, float startOff)
 {
@@ -242,6 +244,7 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
     reactorVars->PrepShotWithFireParticleMoby2->GlowRGBA = 0x802060C0;
   }
 
+  reactorActiveMoby = moby;
   DPRINTF("PARTICLES %08X %08X\n", reactorVars->PrepShotWithFireParticleMoby1, reactorVars->PrepShotWithFireParticleMoby2);
 }
 
@@ -254,6 +257,7 @@ void reactorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
+  reactorActiveMoby = NULL;
 
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
@@ -732,6 +736,7 @@ void reactorDoAction(Moby* moby)
         // dash
         case REACTOR_ANIM_SWING:
         {
+          facePlayer = 0;
           if (moby->AnimSeqT > 7 && moby->AnimSeqT < 21) {
             if (pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > REACTOR_CHARGE_MAX_SLOPE && (!pvars->MobVars.MoveVars.HitWallMoby || pvars->MobVars.MoveVars.HitWallMoby->OClass == STATUE_MOBY_OCLASS)) {
               nextAnimId = REACTOR_ANIM_STEP_BACK_KNEE_DOWN;
@@ -739,7 +744,6 @@ void reactorDoAction(Moby* moby)
               speedMult = REACTOR_CHARGE_SPEED;
               acceleration = REACTOR_CHARGE_ACCELERATION;
               reactorVars->AnimSpeedAdditive = 2;
-              facePlayer = 0;
             }
           }
 
