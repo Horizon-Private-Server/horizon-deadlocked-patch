@@ -51,6 +51,10 @@ extern int aaa;
 #include "swarmer.c"
 #endif
 
+#if MOB_REAPER
+#include "reaper.c"
+#endif
+
 #if MOB_REACTOR
 #include "trailshot.c"
 #include "reactor.c"
@@ -167,7 +171,7 @@ void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int fr
       mobDoDamageTryHit(moby, player->PlayerMoby, p, sqrRadius, damageFlags, amount);
     }
   }
-  else if (CollMobysSphere_Fix(p, 2, moby, 0, 5 + radius) > 0) {
+  else if (CollMobysSphere_Fix(p, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL, 5 + radius) > 0) {
     Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
     Moby* hitMoby;
     while ((hitMoby = *hitMobies++)) {
@@ -278,9 +282,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
   VECTOR delta, horizontalDelta, reflectedDelta;
   VECTOR hitTo, hitFrom;
   VECTOR hitToEx, hitNormal;
-  VECTOR temp;
   VECTOR up = {0,0,0,0};
-  float angle;
   float collRadius = pvars->MobVars.Config.CollRadius;
   if (!pvars)
     return 0;
@@ -360,15 +362,13 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 //--------------------------------------------------------------------------
 void mobMove(Moby* moby)
 {
-  VECTOR normalizedTargetDirection, planarTargetDirection;
   VECTOR targetVelocity;
   VECTOR normalizedVelocity;
   VECTOR nextPos;
   VECTOR temp;
   VECTOR groundCheckFrom, groundCheckTo;
+  VECTOR up = {0,0,1,0};
   int isMovingDown = 0;
-  int i;
-  const VECTOR up = {0,0,1,0};
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   int isOwner = mobAmIOwner(moby);
 
@@ -419,7 +419,7 @@ void mobMove(Moby* moby)
         groundCheckFrom[2] = maxf(moby->Position[2], nextPos[2]) + ZOMBIE_BASE_STEP_HEIGHT;
         vector_copy(groundCheckTo, nextPos);
         groundCheckTo[2] -= 0.5;
-        if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
+        if (CollLine_Fix(groundCheckFrom, groundCheckTo, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
           // mark grounded this frame
           pvars->MobVars.MoveVars.Grounded = 1;
 
@@ -444,7 +444,7 @@ void mobMove(Moby* moby)
         vector_copy(groundCheckTo, nextPos);
         groundCheckTo[2] += 3;
         //groundCheckTo[2] += ZOMBIE_BASE_STEP_HEIGHT;
-        if (CollLine_Fix(groundCheckFrom, groundCheckTo, 2, moby, NULL)) {
+        if (CollLine_Fix(groundCheckFrom, groundCheckTo, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
           // force position to below ceiling
           //vector_copy(nextPos, CollLine_Fix_GetHitPosition());
           //nextPos[2] -= 0.01;
@@ -503,7 +503,6 @@ void mobMove(Moby* moby)
 void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed)
 {
   VECTOR delta;
-  MATRIX mRot;
   
   if (!moby || !moby->PVar)
     return;
@@ -582,7 +581,6 @@ void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 	struct QuadDef quad;
 	float size = moby->Scale * 2;
 	MATRIX m2;
-	VECTOR t;
 	VECTOR pTL = {0,size,size,1};
 	VECTOR pTR = {0,-size,size,1};
 	VECTOR pBL = {0,size,-size,1};
@@ -630,8 +628,6 @@ void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 //--------------------------------------------------------------------------
 void mobPostDrawDebug(Moby* moby)
 {
-	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-
   MATRIX jointMtx;
   mobyGetJointMatrix(moby, 0, jointMtx);
   draw3DMarker(&jointMtx[12], 1, 0x80FF0000);
@@ -643,10 +639,6 @@ void mobPostDrawDebug(Moby* moby)
   draw3DMarker(&jointMtx[12], 1, 0x80008000);
   mobyGetJointMatrix(moby, 4, jointMtx);
   draw3DMarker(&jointMtx[12], 1, 0x80000000);
-
-
-  //draw3DMarker(MoveCheckHit, 1, 0x8000FF00);
-  //draw3DMarker(MoveCheckFinal, 1, 0x800000FF);
 }
 #endif
 
@@ -654,7 +646,7 @@ void mobPostDrawDebug(Moby* moby)
 void mobPreUpdate(Moby* moby)
 {
 #if DEBUG
-	gfxRegisterDrawFunction((void**)0x0022251C, &mobPostDrawDebug, moby);
+	gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&mobPostDrawDebug, moby);
 #endif
 }
 
@@ -711,10 +703,10 @@ void mobOnSpawned(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e)
+void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   // update pathfinding state
-  pathSetPath(moby, e.PathStartNodeIdx, e.PathEndNodeIdx, e.PathCurrentEdgeIdx, e.PathHasReachedStart, e.PathHasReachedEnd);
+  pathSetPath(moby, e->PathStartNodeIdx, e->PathEndNodeIdx, e->PathCurrentEdgeIdx, e->PathHasReachedStart, e->PathHasReachedEnd);
 }
 
 //--------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 #include <libdl/stdio.h>
+#include <libdl/string.h>
 #include <libdl/game.h>
 #include <libdl/collision.h>
 #include <libdl/graphics.h>
@@ -165,7 +166,6 @@ void wraithPostDraw(Moby* moby)
   int i;
   float dt = MATH_DT;
   VECTOR position = {0,0,1,0};
-  VECTOR delta;
   WraithParticle_t eyeParticle;
 	struct WraithPVar* pvars = (struct WraithPVar*)moby->PVar;
 	if (!pvars)
@@ -407,7 +407,7 @@ void wraithUpdate(Moby* moby)
 
   // draw
   if (isInDrawDist(moby)) {
-	  gfxRegisterDrawFunction((void**)0x0022251C, &wraithPostDraw, moby);
+	  gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&wraithPostDraw, moby);
   }
   
   // play sound
@@ -540,7 +540,6 @@ int wraithHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int wraithHandleEvent_TargetUpdate(Moby* moby, GuberEvent* event)
 {
-	int i;
   int targetPlayerId = -1;
   VECTOR position;
 
@@ -570,7 +569,6 @@ int wraithHandleEvent_TargetUpdate(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int wraithHandleEvent_PathUpdate(Moby* moby, GuberEvent* event)
 {
-	int i;
   int currentNodeIdx, nextNodeIdx;
   VECTOR position;
 
@@ -649,7 +647,6 @@ int wraithCreate(VECTOR position)
 void wraithSpawn(void)
 {
   static int spawned = 0;
-  int i;
   
   if (spawned)
     return;
@@ -670,7 +667,6 @@ void wraithSpawn(void)
 //--------------------------------------------------------------------------
 void wraithInit(void)
 {
-  int i;
   Moby* temp = mobySpawn(WRAITH_MOBY_OCLASS, 0);
   if (!temp)
     return;

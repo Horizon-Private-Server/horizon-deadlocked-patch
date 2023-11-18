@@ -1,4 +1,5 @@
 #include <libdl/stdio.h>
+#include <libdl/string.h>
 #include <libdl/game.h>
 #include <libdl/collision.h>
 #include <libdl/graphics.h>
@@ -219,7 +220,6 @@ void surgePostDraw(Moby* moby)
   u32 color = 0;
   VECTOR delta, lastPosition;
   VECTOR velocity;
-  VECTOR up = {0,0,1,0};
   VECTOR gravity = {0,0,-10 * MATH_DT,0};
   
 	struct SurgePVar* pvars = (struct SurgePVar*)moby->PVar;
@@ -345,8 +345,7 @@ int surgePlayerOnPath(Moby* moby)
   Player** players = playerGetAll();
 
   struct SurgePVar* pvars = (struct SurgePVar*)moby->PVar;
-  if (!pvars)
-    return;
+  if (!pvars) return 0;
 
   vector_subtract(mobyToNode, GAS_PATHFINDING_NODES[pvars->NextNodeIdx].Position, moby->Position);
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -361,16 +360,17 @@ int surgePlayerOnPath(Moby* moby)
       }
     }
   }
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------
 void surgeMove(Moby* moby)
 {
   int i;
-  VECTOR delta, bitangent;
+  VECTOR delta;
   VECTOR from, to;
   VECTOR up = {0,0,2,0};
-  VECTOR right = {1,0,0,0};
   VECTOR hitoff = {0,0,0.3,0};
 
   struct SurgePVar* pvars = (struct SurgePVar*)moby->PVar;
@@ -429,7 +429,7 @@ void surgeMove(Moby* moby)
   // snap to ground
   vector_add(from, pvars->Position, up);
   vector_subtract(to, pvars->Position, up);
-  if (CollLine_Fix(from, to, 2, moby, 0)) {
+  if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
     vector_add(moby->Position, CollLine_Fix_GetHitPosition(), hitoff);
   } else {
     vector_copy(moby->Position, pvars->Position);
@@ -444,8 +444,7 @@ int surgeSetArc(Moby* moby, Moby* arcTowards, int arcCount)
   VECTOR target;
 
   struct SurgePVar* pvars = (struct SurgePVar*)moby->PVar;
-  if (!pvars)
-    return;
+  if (!pvars) return 0;
 
   for (i = 0; i < SURGE_MAX_PARTICLES; ++i) {
     if (pvars->Particles[i].SurgeArc == arcTowards) {
@@ -489,7 +488,7 @@ void surgeSpawnSlamExplosion(Moby* moby)
   }
 
   // spawn explosion
-  Moby * moby = mobySpawnExplosion
+  mobySpawnExplosion
         (vPos, 1, 0x0, 0x0, 0x0, 0x10, 0x10, 0x0, 0, 0, 0, 0,
         1, 0, 0x80080800, 0, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000,
         0x80E18000, 1, 0, 0, vPos, 3, 0, damage, 15);
@@ -532,7 +531,6 @@ void surgeAttached(Moby* moby)
     pvars->AttachedToPlayer->timers.clankRedEye = 10;
 
     // hyper strike slam
-    static int pState = 0;
     if (pvars->AttachedToPlayer->PlayerState == PLAYER_STATE_JUMP_ATTACK && pvars->AttachedToPlayer->PlayerMoby->AnimSeqId == 43) {
       if (pvars->HasSlammed == 1 && pvars->AttachedToPlayer->PlayerMoby->AnimSeqT > 12) {
             
@@ -678,7 +676,7 @@ void surgeUpdate(Moby* moby)
 
   // draw
   if (moby->Drawn) {
-	  gfxRegisterDrawFunction((void**)0x0022251C, &surgePostDraw, moby);
+	  gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&surgePostDraw, moby);
   }
 
   // attached
@@ -726,7 +724,7 @@ void surgeUpdate(Moby* moby)
 //--------------------------------------------------------------------------
 int surgeHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 {
-	int i,j;
+	int i;
   
   DPRINTF("surge spawned: %08X\n", (u32)moby);
   struct SurgePVar* pvars = (struct SurgePVar*)moby->PVar;
@@ -759,7 +757,6 @@ int surgeHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int surgeHandleEvent_PathUpdate(Moby* moby, GuberEvent* event)
 {
-	int i;
   int currentNodeIdx, nextNodeIdx;
   VECTOR position;
 
@@ -785,7 +782,6 @@ int surgeHandleEvent_PathUpdate(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int surgeHandleEvent_AttachUpdate(Moby* moby, GuberEvent* event)
 {
-	int i;
   int playerId;
   VECTOR position;
   Player* player;
@@ -886,8 +882,6 @@ int surgeCreate(VECTOR position)
 void surgeSpawn(void)
 {
   static int spawned = 0;
-  int i;
-  
   if (spawned)
     return;
 
@@ -907,7 +901,6 @@ void surgeSpawn(void)
 //--------------------------------------------------------------------------
 void surgeInit(void)
 {
-  int i;
   Moby* temp = mobySpawn(SURGE_MOBY_OCLASS, 0);
   if (!temp)
     return;

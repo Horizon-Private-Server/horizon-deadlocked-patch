@@ -91,7 +91,7 @@ void trailshotOnImpact(Moby* moby)
   );
 	
   // damage
-  if (CollMobysSphere_Fix(moby->Position, 0, mob, 0, damageRadius) > 0) {
+  if (CollMobysSphere_Fix(moby->Position, COLLISION_FLAG_IGNORE_NONE, mob, NULL, damageRadius) > 0) {
     Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
     Moby* hitMoby;
     while ((hitMoby = *hitMobies++)) {
@@ -117,7 +117,7 @@ void trailshotDrawTrailParticles(Moby* moby)
 
     // check for player
     
-    if (CollMobysSphere_Fix(pvars->TrailParticlePositions[i], COLLISION_FLAG_IGNORE_NONE, moby->PParent, 0, scale * 0.5) > 0) {
+    if (CollMobysSphere_Fix(pvars->TrailParticlePositions[i], COLLISION_FLAG_IGNORE_NONE, moby->PParent, NULL, scale * 0.5) > 0) {
       Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
       Moby* hitMoby;
       while ((hitMoby = *hitMobies++)) {
@@ -165,17 +165,14 @@ void trailshotUpdateTrailParticles(Moby* moby)
   
   // register draw function
   if (pvars->TrailParticleCount > 0) {
-    gfxRegisterDrawFunction((void**)0x0022251C, &trailshotDrawTrailParticles, moby);
+    gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&trailshotDrawTrailParticles, moby);
   }
 }
 
 //--------------------------------------------------------------------------
 void trailshotPostDraw(Moby* moby)
 {
-  int x,y;
   int i = 0;
-  TrailshotPVar_t* pvars = (TrailshotPVar_t*)moby->PVar;
-  float rot = fastmodf(gameGetTime() / 1000.0, MATH_TAU) - MATH_PI;
   float scale = 0.65 + randRange(-0.1, 0.1);
   VECTOR velocity = {0,0,0,0};
 
@@ -212,7 +209,6 @@ void trailshotUpdate(Moby* moby)
   VECTOR next, down;
   VECTOR hitNormal, velNormal, up;
   VECTOR delta;
-  VECTOR hitOffset = {0,0,0.01,0};
   TrailshotPVar_t* pvars = (TrailshotPVar_t*)moby->PVar;
 
   // destroy if we're old
@@ -240,14 +236,14 @@ void trailshotUpdate(Moby* moby)
   }
 
   // register draw function
-  gfxRegisterDrawFunction((void**)0x0022251C, &trailshotPostDraw, moby);
+  gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&trailshotPostDraw, moby);
 
   // move
   if (pvars->ShotLifeTicks) {
     pvars->ShotLifeTicks--;
 
     vector_add(next, moby->Position, pvars->Velocity);
-    if (CollLine_Fix(moby->Position, next, 0, moby->PParent, 0)) {
+    if (CollLine_Fix(moby->Position, next, COLLISION_FLAG_IGNORE_NONE, moby->PParent, NULL)) {
       vector_copy(next, CollLine_Fix_GetHitPosition());
 
       // get hit wall slope
@@ -266,7 +262,7 @@ void trailshotUpdate(Moby* moby)
     }
 
     vector_subtract(down, next, trailshotCenterOffset);
-    if (CollLine_Fix(next, down, 0, moby->PParent, 0)) {
+    if (CollLine_Fix(next, down, COLLISION_FLAG_IGNORE_NONE, moby->PParent, NULL)) {
       vector_add(next, CollLine_Fix_GetHitPosition(), trailshotCenterOffset);
     }
 
@@ -291,7 +287,7 @@ void trailshotSpawn(Moby* creatorMoby, VECTOR position, VECTOR velocity, u32 col
 
   moby->PUpdate = &trailshotUpdate;
   moby->PrimaryColor = color;
-  moby->UpdateDist = 0x1FF;
+  moby->UpdateDist = 0xFF;
   moby->ModeBits = 0x04;
   moby->Opacity = 0x80;
   moby->PParent = creatorMoby;

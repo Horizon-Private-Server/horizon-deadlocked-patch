@@ -33,7 +33,7 @@ char DropTexIds[] = {
 //--------------------------------------------------------------------------
 int dropAmIOwner(Moby* moby)
 {
-	struct DropPVar* pvars = (struct DropPVar**)moby->PVar;
+	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
 	return gameGetMyClientId() == pvars->Owner;
 }
 
@@ -47,17 +47,13 @@ void dropPlayPickupSound(Moby* moby)
 //--------------------------------------------------------------------------
 void dropDestroy(Moby* moby)
 {
-	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
-
 	// create event
-	GuberEvent * guberEvent = dropCreateEvent(moby, DROP_EVENT_DESTROY);
+	dropCreateEvent(moby, DROP_EVENT_DESTROY);
 }
 
 //--------------------------------------------------------------------------
 void dropPickup(Moby* moby, int pickedUpByPlayerId)
 {
-	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
-	
 	// create event
 	GuberEvent * guberEvent = dropCreateEvent(moby, DROP_EVENT_PICKUP);
 	if (guberEvent) {
@@ -146,7 +142,6 @@ void dropUpdate(Moby* moby)
 	VECTOR t;
 	int i;
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
-	GameOptions* gameOptions = gameGetOptions();
 	Player** players = playerGetAll();
 	if (!pvars)
 		return;
@@ -154,7 +149,7 @@ void dropUpdate(Moby* moby)
 	int isOwner = dropAmIOwner(moby);
 
 	// register draw event
-	gfxRegisterDrawFunction((void**)0x0022251C, &dropPostDraw, moby);
+	gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&dropPostDraw, moby);
 
 	// handle particles
 	u32 color = colorLerp(0, TEAM_COLORS[pvars->Team], 1.0 / 4);
@@ -209,7 +204,6 @@ GuberEvent* dropCreateEvent(Moby* moby, u32 eventType)
 int dropHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 {
 	VECTOR p;
-	int i;
 	struct DropSpawnEventArgs args;
 	VECTOR offset = {0,0,1.5,0};
 
@@ -257,7 +251,6 @@ int dropHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int dropHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 {
-	char killedByPlayerId, weaponId;
 	int i;
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
 	if (!pvars || pvars->Destroyed)
@@ -418,7 +411,6 @@ int dropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int t
 	if (State.DropCooldownTicks > 0)
 		return 0;
 
-	GameSettings* gs = gameGetSettings();
 	struct DropSpawnEventArgs args;
 
 	// set cooldown

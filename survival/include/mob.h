@@ -12,6 +12,7 @@
 #include "reactor.h"
 #include "tremor.h"
 #include "swarmer.h"
+#include "reaper.h"
 #include "game.h"
 
 enum MobAttributeType
@@ -142,10 +143,10 @@ struct MobMoveVars {
   u8 StuckJumpCount;
   u8 MoveSkipTicks;
 
-  char PathEdgeCount;
-  char PathEdgeCurrent;
-  char PathHasReachedStart;
-  char PathHasReachedEnd;
+  u8 PathEdgeCount;
+  u8 PathEdgeCurrent;
+  u8 PathHasReachedStart;
+  u8 PathHasReachedEnd;
   u8 PathStartEndNodes[2];
   u8 PathTicks;
   u8 PathNewTicks;
@@ -321,6 +322,7 @@ struct MobUnreliableMsgStateUpdateArgs
 int mobOnUnreliableMsgRemote(void* connection, void* data);
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);
+int mobHandleEvent(Moby* moby, GuberEvent* event);
 int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 void mobInitialize(void);
 void mobTick(void);

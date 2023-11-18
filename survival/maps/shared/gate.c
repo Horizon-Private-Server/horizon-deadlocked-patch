@@ -29,6 +29,7 @@
 #include <libdl/graphics.h>
 #include <libdl/color.h>
 #include <libdl/utils.h>
+#include <libdl/random.h>
 #include "include/maputils.h"
 #include "../../include/gate.h"
 #include "../../include/game.h"
@@ -86,7 +87,6 @@ void gateDrawQuad(Moby* moby, float direction)
   struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
   struct QuadDef quad;
 	MATRIX m2;
-	VECTOR t;
 	VECTOR pTL = {0,-0.5,0.5,1};
 	VECTOR pTR = {0,0.5,0.5,1};
 	VECTOR pBL = {0,-0.5,-0.5,1};
@@ -206,7 +206,7 @@ void gateUpdate(Moby* moby)
 
 	// draw gate
   if (pvars->Opacity > 0)
-    gfxRegisterDrawFunction((void**)0x0022251C, &gateDraw, moby);
+    gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&gateDraw, moby);
 
   // handle state
   if (moby->State == GATE_STATE_ACTIVATED) {
@@ -322,7 +322,6 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
 {
-	int i;
   int pIdx;
   Player** players = playerGetAll();
   
@@ -361,8 +360,6 @@ int gateHandleEvent_PayToken(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int gateHandleEvent_SetCost(Moby* moby, GuberEvent* event)
 {
-	int i;
-  
   struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
   if (!pvars)
     return 0;
@@ -504,7 +501,6 @@ void gateSpawn(VECTOR gateData[], int count)
 //--------------------------------------------------------------------------
 void gateInit(void)
 {
-  int i;
   Moby* temp = mobySpawn(GATE_OCLASS, 0);
   if (!temp)
     return;

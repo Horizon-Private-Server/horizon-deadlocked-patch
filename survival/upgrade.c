@@ -48,7 +48,7 @@ void upgradePlayPickupSound(Moby* moby)
 void upgradeDestroy(Moby* moby)
 {
 	// create event
-	GuberEvent * guberEvent = upgradeCreateEvent(moby, UPGRADE_EVENT_DESTROY);
+	upgradeCreateEvent(moby, UPGRADE_EVENT_DESTROY);
 }
 
 //--------------------------------------------------------------------------
@@ -113,7 +113,6 @@ void upgradePostDraw(Moby* moby)
 {
 	struct QuadDef quad;
 	MATRIX m2;
-	VECTOR t;
 	VECTOR pTL = {0.5,0,0.5,1};
 	VECTOR pTR = {-0.5,0,0.5,1};
 	VECTOR pBL = {0.5,0,-0.5,1};
@@ -162,16 +161,13 @@ void upgradeUpdate(Moby* moby)
 	const float rotSpeeds[] = { 0.05, 0.02, -0.03, -0.1 };
 	const int opacities[] = { 64, 32, 44, 51 };
 
-	VECTOR t;
 	int i;
 	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
-	GameOptions* gameOptions = gameGetOptions();
-	Player** players = playerGetAll();
 	if (!pvars)
 		return;
 
 	// register draw event
-	gfxRegisterDrawFunction((void**)0x0022251C, &upgradePostDraw, moby);
+	gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&upgradePostDraw, moby);
 
 	return;
 
@@ -207,7 +203,6 @@ GuberEvent* upgradeCreateEvent(Moby* moby, u32 eventType)
 int upgradeHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 {
 	VECTOR p,r;
-	int i;
 	struct UpgradeSpawnEventArgs args;
 
 	// read event
@@ -253,7 +248,6 @@ int upgradeHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int upgradeHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 {
-	char killedByPlayerId, weaponId;
 	int i;
 	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
 	if (!pvars)
@@ -279,7 +273,6 @@ int upgradeHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 int upgradeHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 {
 	struct UpgradePickupEventArgs args;
-	int i,j;
 	Player** players = playerGetAll();
 	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
 
@@ -374,7 +367,6 @@ int upgradeHandleEvent(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int upgradeCreate(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType)
 {
-	GameSettings* gs = gameGetSettings();
 	struct UpgradeSpawnEventArgs args;
 
 	// create guber object

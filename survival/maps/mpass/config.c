@@ -154,7 +154,7 @@ const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct M
 
 // Locations of where to spawn statues
 VECTOR statueSpawnPositionRotations[] = {
-  { 543.3, 733.2, 505.52, 0 },
+  { 543.98, 757.12, 505.52, 0 },
   { 0, 0, -180 * MATH_DEG2RAD, 0 },
   { 464.5, 878.09, 505.07, 0 },
   { 0, 0, -165 * MATH_DEG2RAD, 0 },

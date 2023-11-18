@@ -16,16 +16,16 @@ void reactorPreUpdate(Moby* moby);
 void reactorPostUpdate(Moby* moby);
 void reactorPostDraw(Moby* moby);
 void reactorMove(Moby* moby);
-void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs e);
+void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void reactorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
-void reactorOnDamage(Moby* moby, struct MobDamageEventArgs e);
-void reactorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
+void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+void reactorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* reactorGetNextTarget(Moby* moby);
-enum ReactorAction reactorGetPreferredAction(Moby* moby);
+int reactorGetPreferredAction(Moby* moby);
 void reactorDoAction(Moby* moby);
 void reactorDoChargeDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void reactorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
-void reactorForceLocalAction(Moby* moby, enum ReactorAction action);
+void reactorForceLocalAction(Moby* moby, int action);
 short reactorGetArmor(Moby* moby);
 
 void reactorPlayHitSound(Moby* moby);
@@ -214,7 +214,7 @@ void reactorMove(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs e)
+void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e)
 {
   
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -245,7 +245,6 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
   }
 
   reactorActiveMoby = moby;
-  DPRINTF("PARTICLES %08X %08X\n", reactorVars->PrepShotWithFireParticleMoby1, reactorVars->PrepShotWithFireParticleMoby2);
 }
 
 //--------------------------------------------------------------------------
@@ -285,29 +284,29 @@ void reactorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 }
 
 //--------------------------------------------------------------------------
-void reactorOnDamage(Moby* moby, struct MobDamageEventArgs e)
+void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	float damage = e.DamageQuarters / 4.0;
+	float damage = e->DamageQuarters / 4.0;
   float newHp = pvars->MobVars.Health - damage;
 
 	int canFlinch = pvars->MobVars.Action != REACTOR_ACTION_FLINCH 
             && pvars->MobVars.Action != REACTOR_ACTION_BIG_FLINCH
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
-  int isShock = e.DamageFlags & 0x40;
+  int isShock = e->DamageFlags & 0x40;
 
 	// destroy
 	if (newHp <= 0) {
     reactorForceLocalAction(moby, REACTOR_ACTION_DIE);
-    pvars->MobVars.LastHitBy = e.SourceUID;
-    pvars->MobVars.LastHitByOClass = e.SourceOClass;
+    pvars->MobVars.LastHitBy = e->SourceUID;
+    pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}
 
 	// knockback
-	if (e.Knockback.Power > 0 && (canFlinch || e.Knockback.Force))
+	if (e->Knockback.Power > 0 && (canFlinch || e->Knockback.Force))
 	{
-		memcpy(&pvars->MobVars.Knockback, &e.Knockback, sizeof(struct Knockback));
+		memcpy(&pvars->MobVars.Knockback, &e->Knockback, sizeof(struct Knockback));
 	}
 
   // flinch
@@ -318,7 +317,7 @@ void reactorOnDamage(Moby* moby, struct MobDamageEventArgs e)
       if (isShock) {
         mobSetAction(moby, REACTOR_ACTION_FLINCH);
       }
-      else if (e.Knockback.Force || randRangeInt(0, 10) < e.Knockback.Power) {
+      else if (e->Knockback.Force || randRangeInt(0, 10) < e->Knockback.Power) {
         mobSetAction(moby, REACTOR_ACTION_BIG_FLINCH);
       }
       else if (randRange(0, 1) < (REACTOR_FLINCH_PROBABILITY * damageRatio)) {
@@ -329,7 +328,7 @@ void reactorOnDamage(Moby* moby, struct MobDamageEventArgs e)
 }
 
 //--------------------------------------------------------------------------
-void reactorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e)
+void reactorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   mobOnStateUpdate(moby, e);
 }
@@ -377,7 +376,7 @@ Moby* reactorGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-enum ReactorAction reactorGetPreferredAction(Moby* moby)
+int reactorGetPreferredAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -429,7 +428,7 @@ enum ReactorAction reactorGetPreferredAction(Moby* moby)
 
     vector_add(mobyPosUp, moby->Position, up);
     vector_add(targetPosUp, target->Position, up);
-    int targetInSight = !CollLine_Fix(mobyPosUp, targetPosUp, 2, 0, 0);
+    int targetInSight = !CollLine_Fix(mobyPosUp, targetPosUp, COLLISION_FLAG_IGNORE_DYNAMIC, NULL, NULL);
     if (!targetInSight) {
       return REACTOR_ACTION_WALK;
     }
@@ -749,7 +748,7 @@ void reactorDoAction(Moby* moby)
 
           // damage during swing
           attackCanDoChargeDamage = moby->AnimSeqT >= 7 && moby->AnimSeqT < 21;
-          attackCanDoSwingDamage = !mobHasVelocity(pvars->MobVars.MoveVars.Velocity) && moby->AnimSeqT >= 7 && moby->AnimSeqT < 21;
+          attackCanDoSwingDamage = !mobHasVelocity(pvars) && moby->AnimSeqT >= 7 && moby->AnimSeqT < 21;
 
           // exit
           if (pvars->MobVars.AnimationLooped) {
@@ -866,7 +865,7 @@ void reactorDoDamage(Moby* moby, float radius, float amount, int damageFlags, in
 }
 
 //--------------------------------------------------------------------------
-void reactorForceLocalAction(Moby* moby, enum ReactorAction action)
+void reactorForceLocalAction(Moby* moby, int action)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;

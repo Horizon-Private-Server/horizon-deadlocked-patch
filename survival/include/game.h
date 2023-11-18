@@ -18,6 +18,7 @@
 #define EXECUTIONER_MOBY_OCLASS							  (0x2468)
 #define TREMOR_MOBY_OCLASS							      (0x24D3)
 #define SWARMER_MOBY_OCLASS							      (0x2695)
+#define REAPER_MOBY_OCLASS							      (0x2570)
 #define REACTOR_MOBY_OCLASS							      (0x20BE)
 
 #define STATUE_MOBY_OCLASS                    (0x2402)

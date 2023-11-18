@@ -201,9 +201,6 @@ void mboxGetRandomRespawn(int random, VECTOR outPos, VECTOR outRot)
 //--------------------------------------------------------------------------
 void mboxSetRandomRespawn(Moby* moby, int random)
 {
-  int i;
-  VECTOR p;
-  VECTOR r;
   if (!moby || !moby->PVar)
     return;
 
@@ -340,7 +337,6 @@ void mboxDraw(Moby* moby)
 //--------------------------------------------------------------------------
 void mboxUpdate(Moby* moby)
 {
-  VECTOR delta;
   Player** players = playerGetAll();
   int i;
   char buf[48];
@@ -357,7 +353,7 @@ void mboxUpdate(Moby* moby)
 
 	// post draw
   if (moby->State != MYSTERY_BOX_STATE_HIDDEN)
-    gfxRegisterDrawFunction((void**)0x0022251C, &mboxDraw, moby);
+    gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&mboxDraw, moby);
 
   // handle state
   switch (moby->State)
@@ -509,8 +505,6 @@ void mboxUpdate(Moby* moby)
 //--------------------------------------------------------------------------
 int mboxHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 {
-	int i;
-  
   DPRINTF("mbox spawned: %08X\n", (u32)moby);
   struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
   if (!pvars)
@@ -531,7 +525,6 @@ int mboxHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
 {
-	int i;
   int activatedByPlayerId, item, random;
   
   //DPRINTF("mbox activate: %08X\n", (u32)moby);
@@ -572,7 +565,6 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
 {
-	int i;
   int playerId, item, random;
   Player** players = playerGetAll();
   
@@ -727,7 +719,6 @@ int mboxCreate(VECTOR position, VECTOR rotation)
 void mboxSpawn(void)
 {
   static int spawned = 0;
-  int i;
   
   if (spawned)
     return;
@@ -747,7 +738,6 @@ void mboxSpawn(void)
 
 void mboxInit(void)
 {
-  int i;
   Moby* temp = mobySpawn(MYSTERY_BOX_OCLASS, 0);
   if (!temp)
     return;

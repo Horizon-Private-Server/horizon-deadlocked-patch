@@ -144,6 +144,79 @@ struct CustomDzoCommandSurvivalDrawReviveMsg
 };
 
 //--------------------------------------------------------------------------
+void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds)
+{
+  struct CustomDzoCommandSurvivalDrawReviveMsg cmd;
+  if (!PATCH_DZO_INTEROP_FUNCS)
+    return;
+
+  vector_copy(cmd.Position, wsPosition);
+  cmd.Seconds = seconds;
+  cmd.PlayerIdx = playerId;
+  PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_REVIVE_MSG, sizeof(cmd), &cmd);
+}
+
+//--------------------------------------------------------------------------
+void updateDzoHud(void)
+{
+  if (!PATCH_DZO_INTEROP_FUNCS)
+    return;
+
+  int gameTime = gameGetTime();
+
+  dzoDrawHudCmd.Tokens = State.LocalPlayerState->State.CurrentTokens;
+  dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
+  dzoDrawHudCmd.CurrentRoundNumber = State.RoundNumber;
+  dzoDrawHudCmd.EnemiesAlive = State.RoundMobCount;
+  dzoDrawHudCmd.StartRoundTimer = State.RoundEndTime - gameTime;
+  dzoDrawHudCmd.HasDblPoints = State.LocalPlayerState->IsDoublePoints;
+  dzoDrawHudCmd.HasDblXp = State.LocalPlayerState->IsDoubleXP;
+  dzoDrawHudCmd.XpPercent = State.LocalPlayerState->State.XP / (float)getXpForNextToken(State.LocalPlayerState->State.TotalTokens);
+  PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD, sizeof(dzoDrawHudCmd), &dzoDrawHudCmd);
+
+  // reset
+  dzoDrawHudCmd.HasRoundCompleteMessage = 0;
+}
+
+//--------------------------------------------------------------------------
+void setPlayerEXP(int localPlayerIndex, float expPercent)
+{
+	Player* player = playerGetFromSlot(localPlayerIndex);
+	if (!player || !player->PlayerMoby)
+		return;
+
+	u32 canvasId = localPlayerIndex; //hudGetCurrentCanvas() + localPlayerIndex;
+	void* canvas = hudGetCanvas(canvasId);
+	if (!canvas)
+		return;
+
+	struct HUDWidgetRectangleObject* expBar = (struct HUDWidgetRectangleObject*)hudCanvasGetObject(canvas, 0xF000010A);
+	if (!expBar) {
+		//DPRINTF("no exp bar %d canvas:%d\n", localPlayerIndex, canvasId);
+    return;
+  }
+	
+	// set exp bar
+	expBar->iFrame.ScaleX = 0.2275 * expPercent;
+	expBar->iFrame.PositionX = 0.406 + (expBar->iFrame.ScaleX / 2);
+	expBar->iFrame.PositionY = 0.0546875;
+	expBar->iFrame.Color = hudGetTeamColor(player->Team, 2);
+	expBar->Color1 = hudGetTeamColor(player->Team, 0);
+	expBar->Color2 = hudGetTeamColor(player->Team, 2);
+	expBar->Color3 = hudGetTeamColor(player->Team, 0);
+
+	struct HUDWidgetTextObject* healthText = (struct HUDWidgetTextObject*)hudCanvasGetObject(canvas, 0xF000010E);
+	if (!healthText) {
+		DPRINTF("no health text %d\n", localPlayerIndex);
+    return;
+  }
+	
+	// set health string
+	snprintf(State.PlayerStates[player->PlayerId].HealthBarStrBuf, sizeof(State.PlayerStates[player->PlayerId].HealthBarStrBuf), "%d/%d", (int)player->Health, (int)player->MaxHealth);
+	healthText->ExternalStringMemory = State.PlayerStates[player->PlayerId].HealthBarStrBuf;
+}
+
+//--------------------------------------------------------------------------
 void uiShowLowerPopup(int localPlayerIdx, int msgStringId)
 {
 	((void (*)(int, int, int))0x0054ea30)(localPlayerIdx, msgStringId, 0);
@@ -246,7 +319,6 @@ int shouldDrawHud(void)
 //--------------------------------------------------------------------------
 void drawRoundMessage(const char * message, float scale, int yPixelsOffset)
 {
-	int fw = gfxGetFontWidth(message, -1, scale);
 	float x = 0.5;
 	float y = 0.16;
 
@@ -480,17 +552,11 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
 
   // scale config by round
   if (isBaseConfig) {
-    struct MobSpawnParams* spawnParams = &mapConfig->DefaultSpawnParams[spawnParamsIdx];
-    //damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale), roundNo * (0 + State.Difficulty) * randRange(0.8, 1.2));
-    //speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale), roundNo * (0 + State.Difficulty) * randRange(0.8, 1.2));
-    //health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale), roundNo * (0 + State.Difficulty) * randRange(0.8, 1.2));
-
     //printf("1 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
     damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
     speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
     health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
     //printf("2 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
-
   }
 
   // enforce max values
@@ -521,7 +587,7 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
 //--------------------------------------------------------------------------
 struct MobSpawnParams* spawnGetRandomMobParams(int * mobIdx)
 {
-	int i,j;
+	int i;
 
   if (!mapConfig->DefaultSpawnParams)
     return NULL;
@@ -558,8 +624,6 @@ int spawnRandomMob(void) {
 	int mobIdx = 0;
 	struct MobSpawnParams* mob = spawnGetRandomMobParams(&mobIdx);
 	if (mob) {
-		int cost = mob->Cost;
-
 		// skip if cooldown not 0
     int cooldown = defaultSpawnParamsCooldowns[mobIdx];
     if (cooldown > 0) {
@@ -721,7 +785,6 @@ short playerGetWeaponAmmo(Player* player, int weaponId)
 //--------------------------------------------------------------------------
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 {
-	int i;
   char buf[64];
 	Player* p = playerGetAll()[playerId];
   if (alphaMod)
@@ -731,7 +794,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 
 	GadgetBox* gBox = p->GadgetBox;
 	gBox->Gadgets[weaponId].Level = -1;
-	playerGiveWeapon(gBox, weaponId, level);
+	playerGiveWeapon(gBox, weaponId, level, 1);
 	if (p->Gadgets[0].pMoby && p->Gadgets[0].id == weaponId)
 		customBangelizeWeapons(p->Gadgets[0].pMoby, weaponId, level);
 
@@ -832,7 +895,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 	playerSetHealth(player, player->MaxHealth);
 
   // only reset back to dead pos if player died on ground
-  if (CollLine_Fix(deadPos, deadPosDown, 2, player->PlayerMoby, 0)) {
+  if (CollLine_Fix(deadPos, deadPosDown, COLLISION_FLAG_IGNORE_DYNAMIC, player->PlayerMoby, NULL)) {
     int colId = CollLine_Fix_GetHitCollisionId() & 0xF;
     if (colId == 0xF || colId == 0x7 || colId == 0x9 || colId == 0xA)
       useDeadPos = 1;
@@ -965,7 +1028,6 @@ int onSetPlayerStatsRemote(void * connection, void * data)
 //--------------------------------------------------------------------------
 void sendPlayerStats(int playerId)
 {
-	int i;
 	SurvivalSetPlayerStatsMessage_t message;
 
 	// send out
@@ -1014,7 +1076,6 @@ int onPlayerUseItemRemote(void * connection, void * data)
 //--------------------------------------------------------------------------
 void playerUseItem(int playerId, enum MysteryBoxItem item)
 {
-	int i;
 	SurvivalPlayerUseItem_t message;
 
 	// send out
@@ -1168,7 +1229,6 @@ int onSetFreezeRemote(void * connection, void * data)
 //--------------------------------------------------------------------------
 void setFreeze(int isActive)
 {
-	int i;
 	SurvivalSetFreezeMessage_t message;
 
 	// send out
@@ -1263,8 +1323,6 @@ int getPlayerReviveCost(Player * fromPlayer, Player * player) {
 	if (!player || !fromPlayer)
 		return 0;
 
-	GameData * gameData = gameGetData();
-
 	// determine discount rate
 	float rate = clamp(1 - (PLAYER_UPGRADE_MEDIC_FACTOR * State.PlayerStates[fromPlayer->PlayerId].State.Upgrades[UPGRADE_MEDIC]), 0, 1);
 
@@ -1288,7 +1346,6 @@ void processPlayer(int pIndex) {
 	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
 	int reviveCooldownTicks = decTimerU16(&playerData->ReviveCooldownTicks);
 	if (playerData->IsDead && reviveCooldownTicks > 0 && playerGetNumLocals() == 1) {
-		Player* localPlayer = playerGetFromSlot(0);
     int x,y;
     VECTOR pos = {0,0,1,0};
     vector_add(pos, player->PlayerPosition, pos);
@@ -1754,44 +1811,6 @@ void setRoundStart(int skip)
 }
 
 //--------------------------------------------------------------------------
-void setPlayerEXP(int localPlayerIndex, float expPercent)
-{
-	Player* player = playerGetFromSlot(localPlayerIndex);
-	if (!player || !player->PlayerMoby)
-		return;
-
-	u32 canvasId = localPlayerIndex; //hudGetCurrentCanvas() + localPlayerIndex;
-	void* canvas = hudGetCanvas(canvasId);
-	if (!canvas)
-		return;
-
-	struct HUDWidgetRectangleObject* expBar = hudCanvasGetObject(canvas, 0xF000010A);
-	if (!expBar) {
-		//DPRINTF("no exp bar %d canvas:%d\n", localPlayerIndex, canvasId);
-    return;
-  }
-	
-	// set exp bar
-	expBar->iFrame.ScaleX = 0.2275 * expPercent;
-	expBar->iFrame.PositionX = 0.406 + (expBar->iFrame.ScaleX / 2);
-	expBar->iFrame.PositionY = 0.0546875;
-	expBar->iFrame.Color = hudGetTeamColor(player->Team, 2);
-	expBar->Color1 = hudGetTeamColor(player->Team, 0);
-	expBar->Color2 = hudGetTeamColor(player->Team, 2);
-	expBar->Color3 = hudGetTeamColor(player->Team, 0);
-
-	struct HUDWidgetTextObject* healthText = hudCanvasGetObject(canvas, 0xF000010E);
-	if (!healthText) {
-		DPRINTF("no health text %d\n", localPlayerIndex);
-    return;
-  }
-	
-	// set health string
-	snprintf(State.PlayerStates[player->PlayerId].HealthBarStrBuf, sizeof(State.PlayerStates[player->PlayerId].HealthBarStrBuf), "%d/%d", (int)player->Health, (int)player->MaxHealth);
-	healthText->ExternalStringMemory = State.PlayerStates[player->PlayerId].HealthBarStrBuf;
-}
-
-//--------------------------------------------------------------------------
 void forcePlayerHUD(void)
 {
 	int i;
@@ -1835,7 +1854,6 @@ void randomizeWeaponPickups(void)
 {
 	int i,j;
 	GameOptions* gameOptions = gameGetOptions();
-	GuberMoby* gm = guberMobyGetFirst();
 	char wepCounts[9];
 	char wepEnabled[17];
 	int pickupCount = 0;
@@ -2049,48 +2067,11 @@ void spawnDemonBell(void)
 }
 
 //--------------------------------------------------------------------------
-void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds)
-{
-  struct CustomDzoCommandSurvivalDrawReviveMsg cmd;
-  if (!PATCH_DZO_INTEROP_FUNCS)
-    return;
-
-  vector_copy(cmd.Position, wsPosition);
-  cmd.Seconds = seconds;
-  cmd.PlayerIdx = playerId;
-  PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_REVIVE_MSG, sizeof(cmd), &cmd);
-}
-
-//--------------------------------------------------------------------------
-void updateDzoHud(void)
-{
-  if (!PATCH_DZO_INTEROP_FUNCS)
-    return;
-
-  int gameTime = gameGetTime();
-
-  dzoDrawHudCmd.Tokens = State.LocalPlayerState->State.CurrentTokens;
-  dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
-  dzoDrawHudCmd.CurrentRoundNumber = State.RoundNumber;
-  dzoDrawHudCmd.EnemiesAlive = State.RoundMobCount;
-  dzoDrawHudCmd.StartRoundTimer = State.RoundEndTime - gameTime;
-  dzoDrawHudCmd.HasDblPoints = State.LocalPlayerState->IsDoublePoints;
-  dzoDrawHudCmd.HasDblXp = State.LocalPlayerState->IsDoubleXP;
-  dzoDrawHudCmd.XpPercent = State.LocalPlayerState->State.XP / (float)getXpForNextToken(State.LocalPlayerState->State.TotalTokens);
-  PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD, sizeof(dzoDrawHudCmd), &dzoDrawHudCmd);
-
-  // reset
-  dzoDrawHudCmd.HasRoundCompleteMessage = 0;
-}
-
-//--------------------------------------------------------------------------
 void resetRoundState(void)
 {
-	GameSettings* gameSettings = gameGetSettings();
 	int gameTime = gameGetTime();
 
 	// 
-	static int accum = 0;
 	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
 	State.RoundMaxMobCount = MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(State.RoundNumber * State.Difficulty * playerCountMultiplier, 0.75)));
 	State.RoundMaxSpawnedAtOnce = MAX_MOBS_SPAWNED;
@@ -2122,9 +2103,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	static int waitingForClientsReady = 0;
 	char hasTeam[10] = {0,0,0,0,0,0,0,0,0,0};
 	Player** players = playerGetAll();
-  Player* localPlayer = playerGetFromSlot(0);
 	int i, j;
-	VECTOR t;
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
@@ -2422,14 +2401,14 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   State.RoundSpawnTicker = TPS * 3;
 
 	// scale default mob params by difficulty
-	for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i)
-	{
-		struct MobConfig* config = &mapConfig->DefaultSpawnParams[i].Config;
-		//config->Bolts /= State.Difficulty;
-		//config->MaxHealth *= State.Difficulty;
-		//config->Health *= State.Difficulty;
-		//config->Damage *= State.Difficulty;
-	}
+	// for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i)
+	// {
+	// 	struct MobConfig* config = &mapConfig->DefaultSpawnParams[i].Config;
+	// 	config->Bolts /= State.Difficulty;
+	// 	config->MaxHealth *= State.Difficulty;
+	// 	config->Health *= State.Difficulty;
+	// 	config->Damage *= State.Difficulty;
+	// }
 
 #if FIXEDTARGET
   FIXEDTARGETMOBY = mobySpawn(0xE7D, 0);
@@ -2806,10 +2785,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
 		{
 			int isAnyPlayerAlive = 0;
-			int teams = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
 
 			// determine number of players alive
-			// and if one or more teams are left alive
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
 					isAnyPlayerAlive = 1;
@@ -2966,8 +2943,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 //--------------------------------------------------------------------------
 void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
-	int i;
-
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
 	GameSettings* gameSettings = gameGetSettings();
@@ -3065,7 +3040,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 10);
 
 		// set bolts
-		sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%d", pState->TotalBolts);
+		sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%ld", pState->TotalBolts);
 
 		// set revives
 		sprintf((char*)(uiElements[22 + (i*4) + 3] + 0x60), "%d", pState->Revives);

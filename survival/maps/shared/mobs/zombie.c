@@ -17,15 +17,15 @@ void zombiePreUpdate(Moby* moby);
 void zombiePostUpdate(Moby* moby);
 void zombiePostDraw(Moby* moby);
 void zombieMove(Moby* moby);
-void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs e);
+void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
-void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e);
-void zombieOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
+void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+void zombieOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* zombieGetNextTarget(Moby* moby);
-enum ZombieAction zombieGetPreferredAction(Moby* moby);
+int zombieGetPreferredAction(Moby* moby);
 void zombieDoAction(Moby* moby);
 void zombieDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
-void zombieForceLocalAction(Moby* moby, enum ZombieAction action);
+void zombieForceLocalAction(Moby* moby, int action);
 short zombieGetArmor(Moby* moby);
 
 void zombiePlayHitSound(Moby* moby);
@@ -175,7 +175,7 @@ void zombieMove(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs e)
+void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e)
 {
   
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -210,10 +210,10 @@ void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 }
 
 //--------------------------------------------------------------------------
-void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
+void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	float damage = e.DamageQuarters / 4.0;
+	float damage = e->DamageQuarters / 4.0;
   float newHp = pvars->MobVars.Health - damage;
 
 	int canFlinch = pvars->MobVars.Action != ZOMBIE_ACTION_FLINCH 
@@ -222,7 +222,7 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
             && pvars->MobVars.Action != ZOMBIE_ACTION_TIME_BOMB_EXPLODE
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
-  int isShock = e.DamageFlags & 0x40;
+  int isShock = e->DamageFlags & 0x40;
 
 	// destroy
 	if (newHp <= 0) {
@@ -233,14 +233,14 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
 			zombieForceLocalAction(moby, ZOMBIE_ACTION_DIE);
 		}
 
-    pvars->MobVars.LastHitBy = e.SourceUID;
-    pvars->MobVars.LastHitByOClass = e.SourceOClass;
+    pvars->MobVars.LastHitBy = e->SourceUID;
+    pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}
 
 	// knockback
-	if (e.Knockback.Power > 0 && (canFlinch || e.Knockback.Force))
+	if (e->Knockback.Power > 0 && (canFlinch || e->Knockback.Force))
 	{
-		memcpy(&pvars->MobVars.Knockback, &e.Knockback, sizeof(struct Knockback));
+		memcpy(&pvars->MobVars.Knockback, &e->Knockback, sizeof(struct Knockback));
 	}
 
   // flinch
@@ -251,7 +251,7 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
       if (isShock) {
         mobSetAction(moby, ZOMBIE_ACTION_FLINCH);
       }
-      else if (e.Knockback.Force || randRangeInt(0, 10) < e.Knockback.Power) {
+      else if (e->Knockback.Force || randRangeInt(0, 10) < e->Knockback.Power) {
         mobSetAction(moby, ZOMBIE_ACTION_BIG_FLINCH);
       }
       else if (randRange(0, 1) < (ZOMBIE_FLINCH_PROBABILITY * damageRatio)) {
@@ -262,7 +262,7 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs e)
 }
 
 //--------------------------------------------------------------------------
-void zombieOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e)
+void zombieOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   mobOnStateUpdate(moby, e);
 }
@@ -307,7 +307,7 @@ Moby* zombieGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-enum ZombieAction zombieGetPreferredAction(Moby* moby)
+int zombieGetPreferredAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -395,7 +395,6 @@ void zombieDoAction(Moby* moby)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t, t2;
-  int i;
   float difficulty = 1;
   float turnSpeed = pvars->MobVars.MoveVars.Grounded ? ZOMBIE_TURN_RADIANS_PER_SEC : ZOMBIE_TURN_AIR_RADIANS_PER_SEC;
   float acceleration = pvars->MobVars.MoveVars.Grounded ? ZOMBIE_MOVE_ACCELERATION : ZOMBIE_MOVE_AIR_ACCELERATION;
@@ -406,7 +405,7 @@ void zombieDoAction(Moby* moby)
     difficulty = MapConfig.State->Difficulty;
 
 #if DEBUGPATH
-  gfxRegisterDrawFunction((void**)0x0022251C, &zombieRenderPath, moby);
+  gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&zombieRenderPath, moby);
 #endif
 
 	switch (pvars->MobVars.Action)
@@ -619,7 +618,7 @@ void zombieDoDamage(Moby* moby, float radius, float amount, int damageFlags, int
 }
 
 //--------------------------------------------------------------------------
-void zombieForceLocalAction(Moby* moby, enum ZombieAction action)
+void zombieForceLocalAction(Moby* moby, int action)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   float difficulty = 1;

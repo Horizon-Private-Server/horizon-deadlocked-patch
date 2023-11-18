@@ -4,7 +4,6 @@
 #include <libdl/graphics.h>
 #include <libdl/moby.h>
 #include <libdl/random.h>
-#include <libdl/sha1.h>
 #include <libdl/radar.h>
 #include <libdl/color.h>
 
@@ -14,47 +13,46 @@
 #include "../include/maputils.h"
 #include "../include/shared.h"
 
-void swarmerPreUpdate(Moby* moby);
-void swarmerPostUpdate(Moby* moby);
-void swarmerPostDraw(Moby* moby);
-void swarmerMove(Moby* moby);
-void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
-void swarmerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
-void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e);
-void swarmerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
-Moby* swarmerGetNextTarget(Moby* moby);
-int swarmerGetPreferredAction(Moby* moby);
-void swarmerDoAction(Moby* moby);
-void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
-void swarmerForceLocalAction(Moby* moby, int action);
-short swarmerGetArmor(Moby* moby);
+void reaperPreUpdate(Moby* moby);
+void reaperPostUpdate(Moby* moby);
+void reaperPostDraw(Moby* moby);
+void reaperMove(Moby* moby);
+void reaperOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
+void reaperOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
+void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+void reaperOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
+Moby* reaperGetNextTarget(Moby* moby);
+int reaperGetPreferredAction(Moby* moby);
+void reaperDoAction(Moby* moby);
+void reaperDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
+void reaperForceLocalAction(Moby* moby, int action);
+short reaperGetArmor(Moby* moby);
 
-void swarmerPlayHitSound(Moby* moby);
-void swarmerPlayAmbientSound(Moby* moby);
-void swarmerPlayDeathSound(Moby* moby);
-int swarmerIsAttacking(struct MobPVar* pvars);
-int swarmerIsSpawning(struct MobPVar* pvars);
-int swarmerCanAttack(struct MobPVar* pvars);
-int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars);
+void reaperPlayHitSound(Moby* moby);
+void reaperPlayAmbientSound(Moby* moby);
+void reaperPlayDeathSound(Moby* moby);
+int reaperIsAttacking(struct MobPVar* pvars);
+int reaperIsSpawning(struct MobPVar* pvars);
+int reaperCanAttack(struct MobPVar* pvars);
 
-struct MobVTable SwarmerVTable = {
-  .PreUpdate = &swarmerPreUpdate,
-  .PostUpdate = &swarmerPostUpdate,
-  .PostDraw = &swarmerPostDraw,
-  .Move = &swarmerMove,
-  .OnSpawn = &swarmerOnSpawn,
-  .OnDestroy = &swarmerOnDestroy,
-  .OnDamage = &swarmerOnDamage,
-  .OnStateUpdate = &swarmerOnStateUpdate,
-  .GetNextTarget = &swarmerGetNextTarget,
-  .GetPreferredAction = &swarmerGetPreferredAction,
-  .ForceLocalAction = &swarmerForceLocalAction,
-  .DoAction = &swarmerDoAction,
-  .DoDamage = &swarmerDoDamage,
-  .GetArmor = &swarmerGetArmor,
+struct MobVTable ReaperVTable = {
+  .PreUpdate = &reaperPreUpdate,
+  .PostUpdate = &reaperPostUpdate,
+  .PostDraw = &reaperPostDraw,
+  .Move = &reaperMove,
+  .OnSpawn = &reaperOnSpawn,
+  .OnDestroy = &reaperOnDestroy,
+  .OnDamage = &reaperOnDamage,
+  .OnStateUpdate = &reaperOnStateUpdate,
+  .GetNextTarget = &reaperGetNextTarget,
+  .GetPreferredAction = &reaperGetPreferredAction,
+  .ForceLocalAction = &reaperForceLocalAction,
+  .DoAction = &reaperDoAction,
+  .DoDamage = &reaperDoDamage,
+  .GetArmor = &reaperGetArmor,
 };
 
-SoundDef SwarmerSoundDef = {
+SoundDef ReaperSoundDef = {
 	0.0,	  // MinRange
 	45.0,	  // MaxRange
 	0,		  // MinVolume
@@ -72,13 +70,13 @@ extern u32 MobSecondaryColors[];
 extern u32 MobLODColors[];
 
 //--------------------------------------------------------------------------
-int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
+int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
   
 	// create guber object
 	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(SWARMER_MOBY_OCLASS, sizeof(struct MobPVar), &guberEvent, NULL);
+	guberMobyCreateSpawned(REAPER_MOBY_OCLASS, sizeof(struct MobPVar), &guberEvent, NULL);
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
@@ -104,7 +102,7 @@ int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 }
 
 //--------------------------------------------------------------------------
-void swarmerPreUpdate(Moby* moby)
+void reaperPreUpdate(Moby* moby)
 {
   if (!moby || !moby->PVar)
     return;
@@ -115,8 +113,8 @@ void swarmerPreUpdate(Moby* moby)
 
   // ambient sounds
 	if (!pvars->MobVars.AmbientSoundCooldownTicks) {
-		swarmerPlayAmbientSound(moby);
-		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(SWARMER_AMBSND_MIN_COOLDOWN_TICKS, SWARMER_AMBSND_MAX_COOLDOWN_TICKS);
+		reaperPlayAmbientSound(moby);
+		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(REAPER_AMBSND_MIN_COOLDOWN_TICKS, REAPER_AMBSND_MAX_COOLDOWN_TICKS);
 	}
 
   // decrement path target pos ticker
@@ -126,7 +124,7 @@ void swarmerPreUpdate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void swarmerPostUpdate(Moby* moby)
+void reaperPostUpdate(Moby* moby)
 {
   if (!moby || !moby->PVar)
     return;
@@ -135,23 +133,14 @@ void swarmerPostUpdate(Moby* moby)
 
   // adjust animSpeed by speed and by animation
 	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
-  if (moby->AnimSeqId == SWARMER_ANIM_JUMP) {
+  if (moby->AnimSeqId == REAPER_ANIM_JUMP) {
     animSpeed = 0.9 * (1 - powf(moby->AnimSeqT / 35, 2));
     if (pvars->MobVars.MoveVars.Grounded) {
       animSpeed = 0.9;
     }
-  } else if (moby->AnimSeqId == SWARMER_ANIM_JUMP_AND_FALL) {
-    //animSpeed = 0.9 * (1 - powf(moby->AnimSeqT / 15, 2));
-    if (pvars->MobVars.MoveVars.Grounded) {
-      animSpeed = 0.9;
-    }
   }
 
-  if (moby->AnimSeqId == SWARMER_ANIM_FLINCH_BACKFLIP_AND_STAND) {
-    animSpeed = 1;
-  }
-
-	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == SWARMER_ACTION_WALK)) {
+	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == REAPER_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
 		moby->AnimSpeed = animSpeed;
@@ -159,18 +148,18 @@ void swarmerPostUpdate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void swarmerPostDraw(Moby* moby)
+void reaperPostDraw(Moby* moby)
 {
   if (!moby || !moby->PVar)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
-  mobPostDrawQuad(moby, 127, color, 0);
+  mobPostDrawQuad(moby, 127, color, 1);
 }
 
 //--------------------------------------------------------------------------
-void swarmerAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
+void reaperAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
 {
 	VECTOR up = {0,0,1,0};
 	
@@ -180,13 +169,13 @@ void swarmerAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
 }
 
 //--------------------------------------------------------------------------
-void swarmerMove(Moby* moby)
+void reaperMove(Moby* moby)
 {
   mobMove(moby);
 }
 
 //--------------------------------------------------------------------------
-void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e)
+void reaperOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e)
 {
   
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -204,7 +193,7 @@ void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
 }
 
 //--------------------------------------------------------------------------
-void swarmerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
+void reaperOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 {
   if (!moby || !moby->PVar)
     return;
@@ -213,33 +202,42 @@ void swarmerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+  
+	// limit corn spawning to prevent freezing/framelag
+	if (MapConfig.State && MapConfig.State->RoundMobCount < 30) {
+		mobSpawnCorn(moby, REAPER_BANGLE_LARM | REAPER_BANGLE_RARM | REAPER_BANGLE_LLEG | REAPER_BANGLE_RLEG | REAPER_BANGLE_RFOOT | REAPER_BANGLE_HIPS);
+	}
 }
 
 //--------------------------------------------------------------------------
-void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
+void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	float damage = e->DamageQuarters / 4.0;
   float newHp = pvars->MobVars.Health - damage;
 
-	int canFlinch = pvars->MobVars.Action != SWARMER_ACTION_FLINCH 
-            && pvars->MobVars.Action != SWARMER_ACTION_BIG_FLINCH
-            && pvars->MobVars.Action != SWARMER_ACTION_TIME_BOMB 
-            && pvars->MobVars.Action != SWARMER_ACTION_TIME_BOMB_EXPLODE
+	int canFlinch = pvars->MobVars.Action != REAPER_ACTION_FLINCH 
+            && pvars->MobVars.Action != REAPER_ACTION_BIG_FLINCH
+            && pvars->MobVars.Action != REAPER_ACTION_TIME_BOMB 
+            && pvars->MobVars.Action != REAPER_ACTION_TIME_BOMB_EXPLODE
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
   int isShock = e->DamageFlags & 0x40;
 
 	// destroy
 	if (newHp <= 0) {
-    tremorForceLocalAction(moby, SWARMER_ACTION_DIE);
+		if (pvars->MobVars.Action == REAPER_ACTION_TIME_BOMB && moby->AnimSeqId == REAPER_ANIM_CROUCH && moby->AnimSeqT > 3) {
+			// explode
+			reaperForceLocalAction(moby, REAPER_ACTION_TIME_BOMB_EXPLODE);
+		} else {
+			reaperForceLocalAction(moby, REAPER_ACTION_DIE);
+		}
+
     pvars->MobVars.LastHitBy = e->SourceUID;
     pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}
 
 	// knockback
-  // swarmers always have knockback
-  e->Knockback.Power += 3;
 	if (e->Knockback.Power > 0 && (canFlinch || e->Knockback.Force))
 	{
 		memcpy(&pvars->MobVars.Knockback, &e->Knockback, sizeof(struct Knockback));
@@ -251,26 +249,26 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     if (canFlinch) {
       if (isShock) {
-        mobSetAction(moby, SWARMER_ACTION_FLINCH);
+        mobSetAction(moby, REAPER_ACTION_FLINCH);
       }
       else if (e->Knockback.Force || randRangeInt(0, 10) < e->Knockback.Power) {
-        mobSetAction(moby, SWARMER_ACTION_BIG_FLINCH);
+        mobSetAction(moby, REAPER_ACTION_BIG_FLINCH);
       }
-      else if (randRange(0, 1) < (SWARMER_FLINCH_PROBABILITY * damageRatio)) {
-        mobSetAction(moby, SWARMER_ACTION_FLINCH);
+      else if (randRange(0, 1) < (REAPER_FLINCH_PROBABILITY * damageRatio)) {
+        mobSetAction(moby, REAPER_ACTION_FLINCH);
       }
     }
 	}
 }
 
 //--------------------------------------------------------------------------
-void swarmerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
+void reaperOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   mobOnStateUpdate(moby, e);
 }
 
 //--------------------------------------------------------------------------
-Moby* swarmerGetNextTarget(Moby* moby)
+Moby* reaperGetNextTarget(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Player ** players = playerGetAll();
@@ -289,7 +287,7 @@ Moby* swarmerGetNextTarget(Moby* moby)
 			if (distSqr < 300000) {
 				// favor existing target
 				if (p->SkinMoby == currentTarget)
-					distSqr *= (1.0 / SWARMER_TARGET_KEEP_CURRENT_FACTOR);
+					distSqr *= (1.0 / REAPER_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target
 				if (distSqr < closestPlayerDist) {
@@ -309,55 +307,42 @@ Moby* swarmerGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int swarmerGetPreferredAction(Moby* moby)
+int reaperGetPreferredAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
 
 	// no preferred action
-	if (swarmerIsAttacking(pvars))
+	if (reaperIsAttacking(pvars))
 		return -1;
 
-	if (swarmerIsSpawning(pvars))
+	if (reaperIsSpawning(pvars))
 		return -1;
 
-	if (pvars->MobVars.Action == SWARMER_ACTION_DODGE && !pvars->MobVars.MoveVars.Grounded) {
-		return -1;
-  }
-
-	if (pvars->MobVars.Action == SWARMER_ACTION_DODGE && pvars->MobVars.MoveVars.Grounded) {
-		return SWARMER_ACTION_WALK;
-  }
-
-	if (pvars->MobVars.Action == SWARMER_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
-		return SWARMER_ACTION_WALK;
+	if (pvars->MobVars.Action == REAPER_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
+		return REAPER_ACTION_WALK;
   }
 
   // wait for grounded to stop flinch
-  if ((pvars->MobVars.Action == SWARMER_ACTION_FLINCH || pvars->MobVars.Action == SWARMER_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
+  if ((pvars->MobVars.Action == REAPER_ACTION_FLINCH || pvars->MobVars.Action == REAPER_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
     return -1;
 
   // jump if we've hit a slope and are grounded
-  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > SWARMER_MAX_WALKABLE_SLOPE) {
-    return SWARMER_ACTION_JUMP;
+  if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > REAPER_MAX_WALKABLE_SLOPE) {
+    return REAPER_ACTION_JUMP;
   }
 
   // jump if we've hit a jump point on the path
   if (pathShouldJump(moby)) {
-    return SWARMER_ACTION_JUMP;
+    return REAPER_ACTION_JUMP;
   }
 
 	// prevent action changing too quickly
 	if (pvars->MobVars.ActionCooldownTicks)
 		return -1;
 
-  // check if a projectile is coming towards us
-  if (pvars->MobVars.MoveVars.Grounded && mobIsProjectileComing(moby)) {
-    return SWARMER_ACTION_DODGE;
-  }
-
 	// get next target
-	Moby * target = swarmerGetNextTarget(moby);
+	Moby * target = reaperGetNextTarget(moby);
 	if (target) {
 		vector_copy(t, target->Position);
 		vector_subtract(t, t, moby->Position);
@@ -365,20 +350,20 @@ int swarmerGetPreferredAction(Moby* moby)
 		float attackRadiusSqr = pvars->MobVars.Config.AttackRadius * pvars->MobVars.Config.AttackRadius;
 
 		if (distSqr <= attackRadiusSqr) {
-			if (swarmerCanAttack(pvars))
-				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? SWARMER_ACTION_ATTACK : SWARMER_ACTION_TIME_BOMB;
-			return SWARMER_ACTION_WALK;
+			if (reaperCanAttack(pvars))
+				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? REAPER_ACTION_ATTACK : REAPER_ACTION_TIME_BOMB;
+			return REAPER_ACTION_WALK;
 		} else {
-			return SWARMER_ACTION_WALK;
+			return REAPER_ACTION_WALK;
 		}
 	}
 	
-	return SWARMER_ACTION_IDLE;
+	return REAPER_ACTION_IDLE;
 }
 
 //--------------------------------------------------------------------------
 #if DEBUGPATH
-void swarmerRenderPath(Moby* moby)
+void reaperRenderPath(Moby* moby)
 {
   int x,y;
   int i;
@@ -405,57 +390,57 @@ void swarmerRenderPath(Moby* moby)
 #endif
 
 //--------------------------------------------------------------------------
-void swarmerDoAction(Moby* moby)
+void reaperDoAction(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t, t2;
   float difficulty = 1;
-  float turnSpeed = pvars->MobVars.MoveVars.Grounded ? SWARMER_TURN_RADIANS_PER_SEC : SWARMER_TURN_AIR_RADIANS_PER_SEC;
-  float acceleration = pvars->MobVars.MoveVars.Grounded ? SWARMER_MOVE_ACCELERATION : SWARMER_MOVE_AIR_ACCELERATION;
+  float turnSpeed = pvars->MobVars.MoveVars.Grounded ? REAPER_TURN_RADIANS_PER_SEC : REAPER_TURN_AIR_RADIANS_PER_SEC;
+  float acceleration = pvars->MobVars.MoveVars.Grounded ? REAPER_MOVE_ACCELERATION : REAPER_MOVE_AIR_ACCELERATION;
   int isInAirFromFlinching = !pvars->MobVars.MoveVars.Grounded 
-                      && (pvars->MobVars.LastAction == SWARMER_ACTION_FLINCH || pvars->MobVars.LastAction == SWARMER_ACTION_BIG_FLINCH);
+                      && (pvars->MobVars.LastAction == REAPER_ACTION_FLINCH || pvars->MobVars.LastAction == REAPER_ACTION_BIG_FLINCH);
 
   if (MapConfig.State)
     difficulty = MapConfig.State->Difficulty;
 
 #if DEBUGPATH
-  gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&swarmerRenderPath, moby);
+  gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&reaperRenderPath, moby);
 #endif
 
 	switch (pvars->MobVars.Action)
 	{
-		case SWARMER_ACTION_SPAWN:
+		case REAPER_ACTION_SPAWN:
 		{
-      mobTransAnim(moby, SWARMER_ANIM_ROAR, 0);
+      mobTransAnim(moby, REAPER_ANIM_CRAWL_OUT_OF_GROUND, 0);
       mobStand(moby);
 			break;
 		}
-		case SWARMER_ACTION_FLINCH:
-		case SWARMER_ACTION_BIG_FLINCH:
+		case REAPER_ACTION_FLINCH:
+		case REAPER_ACTION_BIG_FLINCH:
 		{
-      int animFlinchId = pvars->MobVars.Action == SWARMER_ACTION_BIG_FLINCH ? SWARMER_ANIM_FLINCH_SPIN_AND_STAND2 : SWARMER_ANIM_FLINCH_SPIN_AND_STAND;
+      int animFlinchId = pvars->MobVars.Action == REAPER_ACTION_BIG_FLINCH ? REAPER_ANIM_BIG_FLINCH : REAPER_ANIM_BIG_FLINCH;
 
       mobTransAnim(moby, animFlinchId, 0);
-
-      if (pvars->MobVars.Knockback.Ticks > 0) {
-        float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
-        vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
-        t[2] = 1.0;
-        vector_scale(t, t, power * 2 * MATH_DT);
-        vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
-      } else if (pvars->MobVars.MoveVars.Grounded) {
+      
+			if (pvars->MobVars.Knockback.Ticks > 0) {
+				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
+				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
+				t[2] = 1.0;
+				vector_scale(t, t, power * 2 * MATH_DT);
+				vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
+			} else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
       }
 			break;
 		}
-		case SWARMER_ACTION_IDLE:
+		case REAPER_ACTION_IDLE:
 		{
-			mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
+			mobTransAnim(moby, REAPER_ANIM_IDLE, 0);
       mobStand(moby);
 			break;
 		}
-		case SWARMER_ACTION_JUMP:
+		case REAPER_ACTION_JUMP:
 			{
         // move
         if (!isInAirFromFlinching) {
@@ -470,7 +455,7 @@ void swarmerDoAction(Moby* moby)
 
         // handle jumping
         if (pvars->MobVars.MoveVars.Grounded) {
-			    mobTransAnim(moby, SWARMER_ANIM_JUMP_AND_FALL, 5);
+			    mobTransAnim(moby, REAPER_ANIM_JUMP, 5);
 
           // check if we're near last jump pos
           // if so increment StuckJumpCount
@@ -492,14 +477,14 @@ void swarmerDoAction(Moby* moby)
         }
 				break;
 			}
-		case SWARMER_ACTION_LOOK_AT_TARGET:
+		case REAPER_ACTION_LOOK_AT_TARGET:
     {
       mobStand(moby);
       if (target)
         mobTurnTowards(moby, target->Position, turnSpeed);
       break;
     }
-    case SWARMER_ACTION_WALK:
+    case REAPER_ACTION_WALK:
 		{
       if (!isInAirFromFlinching) {
         if (target) {
@@ -512,7 +497,7 @@ void swarmerDoAction(Moby* moby)
           vector_subtract(t, t, moby->Position);
           float dist = vector_length(t);
           if (dist < 10.0) {
-            swarmerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+            reaperAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
             vector_add(t, t, t2);
           }
           vector_scale(t, t, 1 / dist);
@@ -526,82 +511,66 @@ void swarmerDoAction(Moby* moby)
           mobStand(moby);
         }
       }
-      
+
 			// 
-      if (moby->AnimSeqId == SWARMER_ANIM_JUMP_AND_FALL && !pvars->MobVars.MoveVars.Grounded) {
+      if (moby->AnimSeqId == REAPER_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
         // wait for jump to land
       }
 			else if (mobHasVelocity(pvars))
-				mobTransAnim(moby, SWARMER_ANIM_WALK, 0);
+				mobTransAnim(moby, REAPER_ANIM_RUN, 0);
 			else
-				mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
+				mobTransAnim(moby, REAPER_ANIM_IDLE, 0);
 			break;
 		}
-    case SWARMER_ACTION_DODGE:
+    case REAPER_ACTION_DIE:
     {
-      if (!pvars->MobVars.CurrentActionForTicks) {
-        // determine left or right flip
-        int leftOrRight = swarmerGetSideFlipLeftOrRight(pvars);
-        float dir = leftOrRight*2 - 1;
-
-        // compute velocity from forward and direction (strafe)
-        vector_fromyaw(t, moby->Rotation[2] + (MATH_PI/2)*dir);
-        vector_scale(t, t, pvars->MobVars.Config.Speed * 4 * MATH_DT);
-        t[2] = 4 * MATH_DT;
-        vector_copy(pvars->MobVars.MoveVars.Velocity, t);
-        pvars->MobVars.MoveVars.Grounded = 0;
-        
-        mobTransAnim(moby, SWARMER_ANIM_SIDE_FLIP, 0);
-      }
+      mobStand(moby);
+      break;
+    }
+		case REAPER_ACTION_TIME_BOMB_EXPLODE:
+    {
       
-      // face target
-      if (target)
-        mobTurnTowards(moby, target->Position, SWARMER_TURN_RADIANS_PER_SEC);
-
-      // when we land, transition to idle
-      //if (pvars->MobVars.AnimationLooped && (moby->AnimSeqId == SWARMER_ANIM_FLINCH_SPIN_AND_STAND || moby->AnimSeqId == SWARMER_ANIM_FLINCH_SPIN_AND_STAND2)) {
-      if (pvars->MobVars.MoveVars.Grounded && moby->AnimSeqId == SWARMER_ANIM_SIDE_FLIP) {
-        mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
-        swarmerForceLocalAction(moby, SWARMER_ACTION_WALK);
-        break;
-      }
-
-      if (moby->AnimSeqId == SWARMER_ANIM_SIDE_FLIP && pvars->MobVars.AnimationLooped) {
-        mobTransAnim(moby, SWARMER_ANIM_JUMP_AND_FALL, 5);
-        break;
-      }
-
-      if (moby->AnimSeqId == SWARMER_ANIM_SIDE_FLIP) {
-        mobTransAnim(moby, SWARMER_ANIM_SIDE_FLIP, 0);
-      }
       break;
     }
-    case SWARMER_ACTION_DIE:
-    {
-      // on destroy, give some upwards velocity for the backflip
-      if (moby->AnimSeqId != SWARMER_ANIM_FLINCH_BACKFLIP_AND_STAND) {
-        vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
-        t[2] = 1.0;
-        vector_scale(t, t, 4 * 2 * MATH_DT);
-        vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
-      }
-
-      mobTransAnimLerp(moby, SWARMER_ANIM_FLINCH_BACKFLIP_AND_STAND, 5, 0);
-      if (moby->AnimSeqId == SWARMER_ANIM_FLINCH_BACKFLIP_AND_STAND && moby->AnimSeqT > 25) {
-        pvars->MobVars.Destroy = 1;
-      }
-
-      //mobStand(moby);
-      break;
-    }
-		case SWARMER_ACTION_ATTACK:
+		case REAPER_ACTION_TIME_BOMB:
 		{
-      int attack1AnimId = SWARMER_ANIM_JUMP_FORWARD_BITE;
+			mobTransAnim(moby, REAPER_ANIM_CROUCH, 0);
+
+			if (pvars->MobVars.TimeBombTicks == 0) {
+				moby->Opacity = 0x80;
+				pvars->MobVars.OpacityFlickerDirection = 0;
+				mobSetAction(moby, REAPER_ACTION_TIME_BOMB_EXPLODE);
+			} else {
+
+				// cycle opacity from 1.0 to 2.0
+				int newOpacity = (u8)moby->Opacity + pvars->MobVars.OpacityFlickerDirection;
+				if (newOpacity <= 0x80) {
+					pvars->MobVars.OpacityFlickerDirection *= -1.25;
+					newOpacity = 0x80;
+				}
+				else if (newOpacity >= 0xFF) {
+					pvars->MobVars.OpacityFlickerDirection *= -1.25;
+					newOpacity = 0xFF;
+				}
+			
+				// limit cycle rate
+				if (pvars->MobVars.OpacityFlickerDirection < -0x40)
+					pvars->MobVars.OpacityFlickerDirection = -0x40;
+				if (pvars->MobVars.OpacityFlickerDirection > 0x40)
+					pvars->MobVars.OpacityFlickerDirection = 0x40;
+				
+				moby->Opacity = (u8)newOpacity;
+        mobStand(moby);
+			}
+			break;
+		}
+		case REAPER_ACTION_ATTACK:
+		{
+      int attack1AnimId = REAPER_ANIM_SLAP;
 			mobTransAnim(moby, attack1AnimId, 0);
 
-      float speedCurve = powf(clamp(5 - moby->AnimSeqT, 1, 2.25), 2);
-			float speedMult = (moby->AnimSeqId == attack1AnimId && moby->AnimSeqT < 5) ? speedCurve : 1;
-			int swingAttackReady = moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 5 && moby->AnimSeqT < 8;
+			float speedMult = (moby->AnimSeqId == attack1AnimId && moby->AnimSeqT < 5) ? (difficulty * 2) : 1;
+			int swingAttackReady = moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 11 && moby->AnimSeqT < 14;
 			u32 damageFlags = 0x00081801;
 
       if (speedMult < 1)
@@ -633,7 +602,7 @@ void swarmerDoAction(Moby* moby)
 			}
 
 			if (swingAttackReady && damageFlags) {
-				swarmerDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);
+				reaperDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);
 			}
 			break;
 		}
@@ -643,13 +612,13 @@ void swarmerDoAction(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
+void reaperDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 0);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 2);
 }
 
 //--------------------------------------------------------------------------
-void swarmerForceLocalAction(Moby* moby, int action)
+void reaperForceLocalAction(Moby* moby, int action)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   float difficulty = 1;
@@ -660,13 +629,13 @@ void swarmerForceLocalAction(Moby* moby, int action)
 	// from
 	switch (pvars->MobVars.Action)
 	{
-		case SWARMER_ACTION_SPAWN:
+		case REAPER_ACTION_SPAWN:
 		{
 			// enable collision
 			moby->CollActive = 0;
 			break;
 		}
-    case SWARMER_ACTION_DIE:
+    case REAPER_ACTION_DIE:
     {
       // can't undie
       return;
@@ -676,33 +645,68 @@ void swarmerForceLocalAction(Moby* moby, int action)
 	// to
 	switch (action)
 	{
-		case SWARMER_ACTION_SPAWN:
+		case REAPER_ACTION_SPAWN:
 		{
 			// disable collision
 			moby->CollActive = 1;
 			break;
 		}
-		case SWARMER_ACTION_WALK:
+		case REAPER_ACTION_WALK:
 		{
 			
 			break;
 		}
-		case SWARMER_ACTION_DIE:
+		case REAPER_ACTION_DIE:
 		{
-			// disable collision
-			moby->CollActive = 1;
+      pvars->MobVars.Destroy = 1;
 			break;
 		}
-		case SWARMER_ACTION_ATTACK:
+		case REAPER_ACTION_ATTACK:
 		{
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
 			break;
 		}
-		case SWARMER_ACTION_FLINCH:
-		case SWARMER_ACTION_BIG_FLINCH:
+    case REAPER_ACTION_TIME_BOMB_EXPLODE:
+    {
+			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
+
+      u32 damageFlags = 0x00008801;
+      u32 color = 0x003064FF;
+
+			// attribute damage
+      switch (pvars->MobVars.Config.MobAttribute)
+      {
+        case MOB_ATTRIBUTE_FREEZE:
+        {
+          color = 0x00FF6430;
+          damageFlags |= 0x00800000;
+          break;
+        }
+        case MOB_ATTRIBUTE_ACID:
+        {
+          color = 0x0064FF30;
+          damageFlags |= 0x00000080;
+          break;
+        }
+      }
+  
+      spawnExplosion(moby->Position, pvars->MobVars.Config.HitRadius, color);
+      reaperDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 1);
+      pvars->MobVars.Destroy = 1;
+      pvars->MobVars.LastHitBy = -1;
+      break;
+    }
+		case REAPER_ACTION_TIME_BOMB:
 		{
-			swarmerPlayHitSound(moby);
-			pvars->MobVars.FlinchCooldownTicks = SWARMER_FLINCH_COOLDOWN_TICKS;
+			pvars->MobVars.OpacityFlickerDirection = 4;
+			pvars->MobVars.TimeBombTicks = REAPER_TIMEBOMB_TICKS / clamp(difficulty, 0.5, 2);
+			break;
+		}
+		case REAPER_ACTION_FLINCH:
+		case REAPER_ACTION_BIG_FLINCH:
+		{
+			reaperPlayHitSound(moby);
+			pvars->MobVars.FlinchCooldownTicks = REAPER_FLINCH_COOLDOWN_TICKS;
 			break;
 		}
 		default:
@@ -717,60 +721,60 @@ void swarmerForceLocalAction(Moby* moby, int action)
 
 	pvars->MobVars.Action = action;
 	pvars->MobVars.NextAction = -1;
-	pvars->MobVars.ActionCooldownTicks = SWARMER_ACTION_COOLDOWN_TICKS;
+	pvars->MobVars.ActionCooldownTicks = REAPER_ACTION_COOLDOWN_TICKS;
 }
 
 //--------------------------------------------------------------------------
-short swarmerGetArmor(Moby* moby)
+short reaperGetArmor(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  return pvars->MobVars.Config.Bangles;
+	float t = pvars->MobVars.Health / pvars->MobVars.Config.MaxHealth;
+  int bangles = pvars->MobVars.Config.Bangles;
+
+  if (t < 0.3)
+    return 0x0000;
+  else if (t < 0.7)
+    return bangles & 0x1f; // remove torso bangle
+
+	return bangles;
 }
 
 //--------------------------------------------------------------------------
-void swarmerPlayHitSound(Moby* moby)
+void reaperPlayHitSound(Moby* moby)
 {
-	SwarmerSoundDef.Index = 0x17D;
-	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
-}
+	ReaperSoundDef.Index = 0x17D;
+	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
+}	
 
 //--------------------------------------------------------------------------
-void swarmerPlayAmbientSound(Moby* moby)
+void reaperPlayAmbientSound(Moby* moby)
 {
   const int ambientSoundIds[] = { 0x17A, 0x179 };
-	SwarmerSoundDef.Index = ambientSoundIds[rand(2)];
-	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
+	ReaperSoundDef.Index = ambientSoundIds[rand(2)];
+	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
-void swarmerPlayDeathSound(Moby* moby)
+void reaperPlayDeathSound(Moby* moby)
 {
-	SwarmerSoundDef.Index = 0x171;
-	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
+	ReaperSoundDef.Index = 0x171;
+	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
-int swarmerIsAttacking(struct MobPVar* pvars)
+int reaperIsAttacking(struct MobPVar* pvars)
 {
-	return pvars->MobVars.Action == SWARMER_ACTION_TIME_BOMB || pvars->MobVars.Action == SWARMER_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == SWARMER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
+	return pvars->MobVars.Action == REAPER_ACTION_TIME_BOMB || pvars->MobVars.Action == REAPER_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == REAPER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
 }
 
 //--------------------------------------------------------------------------
-int swarmerIsSpawning(struct MobPVar* pvars)
+int reaperIsSpawning(struct MobPVar* pvars)
 {
-	return pvars->MobVars.Action == SWARMER_ACTION_SPAWN && !pvars->MobVars.AnimationLooped;
+	return pvars->MobVars.Action == REAPER_ACTION_SPAWN && !pvars->MobVars.AnimationLooped;
 }
 
 //--------------------------------------------------------------------------
-int swarmerCanAttack(struct MobPVar* pvars)
+int reaperCanAttack(struct MobPVar* pvars)
 {
 	return pvars->MobVars.AttackCooldownTicks == 0;
-}
-
-//--------------------------------------------------------------------------
-int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars)
-{
-  int seed = pvars->MobVars.Random + pvars->MobVars.ActionId;
-  sha1(&seed, 4, &seed, 4);
-  return seed % 2;
 }

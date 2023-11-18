@@ -34,10 +34,12 @@
 #include "pathfind.h"
 #include "mpass.h"
 #include "bigal.h"
+#include "gate.h"
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
 void gateInit(void);
 void gateSpawn(VECTOR gateData[], int count);
+void gateSetCollision(int collActive);
 void mobInit(void);
 void configInit(void);
 void pathTick(void);
@@ -91,15 +93,6 @@ void mobForceIntoMapBounds(Moby* moby)
 //--------------------------------------------------------------------------
 int mapPathCanBeSkippedForTarget(Moby* moby)
 {
-  if (!moby || !moby->PVar)
-    return 1;
-
-  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-
-  // can't skip if target is in gas
-  // if (pvars->MobVars.Target && isMobyInGasArea(pvars->MobVars.Target))
-  //   return 0;
-
   return 1;
 }
 
@@ -214,9 +207,8 @@ SoundDef def =
  */
 int main (void)
 {
-	int i;
 	if (!isInGame())
-		return;
+		return 0;
 
   dlPreUpdate();
 
@@ -254,7 +246,6 @@ int main (void)
 
 #if DEBUG
   dlPreUpdate();
-  Player* localPlayer = playerGetFromSlot(0);
   if (padGetButtonDown(0, PAD_LEFT) > 0) {
     --aaa;
     DPRINTF("%d\n", aaa);

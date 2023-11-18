@@ -73,8 +73,6 @@ void statueUpdate(Moby* moby)
 //--------------------------------------------------------------------------
 int statueHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 {
-	int i;
-  
   DPRINTF("statue spawned: %08X\n", (u32)moby);
   struct StatuePVar* pvars = (struct StatuePVar*)moby->PVar;
   if (!pvars)
@@ -98,7 +96,6 @@ int statueHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int statueHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 {
-	int i;
   enum StatueMobyState state;
   
 	// read event
@@ -188,7 +185,6 @@ void statueSpawn(void)
 //--------------------------------------------------------------------------
 void statueInit(void)
 {
-  int i;
   Moby* temp = mobySpawn(STATUE_MOBY_OCLASS, 0);
   if (!temp)
     return;

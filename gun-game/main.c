@@ -213,9 +213,7 @@ void setWeapon(Player * player, int weaponId)
 	GadgetBox* gBox = player->GadgetBox;
 	// Give
 	if (gBox->Gadgets[weaponId].Level < 0)
-	{
-		playerGiveWeapon(gBox, weaponId, 0);
-	}
+		playerGiveWeapon(gBox, weaponId, 0, 1);
 
 	// Set alpha mods
 	memcpy(&gBox->Gadgets[weaponId].AlphaMods, &WeaponModStates[weaponId].Alpha, 10 * sizeof(int));

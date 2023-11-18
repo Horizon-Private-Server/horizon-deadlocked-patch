@@ -31,13 +31,12 @@ void demonbellPlayActivateSound(Moby* moby)
 void demonbellDestroy(Moby* moby)
 {
 	// create event
-	GuberEvent * guberEvent = demonbellCreateEvent(moby, DEMONBELL_EVENT_DESTROY);
+	demonbellCreateEvent(moby, DEMONBELL_EVENT_DESTROY);
 }
 
 //--------------------------------------------------------------------------
 void demonbellUpdate(Moby* moby)
 {
-	int i;
 	struct DemonBellPVar* pvars = (struct DemonBellPVar*)moby->PVar;
 	if (!pvars)
 		return;
@@ -131,7 +130,6 @@ GuberEvent* demonbellCreateEvent(Moby* moby, u32 eventType)
 int demonbellHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 {
 	VECTOR p;
-	int i;
   int id;
 
 	// read event
@@ -175,8 +173,6 @@ int demonbellHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int demonbellHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 {
-	char killedByPlayerId, weaponId;
-	int i;
 	struct DemonBellPVar* pvars = (struct DemonBellPVar*)moby->PVar;
 	if (!pvars)
 		return 0;
@@ -250,8 +246,6 @@ int demonbellHandleEvent(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int demonbellCreate(VECTOR position, int id)
 {
-	GameSettings* gs = gameGetSettings();
-
 	// create guber object
 	GuberEvent * guberEvent = 0;
 	guberMobyCreateSpawned(DEMONBELL_MOBY_OCLASS, sizeof(struct DemonBellPVar), &guberEvent, NULL);

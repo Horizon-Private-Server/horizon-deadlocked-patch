@@ -198,7 +198,6 @@ void powerNodeUpdate(Moby* moby)
 {
   static int initialized = 0;
   float baseTurnSpeed = 0.061666;
-  int i;
   if (!moby || !moby->PVar)
     return;
 

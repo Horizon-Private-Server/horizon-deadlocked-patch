@@ -35,6 +35,7 @@
 #include "orxon.h"
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
+void gateSetCollision(int collActive);
 void powerNodeUpdate(Moby* moby);
 void gateInit(void);
 void gateSpawn(VECTOR gateData[], int count);
@@ -221,9 +222,8 @@ SoundDef def =
  */
 int main (void)
 {
-	int i;
 	if (!isInGame())
-		return;
+		return 0;
 
   dlPreUpdate();
 

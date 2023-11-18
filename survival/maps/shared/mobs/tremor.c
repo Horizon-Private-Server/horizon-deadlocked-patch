@@ -16,15 +16,15 @@ void tremorPreUpdate(Moby* moby);
 void tremorPostUpdate(Moby* moby);
 void tremorPostDraw(Moby* moby);
 void tremorMove(Moby* moby);
-void tremorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs e);
+void tremorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void tremorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
-void tremorOnDamage(Moby* moby, struct MobDamageEventArgs e);
-void tremorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e);
+void tremorOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+void tremorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* tremorGetNextTarget(Moby* moby);
-enum TremorAction tremorGetPreferredAction(Moby* moby);
+int tremorGetPreferredAction(Moby* moby);
 void tremorDoAction(Moby* moby);
 void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
-void tremorForceLocalAction(Moby* moby, enum TremorAction action);
+void tremorForceLocalAction(Moby* moby, int action);
 short tremorGetArmor(Moby* moby);
 
 void tremorPlayHitSound(Moby* moby);
@@ -173,7 +173,7 @@ void tremorMove(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void tremorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs e)
+void tremorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e)
 {
   
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -203,29 +203,29 @@ void tremorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 }
 
 //--------------------------------------------------------------------------
-void tremorOnDamage(Moby* moby, struct MobDamageEventArgs e)
+void tremorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	float damage = e.DamageQuarters / 4.0;
+	float damage = e->DamageQuarters / 4.0;
   float newHp = pvars->MobVars.Health - damage;
 
 	int canFlinch = pvars->MobVars.Action != TREMOR_ACTION_FLINCH 
             && pvars->MobVars.Action != TREMOR_ACTION_BIG_FLINCH
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
-  int isShock = e.DamageFlags & 0x40;
+  int isShock = e->DamageFlags & 0x40;
 
 	// destroy
 	if (newHp <= 0) {
     tremorForceLocalAction(moby, TREMOR_ACTION_DIE);
-    pvars->MobVars.LastHitBy = e.SourceUID;
-    pvars->MobVars.LastHitByOClass = e.SourceOClass;
+    pvars->MobVars.LastHitBy = e->SourceUID;
+    pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}
 
 	// knockback
-	if (e.Knockback.Power > 0 && (canFlinch || e.Knockback.Force))
+	if (e->Knockback.Power > 0 && (canFlinch || e->Knockback.Force))
 	{
-		memcpy(&pvars->MobVars.Knockback, &e.Knockback, sizeof(struct Knockback));
+		memcpy(&pvars->MobVars.Knockback, &e->Knockback, sizeof(struct Knockback));
 	}
 
   // flinch
@@ -236,7 +236,7 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs e)
       if (isShock) {
         mobSetAction(moby, TREMOR_ACTION_FLINCH);
       }
-      else if (e.Knockback.Force || randRangeInt(0, 10) < e.Knockback.Power) {
+      else if (e->Knockback.Force || randRangeInt(0, 10) < e->Knockback.Power) {
         mobSetAction(moby, TREMOR_ACTION_BIG_FLINCH);
       }
       else if (randRange(0, 1) < (TREMOR_FLINCH_PROBABILITY * damageRatio)) {
@@ -247,7 +247,7 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs e)
 }
 
 //--------------------------------------------------------------------------
-void tremorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs e)
+void tremorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   mobOnStateUpdate(moby, e);
 }
@@ -292,7 +292,7 @@ Moby* tremorGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-enum TremorAction tremorGetPreferredAction(Moby* moby)
+int tremorGetPreferredAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -352,7 +352,6 @@ void tremorDoAction(Moby* moby)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t, t2;
-  int i;
   float difficulty = 1;
   float turnSpeed = pvars->MobVars.MoveVars.Grounded ? TREMOR_TURN_RADIANS_PER_SEC : TREMOR_TURN_AIR_RADIANS_PER_SEC;
   float acceleration = pvars->MobVars.MoveVars.Grounded ? TREMOR_MOVE_ACCELERATION : TREMOR_MOVE_AIR_ACCELERATION;
@@ -537,7 +536,7 @@ void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int
 }
 
 //--------------------------------------------------------------------------
-void tremorForceLocalAction(Moby* moby, enum TremorAction action)
+void tremorForceLocalAction(Moby* moby, int action)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   float difficulty = 1;
@@ -612,7 +611,6 @@ void tremorForceLocalAction(Moby* moby, enum TremorAction action)
 short tremorGetArmor(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	float t = pvars->MobVars.Health / pvars->MobVars.Config.MaxHealth;
   return pvars->MobVars.Config.Bangles;
 }
 

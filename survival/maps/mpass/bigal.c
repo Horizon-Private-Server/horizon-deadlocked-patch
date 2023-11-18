@@ -102,7 +102,7 @@ int bigalPlayerOnPath(Moby* moby)
 
   struct BigAlPVar* pvars = (struct BigAlPVar*)moby->PVar;
   if (!pvars)
-    return;
+    return 0;
 
   // reset
   pvars->StuckForPlayerIdx = -1;
@@ -119,17 +119,18 @@ int bigalPlayerOnPath(Moby* moby)
       return 1;
     }
   }
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------
 void bigalMove(Moby* moby)
 {
   int i;
-  VECTOR delta, bitangent;
+  VECTOR delta;
   VECTOR from, to;
   VECTOR up = {0,0,2,0};
   VECTOR down = {0,0,-4,0};
-  VECTOR right = {1,0,0,0};
   VECTOR hitoff = {0,0,0.01,0};
   Player** players = playerGetAll();
   float targetYaw = 0;
@@ -185,7 +186,7 @@ void bigalMove(Moby* moby)
 
     // determine angular rotation towards player
     if (pvars->StuckForPlayerIdx >= 0) {
-      Player* targetPlayer = players[pvars->StuckForPlayerIdx];
+      Player* targetPlayer = players[(int)pvars->StuckForPlayerIdx];
       if (targetPlayer) {
         vector_subtract(delta, targetPlayer->PlayerPosition, moby->Position);
         targetYaw = atan2f(delta[1], delta[0]);
@@ -225,7 +226,7 @@ void bigalMove(Moby* moby)
   // snap to ground
   vector_add(from, pvars->Position, up);
   vector_add(to, pvars->Position, down);
-  if (CollLine_Fix(from, to, 2, moby, 0)) {
+  if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
     vector_add(moby->Position, CollLine_Fix_GetHitPosition(), hitoff);
   } else {
     vector_copy(moby->Position, pvars->Position);
@@ -240,7 +241,6 @@ void bigalMove(Moby* moby)
 //--------------------------------------------------------------------------
 void bigalUpdate(Moby* moby)
 {
-  VECTOR delta;
   struct BigAlPVar* pvars = (struct BigAlPVar*)moby->PVar;
   if (!pvars)
     return;
@@ -270,8 +270,6 @@ void bigalUpdate(Moby* moby)
 //--------------------------------------------------------------------------
 int bigalHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 {
-	int i,j;
-  
   DPRINTF("bigal spawned: %08X\n", (u32)moby);
   struct BigAlPVar* pvars = (struct BigAlPVar*)moby->PVar;
   if (!pvars)
@@ -304,7 +302,6 @@ int bigalHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int bigalHandleEvent_PathUpdate(Moby* moby, GuberEvent* event)
 {
-	int i;
   int currentNodeIdx, nextNodeIdx;
   char stuckForPlayerIdx;
   u16 stuckForTicks;
@@ -388,8 +385,6 @@ int bigalCreate(VECTOR position)
 void bigalSpawn(void)
 {
   static int spawned = 0;
-  int i;
-  
   if (spawned)
     return;
 
@@ -409,7 +404,6 @@ void bigalSpawn(void)
 //--------------------------------------------------------------------------
 void bigalInit(void)
 {
-  int i;
   Moby* temp = mobySpawn(BIGAL_MOBY_OCLASS, 0);
   if (!temp)
     return;
