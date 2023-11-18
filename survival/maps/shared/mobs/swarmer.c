@@ -36,6 +36,7 @@ int swarmerIsAttacking(struct MobPVar* pvars);
 int swarmerIsSpawning(struct MobPVar* pvars);
 int swarmerCanAttack(struct MobPVar* pvars);
 int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars);
+int swarmerIsFlinching(Moby* moby);
 
 struct MobVTable SwarmerVTable = {
   .PreUpdate = &swarmerPreUpdate,
@@ -123,6 +124,8 @@ void swarmerPreUpdate(Moby* moby)
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
+
+  mobPreUpdate(moby);
 }
 
 //--------------------------------------------------------------------------
@@ -145,6 +148,8 @@ void swarmerPostUpdate(Moby* moby)
     if (pvars->MobVars.MoveVars.Grounded) {
       animSpeed = 0.9;
     }
+  } else if (swarmerIsFlinching(moby) && !pvars->MobVars.MoveVars.Grounded) {
+    animSpeed = 0.5 * (1 - powf(moby->AnimSeqT / 20, 2));
   }
 
   if (moby->AnimSeqId == SWARMER_ANIM_FLINCH_BACKFLIP_AND_STAND) {
@@ -284,17 +289,17 @@ Moby* swarmerGetNextTarget(Moby* moby)
 		Player * p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
-			float distSqr = vector_sqrmag(delta);
+      float dist = vector_length(delta);
 
-			if (distSqr < 300000) {
+			if (dist < 300) {
 				// favor existing target
-				if (p->SkinMoby == currentTarget)
-					distSqr *= (1.0 / SWARMER_TARGET_KEEP_CURRENT_FACTOR);
+				if (playerGetTargetMoby(p) == currentTarget)
+					dist *= (1.0 / SWARMER_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target
-				if (distSqr < closestPlayerDist) {
+				if (dist < closestPlayerDist) {
 					closestPlayer = p;
-					closestPlayerDist = distSqr;
+					closestPlayerDist = dist;
 				}
 			}
 		}
@@ -303,7 +308,7 @@ Moby* swarmerGetNextTarget(Moby* moby)
 	}
 
 	if (closestPlayer)
-		return closestPlayer->SkinMoby;
+		return playerGetTargetMoby(closestPlayer);
 
 	return NULL;
 }
@@ -321,6 +326,9 @@ int swarmerGetPreferredAction(Moby* moby)
 	if (swarmerIsSpawning(pvars))
 		return -1;
 
+  if (swarmerIsFlinching(moby))
+    return -1;
+
 	if (pvars->MobVars.Action == SWARMER_ACTION_DODGE && !pvars->MobVars.MoveVars.Grounded) {
 		return -1;
   }
@@ -332,10 +340,6 @@ int swarmerGetPreferredAction(Moby* moby)
 	if (pvars->MobVars.Action == SWARMER_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
 		return SWARMER_ACTION_WALK;
   }
-
-  // wait for grounded to stop flinch
-  if ((pvars->MobVars.Action == SWARMER_ACTION_FLINCH || pvars->MobVars.Action == SWARMER_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
-    return -1;
 
   // jump if we've hit a slope and are grounded
   if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > SWARMER_MAX_WALKABLE_SLOPE) {
@@ -645,7 +649,7 @@ void swarmerDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 0);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, SWARMER_SUBSKELETON_JOINT_JAW);
 }
 
 //--------------------------------------------------------------------------
@@ -773,4 +777,11 @@ int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars)
   int seed = pvars->MobVars.Random + pvars->MobVars.ActionId;
   sha1(&seed, 4, &seed, 4);
   return seed % 2;
+}
+
+//--------------------------------------------------------------------------
+int swarmerIsFlinching(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	return (moby->AnimSeqId == SWARMER_ANIM_FLINCH_SPIN_AND_STAND || moby->AnimSeqId == SWARMER_ANIM_FLINCH_SPIN_AND_STAND2) && !pvars->MobVars.AnimationLooped;
 }

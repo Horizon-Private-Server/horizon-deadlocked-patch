@@ -30,7 +30,9 @@ void pushSnack(int localPlayerIdx, char* string, int ticksAlive);
 int isInDrawDist(Moby* moby);
 
 int mobyIsMob(Moby* moby);
+Player* mobyGetPlayer(Moby* moby);
+Moby* playerGetTargetMoby(Player* player);
 
-void draw3DMarker(VECTOR position, float scale, u32 color);
+void draw3DMarker(VECTOR position, float scale, u32 color, char* str);
 
 #endif // SURVIVAL_MAP_UTILS_H

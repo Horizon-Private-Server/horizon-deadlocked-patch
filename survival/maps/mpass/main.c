@@ -48,6 +48,7 @@ int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 
 char LocalPlayerStrBuffer[2][48];
 
@@ -104,6 +105,10 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
     case MOB_SPAWN_PARAM_REACTOR:
     {
       return reactorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+    }
+    case MOB_SPAWN_PARAM_REAPER:
+    {
+      return reaperCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
     case MOB_SPAWN_PARAM_RUNNER:
     {

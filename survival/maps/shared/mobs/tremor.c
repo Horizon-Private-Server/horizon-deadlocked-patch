@@ -33,6 +33,7 @@ void tremorPlayDeathSound(Moby* moby);
 int tremorIsAttacking(struct MobPVar* pvars);
 int tremorIsSpawning(struct MobPVar* pvars);
 int tremorCanAttack(struct MobPVar* pvars);
+int tremorIsFlinching(Moby* moby);
 
 struct MobVTable TremorVTable = {
   .PreUpdate = &tremorPreUpdate,
@@ -119,6 +120,8 @@ void tremorPreUpdate(Moby* moby)
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
+
+  mobPreUpdate(moby);
 }
 
 //--------------------------------------------------------------------------
@@ -136,6 +139,8 @@ void tremorPostUpdate(Moby* moby)
     if (pvars->MobVars.MoveVars.Grounded) {
       animSpeed = 0.5;
     }
+  } else if (tremorIsFlinching(moby) && !pvars->MobVars.MoveVars.Grounded) {
+    animSpeed = 0.5 * (1 - powf(moby->AnimSeqT / 20, 2));
   }
 
 	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == TREMOR_ACTION_WALK)) {
@@ -267,17 +272,17 @@ Moby* tremorGetNextTarget(Moby* moby)
 		Player * p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
-			float distSqr = vector_sqrmag(delta);
+			float dist = vector_length(delta);
 
-			if (distSqr < 300000) {
+			if (dist < 300) {
 				// favor existing target
-				if (p->SkinMoby == currentTarget)
-					distSqr *= (1 / TREMOR_TARGET_KEEP_CURRENT_FACTOR);
+				if (playerGetTargetMoby(p) == currentTarget)
+					dist *= (1.0 / TREMOR_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target
-				if (distSqr < closestPlayerDist) {
+				if (dist < closestPlayerDist) {
 					closestPlayer = p;
-					closestPlayerDist = distSqr;
+					closestPlayerDist = dist;
 				}
 			}
 		}
@@ -286,7 +291,7 @@ Moby* tremorGetNextTarget(Moby* moby)
 	}
 
 	if (closestPlayer)
-		return closestPlayer->SkinMoby;
+		return playerGetTargetMoby(closestPlayer);
 
 	return NULL;
 }
@@ -304,13 +309,12 @@ int tremorGetPreferredAction(Moby* moby)
 	if (tremorIsSpawning(pvars))
 		return -1;
 
+  if (tremorIsFlinching(moby))
+    return -1;
+
 	if (pvars->MobVars.Action == TREMOR_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
 		return TREMOR_ACTION_WALK;
   }
-
-  // wait for flinch to stop
-  if ((pvars->MobVars.Action == TREMOR_ACTION_FLINCH || pvars->MobVars.Action == TREMOR_ACTION_BIG_FLINCH) && (!pvars->MobVars.AnimationLooped || !pvars->MobVars.MoveVars.Grounded))
-    return -1;
 
   // jump if we've hit a slope and are grounded
   if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > TREMOR_MAX_WALKABLE_SLOPE) {
@@ -532,7 +536,7 @@ void tremorDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 0);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, TREMOR_SUBSKELETON_JOINT_RIGHT_HAND_CLAW);
 }
 
 //--------------------------------------------------------------------------
@@ -652,4 +656,11 @@ int tremorIsSpawning(struct MobPVar* pvars)
 int tremorCanAttack(struct MobPVar* pvars)
 {
 	return pvars->MobVars.AttackCooldownTicks == 0;
+}
+
+//--------------------------------------------------------------------------
+int tremorIsFlinching(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	return (moby->AnimSeqId == TREMOR_ANIM_FLINCH || moby->AnimSeqId == TREMOR_ANIM_FLINCH_FALL_GET_UP) && !pvars->MobVars.AnimationLooped;
 }

@@ -108,7 +108,6 @@ void mobSendStateUpdate(Moby* moby)
     args.PathHasReachedEnd = pvars->MobVars.MoveVars.PathHasReachedEnd;
     args.PathHasReachedStart = pvars->MobVars.MoveVars.PathHasReachedStart;
 		args.TargetUID = guberGetUID(pvars->MobVars.Target);
-    args.DynamicRandom = (char)rand(255);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobStateUpdateEventArgs));
 	}
 }
@@ -134,7 +133,6 @@ void mobSendStateUpdateUnreliable(Moby* moby)
   msg.StateUpdate.PathStartNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[1];
   msg.StateUpdate.PathHasReachedEnd = pvars->MobVars.MoveVars.PathHasReachedEnd;
   msg.StateUpdate.PathHasReachedStart = pvars->MobVars.MoveVars.PathHasReachedStart;
-  msg.StateUpdate.DynamicRandom = (char)rand(255);
   msg.StateUpdate.TargetUID = guberGetUID(pvars->MobVars.Target);
 
   // broadcast to players unreliably
@@ -367,6 +365,7 @@ void mobSetAction(Moby* moby, int action)
 	if (event) {
 		args.Action = action;
 		args.ActionId = ++pvars->MobVars.ActionId;
+    args.Random = (char)rand(255);
 		guberEventWrite(event, &args, sizeof(struct MobActionUpdateEventArgs));
 	}
 }
@@ -1039,6 +1038,8 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
     if (pvars->VTable && pvars->VTable->ForceLocalAction)
       pvars->VTable->ForceLocalAction(moby, args.Action);
 	}
+
+  pvars->MobVars.DynamicRandom = args.Random;
 	
 	DPRINTF("mob state update event %08X, %08X, %d\n", (u32)moby, (u32)event, args.Action);
 	return 0;
@@ -1059,13 +1060,10 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
 		vector_copy(pvars->MobVars.MoveVars.NextPosition, args->Position);
   }
 
-  //
-  pvars->MobVars.DynamicRandom = args->DynamicRandom;
-
 	// 
 	Player* target = (Player*)guberGetObjectByUID(args->TargetUID);
 	if (target)
-		pvars->MobVars.Target = target->SkinMoby;
+		pvars->MobVars.Target = playerGetTargetMoby(target);
 
 #if FIXEDTARGET
   pvars->MobVars.Target = FIXEDTARGETMOBY;

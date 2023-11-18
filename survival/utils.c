@@ -287,3 +287,29 @@ int mobyIsMob(Moby* moby)
     || moby->OClass == REAPER_MOBY_OCLASS
     ;
 }
+
+//--------------------------------------------------------------------------
+Player* mobyGetPlayer(Moby* moby)
+{
+  if (!moby) return 0;
+  
+  Player** players = playerGetAll();
+  int i;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player) continue;
+
+    if (player->PlayerMoby == moby) return player;
+    if (player->SkinMoby == moby) return player;
+  }
+
+  return NULL;
+}
+
+//--------------------------------------------------------------------------
+Moby* playerGetTargetMoby(Player* player)
+{
+  if (!player) return NULL;
+  return player->SkinMoby;
+}

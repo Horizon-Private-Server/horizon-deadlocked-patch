@@ -12,7 +12,7 @@ BUILD_CONFIG := DEBUG
 # 	DEBUG									Enables debug strings and additional misc debug logic.
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DMOB_CORN
+EE_DEFS := -DDEBUG -DMOB_CORN -DPRINT_JOINTS1
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DMOB_CORN
 endif

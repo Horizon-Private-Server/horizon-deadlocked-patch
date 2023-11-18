@@ -34,6 +34,7 @@ void reactorPlayDeathSound(Moby* moby);
 int reactorIsAttacking(struct MobPVar* pvars);
 int reactorIsSpawning(struct MobPVar* pvars);
 int reactorCanAttack(struct MobPVar* pvars, enum ReactorAction action);
+int reactorIsFlinching(Moby* moby);
 void reactorFireTrailshot(Moby* moby);
 
 void trailshotSpawn(Moby* creatorMoby, VECTOR position, VECTOR velocity, u32 color, float damage, int lifeTicks);
@@ -127,21 +128,15 @@ void reactorPreUpdate(Moby* moby)
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(REACTOR_AMBSND_MIN_COOLDOWN_TICKS, REACTOR_AMBSND_MAX_COOLDOWN_TICKS);
 	}
 
-  mobPreUpdate(moby);
+  // update react vars
   ((void (*)(Moby*))0x0051b860)(moby);
-
-  //
-  if (moby->AnimSeqId == REACTOR_ANIM_KNEE_DOWN) {
-    if (moby->CollDamage >= 0) {
-      
-    }
-
-  }
 
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
+
+  mobPreUpdate(moby);
 }
 
 //--------------------------------------------------------------------------
@@ -161,6 +156,8 @@ void reactorPostUpdate(Moby* moby)
     if (pvars->MobVars.MoveVars.Grounded) {
       animSpeed = 0.6;
     }
+  } else if (reactorIsFlinching(moby) && !pvars->MobVars.MoveVars.Grounded) {
+    animSpeed = 0.5 * (1 - powf(moby->AnimSeqT / 20, 2));
   }
 
   // stop animation if frozen or not visible and just walking
@@ -336,8 +333,6 @@ void reactorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 //--------------------------------------------------------------------------
 Moby* reactorGetNextTarget(Moby* moby)
 {
-  asm (".set noreorder;");
-
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	Player ** players = playerGetAll();
 	int i;
@@ -347,20 +342,20 @@ Moby* reactorGetNextTarget(Moby* moby)
 	float closestPlayerDist = 100000;
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player * p = *players;
+		Player* p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
-			float distSqr = vector_sqrmag(delta);
+			float dist = vector_length(delta);
 
-			if (distSqr < 300000) {
+			if (dist < 300) {
 				// favor existing target
-				if (p->SkinMoby == currentTarget)
-					distSqr *= (1 / REACTOR_TARGET_KEEP_CURRENT_FACTOR);
+				if (playerGetTargetMoby(p) == currentTarget)
+					dist *= (1.0 / REACTOR_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target
-				if (distSqr < closestPlayerDist) {
+				if (dist < closestPlayerDist) {
 					closestPlayer = p;
-					closestPlayerDist = distSqr;
+					closestPlayerDist = dist;
 				}
 			}
 		}
@@ -369,7 +364,7 @@ Moby* reactorGetNextTarget(Moby* moby)
 	}
 
 	if (closestPlayer) {
-    return closestPlayer->SkinMoby;
+    return playerGetTargetMoby(closestPlayer);
   }
 
 	return NULL;
@@ -390,13 +385,12 @@ int reactorGetPreferredAction(Moby* moby)
 	if (reactorIsSpawning(pvars))
 		return -1;
 
+  if (reactorIsFlinching(moby))
+    return -1;
+
 	if (pvars->MobVars.Action == REACTOR_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
 		return REACTOR_ACTION_WALK;
   }
-
-  // wait for grounded to stop flinch
-  if ((pvars->MobVars.Action == REACTOR_ACTION_FLINCH || pvars->MobVars.Action == REACTOR_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
-    return -1;
 
   // jump if we've hit a slope and are grounded
   if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > REACTOR_MAX_WALKABLE_SLOPE) {
@@ -485,9 +479,32 @@ void reactorDoAction(Moby* moby)
 		case REACTOR_ACTION_FLINCH:
 		case REACTOR_ACTION_BIG_FLINCH:
 		{
-      int animFlinchId = pvars->MobVars.Action == REACTOR_ACTION_BIG_FLINCH ? REACTOR_ANIM_FLINCH_FALL_DOWN : REACTOR_ANIM_FLINCH_SMALL;
+      int nextAnimId = moby->AnimSeqId;
 
-      reactorTransAnim(moby, animFlinchId, 0);
+      switch (moby->AnimSeqId)
+      {
+        case REACTOR_ANIM_FLINCH_FALL_DOWN:
+        {
+          if (pvars->MobVars.AnimationLooped) {
+            nextAnimId = REACTOR_ANIM_RUN;
+            mobTransAnimLerp(moby, nextAnimId, 60, 0);
+          }
+          break;
+        }
+        case REACTOR_ANIM_RUN:
+        {
+          if (pvars->MobVars.AnimationLooped || moby->AnimSeqT > 20) {
+            reactorForceLocalAction(moby, REACTOR_ACTION_WALK);
+          }
+          break;
+        }
+      }
+
+      if (!pvars->MobVars.CurrentActionForTicks) {
+        nextAnimId = pvars->MobVars.Action == REACTOR_ACTION_BIG_FLINCH ? REACTOR_ANIM_FLINCH_FALL_DOWN : REACTOR_ANIM_FLINCH_SMALL;
+      }
+
+      reactorTransAnim(moby, nextAnimId, 0);
       
 			if (pvars->MobVars.Knockback.Ticks > 0) {
 				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
@@ -855,13 +872,13 @@ void reactorDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void reactorDoChargeDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius * 2, amount, damageFlags, friendlyFire, 2);
+  mobDoDamage(moby, radius * 2, amount, damageFlags, friendlyFire, REACTOR_SUBSKELETON_JOINT_HIPS);
 }
 
 //--------------------------------------------------------------------------
 void reactorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 4);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, REACTOR_SUBSKELETON_JOINT_RIGHT_HAND);
 }
 
 //--------------------------------------------------------------------------
@@ -1022,6 +1039,14 @@ int reactorCanAttack(struct MobPVar* pvars, enum ReactorAction action)
     }
     default: return 0;
   }
+}
+
+//--------------------------------------------------------------------------
+int reactorIsFlinching(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  return pvars->MobVars.Action == REACTOR_ACTION_BIG_FLINCH || pvars->MobVars.Action == REACTOR_ACTION_FLINCH;
+	//return (moby->AnimSeqId == REACTOR_ANIM_FLINCH_SMALL || moby->AnimSeqId == REACTOR_ANIM_FLINCH_FALL_DOWN) && !pvars->MobVars.AnimationLooped;
 }
 
 //--------------------------------------------------------------------------

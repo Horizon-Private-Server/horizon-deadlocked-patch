@@ -34,6 +34,7 @@ void reaperPlayDeathSound(Moby* moby);
 int reaperIsAttacking(struct MobPVar* pvars);
 int reaperIsSpawning(struct MobPVar* pvars);
 int reaperCanAttack(struct MobPVar* pvars);
+int reaperIsFlinching(Moby* moby);
 
 struct MobVTable ReaperVTable = {
   .PreUpdate = &reaperPreUpdate,
@@ -76,7 +77,7 @@ int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
   
 	// create guber object
 	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(REAPER_MOBY_OCLASS, sizeof(struct MobPVar), &guberEvent, NULL);
+	guberMobyCreateSpawned(REAPER_MOBY_OCLASS, sizeof(struct MobPVar) + sizeof(ReaperMobVars_t), &guberEvent, NULL);
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
@@ -116,11 +117,13 @@ void reaperPreUpdate(Moby* moby)
 		reaperPlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(REAPER_AMBSND_MIN_COOLDOWN_TICKS, REAPER_AMBSND_MAX_COOLDOWN_TICKS);
 	}
-
+  
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
+
+  mobPreUpdate(moby);
 }
 
 //--------------------------------------------------------------------------
@@ -132,12 +135,9 @@ void reaperPostUpdate(Moby* moby)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
   // adjust animSpeed by speed and by animation
-	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
-  if (moby->AnimSeqId == REAPER_ANIM_JUMP) {
-    animSpeed = 0.9 * (1 - powf(moby->AnimSeqT / 35, 2));
-    if (pvars->MobVars.MoveVars.Grounded) {
-      animSpeed = 0.9;
-    }
+	float animSpeed = 1.5 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
+  if (reaperIsFlinching(moby) && !pvars->MobVars.MoveVars.Grounded) {
+    animSpeed = 0.5 * (1 - powf(moby->AnimSeqT / 20, 2));
   }
 
 	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == REAPER_ACTION_WALK)) {
@@ -205,7 +205,7 @@ void reaperOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   
 	// limit corn spawning to prevent freezing/framelag
 	if (MapConfig.State && MapConfig.State->RoundMobCount < 30) {
-		mobSpawnCorn(moby, REAPER_BANGLE_LARM | REAPER_BANGLE_RARM | REAPER_BANGLE_LLEG | REAPER_BANGLE_RLEG | REAPER_BANGLE_RFOOT | REAPER_BANGLE_HIPS);
+		
 	}
 }
 
@@ -213,26 +213,19 @@ void reaperOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
 	float damage = e->DamageQuarters / 4.0;
   float newHp = pvars->MobVars.Health - damage;
 
 	int canFlinch = pvars->MobVars.Action != REAPER_ACTION_FLINCH 
             && pvars->MobVars.Action != REAPER_ACTION_BIG_FLINCH
-            && pvars->MobVars.Action != REAPER_ACTION_TIME_BOMB 
-            && pvars->MobVars.Action != REAPER_ACTION_TIME_BOMB_EXPLODE
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
   int isShock = e->DamageFlags & 0x40;
 
 	// destroy
 	if (newHp <= 0) {
-		if (pvars->MobVars.Action == REAPER_ACTION_TIME_BOMB && moby->AnimSeqId == REAPER_ANIM_CROUCH && moby->AnimSeqT > 3) {
-			// explode
-			reaperForceLocalAction(moby, REAPER_ACTION_TIME_BOMB_EXPLODE);
-		} else {
-			reaperForceLocalAction(moby, REAPER_ACTION_DIE);
-		}
-
+    reaperForceLocalAction(moby, REAPER_ACTION_DIE);
     pvars->MobVars.LastHitBy = e->SourceUID;
     pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}
@@ -242,6 +235,11 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	{
 		memcpy(&pvars->MobVars.Knockback, &e->Knockback, sizeof(struct Knockback));
 	}
+
+  // trigger aggro
+  if (pvars->MobVars.Target && e->SourceUID == guberGetUID(pvars->MobVars.Target)) {
+    reaperVars->AggroTriggered = 1;
+  }
 
   // flinch
 	if (mobAmIOwner(moby))
@@ -278,21 +276,29 @@ Moby* reaperGetNextTarget(Moby* moby)
 	Player * closestPlayer = NULL;
 	float closestPlayerDist = 100000;
 
+  // don't change target when aggro
+  if (pvars->MobVars.Action == REAPER_ACTION_AGGRO && currentTarget) {
+    Player* currentPlayerTarget = guberMobyGetPlayerDamager(currentTarget);
+    if (currentPlayerTarget && !playerIsDead(currentPlayerTarget)) {
+      return currentTarget;
+    }
+  }
+
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
-			float distSqr = vector_sqrmag(delta);
+			float dist = vector_length(delta);
 
-			if (distSqr < 300000) {
+			if (dist < 300) {
 				// favor existing target
-				if (p->SkinMoby == currentTarget)
-					distSqr *= (1.0 / REAPER_TARGET_KEEP_CURRENT_FACTOR);
+				if (playerGetTargetMoby(p) == currentTarget)
+					dist *= (1.0 / REAPER_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target
-				if (distSqr < closestPlayerDist) {
+				if (dist < closestPlayerDist) {
 					closestPlayer = p;
-					closestPlayerDist = distSqr;
+					closestPlayerDist = dist;
 				}
 			}
 		}
@@ -301,7 +307,7 @@ Moby* reaperGetNextTarget(Moby* moby)
 	}
 
 	if (closestPlayer)
-		return closestPlayer->SkinMoby;
+		return playerGetTargetMoby(closestPlayer);
 
 	return NULL;
 }
@@ -310,6 +316,7 @@ Moby* reaperGetNextTarget(Moby* moby)
 int reaperGetPreferredAction(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
 	VECTOR t;
 
 	// no preferred action
@@ -319,13 +326,12 @@ int reaperGetPreferredAction(Moby* moby)
 	if (reaperIsSpawning(pvars))
 		return -1;
 
+  if (reaperIsFlinching(moby))
+    return -1;
+
 	if (pvars->MobVars.Action == REAPER_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
 		return REAPER_ACTION_WALK;
   }
-
-  // wait for grounded to stop flinch
-  if ((pvars->MobVars.Action == REAPER_ACTION_FLINCH || pvars->MobVars.Action == REAPER_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
-    return -1;
 
   // jump if we've hit a slope and are grounded
   if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > REAPER_MAX_WALKABLE_SLOPE) {
@@ -351,10 +357,20 @@ int reaperGetPreferredAction(Moby* moby)
 
 		if (distSqr <= attackRadiusSqr) {
 			if (reaperCanAttack(pvars))
-				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? REAPER_ACTION_ATTACK : REAPER_ACTION_TIME_BOMB;
-			return REAPER_ACTION_WALK;
+				return REAPER_ACTION_ATTACK;
+        
+      // wait for sprint to finish
+      if (pvars->MobVars.Action == REAPER_ACTION_AGGRO)
+        return -1;
+
+			return reaperVars->AggroTriggered ? REAPER_ACTION_AGGRO : REAPER_ACTION_WALK;
 		} else {
-			return REAPER_ACTION_WALK;
+      
+      // wait for sprint to finish
+      if (pvars->MobVars.Action == REAPER_ACTION_AGGRO)
+        return -1;
+
+			return reaperVars->AggroTriggered ? REAPER_ACTION_AGGRO : REAPER_ACTION_WALK;
 		}
 	}
 	
@@ -398,9 +414,6 @@ void reaperDoAction(Moby* moby)
   float difficulty = 1;
   float turnSpeed = pvars->MobVars.MoveVars.Grounded ? REAPER_TURN_RADIANS_PER_SEC : REAPER_TURN_AIR_RADIANS_PER_SEC;
   float acceleration = pvars->MobVars.MoveVars.Grounded ? REAPER_MOVE_ACCELERATION : REAPER_MOVE_AIR_ACCELERATION;
-  int isInAirFromFlinching = !pvars->MobVars.MoveVars.Grounded 
-                      && (pvars->MobVars.LastAction == REAPER_ACTION_FLINCH || pvars->MobVars.LastAction == REAPER_ACTION_BIG_FLINCH);
-
   if (MapConfig.State)
     difficulty = MapConfig.State->Difficulty;
 
@@ -412,14 +425,14 @@ void reaperDoAction(Moby* moby)
 	{
 		case REAPER_ACTION_SPAWN:
 		{
-      mobTransAnim(moby, REAPER_ANIM_CRAWL_OUT_OF_GROUND, 0);
+      mobTransAnim(moby, REAPER_ANIM_SPAWN, 0);
       mobStand(moby);
 			break;
 		}
 		case REAPER_ACTION_FLINCH:
 		case REAPER_ACTION_BIG_FLINCH:
 		{
-      int animFlinchId = pvars->MobVars.Action == REAPER_ACTION_BIG_FLINCH ? REAPER_ANIM_BIG_FLINCH : REAPER_ANIM_BIG_FLINCH;
+      int animFlinchId = pvars->MobVars.Action == REAPER_ACTION_BIG_FLINCH ? REAPER_ANIM_FLINCH_KNOCKBACK : REAPER_ANIM_FLINCH;
 
       mobTransAnim(moby, animFlinchId, 0);
       
@@ -443,19 +456,17 @@ void reaperDoAction(Moby* moby)
 		case REAPER_ACTION_JUMP:
 			{
         // move
-        if (!isInAirFromFlinching) {
-          if (target) {
-            pathGetTargetPos(t, moby);
-            mobTurnTowards(moby, t, turnSpeed);
-            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
-          } else {
-            mobStand(moby);
-          }
+        if (target) {
+          pathGetTargetPos(t, moby);
+          mobTurnTowards(moby, t, turnSpeed);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+        } else {
+          mobStand(moby);
         }
 
         // handle jumping
         if (pvars->MobVars.MoveVars.Grounded) {
-			    mobTransAnim(moby, REAPER_ANIM_JUMP, 5);
+			    //mobTransAnim(moby, jumpAnimId, 5);
 
           // check if we're near last jump pos
           // if so increment StuckJumpCount
@@ -484,106 +495,124 @@ void reaperDoAction(Moby* moby)
         mobTurnTowards(moby, target->Position, turnSpeed);
       break;
     }
-    case REAPER_ACTION_WALK:
-		{
-      if (!isInAirFromFlinching) {
-        if (target) {
+    case REAPER_ACTION_AGGRO:
+    {
+      int nextAnimId = moby->AnimSeqId;
 
-          float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
-
-          // determine next position
-          pathGetTargetPos(t, moby);
-          //vector_copy(t, target->Position);
-          vector_subtract(t, t, moby->Position);
-          float dist = vector_length(t);
-          if (dist < 10.0) {
-            reaperAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-            vector_add(t, t, t2);
+      switch (moby->AnimSeqId)
+      {
+        case REAPER_ANIM_AGGRO_ROAR:
+        {
+          if (pvars->MobVars.AnimationLooped) {
+            nextAnimId = REAPER_ANIM_RUN;
           }
-          vector_scale(t, t, 1 / dist);
-          vector_add(t, moby->Position, t);
-
-
-          mobTurnTowards(moby, t, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
-        } else {
-          // stand
-          mobStand(moby);
+          break;
         }
+      }
+      
+      if (!pvars->MobVars.CurrentActionForTicks) {
+        nextAnimId = REAPER_ANIM_AGGRO_ROAR;
+      }
+
+      mobTransAnim(moby, nextAnimId, 0);
+
+      // let aggro roar finish before moving
+      if (nextAnimId == REAPER_ANIM_AGGRO_ROAR) {
+        if (target) {
+          mobTurnTowards(moby, target->Position, turnSpeed);
+        }
+
+        mobStand(moby);
+        break;
+      }
+      
+      if (target) {
+        float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+
+        // determine next position
+        pathGetTargetPos(t, moby);
+        vector_subtract(t, t, moby->Position);
+        float dist = vector_length(t);
+        if (dist < 10.0) {
+          reaperAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+          vector_add(t, t, t2);
+        }
+        vector_scale(t, t, 1 / dist);
+        vector_add(t, moby->Position, t);
+
+        mobTurnTowards(moby, t, turnSpeed);
+        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed * 3, acceleration);
+      } else {
+        // stand
+        mobStand(moby);
       }
 
 			// 
-      if (moby->AnimSeqId == REAPER_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
-        // wait for jump to land
-      }
-			else if (mobHasVelocity(pvars))
+      if (mobHasVelocity(pvars))
 				mobTransAnim(moby, REAPER_ANIM_RUN, 0);
+			else
+				mobTransAnim(moby, REAPER_ANIM_IDLE, 0);
+      break;
+    }
+    case REAPER_ACTION_WALK:
+		{
+      if (target) {
+        float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+
+        // determine next position
+        pathGetTargetPos(t, moby);
+        vector_subtract(t, t, moby->Position);
+        float dist = vector_length(t);
+        if (dist < 10.0) {
+          reaperAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+          vector_add(t, t, t2);
+        }
+        vector_scale(t, t, 1 / dist);
+        vector_add(t, moby->Position, t);
+
+
+        mobTurnTowards(moby, t, turnSpeed);
+        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+      } else {
+        // stand
+        mobStand(moby);
+      }
+
+			// 
+      if (mobHasVelocity(pvars))
+				mobTransAnim(moby, REAPER_ANIM_WALK, 0);
 			else
 				mobTransAnim(moby, REAPER_ANIM_IDLE, 0);
 			break;
 		}
     case REAPER_ACTION_DIE:
     {
+      mobTransAnim(moby, REAPER_ANIM_FALL_AND_DIE, 0);
+      if (moby->AnimSeqId == REAPER_ANIM_FALL_AND_DIE && pvars->MobVars.AnimationLooped) {
+        pvars->MobVars.Destroy = 1;
+      }
+
       mobStand(moby);
       break;
     }
-		case REAPER_ACTION_TIME_BOMB_EXPLODE:
-    {
-      
-      break;
-    }
-		case REAPER_ACTION_TIME_BOMB:
-		{
-			mobTransAnim(moby, REAPER_ANIM_CROUCH, 0);
-
-			if (pvars->MobVars.TimeBombTicks == 0) {
-				moby->Opacity = 0x80;
-				pvars->MobVars.OpacityFlickerDirection = 0;
-				mobSetAction(moby, REAPER_ACTION_TIME_BOMB_EXPLODE);
-			} else {
-
-				// cycle opacity from 1.0 to 2.0
-				int newOpacity = (u8)moby->Opacity + pvars->MobVars.OpacityFlickerDirection;
-				if (newOpacity <= 0x80) {
-					pvars->MobVars.OpacityFlickerDirection *= -1.25;
-					newOpacity = 0x80;
-				}
-				else if (newOpacity >= 0xFF) {
-					pvars->MobVars.OpacityFlickerDirection *= -1.25;
-					newOpacity = 0xFF;
-				}
-			
-				// limit cycle rate
-				if (pvars->MobVars.OpacityFlickerDirection < -0x40)
-					pvars->MobVars.OpacityFlickerDirection = -0x40;
-				if (pvars->MobVars.OpacityFlickerDirection > 0x40)
-					pvars->MobVars.OpacityFlickerDirection = 0x40;
-				
-				moby->Opacity = (u8)newOpacity;
-        mobStand(moby);
-			}
-			break;
-		}
 		case REAPER_ACTION_ATTACK:
 		{
-      int attack1AnimId = REAPER_ANIM_SLAP;
+      int attack1AnimId = REAPER_ANIM_SWING;
 			mobTransAnim(moby, attack1AnimId, 0);
 
 			float speedMult = (moby->AnimSeqId == attack1AnimId && moby->AnimSeqT < 5) ? (difficulty * 2) : 1;
-			int swingAttackReady = moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 11 && moby->AnimSeqT < 14;
+			int swingAttackReady = moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 14 && moby->AnimSeqT < 17;
 			u32 damageFlags = 0x00081801;
 
       if (speedMult < 1)
 				speedMult = 1;
 
-      if (!isInAirFromFlinching) {
-        if (target) {
-          mobTurnTowards(moby, target->Position, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
-        } else {
-          // stand
-          mobStand(moby);
-        }
+      if (target) {
+        mobTurnTowards(moby, target->Position, turnSpeed);
+        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
+      } else {
+        // stand
+        mobStand(moby);
       }
 
 			// attribute damage
@@ -602,7 +631,13 @@ void reaperDoAction(Moby* moby)
 			}
 
 			if (swingAttackReady && damageFlags) {
-				reaperDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);
+        // aggro does more damage
+        reaperDoDamage(
+          moby, 
+          pvars->MobVars.Config.HitRadius, 
+          pvars->MobVars.Config.Damage * ((pvars->MobVars.LastAction == REAPER_ACTION_AGGRO) ? REAPER_AGGRO_DAMAGE_MULTIPLIER : 1), 
+          damageFlags,
+          0);
 			}
 			break;
 		}
@@ -614,13 +649,20 @@ void reaperDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void reaperDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 2);
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
+  
+  // aggro ends when we finally hit our target
+  if (mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, REAPER_SUBSKELETON_LEFT_HAND) & MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET) {
+    reaperVars->AggroTriggered = 0;
+  }
 }
 
 //--------------------------------------------------------------------------
 void reaperForceLocalAction(Moby* moby, int action)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
   float difficulty = 1;
 
   if (MapConfig.State)
@@ -651,6 +693,10 @@ void reaperForceLocalAction(Moby* moby, int action)
 			moby->CollActive = 1;
 			break;
 		}
+    case REAPER_ACTION_AGGRO:
+    {
+      break;
+    }
 		case REAPER_ACTION_WALK:
 		{
 			
@@ -658,48 +704,13 @@ void reaperForceLocalAction(Moby* moby, int action)
 		}
 		case REAPER_ACTION_DIE:
 		{
-      pvars->MobVars.Destroy = 1;
+			// disable collision
+			moby->CollActive = 1;
 			break;
 		}
 		case REAPER_ACTION_ATTACK:
 		{
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
-			break;
-		}
-    case REAPER_ACTION_TIME_BOMB_EXPLODE:
-    {
-			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
-
-      u32 damageFlags = 0x00008801;
-      u32 color = 0x003064FF;
-
-			// attribute damage
-      switch (pvars->MobVars.Config.MobAttribute)
-      {
-        case MOB_ATTRIBUTE_FREEZE:
-        {
-          color = 0x00FF6430;
-          damageFlags |= 0x00800000;
-          break;
-        }
-        case MOB_ATTRIBUTE_ACID:
-        {
-          color = 0x0064FF30;
-          damageFlags |= 0x00000080;
-          break;
-        }
-      }
-  
-      spawnExplosion(moby->Position, pvars->MobVars.Config.HitRadius, color);
-      reaperDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 1);
-      pvars->MobVars.Destroy = 1;
-      pvars->MobVars.LastHitBy = -1;
-      break;
-    }
-		case REAPER_ACTION_TIME_BOMB:
-		{
-			pvars->MobVars.OpacityFlickerDirection = 4;
-			pvars->MobVars.TimeBombTicks = REAPER_TIMEBOMB_TICKS / clamp(difficulty, 0.5, 2);
 			break;
 		}
 		case REAPER_ACTION_FLINCH:
@@ -764,7 +775,7 @@ void reaperPlayDeathSound(Moby* moby)
 //--------------------------------------------------------------------------
 int reaperIsAttacking(struct MobPVar* pvars)
 {
-	return pvars->MobVars.Action == REAPER_ACTION_TIME_BOMB || pvars->MobVars.Action == REAPER_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == REAPER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
+	return pvars->MobVars.Action == REAPER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
 }
 
 //--------------------------------------------------------------------------
@@ -777,4 +788,11 @@ int reaperIsSpawning(struct MobPVar* pvars)
 int reaperCanAttack(struct MobPVar* pvars)
 {
 	return pvars->MobVars.AttackCooldownTicks == 0;
+}
+
+//--------------------------------------------------------------------------
+int reaperIsFlinching(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	return (moby->AnimSeqId == REAPER_ANIM_FLINCH || moby->AnimSeqId == REAPER_ANIM_FLINCH_KNOCKBACK) && !pvars->MobVars.AnimationLooped;
 }

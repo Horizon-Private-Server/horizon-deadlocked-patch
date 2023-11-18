@@ -23,6 +23,7 @@
 #include "../../../include/mob.h"
 #include "../include/gate.h"
 #include "../include/maputils.h"
+#include "../include/shared.h"
 #include "../include/pathfind.h"
 #include "messageid.h"
 #include "module.h"
@@ -113,7 +114,7 @@ void mobSpawnCorn(Moby* moby, int bangle)
 }
 
 //--------------------------------------------------------------------------
-void mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqrHitRadius, int damageFlags, float amount)
+int mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqrHitRadius, int damageFlags, float amount)
 {
   VECTOR mobToHitMoby, mobToJoint, jointToHitMoby;
 	MobyColDamageIn in;
@@ -124,11 +125,11 @@ void mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sq
 
   // ignore if hit behind
   if (vector_innerproduct(mobToHitMoby, mobToJoint) < 0)
-    return;
+    return 0;
 
   // ignore if past attack radius
   if (vector_innerproduct(mobToHitMoby, jointToHitMoby) > 0 && vector_sqrmag(jointToHitMoby) > sqrHitRadius)
-    return;
+    return 0;
 
   vector_write(in.Momentum, 0);
   in.Damager = moby;
@@ -140,15 +141,18 @@ void mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sq
   in.DamageHp = amount;
 
   mobyCollDamageDirect(hitMoby, &in);
+  return 1;
 }
 
 //--------------------------------------------------------------------------
-void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId)
+int mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId)
 {
 	VECTOR p, delta;
 	MATRIX jointMtx;
   Player** players = playerGetAll();
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   int i;
+  int result = 0;
   float sqrRadius = radius * radius;
   float firstPassSqrRadius = powf(5 + radius, 2);
 
@@ -168,16 +172,25 @@ void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int fr
       if (vector_sqrmag(delta) > firstPassSqrRadius)
         continue;
 
-      mobDoDamageTryHit(moby, player->PlayerMoby, p, sqrRadius, damageFlags, amount);
+      if (mobDoDamageTryHit(moby, player->PlayerMoby, p, sqrRadius, damageFlags, amount)) {
+        result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER;
+        if (player->PlayerMoby == pvars->MobVars.Target) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET;
+      }
     }
   }
   else if (CollMobysSphere_Fix(p, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL, 5 + radius) > 0) {
     Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
     Moby* hitMoby;
     while ((hitMoby = *hitMobies++)) {
-      mobDoDamageTryHit(moby, hitMoby, p, sqrRadius, damageFlags, amount);
+      if (mobDoDamageTryHit(moby, hitMoby, p, sqrRadius, damageFlags, amount)) {
+        if (guberMobyGetPlayerDamager(hitMoby)) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER;
+        if (hitMoby == pvars->MobVars.Target) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET;
+        if (mobyIsMob(hitMoby)) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_MOB;
+      }
     }
   }
+
+  return result;
 }
 
 //--------------------------------------------------------------------------
@@ -628,17 +641,24 @@ void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 //--------------------------------------------------------------------------
 void mobPostDrawDebug(Moby* moby)
 {
+#if PRINT_JOINTS
   MATRIX jointMtx;
-  mobyGetJointMatrix(moby, 0, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x80FF0000);
-  mobyGetJointMatrix(moby, 1, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x80800000);
-  mobyGetJointMatrix(moby, 2, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x8000FF00);
-  mobyGetJointMatrix(moby, 3, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x80008000);
-  mobyGetJointMatrix(moby, 4, jointMtx);
-  draw3DMarker(&jointMtx[12], 1, 0x80000000);
+  int i = 0;
+  char buf[32];
+  int animJointCount = 0;
+
+  // get anim joint count
+  void* pclass = moby->PClass;
+  if (pclass) {
+    animJointCount = **(u32**)((u32)pclass + 0x1C);
+  }
+
+  for (i = 0; i < animJointCount; ++i) {
+    snprintf(buf, sizeof(buf), "%d", i);
+    mobyGetJointMatrix(moby, i, jointMtx);
+    draw3DMarker(&jointMtx[12], 0.5, 0x80FFFFFF, buf);
+  }
+#endif
 }
 #endif
 
@@ -691,6 +711,13 @@ void mobOnSpawned(Moby* moby)
     case REACTOR_MOBY_OCLASS:
     {
       pvars->VTable = &ReactorVTable;
+      break;
+    }
+#endif
+#if MOB_REAPER
+    case REAPER_MOBY_OCLASS:
+    {
+      pvars->VTable = &ReaperVTable;
       break;
     }
 #endif

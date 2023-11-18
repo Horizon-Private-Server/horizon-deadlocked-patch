@@ -34,6 +34,7 @@ void zombiePlayDeathSound(Moby* moby);
 int zombieIsAttacking(struct MobPVar* pvars);
 int zombieIsSpawning(struct MobPVar* pvars);
 int zombieCanAttack(struct MobPVar* pvars);
+int zombieIsFlinching(Moby* moby);
 
 struct MobVTable ZombieVTable = {
   .PreUpdate = &zombiePreUpdate,
@@ -121,6 +122,8 @@ void zombiePreUpdate(Moby* moby)
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
+
+  mobPreUpdate(moby);
 }
 
 //--------------------------------------------------------------------------
@@ -138,6 +141,8 @@ void zombiePostUpdate(Moby* moby)
     if (pvars->MobVars.MoveVars.Grounded) {
       animSpeed = 0.9;
     }
+  } else if (zombieIsFlinching(moby) && !pvars->MobVars.MoveVars.Grounded) {
+    animSpeed = 0.5 * (1 - powf(moby->AnimSeqT / 20, 2));
   }
 
 	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == ZOMBIE_ACTION_WALK)) {
@@ -282,17 +287,17 @@ Moby* zombieGetNextTarget(Moby* moby)
 		Player * p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
-			float distSqr = vector_sqrmag(delta);
+			float dist = vector_length(delta);
 
-			if (distSqr < 300000) {
+			if (dist < 300) {
 				// favor existing target
-				if (p->SkinMoby == currentTarget)
-					distSqr *= (1.0 / ZOMBIE_TARGET_KEEP_CURRENT_FACTOR);
+				if (playerGetTargetMoby(p) == currentTarget)
+					dist *= (1.0 / ZOMBIE_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target
-				if (distSqr < closestPlayerDist) {
+				if (dist < closestPlayerDist) {
 					closestPlayer = p;
-					closestPlayerDist = distSqr;
+					closestPlayerDist = dist;
 				}
 			}
 		}
@@ -301,7 +306,7 @@ Moby* zombieGetNextTarget(Moby* moby)
 	}
 
 	if (closestPlayer)
-		return closestPlayer->SkinMoby;
+		return playerGetTargetMoby(closestPlayer);
 
 	return NULL;
 }
@@ -319,13 +324,12 @@ int zombieGetPreferredAction(Moby* moby)
 	if (zombieIsSpawning(pvars))
 		return -1;
 
+  if (zombieIsFlinching(moby))
+    return -1;
+
 	if (pvars->MobVars.Action == ZOMBIE_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
 		return ZOMBIE_ACTION_WALK;
   }
-
-  // wait for grounded to stop flinch
-  if ((pvars->MobVars.Action == ZOMBIE_ACTION_FLINCH || pvars->MobVars.Action == ZOMBIE_ACTION_BIG_FLINCH) && !pvars->MobVars.MoveVars.Grounded)
-    return -1;
 
   // jump if we've hit a slope and are grounded
   if (pvars->MobVars.MoveVars.Grounded && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > ZOMBIE_MAX_WALKABLE_SLOPE) {
@@ -614,7 +618,7 @@ void zombieDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void zombieDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 2);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, ZOMBIE_SUBSKELETON_JOINT_LEFT_HAND);
 }
 
 //--------------------------------------------------------------------------
@@ -777,4 +781,11 @@ int zombieIsSpawning(struct MobPVar* pvars)
 int zombieCanAttack(struct MobPVar* pvars)
 {
 	return pvars->MobVars.AttackCooldownTicks == 0;
+}
+
+//--------------------------------------------------------------------------
+int zombieIsFlinching(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	return (moby->AnimSeqId == ZOMBIE_ANIM_FLINCH || moby->AnimSeqId == ZOMBIE_ANIM_BIG_FLINCH) && !pvars->MobVars.AnimationLooped;
 }

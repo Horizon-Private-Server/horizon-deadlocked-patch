@@ -12,8 +12,6 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 
 const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct SurvivalSpecialRoundParam);
 
-// NOTE
-// These must be ordered from least probable to most probable
 // SHOULD NEVER EXCEED MAX_MOB_SPAWN_PARAMS
 struct MobSpawnParams defaultSpawnParams[] = {
 	// reactor
@@ -45,6 +43,39 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = REACTOR_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = REACTOR_BASE_REACTION_TICKS * 0.35,
 			.AttackCooldownTickCount = REACTOR_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
+			.MaxCostMutation = 2,
+			.MobAttribute = 0,
+		}
+	},
+	// reaper
+  [MOB_SPAWN_PARAM_REAPER]
+	{
+		.Cost = 10,
+    .MaxSpawnedAtOnce = 1,
+		.MinRound = 0,
+		.CooldownTicks = 0,
+		.Probability = 0.01,
+    .StatId = MOB_STAT_REAPER,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER,
+		.Name = "Reaper",
+		.Config = {
+			.Xp = 15,
+			.Bangles = REAPER_BANGLE_SHOULDER_PAD_LEFT | REAPER_BANGLE_SHOULDER_PAD_RIGHT,
+			.Damage = MOB_BASE_DAMAGE * 1.0,
+			.MaxDamage = MOB_BASE_DAMAGE * 3,
+      .DamageScale = 1.2,
+			.Speed = MOB_BASE_SPEED * 0.5,
+			.MaxSpeed = MOB_BASE_SPEED * 1.0,
+      .SpeedScale = 0.5,
+			.Health = MOB_BASE_HEALTH * 3.0,
+			.MaxHealth = 0,
+      .HealthScale = 1.0,
+			.Bolts = MOB_BASE_BOLTS * 1.0,
+			.AttackRadius = REAPER_MELEE_ATTACK_RADIUS * 1.0,
+			.HitRadius = REAPER_MELEE_HIT_RADIUS * 1.0,
+      .CollRadius = REAPER_BASE_COLL_RADIUS * 1.0,
+			.ReactionTickCount = REAPER_BASE_REACTION_TICKS * 1.0,
+			.AttackCooldownTickCount = REAPER_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
 			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}
@@ -166,22 +197,25 @@ const int statueSpawnPositionRotationsCount = sizeof(statueSpawnPositionRotation
 
 u32 MobPrimaryColors[] = {
 	[MOB_SPAWN_PARAM_REACTOR] 	0x00464443,
-	[MOB_SPAWN_PARAM_RUNNER] 	0x00464443,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00464443,
+  [MOB_SPAWN_PARAM_REAPER]    0x00464443,
+	[MOB_SPAWN_PARAM_RUNNER] 	  0x00464443,
+	[MOB_SPAWN_PARAM_NORMAL] 	  0x00464443,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x00464443,
 };
 
 u32 MobSecondaryColors[] = {
-	[MOB_SPAWN_PARAM_REACTOR] 0x80808080,
-	[MOB_SPAWN_PARAM_RUNNER] 	0x80808080,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
+	[MOB_SPAWN_PARAM_REACTOR]   0x80808080,
+  [MOB_SPAWN_PARAM_REAPER]    0x80808080,
+	[MOB_SPAWN_PARAM_RUNNER] 	  0x80808080,
+	[MOB_SPAWN_PARAM_NORMAL] 	  0x80202020,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x80808080,
 };
 
 u32 MobLODColors[] = {
-	[MOB_SPAWN_PARAM_REACTOR] 0x00808080,
-	[MOB_SPAWN_PARAM_RUNNER] 	0x00808080,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
+	[MOB_SPAWN_PARAM_REACTOR]   0x00808080,
+  [MOB_SPAWN_PARAM_REAPER]    0x80808080,
+	[MOB_SPAWN_PARAM_RUNNER] 	  0x00808080,
+	[MOB_SPAWN_PARAM_NORMAL] 	  0x00808080,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x00808080,
 };
 

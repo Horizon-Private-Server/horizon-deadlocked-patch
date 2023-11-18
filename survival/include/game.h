@@ -164,6 +164,7 @@ enum MobStatId
   MOB_STAT_EXECUTIONER        = 7,
   MOB_STAT_SWARMER            = 8,
   MOB_STAT_REACTOR            = 9,
+  MOB_STAT_REAPER             = 10,
   MOB_STAT_COUNT
 };
 

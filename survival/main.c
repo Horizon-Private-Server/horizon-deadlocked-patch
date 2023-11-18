@@ -300,6 +300,7 @@ int handleEvent(Moby* moby, GuberEvent* event)
 		case TREMOR_MOBY_OCLASS:
     case SWARMER_MOBY_OCLASS: 
     case REACTOR_MOBY_OCLASS:
+    case REAPER_MOBY_OCLASS:
       return mobHandleEvent(moby, event);
 		case DROP_MOBY_OCLASS: return dropHandleEvent(moby, event);
 		case UPGRADE_MOBY_OCLASS: return upgradeHandleEvent(moby, event);
@@ -2541,14 +2542,15 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #endif
 
 #if MANUAL_SPAWN
+  if (!gameIsStartMenuOpen() && !localPlayerData->IsInWeaponsMenu)
 	{
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      //manSpawnMobId = 2;
+      manSpawnMobId = 0;
       //manSpawnMobId = 5;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {

@@ -275,6 +275,7 @@ struct MobActionUpdateEventArgs
 {
 	int Action;
 	u8 ActionId;
+  char Random;
 };
 
 struct MobStateUpdateEventArgs
@@ -286,7 +287,6 @@ struct MobStateUpdateEventArgs
   u8 PathCurrentEdgeIdx;
   char PathHasReachedStart;
   char PathHasReachedEnd;
-  char DynamicRandom;
 };
 
 struct MobSpawnEventArgs

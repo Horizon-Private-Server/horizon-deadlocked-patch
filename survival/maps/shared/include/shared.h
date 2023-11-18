@@ -11,11 +11,19 @@
 #include <libdl/sound.h>
 #include "game.h"
 
+enum MOB_DO_DAMAGE_HIT_FLAGS
+{
+  MOB_DO_DAMAGE_HIT_FLAG_NONE = 0,
+  MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET = 1,
+  MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER = 2,
+  MOB_DO_DAMAGE_HIT_FLAG_HIT_MOB = 4,
+};
+
 int mobAmIOwner(Moby* moby);
 int mobIsFrozen(Moby* moby);
 void mobSpawnCorn(Moby* moby, int bangle);
-void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
-void mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqrHitRadius, int damageFlags, float amount);
+int mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
+int mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqrHitRadius, int damageFlags, float amount);
 void mobSetAction(Moby* moby, int action);
 void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
 void mobTransAnim(Moby* moby, int animId, float startOff);

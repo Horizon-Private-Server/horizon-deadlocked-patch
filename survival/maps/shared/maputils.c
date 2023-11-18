@@ -233,10 +233,36 @@ int mobyIsMob(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void draw3DMarker(VECTOR position, float scale, u32 color)
+Player* mobyGetPlayer(Moby* moby)
+{
+  if (!moby) return 0;
+  
+  Player** players = playerGetAll();
+  int i;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player) continue;
+
+    if (player->PlayerMoby == moby) return player;
+    if (player->SkinMoby == moby) return player;
+  }
+
+  return NULL;
+}
+
+//--------------------------------------------------------------------------
+Moby* playerGetTargetMoby(Player* player)
+{
+  if (!player) return NULL;
+  return player->SkinMoby;
+}
+
+//--------------------------------------------------------------------------
+void draw3DMarker(VECTOR position, float scale, u32 color, char* str)
 {
   int x,y;
   if (gfxWorldSpaceToScreenSpace(position, &x, &y)) {
-    gfxScreenSpaceText(x, y, scale, scale, color, "+", -1, 4);
+    gfxScreenSpaceText(x, y, scale, scale, color, str, -1, 4);
   }
 }
