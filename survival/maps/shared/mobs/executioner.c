@@ -208,9 +208,9 @@ void executionerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   expOffset[2] += pvars->TargetVars.targetHeight;
   u128 expPos = vector_read(expOffset);
   mobySpawnExplosion
-    (expPos, 1, 0, 0, 0, 0, 16, 0, 16, 0, 1, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, expColor, expColor, expColor, expColor, expColor, expColor, expColor, expColor,
-    0, 0, 0, 0, 0);
+    (expPos, 0, 0, 0, 0, 16, 0, 16, 0, 1, 0, 0, 0, 0,
+    0, 0, expColor, expColor, expColor, expColor, expColor, expColor, expColor, expColor,
+    0, 0, 0, 0, 0, 1, 0, 0, 0);
 }
 
 //--------------------------------------------------------------------------

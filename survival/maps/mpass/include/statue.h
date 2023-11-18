@@ -1,7 +1,7 @@
 #ifndef _SURVIVAL_MPASS_STATUE_H_
 #define _SURVIVAL_MPASS_STATUE_H_
 
-#define STATUE_MOBY_OCLASS                (0x2402)
+#include "../../../include/mob.h"
 
 enum StatueEventType {
 	STATUE_EVENT_SPAWN,
@@ -15,7 +15,12 @@ enum StatueMobyState {
 
 typedef struct StatuePVar
 {
-  Moby* ActivatedOrbMoby;
+  struct TargetVars* TargetVarsPtr;
+  u8 padding[0x0C];
+  struct ReactVars* ReactVarsPtr;
+
+  struct TargetVars TargetVars;
+  struct ReactVars ReactVars;
 } StatuePVar_t;
 
 void statueSetState(Moby* moby, enum StatueMobyState state);

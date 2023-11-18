@@ -2269,7 +2269,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
     --startDelay;
     return;
   }
-  
+
   // wait for all clients to be ready
   // or for 15 seconds
   if (!gameState->AllClientsReady && waitingForClientsReady < (5 * TPS)) {

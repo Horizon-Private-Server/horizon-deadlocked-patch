@@ -129,6 +129,7 @@ struct MobMoveVars {
   VECTOR LastJumpPosition;
   VECTOR SumPositionDelta;
   VECTOR LastTargetPos;
+  Moby* HitWallMoby;
   float SumSpeedOver;
   float WallSlope;
   float PathEdgeAlpha;

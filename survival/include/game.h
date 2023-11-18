@@ -20,6 +20,7 @@
 #define SWARMER_MOBY_OCLASS							      (0x2695)
 #define REACTOR_MOBY_OCLASS							      (0x20BE)
 
+#define STATUE_MOBY_OCLASS                    (0x2402)
 #define BIGAL_MOBY_OCLASS                     (0x2124)
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)

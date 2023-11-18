@@ -15,6 +15,7 @@ int mobAmIOwner(Moby* moby);
 int mobIsFrozen(Moby* moby);
 void mobSpawnCorn(Moby* moby, int bangle);
 void mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId);
+void mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqrHitRadius, int damageFlags, float amount);
 void mobSetAction(Moby* moby, int action);
 void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
 void mobTransAnim(Moby* moby, int animId, float startOff);

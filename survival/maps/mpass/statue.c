@@ -50,16 +50,16 @@ void statueUpdate(Moby* moby)
 
   float colorT = (sinf(5 * (gameGetTime() / (float)TIME_SECOND)) + 1) / 2;
   u32 activatedGlowColor = colorLerp(0xFFFF8000, 0xFFFFFF00, colorT);
-
-  // handle orb
-  Moby* orb = pvars->ActivatedOrbMoby;
-  if (orb) {
-    orb->PrimaryColor = orb->GlowRGBA = activatedGlowColor;
-    orb->Opacity = (moby->State == STATUE_STATE_DEACTIVATED) ? 0 : 0x80;
+  
+  if (moby->CollDamage >= 0 && moby->State != STATUE_STATE_ACTIVATED) {
+    MobyColDamage* colDamage = mobyGetDamage(moby, 0x40, 0);
+    if (colDamage && colDamage->DamageHp > 0) {
+      statueSetState(moby, STATUE_STATE_ACTIVATED);
+    }
   }
-
-  // 
-  moby->GlowRGBA = (moby->State == STATUE_STATE_DEACTIVATED) ? 0x80C0C0C0 : activatedGlowColor;
+  
+  moby->GlowRGBA = (moby->State == STATUE_STATE_DEACTIVATED) ? 0x80000000 : activatedGlowColor;
+  moby->CollDamage = -1;
 }
 
 //--------------------------------------------------------------------------
@@ -79,28 +79,9 @@ int statueHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 	// set update
 	moby->PUpdate = &statueUpdate;
 
-  // create orb
-  Moby* orb = mobySpawn(0x2034, 0);
-  pvars->ActivatedOrbMoby = orb;
-  if (orb) {
-    MATRIX m;
-    VECTOR f = {0,-4.333,1.461,0};
-    matrix_unit(m);
-    matrix_rotate_x(m, m, moby->Rotation[0]);
-    matrix_rotate_y(m, m, moby->Rotation[1]);
-    matrix_rotate_z(m, m, moby->Rotation[2]);
-    vector_apply(f, f, m);
-    vector_add(orb->Position, moby->Position, f);
-    vector_copy(orb->Rotation, moby->Rotation);
-    orb->Rotation[0] = (MATH_PI/2) - orb->Rotation[0];
-
-    orb->DrawDist = 0xFF;
-    orb->UpdateDist = 0x80;
-    orb->Scale = 0.012;
-    orb->PUpdate = NULL;
-  }
-
-  DPRINTF("orb: %08X\n", (u32)orb);
+  pvars->TargetVarsPtr = &pvars->TargetVars;
+  pvars->ReactVarsPtr = &pvars->ReactVars;
+  moby->ModeBits |= 0x1020; // enable target and react vars
 
   // set default state
 	mobySetState(moby, STATUE_STATE_DEACTIVATED, -1);
@@ -118,6 +99,11 @@ int statueHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 
   // set state
 	mobySetState(moby, state, -1);
+
+  if (state == STATUE_STATE_ACTIVATED) {
+    // sound
+  }
+
   DPRINTF("statue state update: %08X => %d\n", (u32)moby, state);
   return 0;
 }

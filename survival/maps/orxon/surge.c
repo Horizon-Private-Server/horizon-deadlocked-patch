@@ -490,9 +490,9 @@ void surgeSpawnSlamExplosion(Moby* moby)
 
   // spawn explosion
   Moby * moby = mobySpawnExplosion
-        (vPos, 3, 1, 0x0, 0x0, 0x0, 0x10, 0x10, 0x0, 0, 0, 0, 0,
-        1, 0, 0, damage, 15, 0x80080800, 0, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000,
-        0x80E18000, 1, 0, 0, vPos);
+        (vPos, 1, 0x0, 0x0, 0x0, 0x10, 0x10, 0x0, 0, 0, 0, 0,
+        1, 0, 0x80080800, 0, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000, 0x80E18000,
+        0x80E18000, 1, 0, 0, vPos, 3, 0, damage, 15);
   
   // play explosion sound
 	soundPlay(&SurgeExplosionSoundDef, 0, moby, 0, 0x400);

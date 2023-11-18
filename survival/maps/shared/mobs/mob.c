@@ -64,6 +64,7 @@ VECTOR MoveCheckFinal;
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
 {
+  if (!mobyIsMob(moby)) return 0;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return gameGetMyClientId() == pvars->MobVars.Owner;
 }
@@ -307,7 +308,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
   vector_subtract(hitFrom, hitFrom, hitToEx);
 
   // check if we hit something
-  if (CollLine_Fix(hitFrom, hitTo, 0, moby, NULL)) {
+  if (CollLine_Fix(hitFrom, hitTo, COLLISION_FLAG_IGNORE_NONE, moby, NULL)) {
 
     vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
 
@@ -316,9 +317,11 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     pvars->MobVars.MoveVars.HitWall = 1;
 
     // check if we hit another mob
-    Moby* hitMoby = CollLine_Fix_GetHitMoby();
-    if (hitMoby && mobyIsMob(hitMoby))
+    Moby* hitMoby = pvars->MobVars.MoveVars.HitWallMoby = CollLine_Fix_GetHitMoby();
+    if (hitMoby && mobyIsMob(hitMoby)) {
       pvars->MobVars.MoveVars.HitWall = 0;
+      pvars->MobVars.MoveVars.HitWallMoby = NULL;
+    }
 
 #if DEBUG
     vector_copy(MoveCheckHit, CollLine_Fix_GetHitPosition());
@@ -387,6 +390,7 @@ void mobMove(Moby* moby)
     pvars->MobVars.MoveVars.Grounded = 0;
     pvars->MobVars.MoveVars.WallSlope = 0;
     pvars->MobVars.MoveVars.HitWall = 0;
+    pvars->MobVars.MoveVars.HitWallMoby = NULL;
 
     if (1)
     {
