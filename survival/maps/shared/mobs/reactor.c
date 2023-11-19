@@ -872,7 +872,7 @@ void reactorDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void reactorDoChargeDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius * 2, amount, damageFlags, friendlyFire, REACTOR_SUBSKELETON_JOINT_HIPS);
+  mobDoDamage(moby, radius * 2.5, amount, damageFlags, friendlyFire, REACTOR_SUBSKELETON_JOINT_HIPS);
 }
 
 //--------------------------------------------------------------------------

@@ -307,7 +307,7 @@ int bigalHandleEvent_PathUpdate(Moby* moby, GuberEvent* event)
   u16 stuckForTicks;
   VECTOR position;
 
-  DPRINTF("bigal path update: %08X\n", (u32)moby);
+  // DPRINTF("bigal path update: %08X\n", (u32)moby);
   struct BigAlPVar* pvars = (struct BigAlPVar*)moby->PVar;
   if (!pvars)
     return 0;

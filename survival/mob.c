@@ -1043,7 +1043,9 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 
   pvars->MobVars.DynamicRandom = args.Random;
 	
+#if LOG_STATS2
 	DPRINTF("mob state update event %08X, %08X, %d\n", (u32)moby, (u32)event, args.Action);
+#endif
 	return 0;
 }
 

@@ -475,7 +475,6 @@ void zombieDoAction(Moby* moby)
             jumpSpeed = 8; //clamp(0 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 1, 3, 15);
           }
 
-          //DPRINTF("jump %f\n", jumpSpeed);
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
           pvars->MobVars.MoveVars.Grounded = 0;
         }

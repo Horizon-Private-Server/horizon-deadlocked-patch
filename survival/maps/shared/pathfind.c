@@ -328,7 +328,7 @@ void pathGetPath(Moby* moby)
     pvars->MobVars.Dirty = 1;
   }
 
-#if DEBUG && 0
+#if DEBUGPATH
   DPRINTF("NEW PATH GENERATED: (%d)\n", gameGetTime());
   DPRINTF("\tFROM NODE %d\n", closestNodeIdxToMob);
   DPRINTF("\tTO NODE %d\n", closestNodeIdxToTarget);
@@ -702,7 +702,9 @@ int pathShouldJump(Moby* moby)
  
     // we've stepped over threshold for when to jump in the last frame
     if (jumpSpeed > 0 && lastDistOnEdge <= jumpAt && pvars->MobVars.MoveVars.PathEdgeAlpha > jumpAt) {
-      DPRINTF("jump %f (%f)\n", pvars->MobVars.MoveVars.PathEdgeAlpha, jumpAt);
+#if DEBUGPATH
+      DPRINTF("jump %f (%f) speed:%f\n", pvars->MobVars.MoveVars.PathEdgeAlpha, jumpAt, jumpSpeed);
+#endif
       return 1;
     }
   }

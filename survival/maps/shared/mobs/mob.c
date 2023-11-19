@@ -61,9 +61,12 @@ extern int aaa;
 #include "reactor.c"
 #endif
 
-#if DEBUG
+#if DEBUGMOVE
 VECTOR MoveCheckHit;
 VECTOR MoveCheckFinal;
+VECTOR MoveCheckUp;
+VECTOR MoveCheckDown;
+VECTOR MoveNextPos;
 #endif
 
 //--------------------------------------------------------------------------
@@ -338,7 +341,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
       pvars->MobVars.MoveVars.HitWallMoby = NULL;
     }
 
-#if DEBUG
+#if DEBUGMOVE
     vector_copy(MoveCheckHit, CollLine_Fix_GetHitPosition());
 #endif
 
@@ -353,7 +356,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 
     vector_add(outputPos, to, reflectedDelta);
 
-#if DEBUG
+#if DEBUGMOVE
     vector_copy(MoveCheckFinal, outputPos);
 #endif
     return 1;
@@ -405,6 +408,14 @@ void mobMove(Moby* moby)
     pvars->MobVars.MoveVars.HitWall = 0;
     pvars->MobVars.MoveVars.HitWallMoby = NULL;
 
+#if DEBUGMOVE
+    vector_write(MoveCheckHit, 0);
+    vector_write(MoveCheckFinal, 0);
+    vector_write(MoveCheckUp, 0);
+    vector_write(MoveCheckDown, 0);
+    vector_write(MoveNextPos, 0);
+#endif
+
     if (1)
     {
       // add additive velocity
@@ -448,6 +459,10 @@ void mobMove(Moby* moby)
           vector_copy(nextPos, CollLine_Fix_GetHitPosition());
           nextPos[2] += 0.01;
 
+#if DEBUGMOVE
+          vector_copy(MoveCheckDown, CollLine_Fix_GetHitPosition());
+#endif
+
           // remove vertical velocity from velocity
           vector_projectonhorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
         }
@@ -461,12 +476,24 @@ void mobMove(Moby* moby)
           // force position to below ceiling
           //vector_copy(nextPos, CollLine_Fix_GetHitPosition());
           //nextPos[2] -= 0.01;
-          vector_copy(nextPos, moby->Position);
+
+#if DEBUGMOVE
+          vector_copy(MoveCheckUp, CollLine_Fix_GetHitPosition());
+#endif
+
+          vector_copy(nextPos, CollLine_Fix_GetHitPosition());
+          nextPos[2] = maxf(moby->Position[2], groundCheckTo[2] - 3);
+
+          //vector_copy(nextPos, moby->Position);
 
           // remove vertical velocity from velocity
           //vectorProjectOnHorizontal(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity);
         }
       }
+
+#if DEBUGMOVE
+      vector_copy(MoveNextPos, nextPos);
+#endif
 
       // set position
       vector_copy(pvars->MobVars.MoveVars.NextPosition, nextPos);
@@ -568,7 +595,7 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
     float min = collRadius + PLAYER_COLL_RADIUS;
     float max = min + (targetSpeed * 0.2);
 
-    if (distNextToTarget == 0 || distToTarget == 0) return;
+    if (distNextToTarget == 0 || distToTarget == 0 || distToTarget > pvars->MobVars.Config.CollRadius) return;
 
     if (distNextToTarget > distToTarget) {
       targetSpeed = 0;
@@ -658,6 +685,14 @@ void mobPostDrawDebug(Moby* moby)
     mobyGetJointMatrix(moby, i, jointMtx);
     draw3DMarker(&jointMtx[12], 0.5, 0x80FFFFFF, buf);
   }
+#endif
+
+#if DEBUGMOVE
+  draw3DMarker(MoveCheckHit, 1, 0x80FFFFFF, "-");
+  draw3DMarker(MoveCheckFinal, 1, 0x80FFFFFF, "+");
+  draw3DMarker(MoveCheckUp, 1, 0x80FFFFFF, "^");
+  draw3DMarker(MoveCheckDown, 1, 0x80FFFFFF, "v");
+  draw3DMarker(MoveNextPos, 1, 0x80FFFFFF, "o");
 #endif
 }
 #endif

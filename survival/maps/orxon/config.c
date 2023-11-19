@@ -365,6 +365,20 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
 };
 const int MysteryBoxItemMysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)/sizeof(struct MysteryBoxItemWeight);
 
+struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
+  { MYSTERY_BOX_ITEM_RESET_GATE, 0.03 },
+  { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
+  { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
+  { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },
+  { MYSTERY_BOX_ITEM_ACTIVATE_POWER, 0.0888 },
+  { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.0967 },
+  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
+  { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
+  // { MYSTERY_BOX_ITEM_WEAPON_MOD, 0.4 },
+  { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
+};
+const int MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount = sizeof(MysteryBoxItemProbabilitiesLucky)/sizeof(struct MysteryBoxItemWeight);
+
 void configInit(void)
 {
   MapConfig.DefaultSpawnParams = defaultSpawnParams;

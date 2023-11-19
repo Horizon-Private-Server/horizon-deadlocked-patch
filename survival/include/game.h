@@ -46,7 +46,7 @@
 #define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
 #define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 		(25)
-#define MOB_MOVE_SKIP_TICKS                   (2)
+#define MOB_MOVE_SKIP_TICKS                   (4)
 
 #define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(1)
 #define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)

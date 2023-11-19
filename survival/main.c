@@ -2614,9 +2614,9 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
     }
     case CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS:
     {
-      FIXEDTARGETMOBY->Position[0] = 677.282;
-      FIXEDTARGETMOBY->Position[1] = 872.048;
-      FIXEDTARGETMOBY->Position[2] = 510;
+      FIXEDTARGETMOBY->Position[0] = 540.35;
+      FIXEDTARGETMOBY->Position[1] = 858.3;
+      FIXEDTARGETMOBY->Position[2] = 507.02;
       break;
     }
   }
@@ -2728,8 +2728,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 #if DEBUG
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_LUCK;
-    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
+    //State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_LUCK;
+    //State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
   }
 	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
 		State.GameOver = 1;
@@ -2742,7 +2742,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      //manSpawnMobId = 1;
+      //manSpawnMobId = 0;
       //manSpawnMobId = 5;
 			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
