@@ -629,7 +629,7 @@ void mobUpdate(Moby* moby)
   }
   ((void (*)(Moby*, float*, MobyColDamage*))0x005184d0)(moby, &damage, colDamage);
 
-  if (colDamage && damage > 0) {
+  if (colDamage && damage > 0 && colDamage->Damager) {
     Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
     if (damager) {
       damage *= 1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
@@ -881,7 +881,9 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		Player * killedByPlayer = players[(int)killedByPlayerId];
 		if (killedByPlayer) {
 			float randomValue = randRange(0.0, 1.0);
-			if (randomValue < MOB_HAS_DROP_PROBABILITY) {
+      float probability = State.PlayerStates[(int)killedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
+			DPRINTF("%f/%f\n", randomValue, probability);
+      if (randomValue < probability) {
 				dropCreate(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
 			}
 		}

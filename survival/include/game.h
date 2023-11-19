@@ -88,7 +88,8 @@
 #define DOUBLE_POINTS_DURATION								(20 * TIME_SECOND)
 #define DOUBLE_XP_DURATION								    (20 * TIME_SECOND)
 #define FREEZE_DROP_DURATION									(10 * TIME_SECOND)
-#define MOB_HAS_DROP_PROBABILITY						(0.01)
+#define MOB_HAS_DROP_PROBABILITY						  (0.01)
+#define MOB_HAS_DROP_PROBABILITY_LUCKY			  (0.05)
 #define DROP_MAX_SPAWNED											(4)
 
 #define PLAYER_BASE_REVIVE_COST								(5000)
@@ -116,6 +117,12 @@
 
 #define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
 #define ITEM_INFAMMO_DURATION                 (30*TIME_SECOND)
+#define ITEM_QUAD_DURATION_TPS                (1*60*TPS)
+#define ITEM_SHIELD_DURATION_TPS              (1*60*TPS)
+#define ITEM_EMP_HEALTH_EFFECT_RADIUS         (15)
+
+#define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 1)
+#define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 3)
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
 
@@ -168,13 +175,16 @@ enum MobStatId
   MOB_STAT_COUNT
 };
 
-enum PassiveItemId
+enum BlessingItemId
 {
-  PASSIVE_ITEM_NONE           = 0,
-  PASSIVE_ITEM_TRIPLE_JUMP    = 1,
-  PASSIVE_ITEM_LUCK           = 2,
-  PASSIVE_ITEM_INF_CBOOT      = 3,
-  PASSIVE_ITEM_ELEM_IMMUNITY  = 4,
+  BLESSING_ITEM_NONE           = 0,
+  BLESSING_ITEM_QUAD_JUMP    = 1,
+  BLESSING_ITEM_LUCK           = 2,
+  BLESSING_ITEM_INF_CBOOT      = 3,
+  BLESSING_ITEM_ELEM_IMMUNITY  = 4,
+  BLESSING_ITEM_HEALTH_REGEN   = 5,
+  BLESSING_ITEM_AMMO_REGEN     = 6,
+  BLESSING_ITEM_COUNT
 };
 
 struct MobConfig;
@@ -212,7 +222,7 @@ struct SurvivalPlayerState
 	int TotalTokens;
 	int CurrentTokens;
   int Item;
-  int ItemPassive;
+  int ItemBlessing;
   int BestRound;
   int TimesRolledMysteryBox;
   int TimesActivatedDemonBell;

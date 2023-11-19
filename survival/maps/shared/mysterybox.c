@@ -29,6 +29,7 @@
 #include <libdl/color.h>
 #include <libdl/utils.h>
 #include "module.h"
+#include "../../include/mysterybox.h"
 #include "../../include/game.h"
 #include "gate.h"
 #include "messageid.h"
@@ -48,6 +49,9 @@ char* ITEM_NAMES[] = {
   [MYSTERY_BOX_ITEM_REVIVE_TOTEM] "Self Revive",
   [MYSTERY_BOX_ITEM_DREAD_TOKEN] "Dread Token",
   [MYSTERY_BOX_ITEM_WEAPON_MOD] "",
+  [MYSTERY_BOX_ITEM_QUAD] "Quad",
+  [MYSTERY_BOX_ITEM_SHIELD] "Shield",
+  [MYSTERY_BOX_ITEM_EMP_HEALTH_GUN] "Health Gun",
 };
 
 int ITEM_TEX_IDS[] = {
@@ -60,6 +64,9 @@ int ITEM_TEX_IDS[] = {
   [MYSTERY_BOX_ITEM_REVIVE_TOTEM] 80 - 3,
   [MYSTERY_BOX_ITEM_DREAD_TOKEN] 35 - 3,
   [MYSTERY_BOX_ITEM_WEAPON_MOD] 46 - 3,
+  [MYSTERY_BOX_ITEM_QUAD] 12 - 3,
+  [MYSTERY_BOX_ITEM_SHIELD] 96 - 3,
+  [MYSTERY_BOX_ITEM_EMP_HEALTH_GUN] 15 - 3,
 };
 
 u32 ITEM_COLORS[] = {
@@ -72,6 +79,9 @@ u32 ITEM_COLORS[] = {
   [MYSTERY_BOX_ITEM_REVIVE_TOTEM] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_DREAD_TOKEN] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_WEAPON_MOD] 0x80FFFFFF,
+  [MYSTERY_BOX_ITEM_QUAD] 0x80FFFFFF,
+  [MYSTERY_BOX_ITEM_SHIELD] 0x80FFFFFF,
+  [MYSTERY_BOX_ITEM_EMP_HEALTH_GUN] 0x80FFFFFF,
 };
 
 int ALPHA_MOD_TEX_IDS[] = {
@@ -111,7 +121,9 @@ SoundDef BaseMysteryBoxSoundDef =
 };
 
 extern struct MysteryBoxItemWeight MysteryBoxItemProbabilities[];
+extern struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[];
 extern const int MysteryBoxItemMysteryBoxItemProbabilitiesCount;
+extern const int MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount;
 
 //--------------------------------------------------------------------------
 void mboxPlayOpenSound(Moby* moby)
@@ -145,20 +157,61 @@ int mboxRand(int mod)
 }
 
 //--------------------------------------------------------------------------
+void mboxActivateQuad(void)
+{
+  int i;
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->SkinMoby)
+      continue;
+
+    player->timers.damageMuliplierTimer = ITEM_QUAD_DURATION_TPS;
+    player->DamageMultiplier = 4;
+  }
+}
+
+//--------------------------------------------------------------------------
+void mboxActivateShield(void)
+{
+  int i;
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->SkinMoby)
+      continue;
+
+    player->timers.armorLevelTimer = ITEM_SHIELD_DURATION_TPS;
+    player->ArmorLevel = 3;
+  }
+}
+
+//--------------------------------------------------------------------------
 void mboxActivate(Moby* moby, int activatedByPlayerId)
 {
   int i;
+  int hasLuck = 0;
 
 	// create event
 	GuberEvent * guberEvent = guberCreateEvent(moby, MYSTERY_BOX_EVENT_ACTIVATE);
   if (guberEvent) {
 
+    // check if user has luck
     // pick random by weight
-    for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesCount-1); ++i)
-    {
-      float r = mboxRand(1000000) / 999999.0;
-      if (r < MysteryBoxItemProbabilities[i].Probability)
-        break;
+    if (MapConfig.State && MapConfig.State->PlayerStates[activatedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK) {
+      for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount-1); ++i)
+      {
+        float r = mboxRand(1000000) / 999999.0;
+        if (r < MysteryBoxItemProbabilitiesLucky[i].Probability)
+          break;
+      }
+    } else {
+      for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesCount-1); ++i)
+      {
+        float r = mboxRand(1000000) / 999999.0;
+        if (r < MysteryBoxItemProbabilities[i].Probability)
+          break;
+      }
     }
 
     int item = MysteryBoxItemProbabilities[i].Item;
@@ -417,6 +470,9 @@ void mboxUpdate(Moby* moby)
           case MYSTERY_BOX_ITEM_REVIVE_TOTEM:
           case MYSTERY_BOX_ITEM_ACTIVATE_POWER:
           case MYSTERY_BOX_ITEM_INFINITE_AMMO:
+          case MYSTERY_BOX_ITEM_QUAD:
+          case MYSTERY_BOX_ITEM_SHIELD:
+          case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
           case MYSTERY_BOX_ITEM_DREAD_TOKEN:
           {
             sprintf(buf, "\x11 %s", ITEM_NAMES[pvars->Item]);
@@ -565,7 +621,7 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
 {
-  int playerId, item, random;
+  int playerId, item, random, i;
   Player** players = playerGetAll();
   
   //DPRINTF("mbox give player: %08X\n", (u32)moby);
@@ -633,7 +689,24 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
           }
           break;
         }
+        case MYSTERY_BOX_ITEM_QUAD:
+        {
+          if (MapConfig.State) {
+            mboxActivateQuad();
+            pushSnack(-1, "Quad!", TPS);
+          }
+          break;
+        }
+        case MYSTERY_BOX_ITEM_SHIELD:
+        {
+          if (MapConfig.State) {
+            mboxActivateShield();
+            pushSnack(-1, "Shield!", TPS);
+          }
+          break;
+        }
         case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
+        case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
         case MYSTERY_BOX_ITEM_REVIVE_TOTEM:
         {
           if (playerData)

@@ -108,6 +108,10 @@ PatchConfig_t* playerConfig = NULL;
 int playerStates[GAME_MAX_PLAYERS];
 int playerStateTimers[GAME_MAX_PLAYERS];
 
+char blessingQuadJumpJumpCount[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+short blessingTimeBasedTickers[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+VECTOR blessingLastPosition[GAME_MAX_PLAYERS] = {};
+
 SoundDef TestSoundDef =
 {
 	0.0,	  // MinRange
@@ -275,6 +279,8 @@ void drawSnack(void)
 //--------------------------------------------------------------------------
 struct GuberMoby* getGuber(Moby* moby)
 {
+  if (!moby) return NULL;
+
 	if (moby->OClass == UPGRADE_MOBY_OCLASS && moby->PVar)
 		return moby->GuberMoby;
 	if (moby->OClass == DROP_MOBY_OCLASS && moby->PVar)
@@ -1331,6 +1337,158 @@ int getPlayerReviveCost(Player * fromPlayer, Player * player) {
 }
 
 //--------------------------------------------------------------------------
+void onEmpExplode(Moby* moby, VECTOR from, VECTOR to, u32 a3, u32 t0, u32 t1, u32 t2, u32 t3, float f12, float f13, float f14, float f15) {
+  
+  int i;
+  Player** players = playerGetAll();
+  VECTOR dt;
+  Player* fromPlayer = guberMobyGetPlayerDamager(moby);
+
+  if (fromPlayer) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* player = players[i];
+      if (!player || !player->SkinMoby) continue;
+
+      vector_subtract(dt, player->PlayerPosition, to);
+      if (vector_sqrmag(dt) < (ITEM_EMP_HEALTH_EFFECT_RADIUS*ITEM_EMP_HEALTH_EFFECT_RADIUS)) {
+        if (playerIsDead(player)) {
+          playerRevive(player, fromPlayer->PlayerId);
+        } else {
+          playerSetHealth(player, player->MaxHealth);
+        }
+      }
+    }
+  }
+  
+  ((void (*)(Moby* moby, VECTOR from, VECTOR to, u32 a3, u32 t0, u32 t1, u32 t2, u32 t3, float f12, float f13, float f14, float f15))0x00420ac0)(
+    moby, from, to, a3, t0, t1, t2, t3,
+    f12, f13, f14, f15
+  );
+}
+
+//--------------------------------------------------------------------------
+int onEmpHitMoby(Moby* moby) {
+  Player* player = guberMobyGetPlayerDamager(moby);
+  return player != 0;
+}
+
+//--------------------------------------------------------------------------
+Moby* onEmpFired(int oclass, int pvarSize, Moby* empLauncherMoby) {
+  
+  if (empLauncherMoby) {
+    Player* firedFromPlayer = guberMobyGetPlayerDamager(empLauncherMoby);
+    if (firedFromPlayer) {
+
+      // remove item
+      if (State.PlayerStates[firedFromPlayer->PlayerId].State.Item == MYSTERY_BOX_ITEM_EMP_HEALTH_GUN)
+        State.PlayerStates[firedFromPlayer->PlayerId].State.Item = -1;
+
+      // unequip emp
+      if (firedFromPlayer->IsLocal && firedFromPlayer->WeaponHeldId == WEAPON_ID_EMP) {
+        playerEquipWeapon(firedFromPlayer, playerGetLocalEquipslot(firedFromPlayer->LocalPlayerIndex, 0));
+      }
+    }
+  }
+
+  return mobySpawn(oclass, pvarSize);
+}
+
+//--------------------------------------------------------------------------
+void playerBlessingOnDoubleJump(Player* player, int stateId, int a2, int a3, int t0) {
+	struct SurvivalPlayer * playerData = &State.PlayerStates[player->PlayerId];
+  PlayerVTable* vtable = playerGetVTable(player);
+  if (!vtable) return;
+
+  if (playerData->State.ItemBlessing == BLESSING_ITEM_QUAD_JUMP
+      && (player->PlayerState == PLAYER_STATE_JUMP || player->PlayerState == PLAYER_STATE_RUN_JUMP)
+      && blessingQuadJumpJumpCount[player->PlayerId] < 2) {
+    blessingQuadJumpJumpCount[player->PlayerId] += 1;
+    vtable->UpdateState(player, PLAYER_STATE_JUMP, a2, a3, t0);
+  } else {
+    blessingQuadJumpJumpCount[player->PlayerId] = 0;
+    vtable->UpdateState(player, stateId, a2, a3, t0);
+  }
+}
+
+//--------------------------------------------------------------------------
+int playerBlessingGetAmmoRegenAmount(int weaponId) {
+	
+  switch (weaponId)
+  {
+    case WEAPON_ID_VIPERS: return 5;
+    case WEAPON_ID_MAGMA_CANNON:
+    case WEAPON_ID_ARBITER:
+    case WEAPON_ID_MINE_LAUNCHER:
+    case WEAPON_ID_FUSION_RIFLE:
+    case WEAPON_ID_OMNI_SHIELD:
+    case WEAPON_ID_FLAIL:
+    case WEAPON_ID_B6:
+      return 1;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+void processPlayerBlessing(Player* player, int blessing) {
+  if (!player) return;
+
+  // reset quad jump counter when not in first jump state
+  if (player->PlayerState != PLAYER_STATE_JUMP && player->PlayerState != PLAYER_STATE_RUN_JUMP)
+    blessingQuadJumpJumpCount[player->PlayerId] = 0;
+
+  switch (blessing)
+  {
+    case BLESSING_ITEM_INF_CBOOT:
+    {
+      if (player->PlayerState == PLAYER_STATE_CHARGE && player->timers.state > 55 && playerPadGetButton(player, PAD_L2) > 0) {
+        player->timers.state = 55;
+      }
+      break;
+    }
+    case BLESSING_ITEM_ELEM_IMMUNITY:
+    {
+      player->timers.acidTimer = 0;
+      player->timers.freezeTimer = 0;
+      break;
+    }
+    case BLESSING_ITEM_HEALTH_REGEN:
+    {
+      if (blessingTimeBasedTickers[player->PlayerId] > 0) {
+        --blessingTimeBasedTickers[player->PlayerId];
+      } else {
+        player->Health = clamp(player->Health + 1, 0, player->MaxHealth);
+        blessingTimeBasedTickers[player->PlayerId] = ITEM_BLESSING_HEALTH_REGEN_RATE_TPS;
+      }
+      break;
+    }
+    case BLESSING_ITEM_AMMO_REGEN:
+    {
+      if (blessingTimeBasedTickers[player->PlayerId] > 0) {
+        --blessingTimeBasedTickers[player->PlayerId];
+      } else {
+
+        VECTOR dt;
+        vector_subtract(dt, blessingLastPosition[player->PlayerId], player->PlayerPosition);
+        if (vector_sqrmag(dt) > 1) {
+          struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[player->WeaponHeldId];
+          int maxAmmo = playerGetWeaponMaxAmmo(player->GadgetBox, player->WeaponHeldId);
+          int ammo = gadgetEntry->Ammo;
+          int ammoInc = playerBlessingGetAmmoRegenAmount(player->WeaponHeldId);
+          if (ammoInc > 0 && ammo < maxAmmo) {
+            gadgetEntry->Ammo = (ammo + ammoInc) > maxAmmo ? maxAmmo : (ammo + ammoInc);
+          }
+        }
+
+        vector_copy(blessingLastPosition[player->PlayerId], player->PlayerPosition);
+        blessingTimeBasedTickers[player->PlayerId] = ITEM_BLESSING_AMMO_REGEN_RATE_TPS;
+      }
+      break;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
 void processPlayer(int pIndex) {
 	VECTOR t;
 	int i = 0, localPlayerIndex, heldWeapon, hasMessage = 0;
@@ -1389,6 +1547,11 @@ void processPlayer(int pIndex) {
   else
     playerStateTimers[pIndex] += 1;
   playerStates[pIndex] = player->PlayerState;
+
+  // blessing
+  if (playerData->State.ItemBlessing) {
+    processPlayerBlessing(player, playerData->State.ItemBlessing);
+  }
 
 	if (player->IsLocal) {
 		
@@ -1623,8 +1786,20 @@ void processPlayer(int pIndex) {
 		}
 
     // handle items
-    if (padGetButtonDown(0, PAD_LEFT) > 0 && (playerData->State.Item == MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK)) {
-      playerUseItem(pIndex, playerData->State.Item);
+    if (padGetButtonDown(0, PAD_LEFT) > 0) {
+      switch (playerData->State.Item)
+      {
+        case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
+        {
+          playerUseItem(pIndex, playerData->State.Item);
+          break;
+        }
+        case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
+        {
+          playerEquipWeapon(player, WEAPON_ID_EMP);
+          break;
+        }
+      }
     }
 
     /*
@@ -2140,6 +2315,13 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	// Fix v10 arb overlapping shots
 	*(u32*)0x003F2E70 = 0x24020000;
 
+  // fix emp
+  POKE_U32(0x0042075C, 0x2C42010B);
+  //POKE_U32(0x00420610, 0x24050001);
+  HOOK_JAL(0x00420634, &onEmpHitMoby);
+  HOOK_JAL(0x004209bc, &onEmpExplode);
+  HOOK_JAL(0x0041fb8c, &onEmpFired);
+
 	// Change mine update function to ours
   u32 mineUpdateFunc = 0x003c6c28;
   u32* updateFuncs = (u32*)0x00249980;
@@ -2193,6 +2375,9 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   mapConfig->UpgradePlayerWeaponFunc = &mapUpgradePlayerWeaponHandler;
   mapConfig->PushSnackFunc = &pushSnack;
   mapConfig->PopulateSpawnArgsFunc = &populateSpawnArgsFromConfig;
+
+  // hook blessings
+  HOOK_JAL(0x0060C660, &playerBlessingOnDoubleJump);
 
 	// custom damage cooldown time
 	//POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
@@ -2363,6 +2548,11 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 
 	DPRINTF("vendor %08X\n", (u32)State.Vendor);
 	DPRINTF("big al %08X\n", (u32)State.BigAl);
+
+  // set vendor icon
+  if (State.Vendor) {
+    State.Vendor->Bangles = 0x8;
+  }
 
 	// special
 	memset(State.RoundSpecialSpawnableZombies, -1, sizeof(State.RoundSpecialSpawnableZombies));
@@ -2537,6 +2727,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #endif
 
 #if DEBUG
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_LUCK;
+    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
+  }
 	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
 		State.GameOver = 1;
 #endif
@@ -2550,7 +2744,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       // force one mob type
       //manSpawnMobId = 1;
       //manSpawnMobId = 5;
-			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
@@ -2693,6 +2887,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     {
       case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
       case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 19 - 3; useItemChar = '\x1A'; break;
+      case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN: itemTexId = 15 - 3; useItemChar = '\x1A'; break;
       default: break;
     }
 
