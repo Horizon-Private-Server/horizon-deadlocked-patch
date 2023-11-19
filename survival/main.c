@@ -2548,7 +2548,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      manSpawnMobId = 0;
+      //manSpawnMobId = 1;
       //manSpawnMobId = 5;
 			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 

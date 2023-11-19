@@ -14,7 +14,7 @@
 
 #define TRAILSHOT_MAX_TRAIL_PARTICLES             (32)
 #define TRAILSHOT_MAX_ACTIVE_AT_ONCE              (5)
-#define TRAILSHOT_TRAIL_DAMAGE_FALLOFF            (0.25)
+#define TRAILSHOT_TRAIL_DAMAGE                    (5)
 
 extern int aaa;
 
@@ -121,7 +121,7 @@ void trailshotDrawTrailParticles(Moby* moby)
       Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
       Moby* hitMoby;
       while ((hitMoby = *hitMobies++)) {
-        trailshotDamage(mob, hitMoby, 0x00008801, pvars->Damage * TRAILSHOT_TRAIL_DAMAGE_FALLOFF);
+        trailshotDamage(mob, hitMoby, 0x00008801, TRAILSHOT_TRAIL_DAMAGE);
       }
     }
 

@@ -809,7 +809,7 @@ void reactorDoAction(Moby* moby)
 			if (attackCanDoChargeDamage && damageFlags) {
 				reactorDoChargeDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage * 2, damageFlags, 0);
 			} else if (attackCanDoSwingDamage && damageFlags) {
-				reactorDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage * 2, damageFlags, 0);
+				reactorDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage * 1.5, damageFlags, 0);
 			}
 			break;
 		}

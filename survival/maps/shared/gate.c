@@ -170,24 +170,24 @@ int gateCanInteract(Moby* gate, VECTOR point)
   vector_subtract(delta, point, gate->Position);
 
   // outside vertical range
-  if (fabsf(delta[2]) > (pvars->Height/2))
+  if (fabsf(delta[2]) > ((pvars->Height/2) + 0.5))
     return 0;
 
   // get closest point on gate to point
   vector_subtract(gateTangent, pvars->To, pvars->From);
-  float gateLength = vector_length(gateTangent);
+  float gateLength = pvars->Length;
   vector_scale(gateTangent, gateTangent, 1 / gateLength);
 
-  vector_subtract(delta, point, pvars->From);
+  vector_subtract(delta, point, gate->Position);
   float dot = vector_innerproduct_unscaled(delta, gateTangent);
-  if (dot < -GATE_INTERACT_CAP_RADIUS)
+  if (dot < (-gateLength/2 - GATE_INTERACT_CAP_RADIUS))
     return 0;
 
-  if (dot > (gateLength + GATE_INTERACT_CAP_RADIUS))
+  if (dot > (gateLength/2 + GATE_INTERACT_CAP_RADIUS))
     return 0;
 
   vector_scale(gateClosestToPoint, gateTangent, dot);
-  vector_add(gateClosestToPoint, gateClosestToPoint, pvars->From);
+  vector_add(gateClosestToPoint, gateClosestToPoint, gate->Position);
   vector_subtract(delta, point, gateClosestToPoint);
   delta[2] = 0;
   return vector_sqrmag(delta) < (GATE_INTERACT_RADIUS*GATE_INTERACT_RADIUS);
@@ -237,13 +237,13 @@ void gateUpdate(Moby* moby)
     vector_outerproduct(moby->M0_03, moby->M1_03, moby->M2_03);
 
     // allow game to update BSphere
-    moby->ModeBits &= ~4;
+    moby->ModeBits &= ~MOBY_MODE_BIT_NO_POST_UPDATE;
     pvars->Dirty = 0;
   }
   else
   {
     // prevent game from updating BSphere
-    moby->ModeBits |= 4;
+    moby->ModeBits |= MOBY_MODE_BIT_NO_POST_UPDATE;
   }
 
 #if DEBUG1
@@ -272,13 +272,14 @@ void gateUpdate(Moby* moby)
   }
 
   // force BSphere radius to something larger so that entire collision registers
-  moby->BSphere[3] = 14444;
+  moby->BSphere[3] = 10000 * pvars->Length;
 }
 
 //--------------------------------------------------------------------------
 int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 {
 	int i;
+  VECTOR fromToDelta;
   
   DPRINTF("gate spawned: %08X\n", (u32)moby);
   struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
@@ -291,6 +292,9 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &pvars->Height, 4);
 	guberEventRead(event, &pvars->Cost, 4);
 	guberEventRead(event, &pvars->Id, 1);
+
+  vector_subtract(fromToDelta, pvars->To, pvars->From);
+  pvars->Length = vector_length(fromToDelta);
 
 	// set update
 	moby->PUpdate = &gateUpdate;
