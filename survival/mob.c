@@ -64,6 +64,54 @@ int mobAmIOwner(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void mobStatsOnNewMobCreated(int spawnParamIdx)
+{
+  if (!mapConfig) return;
+
+  if (spawnParamIdx >= 0 && spawnParamIdx < mapConfig->DefaultSpawnParamsCount) {
+    State.MobStats.NumAlive[spawnParamIdx]++;
+    State.MobStats.NumSpawnedThisRound[spawnParamIdx]++;
+    State.MobStats.TotalAlive++;
+    State.MobStats.TotalSpawned++;
+    State.MobStats.TotalSpawnedThisRound++;
+  }
+}
+
+//--------------------------------------------------------------------------
+void mobStatsOnNewMobSpawned(Moby* moby, int spawnFromUID, int fromThisClient)
+{
+  if (!moby) return;
+  if (!mapConfig) return;
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (!pvars) return;
+
+  // increment stats if we haven't already run mobStatsOnNewMobCreated
+  int spIdx = pvars->MobVars.SpawnParamsIdx;
+  if (spawnFromUID == -1 && !fromThisClient && spIdx >= 0 && spIdx < mapConfig->DefaultSpawnParamsCount) {
+    State.MobStats.NumAlive[spIdx]++;
+    State.MobStats.NumSpawnedThisRound[spIdx]++;
+    State.MobStats.TotalAlive++;
+    State.MobStats.TotalSpawned++;
+    State.MobStats.TotalSpawnedThisRound++;
+  }
+}
+
+//--------------------------------------------------------------------------
+void mobStatsOnMobDestroyed(Moby* moby)
+{
+  if (!moby) return;
+  if (!mapConfig) return;
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (!pvars) return;
+
+  int spIdx = pvars->MobVars.SpawnParamsIdx;
+  if (spIdx >= 0 && spIdx < mapConfig->DefaultSpawnParamsCount) {
+    State.MobStats.NumAlive[spIdx]--;
+    State.MobStats.TotalAlive--;
+  }
+}
+
+//--------------------------------------------------------------------------
 void mobSpawnCorn(Moby* moby, int bangle)
 {
 #if MOB_CORN
@@ -197,16 +245,29 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 int getMaxComplexity(void)
 {
   int maxComplexity = MAX_MOB_COMPLEXITY_DRAWN;
+  int i = 0;
+  Player** players = playerGetAll();
 
   // reduce by lod
-  maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? playerConfig->levelOfDetail : 2);
+  // maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? playerConfig->levelOfDetail : 2);
 
   // dzo bypasses max complexity
   if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_DZO)
     maxComplexity = MAX_MOB_COMPLEXITY_DRAWN_DZO;
 
-  // reduce by number of players
-  maxComplexity -= (MOB_COMPLEXITY_SKIN_FACTOR * State.ActivePlayerCount);
+  // reduce by map complexity
+  maxComplexity -= State.MapBaseComplexity;
+
+  // reduce by number of visible players
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* p = players[i];
+    if (!p) continue;
+    if (!p->SkinMoby) continue;
+
+    if (p->SkinMoby->Drawn) {
+      maxComplexity -= MOB_COMPLEXITY_SKIN_FACTOR;
+    }
+  }
 
 	if (maxComplexity < MAX_MOB_COMPLEXITY_MIN)
     return MAX_MOB_COMPLEXITY_MIN;
@@ -219,15 +280,24 @@ int mobyComputeComplexity(Moby * moby)
   int complexity = 0;
   int i;
 
+  if (mobyIsMob(moby) && mapConfig) {
+    struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+    // pull from spawn params
+    if (pvars->MobVars.SpawnParamsIdx >= 0 && pvars->MobVars.SpawnParamsIdx < mapConfig->DefaultSpawnParamsCount) {
+      return mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].Cost;
+    }
+  }
+
   // baked by oclass
   switch (moby->OClass)
   {
-    case ZOMBIE_MOBY_OCLASS: return 650;
-    case TREMOR_MOBY_OCLASS: return 900;
-    case SWARMER_MOBY_OCLASS: return 500;
-    case REACTOR_MOBY_OCLASS: return 2000;
-    case REAPER_MOBY_OCLASS: return 1000;
-    case EXECUTIONER_MOBY_OCLASS: return 1500;
+    case ZOMBIE_MOBY_OCLASS: return ZOMBIE_RENDER_COST;
+    case TREMOR_MOBY_OCLASS: return TREMOR_RENDER_COST;
+    case SWARMER_MOBY_OCLASS: return SWARMER_RENDER_COST;
+    case REACTOR_MOBY_OCLASS: return REACTOR_RENDER_COST;
+    case REAPER_MOBY_OCLASS: return REAPER_RENDER_COST;
+    case EXECUTIONER_MOBY_OCLASS: return EXECUTIONER_RENDER_COST;
   }
 
   if (!moby || !moby->PClass)
@@ -439,7 +509,7 @@ void mobHandleDraw(Moby* moby)
       float rank = 1 - clamp(order / (float)State.RoundMaxSpawnedAtOnce, 0, 1);
       //float rankCurve = powf(rank, 6);
       
-      if (State.RoundMobCount > minMobsForHiding) {
+      if (State.MobStats.TotalAlive > minMobsForHiding) {
         if (rank < minRankForDrawCutoff) {
           if (pvars->VTable && pvars->VTable->PostDraw) {
             gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
@@ -488,13 +558,13 @@ void mobUpdate(Moby* moby)
 
 	// keep track of number of mobs drawn on screen to try and reduce the lag
 	int gameTime = gameGetTime();
-	if (gameTime != State.MobsDrawGameTime) {
-		State.MobsDrawGameTime = gameTime;
-		State.MobsDrawnLast = State.MobsDrawnCurrent;
-		State.MobsDrawnCurrent = 0;
+	if (gameTime != State.MobStats.MobsDrawGameTime) {
+		State.MobStats.MobsDrawGameTime = gameTime;
+		State.MobStats.MobsDrawnLast = State.MobStats.MobsDrawnCurrent;
+		State.MobStats.MobsDrawnCurrent = 0;
 	}
 	if (moby->Drawn)
-		State.MobsDrawnCurrent++;
+		State.MobStats.MobsDrawnCurrent++;
 
 	// dec timers
 	u16 nextCheckActionDelayTicks = decTimerU16(&pvars->MobVars.NextCheckActionDelayTicks);
@@ -601,7 +671,7 @@ void mobUpdate(Moby* moby)
 
 	// 
 	if (pvars->MobVars.Config.MobAttribute == MOB_ATTRIBUTE_GHOST) {
-		u8 targetOpacity =  mobHasVelocity(pvars) ? 0x80 : 0x10;
+		u8 targetOpacity = pvars->VTable->IsAttacking(moby) ? 0x80 : 0x10;
 		u8 opacity = moby->Opacity;
 		if (opacity < targetOpacity)
 			opacity = targetOpacity;
@@ -663,6 +733,11 @@ void mobUpdate(Moby* moby)
       pvars->MobVars.Respawn = 1;
     }
 
+    // auto destruct after 15 seconds of being stuck
+    else if (pvars->MobVars.MoveVars.StuckTicks > (TPS * 15)) {
+      pvars->MobVars.Respawn = 1;
+    }
+
 		// respawn
 		if (pvars->MobVars.Respawn) {
 			VECTOR p;
@@ -718,6 +793,9 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   int freeAgent;
 	char random;
 	struct MobSpawnEventArgs args;
+
+  // 
+  int fromThisClient = event->NetEvent.OriginClientIdx == gameGetMyClientId();
 
 	// read event
 	guberEventRead(event, p, 12);
@@ -823,11 +901,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// 
 	mobySetState(moby, 0, -1);
-
-	++State.RoundMobCount;
-  if (spawnFromUID == -1 && !gameAmIHost()) {
-    ++State.RoundMobSpawnedCount;
-  }
+  mobStatsOnNewMobSpawned(moby, spawnFromUID, fromThisClient);
 
 	// destroy spawn from
 	if (spawnFromUID != -1) {
@@ -836,7 +910,6 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 			struct MobPVar* spawnFromPVars = (struct MobPVar*)gm->Moby->PVar;
 			if (spawnFromPVars->MobVars.Destroyed != 1) {
 				guberMobyDestroy(gm->Moby);
-				State.RoundMobCount--;
 			}
 		}
 	}
@@ -850,7 +923,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
     pvars->VTable->OnSpawn(moby, p, yaw, spawnFromUID, random, &args);
 	
 #if LOG_STATS2
-	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.RoundMobCount, State.RoundMobSpawnedCount);
+	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.MobStats.TotalAlive, State.MobStats.TotalSpawnedThisRound);
 #endif
 	return 0;
 }
@@ -882,7 +955,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		if (killedByPlayer) {
 			float randomValue = randRange(0.0, 1.0);
       float probability = State.PlayerStates[(int)killedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
-			DPRINTF("%f/%f\n", randomValue, probability);
       if (randomValue < probability) {
 				dropCreate(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
 			}
@@ -962,13 +1034,14 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		AllMobsSorted[(int)pvars->MobVars.Order] = NULL;
 		++AllMobsSortedFreeSpots;
 	}
+
+  mobStatsOnMobDestroyed(moby);
 	guberMobyDestroy(moby);
 	moby->ModeBits &= ~0x30;
-	--State.RoundMobCount;
 	pvars->MobVars.Destroyed = 1;
 
 #if LOG_STATS2
-	DPRINTF("mob destroy event %08X, %08X, by client %d, (%d)\n", (u32)moby, (u32)event, killedByPlayerId, State.RoundMobCount);
+	DPRINTF("mob destroy event %08X, %08X, by client %d, (%d)\n", (u32)moby, (u32)event, killedByPlayerId, State.MobStats.TotalAlive);
 #endif
 	return 0;
 }
@@ -1186,6 +1259,9 @@ int mobOnUnreliableMsgRemote(void * connection, void * data)
 //--------------------------------------------------------------------------
 int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
 {
+  // log
+  if (spawnFromUID == -1) mobStatsOnNewMobCreated(spawnParamsIdx);
+
   if (mapConfig->OnMobCreateFunc)
     return mapConfig->OnMobCreateFunc(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
 
@@ -1297,6 +1373,8 @@ void mobTick(void)
 		mobLastInList = NULL;
 
   // reset
+  State.MobStats.TotalAlive = 0;
+  memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
   mobComplexitySum = 0;
   mobOrderedDrawUpToIndex = MAX_MOBS_SPAWNED;
   int maxComplexity = getMaxComplexity();
@@ -1320,6 +1398,10 @@ void mobTick(void)
 
 		if (m) {
 			struct MobPVar* pvars = (struct MobPVar*)m->PVar;
+
+      State.MobStats.TotalAlive++;
+      if (mapConfig && pvars->MobVars.SpawnParamsIdx >= 0 && pvars->MobVars.SpawnParamsIdx < mapConfig->DefaultSpawnParamsCount)
+        State.MobStats.NumAlive[pvars->MobVars.SpawnParamsIdx]++;
 
       int complexity = mobyGetComplexity(m);
       mobComplexitySum += complexity;
@@ -1394,7 +1476,7 @@ void mobTick(void)
 #if PRINT_MOB_COMPLEXITY
   //DPRINTF("MOB COMPLEXITY %d\n", mobComplexitySum);
   char buf[64];
-  snprintf(buf, 64, "%d/%d -> %d", mobComplexitySum, maxComplexity, State.MobsDrawnCurrent);
+  snprintf(buf, 64, "%d/%d -> %d", mobComplexitySum, maxComplexity, State.MobStats.MobsDrawnCurrent);
   gfxScreenSpaceText(0, 0, 1, 1, 0x80FFFFFF, buf, -1, 0);
 #endif
 }

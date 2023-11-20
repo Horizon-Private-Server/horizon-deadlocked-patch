@@ -42,7 +42,7 @@
 #include "include/utils.h"
 #include "include/gate.h"
 
-#define DIFFICULTY_FACTOR                   (State.TotalMobsSpawned / 150)
+#define DIFFICULTY_FACTOR                   (State.MobStats.TotalSpawned / 100)
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
@@ -171,7 +171,7 @@ void updateDzoHud(void)
   dzoDrawHudCmd.Tokens = State.LocalPlayerState->State.CurrentTokens;
   dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
   dzoDrawHudCmd.CurrentRoundNumber = State.RoundNumber;
-  dzoDrawHudCmd.EnemiesAlive = State.RoundMobCount;
+  dzoDrawHudCmd.EnemiesAlive = State.MobStats.TotalAlive;
   dzoDrawHudCmd.StartRoundTimer = State.RoundEndTime - gameTime;
   dzoDrawHudCmd.HasDblPoints = State.LocalPlayerState->IsDoublePoints;
   dzoDrawHudCmd.HasDblXp = State.LocalPlayerState->IsDoubleXP;
@@ -541,9 +541,14 @@ int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
 }
 
 //--------------------------------------------------------------------------
-int spawnCanSpawnMob(struct MobSpawnParams* mob)
+int spawnCanSpawnMob(struct MobSpawnParams* mob, int spawnParamIdx)
 {
-	return State.RoundNumber >= mob->MinRound && mob->Probability > 0;
+	return State.RoundNumber >= mob->MinRound
+      && mob->Probability > 0
+      && (!mob->SpecialRoundOnly || State.RoundIsSpecial)
+      && (mob->MaxSpawnedAtOnce <= 0 || State.MobStats.NumAlive[spawnParamIdx] < mob->MaxSpawnedAtOnce)
+      && (mob->MaxSpawnedPerRound <= 0 || State.MobStats.NumSpawnedThisRound[spawnParamIdx] < mob->MaxSpawnedPerRound)
+      ;
 }
 
 //--------------------------------------------------------------------------
@@ -601,16 +606,22 @@ struct MobSpawnParams* spawnGetRandomMobParams(int * mobIdx)
 
 	if (State.RoundIsSpecial && mapConfig->SpecialRoundParams) {
 		struct SurvivalSpecialRoundParam* params = &mapConfig->SpecialRoundParams[State.RoundSpecialIdx];
-		i = rand(params->SpawnParamCount);
-		if (mobIdx)
-			*mobIdx = (int)params->SpawnParamIds[i];
+    for (i = 0; i < params->SpawnParamCount; ++i) {
+      int spawnParamIdx = params->SpawnParamIds[i];
+      struct MobSpawnParams* mob = &mapConfig->DefaultSpawnParams[spawnParamIdx];
+      if (spawnCanSpawnMob(mob, spawnParamIdx) && randRange(0,1) <= mob->Probability) {
+        if (mobIdx)
+          *mobIdx = spawnParamIdx;
+        return mob;
+      }
+    }
 
-		return &mapConfig->DefaultSpawnParams[(int)params->SpawnParamIds[i]];
+    return NULL;
 	}
 
 	for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i) {
 		struct MobSpawnParams* mob = &mapConfig->DefaultSpawnParams[i];
-		if (spawnCanSpawnMob(mob) && randRange(0,1) <= mob->Probability) {
+		if (spawnCanSpawnMob(mob, i) && randRange(0,1) <= mob->Probability) {
 			if (mobIdx)
 				*mobIdx = i;
 			return mob;
@@ -654,22 +665,6 @@ int spawnRandomMob(void) {
 
 	// no more budget left
 	return 0;
-}
-
-//--------------------------------------------------------------------------
-int getMinMobCost(void) {
-	int i;
-
-  if (!mapConfig->DefaultSpawnParams)
-    return 1;
-
-	int cost = mapConfig->DefaultSpawnParams[0].Cost;
-	for (i = 1; i < mapConfig->DefaultSpawnParamsCount; ++i) {
-		if (mapConfig->DefaultSpawnParams[i].Cost < cost)
-			cost = mapConfig->DefaultSpawnParams[i].Cost;
-	}
-
-	return cost;
 }
 
 //--------------------------------------------------------------------------
@@ -1871,7 +1866,7 @@ int getRoundBonus(int roundNumber, int numPlayers)
 void onSetRoundComplete(int gameTime, int boltBonus)
 {
 	int i;
-	DPRINTF("round complete. zombies spawned %d/%d\n", State.RoundMobSpawnedCount, State.RoundMaxMobCount);
+	DPRINTF("round complete. zombies spawned %d/%d\n", State.MobStats.TotalSpawnedThisRound, State.RoundMaxMobCount);
 
 	// 
 	State.RoundEndTime = 0;
@@ -1934,9 +1929,25 @@ void onSetRoundStart(int roundNumber, int gameTime)
 	// 
 	State.RoundNumber = roundNumber;
 	State.RoundEndTime = gameTime;
+  State.RoundIsSpecial = 0;
   if (mapConfig->DefaultSpawnParams && mapConfig->SpecialRoundParamsCount > 0) {
-    State.RoundIsSpecial = ((roundNumber + 1) % ROUND_SPECIAL_EVERY) == 0;
-    State.RoundSpecialIdx = (roundNumber / ROUND_SPECIAL_EVERY) % mapConfig->SpecialRoundParamsCount;
+
+    // find next special round
+    int roundId = roundNumber + 1;
+    for (i = 0; i < mapConfig->SpecialRoundParamsCount; ++i) {
+      int minRound = mapConfig->SpecialRoundParams[i].MinRound;
+      int repeatEvery = mapConfig->SpecialRoundParams[i].RepeatEveryNRounds;
+      int repeatCount = mapConfig->SpecialRoundParams[i].RepeatCount;
+
+      if (roundId >= minRound) {
+        float iteration = (roundId - minRound) / (float)repeatEvery;
+        if (iteration == ceilf(iteration) && (repeatCount <= 0 || iteration < repeatCount)) {
+          State.RoundIsSpecial = 1;
+          State.RoundSpecialIdx = i;
+          break;
+        }
+      }
+    }
   }
 
   // set best round for each player still in lobby
@@ -2245,6 +2256,7 @@ void spawnDemonBell(void)
 //--------------------------------------------------------------------------
 void resetRoundState(void)
 {
+  int i;
 	int gameTime = gameGetTime();
 
 	// 
@@ -2255,17 +2267,35 @@ void resetRoundState(void)
 	State.RoundStartTime = gameTime;
 	State.RoundCompleteTime = 0;
 	State.RoundEndTime = 0;
-	State.RoundMobCount = 0;
-	State.RoundMobSpawnedCount = 0;
 	State.RoundSpawnTicker = 0;
 	State.RoundSpawnTickerCounter = 0;
 	State.RoundNextSpawnTickerCounter = randRangeInt(MOB_SPAWN_BURST_MIN + (State.RoundNumber * MOB_SPAWN_BURST_MIN_INC_PER_ROUND), MOB_SPAWN_BURST_MAX + (State.RoundNumber * MOB_SPAWN_BURST_MAX_INC_PER_ROUND));
-	State.MinMobCost = getMinMobCost();
+
+	State.MobStats.TotalAlive = 0;
+  State.MobStats.TotalSpawnedThisRound = 0;
+  memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
+  memset(State.MobStats.NumSpawnedThisRound, 0, sizeof(State.MobStats.NumSpawnedThisRound));
 
 	// 
 	if (State.RoundIsSpecial) {
 		State.RoundMaxSpawnedAtOnce = mapConfig->SpecialRoundParams[State.RoundSpecialIdx].MaxSpawnedAtOnce;
     State.RoundMaxMobCount *= mapConfig->SpecialRoundParams[State.RoundSpecialIdx].SpawnCountFactor;
+
+    // set max mob count to MaxSpawnedPerRound if every mob param has round limit
+    // ie if the special round only has 1 mob param, and that mob is set to only spawn 1 per round
+    // then set RoundMaxMobCount to 1 so that the round ends when that mob dies
+    int maxPerRound = 0;
+    for (i = 0; i < mapConfig->SpecialRoundParams[State.RoundSpecialIdx].SpawnParamCount; ++i) {
+      int spawnParamIdx = mapConfig->SpecialRoundParams[State.RoundSpecialIdx].SpawnParamIds[i];
+      if (mapConfig->DefaultSpawnParams[spawnParamIdx].MaxSpawnedPerRound <= 0) {
+        maxPerRound = State.RoundMaxMobCount;
+        break;
+      }
+
+      maxPerRound += mapConfig->DefaultSpawnParams[spawnParamIdx].MaxSpawnedPerRound;
+    }
+
+    State.RoundMaxMobCount = maxPerRound;
 	}
 
 	// 
@@ -2554,16 +2584,13 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
     State.Vendor->Bangles = 0x8;
   }
 
-	// special
-	memset(State.RoundSpecialSpawnableZombies, -1, sizeof(State.RoundSpecialSpawnableZombies));
-
 	// initialize state
 	State.GameOver = 0;
 	State.RoundNumber = 0;
-	State.MobsDrawnCurrent = 0;
-	State.MobsDrawnLast = 0;
-	State.MobsDrawGameTime = 0;
-  State.TotalMobsSpawned = 0;
+	State.MobStats.MobsDrawnCurrent = 0;
+	State.MobStats.MobsDrawnLast = 0;
+	State.MobStats.MobsDrawGameTime = 0;
+  State.MobStats.TotalSpawned = 0;
 	State.Freeze = 0;
 	State.TimeOfFreeze = 0;
 	State.RoundIsSpecial = 0;
@@ -2573,17 +2600,17 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 
 #if DEBUG
-	State.RoundNumber = 19;
+	State.RoundNumber = 9;
 	//State.RoundIsSpecial = 1;
 	//State.RoundSpecialIdx = 4;
 
   // 
 	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
   for (i = 0; i < State.RoundNumber; ++i) {
-    State.TotalMobsSpawned += MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(i * State.Difficulty * playerCountMultiplier, 0.75)));
+    State.MobStats.TotalSpawned += MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(i * State.Difficulty * playerCountMultiplier, 0.75)));
   }
 
-  DPRINTF("Skipped to Round #%d with %d mobs spawned\n", State.RoundNumber + 1, State.TotalMobsSpawned);
+  DPRINTF("Skipped to Round #%d with %d mobs spawned\n", State.RoundNumber + 1, State.MobStats.TotalSpawned);
 #endif
 
 	resetRoundState();
@@ -2719,7 +2746,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #if LOG_STATS
 	static int statsTicker = 0;
 	if (statsTicker <= 0) {
-		DPRINTF("budget:%d liveMobCount:%d totalSpawnedThisRound:%d roundNumber:%d roundSpawnTicker:%d minCost:%d\n", State.RoundBudget, State.RoundMobCount, State.RoundMobSpawnedCount, State.RoundNumber, State.RoundSpawnTicker, State.MinMobCost);
+		DPRINTF("liveMobCount:%d totalSpawnedThisRound:%d roundNumber:%d roundSpawnTicker:%d\n", State.MobStats.TotalAlive, State.MobStats.TotalSpawnedThisRound, State.RoundNumber, State.RoundSpawnTicker);
 		statsTicker = 60 * 15;
 	} else {
 		--statsTicker;
@@ -2738,13 +2765,24 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #if MANUAL_SPAWN
   if (!gameIsStartMenuOpen() && !localPlayerData->IsInWeaponsMenu)
 	{
+    
+    static int aaa = 0;
+		if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+			aaa += 1;
+			DPRINTF("%d\n", aaa);
+		}
+		else if (padGetButtonDown(0, PAD_LEFT) > 0) {
+			aaa -= 1;
+			DPRINTF("%d\n", aaa);
+		}
+
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      //manSpawnMobId = 0;
+      manSpawnMobId = 0;
       //manSpawnMobId = 5;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
@@ -2797,6 +2835,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			static int manSpawnDropId = 0;
 			static int manSpawnDropIdx = 0;
 			manSpawnDropId = (manSpawnDropId + 1) % 5;
+      manSpawnDropId = DROP_NUKE;
 			VECTOR t;
 			vector_copy(t, localPlayer->PlayerPosition);
 			t[0] += 5;
@@ -2840,11 +2879,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
     // draw round number
     char* roundStr = uiMsgString(0x25A9);
-    gfxScreenSpaceText(481, 281, 0.7, 0.7, 0x40000000, roundStr, -1, 1);
-    gfxScreenSpaceText(480, 280, 0.7, 0.7, 0x80E0E0E0, roundStr, -1, 1);
+    gfxScreenSpaceText(31, 281, 0.7, 0.7, 0x40000000, roundStr, -1, 1);
+    gfxScreenSpaceText(30, 280, 0.7, 0.7, 0x80E0E0E0, roundStr, -1, 1);
     sprintf(buffer, "%d", State.RoundNumber + 1);
-    gfxScreenSpaceText(481, 292, 1, 1, 0x40000000, buffer, -1, 1);
-    gfxScreenSpaceText(480, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
+    gfxScreenSpaceText(31, 292, 1, 1, 0x40000000, buffer, -1, 1);
+    gfxScreenSpaceText(30, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
     // draw double points
     if (localPlayer && State.PlayerStates[localPlayer->PlayerId].IsDoublePoints) {
@@ -2860,11 +2899,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
     // draw number of mobs spawned
     char* enemiesStr = "ENEMIES";
-    gfxScreenSpaceText(481, 241, 0.7, 0.7, 0x40000000, enemiesStr, -1, 1);
-    gfxScreenSpaceText(480, 240, 0.7, 0.7, 0x80E0E0E0, enemiesStr, -1, 1);
-    sprintf(buffer, "%d", State.RoundMobCount);
-    gfxScreenSpaceText(481, 252, 1, 1, 0x40000000, buffer, -1, 1);
-    gfxScreenSpaceText(480, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
+    gfxScreenSpaceText(31, 241, 0.7, 0.7, 0x40000000, enemiesStr, -1, 1);
+    gfxScreenSpaceText(30, 240, 0.7, 0.7, 0x80E0E0E0, enemiesStr, -1, 1);
+    sprintf(buffer, "%d", State.MobStats.TotalAlive);
+    gfxScreenSpaceText(31, 252, 1, 1, 0x40000000, buffer, -1, 1);
+    gfxScreenSpaceText(30, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
     // draw dread tokens
     // TODO: add support for 3,4 local players
@@ -3069,11 +3108,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 				// handle spawning
 				if (State.RoundSpawnTicker == 0) {
-					if (State.RoundMobCount < maxSpawn && !State.Freeze) {
-						if (State.RoundMobSpawnedCount < State.RoundMaxMobCount) {
+					if (State.MobStats.TotalAlive < maxSpawn && !State.Freeze) {
+						if (State.MobStats.TotalSpawnedThisRound < State.RoundMaxMobCount) {
 							if (spawnRandomMob()) {
-								++State.RoundMobSpawnedCount;
-                ++State.TotalMobsSpawned;
 #if QUICK_SPAWN
 								State.RoundSpawnTicker = 10;
 #else
@@ -3105,11 +3142,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 						}
 					}
 				} else if (State.RoundSpawnTicker < 0) {
-					if (State.RoundMobCount < 0) {
-						DPRINTF("%d\n", State.RoundMobCount);
+					if (State.MobStats.TotalAlive < 0) {
+						DPRINTF("%d\n", State.MobStats.TotalAlive);
 					}
 					// wait for all zombies to die
-					if (State.RoundMobCount == 0) {
+					if (State.MobStats.TotalAlive == 0) {
 						setRoundComplete();
 					}
 				} else {

@@ -5,10 +5,13 @@
 #include "bigal.h"
 #include "statue.h"
 
+#define MAP_BASE_COMPLEXITY         (4000)
+
 // ordered from least to most probable
 // never more than MAX_MOB_SPAWN_PARAMS total spawn params
 enum MobSpawnParamIds {
   MOB_SPAWN_PARAM_REACTOR,
+  MOB_SPAWN_PARAM_ACID,
   MOB_SPAWN_PARAM_REAPER,
   MOB_SPAWN_PARAM_RUNNER,
   MOB_SPAWN_PARAM_SWARMER,

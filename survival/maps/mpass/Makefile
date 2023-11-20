@@ -6,7 +6,7 @@ EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
 EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_TREMOR -DMOB_SWARMER -DMOB_REAPER -DMOB_REACTOR -DGATE -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := DEBUG
+BUILD_CONFIG := RELEASE
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.

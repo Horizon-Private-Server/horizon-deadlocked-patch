@@ -7,7 +7,22 @@ extern struct SurvivalMapConfig MapConfig;
 
 
 struct SurvivalSpecialRoundParam specialRoundParams[] = {
-	
+	// BOSS ROUNDS
+	{
+    .MinRound = 10,
+    .RepeatEveryNRounds = 10,
+    .RepeatCount = 0,
+    .UnlimitedPostRoundTime = 1,
+		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+    .SpawnCountFactor = 1.0,
+    .SpawnRateFactor = 1.0,
+		.SpawnParamCount = 1,
+		.SpawnParamIds = {
+			MOB_SPAWN_PARAM_REACTOR,
+			-1, -1, -1
+		},
+		.Name = "Boss Round"
+	},
 };
 
 const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct SurvivalSpecialRoundParam);
@@ -17,41 +32,78 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// reactor
   [MOB_SPAWN_PARAM_REACTOR]
 	{
-		.Cost = 10,
+		.Cost = REACTOR_RENDER_COST,
     .MaxSpawnedAtOnce = 1,
+    .MaxSpawnedPerRound = 1,
+    .SpecialRoundOnly = 1,
 		.MinRound = 0,
 		.CooldownTicks = 0,
-		.Probability = 0.01,
+		.Probability = 1,
     .StatId = MOB_STAT_REACTOR,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER,
 		.Name = "Reactor",
 		.Config = {
-			.Xp = 15,
+			.Xp = 1000,
 			.Bangles = REACTOR_BANGLE_SHOULDER_PLATES,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
 			.MaxDamage = MOB_BASE_DAMAGE * 5,
       .DamageScale = 1.0,
 			.Speed = MOB_BASE_SPEED * 1.0,
-			.MaxSpeed = MOB_BASE_SPEED * 3.0,
-      .SpeedScale = 0.5,
+			.MaxSpeed = MOB_BASE_SPEED * 5.0,
+      .SpeedScale = 2.0,
 			.Health = MOB_BASE_HEALTH * 25.0,
 			.MaxHealth = 0,
-      .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 1.0,
+      .HealthScale = 2.0,
+			.Bolts = MOB_BASE_BOLTS * 50.0,
 			.AttackRadius = REACTOR_MELEE_ATTACK_RADIUS * 1.0,
 			.HitRadius = REACTOR_MELEE_HIT_RADIUS * 1.0,
       .CollRadius = REACTOR_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = REACTOR_BASE_REACTION_TICKS * 0.35,
 			.AttackCooldownTickCount = REACTOR_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
-			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}
 	},
-	// reaper
+	// acid zombie
+	[MOB_SPAWN_PARAM_ACID]
+	{
+		.Cost = ZOMBIE_RENDER_COST,
+    .MaxSpawnedAtOnce = 20,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 1,
+		.MinRound = 0,
+		.Probability = 0,
+		.CooldownTicks = TPS * 1,
+    .StatId = MOB_STAT_ZOMBIE_ACID,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
+		.Name = "Acid Minion",
+		.Config = {
+			.Xp = 50,
+			.Bangles = ZOMBIE_BANGLE_HEAD_4 | ZOMBIE_BANGLE_TORSO_4,
+			.Damage = MOB_BASE_DAMAGE * 1.0,
+			.MaxDamage = MOB_BASE_DAMAGE * 3.0,
+      .DamageScale = 0.5,
+			.Speed = MOB_BASE_SPEED * 1.0,
+			.MaxSpeed = MOB_BASE_SPEED * 1.8,
+      .SpeedScale = 1.0,
+			.Health = MOB_BASE_HEALTH * 1.0,
+			.Bolts = MOB_BASE_BOLTS * 2.0,
+			.MaxHealth = 0,
+      .HealthScale = 1.0,
+			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
+			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
+      .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
+			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
+			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
+			.MobAttribute = MOB_ATTRIBUTE_ACID,
+		}
+	},
+  // reaper
   [MOB_SPAWN_PARAM_REAPER]
 	{
-		.Cost = 10,
-    .MaxSpawnedAtOnce = 1,
+		.Cost = REAPER_RENDER_COST,
+    .MaxSpawnedAtOnce = 20,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 0.05,
@@ -59,7 +111,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER,
 		.Name = "Reaper",
 		.Config = {
-			.Xp = 15,
+			.Xp = 50,
 			.Bangles = REAPER_BANGLE_SHOULDER_PAD_LEFT | REAPER_BANGLE_SHOULDER_PAD_RIGHT,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
 			.MaxDamage = MOB_BASE_DAMAGE * 3,
@@ -70,21 +122,22 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 3.0,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 1.0,
+			.Bolts = MOB_BASE_BOLTS * 2.0,
 			.AttackRadius = REAPER_MELEE_ATTACK_RADIUS * 1.0,
 			.HitRadius = REAPER_MELEE_HIT_RADIUS * 1.0,
       .CollRadius = REAPER_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = REAPER_BASE_REACTION_TICKS * 1.0,
 			.AttackCooldownTickCount = REAPER_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
-			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}
 	},
 	// runner zombie
   [MOB_SPAWN_PARAM_RUNNER]
 	{
-		.Cost = 10,
-    .MaxSpawnedAtOnce = 0,
+		.Cost = TREMOR_RENDER_COST,
+    .MaxSpawnedAtOnce = 30,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 0.1,
@@ -92,7 +145,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Runner",
 		.Config = {
-			.Xp = 15,
+			.Xp = 30,
 			.Bangles = TREMOR_BANGLE_HEAD | TREMOR_BANGLE_CHEST | TREMOR_BANGLE_LEFT_ARM,
 			.Damage = MOB_BASE_DAMAGE * 0.7,
 			.MaxDamage = MOB_BASE_DAMAGE * 2.2,
@@ -103,21 +156,22 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 0.6,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 1.0,
+			.Bolts = MOB_BASE_BOLTS * 1.5,
 			.AttackRadius = TREMOR_MELEE_ATTACK_RADIUS,
 			.HitRadius = TREMOR_MELEE_HIT_RADIUS,
       .CollRadius = TREMOR_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = TREMOR_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = TREMOR_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}
 	},
 	// normal zombie
 	[MOB_SPAWN_PARAM_NORMAL]
 	{
-		.Cost = 5,
+		.Cost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 0.5,
@@ -142,15 +196,16 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}
 	},
   // swarmer
   [MOB_SPAWN_PARAM_SWARMER]
 	{
-		.Cost = 5,
+		.Cost = SWARMER_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 1.0,
@@ -158,7 +213,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Swarmer",
 		.Config = {
-			.Xp = 10,
+			.Xp = 5,
 			.Bangles = 0,
 			.Damage = MOB_BASE_DAMAGE * 0.2,
 			.MaxDamage = MOB_BASE_DAMAGE * 1.0,
@@ -169,13 +224,12 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 0.35,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 1.0,
+			.Bolts = MOB_BASE_BOLTS * 0.5,
 			.AttackRadius = SWARMER_MELEE_ATTACK_RADIUS,
 			.HitRadius = SWARMER_MELEE_HIT_RADIUS,
       .CollRadius = SWARMER_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = SWARMER_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = SWARMER_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}
 	},
@@ -197,6 +251,7 @@ const int statueSpawnPositionRotationsCount = sizeof(statueSpawnPositionRotation
 
 u32 MobPrimaryColors[] = {
 	[MOB_SPAWN_PARAM_REACTOR] 	0x00464443,
+	[MOB_SPAWN_PARAM_ACID] 		  0x00464443,
   [MOB_SPAWN_PARAM_REAPER]    0x00464443,
 	[MOB_SPAWN_PARAM_RUNNER] 	  0x00464443,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x00464443,
@@ -205,6 +260,7 @@ u32 MobPrimaryColors[] = {
 
 u32 MobSecondaryColors[] = {
 	[MOB_SPAWN_PARAM_REACTOR]   0x80808080,
+	[MOB_SPAWN_PARAM_ACID] 		  0x8000FF00,
   [MOB_SPAWN_PARAM_REAPER]    0x80808080,
 	[MOB_SPAWN_PARAM_RUNNER] 	  0x80808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x80202020,
@@ -213,6 +269,7 @@ u32 MobSecondaryColors[] = {
 
 u32 MobLODColors[] = {
 	[MOB_SPAWN_PARAM_REACTOR]   0x00808080,
+	[MOB_SPAWN_PARAM_ACID] 		  0x0000F000,
   [MOB_SPAWN_PARAM_REAPER]    0x80808080,
 	[MOB_SPAWN_PARAM_RUNNER] 	  0x00808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x00808080,

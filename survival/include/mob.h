@@ -63,6 +63,7 @@ typedef void (*MobOnStateUpdate_func)(Moby* moby, struct MobStateUpdateEventArgs
 typedef void (*MobForceLocalAction_func)(Moby* moby, int action);
 typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 typedef short (*MobGetArmor_func)(Moby* moby);
+typedef int (*MobIsAttacking_func)(Moby* moby);
 
 struct MobVTable {
   MobGenericCallback_func PreUpdate;
@@ -79,6 +80,7 @@ struct MobVTable {
   MobGenericCallback_func DoAction;
   MobDoDamage_func DoDamage;
   MobGetArmor_func GetArmor;
+  MobIsAttacking_func IsAttacking;
 };
 
 struct MobConfig {
@@ -97,7 +99,6 @@ struct MobConfig {
   float CollRadius;
 	u16 Bangles;
 	u8 Xp;
-	u8 MaxCostMutation;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 	char MobAttribute;
@@ -106,6 +107,7 @@ struct MobConfig {
 struct MobSpawnParams {
 	int Cost;
   int MaxSpawnedAtOnce;
+  int MaxSpawnedPerRound;
 	int MinRound;
 	int CooldownTicks;
 	float Probability;
@@ -113,6 +115,7 @@ struct MobSpawnParams {
 	enum MobSpawnType SpawnType;
 	char Name[32];
 	struct MobConfig Config;
+  char SpecialRoundOnly;
 };
 
 struct Knockback {
@@ -138,6 +141,7 @@ struct MobMoveVars {
   char Grounded;
   char HitWall;
   char IsStuck;
+  char MoveStep;
   u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;

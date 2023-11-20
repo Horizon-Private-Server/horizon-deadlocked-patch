@@ -326,7 +326,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
   vector_subtract(hitFrom, hitFrom, hitToEx);
 
   // check if we hit something
-  if (CollLine_Fix(hitFrom, hitTo, COLLISION_FLAG_IGNORE_NONE, moby, NULL)) {
+  if (CollLine_Fix(hitFrom, hitTo, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
 
     vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
 
@@ -422,7 +422,7 @@ void mobMove(Moby* moby)
       vector_add(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.AddVelocity);
 
       // compute simulated velocity by multiplying velocity by number of ticks to simulate
-      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, MOB_MOVE_SKIP_TICKS);
+      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, (float)(pvars->MobVars.MoveVars.MoveStep + 1));
 
       // get horizontal normalized velocity
       vector_normalize(normalizedVelocity, targetVelocity);
@@ -500,7 +500,7 @@ void mobMove(Moby* moby)
     }
 
     // add gravity to velocity with clamp on downwards speed
-    pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT * MOB_MOVE_SKIP_TICKS;
+    pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT * (float)(pvars->MobVars.MoveVars.MoveStep + 1);
     if (pvars->MobVars.MoveVars.Velocity[2] < -10 * MATH_DT)
       pvars->MobVars.MoveVars.Velocity[2] = -10 * MATH_DT;
 
@@ -530,10 +530,10 @@ void mobMove(Moby* moby)
     pvars->MobVars.MoveVars.SumSpeedOver += vector_sqrmag(temp);
 
     vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
-    pvars->MobVars.MoveVars.MoveSkipTicks = MOB_MOVE_SKIP_TICKS;
+    pvars->MobVars.MoveVars.MoveSkipTicks = pvars->MobVars.MoveVars.MoveStep;
   }
 
-  float t = clamp(1 - (pvars->MobVars.MoveVars.MoveSkipTicks / (float)MOB_MOVE_SKIP_TICKS), 0, 1);
+  float t = clamp(1 - (pvars->MobVars.MoveVars.MoveSkipTicks / (float)(pvars->MobVars.MoveVars.MoveStep + 1)), 0, 1);
   vector_lerp(moby->Position, pvars->MobVars.MoveVars.LastPosition, pvars->MobVars.MoveVars.NextPosition, t);
 
   mobForceIntoMapBounds(moby);
@@ -591,28 +591,22 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
     vector_add(next, from, velocity);
     vector_subtract(nextToTarget, pvars->MobVars.Target->Position, next);
     float distNextToTarget = vector_length(nextToTarget);
-
+    
     float min = collRadius + PLAYER_COLL_RADIUS;
     float max = min + (targetSpeed * 0.2);
 
-    if (distNextToTarget == 0 || distToTarget == 0 || distToTarget > pvars->MobVars.Config.CollRadius) return;
-
-    if (distNextToTarget > distToTarget) {
-      targetSpeed = 0;
+    // if too close to target, stop
+    if (distNextToTarget < collRadius && vector_innerproduct_unscaled(fromToTarget, velocity) > 0) {
+      vector_normalize(velocity, velocity);
+      vector_scale(velocity, velocity, distToTarget - collRadius);
+      return;
     }
-    // stop if we're already at the target
-    else if (distNextToTarget < min)
-      targetSpeed = 0;
-    else if (distNextToTarget < max)
-      targetSpeed *= (distToTarget - min) / (max - min);
   }
 
-  // 
   if (targetSpeed <= 0) {
     vector_projectonvertical(velocity, velocity);
     return;
   }
-
 }
 
 //--------------------------------------------------------------------------

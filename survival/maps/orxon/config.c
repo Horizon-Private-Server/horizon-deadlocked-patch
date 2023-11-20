@@ -9,6 +9,9 @@ extern struct SurvivalMapConfig MapConfig;
 struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 5
 	{
+    .MinRound = 5,
+    .RepeatEveryNRounds = 25,
+    .RepeatCount = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
@@ -22,6 +25,9 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	},
 	// ROUND 10
 	{
+    .MinRound = 10,
+    .RepeatEveryNRounds = 25,
+    .RepeatCount = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
@@ -36,6 +42,9 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	},
 	// ROUND 15
 	{
+    .MinRound = 15,
+    .RepeatEveryNRounds = 25,
+    .RepeatCount = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
@@ -49,6 +58,9 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	},
 	// ROUND 20
 	{
+    .MinRound = 20,
+    .RepeatEveryNRounds = 25,
+    .RepeatCount = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
@@ -63,6 +75,9 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	},
 	// ROUND 25
 	{
+    .MinRound = 25,
+    .RepeatEveryNRounds = 25,
+    .RepeatCount = 0,
 		.MaxSpawnedAtOnce = 20,
     .SpawnCountFactor = 0.8,
     .SpawnRateFactor = 0.2,
@@ -86,8 +101,10 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// executioner
 	[MOB_SPAWN_PARAM_TITAN]
 	{
-		.Cost = 1000,
+		.Cost = EXECUTIONER_RENDER_COST,
     .MaxSpawnedAtOnce = 5,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 10,
 		.CooldownTicks = TPS * 10,
 		.Probability = 0.01,
@@ -114,15 +131,16 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = EXECUTIONER_BASE_COLL_RADIUS * 4,
 			.ReactionTickCount = EXECUTIONER_BASE_REACTION_TICKS * 0.35,
 			.AttackCooldownTickCount = EXECUTIONER_BASE_ATTACK_COOLDOWN_TICKS * 1.5,
-			.MaxCostMutation = 10,
 			.MobAttribute = 0,
 		}
 	},
 	// ghost zombie
 	[MOB_SPAWN_PARAM_GHOST]
 	{
-		.Cost = 10,
+		.Cost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 4,
 		.CooldownTicks = TPS * 1,
 		.Probability = 0.05,
@@ -147,15 +165,16 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = MOB_ATTRIBUTE_GHOST,
 		}
 	},
 	// explode zombie
 	[MOB_SPAWN_PARAM_EXPLOSION]
 	{
-		.Cost = 10,
+		.Cost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 6,
 		.CooldownTicks = TPS * 2,
 		.Probability = 0.08,
@@ -180,15 +199,16 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = MOB_ATTRIBUTE_EXPLODE,
 		}
 	},
 	// acid zombie
 	[MOB_SPAWN_PARAM_ACID]
 	{
-		.Cost = 20,
+		.Cost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 10,
 		.Probability = 0.09,
 		.CooldownTicks = TPS * 1,
@@ -213,15 +233,16 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = MOB_ATTRIBUTE_ACID,
 		}
 	},
 	// freeze zombie
 	[MOB_SPAWN_PARAM_FREEZE]
 	{
-		.Cost = 20,
+		.Cost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 8,
 		.CooldownTicks = TPS * 1,
 		.Probability = 0.1,
@@ -246,15 +267,16 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = MOB_ATTRIBUTE_FREEZE,
 		}
 	},
 	// runner zombie
 	[MOB_SPAWN_PARAM_RUNNER]
 	{
-		.Cost = 10,
+		.Cost = TREMOR_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 0.1,
@@ -279,15 +301,16 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = TREMOR_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = TREMOR_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = TREMOR_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}
 	},
 	// normal zombie
 	[MOB_SPAWN_PARAM_NORMAL]
 	{
-		.Cost = 5,
+		.Cost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
 		.Probability = 1.0,
@@ -312,7 +335,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
-			.MaxCostMutation = 2,
 			.MobAttribute = 0,
 		}
 	},

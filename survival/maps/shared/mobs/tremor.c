@@ -26,11 +26,11 @@ void tremorDoAction(Moby* moby);
 void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void tremorForceLocalAction(Moby* moby, int action);
 short tremorGetArmor(Moby* moby);
+int tremorIsAttacking(Moby* moby);
 
 void tremorPlayHitSound(Moby* moby);
 void tremorPlayAmbientSound(Moby* moby);
 void tremorPlayDeathSound(Moby* moby);
-int tremorIsAttacking(struct MobPVar* pvars);
 int tremorIsSpawning(struct MobPVar* pvars);
 int tremorCanAttack(struct MobPVar* pvars);
 int tremorIsFlinching(Moby* moby);
@@ -50,6 +50,7 @@ struct MobVTable TremorVTable = {
   .DoAction = &tremorDoAction,
   .DoDamage = &tremorDoDamage,
   .GetArmor = &tremorGetArmor,
+  .IsAttacking = &tremorIsAttacking,
 };
 
 SoundDef TremorSoundDef = {
@@ -193,6 +194,9 @@ void tremorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
   // targeting
 	pvars->TargetVars.targetHeight = 1;
   pvars->MobVars.BlipType = 4;
+
+  // default move step
+  pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
 }
 
 //--------------------------------------------------------------------------
@@ -303,7 +307,7 @@ int tremorGetPreferredAction(Moby* moby)
 	VECTOR t;
 
 	// no preferred action
-	if (tremorIsAttacking(pvars))
+	if (tremorIsAttacking(moby))
 		return -1;
 
 	if (tremorIsSpawning(pvars))
@@ -641,8 +645,9 @@ void tremorPlayDeathSound(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int tremorIsAttacking(struct MobPVar* pvars)
+int tremorIsAttacking(Moby* moby)
 {
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return pvars->MobVars.Action == TREMOR_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
 }
 

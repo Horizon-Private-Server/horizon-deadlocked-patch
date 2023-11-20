@@ -31,7 +31,7 @@ short reaperGetArmor(Moby* moby);
 void reaperPlayHitSound(Moby* moby);
 void reaperPlayAmbientSound(Moby* moby);
 void reaperPlayDeathSound(Moby* moby);
-int reaperIsAttacking(struct MobPVar* pvars);
+int reaperIsAttacking(Moby* moby);
 int reaperIsSpawning(struct MobPVar* pvars);
 int reaperCanAttack(struct MobPVar* pvars);
 int reaperIsFlinching(Moby* moby);
@@ -51,6 +51,7 @@ struct MobVTable ReaperVTable = {
   .DoAction = &reaperDoAction,
   .DoDamage = &reaperDoDamage,
   .GetArmor = &reaperGetArmor,
+  .IsAttacking = &reaperIsAttacking,
 };
 
 SoundDef ReaperSoundDef = {
@@ -190,6 +191,9 @@ void reaperOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
   // targeting
 	pvars->TargetVars.targetHeight = 1;
   pvars->MobVars.BlipType = 4;
+
+  // default move step
+  pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
 }
 
 //--------------------------------------------------------------------------
@@ -204,7 +208,7 @@ void reaperOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
   
 	// limit corn spawning to prevent freezing/framelag
-	if (MapConfig.State && MapConfig.State->RoundMobCount < 30) {
+	if (MapConfig.State && MapConfig.State->MobStats.TotalAlive < 30) {
 		
 	}
 }
@@ -237,8 +241,11 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	}
 
   // trigger aggro
-  if (pvars->MobVars.Target && e->SourceUID == guberGetUID(pvars->MobVars.Target)) {
+  Player* sourcePlayer = playerGetFromUID(e->SourceUID);
+  if (!reaperVars->AggroTriggered && sourcePlayer) {
     reaperVars->AggroTriggered = 1;
+    reaperVars->AggroTriggeredBy = NULL;
+    if (mobAmIOwner(moby)) reaperVars->AggroTriggeredBy = sourcePlayer;
   }
 
   // flinch
@@ -269,6 +276,7 @@ void reaperOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 Moby* reaperGetNextTarget(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
 	Player ** players = playerGetAll();
 	int i;
 	VECTOR delta;
@@ -282,6 +290,13 @@ Moby* reaperGetNextTarget(Moby* moby)
     if (currentPlayerTarget && !playerIsDead(currentPlayerTarget)) {
       return currentTarget;
     }
+  }
+
+  // target player who hit us
+  Moby* aggroTriggeredByTarget = playerGetTargetMoby(reaperVars->AggroTriggeredBy);
+  if (reaperVars->AggroTriggered && aggroTriggeredByTarget) {
+    reaperVars->AggroTriggeredBy = NULL;
+    return aggroTriggeredByTarget;
   }
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -320,7 +335,7 @@ int reaperGetPreferredAction(Moby* moby)
 	VECTOR t;
 
 	// no preferred action
-	if (reaperIsAttacking(pvars))
+	if (reaperIsAttacking(moby))
 		return -1;
 
 	if (reaperIsSpawning(pvars))
@@ -773,8 +788,9 @@ void reaperPlayDeathSound(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int reaperIsAttacking(struct MobPVar* pvars)
+int reaperIsAttacking(Moby* moby)
 {
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return pvars->MobVars.Action == REAPER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
 }
 

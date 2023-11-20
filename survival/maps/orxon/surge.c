@@ -637,7 +637,7 @@ void surgeUpdate(Moby* moby)
     }
     // spawn only after 50 mobs have spawned this round
     // and we still have at least another 100 to kill
-    else if (MapConfig.State->RoundMobSpawnedCount > 50 && (MapConfig.State->RoundMaxMobCount - (MapConfig.State->RoundMobSpawnedCount - MapConfig.State->RoundMobCount)) > 100) {
+    else if (MapConfig.State->MobStats.TotalSpawnedThisRound > 50 && (MapConfig.State->RoundMaxMobCount - (MapConfig.State->MobStats.TotalSpawnedThisRound - MapConfig.State->MobStats.TotalAlive)) > 100) {
       mobySetState(moby, SURGE_STATE_ACTIVE, -1);
     }
     else if (isMobyInGasArea(moby)) {

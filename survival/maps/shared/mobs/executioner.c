@@ -26,11 +26,11 @@ void executionerDoAction(Moby* moby);
 void executionerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void executionerForceLocalAction(Moby* moby, int action);
 short executionerGetArmor(Moby* moby);
+int executionerIsAttacking(Moby* moby);
 
 void executionerPlayHitSound(Moby* moby);
 void executionerPlayAmbientSound(Moby* moby);
 void executionerPlayDeathSound(Moby* moby);
-int executionerIsAttacking(struct MobPVar* pvars);
 int executionerIsSpawning(struct MobPVar* pvars);
 int executionerCanAttack(struct MobPVar* pvars);
 int executionerIsFlinching(Moby* moby);
@@ -50,6 +50,7 @@ struct MobVTable ExecutionerVTable = {
   .DoAction = &executionerDoAction,
   .DoDamage = &executionerDoDamage,
   .GetArmor = &executionerGetArmor,
+  .IsAttacking = &executionerIsAttacking,
 };
 
 SoundDef ExecutionerSoundDef = {
@@ -193,6 +194,9 @@ void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID
   // targeting
 	pvars->TargetVars.targetHeight = 3.5;
   pvars->MobVars.BlipType = 5;
+
+  // default move step
+  pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
 }
 
 //--------------------------------------------------------------------------
@@ -315,7 +319,7 @@ int executionerGetPreferredAction(Moby* moby)
 	VECTOR t;
 
 	// no preferred action
-	if (executionerIsAttacking(pvars))
+	if (executionerIsAttacking(moby))
 		return -1;
 
 	if (executionerIsSpawning(pvars))
@@ -677,8 +681,9 @@ void executionerPlayDeathSound(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int executionerIsAttacking(struct MobPVar* pvars)
+int executionerIsAttacking(Moby* moby)
 {
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return pvars->MobVars.Action == EXECUTIONER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
 }
 

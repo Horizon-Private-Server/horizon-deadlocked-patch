@@ -232,6 +232,10 @@ int main (void)
 
   pathTick();
 
+  if (MapConfig.State) {
+    MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;
+  }
+  
   // disable jump pad effect
   POKE_U32(0x0042608C, 0);
 

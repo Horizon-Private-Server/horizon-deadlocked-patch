@@ -56,6 +56,27 @@ void statueUpdate(Moby* moby)
     MobyColDamage* colDamage = mobyGetDamage(moby, 0x40, 0);
     if (colDamage && colDamage->DamageHp > 0) {
       statueSetState(moby, STATUE_STATE_ACTIVATED);
+      if (MapConfig.State) {
+        pvars->RoundActivated = MapConfig.State->RoundNumber;
+      }
+    }
+  }
+
+  // deactivate
+  if (gameAmIHost() && MapConfig.State && moby->State == STATUE_STATE_ACTIVATED && MapConfig.State->RoundNumber != pvars->RoundActivated) {
+    statueSetState(moby, STATUE_STATE_DEACTIVATED);
+  }
+
+  // blip if reactor is alive
+  if (reactorActiveMoby) {
+    int blipIdx = radarGetBlipIndex(moby);
+    if (blipIdx >= 0) {
+      RadarBlip* blip = radarGetBlips() + blipIdx;
+      blip->X = moby->Position[0];
+      blip->Y = moby->Position[1];
+      blip->Team = TEAM_BLUE;
+      blip->Life = 0x1F;
+      blip->Type = 0x11;
     }
   }
 

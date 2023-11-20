@@ -100,6 +100,7 @@ enum ReaperSubskeletonJoints
 
 typedef struct ReaperMobVars
 {
+  Player* AggroTriggeredBy;
   char AggroTriggered;
 } ReaperMobVars_t;
 

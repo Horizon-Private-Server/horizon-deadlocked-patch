@@ -27,7 +27,7 @@
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
 
 #define MAX_MOBS_BASE													(10)
-#define MAX_MOBS_ROUND_WEIGHT									(20)
+#define MAX_MOBS_ROUND_WEIGHT									(10)
 #define MAX_MOBS_SPAWNED											(50)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
@@ -42,11 +42,10 @@
 #define ROUND_BASE_BOLT_BONUS									(100)
 #define ROUND_MAX_BOLT_BONUS									(10000)
 
-#define ROUND_SPECIAL_EVERY										(5)
 #define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
-#define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 		(25)
-#define MOB_MOVE_SKIP_TICKS                   (4)
+#define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(25)
+#define MOB_MOVE_SKIP_TICKS                   (3)
 
 #define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(1)
 #define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)
@@ -74,9 +73,9 @@
 #define MOB_SPECIAL_MUTATION_REL_COST			    (1.0)
 
 #if PAYDAY
-#define MOB_BASE_BOLTS											(1000000)
+#define MOB_BASE_BOLTS											  (1000000)
 #else
-#define MOB_BASE_BOLTS											(120)
+#define MOB_BASE_BOLTS											  (220)
 #endif
 
 #define JACKPOT_BOLTS													(50)
@@ -127,11 +126,17 @@
 #define SNACK_ITEM_MAX_COUNT                  (16)
 
 #define MAX_MOB_SPAWN_PARAMS                  (10)
-#define MAX_MOB_COMPLEXITY_DRAWN              (20000)
-#define MAX_MOB_COMPLEXITY_DRAWN_DZO          (30000)
-#define MOB_COMPLEXITY_SKIN_FACTOR            (1000)
-#define MOB_COMPLEXITY_LOD_FACTOR             (2500)
-#define MAX_MOB_COMPLEXITY_MIN                (10000)
+#define MAX_MOB_COMPLEXITY_DRAWN              (7500)
+#define MAX_MOB_COMPLEXITY_DRAWN_DZO          (MAX_MOB_COMPLEXITY_DRAWN * 3)
+#define MOB_COMPLEXITY_SKIN_FACTOR            (500)
+#define MAX_MOB_COMPLEXITY_MIN                (1000)
+
+#define SWARMER_RENDER_COST                   (40)
+#define ZOMBIE_RENDER_COST                    (85)
+#define TREMOR_RENDER_COST                    (150)
+#define REAPER_RENDER_COST                    (150)
+#define REACTOR_RENDER_COST                   (300)
+#define EXECUTIONER_RENDER_COST               (300)
 
 enum GameNetMessage
 {
@@ -254,14 +259,24 @@ struct SurvivalPlayer
 	char HealthBarStrBuf[8];
 };
 
+struct SurvivalMobStats
+{
+	int MobsDrawnCurrent;
+	int MobsDrawnLast;
+	int MobsDrawGameTime;
+  int TotalAlive;
+  int TotalSpawnedThisRound;
+  int TotalSpawned;
+  int NumSpawnedThisRound[MAX_MOB_SPAWN_PARAMS];
+  u8 NumAlive[MAX_MOB_SPAWN_PARAMS];
+};
+
 struct SurvivalState
 {
 	int RoundNumber;
 	int RoundStartTime;
 	int RoundCompleteTime;
 	int RoundEndTime;
-	int RoundMobCount;
-	int RoundMobSpawnedCount;
 	int RoundMaxMobCount;
 	int RoundMaxSpawnedAtOnce;
 	int RoundSpawnTicker;
@@ -272,11 +287,8 @@ struct SurvivalState
 	int RoundSpecialIdx;
 	int InitializedTime;
   int DemonBellCount;
-  int TotalMobsSpawned;
-	int MinMobCost;
-	int MobsDrawnCurrent;
-	int MobsDrawnLast;
-	int MobsDrawGameTime;
+  int MapBaseComplexity;
+  struct SurvivalMobStats MobStats;
 	struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
   char ClientReady[GAME_MAX_PLAYERS];
 	int RoundInitialized;
@@ -296,7 +308,6 @@ struct SurvivalState
 	short DropCooldownTicks;
 	char Freeze;
 	char NumTeams;
-	char RoundSpecialSpawnableZombies[2];
 };
 
 struct SurvivalMapConfig
@@ -320,10 +331,14 @@ struct SurvivalMapConfig
 
 struct SurvivalSpecialRoundParam
 {
+  int MinRound;
+  int RepeatEveryNRounds;
+  int RepeatCount;
 	int SpawnParamCount;
 	float SpawnCountFactor;
   float SpawnRateFactor;
 	int MaxSpawnedAtOnce;
+  char UnlimitedPostRoundTime;
 	char SpawnParamIds[4];
 	char Name[32];
 };

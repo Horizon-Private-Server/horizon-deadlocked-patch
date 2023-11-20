@@ -22,6 +22,7 @@
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
 #include <libdl/dialog.h>
+#include <libdl/hud.h>
 #include <libdl/patch.h>
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
@@ -54,6 +55,8 @@ char LocalPlayerStrBuffer[2][48];
 
 int aaa = 0;
 
+extern Moby* reactorActiveMoby;
+
 // set by mode
 struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
 	.State = NULL,
@@ -72,6 +75,57 @@ VECTOR GateLocations[] = {
   { 579.5502, 895.7498, 508.3, 8 }, { 589.4498, 885.8502, 508.3, 4 },
 };
 const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
+
+typedef struct HudBoss_CommonData { // 0x38
+	/* 0x00 */ int iShown;
+	/* 0x04 */ int iState;
+	/* 0x08 */ float fHP;
+	/* 0x0c */ float fDisplayHP;
+	/* 0x10 */ unsigned int iColor;
+	/* 0x14 */ unsigned int iColor2;
+	/* 0x18 */ int iIcon;
+	/* 0x1c */ float fHideX;
+	/* 0x20 */ float fShown;
+	/* 0x24 */ char bShown;
+	/* 0x25 */ char bFancy;
+	/* 0x28 */ int iDelay;
+	/* 0x2c */ char bUpdate;
+	/* 0x30 */ float fPulse;
+	/* 0x34 */ int iFillMode;
+} HudBoss_CommonData_t;
+
+//--------------------------------------------------------------------------
+void handleBossMeter(void)
+{
+  static float lastHealth = -1;
+  HudBoss_CommonData_t* hudBossData = (HudBoss_CommonData_t*)0x00310400;
+  int i;
+
+  // show/hide boss meter
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    PlayerHUDFlags* hud = hudGetPlayerFlags(i);
+    if (hud) {
+      hud->Flags.Meter = reactorActiveMoby ? 1 : 0;
+    }
+  }
+
+  if (!reactorActiveMoby) return;
+  struct MobPVar* pvars = (struct MobPVar*)reactorActiveMoby->PVar;
+  float health = pvars->MobVars.Health / pvars->MobVars.Config.MaxHealth;
+
+  // update meter and icon
+  hudBossData->fHP = health;
+
+  // refresh on health change
+  if (lastHealth != health) {
+    lastHealth = health;
+    hudBossData->bUpdate = 1;
+  }
+
+  // set boss image to reactor sprite
+  struct HUDWidgetRectangleObject* bossImgRectObject = (struct HUDWidgetRectangleObject*)hudCanvasGetObject(hudGetCanvas(4), 0xF0000606);
+  if (bossImgRectObject) ((void (*)(u32, u32))0x005ca3e8)(bossImgRectObject, 0x75AF);
+}
 
 //--------------------------------------------------------------------------
 void mobForceIntoMapBounds(Moby* moby)
@@ -230,6 +284,11 @@ int main (void)
   }
 
   pathTick();
+  handleBossMeter();
+
+  if (MapConfig.State) {
+    MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;
+  }
 
   // disable jump pad effect
   POKE_U32(0x0042608C, 0);

@@ -27,11 +27,11 @@ void zombieDoAction(Moby* moby);
 void zombieDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void zombieForceLocalAction(Moby* moby, int action);
 short zombieGetArmor(Moby* moby);
+int zombieIsAttacking(Moby* moby);
 
 void zombiePlayHitSound(Moby* moby);
 void zombiePlayAmbientSound(Moby* moby);
 void zombiePlayDeathSound(Moby* moby);
-int zombieIsAttacking(struct MobPVar* pvars);
 int zombieIsSpawning(struct MobPVar* pvars);
 int zombieCanAttack(struct MobPVar* pvars);
 int zombieIsFlinching(Moby* moby);
@@ -51,6 +51,7 @@ struct MobVTable ZombieVTable = {
   .DoAction = &zombieDoAction,
   .DoDamage = &zombieDoDamage,
   .GetArmor = &zombieGetArmor,
+  .IsAttacking = &zombieIsAttacking,
 };
 
 SoundDef ZombieSoundDef = {
@@ -195,6 +196,9 @@ void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
   // targeting
 	pvars->TargetVars.targetHeight = 1;
   pvars->MobVars.BlipType = 4;
+
+  // default move step
+  pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
 }
 
 //--------------------------------------------------------------------------
@@ -209,7 +213,7 @@ void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
   
 	// limit corn spawning to prevent freezing/framelag
-	if (MapConfig.State && MapConfig.State->RoundMobCount < 30) {
+	if (MapConfig.State && MapConfig.State->MobStats.TotalAlive < 30) {
 		mobSpawnCorn(moby, ZOMBIE_BANGLE_LARM | ZOMBIE_BANGLE_RARM | ZOMBIE_BANGLE_LLEG | ZOMBIE_BANGLE_RLEG | ZOMBIE_BANGLE_RFOOT | ZOMBIE_BANGLE_HIPS);
 	}
 }
@@ -318,7 +322,7 @@ int zombieGetPreferredAction(Moby* moby)
 	VECTOR t;
 
 	// no preferred action
-	if (zombieIsAttacking(pvars))
+	if (zombieIsAttacking(moby))
 		return -1;
 
 	if (zombieIsSpawning(pvars))
@@ -765,8 +769,9 @@ void zombiePlayDeathSound(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int zombieIsAttacking(struct MobPVar* pvars)
+int zombieIsAttacking(Moby* moby)
 {
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return pvars->MobVars.Action == ZOMBIE_ACTION_TIME_BOMB || pvars->MobVars.Action == ZOMBIE_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == ZOMBIE_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
 }
 
