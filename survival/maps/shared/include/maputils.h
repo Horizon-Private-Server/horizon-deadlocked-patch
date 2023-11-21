@@ -35,4 +35,6 @@ Moby* playerGetTargetMoby(Player* player);
 
 void draw3DMarker(VECTOR position, float scale, u32 color, char* str);
 
+void playDialog(short dialogId);
+
 #endif // SURVIVAL_MAP_UTILS_H

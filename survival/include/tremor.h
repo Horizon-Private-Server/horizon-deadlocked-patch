@@ -82,4 +82,9 @@ enum TremorSubskeletonJoints
   TREMOR_SUBSKELETON_JOINT_RIGHT_FOOT = 3,
 };
 
+extern int tremorAmbientSoundIds[];
+extern const int tremorAmbientSoundIdsCount;
+extern int tremorHitSoundId;
+extern int tremorDeathSoundId;
+
 #endif // SURVIVAL_MOB_TREMOR_H

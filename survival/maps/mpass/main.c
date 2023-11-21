@@ -53,14 +53,34 @@ int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 
 char LocalPlayerStrBuffer[2][48];
 
-int aaa = 0;
+int aaa = 0x2AE3;
 
 extern Moby* reactorActiveMoby;
+Moby* TeleporterMoby = NULL;
+int StatuesActivated = 0;
+
+// spawn
+VECTOR pStart = { 658.3901, 828.0401, 499.7961, 0 };
+VECTOR pRotStart = { 0, 0, MATH_PI, 0 };
 
 // set by mode
 struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
 	.State = NULL,
   .BakedConfig = NULL
+};
+
+SoundDef def =
+{
+	0.0,	// MinRange
+	50.0,	// MaxRange
+	100,		// MinVolume
+	10000,		// MaxVolume
+	0,			// MinPitch
+	0,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	95,    // 98, 95, 
+	3			  // Bank
 };
 
 // gate locations
@@ -75,6 +95,36 @@ VECTOR GateLocations[] = {
   { 579.5502, 895.7498, 508.3, 8 }, { 589.4498, 885.8502, 508.3, 4 },
 };
 const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
+
+// blessings
+const char * INTERACT_BLESSING_MESSAGE = "\x11 %s";
+const char* BLESSING_NAMES[] = {
+  [BLESSING_ITEM_QUAD_JUMP]     "Blessing of the Hare",
+  [BLESSING_ITEM_LUCK]          "Blessing of the Clover",
+  [BLESSING_ITEM_INF_CBOOT]     "Blessing of the Bull",
+  [BLESSING_ITEM_ELEM_IMMUNITY] "Blessing of Corrosion",
+  [BLESSING_ITEM_HEALTH_REGEN]  "Blessing of Vitality",
+  [BLESSING_ITEM_AMMO_REGEN]    "Blessing of the Hunt",
+};
+
+const int BLESSINGS[] = {
+  BLESSING_ITEM_QUAD_JUMP,
+  BLESSING_ITEM_LUCK,
+  BLESSING_ITEM_INF_CBOOT,
+  BLESSING_ITEM_ELEM_IMMUNITY,
+  BLESSING_ITEM_HEALTH_REGEN,
+  BLESSING_ITEM_AMMO_REGEN,
+};
+
+const VECTOR BLESSING_POSITIONS[BLESSING_ITEM_COUNT] = {
+  [BLESSING_ITEM_QUAD_JUMP]     { 449.3509, 829.1361, 404.1362, (-90) * MATH_DEG2RAD },
+  [BLESSING_ITEM_LUCK]          { 439.1009, 811.3826, 404.1362, (-30) * MATH_DEG2RAD },
+  [BLESSING_ITEM_INF_CBOOT]     { 418.6009, 811.3826, 404.1362, (30) * MATH_DEG2RAD },
+  [BLESSING_ITEM_ELEM_IMMUNITY] { 408.3509, 829.1361, 404.1362, (90) * MATH_DEG2RAD },
+  [BLESSING_ITEM_HEALTH_REGEN]  { 418.6009, 846.8896, 404.1362, (150) * MATH_DEG2RAD },
+  [BLESSING_ITEM_AMMO_REGEN]    { 439.1009, 846.8896, 404.1362, (-150) * MATH_DEG2RAD },
+};
+
 
 typedef struct HudBoss_CommonData { // 0x38
 	/* 0x00 */ int iShown;
@@ -95,7 +145,7 @@ typedef struct HudBoss_CommonData { // 0x38
 } HudBoss_CommonData_t;
 
 //--------------------------------------------------------------------------
-void handleBossMeter(void)
+void updateBossMeter(void)
 {
   static float lastHealth = -1;
   HudBoss_CommonData_t* hudBossData = (HudBoss_CommonData_t*)0x00310400;
@@ -123,8 +173,91 @@ void handleBossMeter(void)
   }
 
   // set boss image to reactor sprite
-  struct HUDWidgetRectangleObject* bossImgRectObject = (struct HUDWidgetRectangleObject*)hudCanvasGetObject(hudGetCanvas(4), 0xF0000606);
+  u32 id = hudPanelGetElement((void*)0x222b18, 6);
+  struct HUDWidgetRectangleObject* bossImgRectObject = (struct HUDWidgetRectangleObject*)hudCanvasGetObject(hudGetCanvas(4), id);
   if (bossImgRectObject) ((void (*)(u32, u32))0x005ca3e8)(bossImgRectObject, 0x75AF);
+}
+
+//--------------------------------------------------------------------------
+void updateBlessingTotems(void)
+{
+  int local, i;
+  int count = sizeof(BLESSINGS)/sizeof(int);
+  VECTOR dt;
+  static char buf[4][64];
+
+  if (!MapConfig.State) return;
+
+  for (local = 0; local < GAME_MAX_LOCALS; ++local) {
+    Player* player = playerGetFromSlot(local);
+    if (!player) continue;
+
+    struct SurvivalPlayer* playerData = &MapConfig.State->PlayerStates[player->PlayerId];
+
+    for (i = 0; i < count; ++i) {
+      int blessing = BLESSINGS[i];
+      if (playerData->State.ItemBlessing == blessing) continue;
+
+      vector_subtract(dt, player->PlayerPosition, (float*)BLESSING_POSITIONS[blessing]);
+      if (vector_sqrmag(dt) < (4*4)) {
+        
+				// draw help popup
+        snprintf(buf[local], sizeof(buf[local]), INTERACT_BLESSING_MESSAGE, BLESSING_NAMES[blessing]);
+				uiShowPopup(local, buf[local]);
+        playerData->MessageCooldownTicks = 2;
+
+        if (padGetButtonDown(local, PAD_CIRCLE) > 0) {
+          playerData->State.ItemBlessing = blessing;
+        }
+        break;
+      }
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+void updateBlessingTeleporter(void)
+{
+  if (!TeleporterMoby) return;
+
+  if (StatuesActivated == statueSpawnPositionRotationsCount) {
+    mobySetState(TeleporterMoby, 1, -1);
+    TeleporterMoby->DrawDist = 64;
+    TeleporterMoby->UpdateDist = 64;
+    TeleporterMoby->CollActive = 0;
+  } else {
+    mobySetState(TeleporterMoby, 2, -1);
+    TeleporterMoby->DrawDist = 0;
+    TeleporterMoby->UpdateDist = 0;
+    TeleporterMoby->CollActive = -1;
+  }
+}
+
+//--------------------------------------------------------------------------
+void mapReturnPlayersToMap(void)
+{
+  int i;
+  VECTOR p;
+
+  // if we're in between rounds, don't return
+  if (!MapConfig.State) return;
+  if (MapConfig.State->RoundEndTime) return;
+  if (!TeleporterMoby) return;
+  if (TeleporterMoby->State == 1) return;
+
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* player = playerGetFromSlot(i);
+    if (!player || !player->SkinMoby) continue;
+
+    // if we're under the map, then we must be dead or in the bunker
+    // teleport back up either way
+    if (player->PlayerPosition[2] < 460) {
+      vector_fromyaw(p, (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU - MATH_PI);
+      vector_scale(p, p, 2.5);
+      vector_add(p, p, pStart);
+      playerSetPosRot(player, p, pRotStart);
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -164,9 +297,13 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
     {
       return reaperCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
-    case MOB_SPAWN_PARAM_RUNNER:
+    case MOB_SPAWN_PARAM_TREMOR:
     {
       return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+    }
+    case MOB_SPAWN_PARAM_ACID:
+    {
+      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
     case MOB_SPAWN_PARAM_NORMAL:
     {
@@ -219,6 +356,13 @@ void initialize(void)
   statueInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
+  // find teleporters
+  TeleporterMoby = mobyFindNextByOClass(mobyListGetStart(), MOBY_ID_TELEPORT_PAD);
+  DPRINTF("teleporter %08X\n", (u32)TeleporterMoby);
+
+  // enable replaying dialog
+  POKE_U32(0x004E3E2C, 0);
+
   // only have gate collision on when processing players
   HOOK_JAL(0x003bd854, &onBeforeUpdateHeroes);
   //HOOK_J(0x003bd864, &onAfterUpdateHeroes);
@@ -229,26 +373,14 @@ void initialize(void)
   POKE_U32(0x004171D8, 0x8FA80070);
   POKE_U32(0x00417200, 0x8D080060);
 
+  // enable teleporter for everyone
+  POKE_U32(0x003DFD20, 0x10000006);
+  POKE_U32(0x003DFD6C, 0x00000000);
+
   DPRINTF("path %08X end %08X\n", (u32)&MOB_PATHFINDING_PATHS, (u32)&MOB_PATHFINDING_PATHS + (MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH * MOB_PATHFINDING_NODES_COUNT * MOB_PATHFINDING_NODES_COUNT));
 
   initialized = 1;
 }
-
-
-SoundDef def =
-{
-	0.0,	// MinRange
-	50.0,	// MaxRange
-	100,		// MinVolume
-	10000,		// MaxVolume
-	0,			// MinPitch
-	0,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	95,    // 98, 95, 
-	3			  // Bank
-};
-
 
 /*
  * NAME :		main
@@ -284,7 +416,10 @@ int main (void)
   }
 
   pathTick();
-  handleBossMeter();
+  updateBossMeter();
+  updateBlessingTotems();
+  updateBlessingTeleporter();
+  mapReturnPlayersToMap();
 
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;
@@ -301,8 +436,6 @@ int main (void)
     Player* localPlayer = playerGetFromSlot(0);
 
     if (localPlayer && localPlayer->SkinMoby) {
-      VECTOR pStart = { 658.3901, 828.0401, 499.7961, 0 };
-      VECTOR pRotStart = { 0, 0, MATH_PI, 0 };
       playerSetPosRot(localPlayer, pStart, pRotStart);
     }
   }
@@ -312,16 +445,18 @@ int main (void)
   dlPreUpdate();
   if (padGetButtonDown(0, PAD_LEFT) > 0) {
     --aaa;
-    DPRINTF("%d\n", aaa);
+    playDialog(aaa, 0);
+    DPRINTF("%d 0x%x\n", aaa, aaa);
   }
   else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
     ++aaa;
-    DPRINTF("%d\n", aaa);
+    playDialog(aaa, 0);
+    DPRINTF("%d 0x%x\n", aaa, aaa);
   }
 
   /*
   static int handle = 0;
-  if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
+  if (padGetButtonDown(0, PAD_RIGHT) > 0) {
     aaa += 1;
     def.Index = aaa;
     if (handle)
@@ -333,7 +468,7 @@ int main (void)
       handle = 0;
     DPRINTF("%d\n", aaa);
   }
-  else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
+  else if (padGetButtonDown(0, PAD_LEFT) > 0) {
     aaa -= 1;
     def.Index = aaa;
     if (handle)

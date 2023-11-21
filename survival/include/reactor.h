@@ -8,6 +8,8 @@
 #define REACTOR_EXPLODE_HIT_RADIUS							(5)
 #define REACTOR_MELEE_ATTACK_RADIUS						  (5)
 
+#define REACTOR_HIT_INV_TICKS                   (0.5 * TPS)
+
 #define REACTOR_MAX_DIST_FOR_CHARGE		          (30)
 #define REACTOR_CHARGE_ATTACK_MIN_COOLDOWN_TICKS    (TPS * 10)
 #define REACTOR_CHARGE_ATTACK_MAX_COOLDOWN_TICKS    (TPS * 30)
@@ -42,6 +44,9 @@
 #define REACTOR_AMBSND_MIN_COOLDOWN_TICKS    	  (60 * 2)
 #define REACTOR_AMBSND_MAX_COOLDOWN_TICKS    	  (60 * 3)
 #define REACTOR_FLINCH_PROBABILITY              (0.05)
+
+#define REACTOR_DIALOG_COOLDOWN_MIN_TPS         (2 * TPS)
+#define REACTOR_DIALOG_COOLDOWN_MAX_TPS         (10 * TPS)
 
 enum ReactorAnimId
 {
@@ -115,13 +120,30 @@ enum ReactorSubskeletonJoints
   REACTOR_SUBSKELETON_JOINT_LEFT_SHOULDER = 6,
 };
 
+enum ReactorCustomEventIds
+{
+  REACTOR_CUSTOM_EVENT_PLAY_DIALOG,
+};
+
 typedef struct ReactorMobVars
 {
   Moby* PrepShotWithFireParticleMoby1;
   Moby* PrepShotWithFireParticleMoby2;
   float AnimSpeedAdditive;
+  float HealthLastDialog;
+  u16 DialogCooldownTicks;
   char ChargeChargeupTargetCount;
+  char ChargeHasPlayedSound;
   char HasFiredTrailshotThisLoop;
+  u8 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
 } ReactorMobVars_t;
+
+extern int reactorAmbientSoundIds[];
+extern const int reactorAmbientSoundIdsCount;
+extern int reactorHitSoundId;
+extern int reactorDeathSoundId;
+extern int reactorSmashSoundId;
+extern int reactorChargeSoundId;
+extern int reactorKneeDownSoundId;
 
 #endif // SURVIVAL_MOB_REACTOR_H

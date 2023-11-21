@@ -1,3 +1,4 @@
+#include <libdl/utils.h>
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../../../include/mysterybox.h"
@@ -6,18 +7,21 @@
 extern struct SurvivalMapConfig MapConfig;
 
 
+//--------------------------------------------------------------------------
 struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// ROUND 5
 	{
     .MinRound = 5,
     .RepeatEveryNRounds = 25,
     .RepeatCount = 0,
+    .UnlimitedPostRoundTime = 0,
+    .DisableDrops = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
 		.SpawnParamCount = 2,
 		.SpawnParamIds = {
-			MOB_SPAWN_PARAM_RUNNER,
+			MOB_SPAWN_PARAM_TREMOR,
 			MOB_SPAWN_PARAM_GHOST,
 			-1, -1
 		},
@@ -28,6 +32,8 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
     .MinRound = 10,
     .RepeatEveryNRounds = 25,
     .RepeatCount = 0,
+    .UnlimitedPostRoundTime = 0,
+    .DisableDrops = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
@@ -45,12 +51,14 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
     .MinRound = 15,
     .RepeatEveryNRounds = 25,
     .RepeatCount = 0,
+    .UnlimitedPostRoundTime = 0,
+    .DisableDrops = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
 		.SpawnParamCount = 2,
 		.SpawnParamIds = {
-			MOB_SPAWN_PARAM_RUNNER,
+			MOB_SPAWN_PARAM_TREMOR,
 			MOB_SPAWN_PARAM_FREEZE,
 			-1
 		},
@@ -61,6 +69,8 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
     .MinRound = 20,
     .RepeatEveryNRounds = 25,
     .RepeatCount = 0,
+    .UnlimitedPostRoundTime = 0,
+    .DisableDrops = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
@@ -68,7 +78,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_GHOST,
 			MOB_SPAWN_PARAM_EXPLOSION,
-			MOB_SPAWN_PARAM_RUNNER,
+			MOB_SPAWN_PARAM_TREMOR,
 			-1
 		},
 		.Name = "Evade Round"
@@ -78,6 +88,8 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
     .MinRound = 25,
     .RepeatEveryNRounds = 25,
     .RepeatCount = 0,
+    .UnlimitedPostRoundTime = 0,
+    .DisableDrops = 0,
 		.MaxSpawnedAtOnce = 20,
     .SpawnCountFactor = 0.8,
     .SpawnRateFactor = 0.2,
@@ -85,13 +97,12 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 		.SpawnParamIds = {
 			MOB_SPAWN_PARAM_TITAN,
       MOB_SPAWN_PARAM_NORMAL,
-      MOB_SPAWN_PARAM_RUNNER,
+      MOB_SPAWN_PARAM_TREMOR,
 			MOB_SPAWN_PARAM_GHOST
 		},
 		.Name = "Executioner Round"
 	},
 };
-
 const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct SurvivalSpecialRoundParam);
 
 // NOTE
@@ -271,7 +282,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		}
 	},
 	// runner zombie
-	[MOB_SPAWN_PARAM_RUNNER]
+	[MOB_SPAWN_PARAM_TREMOR]
 	{
 		.Cost = TREMOR_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
@@ -339,13 +350,13 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		}
 	},
 };
-
 const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct MobSpawnParams);
 
 
+//--------------------------------------------------------------------------
 u32 MobPrimaryColors[] = {
 	[MOB_SPAWN_PARAM_NORMAL] 	0x00464443,
-	[MOB_SPAWN_PARAM_RUNNER] 	0x00464443,
+	[MOB_SPAWN_PARAM_TREMOR] 	0x00464443,
 	[MOB_SPAWN_PARAM_FREEZE] 	0x00804000,
 	[MOB_SPAWN_PARAM_ACID] 		0x00464443,
 	[MOB_SPAWN_PARAM_EXPLOSION] 0x00202080,
@@ -355,7 +366,7 @@ u32 MobPrimaryColors[] = {
 
 u32 MobSecondaryColors[] = {
 	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
-	[MOB_SPAWN_PARAM_RUNNER] 	0x80202020,
+	[MOB_SPAWN_PARAM_TREMOR] 	0x80202020,
 	[MOB_SPAWN_PARAM_FREEZE] 	0x80FF2000,
 	[MOB_SPAWN_PARAM_ACID] 		0x8000FF00,
 	[MOB_SPAWN_PARAM_EXPLOSION] 0x000040C0,
@@ -365,7 +376,7 @@ u32 MobSecondaryColors[] = {
 
 u32 MobLODColors[] = {
 	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
-	[MOB_SPAWN_PARAM_RUNNER] 	0x00808080,
+	[MOB_SPAWN_PARAM_TREMOR] 	0x00808080,
 	[MOB_SPAWN_PARAM_FREEZE] 	0x00F08000,
 	[MOB_SPAWN_PARAM_ACID] 		0x0000F000,
 	[MOB_SPAWN_PARAM_EXPLOSION] 0x004040F0,
@@ -373,6 +384,7 @@ u32 MobLODColors[] = {
 	[MOB_SPAWN_PARAM_TITAN]		0x00808080,
 };
 
+//--------------------------------------------------------------------------
 struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_RESET_GATE, 0.03 },
   { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
@@ -400,6 +412,22 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
   { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
 };
 const int MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount = sizeof(MysteryBoxItemProbabilitiesLucky)/sizeof(struct MysteryBoxItemWeight);
+
+//--------------------------------------------------------------------------
+int zombieHitSoundId = 0x17D;
+int zombieAmbientSoundIds[] = { 0x17A, 0x179 };
+int zombieDeathSoundId = -1;
+const int zombieAmbientSoundIdsCount = COUNT_OF(zombieAmbientSoundIds);
+
+int tremorHitSoundId = 0x17D;
+int tremorAmbientSoundIds[] = { 0x17A, 0x179 };
+int tremorDeathSoundId = -1;
+const int tremorAmbientSoundIdsCount = COUNT_OF(tremorAmbientSoundIds);
+
+int executionerHitSoundId = 0x17D;
+int executionerAmbientSoundIds[] = { 0x17A, 0x179 };
+int executionerDeathSoundId = -1;
+const int executionerAmbientSoundIdsCount = COUNT_OF(executionerAmbientSoundIds);
 
 void configInit(void)
 {

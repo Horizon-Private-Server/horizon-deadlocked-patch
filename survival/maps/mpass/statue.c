@@ -17,8 +17,10 @@
 
 extern int aaa;
 extern Moby* reactorActiveMoby;
+extern Moby* TeleporterMoby;
+extern int StatuesActivated;
 
-SoundDef StatueSoundDef =
+SoundDef StatueActivatedSoundDef =
 {
 	0.0,	// MinRange
 	50.0,	// MaxRange
@@ -28,10 +30,46 @@ SoundDef StatueSoundDef =
 	0,			// MaxPitch
 	0,			// Loop
 	0x10,		// Flags
-	158,    // 298, 158
+	392,    // 
 	3 		  // Bank
 };
 
+//--------------------------------------------------------------------------
+void statueDrawLightning(Moby* moby)
+{
+  if (!TeleporterMoby) return;
+  if (!moby) return;
+
+  struct StatuePVar* pvars = (struct StatuePVar*)moby->PVar;
+
+  // from
+  MATRIX m;
+  VECTOR from = {0,-2.9,16,0};
+  matrix_unit(m);
+  memcpy(m, moby->M0_03, sizeof(VECTOR) * 3);
+  vector_apply(from, from, m);
+  vector_add(from, from, moby->Position);
+
+  // lightning
+  if (!pvars->LightningTicks) {
+    gfxDrawSimpleTwoPointLightning(
+      (void*)0x002225A0,
+      from,
+      TeleporterMoby->Position,
+      30,
+      4,
+      1,
+      NULL,
+      NULL,
+      NULL,
+      0x80804020
+    );
+
+    pvars->LightningTicks = 30;
+  } else {
+    pvars->LightningTicks--;
+  }
+}
 
 //--------------------------------------------------------------------------
 void statueSetState(Moby* moby, enum StatueMobyState state)
@@ -52,6 +90,7 @@ void statueUpdate(Moby* moby)
   float colorT = (sinf(5 * (gameGetTime() / (float)TIME_SECOND)) + 1) / 2;
   u32 activatedGlowColor = colorLerp(0xFFFF8000, 0xFFFFFF00, colorT);
   
+  // check if damaged by shock (activate)
   if (moby->CollDamage >= 0 && moby->State != STATUE_STATE_ACTIVATED) {
     MobyColDamage* colDamage = mobyGetDamage(moby, 0x40, 0);
     if (colDamage && colDamage->DamageHp > 0) {
@@ -63,12 +102,12 @@ void statueUpdate(Moby* moby)
   }
 
   // deactivate
-  if (gameAmIHost() && MapConfig.State && moby->State == STATUE_STATE_ACTIVATED && MapConfig.State->RoundNumber != pvars->RoundActivated) {
+  if (gameAmIHost() && MapConfig.State && moby->State == STATUE_STATE_ACTIVATED && MapConfig.State->RoundNumber != pvars->RoundActivated && MapConfig.State->RoundEndTime == 0) {
     statueSetState(moby, STATUE_STATE_DEACTIVATED);
   }
 
   // blip if reactor is alive
-  if (reactorActiveMoby) {
+  if (reactorActiveMoby && moby->State == STATUE_STATE_DEACTIVATED) {
     int blipIdx = radarGetBlipIndex(moby);
     if (blipIdx >= 0) {
       RadarBlip* blip = radarGetBlips() + blipIdx;
@@ -87,6 +126,10 @@ void statueUpdate(Moby* moby)
     moby->ModeBits &= ~0x1020;
   }
   
+  if (moby->State == STATUE_STATE_ACTIVATED) {
+    statueDrawLightning(moby);
+  }
+
   moby->GlowRGBA = (moby->State == STATUE_STATE_DEACTIVATED) ? 0x80000000 : activatedGlowColor;
   moby->CollDamage = -1;
 }
@@ -122,11 +165,16 @@ int statueHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 	// read event
 	guberEventRead(event, &state, sizeof(enum StatueMobyState));
 
+  // increment/decrement
+  if (moby->State != state) {
+    StatuesActivated += state == STATUE_STATE_ACTIVATED ? 1 : -1;
+  }
+
   // set state
 	mobySetState(moby, state, -1);
 
   if (state == STATUE_STATE_ACTIVATED) {
-    // sound
+    soundPlay(&StatueActivatedSoundDef, 0, moby, 0, 0x400);
   }
 
   DPRINTF("statue state update: %08X => %d\n", (u32)moby, state);

@@ -70,4 +70,9 @@ enum SwarmerSubskeletonJoints
   SWARMER_SUBSKELETON_JOINT_JAW = 0,
 };
 
+extern int swarmerAmbientSoundIds[];
+extern const int swarmerAmbientSoundIdsCount;
+extern int swarmerHitSoundId;
+extern int swarmerDeathSoundId;
+
 #endif // SURVIVAL_MOB_SWARMER_H

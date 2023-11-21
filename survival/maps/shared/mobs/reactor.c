@@ -6,9 +6,12 @@
 #include <libdl/random.h>
 #include <libdl/radar.h>
 #include <libdl/color.h>
+#include <libdl/dialog.h>
+#include <libdl/utils.h>
 
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
+#include "../../../include/utils.h"
 #include "../include/maputils.h"
 #include "../include/shared.h"
 
@@ -19,7 +22,9 @@ void reactorMove(Moby* moby);
 void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void reactorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+int reactorOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void reactorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
+void reactorOnCustomEvent(Moby* moby, GuberEvent* e);
 Moby* reactorGetNextTarget(Moby* moby);
 int reactorGetPreferredAction(Moby* moby);
 void reactorDoAction(Moby* moby);
@@ -32,10 +37,17 @@ int reactorIsAttacking(Moby* moby);
 void reactorPlayHitSound(Moby* moby);
 void reactorPlayAmbientSound(Moby* moby);
 void reactorPlayDeathSound(Moby* moby);
+void reactorPlaySmashSound(Moby* moby);
+void reactorPlayChargeSound(Moby* moby);
+void reactorPlayChargeHitWallStunSound(Moby* moby);
+int reactorIsWalkingOrIdle(struct MobPVar* pvars);
 int reactorIsSpawning(struct MobPVar* pvars);
 int reactorCanAttack(struct MobPVar* pvars, enum ReactorAction action);
 int reactorIsFlinching(Moby* moby);
 void reactorFireTrailshot(Moby* moby);
+
+void reactorOnReceivePlayDialog(Moby* moby, GuberEvent* e);
+void reactorPlayDialog(Moby* moby, short dialogId);
 
 void trailshotSpawn(Moby* creatorMoby, VECTOR position, VECTOR velocity, u32 color, float damage, int lifeTicks);
 
@@ -47,7 +59,9 @@ struct MobVTable ReactorVTable = {
   .OnSpawn = &reactorOnSpawn,
   .OnDestroy = &reactorOnDestroy,
   .OnDamage = &reactorOnDamage,
+  .OnLocalDamage = &reactorOnLocalDamage,
   .OnStateUpdate = &reactorOnStateUpdate,
+  .OnCustomEvent = &reactorOnCustomEvent,
   .GetNextTarget = &reactorGetNextTarget,
   .GetPreferredAction = &reactorGetPreferredAction,
   .ForceLocalAction = &reactorForceLocalAction,
@@ -59,7 +73,7 @@ struct MobVTable ReactorVTable = {
 
 SoundDef ReactorSoundDef = {
 	0.0,	  // MinRange
-	45.0,	  // MaxRange
+	100.0,	  // MaxRange
 	0,		  // MinVolume
 	1228,		// MaxVolume
 	-635,			// MinPitch
@@ -68,6 +82,39 @@ SoundDef ReactorSoundDef = {
 	0x10,		// Flags
 	0x17D,		// Index
 	3			  // Bank
+};
+
+SoundDef ReactorQuietSoundDef = {
+	0.0,	  // MinRange
+	75.0,	  // MaxRange
+	0,		  // MinVolume
+	600,		// MaxVolume
+	-635,			// MinPitch
+	635,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	0x17D,		// Index
+	3			  // Bank
+};
+
+const int reactorOnSpawnDialogIds[] = {
+  DIALOG_ID_REACTOR_AFTER_THIS_YOU_GONNA_FEEL_DEAD_TIRED,
+  DIALOG_ID_REACTOR_BOOYAH,
+  DIALOG_ID_REACTOR_WHEN_IM_DONE_WITH_YOU_YOU_GONNA_LOOK_LIKE_ROADKILL,
+  DIALOG_ID_REACTOR_IM_GONNA_PUT_YOU_IN_A_WORLD_OF_HURT
+};
+
+const int reactorOnDamageDialogIds[] = {
+  DIALOG_ID_REACTOR_COME_ON_THATS_ALL_YOU_GOT,
+  DIALOG_ID_REACTOR_AH_THAT_AINT_FUNNY,
+  DIALOG_ID_REACTOR_OOOH_OKAY_PLAY_TIMES_OVER_RAT_BOY_TIME_TO_DIE,
+  DIALOG_ID_REACTOR_AW_DAMN_NOW_YOU_GOT_ON_MY_BAD_SIDE
+};
+
+const int reactorOnDamagePlayerDialogIds[] = {
+  DIALOG_ID_REACTOR_HERO_HAH_HERO_MY_TIN_BUTT,
+  DIALOG_ID_REACTOR_TADAOW_HOW_YOU_LIKE_ME_NOW,
+  DIALOG_ID_REACTOR_BOOYAH,
 };
 
 extern u32 MobPrimaryColors[];
@@ -117,14 +164,16 @@ int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 //--------------------------------------------------------------------------
 void reactorPreUpdate(Moby* moby)
 {
+  int i;
   if (!moby || !moby->PVar)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
   if (mobIsFrozen(moby))
     return;
 
-	if (!pvars->MobVars.AmbientSoundCooldownTicks) {
+	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0 && reactorIsWalkingOrIdle(pvars)) {
 		reactorPlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(REACTOR_AMBSND_MIN_COOLDOWN_TICKS, REACTOR_AMBSND_MAX_COOLDOWN_TICKS);
 	}
@@ -136,6 +185,9 @@ void reactorPreUpdate(Moby* moby)
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
+  decTimerU16(&reactorVars->DialogCooldownTicks);
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+    decTimerU8(&reactorVars->LocalPlayerDamageHitInvTimer[i]);
 
   mobPreUpdate(moby);
 }
@@ -236,6 +288,8 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
   pvars->MobVars.Attack2CooldownTicks = randRangeInt(REACTOR_CHARGE_ATTACK_MIN_COOLDOWN_TICKS, REACTOR_CHARGE_ATTACK_MAX_COOLDOWN_TICKS);
   pvars->MobVars.Attack3CooldownTicks = randRangeInt(REACTOR_SHOT_WITH_TRAIL_ATTACK_MIN_COOLDOWN_TICKS, REACTOR_SHOT_WITH_TRAIL_ATTACK_MAX_COOLDOWN_TICKS);
 
+  reactorVars->HealthLastDialog = pvars->MobVars.Config.Health;
+
   // create particle mobys
   reactorVars->PrepShotWithFireParticleMoby1 = mobySpawn(0x1BC6, 0);
   if (reactorVars->PrepShotWithFireParticleMoby1) {
@@ -250,6 +304,9 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
   }
 
   reactorActiveMoby = moby;
+
+  // play spawn sound
+  reactorPlayDialog(moby, reactorOnSpawnDialogIds[rand(COUNT_OF(reactorOnSpawnDialogIds))]);
 }
 
 //--------------------------------------------------------------------------
@@ -286,12 +343,15 @@ void reactorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
     (expPos, 0, 0, 0, 0, 16, 0, 16, 0, 1, 0, 0, 0, 0,
     0, 0, expColor, expColor, expColor, expColor, expColor, expColor, expColor, expColor,
     0, 0, 0, 0, 0, 1, 0, 0, 0);
+
+  reactorPlayDeathSound(moby);
 }
 
 //--------------------------------------------------------------------------
 void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
 	float damage = e->DamageQuarters / 4.0;
   float newHp = pvars->MobVars.Health - damage;
 
@@ -306,7 +366,15 @@ void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
     reactorForceLocalAction(moby, REACTOR_ACTION_DIE);
     pvars->MobVars.LastHitBy = e->SourceUID;
     pvars->MobVars.LastHitByOClass = e->SourceOClass;
-	}
+	} else {
+    
+    // increase odds of playing damage dialog as amount of damage taken increases since last dialog
+    float probability = 0.5 * ((reactorVars->HealthLastDialog - newHp) / pvars->MobVars.Config.MaxHealth);
+    if (randRange(0, 1) < probability) {
+      reactorPlayDialog(moby, reactorOnDamageDialogIds[rand(COUNT_OF(reactorOnDamageDialogIds))]);
+      reactorVars->HealthLastDialog = newHp;
+    }
+  }
 
 	// knockback
 	if (e->Knockback.Power > 0 && (canFlinch || e->Knockback.Force))
@@ -338,9 +406,65 @@ void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 }
 
 //--------------------------------------------------------------------------
+int reactorOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e)
+{
+  // we want to give each local player a cooldown on damage they can apply to reactor
+  if (!e->PlayerDamager) return 1;
+  if (!e->PlayerDamager->IsLocal) return 1;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
+
+  // only accept local damage when timer is 0
+  int timer = reactorVars->LocalPlayerDamageHitInvTimer[e->PlayerDamager->LocalPlayerIndex];
+  if (timer == 0) {
+    reactorVars->LocalPlayerDamageHitInvTimer[e->PlayerDamager->LocalPlayerIndex] = REACTOR_HIT_INV_TICKS;
+    return 1;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 void reactorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   mobOnStateUpdate(moby, e);
+}
+
+//--------------------------------------------------------------------------
+void reactorOnCustomEvent(Moby* moby, GuberEvent* e)
+{
+  int customEventId;
+
+  if (!moby) return;
+  if (!e) return;
+
+  guberEventRead(e, &customEventId, sizeof(customEventId));
+
+  switch (customEventId)
+  {
+    case REACTOR_CUSTOM_EVENT_PLAY_DIALOG:
+    {
+      reactorOnReceivePlayDialog(moby, e);
+      break;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+void reactorSendCustomEvent(Moby* moby, int customEventId, void* payload, int size)
+{
+	// get guber object
+	Guber* guber = guberGetObjectByMoby(moby);
+	if (guber) {
+
+    // create event
+		GuberEvent * event = guberEventCreateEvent(guber, MOB_EVENT_CUSTOM, 0, 0);
+    if (event) {
+      guberEventWrite(event, &customEventId, sizeof(customEventId));
+      if (payload) guberEventWrite(event, payload, size);
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -508,6 +632,7 @@ void reactorDoAction(Moby* moby)
         {
           if (pvars->MobVars.AnimationLooped || moby->AnimSeqT > 20) {
             reactorForceLocalAction(moby, REACTOR_ACTION_WALK);
+            goto exit;
           }
           break;
         }
@@ -515,6 +640,7 @@ void reactorDoAction(Moby* moby)
         {
           if (pvars->MobVars.AnimationLooped || moby->AnimSeqT > 20) {
             reactorForceLocalAction(moby, REACTOR_ACTION_WALK);
+            goto exit;
           }
           break;
         }
@@ -708,6 +834,7 @@ void reactorDoAction(Moby* moby)
         case REACTOR_ANIM_SQUAT_PREPARE_FOR_DASH:
         {
           if (pvars->MobVars.AnimationLooped) {
+            if (rand(5) == 0) reactorPlayDialog(moby, DIALOG_ID_REACTOR_IM_GONNA_SMACK_THAT_STUPID_LOOK_OFF_YOUR_FACE);
             nextAnimId = REACTOR_ANIM_SQUAT_PREPARE_FOR_DASH_FOOT_RUB_GROUND;
           }
           break;
@@ -775,7 +902,13 @@ void reactorDoAction(Moby* moby)
           acceleration = REACTOR_CHARGE_ACCELERATION;
           if (pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > REACTOR_CHARGE_MAX_SLOPE && (!pvars->MobVars.MoveVars.HitWallMoby || pvars->MobVars.MoveVars.HitWallMoby->OClass == STATUE_MOBY_OCLASS)) {
             nextAnimId = REACTOR_ANIM_STEP_BACK_KNEE_DOWN;
+            reactorPlayChargeHitWallStunSound(moby);
+            playDialog(DIALOG_ID_REACTOR_OOH_IM_GONNA_NEED_TO_SIT_FOR_A_SEC);
+          } else if (moby->AnimSeqT > 6 && !reactorVars->ChargeHasPlayedSound) {
+            reactorPlayChargeSound(moby);
+            reactorVars->ChargeHasPlayedSound = 1;
           } else if (moby->AnimSeqT > 7 && moby->AnimSeqT < 13) {
+            
             speedMult = REACTOR_CHARGE_SPEED;
             reactorVars->AnimSpeedAdditive = 0.5;
             facePlayer = 0;
@@ -863,13 +996,15 @@ void reactorDoAction(Moby* moby)
 
           // stop after n iterations
           if (pvars->MobVars.AnimationLooped > 3) {
-            reactorForceLocalAction(moby, REACTOR_ACTION_IDLE);
+            reactorForceLocalAction(moby, REACTOR_ACTION_WALK);
+            goto exit;
           }
           break;
         }
       }
 
       if (!pvars->MobVars.CurrentActionForTicks) {
+        if (rand(5) == 0) reactorPlayDialog(moby, DIALOG_ID_REACTOR_DODGE_THIS);
         nextAnimId = REACTOR_ANIM_PREPPING_TWO_HAND_PULSE;
       }
 
@@ -885,19 +1020,28 @@ void reactorDoAction(Moby* moby)
     }
   }
 
+exit:;
   pvars->MobVars.CurrentActionForTicks ++;
 }
 
 //--------------------------------------------------------------------------
 void reactorDoChargeDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius * 1.5, amount, damageFlags, friendlyFire, REACTOR_SUBSKELETON_JOINT_HIPS);
+  if (mobDoDamage(moby, radius * 1.5, amount, damageFlags, friendlyFire, REACTOR_SUBSKELETON_JOINT_HIPS) & MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER) {
+    if (rand(5) == 0) {
+      reactorPlayDialog(moby, reactorOnDamagePlayerDialogIds[rand(COUNT_OF(reactorOnDamagePlayerDialogIds))]);
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
 void reactorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, REACTOR_SUBSKELETON_JOINT_RIGHT_HAND);
+  if (mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, REACTOR_SUBSKELETON_JOINT_RIGHT_HAND) & MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER) {
+    if (rand(5) == 0) {
+      reactorPlayDialog(moby, reactorOnDamagePlayerDialogIds[rand(COUNT_OF(reactorOnDamagePlayerDialogIds))]);
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -928,6 +1072,7 @@ void reactorForceLocalAction(Moby* moby, int action)
     {
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
       pvars->MobVars.Attack2CooldownTicks = randRangeInt(REACTOR_CHARGE_ATTACK_MIN_COOLDOWN_TICKS, REACTOR_CHARGE_ATTACK_MAX_COOLDOWN_TICKS);
+      reactorVars->ChargeHasPlayedSound = 0;
       break;
     }
     case REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL:
@@ -1014,23 +1159,61 @@ short reactorGetArmor(Moby* moby)
 //--------------------------------------------------------------------------
 void reactorPlayHitSound(Moby* moby)
 {
-	ReactorSoundDef.Index = 0x17D;
+  if (reactorHitSoundId < 0) return;
+
+	ReactorSoundDef.Index = reactorHitSoundId;
 	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
-}	
+}
 
 //--------------------------------------------------------------------------
 void reactorPlayAmbientSound(Moby* moby)
 {
-  const int ambientSoundIds[] = { 0x17A, 0x179 };
-	ReactorSoundDef.Index = ambientSoundIds[rand(2)];
+  if (!reactorAmbientSoundIdsCount) return;
+
+	ReactorSoundDef.Index = reactorAmbientSoundIds[rand(reactorAmbientSoundIdsCount)];
 	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
 void reactorPlayDeathSound(Moby* moby)
 {
-	ReactorSoundDef.Index = 0x171;
+  if (reactorDeathSoundId < 0) return;
+
+	ReactorSoundDef.Index = reactorDeathSoundId;
 	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
+}
+
+//--------------------------------------------------------------------------
+void reactorPlaySmashSound(Moby* moby)
+{
+  if (reactorSmashSoundId < 0) return;
+
+	ReactorSoundDef.Index = reactorSmashSoundId;
+	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
+}
+
+//--------------------------------------------------------------------------
+void reactorPlayChargeSound(Moby* moby)
+{
+  if (reactorChargeSoundId < 0) return;
+
+	ReactorSoundDef.Index = reactorChargeSoundId;
+	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
+}
+
+//--------------------------------------------------------------------------
+void reactorPlayChargeHitWallStunSound(Moby* moby)
+{
+  if (reactorKneeDownSoundId < 0) return;
+
+	ReactorQuietSoundDef.Index = reactorKneeDownSoundId;
+	soundPlay(&ReactorQuietSoundDef, 0, moby, 0, 0x400);
+}
+
+//--------------------------------------------------------------------------
+int reactorIsWalkingOrIdle(struct MobPVar* pvars)
+{
+	return pvars->MobVars.Action == REACTOR_ACTION_WALK || pvars->MobVars.Action == REACTOR_ACTION_IDLE;
 }
 
 //--------------------------------------------------------------------------
@@ -1077,6 +1260,27 @@ int reactorIsFlinching(Moby* moby)
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   return pvars->MobVars.Action == REACTOR_ACTION_BIG_FLINCH || pvars->MobVars.Action == REACTOR_ACTION_FLINCH;
 	//return (moby->AnimSeqId == REACTOR_ANIM_FLINCH_SMALL || moby->AnimSeqId == REACTOR_ANIM_FLINCH_FALL_DOWN) && !pvars->MobVars.AnimationLooped;
+}
+
+//--------------------------------------------------------------------------
+void reactorOnReceivePlayDialog(Moby* moby, GuberEvent* e)
+{
+  short dialogId = 0;
+  guberEventRead(e, &dialogId, sizeof(dialogId));
+  playDialog(dialogId);
+}
+
+//--------------------------------------------------------------------------
+void reactorPlayDialog(Moby* moby, short dialogId)
+{
+  if (!mobAmIOwner(moby)) return;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
+  if (!reactorVars->DialogCooldownTicks) {
+    reactorSendCustomEvent(moby, REACTOR_CUSTOM_EVENT_PLAY_DIALOG, &dialogId, sizeof(dialogId));
+    reactorVars->DialogCooldownTicks = randRangeInt(REACTOR_DIALOG_COOLDOWN_MIN_TPS, REACTOR_DIALOG_COOLDOWN_MAX_TPS);
+  }
 }
 
 //--------------------------------------------------------------------------

@@ -124,7 +124,7 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
     {
       return executionerCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
-    case MOB_SPAWN_PARAM_RUNNER:
+    case MOB_SPAWN_PARAM_TREMOR:
     {
       return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
     }
@@ -256,18 +256,17 @@ int main (void)
 #if DEBUG
   dlPreUpdate();
   Player* localPlayer = playerGetFromSlot(0);
-  if (padGetButtonDown(0, PAD_LEFT) > 0) {
-    --aaa;
-    DPRINTF("%d\n", aaa);
-  }
-  else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-    ++aaa;
-    DPRINTF("%d\n", aaa);
-  }
+  // if (padGetButtonDown(0, PAD_LEFT) > 0) {
+  //   --aaa;
+  //   DPRINTF("%d\n", aaa);
+  // }
+  // else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+  //   ++aaa;
+  //   DPRINTF("%d\n", aaa);
+  // }
 
-  /*
   static int handle = 0;
-  if (padGetButtonDown(0, PAD_L1 | PAD_L3) > 0) {
+  if (padGetButtonDown(0, PAD_RIGHT) > 0) {
     aaa += 1;
     def.Index = aaa;
     if (handle)
@@ -279,7 +278,7 @@ int main (void)
       handle = 0;
     DPRINTF("%d\n", aaa);
   }
-  else if (padGetButtonDown(0, PAD_L1 | PAD_R3) > 0) {
+  else if (padGetButtonDown(0, PAD_LEFT) > 0) {
     aaa -= 1;
     def.Index = aaa;
     if (handle)
@@ -291,7 +290,6 @@ int main (void)
       handle = 0;
     DPRINTF("%d\n", aaa);
   }
-  */
 
   dlPostUpdate();
 #endif

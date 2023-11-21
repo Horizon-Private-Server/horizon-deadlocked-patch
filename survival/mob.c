@@ -710,10 +710,22 @@ void mobUpdate(Moby* moby)
       }
     }
 
-    if (damager && (isOwner || playerIsLocal(damager))) {
-      mobSendDamageEvent(moby, damager->PlayerMoby, colDamage->Damager, damage, damageFlags);	
-    } else if (isOwner) {
-      mobSendDamageEvent(moby, colDamage->Damager, colDamage->Damager, damage, damageFlags);	
+    // give mob final say before damage is applied
+    // we also want the local players to register their own damage
+    // or if damage came from non-player, have mob owner register damage
+    struct MobLocalDamageEventArgs e = {
+      .Damage = damage,
+      .DamageFlags = damageFlags,
+      .Damager = colDamage->Damager,
+      .PlayerDamager = damager
+    };
+
+    if (!pvars->VTable || pvars->VTable->OnLocalDamage(moby, &e)) {
+      if (e.PlayerDamager && playerIsLocal(e.PlayerDamager)) {
+        mobSendDamageEvent(moby, e.PlayerDamager->PlayerMoby, e.Damager, e.Damage, e.DamageFlags);	
+      } else if (!e.PlayerDamager && isOwner) {
+        mobSendDamageEvent(moby, e.Damager, e.Damager, e.Damage, e.DamageFlags);	
+      }
     }
 
     // 
@@ -950,16 +962,18 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	int xp = pvars->MobVars.Config.Xp;
 
 #if DROPS
-	if (killedByPlayerId >= 0 && gameAmIHost()) {
-		Player * killedByPlayer = players[(int)killedByPlayerId];
-		if (killedByPlayer) {
-			float randomValue = randRange(0.0, 1.0);
-      float probability = State.PlayerStates[(int)killedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
-      if (randomValue < probability) {
-				dropCreate(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
-			}
-		}
-	}
+  if (!State.RoundIsSpecial || !mapConfig || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops) {
+    if (killedByPlayerId >= 0 && gameAmIHost()) {
+      Player * killedByPlayer = players[(int)killedByPlayerId];
+      if (killedByPlayer) {
+        float randomValue = randRange(0.0, 1.0);
+        float probability = State.PlayerStates[(int)killedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
+        if (randomValue < probability) {
+          dropCreate(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
+        }
+      }
+    }
+  }
 #endif
 
 #if SHARED_BOLTS
@@ -1194,6 +1208,18 @@ int mobHandleEvent_OwnerUpdate(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
+int mobHandleEvent_Custom(Moby* moby, GuberEvent* event)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	if (!pvars)
+		return 0;
+
+  if (pvars->VTable && pvars->VTable->OnCustomEvent)
+    pvars->VTable->OnCustomEvent(moby, event);
+	return 0;
+}
+
+//--------------------------------------------------------------------------
 int mobHandleEvent(Moby* moby, GuberEvent* event)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -1215,6 +1241,7 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
 			case MOB_EVENT_STATE_UPDATE: return mobHandleEvent_ActionUpdate(moby, event);
 			case MOB_EVENT_TARGET_UPDATE: return mobHandleEvent_StateUpdate(moby, event);
 			case MOB_EVENT_OWNER_UPDATE: return mobHandleEvent_OwnerUpdate(moby, event);
+      case MOB_EVENT_CUSTOM: return mobHandleEvent_Custom(moby, event);
 			default:
 			{
 				DPRINTF("unhandle mob event %d\n", mobEvent);

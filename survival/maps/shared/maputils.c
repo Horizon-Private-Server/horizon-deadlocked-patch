@@ -266,3 +266,10 @@ void draw3DMarker(VECTOR position, float scale, u32 color, char* str)
     gfxScreenSpaceText(x, y, scale, scale, color, str, -1, 4);
   }
 }
+
+//--------------------------------------------------------------------------
+void playDialog(short dialogId)
+{
+  int r = ((int (*)(short, short))0x004e3da8)(dialogId, 0);
+  if (!r) { DPRINTF("playDialog %d returned %d\n", dialogId, r); }
+}

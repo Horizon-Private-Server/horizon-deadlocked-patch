@@ -104,4 +104,9 @@ typedef struct ReaperMobVars
   char AggroTriggered;
 } ReaperMobVars_t;
 
+extern int reaperAmbientSoundIds[];
+extern const int reaperAmbientSoundIdsCount;
+extern int reaperHitSoundId;
+extern int reaperDeathSoundId;
+
 #endif // SURVIVAL_MOB_REAPER_H

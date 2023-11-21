@@ -33,6 +33,7 @@ enum MobEvent
 	MOB_EVENT_STATE_UPDATE,
 	MOB_EVENT_TARGET_UPDATE,
 	MOB_EVENT_OWNER_UPDATE,
+  MOB_EVENT_CUSTOM,
 };
 
 // what kind of spawn a mob can have
@@ -50,6 +51,7 @@ enum MobUnreliableMsgId {
 };
 
 struct MobDamageEventArgs;
+struct MobLocalDamageEventArgs;
 struct MobSpawnEventArgs;
 struct MobStateUpdateEventArgs;
 
@@ -59,7 +61,9 @@ typedef int (*MobGetPreferredAction_func)(Moby* moby);
 typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
 typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
+typedef int (*MobOnLocalDamage_func)(Moby* moby, struct MobLocalDamageEventArgs* e);
 typedef void (*MobOnStateUpdate_func)(Moby* moby, struct MobStateUpdateEventArgs* e);
+typedef void (*MobOnCustomEvent_func)(Moby* moby, GuberEvent* event);
 typedef void (*MobForceLocalAction_func)(Moby* moby, int action);
 typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 typedef short (*MobGetArmor_func)(Moby* moby);
@@ -73,7 +77,9 @@ struct MobVTable {
   MobOnSpawn_func OnSpawn;
   MobOnDestroy_func OnDestroy;
   MobOnDamage_func OnDamage;
+  MobOnLocalDamage_func OnLocalDamage;
   MobOnStateUpdate_func OnStateUpdate;
+  MobOnCustomEvent_func OnCustomEvent;
   MobGetNextTarget_func GetNextTarget;
   MobGetPreferredAction_func GetPreferredAction;
   MobForceLocalAction_func ForceLocalAction;
@@ -273,6 +279,14 @@ struct MobDamageEventArgs
   u32 DamageFlags;
 	u16 DamageQuarters;
 	u16 SourceOClass;
+};
+
+struct MobLocalDamageEventArgs
+{
+  float Damage;
+  u32 DamageFlags;
+  Moby* Damager;
+  Player* PlayerDamager;
 };
 
 struct MobActionUpdateEventArgs

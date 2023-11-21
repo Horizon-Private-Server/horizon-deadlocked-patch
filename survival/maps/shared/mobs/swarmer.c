@@ -21,6 +21,7 @@ void swarmerMove(Moby* moby);
 void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void swarmerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+int swarmerOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void swarmerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* swarmerGetNextTarget(Moby* moby);
 int swarmerGetPreferredAction(Moby* moby);
@@ -47,6 +48,7 @@ struct MobVTable SwarmerVTable = {
   .OnSpawn = &swarmerOnSpawn,
   .OnDestroy = &swarmerOnDestroy,
   .OnDamage = &swarmerOnDamage,
+  .OnLocalDamage = &swarmerOnLocalDamage,
   .OnStateUpdate = &swarmerOnStateUpdate,
   .GetNextTarget = &swarmerGetNextTarget,
   .GetPreferredAction = &swarmerGetPreferredAction,
@@ -117,7 +119,7 @@ void swarmerPreUpdate(Moby* moby)
     return;
 
   // ambient sounds
-	if (!pvars->MobVars.AmbientSoundCooldownTicks) {
+	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0) {
 		swarmerPlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(SWARMER_AMBSND_MIN_COOLDOWN_TICKS, SWARMER_AMBSND_MAX_COOLDOWN_TICKS);
 	}
@@ -274,6 +276,13 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 }
 
 //--------------------------------------------------------------------------
+int swarmerOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e)
+{
+  // don't filter local damage
+  return 1;
+}
+
+//--------------------------------------------------------------------------
 void swarmerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   mobOnStateUpdate(moby, e);
@@ -334,12 +343,8 @@ int swarmerGetPreferredAction(Moby* moby)
   if (swarmerIsFlinching(moby))
     return -1;
 
-	if (pvars->MobVars.Action == SWARMER_ACTION_DODGE && !pvars->MobVars.MoveVars.Grounded) {
+	if (pvars->MobVars.Action == SWARMER_ACTION_DODGE) {
 		return -1;
-  }
-
-	if (pvars->MobVars.Action == SWARMER_ACTION_DODGE && pvars->MobVars.MoveVars.Grounded) {
-		return SWARMER_ACTION_WALK;
   }
 
 	if (pvars->MobVars.Action == SWARMER_ACTION_JUMP && !pvars->MobVars.MoveVars.Grounded) {
@@ -739,22 +744,27 @@ short swarmerGetArmor(Moby* moby)
 //--------------------------------------------------------------------------
 void swarmerPlayHitSound(Moby* moby)
 {
-	SwarmerSoundDef.Index = 0x17D;
+  if (swarmerHitSoundId < 0) return;
+
+	SwarmerSoundDef.Index = swarmerHitSoundId;
 	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
 void swarmerPlayAmbientSound(Moby* moby)
 {
-  const int ambientSoundIds[] = { 0x17A, 0x179 };
-	SwarmerSoundDef.Index = ambientSoundIds[rand(2)];
+  if (!swarmerAmbientSoundIdsCount) return;
+
+	SwarmerSoundDef.Index = swarmerAmbientSoundIds[rand(swarmerAmbientSoundIdsCount)];
 	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
 void swarmerPlayDeathSound(Moby* moby)
 {
-	SwarmerSoundDef.Index = 0x171;
+  if (swarmerDeathSoundId < 0) return;
+
+	SwarmerSoundDef.Index = swarmerDeathSoundId;
 	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
 }
 

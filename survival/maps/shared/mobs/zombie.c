@@ -20,6 +20,7 @@ void zombieMove(Moby* moby);
 void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+int zombieOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void zombieOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* zombieGetNextTarget(Moby* moby);
 int zombieGetPreferredAction(Moby* moby);
@@ -44,6 +45,7 @@ struct MobVTable ZombieVTable = {
   .OnSpawn = &zombieOnSpawn,
   .OnDestroy = &zombieOnDestroy,
   .OnDamage = &zombieOnDamage,
+  .OnLocalDamage = &zombieOnLocalDamage,
   .OnStateUpdate = &zombieOnStateUpdate,
   .GetNextTarget = &zombieGetNextTarget,
   .GetPreferredAction = &zombieGetPreferredAction,
@@ -114,7 +116,7 @@ void zombiePreUpdate(Moby* moby)
     return;
 
   // ambient sounds
-	if (!pvars->MobVars.AmbientSoundCooldownTicks) {
+	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0) {
 		zombiePlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(ZOMBIE_AMBSND_MIN_COOLDOWN_TICKS, ZOMBIE_AMBSND_MAX_COOLDOWN_TICKS);
 	}
@@ -268,6 +270,13 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e)
       }
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+int zombieOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e)
+{
+  // don't filter local damage
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -749,22 +758,27 @@ short zombieGetArmor(Moby* moby)
 //--------------------------------------------------------------------------
 void zombiePlayHitSound(Moby* moby)
 {
-	ZombieSoundDef.Index = 0x17D;
+  if (zombieHitSoundId < 0) return;
+
+	ZombieSoundDef.Index = zombieHitSoundId;
 	soundPlay(&ZombieSoundDef, 0, moby, 0, 0x400);
-}	
+}
 
 //--------------------------------------------------------------------------
 void zombiePlayAmbientSound(Moby* moby)
 {
-  const int ambientSoundIds[] = { 0x17A, 0x179 };
-	ZombieSoundDef.Index = ambientSoundIds[rand(2)];
+  if (!zombieAmbientSoundIdsCount) return;
+
+	ZombieSoundDef.Index = zombieAmbientSoundIds[rand(zombieAmbientSoundIdsCount)];
 	soundPlay(&ZombieSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
 void zombiePlayDeathSound(Moby* moby)
 {
-	ZombieSoundDef.Index = 0x171;
+  if (zombieDeathSoundId < 0) return;
+
+	ZombieSoundDef.Index = zombieDeathSoundId;
 	soundPlay(&ZombieSoundDef, 0, moby, 0, 0x400);
 }
 

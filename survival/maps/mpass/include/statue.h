@@ -22,6 +22,7 @@ typedef struct StatuePVar
   struct TargetVars TargetVars;
   struct ReactVars ReactVars;
   int RoundActivated;
+  int LightningTicks;
 } StatuePVar_t;
 
 void statueSetState(Moby* moby, enum StatueMobyState state);

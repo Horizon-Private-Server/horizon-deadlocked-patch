@@ -20,6 +20,7 @@ void reaperMove(Moby* moby);
 void reaperOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void reaperOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+int reaperOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void reaperOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* reaperGetNextTarget(Moby* moby);
 int reaperGetPreferredAction(Moby* moby);
@@ -44,6 +45,7 @@ struct MobVTable ReaperVTable = {
   .OnSpawn = &reaperOnSpawn,
   .OnDestroy = &reaperOnDestroy,
   .OnDamage = &reaperOnDamage,
+  .OnLocalDamage = &reaperOnLocalDamage,
   .OnStateUpdate = &reaperOnStateUpdate,
   .GetNextTarget = &reaperGetNextTarget,
   .GetPreferredAction = &reaperGetPreferredAction,
@@ -114,7 +116,7 @@ void reaperPreUpdate(Moby* moby)
     return;
 
   // ambient sounds
-	if (!pvars->MobVars.AmbientSoundCooldownTicks) {
+	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0) {
 		reaperPlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(REAPER_AMBSND_MIN_COOLDOWN_TICKS, REAPER_AMBSND_MAX_COOLDOWN_TICKS);
 	}
@@ -244,8 +246,8 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
   Player* sourcePlayer = playerGetFromUID(e->SourceUID);
   if (!reaperVars->AggroTriggered && sourcePlayer) {
     reaperVars->AggroTriggered = 1;
-    reaperVars->AggroTriggeredBy = NULL;
-    if (mobAmIOwner(moby)) reaperVars->AggroTriggeredBy = sourcePlayer;
+    reaperVars->AggroTriggeredBy = sourcePlayer;
+    pvars->MobVars.Target = playerGetTargetMoby(sourcePlayer);
   }
 
   // flinch
@@ -264,6 +266,13 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
       }
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+int reaperOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e)
+{
+  // don't filter local damage
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -768,22 +777,27 @@ short reaperGetArmor(Moby* moby)
 //--------------------------------------------------------------------------
 void reaperPlayHitSound(Moby* moby)
 {
-	ReaperSoundDef.Index = 0x17D;
+  if (reaperHitSoundId < 0) return;
+
+	ReaperSoundDef.Index = reaperHitSoundId;
 	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
-}	
+}
 
 //--------------------------------------------------------------------------
 void reaperPlayAmbientSound(Moby* moby)
 {
-  const int ambientSoundIds[] = { 0x17A, 0x179 };
-	ReaperSoundDef.Index = ambientSoundIds[rand(2)];
+  if (!reaperAmbientSoundIdsCount) return;
+
+	ReaperSoundDef.Index = reaperAmbientSoundIds[rand(reaperAmbientSoundIdsCount)];
 	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
 void reaperPlayDeathSound(Moby* moby)
 {
-	ReaperSoundDef.Index = 0x171;
+  if (reaperDeathSoundId < 0) return;
+
+	ReaperSoundDef.Index = reaperDeathSoundId;
 	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
 }
 

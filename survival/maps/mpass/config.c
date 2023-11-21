@@ -1,3 +1,4 @@
+#include <libdl/utils.h>
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../../../include/mysterybox.h"
@@ -6,13 +7,15 @@
 extern struct SurvivalMapConfig MapConfig;
 
 
+//--------------------------------------------------------------------------
 struct SurvivalSpecialRoundParam specialRoundParams[] = {
-	// BOSS ROUNDS
+	// BOSS ROUND
 	{
-    .MinRound = 10,
-    .RepeatEveryNRounds = 10,
+    .MinRound = 2,
+    .RepeatEveryNRounds = 2,
     .RepeatCount = 0,
     .UnlimitedPostRoundTime = 1,
+    .DisableDrops = 1,
 		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
@@ -24,7 +27,6 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
 		.Name = "Boss Round"
 	},
 };
-
 const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct SurvivalSpecialRoundParam);
 
 // SHOULD NEVER EXCEED MAX_MOB_SPAWN_PARAMS
@@ -51,7 +53,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Speed = MOB_BASE_SPEED * 1.0,
 			.MaxSpeed = MOB_BASE_SPEED * 5.0,
       .SpeedScale = 2.0,
-			.Health = MOB_BASE_HEALTH * 25.0,
+			.Health = MOB_BASE_HEALTH * 50.0,
 			.MaxHealth = 0,
       .HealthScale = 2.0,
 			.Bolts = MOB_BASE_BOLTS * 50.0,
@@ -104,7 +106,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .MaxSpawnedAtOnce = 20,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
-		.MinRound = 0,
+		.MinRound = 9,
 		.CooldownTicks = 0,
 		.Probability = 0.05,
     .StatId = MOB_STAT_REAPER,
@@ -131,14 +133,14 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MobAttribute = 0,
 		}
 	},
-	// runner zombie
-  [MOB_SPAWN_PARAM_RUNNER]
+	// tremor
+  [MOB_SPAWN_PARAM_TREMOR]
 	{
 		.Cost = TREMOR_RENDER_COST,
     .MaxSpawnedAtOnce = 30,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
-		.MinRound = 0,
+		.MinRound = 3,
 		.CooldownTicks = 0,
 		.Probability = 0.1,
     .StatId = MOB_STAT_TREMOR,
@@ -224,7 +226,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 0.35,
 			.MaxHealth = 0,
       .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 0.5,
+			.Bolts = MOB_BASE_BOLTS * 0.25,
 			.AttackRadius = SWARMER_MELEE_ATTACK_RADIUS,
 			.HitRadius = SWARMER_MELEE_HIT_RADIUS,
       .CollRadius = SWARMER_BASE_COLL_RADIUS * 1.0,
@@ -234,26 +236,14 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		}
 	},
 };
-
 const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct MobSpawnParams);
 
-// Locations of where to spawn statues
-VECTOR statueSpawnPositionRotations[] = {
-  { 543.98, 757.12, 505.52, 0 },
-  { 0, 0, -180 * MATH_DEG2RAD, 0 },
-  { 464.5, 878.09, 505.07, 0 },
-  { 0, 0, -165 * MATH_DEG2RAD, 0 },
-  { 612.77, 940.64, 510.43, 0 },
-  { 7.23 * MATH_DEG2RAD, 0, -44.605 * MATH_DEG2RAD, 0 },
-};
-
-const int statueSpawnPositionRotationsCount = sizeof(statueSpawnPositionRotations) / (sizeof(VECTOR) * 2);
-
+//--------------------------------------------------------------------------
 u32 MobPrimaryColors[] = {
 	[MOB_SPAWN_PARAM_REACTOR] 	0x00464443,
 	[MOB_SPAWN_PARAM_ACID] 		  0x00464443,
   [MOB_SPAWN_PARAM_REAPER]    0x00464443,
-	[MOB_SPAWN_PARAM_RUNNER] 	  0x00464443,
+	[MOB_SPAWN_PARAM_TREMOR] 	  0x00464443,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x00464443,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x00464443,
 };
@@ -262,7 +252,7 @@ u32 MobSecondaryColors[] = {
 	[MOB_SPAWN_PARAM_REACTOR]   0x80808080,
 	[MOB_SPAWN_PARAM_ACID] 		  0x8000FF00,
   [MOB_SPAWN_PARAM_REAPER]    0x80808080,
-	[MOB_SPAWN_PARAM_RUNNER] 	  0x80808080,
+	[MOB_SPAWN_PARAM_TREMOR] 	  0x80808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x80202020,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x80808080,
 };
@@ -271,11 +261,12 @@ u32 MobLODColors[] = {
 	[MOB_SPAWN_PARAM_REACTOR]   0x00808080,
 	[MOB_SPAWN_PARAM_ACID] 		  0x0000F000,
   [MOB_SPAWN_PARAM_REAPER]    0x80808080,
-	[MOB_SPAWN_PARAM_RUNNER] 	  0x00808080,
+	[MOB_SPAWN_PARAM_TREMOR] 	  0x00808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x00808080,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x00808080,
 };
 
+//--------------------------------------------------------------------------
 struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_RESET_GATE, 0.03 },
   { MYSTERY_BOX_ITEM_QUAD, 0.0526 },
@@ -305,6 +296,50 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
   { MYSTERY_BOX_ITEM_DREAD_TOKEN, 1.0 },
 };
 const int MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount = sizeof(MysteryBoxItemProbabilitiesLucky)/sizeof(struct MysteryBoxItemWeight);
+
+//--------------------------------------------------------------------------
+// Locations of where to spawn statues
+VECTOR statueSpawnPositionRotations[] = {
+  { 543.98, 757.12, 505.52, 0 },
+  { 0, 0, 180 * MATH_DEG2RAD, 0 },
+  { 412.54, 772.13, 515.49, 0 },
+  { 0, -3.382 * MATH_DEG2RAD, -215.379 * MATH_DEG2RAD, 0 },
+  { 612.77, 940.64, 510.43, 0 },
+  { 7.23 * MATH_DEG2RAD, 0, -44.605 * MATH_DEG2RAD, 0 },
+};
+const int statueSpawnPositionRotationsCount = sizeof(statueSpawnPositionRotations) / (sizeof(VECTOR) * 2);
+
+//--------------------------------------------------------------------------
+int zombieHitSoundId = 407;
+int zombieAmbientSoundIds[] = { 403, 404 };
+int zombieDeathSoundId = -1;
+const int zombieAmbientSoundIdsCount = COUNT_OF(zombieAmbientSoundIds);
+
+int tremorHitSoundId = 407;
+int tremorAmbientSoundIds[] = {  };
+int tremorDeathSoundId = -1;
+const int tremorAmbientSoundIdsCount = COUNT_OF(tremorAmbientSoundIds);
+
+int swarmerHitSoundId = 407;
+int swarmerAmbientSoundIds[] = { };
+int swarmerDeathSoundId = -1;
+const int swarmerAmbientSoundIdsCount = COUNT_OF(swarmerAmbientSoundIds);
+
+int reaperHitSoundId = 173;
+int reaperAmbientSoundIds[] = { 403, 404 };
+int reaperDeathSoundId = -1;
+const int reaperAmbientSoundIdsCount = COUNT_OF(reaperAmbientSoundIds);
+
+int reactorHitSoundId = 407;
+int reactorSmashSoundId = 317;
+int reactorChargeSoundId = 184;
+int reactorKneeDownSoundId = 103;
+int reactorAmbientSoundIds[] = { 403, 404 };
+int reactorDeathSoundId = 123;
+const int reactorAmbientSoundIdsCount = COUNT_OF(reactorAmbientSoundIds);
+
+int trailshotFireSoundId = 416;
+int trailshotExplodeSoundId = 0x106;
 
 void configInit(void)
 {

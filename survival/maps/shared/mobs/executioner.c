@@ -19,6 +19,7 @@ void executionerMove(Moby* moby);
 void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void executionerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void executionerOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+int executionerOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void executionerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* executionerGetNextTarget(Moby* moby);
 int executionerGetPreferredAction(Moby* moby);
@@ -43,6 +44,7 @@ struct MobVTable ExecutionerVTable = {
   .OnSpawn = &executionerOnSpawn,
   .OnDestroy = &executionerOnDestroy,
   .OnDamage = &executionerOnDamage,
+  .OnLocalDamage = &executionerOnLocalDamage,
   .OnStateUpdate = &executionerOnStateUpdate,
   .GetNextTarget = &executionerGetNextTarget,
   .GetPreferredAction = &executionerGetPreferredAction,
@@ -112,7 +114,7 @@ void executionerPreUpdate(Moby* moby)
   if (mobIsFrozen(moby))
     return;
 
-	if (!pvars->MobVars.AmbientSoundCooldownTicks) {
+	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0) {
 		executionerPlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(EXECUTIONER_AMBSND_MIN_COOLDOWN_TICKS, EXECUTIONER_AMBSND_MAX_COOLDOWN_TICKS);
 	}
@@ -264,6 +266,13 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
       }
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+int executionerOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e)
+{
+  // don't filter local damage
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -661,22 +670,27 @@ short executionerGetArmor(Moby* moby)
 //--------------------------------------------------------------------------
 void executionerPlayHitSound(Moby* moby)
 {
-	ExecutionerSoundDef.Index = 0x17D;
+  if (executionerHitSoundId < 0) return;
+
+	ExecutionerSoundDef.Index = executionerHitSoundId;
 	soundPlay(&ExecutionerSoundDef, 0, moby, 0, 0x400);
 }	
 
 //--------------------------------------------------------------------------
 void executionerPlayAmbientSound(Moby* moby)
 {
-  const int ambientSoundIds[] = { 0x17A, 0x179 };
-	ExecutionerSoundDef.Index = ambientSoundIds[rand(2)];
+  if (!executionerAmbientSoundIdsCount) return;
+
+	ExecutionerSoundDef.Index = executionerAmbientSoundIds[rand(executionerAmbientSoundIdsCount)];
 	soundPlay(&ExecutionerSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
 void executionerPlayDeathSound(Moby* moby)
 {
-	ExecutionerSoundDef.Index = 0x171;
+  if (executionerDeathSoundId < 0) return;
+
+	ExecutionerSoundDef.Index = executionerDeathSoundId;
 	soundPlay(&ExecutionerSoundDef, 0, moby, 0, 0x400);
 }
 

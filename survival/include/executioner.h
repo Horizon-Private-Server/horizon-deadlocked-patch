@@ -78,4 +78,9 @@ enum ExecutionerSubskeletonJoints
   EXECUTIONER_SUBSKELETON_JOINT_ = 0,
 };
 
+extern int executionerAmbientSoundIds[];
+extern const int executionerAmbientSoundIdsCount;
+extern int executionerHitSoundId;
+extern int executionerDeathSoundId;
+
 #endif // SURVIVAL_MOB_EXECUTIONER_H

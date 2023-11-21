@@ -339,6 +339,7 @@ struct SurvivalSpecialRoundParam
   float SpawnRateFactor;
 	int MaxSpawnedAtOnce;
   char UnlimitedPostRoundTime;
+  char DisableDrops;
 	char SpawnParamIds[4];
 	char Name[32];
 };

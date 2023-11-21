@@ -19,6 +19,7 @@ void tremorMove(Moby* moby);
 void tremorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 void tremorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId);
 void tremorOnDamage(Moby* moby, struct MobDamageEventArgs* e);
+int tremorOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void tremorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* tremorGetNextTarget(Moby* moby);
 int tremorGetPreferredAction(Moby* moby);
@@ -43,6 +44,7 @@ struct MobVTable TremorVTable = {
   .OnSpawn = &tremorOnSpawn,
   .OnDestroy = &tremorOnDestroy,
   .OnDamage = &tremorOnDamage,
+  .OnLocalDamage = &tremorOnLocalDamage,
   .OnStateUpdate = &tremorOnStateUpdate,
   .GetNextTarget = &tremorGetNextTarget,
   .GetPreferredAction = &tremorGetPreferredAction,
@@ -112,7 +114,7 @@ void tremorPreUpdate(Moby* moby)
   if (mobIsFrozen(moby))
     return;
 
-	if (!pvars->MobVars.AmbientSoundCooldownTicks) {
+	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0) {
 		tremorPlayAmbientSound(moby);
 		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(TREMOR_AMBSND_MIN_COOLDOWN_TICKS, TREMOR_AMBSND_MAX_COOLDOWN_TICKS);
 	}
@@ -253,6 +255,13 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
       }
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+int tremorOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e)
+{
+  // don't filter local damage
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -625,22 +634,27 @@ short tremorGetArmor(Moby* moby)
 //--------------------------------------------------------------------------
 void tremorPlayHitSound(Moby* moby)
 {
-	TremorSoundDef.Index = 0x17D;
+  if (tremorHitSoundId < 0) return;
+
+	TremorSoundDef.Index = tremorHitSoundId;
 	soundPlay(&TremorSoundDef, 0, moby, 0, 0x400);
-}	
+}
 
 //--------------------------------------------------------------------------
 void tremorPlayAmbientSound(Moby* moby)
 {
-  const int ambientSoundIds[] = { 0x17A, 0x179 };
-	TremorSoundDef.Index = ambientSoundIds[rand(2)];
+  if (!tremorAmbientSoundIdsCount) return;
+
+	TremorSoundDef.Index = tremorAmbientSoundIds[rand(tremorAmbientSoundIdsCount)];
 	soundPlay(&TremorSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
 void tremorPlayDeathSound(Moby* moby)
 {
-	TremorSoundDef.Index = 0x171;
+  if (tremorDeathSoundId < 0) return;
+
+	TremorSoundDef.Index = tremorDeathSoundId;
 	soundPlay(&TremorSoundDef, 0, moby, 0, 0x400);
 }
 

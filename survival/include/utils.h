@@ -38,5 +38,6 @@ float getSignedSlope(VECTOR forward, VECTOR normal);
 int mobyIsMob(Moby* moby);
 Player* mobyGetPlayer(Moby* moby);
 Moby* playerGetTargetMoby(Player* player);
+int localPlayerHasInput(void);
 
 #endif // SURVIVAL_UTILS_H

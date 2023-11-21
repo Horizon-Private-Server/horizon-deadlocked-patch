@@ -8,13 +8,10 @@
 #include <libdl/color.h>
 
 #include "../../../include/game.h"
+#include "../../../include/trailshot.h"
 #include "../../../include/mob.h"
 #include "../include/maputils.h"
 #include "../include/shared.h"
-
-#define TRAILSHOT_MAX_TRAIL_PARTICLES             (32)
-#define TRAILSHOT_MAX_ACTIVE_AT_ONCE              (5)
-#define TRAILSHOT_TRAIL_DAMAGE                    (5)
 
 extern int aaa;
 
@@ -39,7 +36,7 @@ enum TrailshotState
   TRAILSHOT_WAITING_TO_DIE
 };
 
-SoundDef trailshotExplosionSoundDef =
+SoundDef trailshotSoundDef =
 {
 	0.0,	// MinRange
 	50.0,	// MaxRange
@@ -49,7 +46,7 @@ SoundDef trailshotExplosionSoundDef =
 	0,			// MaxPitch
 	0,			// Loop
 	0x10,		// Flags
-	0x106,  // 0x123, 0x171, 
+	0x106,  // Id
 	3			  // Bank
 };
 
@@ -71,6 +68,24 @@ void trailshotDamage(Moby* moby, Moby* hitMoby, int damageFlags, float amount)
 }
 
 //--------------------------------------------------------------------------
+void trailshotPlayFireSound(Moby* moby)
+{
+  if (trailshotFireSoundId < 0) return;
+
+	trailshotSoundDef.Index = trailshotFireSoundId;
+	soundPlay(&trailshotSoundDef, 0, moby, 0, 0x400);
+}
+
+//--------------------------------------------------------------------------
+void trailshotPlayExplosionSound(Moby* moby)
+{
+  if (reactorChargeSoundId < 0) return;
+
+	trailshotSoundDef.Index = trailshotExplodeSoundId;
+	soundPlay(&trailshotSoundDef, 0, moby, 0, 0x400);
+}
+
+//--------------------------------------------------------------------------
 void trailshotOnImpact(Moby* moby)
 {
   TrailshotPVar_t* pvars = (TrailshotPVar_t*)moby->PVar;
@@ -81,7 +96,7 @@ void trailshotOnImpact(Moby* moby)
   Moby* mob = moby->PParent;
 
 	// SpawnMoby_5025
-	soundPlay(&trailshotExplosionSoundDef, 0, moby, 0, 0x400);
+  trailshotPlayExplosionSound(moby);
   mobySpawnExplosion(
     vector_read(moby->Position), 0, 0, 5, 0, 5, 5, 0,
     0, 0, 0, 0, 0, 0, 0, 0,
@@ -298,4 +313,6 @@ void trailshotSpawn(Moby* creatorMoby, VECTOR position, VECTOR velocity, u32 col
   pvars->TrailParticleLifeTicks = TPS * 60 * 1;
   pvars->Damage = damage;
   vector_copy(pvars->Velocity, velocity);
+  
+  trailshotPlayFireSound(moby);
 }

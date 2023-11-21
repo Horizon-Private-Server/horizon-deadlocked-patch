@@ -543,7 +543,7 @@ int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
 //--------------------------------------------------------------------------
 int spawnCanSpawnMob(struct MobSpawnParams* mob, int spawnParamIdx)
 {
-	return State.RoundNumber >= mob->MinRound
+	return (State.RoundNumber + 1) >= mob->MinRound
       && mob->Probability > 0
       && (!mob->SpecialRoundOnly || State.RoundIsSpecial)
       && (mob->MaxSpawnedAtOnce <= 0 || State.MobStats.NumAlive[spawnParamIdx] < mob->MaxSpawnedAtOnce)
@@ -1991,6 +1991,9 @@ void setRoundStart(int skip)
 	// send out
 	message.RoundNumber = targetRound;
 	message.GameTime = gameGetTime() + (skip ? 0 : ROUND_TRANSITION_DELAY_MS);
+  if (!skip && State.RoundIsSpecial && mapConfig->SpecialRoundParams[State.RoundSpecialIdx].UnlimitedPostRoundTime)
+    message.GameTime = -1;
+
 	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_ROUND_START, sizeof(SurvivalRoundStartMessage_t), &message);
 
 	// set locally
@@ -2600,7 +2603,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 
 #if DEBUG
-	State.RoundNumber = 9;
+	//State.RoundNumber = 9;
 	//State.RoundIsSpecial = 1;
 	//State.RoundSpecialIdx = 4;
 
@@ -2756,14 +2759,12 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #if DEBUG
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     //State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_LUCK;
-    //State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
+    //State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK;
   }
-	if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
-		State.GameOver = 1;
 #endif
 
 #if MANUAL_SPAWN
-  if (!gameIsStartMenuOpen() && !localPlayerData->IsInWeaponsMenu)
+  if (localPlayerHasInput())
 	{
     
     static int aaa = 0;
@@ -2780,7 +2781,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      manSpawnMobId = 0;
+      //manSpawnMobId = 0;
       //manSpawnMobId = 5;
 			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
@@ -2830,6 +2831,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #endif
 
 #if MANUAL_DROP_SPAWN
+  if (localPlayerHasInput())
 	{
 		if (padGetButtonDown(0, PAD_UP) > 0) {
 			static int manSpawnDropId = 0;
@@ -2917,11 +2919,33 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
         drawDreadTokenIcon(462, y, 32);
       }
     }
+    
+    // draw blessing
+    int itemTexId = -1;
+    u32 itemColor = 0x80C0C0C0;
+    switch (localPlayerData->State.ItemBlessing)
+    {
+      case BLESSING_ITEM_QUAD_JUMP: itemTexId = 111 - 3; break;
+      case BLESSING_ITEM_LUCK: itemTexId = 112 - 3; break;
+      case BLESSING_ITEM_INF_CBOOT: itemTexId = 113 - 3; break;
+      case BLESSING_ITEM_ELEM_IMMUNITY: itemTexId = 114 - 3; break;
+      case BLESSING_ITEM_HEALTH_REGEN: itemTexId = 115 - 3; break;
+      case BLESSING_ITEM_AMMO_REGEN: itemTexId = 116 - 3; break;
+      default: break;
+    }
+
+    if (itemTexId > 0) {
+      gfxSetupGifPaging(0);
+      u64 itemSprite = gfxGetFrameTex(itemTexId);
+      gfxDrawSprite(15+2, SCREEN_HEIGHT-100+2, 32, 32, 0, 0, 32, 32, 0x40000000, itemSprite);
+      gfxDrawSprite(15,   SCREEN_HEIGHT-100,   32, 32, 0, 0, 32, 32, itemColor, itemSprite);
+      gfxDoGifPaging();
+    }
 
     // draw current item
-    int itemTexId = -1;
+    itemTexId = -1;
     char useItemChar = 0;
-    u32 itemColor = 0x80C0C0C0;
+    itemColor = 0x80C0C0C0;
     switch (localPlayerData->State.Item)
     {
       case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
@@ -2933,13 +2957,13 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     if (itemTexId > 0) {
       gfxSetupGifPaging(0);
       u64 itemSprite = gfxGetFrameTex(itemTexId);
-      gfxDrawSprite(15+2, SCREEN_HEIGHT-50+2, 32, 32, 0, 0, 32, 32, 0x40000000, itemSprite);
-      gfxDrawSprite(15,   SCREEN_HEIGHT-50,   32, 32, 0, 0, 32, 32, itemColor, itemSprite);
+      gfxDrawSprite(20+2, SCREEN_HEIGHT-50+2, 32, 32, 0, 0, 32, 32, 0x40000000, itemSprite);
+      gfxDrawSprite(20,   SCREEN_HEIGHT-50,   32, 32, 0, 0, 32, 32, itemColor, itemSprite);
       gfxDoGifPaging();
     }
 
     if (useItemChar) {
-      gfxScreenSpaceText(55, SCREEN_HEIGHT - 40, 1, 1, 0x80FFFFFF, &useItemChar, 1, 0);
+      gfxScreenSpaceText(5, SCREEN_HEIGHT - 40, 0.75, 0.75, 0x80FFFFFF, &useItemChar, 1, 0);
     }
   }
 
@@ -3045,7 +3069,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				drawRoundMessage(buffer, 1.5, 0);
 			}
 
-			if (State.RoundEndTime)
+			if (State.RoundEndTime > 0)
 			{
 				// handle when round properly ends
 				if (gameTime > State.RoundEndTime)
@@ -3056,10 +3080,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				else if (State.IsHost)
 				{
 					// draw round countdown
-					uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
+          uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
 
 					// handle skip
-					if (!localPlayer->timers.noInput && padGetButtonDown(0, PAD_UP) > 0) {
+					if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
 						setRoundStart(1);
 					}
 				}
@@ -3069,13 +3093,21 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					uiShowTimer(0, SURVIVAL_NEXT_ROUND_TIMER_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
 				}
 			}
+      else if (State.IsHost && State.RoundEndTime < 0)
+      {
+        // round doesn't begin until host chooses to start
+        gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
+        if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
+          setRoundStart(1);
+        }
+      }
 			else if (State.IsHost)
 			{
 #if AUTOSTART
-				setRoundStart(0);
+        setRoundStart(0);
 #else
         gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
-        if (padGetButtonDown(0, PAD_UP) > 0) {
+        if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
           setRoundStart(1);
         }
 #endif

@@ -100,4 +100,9 @@ enum ZombieSubskeletonJoints
   ZOMBIE_SUBSKELETON_JOINT_RIGHT_CHEST = 12,
 };
 
+extern int zombieAmbientSoundIds[];
+extern const int zombieAmbientSoundIdsCount;
+extern int zombieHitSoundId;
+extern int zombieDeathSoundId;
+
 #endif // SURVIVAL_MOB_ZOMBIE_H

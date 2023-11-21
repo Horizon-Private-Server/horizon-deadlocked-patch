@@ -313,3 +313,12 @@ Moby* playerGetTargetMoby(Player* player)
   if (!player) return NULL;
   return player->SkinMoby;
 }
+
+//--------------------------------------------------------------------------
+int localPlayerHasInput(void)
+{
+  Player* localPlayer = playerGetFromSlot(0);
+  if (!localPlayer) return 0;
+
+  return !localPlayer->timers.noInput && !gameIsStartMenuOpen() && !State.PlayerStates[localPlayer->PlayerId].IsInWeaponsMenu;
+}
