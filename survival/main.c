@@ -25,6 +25,7 @@
 #include <libdl/dialog.h>
 #include <libdl/ui.h>
 #include <libdl/stdio.h>
+#include <libdl/stdlib.h>
 #include <libdl/graphics.h>
 #include <libdl/spawnpoint.h>
 #include <libdl/random.h>
@@ -38,6 +39,7 @@
 #include "config.h"
 #include "include/mob.h"
 #include "include/drop.h"
+#include "include/bubble.h"
 #include "include/game.h"
 #include "include/utils.h"
 #include "include/gate.h"
@@ -47,8 +49,10 @@
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
 const char * SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE = "\x1d   Start Round";
+const char * SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE = "Waiting for Host";
 const char * SURVIVAL_NEXT_ROUND_TIMER_MESSAGE = "Next Round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
+const char * SURVIVAL_HEALTH_GUN = "Health Gun";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x18 Revive [\x0E%d\x08]";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
@@ -503,6 +507,11 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
 int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
 	// harder difficulty, better chance mob spawns near you
 	float r = randRange(0, 1) / State.Difficulty;
+  float demonBellFactor = 0;
+
+  if (State.DemonBellCount > 0) {
+    demonBellFactor = lerpf(1, 0.5, powf(State.RoundDemonBellCount / (float)State.DemonBellCount, 2));
+  }
 
 #if QUICK_SPAWN
 	r = MOB_SPAWN_NEAR_PLAYER_PROBABILITY;
@@ -528,16 +537,16 @@ int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
 
 	// spawn near player
 	if (r <= MOB_SPAWN_NEAR_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_NEAR_PLAYER)) {
-		return spawnPointGetNearToPlayer(out, 10);
+		return spawnPointGetNearToPlayer(out, 30 * demonBellFactor);
 	}
 
 	// spawn semi near player
 	if (r <= MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_SEMI_NEAR_PLAYER)) {
-		return spawnPointGetNearToPlayer(out, 30);
+		return spawnPointGetNearToPlayer(out, 60 * demonBellFactor);
 	}
 
 	// spawn
-	return spawnPointGetNearToPlayer(out, 50);
+	return spawnPointGetNearToPlayer(out, 100 * demonBellFactor);
 }
 
 //--------------------------------------------------------------------------
@@ -1389,6 +1398,21 @@ Moby* onEmpFired(int oclass, int pvarSize, Moby* empLauncherMoby) {
 }
 
 //--------------------------------------------------------------------------
+void playerOnPushedIntoWall(Player* player)
+{
+  if (!player || !player->SkinMoby || !player->PlayerMoby) return;
+  
+  // push mobs away
+  mobReactToExplosionAt(player->PlayerId, player->PlayerPosition, 1, 8);
+
+  // move player out of clipped wall
+  // using lastGoodPos doesn't always return us to before the clip
+  if (player->IsLocal) {
+    playerSetPosRot(player, player->Ground.lastGoodPos, player->PlayerRotation);
+  }
+}
+
+//--------------------------------------------------------------------------
 void playerBlessingOnDoubleJump(Player* player, int stateId, int a2, int a3, int t0) {
 	struct SurvivalPlayer * playerData = &State.PlayerStates[player->PlayerId];
   PlayerVTable* vtable = playerGetVTable(player);
@@ -1396,7 +1420,7 @@ void playerBlessingOnDoubleJump(Player* player, int stateId, int a2, int a3, int
 
   if (playerData->State.ItemBlessing == BLESSING_ITEM_QUAD_JUMP
       && (player->PlayerState == PLAYER_STATE_JUMP || player->PlayerState == PLAYER_STATE_RUN_JUMP)
-      && blessingQuadJumpJumpCount[player->PlayerId] < 2) {
+      && blessingQuadJumpJumpCount[player->PlayerId] < 3) {
     blessingQuadJumpJumpCount[player->PlayerId] += 1;
     vtable->UpdateState(player, PLAYER_STATE_JUMP, a2, a3, t0);
   } else {
@@ -1449,16 +1473,20 @@ void processPlayerBlessing(Player* player, int blessing) {
     }
     case BLESSING_ITEM_HEALTH_REGEN:
     {
+      if (!player->IsLocal) break;
       if (blessingTimeBasedTickers[player->PlayerId] > 0) {
         --blessingTimeBasedTickers[player->PlayerId];
-      } else {
-        player->Health = clamp(player->Health + 1, 0, player->MaxHealth);
+      } else if (!playerIsDead(player)) {
+        player->Health = clamp(player->Health + (player->MaxHealth * 0.02), 0, player->MaxHealth);
+        if (player->pNetPlayer)
+          player->pNetPlayer->pNetPlayerData->hitPoints = player->Health;
         blessingTimeBasedTickers[player->PlayerId] = ITEM_BLESSING_HEALTH_REGEN_RATE_TPS;
       }
       break;
     }
     case BLESSING_ITEM_AMMO_REGEN:
     {
+      if (!player->IsLocal) break;
       if (blessingTimeBasedTickers[player->PlayerId] > 0) {
         --blessingTimeBasedTickers[player->PlayerId];
       } else {
@@ -1469,7 +1497,7 @@ void processPlayerBlessing(Player* player, int blessing) {
           struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[player->WeaponHeldId];
           int maxAmmo = playerGetWeaponMaxAmmo(player->GadgetBox, player->WeaponHeldId);
           int ammo = gadgetEntry->Ammo;
-          int ammoInc = playerBlessingGetAmmoRegenAmount(player->WeaponHeldId);
+          int ammoInc = (int)ceilf(maxAmmo * 0.1); //playerBlessingGetAmmoRegenAmount(player->WeaponHeldId);
           if (ammoInc > 0 && ammo < maxAmmo) {
             gadgetEntry->Ammo = (ammo + ammoInc) > maxAmmo ? maxAmmo : (ammo + ammoInc);
           }
@@ -2265,7 +2293,7 @@ void resetRoundState(void)
 	// 
 	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
 	State.RoundMaxMobCount = MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(State.RoundNumber * State.Difficulty * playerCountMultiplier, 0.75)));
-	State.RoundMaxSpawnedAtOnce = MAX_MOBS_SPAWNED;
+	State.RoundMaxSpawnedAtOnce = MAX_MOBS_ALIVE;
 	State.RoundInitialized = 0;
 	State.RoundStartTime = gameTime;
 	State.RoundCompleteTime = 0;
@@ -2374,6 +2402,11 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	*(u32*)0x005E07C8 = 0x0C000000 | ((u32)&whoKilledMeHook >> 2);
 	*(u32*)0x005E11B0 = *(u32*)0x005E07C8;
 
+  // patch mobs pushing you into walls and killing you
+  POKE_U32(0x005e4188, 0);
+  POKE_U32(0x005e419c, 0);
+  HOOK_JAL(0x005e41bc, &playerOnPushedIntoWall);
+
   // patch quad/shield cooldown timer
   HOOK_JAL(0x004468D8, &setPlayerQuadCooldownTimer);
   POKE_U32(0x004468E4, 0);
@@ -2405,9 +2438,11 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   // write map config
   mapConfig->State = &State;
   mapConfig->BakedConfig = &BakedConfig;
+  mapConfig->SpawnGetRandomPointFunc = &spawnGetRandomPoint;
   mapConfig->UpgradePlayerWeaponFunc = &mapUpgradePlayerWeaponHandler;
   mapConfig->PushSnackFunc = &pushSnack;
   mapConfig->PopulateSpawnArgsFunc = &populateSpawnArgsFromConfig;
+  mapConfig->ModeCreateMobFunc = &mobCreate;
 
   // hook blessings
   HOOK_JAL(0x0060C660, &playerBlessingOnDoubleJump);
@@ -2434,6 +2469,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	strncpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
 	strncpy(uiMsgString(0x3152), SURVIVAL_UPGRADE_MESSAGE, strlen(SURVIVAL_UPGRADE_MESSAGE)+1);
 	strncpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE)+1);
+	strncpy(uiMsgString(0x24B7), SURVIVAL_HEALTH_GUN, strlen(SURVIVAL_HEALTH_GUN)+1);
 
 	// disable v2s and packs
 	cheatsApplyNoV2s();
@@ -2485,6 +2521,8 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   // re-enable input
   padEnableInput();
 
+  bubbleInit();
+
 	memset(defaultSpawnParamsCooldowns, 0, sizeof(defaultSpawnParamsCooldowns));
   memset(snackItems, 0, sizeof(snackItems));
 
@@ -2497,7 +2535,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 		memset(&State.PlayerStates[i], 0, sizeof(struct SurvivalPlayer));
     State.PlayerStates[i].State.Item = -1;
 
-#if DEBUG
+#if PAYDAY
 		State.PlayerStates[i].State.CurrentTokens = 100;
 #endif
 
@@ -2603,7 +2641,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 
 #if DEBUG
-	//State.RoundNumber = 9;
+	//State.RoundNumber = 14;
 	//State.RoundIsSpecial = 1;
 	//State.RoundSpecialIdx = 4;
 
@@ -2637,16 +2675,16 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   {
     case CUSTOM_MAP_SURVIVAL_MINING_FACILITY:
     {
-      FIXEDTARGETMOBY->Position[0] = 384.3274536;
-      FIXEDTARGETMOBY->Position[1] = 579.9664307;
-      FIXEDTARGETMOBY->Position[2] = 480;
+      FIXEDTARGETMOBY->Position[0] = 338.455383;
+      FIXEDTARGETMOBY->Position[1] = 559.073792;
+      FIXEDTARGETMOBY->Position[2] = 440.366547;
       break;
     }
     case CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS:
     {
-      FIXEDTARGETMOBY->Position[0] = 540.35;
-      FIXEDTARGETMOBY->Position[1] = 858.3;
-      FIXEDTARGETMOBY->Position[2] = 507.02;
+      FIXEDTARGETMOBY->Position[0] = 659.404419;
+      FIXEDTARGETMOBY->Position[1] = 867.973633;
+      FIXEDTARGETMOBY->Position[2] = 508.891419;
       break;
     }
   }
@@ -2758,8 +2796,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 #if DEBUG
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    //State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_LUCK;
-    //State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK;
+    //State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_THORNS;
+    //State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
   }
 #endif
 
@@ -2767,15 +2805,15 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
   if (localPlayerHasInput())
 	{
     
-    static int aaa = 0;
-		if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-			aaa += 1;
-			DPRINTF("%d\n", aaa);
-		}
-		else if (padGetButtonDown(0, PAD_LEFT) > 0) {
-			aaa -= 1;
-			DPRINTF("%d\n", aaa);
-		}
+    // static int aaa = 0;
+		// if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+		// 	aaa += 1;
+		// 	DPRINTF("%d\n", aaa);
+		// }
+		// else if (padGetButtonDown(0, PAD_LEFT) > 0) {
+		// 	aaa -= 1;
+		// 	DPRINTF("%d\n", aaa);
+		// }
 
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
@@ -2783,7 +2821,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       // force one mob type
       //manSpawnMobId = 0;
       //manSpawnMobId = 5;
-			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
@@ -2817,7 +2855,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #if BENCHMARK
   {
     static int manSpawnMobId = 0;
-    if (manSpawnMobId < MAX_MOBS_SPAWNED)
+    if (manSpawnMobId < MAX_MOBS_ALIVE)
     {
       VECTOR t = {396,606,434,0};
       
@@ -2848,6 +2886,12 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		}
 	}
 #endif
+
+	// ticks
+	mobTick();
+	dropTick();
+	upgradeTick();
+  bubbleTick();
 
   // handle inf ammo
   if (State.InfiniteAmmoStopTime > 0) {
@@ -2887,7 +2931,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     gfxScreenSpaceText(31, 292, 1, 1, 0x40000000, buffer, -1, 1);
     gfxScreenSpaceText(30, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
-    // draw double points
+    // draw double bolts
     if (localPlayer && State.PlayerStates[localPlayer->PlayerId].IsDoublePoints) {
       gfxScreenSpaceText(490+1, 40+1, 0.7, 0.7, 0x40000000, "x2", -1, 1);
       gfxScreenSpaceText(490+0, 40+0, 0.7, 0.7, 0x8029E5E6, "x2", -1, 1);
@@ -2903,7 +2947,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     char* enemiesStr = "ENEMIES";
     gfxScreenSpaceText(31, 241, 0.7, 0.7, 0x40000000, enemiesStr, -1, 1);
     gfxScreenSpaceText(30, 240, 0.7, 0.7, 0x80E0E0E0, enemiesStr, -1, 1);
-    sprintf(buffer, "%d", State.MobStats.TotalAlive);
+    sprintf(buffer, "%d", State.MobStats.TotalAlive + State.MobStats.TotalSpawning);
     gfxScreenSpaceText(31, 252, 1, 1, 0x40000000, buffer, -1, 1);
     gfxScreenSpaceText(30, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
@@ -2922,34 +2966,37 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     
     // draw blessing
     int itemTexId = -1;
+    int itemTexWH = 32;
     u32 itemColor = 0x80C0C0C0;
     switch (localPlayerData->State.ItemBlessing)
     {
-      case BLESSING_ITEM_QUAD_JUMP: itemTexId = 111 - 3; break;
-      case BLESSING_ITEM_LUCK: itemTexId = 112 - 3; break;
-      case BLESSING_ITEM_INF_CBOOT: itemTexId = 113 - 3; break;
-      case BLESSING_ITEM_ELEM_IMMUNITY: itemTexId = 114 - 3; break;
-      case BLESSING_ITEM_HEALTH_REGEN: itemTexId = 115 - 3; break;
-      case BLESSING_ITEM_AMMO_REGEN: itemTexId = 116 - 3; break;
+      case BLESSING_ITEM_QUAD_JUMP: itemTexId = 111 - 3; itemTexWH = 64; break;
+      case BLESSING_ITEM_LUCK: itemTexId = 112 - 3; itemTexWH = 64; break;
+      case BLESSING_ITEM_INF_CBOOT: itemTexId = 113 - 3; itemTexWH = 64; break;
+      case BLESSING_ITEM_ELEM_IMMUNITY: itemTexId = 114 - 3; itemTexWH = 64; break;
+      case BLESSING_ITEM_HEALTH_REGEN: itemTexId = 115 - 3; itemTexWH = 64; break;
+      case BLESSING_ITEM_AMMO_REGEN: itemTexId = 116 - 3; itemTexWH = 64; break;
+      case BLESSING_ITEM_THORNS: itemTexId = 117 - 3; itemTexWH = 64; break;
       default: break;
     }
 
     if (itemTexId > 0) {
       gfxSetupGifPaging(0);
       u64 itemSprite = gfxGetFrameTex(itemTexId);
-      gfxDrawSprite(15+2, SCREEN_HEIGHT-100+2, 32, 32, 0, 0, 32, 32, 0x40000000, itemSprite);
-      gfxDrawSprite(15,   SCREEN_HEIGHT-100,   32, 32, 0, 0, 32, 32, itemColor, itemSprite);
+      gfxDrawSprite(15+2, SCREEN_HEIGHT-100+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
+      gfxDrawSprite(15,   SCREEN_HEIGHT-100,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
       gfxDoGifPaging();
     }
 
     // draw current item
     itemTexId = -1;
+    itemTexWH = 32;
     char useItemChar = 0;
     itemColor = 0x80C0C0C0;
     switch (localPlayerData->State.Item)
     {
       case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
-      case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 19 - 3; useItemChar = '\x1A'; break;
+      case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 140 - 3; useItemChar = '\x1A'; break;
       case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN: itemTexId = 15 - 3; useItemChar = '\x1A'; break;
       default: break;
     }
@@ -2957,8 +3004,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     if (itemTexId > 0) {
       gfxSetupGifPaging(0);
       u64 itemSprite = gfxGetFrameTex(itemTexId);
-      gfxDrawSprite(20+2, SCREEN_HEIGHT-50+2, 32, 32, 0, 0, 32, 32, 0x40000000, itemSprite);
-      gfxDrawSprite(20,   SCREEN_HEIGHT-50,   32, 32, 0, 0, 32, 32, itemColor, itemSprite);
+      gfxDrawSprite(20+2, SCREEN_HEIGHT-50+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
+      gfxDrawSprite(20,   SCREEN_HEIGHT-50,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
       gfxDoGifPaging();
     }
 
@@ -2967,11 +3014,6 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     }
   }
 
-	// ticks
-	mobTick();
-	dropTick();
-	upgradeTick();
-
 #if DEBUG
   if (padGetButton(0, PAD_CROSS)) {
     *(float*)0x00347BD8 = 0.125;
@@ -2979,8 +3021,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 #endif
 
 #if FIXEDTARGET
-  if (FIXEDTARGETMOBY && padGetButtonDown(0, PAD_L1 | PAD_R1 | PAD_L2 | PAD_R2)) {
+  if (FIXEDTARGETMOBY && padGetButton(0, PAD_L1 | PAD_R1 | PAD_L2 | PAD_R2)) {
     vector_copy(FIXEDTARGETMOBY->Position, playerGetFromSlot(0)->PlayerPosition);
+    printf("fixed target moved: ");
+    vector_print(FIXEDTARGETMOBY->Position);
+    printf("\n");
   }
 #endif
 
@@ -3008,17 +3053,17 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		// replace normal scoreboard with bolt counter
 		forcePlayerHUD();
 
-		// handle freeze and double points
+		// handle freeze and double bolts
 		if (State.IsHost) {
 			int dblPointsChanged = 0;
 			int dblXPChanged = 0;
 
-			// disable double points for players
+			// disable double bolts for players
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				if (State.PlayerStates[i].IsDoublePoints && gameTime >= (State.PlayerStates[i].TimeOfDoublePoints + DOUBLE_POINTS_DURATION)) {
 					State.PlayerStates[i].IsDoublePoints = 0;
 					dblPointsChanged = 1;
-					DPRINTF("setting player %d dbl points to 0\n", i);
+					DPRINTF("setting player %d dbl bolts to 0\n", i);
 				}
 
 				if (State.PlayerStates[i].IsDoubleXP && gameTime >= (State.PlayerStates[i].TimeOfDoubleXP + DOUBLE_XP_DURATION)) {
@@ -3101,6 +3146,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
           setRoundStart(1);
         }
       }
+      else if (!State.IsHost && State.RoundEndTime < 0)
+      {
+        gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE, -1, 4);
+      }
 			else if (State.IsHost)
 			{
 #if AUTOSTART
@@ -3178,7 +3227,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 						DPRINTF("%d\n", State.MobStats.TotalAlive);
 					}
 					// wait for all zombies to die
-					if (State.MobStats.TotalAlive == 0) {
+					if ((State.MobStats.TotalAlive + State.MobStats.TotalSpawning) == 0) {
 						setRoundComplete();
 					}
 				} else {
@@ -3327,6 +3376,9 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 				sendPlayerStats(i);
 			}
 		}
+    
+    bubbleDeinit();
+
 		Initialized = 2;
 	}
 

@@ -110,10 +110,9 @@ void trailshotOnImpact(Moby* moby)
     Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
     Moby* hitMoby;
     while ((hitMoby = *hitMobies++)) {
-      Player* player = guberMobyGetPlayerDamager(hitMoby);
-      if (!player) continue;
+      if (mobyIsMob(hitMoby)) continue;
 
-      trailshotDamage(mob, hitMoby, 0x00008801, pvars->Damage);
+      trailshotDamage(mob, hitMoby, 0x00008841, pvars->Damage);
     }
   }
 }
@@ -222,7 +221,7 @@ void trailshotPostDraw(Moby* moby)
 void trailshotUpdate(Moby* moby)
 {
   VECTOR next, down;
-  VECTOR hitNormal, velNormal, up;
+  VECTOR hitNormal, velNormal, up = {0,0,1,0}, right;
   VECTOR delta;
   TrailshotPVar_t* pvars = (TrailshotPVar_t*)moby->PVar;
 
@@ -264,11 +263,7 @@ void trailshotUpdate(Moby* moby)
       // get hit wall slope
       vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
       vector_normalize(velNormal, pvars->Velocity);
-
-      //float slope = getSignedSlope(pvars->Velocity, hitNormal);
-      
-      vector_outerproduct(up, velNormal, hitNormal);
-      float slope = atan2f(vector_length(up), vector_innerproduct(velNormal, hitNormal)) - MATH_PI/2;
+      float slope = getSignedSlope(velNormal, hitNormal);
       if (fabsf(slope) > (25 * MATH_DEG2RAD)) {
         trailshotOnImpact(moby);
         mobySetState(moby, TRAILSHOT_WAITING_TO_DIE, -1);

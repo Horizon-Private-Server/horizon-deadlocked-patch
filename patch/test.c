@@ -940,13 +940,32 @@ void runAllow4Locals(void)
   }
 }
 
+void runDrawTex(void)
+{
+  if (!isInMenus()) return;
+
+  static int aaa = 0;
+
+  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+    aaa--;
+    DPRINTF("%d 0x%x\n", aaa, aaa);
+  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+    aaa++;
+    DPRINTF("%d 0x%x\n", aaa, aaa);
+  }
+
+  gfxSetupGifPaging(0);
+  gfxDrawSprite(150, 150,   100, 100, 0, 0, 100, 100, 0x80FFFFFF, gfxGetFrameTex(aaa));
+  gfxDoGifPaging();
+}
+
 void runTestLogic(void)
 {
   int i;
 
   //runHitmarkerLogic();
-
-  runAllow4Locals();
+  runDrawTex();
+  //runAllow4Locals();
   return;
 
   //runSystemTime();

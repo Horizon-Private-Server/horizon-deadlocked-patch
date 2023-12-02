@@ -154,21 +154,32 @@ Fix OPL crash on load
 ++Add gate reset (resets gate 100% cost)
 ++Teams off ends game when only one team left
 
+++Fix mysterybox sounds on mpass
+++Fix upgrade sounds on mpass
+Try and improve overall teleporting of mobs and boss
+++Change reactor activate statue to shoot them
+++Add waiting for host to start round after boss round
+++Add damage numbers on damage
+Add description to blessings
+Add blessing statues
+++Have cooldown upgrade affect quad/shield mbox item
+++Fix clank dialog when opening weapons menu
+++Move weapon spawns on mpass
+++Reduce flinch odds on reactor
+++Have drop snap to ground
+++Replace "EMP" with health gun
 
-Add timed team quad item
-Add timed team shield item
-Add emp heal item
-
-Triple jump blessing (hare)
-Infinite chargeboot blessing (bull)
-Ice resist blessing (hearth)
-Luck blessing (clover)
-Health regen blessing (vitality)
-Ammo regen blessing (hunt)
-
-Boss drops 5 alpha mods, 5 tokens, 2 random items
-Boss needs to charge into 3 statues to activate
-Statues activate teleporter only during post-boss round interim
-Post-boss round interim is 3 minutes long
-Blizzard as a mystery box punishment
-Increase mbox to 25k
+Tweak weapons
+Fix charge clipping walls
+++Al big yellow dot radar
+++Reaper aggro less likely to flinch
+++Buff viper cooldown on reactor (2x)
+++Add mbox respawn sound
+++Add vox laugh dialog on mbox vox
+++Give reactor a little lunge when swinging
+++Slow down reactor smash animation
+Fix mobs flinching into walls and getting stuck
+Improve overall EE performance for mobs (reduce movecheck to 3)
+Block small hallway on minimap
+++Move mines to front of small hallway
+Move drops and upgrades into map

@@ -24,6 +24,7 @@
 #include <libdl/dialog.h>
 #include <libdl/sound.h>
 #include <libdl/patch.h>
+#include <libdl/collision.h>
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
 #include <libdl/color.h>
@@ -51,37 +52,38 @@ SoundDef PaidSoundDef =
 	3			  // Bank
 };
 
-/* 
- * Explosion sound def
- */
-SoundDef ExplosionSoundDef =
-{
-	0.0,	// MinRange
-	50.0,	// MaxRange
-	100,		// MinVolume
-	4000,		// MaxVolume
-	0,			// MinPitch
-	0,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x106,  // 0x123, 0x171, 
-	3			  // Bank
-};
-
 //--------------------------------------------------------------------------
 Moby * spawnExplosion(VECTOR position, float size, u32 color)
 {
 	// SpawnMoby_5025
-	Moby * moby = ((Moby* (*)(u128, float, int, int, int, int, int, short, short, short, short, short, short,
-				short, short, float, float, float, int, Moby *, int, int, int, int, int, int, int, int,
-				int, short, Moby *, Moby *, u128)) (0x003c3b38))
-				(vector_read(position), size / 2.5, 0x2, 0x14, 0x10, 0x10, 0x10, 0x10, 0x2, 0, 1, 0, 0,
-				0, 0, 0, 0, 2, 0x00080800, 0, color, color, color, color, color, color, color, color,
-				color, 0, 0, 0, 0);
-				
-	soundPlay(&ExplosionSoundDef, 0, moby, 0, 0x400);
+  Moby* moby = mobySpawnExplosion(
+    vector_read(position), 0, 0, 0, 0, 16, 0, 16, 0, 1, 0, 0, 0, 0,
+    0, 0, color, color, color, color, color, color, color, color,
+    0, 0, 0, 0, 0, size / 2.5, 0, 0, 0
+  );
+  
+  mobyPlaySoundByClass(0, 0, moby, MOBY_ID_ARBITER_ROCKET0);
 
 	return moby;
+}
+
+//--------------------------------------------------------------------------
+void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, float damageRadius)
+{
+	MobyColDamageIn in;
+  float damageRadiusSqr = damageRadius * damageRadius;
+  Moby* hitMoby;
+
+  vector_write(in.Momentum, 0);
+  in.Damager = moby;
+  in.DamageFlags = damageFlags;
+  in.DamageClass = 0;
+  in.DamageStrength = 1;
+  in.DamageIndex = moby->OClass;
+  in.Flags = 1;
+  in.DamageHp = damage;
+
+  CollMobysSphere_Fix(position, 1, moby, &in, damageRadius);
 }
 
 //--------------------------------------------------------------------------
@@ -139,6 +141,18 @@ GuberEvent* guberCreateEvent(Moby* moby, u32 eventType)
 		event = guberEventCreateEvent(guber, eventType, 0, 0);
 
 	return event;
+}
+
+//--------------------------------------------------------------------------
+float getSignedRelativeSlope(VECTOR forward, VECTOR normal)
+{
+  VECTOR up = {0,0,1,0}, right;
+  VECTOR projectedNormal;
+
+  vector_outerproduct(right, forward, up);
+  vector_projectonplane(projectedNormal, normal, right);
+  vector_outerproduct(up, forward, projectedNormal);
+  return atan2f(vector_length(up), vector_innerproduct(forward, projectedNormal)) - MATH_PI/2;
 }
 
 //--------------------------------------------------------------------------
@@ -268,8 +282,14 @@ void draw3DMarker(VECTOR position, float scale, u32 color, char* str)
 }
 
 //--------------------------------------------------------------------------
-void playDialog(short dialogId)
+void playDialog(short dialogId, int force)
 {
-  int r = ((int (*)(short, short))0x004e3da8)(dialogId, 0);
-  if (!r) { DPRINTF("playDialog %d returned %d\n", dialogId, r); }
+  const int flag = 1;
+
+  // reset play count
+  if (force) {
+    POKE_U16(0x001f1400 + (flag * 12), 0);
+  }
+
+  ((int (*)(short, short))0x004e3da8)(dialogId, flag);
 }

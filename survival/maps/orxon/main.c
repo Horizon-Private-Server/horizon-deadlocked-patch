@@ -41,6 +41,7 @@ void gateInit(void);
 void gateSpawn(VECTOR gateData[], int count);
 void gasTick(void);
 void mobInit(void);
+void mobTick(void);
 void configInit(void);
 void pathTick(void);
 
@@ -230,6 +231,7 @@ int main (void)
   // init
   initialize();
 
+  mobTick();
   pathTick();
 
   if (MapConfig.State) {

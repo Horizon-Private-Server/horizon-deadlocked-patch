@@ -22,7 +22,7 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs* e);
 int tremorOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void tremorOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* tremorGetNextTarget(Moby* moby);
-int tremorGetPreferredAction(Moby* moby);
+int tremorGetPreferredAction(Moby* moby, int * delayTicks);
 void tremorDoAction(Moby* moby);
 void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void tremorForceLocalAction(Moby* moby, int action);
@@ -310,7 +310,7 @@ Moby* tremorGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int tremorGetPreferredAction(Moby* moby)
+int tremorGetPreferredAction(Moby* moby, int * delayTicks)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -335,7 +335,7 @@ int tremorGetPreferredAction(Moby* moby)
   }
 
   // jump if we've hit a jump point on the path
-  if (pathShouldJump(moby)) {
+  if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
     return TREMOR_ACTION_JUMP;
   }
 
@@ -352,8 +352,10 @@ int tremorGetPreferredAction(Moby* moby)
 		float attackRadiusSqr = pvars->MobVars.Config.AttackRadius * pvars->MobVars.Config.AttackRadius;
 
 		if (distSqr <= attackRadiusSqr) {
-			if (tremorCanAttack(pvars))
+			if (tremorCanAttack(pvars)) {
+        if (delayTicks) *delayTicks = pvars->MobVars.Config.ReactionTickCount;
 				return TREMOR_ACTION_ATTACK;
+      }
 			return TREMOR_ACTION_WALK;
 		} else {
 			return TREMOR_ACTION_WALK;
@@ -436,7 +438,7 @@ void tremorDoAction(Moby* moby)
 
           // use delta height between target as base of jump speed
           // with min speed
-          float jumpSpeed = pathGetJumpSpeed(moby);
+          float jumpSpeed = pvars->MobVars.MoveVars.QueueJumpSpeed;
           if (jumpSpeed <= 0 && target) {
             jumpSpeed = 5; //clamp(2 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
           }
@@ -444,6 +446,7 @@ void tremorDoAction(Moby* moby)
           vector_write(pvars->MobVars.MoveVars.Velocity, 0);
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
           pvars->MobVars.MoveVars.Grounded = 0;
+          pvars->MobVars.MoveVars.QueueJumpSpeed = 0;
         }
 				break;
 			}
@@ -484,11 +487,13 @@ void tremorDoAction(Moby* moby)
 			// 
       if (moby->AnimSeqId == TREMOR_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
         // wait for jump to land
-      }
-			else if (mobHasVelocity(pvars))
+      } else if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
+        tremorForceLocalAction(moby, TREMOR_ACTION_JUMP);
+      } else if (mobHasVelocity(pvars)) {
 				mobTransAnim(moby, TREMOR_ANIM_RUN, 0);
-			else
+      } else if (moby->AnimSeqId != TREMOR_ANIM_RUN || pvars->MobVars.AnimationLooped) {
 				mobTransAnim(moby, TREMOR_ANIM_IDLE, 0);
+      }
 			break;
 		}
     case TREMOR_ACTION_DIE:
@@ -549,7 +554,7 @@ void tremorDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, TREMOR_SUBSKELETON_JOINT_RIGHT_HAND_CLAW);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, TREMOR_SUBSKELETON_JOINT_RIGHT_HAND_CLAW, 1);
 }
 
 //--------------------------------------------------------------------------

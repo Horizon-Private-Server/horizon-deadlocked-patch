@@ -259,8 +259,8 @@ void bigalUpdate(Moby* moby)
     blip->X = moby->Position[0];
     blip->Y = moby->Position[1];
     blip->Life = 0x1F;
-    blip->Type = 4;
-    blip->Team = 2;
+    blip->Type = 6;
+    blip->Team = TEAM_YELLOW;
   }
 
   // move

@@ -31,6 +31,7 @@
 #include "module.h"
 #include "messageid.h"
 #include "game.h"
+#include "maputils.h"
 #include "mob.h"
 #include "pathfind.h"
 #include "mpass.h"
@@ -42,6 +43,7 @@ void gateInit(void);
 void gateSpawn(VECTOR gateData[], int count);
 void gateSetCollision(int collActive);
 void mobInit(void);
+void mobTick(void);
 void configInit(void);
 void pathTick(void);
 
@@ -53,7 +55,7 @@ int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 
 char LocalPlayerStrBuffer[2][48];
 
-int aaa = 0x2AE3;
+int aaa = 0;
 
 extern Moby* reactorActiveMoby;
 Moby* TeleporterMoby = NULL;
@@ -85,14 +87,14 @@ SoundDef def =
 
 // gate locations
 VECTOR GateLocations[] = {
-  { 628.93, 839.62, 502.28, 6.5 }, { 628.93, 819.62, 502.28, 4 },
-  { 617.8, 751.91, 508.7, 6.5 }, { 633.8, 751.91, 508.7, 2 },
-  { 464.9497, 759.2397, 509.65, 7 }, { 455.0503, 749.3402, 509.65, 1 },
+  { 628.93, 839.62, 502.28, 6.5 }, { 628.93, 819.62, 502.28, 6 },
+  { 617.8, 751.91, 508.7, 6.5 }, { 633.8, 751.91, 508.7, 4 },
+  { 464.9497, 759.2397, 509.65, 7 }, { 455.0503, 749.3402, 509.65, 2 },
   { 453.8, 824.04, 510.24, 6.5 }, { 453.8, 810.04, 510.24, 4 },
   { 452.52, 900.23, 504.52, 15 }, { 452.52, 880.23, 504.52, 3 },
   { 531.7302, 894.3903, 510.07, 8 }, { 541.6298, 904.2898, 510.07, 3 },
-  { 573.8002, 935.2998, 512.69, 9 }, { 573.8002, 917.2998, 510.31, 2 },
-  { 579.5502, 895.7498, 508.3, 8 }, { 589.4498, 885.8502, 508.3, 4 },
+  { 573.8002, 935.2998, 512.69, 9 }, { 573.8002, 917.2998, 510.31, 4 },
+  { 579.5502, 895.7498, 508.3, 8 }, { 589.4498, 885.8502, 508.3, 6 },
 };
 const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
 
@@ -105,13 +107,15 @@ const char* BLESSING_NAMES[] = {
   [BLESSING_ITEM_ELEM_IMMUNITY] "Blessing of Corrosion",
   [BLESSING_ITEM_HEALTH_REGEN]  "Blessing of Vitality",
   [BLESSING_ITEM_AMMO_REGEN]    "Blessing of the Hunt",
+  [BLESSING_ITEM_THORNS]        "Blessing of the Rose",
 };
 
 const int BLESSINGS[] = {
   BLESSING_ITEM_QUAD_JUMP,
   BLESSING_ITEM_LUCK,
   BLESSING_ITEM_INF_CBOOT,
-  BLESSING_ITEM_ELEM_IMMUNITY,
+  // BLESSING_ITEM_ELEM_IMMUNITY,
+  BLESSING_ITEM_THORNS,
   BLESSING_ITEM_HEALTH_REGEN,
   BLESSING_ITEM_AMMO_REGEN,
 };
@@ -120,11 +124,11 @@ const VECTOR BLESSING_POSITIONS[BLESSING_ITEM_COUNT] = {
   [BLESSING_ITEM_QUAD_JUMP]     { 449.3509, 829.1361, 404.1362, (-90) * MATH_DEG2RAD },
   [BLESSING_ITEM_LUCK]          { 439.1009, 811.3826, 404.1362, (-30) * MATH_DEG2RAD },
   [BLESSING_ITEM_INF_CBOOT]     { 418.6009, 811.3826, 404.1362, (30) * MATH_DEG2RAD },
-  [BLESSING_ITEM_ELEM_IMMUNITY] { 408.3509, 829.1361, 404.1362, (90) * MATH_DEG2RAD },
+  // [BLESSING_ITEM_ELEM_IMMUNITY] { 408.3509, 829.1361, 404.1362, (90) * MATH_DEG2RAD },
+  [BLESSING_ITEM_THORNS]        { 408.3509, 829.1361, 404.1362, (90) * MATH_DEG2RAD },
   [BLESSING_ITEM_HEALTH_REGEN]  { 418.6009, 846.8896, 404.1362, (150) * MATH_DEG2RAD },
   [BLESSING_ITEM_AMMO_REGEN]    { 439.1009, 846.8896, 404.1362, (-150) * MATH_DEG2RAD },
 };
-
 
 typedef struct HudBoss_CommonData { // 0x38
 	/* 0x00 */ int iShown;
@@ -220,7 +224,7 @@ void updateBlessingTeleporter(void)
 {
   if (!TeleporterMoby) return;
 
-  if (StatuesActivated == statueSpawnPositionRotationsCount) {
+  if (StatuesActivated == statueSpawnPositionRotationsCount && !reactorActiveMoby) {
     mobySetState(TeleporterMoby, 1, -1);
     TeleporterMoby->DrawDist = 64;
     TeleporterMoby->UpdateDist = 64;
@@ -264,12 +268,16 @@ void mapReturnPlayersToMap(void)
 void mobForceIntoMapBounds(Moby* moby)
 {
   int i;
-  VECTOR min = { 370, 700, 470, 0 };
+  VECTOR min = { 370, 700, 495, 0 };
   VECTOR max = { 730, 970, 530, 0 };
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
   if (!moby)
     return;
     
+  if (moby->Position[2] < min[2])
+    pvars->MobVars.Respawn = 1;
+
   for (i = 0; i < 3; ++i) {
     if (moby->Position[i] < min[i])
       moby->Position[i] = min[i];
@@ -361,7 +369,10 @@ void initialize(void)
   DPRINTF("teleporter %08X\n", (u32)TeleporterMoby);
 
   // enable replaying dialog
-  POKE_U32(0x004E3E2C, 0);
+  //POKE_U32(0x004E3E2C, 0);
+
+  // disable jump pad effect
+  POKE_U32(0x0042608C, 0);
 
   // only have gate collision on when processing players
   HOOK_JAL(0x003bd854, &onBeforeUpdateHeroes);
@@ -415,6 +426,7 @@ int main (void)
     gateSpawn(GateLocations, GateLocationsCount);
   }
 
+  mobTick();
   pathTick();
   updateBossMeter();
   updateBlessingTotems();
@@ -424,9 +436,6 @@ int main (void)
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;
   }
-
-  // disable jump pad effect
-  POKE_U32(0x0042608C, 0);
 
 #if DEBUG
   static int tpPlayerToSpawn = 0;
@@ -443,16 +452,17 @@ int main (void)
 
 #if DEBUG
   dlPreUpdate();
-  if (padGetButtonDown(0, PAD_LEFT) > 0) {
-    --aaa;
-    playDialog(aaa, 0);
-    DPRINTF("%d 0x%x\n", aaa, aaa);
-  }
-  else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-    ++aaa;
-    playDialog(aaa, 0);
-    DPRINTF("%d 0x%x\n", aaa, aaa);
-  }
+  // if (padGetButtonDown(0, PAD_LEFT) > 0) {
+  //   --aaa;
+  //   //mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_ROBOT_ZOMBIE);
+  //   //playDialog(aaa, 1);
+  //   DPRINTF("%d 0x%x\n", aaa, aaa);
+  // } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+  //   ++aaa;
+  //   //mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_ROBOT_ZOMBIE);
+  //   //playDialog(aaa, 1);
+  //   DPRINTF("%d 0x%x\n", aaa, aaa);
+  // }
 
   /*
   static int handle = 0;

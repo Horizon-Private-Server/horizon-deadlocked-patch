@@ -12,24 +12,7 @@
 extern struct SurvivalState State;
 
 /* 
- * Explosion sound def
- */
-SoundDef ExplosionSoundDef =
-{
-	0.0,	// MinRange
-	50.0,	// MaxRange
-	100,		// MinVolume
-	4000,		// MaxVolume
-	0,			// MinPitch
-	0,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x106,  // 0x123, 0x171, 
-	3			  // Bank
-};
-
-/* 
- * Explosion sound def
+ * upgrade sound def
  */
 SoundDef UpgradeSoundDef =
 {
@@ -72,7 +55,7 @@ Moby * spawnExplosion(VECTOR position, float size, u32 color)
 				0, 0, 0, 0, 2, 0x00080800, 0, color, color, color, color, color, color, color, color,
 				color, 0, 0, 0, 0);
 				
-	soundPlay(&ExplosionSoundDef, 0, moby, 0, 0x400);
+  mobyPlaySoundByClass(0, 0, moby, MOBY_ID_ARBITER_ROCKET0);
 
 	return moby;
 }

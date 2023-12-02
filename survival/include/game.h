@@ -28,7 +28,7 @@
 
 #define MAX_MOBS_BASE													(10)
 #define MAX_MOBS_ROUND_WEIGHT									(10)
-#define MAX_MOBS_SPAWNED											(50)
+#define MAX_MOBS_ALIVE											(50)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
 #define ROUND_START_DELAY_MS									(TIME_SECOND * 1)
@@ -44,8 +44,9 @@
 
 #define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
-#define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(25)
+#define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(100)
 #define MOB_MOVE_SKIP_TICKS                   (3)
+#define MOB_MAX_STUCK_COUNTER_FOR_NEW_PATH    (5)
 
 #define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(1)
 #define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)
@@ -122,8 +123,10 @@
 
 #define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 1)
 #define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 3)
+#define ITEM_BLESSING_THORN_DAMAGE_FACTOR     (0.2)
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
+#define DAMAGE_BUBBLE_MAX_COUNT               (32)
 
 #define MAX_MOB_SPAWN_PARAMS                  (10)
 #define MAX_MOB_COMPLEXITY_DRAWN              (7500)
@@ -183,23 +186,27 @@ enum MobStatId
 enum BlessingItemId
 {
   BLESSING_ITEM_NONE           = 0,
-  BLESSING_ITEM_QUAD_JUMP    = 1,
+  BLESSING_ITEM_QUAD_JUMP      = 1,
   BLESSING_ITEM_LUCK           = 2,
   BLESSING_ITEM_INF_CBOOT      = 3,
   BLESSING_ITEM_ELEM_IMMUNITY  = 4,
   BLESSING_ITEM_HEALTH_REGEN   = 5,
   BLESSING_ITEM_AMMO_REGEN     = 6,
+  BLESSING_ITEM_THORNS         = 7,
   BLESSING_ITEM_COUNT
 };
 
 struct MobConfig;
 struct MobSpawnEventArgs;
+struct MobSpawnParams;
 
 typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
 typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int freeAgent);
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
 typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+typedef int (*ModeCreateMob_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+typedef int (*SpawnGetRandomPoint_func)(VECTOR out, struct MobSpawnParams* mob);
 
 typedef struct SurvivalBakedSpawnpoint
 {
@@ -264,6 +271,7 @@ struct SurvivalMobStats
 	int MobsDrawnCurrent;
 	int MobsDrawnLast;
 	int MobsDrawGameTime;
+  int TotalSpawning;
   int TotalAlive;
   int TotalSpawnedThisRound;
   int TotalSpawned;
@@ -322,9 +330,11 @@ struct SurvivalMapConfig
   struct SurvivalSpecialRoundParam* SpecialRoundParams;
   int SpecialRoundParamsCount; 
   
+  SpawnGetRandomPoint_func SpawnGetRandomPointFunc;
   UpgradePlayerWeapon_func UpgradePlayerWeaponFunc;
   PushSnack_func PushSnackFunc;
   PopulateSpawnArgs_func PopulateSpawnArgsFunc;
+  ModeCreateMob_func ModeCreateMobFunc;
   MapOnMobCreate_func OnMobCreateFunc;
   MapOnMobSpawned_func OnMobSpawnedFunc;
 };

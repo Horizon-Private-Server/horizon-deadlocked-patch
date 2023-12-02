@@ -23,7 +23,7 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e);
 int reaperOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void reaperOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* reaperGetNextTarget(Moby* moby);
-int reaperGetPreferredAction(Moby* moby);
+int reaperGetPreferredAction(Moby* moby, int * delayTicks);
 void reaperDoAction(Moby* moby);
 void reaperDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void reaperForceLocalAction(Moby* moby, int action);
@@ -254,14 +254,15 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	if (mobAmIOwner(moby))
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
+    float pFactor = reaperVars->AggroTriggered ? 0.5 : 1;
     if (canFlinch) {
       if (isShock) {
         mobSetAction(moby, REAPER_ACTION_FLINCH);
       }
-      else if (e->Knockback.Force || randRangeInt(0, 10) < e->Knockback.Power) {
+      else if (e->Knockback.Force || randRangeInt(0, 10 / pFactor) < e->Knockback.Power) {
         mobSetAction(moby, REAPER_ACTION_BIG_FLINCH);
       }
-      else if (randRange(0, 1) < (REAPER_FLINCH_PROBABILITY * damageRatio)) {
+      else if (randRange(0, 1) < (REAPER_FLINCH_PROBABILITY * pFactor * damageRatio)) {
         mobSetAction(moby, REAPER_ACTION_FLINCH);
       }
     }
@@ -337,7 +338,7 @@ Moby* reaperGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int reaperGetPreferredAction(Moby* moby)
+int reaperGetPreferredAction(Moby* moby, int * delayTicks)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
@@ -363,7 +364,7 @@ int reaperGetPreferredAction(Moby* moby)
   }
 
   // jump if we've hit a jump point on the path
-  if (pathShouldJump(moby)) {
+  if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
     return REAPER_ACTION_JUMP;
   }
 
@@ -380,8 +381,10 @@ int reaperGetPreferredAction(Moby* moby)
 		float attackRadiusSqr = pvars->MobVars.Config.AttackRadius * pvars->MobVars.Config.AttackRadius;
 
 		if (distSqr <= attackRadiusSqr) {
-			if (reaperCanAttack(pvars))
+			if (reaperCanAttack(pvars)) {
+        if (delayTicks) *delayTicks = pvars->MobVars.Config.ReactionTickCount;
 				return REAPER_ACTION_ATTACK;
+      }
         
       // wait for sprint to finish
       if (pvars->MobVars.Action == REAPER_ACTION_AGGRO)
@@ -415,7 +418,7 @@ void reaperRenderPath(Moby* moby)
 
 
   for (i = 0; i < pathLen; ++i) {
-    char* edge = MOB_PATHFINDING_EDGES[path[i]];
+    u8* edge = MOB_PATHFINDING_EDGES[path[i]];
     if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[1]], &x, &y)) {
       gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, i == pathIdx ? "o" : "-", -1, 4);
     }
@@ -501,7 +504,7 @@ void reaperDoAction(Moby* moby)
 
           // use delta height between target as base of jump speed
           // with min speed
-          float jumpSpeed = pathGetJumpSpeed(moby);
+          float jumpSpeed = pvars->MobVars.MoveVars.QueueJumpSpeed;
           if (jumpSpeed <= 0 && target) {
             jumpSpeed = 8; //clamp(0 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 1, 3, 15);
           }
@@ -509,6 +512,7 @@ void reaperDoAction(Moby* moby)
           //DPRINTF("jump %f\n", jumpSpeed);
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
           pvars->MobVars.MoveVars.Grounded = 0;
+          pvars->MobVars.MoveVars.QueueJumpSpeed = 0;
         }
 				break;
 			}
@@ -572,10 +576,13 @@ void reaperDoAction(Moby* moby)
       }
 
 			// 
-      if (mobHasVelocity(pvars))
+      if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
+        reaperForceLocalAction(moby, REAPER_ACTION_JUMP);
+      } else if (mobHasVelocity(pvars)) {
 				mobTransAnim(moby, REAPER_ANIM_RUN, 0);
-			else
+      } else if (moby->AnimSeqId != REAPER_ANIM_RUN || pvars->MobVars.AnimationLooped) {
 				mobTransAnim(moby, REAPER_ANIM_IDLE, 0);
+      }
       break;
     }
     case REAPER_ACTION_WALK:
@@ -603,10 +610,13 @@ void reaperDoAction(Moby* moby)
       }
 
 			// 
-      if (mobHasVelocity(pvars))
+      if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
+        reaperForceLocalAction(moby, REAPER_ACTION_JUMP);
+      } else if (mobHasVelocity(pvars)) {
 				mobTransAnim(moby, REAPER_ANIM_WALK, 0);
-			else
+      } else if (moby->AnimSeqId != REAPER_ANIM_WALK || pvars->MobVars.AnimationLooped) {
 				mobTransAnim(moby, REAPER_ANIM_IDLE, 0);
+      }
 			break;
 		}
     case REAPER_ACTION_DIE:
@@ -677,7 +687,7 @@ void reaperDoDamage(Moby* moby, float radius, float amount, int damageFlags, int
   ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
   
   // aggro ends when we finally hit our target
-  if (mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, REAPER_SUBSKELETON_LEFT_HAND) & MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET) {
+  if (mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, REAPER_SUBSKELETON_LEFT_HAND, 1) & MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET) {
     reaperVars->AggroTriggered = 0;
   }
 }
@@ -686,7 +696,6 @@ void reaperDoDamage(Moby* moby, float radius, float amount, int damageFlags, int
 void reaperForceLocalAction(Moby* moby, int action)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
   float difficulty = 1;
 
   if (MapConfig.State)

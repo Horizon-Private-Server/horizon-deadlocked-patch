@@ -46,6 +46,7 @@ struct DropPVar {
 	enum DropType Type;
 	int DestroyAtTime;
 	int Team;
+  char HitGround;
 	char Owner;
 	char Destroyed;
 	struct PartInstance* Particles[4];

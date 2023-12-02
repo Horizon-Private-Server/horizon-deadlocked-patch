@@ -38,7 +38,57 @@ u8* pathGetPathAt(int fromNodeIdx, int toNodeIdx)
 }
 
 //--------------------------------------------------------------------------
-int pathSegmentCanBeSkipped(Moby* moby, int segmentStartEdgeIdx, int segmentLen)
+float pathGetSegmentAlpha(Moby* moby, u8* currentEdge)
+{
+  VECTOR startNodeToEndNode, startNodeToMoby;
+
+  if (!moby || !currentEdge) return 0;
+
+  // get vectors from start node to end node and moby
+  vector_subtract(startNodeToEndNode, MOB_PATHFINDING_NODES[currentEdge[0]], MOB_PATHFINDING_NODES[currentEdge[1]]);
+  startNodeToEndNode[3] = 0;
+  vector_subtract(startNodeToMoby, MOB_PATHFINDING_NODES[currentEdge[0]], moby->Position);
+  startNodeToMoby[3] = 0;
+
+  // project startToMoby on startToEnd
+  float edgeLen = vector_length(startNodeToEndNode);
+  float distOnEdge = vector_length(startNodeToMoby) * vector_innerproduct(startNodeToEndNode, startNodeToMoby);
+  return clamp(distOnEdge / edgeLen, 0, 1);
+}
+
+//--------------------------------------------------------------------------
+int pathCanStartNodeBeSkipped(Moby* moby)
+{
+  VECTOR mobyToStart, mobyToNext;
+  if (!moby || !moby->PVar)
+    return 0;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  int startEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[0];
+  u8* startEdge = MOB_PATHFINDING_EDGES[startEdgeIdx];
+
+  // if the start node to next node is a jump
+  // AND we're not after that jump
+  // then circle back, we failed the jump
+  // otherwise allow skipping
+  float alpha = pathGetSegmentAlpha(moby, startEdge);
+  float jumpAt = MOB_PATHFINDING_EDGES_JUMPPADAT[startEdgeIdx] / 255.0;
+  if (MOB_PATHFINDING_EDGES_JUMPPADSPEED[startEdgeIdx] > 0 && alpha >= jumpAt)
+    return 0;
+
+  // if segment is required and we haven't completed the required section then circle back
+  float requiredAt = MOB_PATHFINDING_EDGES_REQUIRED[startEdgeIdx] / 255.0;
+  if (requiredAt > 0 && alpha <= requiredAt)
+    return 0;
+
+  // skip if start is in opposite direction to next target
+  vector_subtract(mobyToStart, MOB_PATHFINDING_NODES[startEdge[0]], moby->Position);
+  vector_subtract(mobyToNext, MOB_PATHFINDING_NODES[startEdge[1]], moby->Position);
+  return vector_innerproduct_unscaled(mobyToNext, mobyToStart) < 0;
+}
+
+//--------------------------------------------------------------------------
+int pathSegmentCanBeSkipped(Moby* moby, int segmentStartEdgeIdx, int segmentCount, float segmentStartAlpha)
 {
   int i, edge;
   if (!moby || !moby->PVar)
@@ -60,10 +110,10 @@ int pathSegmentCanBeSkipped(Moby* moby, int segmentStartEdgeIdx, int segmentLen)
   edge = pvars->MobVars.MoveVars.CurrentPath[segmentStartEdgeIdx];
   float jumpAt = MOB_PATHFINDING_EDGES_JUMPPADAT[edge] / 255.0;
   float requiredAt = MOB_PATHFINDING_EDGES_REQUIRED[edge] / 255.0;
-  if ((requiredAt > 0 && pvars->MobVars.MoveVars.PathEdgeAlpha <= requiredAt) || (MOB_PATHFINDING_EDGES_JUMPPADSPEED[edge] > 0 && pvars->MobVars.MoveVars.PathEdgeAlpha <= jumpAt))
+  if ((requiredAt > 0 && segmentStartAlpha <= requiredAt) || (MOB_PATHFINDING_EDGES_JUMPPADSPEED[edge] > 0 && segmentStartAlpha <= jumpAt))
     return 0;
 
-  for (i = 1; i < segmentLen && (i+segmentStartEdgeIdx) < pvars->MobVars.MoveVars.PathEdgeCount; ++i) {
+  for (i = 1; i < segmentCount && (i+segmentStartEdgeIdx) < pvars->MobVars.MoveVars.PathEdgeCount; ++i) {
     edge = pvars->MobVars.MoveVars.CurrentPath[i + segmentStartEdgeIdx];
     if (PATH_EDGE_IS_EMPTY(edge))
       break;
@@ -94,11 +144,16 @@ int pathCanBeSkippedForTarget(Moby* moby)
     return 1;
   }
 
+  // wait for grounding
+  if (!pvars->MobVars.MoveVars.Grounded) {
+    return 0;
+  }
+
   // check if current edge is required or there is a jump we haven't reached
   edge = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent];
   float jumpAt = MOB_PATHFINDING_EDGES_JUMPPADAT[edge] / 255.0;
   float requiredAt = MOB_PATHFINDING_EDGES_REQUIRED[edge] / 255.0;
-  if ((requiredAt > 0 && pvars->MobVars.MoveVars.PathEdgeAlpha <= requiredAt) || (MOB_PATHFINDING_EDGES_JUMPPADSPEED[edge] > 0 && pvars->MobVars.MoveVars.PathEdgeAlpha <= jumpAt))
+  if ((requiredAt > 0 && pvars->MobVars.MoveVars.PathEdgeAlpha <= requiredAt) || (MOB_PATHFINDING_EDGES_JUMPPADSPEED[edge] > 0 && pvars->MobVars.MoveVars.LastPathEdgeAlphaForJump <= jumpAt))
     return 0;
 
   for (i = pvars->MobVars.MoveVars.PathEdgeCurrent+1; i < pvars->MobVars.MoveVars.PathEdgeCount; ++i) {
@@ -249,6 +304,10 @@ int pathShouldFindNewPath(Moby* moby)
     return 1;
   }
 
+  if (pvars->MobVars.MoveVars.IsStuck && pvars->MobVars.MoveVars.StuckCounter > MOB_MAX_STUCK_COUNTER_FOR_NEW_PATH) {
+    return 1;
+  }
+
   int closestNodeIdxToTarget = pathTargetCacheGetClosestNodeIdx(pvars->MobVars.Target);
   int lastEdge = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCount-1];
   if (PATH_EDGE_IS_EMPTY(lastEdge)) {
@@ -285,6 +344,8 @@ void pathGetPath(Moby* moby)
   int lastEdgeIdx = 255;
   if (pvars->MobVars.MoveVars.PathEdgeCount) {
     lastEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent];
+    if (PATH_EDGE_IS_EMPTY(lastEdgeIdx))
+      lastEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent - 1];
   }
 
   memcpy(pvars->MobVars.MoveVars.CurrentPath, pathGetPathAt(closestNodeIdxToMob, closestNodeIdxToTarget), sizeof(u8) * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
@@ -311,16 +372,10 @@ void pathGetPath(Moby* moby)
   // skip start if its backwards along path
   // and the segment can be skipped
   // or if we're already on this segment from the last path
-  if (i > 0 && (pathSegmentCanBeSkipped(moby, 0, 1) || isOnSameSegment)) {
-    int startEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[0];
-    u8* startEdge = MOB_PATHFINDING_EDGES[startEdgeIdx];
-    
-    VECTOR mobyToStart, mobyToNext;
-    vector_subtract(mobyToStart, MOB_PATHFINDING_NODES[startEdge[0]], moby->Position);
-    vector_subtract(mobyToNext, MOB_PATHFINDING_NODES[startEdge[1]], moby->Position);
-
-    if (vector_innerproduct(mobyToNext, mobyToStart) < 0)
-      pvars->MobVars.MoveVars.PathHasReachedStart = 1;
+  //if (i > 0 && (pathSegmentCanBeSkipped(moby, 0, 1, alpha) || isOnSameSegment)) {
+  int canBeSkipped = pathCanStartNodeBeSkipped(moby);
+  if (i > 0 && (isOnSameSegment || canBeSkipped)) {
+    pvars->MobVars.MoveVars.PathHasReachedStart = 1;
   }
 
   // mark mob dirty to send path to others
@@ -330,7 +385,7 @@ void pathGetPath(Moby* moby)
 
 #if DEBUGPATH
   DPRINTF("NEW PATH GENERATED: (%d)\n", gameGetTime());
-  DPRINTF("\tFROM NODE %d\n", closestNodeIdxToMob);
+  DPRINTF("\tFROM NODE %d (skip:%d)\n", closestNodeIdxToMob, pvars->MobVars.MoveVars.PathHasReachedStart);
   DPRINTF("\tTO NODE %d\n", closestNodeIdxToTarget);
   DPRINTF("\tNODES: ");
   
@@ -483,6 +538,7 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
 
   // delay next getTargetPos until next tick
   pvars->MobVars.MoveVars.PathTicks = 1;
+  pvars->MobVars.MoveVars.PathEdgeAlpha = pathGetSegmentAlpha(moby, pathGetCurrentEdge(moby));
 
   // new path
   if (pvars->MobVars.MoveVars.PathNewTicks == 0 && pathShouldFindNewPath(moby)) {
@@ -526,7 +582,6 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
           vector_normalize(edgeDir, edgeDir);
           vector_normalize(delta, delta);
 
-
           if (vector_innerproduct(edgeDir, delta) > 0.3) {
             lockOntoPlayer = 1;
           }
@@ -535,8 +590,7 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
         if (lockOntoPlayer) {
           pvars->MobVars.MoveVars.PathEdgeCurrent = pvars->MobVars.MoveVars.PathEdgeCount;
         }
-      }
-      else if (pvars->MobVars.MoveVars.PathEdgeCurrent && pvars->MobVars.MoveVars.PathEdgeCurrent == pvars->MobVars.MoveVars.PathEdgeCount) {
+      } else if (pvars->MobVars.MoveVars.PathEdgeCurrent && pvars->MobVars.MoveVars.PathEdgeCurrent == pvars->MobVars.MoveVars.PathEdgeCount) {
         pathGetPath(moby);
       }
 
@@ -569,6 +623,7 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
       } else {
         pvars->MobVars.MoveVars.PathEdgeCurrent++;
         pvars->MobVars.MoveVars.PathEdgeAlpha = 0;
+        //DPRINTF("hit target nodeIdx %d, new edgeIdx %d\n", targetNodeIdx, pvars->MobVars.MoveVars.PathEdgeCurrent);
       }
     }
   }
@@ -615,7 +670,7 @@ void pathTick(void)
   // since pathGetClosestNodeInSight uses collision to check if a node is in sight
   // and collision testing is very expensive
   // we only do one update per tick
-  // and we put a 
+  // and we put a cooldown
   for (i = 0; i < TARGETS_CACHE_COUNT; ++i) {
     int idx = (lastTargetUpdatedIdx + i) % TARGETS_CACHE_COUNT;
     struct TargetCache *cache = &TargetsCache[idx];
@@ -684,21 +739,14 @@ int pathShouldJump(Moby* moby)
     int edgeIdx = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent];
     float jumpSpeed = MOB_PATHFINDING_EDGES_JUMPPADSPEED[edgeIdx];
     float jumpAt = MOB_PATHFINDING_EDGES_JUMPPADAT[edgeIdx] / 255.0;
-    float lastDistOnEdge = pvars->MobVars.MoveVars.PathEdgeAlpha;
-    //DPRINTF("%d %f\n", edgeIdx, lastDistOnEdge);
+    float lastDistOnEdge = pvars->MobVars.MoveVars.LastPathEdgeAlphaForJump;
     
-    // get vectors from start node to end node and moby
-    vector_subtract(startNodeToEndNode, MOB_PATHFINDING_NODES[currentEdge[0]], MOB_PATHFINDING_NODES[currentEdge[1]]);
-    startNodeToEndNode[3] = 0;
-    vector_subtract(startNodeToMoby, MOB_PATHFINDING_NODES[currentEdge[0]], moby->Position);
-    startNodeToMoby[3] = 0;
+    // get segment alpha if we haven't refreshed the path this tick
+    if (!pvars->MobVars.MoveVars.PathTicks)
+      pvars->MobVars.MoveVars.PathEdgeAlpha = pathGetSegmentAlpha(moby, currentEdge);
 
-    // project startToMoby on startToEnd
-    float edgeLen = vector_length(startNodeToEndNode);
-    float distOnEdge = vector_length(startNodeToMoby) * vector_innerproduct(startNodeToEndNode, startNodeToMoby);
-    pvars->MobVars.MoveVars.PathEdgeAlpha = clamp(distOnEdge / edgeLen, 0, 1);
-
-    //DPRINTF("%f\n", pvars->MobVars.MoveVars.PathEdgeAlpha);
+    // update
+    pvars->MobVars.MoveVars.LastPathEdgeAlphaForJump = pvars->MobVars.MoveVars.PathEdgeAlpha;
  
     // we've stepped over threshold for when to jump in the last frame
     if (jumpSpeed > 0 && lastDistOnEdge <= jumpAt && pvars->MobVars.MoveVars.PathEdgeAlpha > jumpAt) {

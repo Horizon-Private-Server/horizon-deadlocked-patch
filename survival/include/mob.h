@@ -57,12 +57,13 @@ struct MobStateUpdateEventArgs;
 
 typedef void (*MobGenericCallback_func)(Moby* moby);
 typedef Moby* (*MobGetNextTarget_func)(Moby* moby);
-typedef int (*MobGetPreferredAction_func)(Moby* moby);
+typedef int (*MobGetPreferredAction_func)(Moby* moby, int * delayTicks);
 typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
 typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
 typedef int (*MobOnLocalDamage_func)(Moby* moby, struct MobLocalDamageEventArgs* e);
 typedef void (*MobOnStateUpdate_func)(Moby* moby, struct MobStateUpdateEventArgs* e);
+typedef int (*MobOnRespawn_func)(Moby* moby);
 typedef void (*MobOnCustomEvent_func)(Moby* moby, GuberEvent* event);
 typedef void (*MobForceLocalAction_func)(Moby* moby, int action);
 typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
@@ -79,6 +80,7 @@ struct MobVTable {
   MobOnDamage_func OnDamage;
   MobOnLocalDamage_func OnLocalDamage;
   MobOnStateUpdate_func OnStateUpdate;
+  MobOnRespawn_func OnRespawn;
   MobOnCustomEvent_func OnCustomEvent;
   MobGetNextTarget_func GetNextTarget;
   MobGetPreferredAction_func GetPreferredAction;
@@ -143,7 +145,8 @@ struct MobMoveVars {
   float SumSpeedOver;
   float WallSlope;
   float PathEdgeAlpha;
-	u16 StuckTicks;
+  float LastPathEdgeAlphaForJump;
+	u16 StuckCounter;
   char Grounded;
   char HitWall;
   char IsStuck;
@@ -152,6 +155,7 @@ struct MobMoveVars {
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
   u8 MoveSkipTicks;
+  u8 QueueJumpSpeed;
 
   u8 PathEdgeCount;
   u8 PathEdgeCurrent;
@@ -184,8 +188,6 @@ struct MobVars {
 	u16 NextActionDelayTicks;
 	u16 ActionCooldownTicks;
 	u16 AttackCooldownTicks;
-	u16 Attack2CooldownTicks;
-	u16 Attack3CooldownTicks;
 	u16 ScoutCooldownTicks;
 	u16 FlinchCooldownTicks;
 	u16 AutoDirtyCooldownTicks;
@@ -300,11 +302,14 @@ struct MobStateUpdateEventArgs
 {
 	VECTOR Position;
 	int TargetUID;
+	int Action;
   u8 PathStartNodeIdx;
   u8 PathEndNodeIdx;
   u8 PathCurrentEdgeIdx;
   char PathHasReachedStart;
   char PathHasReachedEnd;
+	u8 ActionId;
+  char Random;
 };
 
 struct MobSpawnEventArgs

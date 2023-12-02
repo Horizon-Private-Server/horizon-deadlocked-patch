@@ -95,10 +95,9 @@ void statueUpdate(Moby* moby)
     MobyColDamage* colDamage = mobyGetDamage(moby, 0x40, 0);
     if (colDamage && colDamage->DamageHp > 0) {
       statueSetState(moby, STATUE_STATE_ACTIVATED);
-      if (MapConfig.State) {
-        pvars->RoundActivated = MapConfig.State->RoundNumber;
-      }
     }
+
+    moby->CollDamage = -1;
   }
 
   // deactivate
@@ -121,9 +120,9 @@ void statueUpdate(Moby* moby)
 
   // enable/disable target and react vars
   if (reactorActiveMoby) {
-    moby->ModeBits |= 0x1020; 
+    moby->ModeBits |= MOBY_MODE_BIT_CAN_BE_DAMAGED; 
   } else {
-    moby->ModeBits &= ~0x1020;
+    moby->ModeBits &= ~MOBY_MODE_BIT_CAN_BE_DAMAGED;
   }
   
   if (moby->State == STATUE_STATE_ACTIVATED) {
@@ -161,6 +160,7 @@ int statueHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 int statueHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 {
   enum StatueMobyState state;
+  struct StatuePVar* pvars = (struct StatuePVar*)moby->PVar;
   
 	// read event
 	guberEventRead(event, &state, sizeof(enum StatueMobyState));
@@ -168,6 +168,11 @@ int statueHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
   // increment/decrement
   if (moby->State != state) {
     StatuesActivated += state == STATUE_STATE_ACTIVATED ? 1 : -1;
+  }
+
+  // 
+  if (MapConfig.State && state == STATUE_STATE_ACTIVATED) {
+    pvars->RoundActivated = MapConfig.State->RoundNumber;
   }
 
   // set state
@@ -262,6 +267,7 @@ void statueInit(void)
   u32 mobyFunctionsPtr = (u32)mobyGetFunctions(temp);
   if (mobyFunctionsPtr) {
     *(u32*)(mobyFunctionsPtr + 0x04) = (u32)&statueGetGuber;
+    *(u32*)(mobyFunctionsPtr + 0x10) = 0;
     *(u32*)(mobyFunctionsPtr + 0x14) = (u32)&statueHandleEvent;
     DPRINTF("STATUE oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }

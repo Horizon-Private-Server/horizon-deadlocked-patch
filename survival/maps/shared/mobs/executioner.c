@@ -22,7 +22,7 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs* e);
 int executionerOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void executionerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* executionerGetNextTarget(Moby* moby);
-int executionerGetPreferredAction(Moby* moby);
+int executionerGetPreferredAction(Moby* moby, int * delayTicks);
 void executionerDoAction(Moby* moby);
 void executionerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void executionerForceLocalAction(Moby* moby, int action);
@@ -322,7 +322,7 @@ Moby* executionerGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int executionerGetPreferredAction(Moby* moby)
+int executionerGetPreferredAction(Moby* moby, int * delayTicks)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -347,7 +347,7 @@ int executionerGetPreferredAction(Moby* moby)
   }
 
   // jump if we've hit a jump point on the path
-  if (pathShouldJump(moby)) {
+  if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
     return EXECUTIONER_ACTION_JUMP;
   }
 
@@ -364,8 +364,10 @@ int executionerGetPreferredAction(Moby* moby)
 		float attackRadiusSqr = pvars->MobVars.Config.AttackRadius * pvars->MobVars.Config.AttackRadius;
 
 		if (distSqr <= attackRadiusSqr) {
-			if (executionerCanAttack(pvars))
+			if (executionerCanAttack(pvars)) {
+        if (delayTicks) *delayTicks = pvars->MobVars.Config.ReactionTickCount;
 				return EXECUTIONER_ACTION_ATTACK;
+      }
 			return EXECUTIONER_ACTION_WALK;
 		} else {
 			return EXECUTIONER_ACTION_WALK;
@@ -448,13 +450,14 @@ void executionerDoAction(Moby* moby)
 
           // use delta height between target as base of jump speed
           // with min speed
-          float jumpSpeed = pathGetJumpSpeed(moby);
+          float jumpSpeed = pvars->MobVars.MoveVars.QueueJumpSpeed;
           if (jumpSpeed <= 0 && target) {
             jumpSpeed = 8; //clamp(2 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 2, 3, 15);
           }
 
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
           pvars->MobVars.MoveVars.Grounded = 0;
+          pvars->MobVars.MoveVars.QueueJumpSpeed = 0;
         }
 				break;
 			}
@@ -513,11 +516,13 @@ void executionerDoAction(Moby* moby)
 			// 
       if (moby->AnimSeqId == EXECUTIONER_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
         // wait for jump to land
-      }
-			else if (mobHasVelocity(pvars))
+      } else if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
+        executionerForceLocalAction(moby, EXECUTIONER_ACTION_JUMP);
+			} else if (mobHasVelocity(pvars)) {
 				mobTransAnim(moby, walkBackwards ? EXECUTIONER_ANIM_WALK_BACKWARD : EXECUTIONER_ANIM_RUN, 0);
-			else
+			} else if (moby->AnimSeqId != EXECUTIONER_ANIM_WALK_BACKWARD || moby->AnimSeqId != EXECUTIONER_ANIM_RUN || pvars->MobVars.AnimationLooped) {
 				mobTransAnim(moby, EXECUTIONER_ANIM_IDLE, 0);
+      }
 			break;
 		}
     case EXECUTIONER_ACTION_DIE:
@@ -578,7 +583,7 @@ void executionerDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void executionerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 6);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, 6, 1);
 }
 
 //--------------------------------------------------------------------------

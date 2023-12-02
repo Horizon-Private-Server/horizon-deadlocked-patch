@@ -11,12 +11,12 @@ extern struct SurvivalMapConfig MapConfig;
 struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// BOSS ROUND
 	{
-    .MinRound = 2,
-    .RepeatEveryNRounds = 2,
+    .MinRound = 15,
+    .RepeatEveryNRounds = 15,
     .RepeatCount = 0,
     .UnlimitedPostRoundTime = 1,
     .DisableDrops = 1,
-		.MaxSpawnedAtOnce = MAX_MOBS_SPAWNED,
+		.MaxSpawnedAtOnce = MAX_MOBS_ALIVE,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
 		.SpawnParamCount = 1,
@@ -50,9 +50,9 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Damage = MOB_BASE_DAMAGE * 1.0,
 			.MaxDamage = MOB_BASE_DAMAGE * 5,
       .DamageScale = 1.0,
-			.Speed = MOB_BASE_SPEED * 1.0,
+			.Speed = MOB_BASE_SPEED * 1.5,
 			.MaxSpeed = MOB_BASE_SPEED * 5.0,
-      .SpeedScale = 2.0,
+      .SpeedScale = 0.5,
 			.Health = MOB_BASE_HEALTH * 50.0,
 			.MaxHealth = 0,
       .HealthScale = 2.0,
@@ -106,7 +106,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .MaxSpawnedAtOnce = 20,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
-		.MinRound = 9,
+		.MinRound = 10,
 		.CooldownTicks = 0,
 		.Probability = 0.05,
     .StatId = MOB_STAT_REAPER,
@@ -140,7 +140,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .MaxSpawnedAtOnce = 30,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
-		.MinRound = 3,
+		.MinRound = 5,
 		.CooldownTicks = 0,
 		.Probability = 0.1,
     .StatId = MOB_STAT_TREMOR,
@@ -276,24 +276,24 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
   { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },
   { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.0967 },
-  //{ MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
+  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
   { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
   { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
 };
 const int MysteryBoxItemMysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)/sizeof(struct MysteryBoxItemWeight);
 
 struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
-  { MYSTERY_BOX_ITEM_RESET_GATE, 0.03 },
-  //{ MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.1428 },
-  { MYSTERY_BOX_ITEM_WEAPON_MOD, 0.15 },
-  { MYSTERY_BOX_ITEM_QUAD, 0.25 },
-  { MYSTERY_BOX_ITEM_SHIELD, 0.25 },
-  { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.3 },
-  { MYSTERY_BOX_ITEM_EMP_HEALTH_GUN, 0.35 },
-  { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.35 },
-  { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.4 },
-  { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.5 },
-  { MYSTERY_BOX_ITEM_DREAD_TOKEN, 1.0 },
+  { MYSTERY_BOX_ITEM_RESET_GATE, 0.01 },
+  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.03 },
+  { MYSTERY_BOX_ITEM_QUAD, 0.0526 * 2 },
+  { MYSTERY_BOX_ITEM_SHIELD, 0.0526 * 2 },
+  { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 * 2 },
+  { MYSTERY_BOX_ITEM_EMP_HEALTH_GUN, 0.0555 * 2 },
+  { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 * 2 },
+  { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 * 2 },
+  { MYSTERY_BOX_ITEM_UPGRADE_WEAPON, 0.0967 * 2 },
+  { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
+  { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
 };
 const int MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount = sizeof(MysteryBoxItemProbabilitiesLucky)/sizeof(struct MysteryBoxItemWeight);
 
@@ -330,6 +330,7 @@ int reaperAmbientSoundIds[] = { 403, 404 };
 int reaperDeathSoundId = -1;
 const int reaperAmbientSoundIdsCount = COUNT_OF(reaperAmbientSoundIds);
 
+int reactorMinionSpawnParamIdx = MOB_SPAWN_PARAM_ACID;
 int reactorHitSoundId = 407;
 int reactorSmashSoundId = 317;
 int reactorChargeSoundId = 184;

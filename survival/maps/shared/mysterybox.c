@@ -59,12 +59,12 @@ int ITEM_TEX_IDS[] = {
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 132 - 3,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 37 - 3,
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] 93 - 3,
-  [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] 19 - 3,
+  [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] 140 - 3,
   [MYSTERY_BOX_ITEM_ACTIVATE_POWER] 54 - 3,
   [MYSTERY_BOX_ITEM_REVIVE_TOTEM] 80 - 3,
   [MYSTERY_BOX_ITEM_DREAD_TOKEN] 35 - 3,
   [MYSTERY_BOX_ITEM_WEAPON_MOD] 46 - 3,
-  [MYSTERY_BOX_ITEM_QUAD] 12 - 3,
+  [MYSTERY_BOX_ITEM_QUAD] 56 - 3,
   [MYSTERY_BOX_ITEM_SHIELD] 96 - 3,
   [MYSTERY_BOX_ITEM_EMP_HEALTH_GUN] 15 - 3,
 };
@@ -79,8 +79,8 @@ u32 ITEM_COLORS[] = {
   [MYSTERY_BOX_ITEM_REVIVE_TOTEM] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_DREAD_TOKEN] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_WEAPON_MOD] 0x80FFFFFF,
-  [MYSTERY_BOX_ITEM_QUAD] 0x80FFFFFF,
-  [MYSTERY_BOX_ITEM_SHIELD] 0x80FFFFFF,
+  [MYSTERY_BOX_ITEM_QUAD] 0x80808080,
+  [MYSTERY_BOX_ITEM_SHIELD] 0x80808080,
   [MYSTERY_BOX_ITEM_EMP_HEALTH_GUN] 0x80FFFFFF,
 };
 
@@ -106,18 +106,17 @@ const char * ALPHA_MODS[] = {
 	"Nanoleech Mod"
 };
 
-SoundDef BaseMysteryBoxSoundDef =
-{
-	0.0,	  // MinRange
-	25.0,	  // MaxRange
-	0,		  // MinVolume
-	1200,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
+SoundDef RespawnSoundDef = {
+  .MinRange = 0.0,
+  .MaxRange = 2000.0,
+  .MinVolume = 600,
+  .MaxVolume = 600,
+  .MinPitch = 0,
+  .MaxPitch = 0,
+  .Loop = 0,
+  .Flags = 0x10,
+  .Index = 54,
+  .BankIndex = 3
 };
 
 extern struct MysteryBoxItemWeight MysteryBoxItemProbabilities[];
@@ -128,8 +127,13 @@ extern const int MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount;
 //--------------------------------------------------------------------------
 void mboxPlayOpenSound(Moby* moby)
 {
-  BaseMysteryBoxSoundDef.Index = 204;
-  soundPlay(&BaseMysteryBoxSoundDef, 0, moby, 0, 0x400);
+  mobyPlaySoundByClass(0, 0, moby, MOBY_ID_NODE_BASE);
+}
+
+//--------------------------------------------------------------------------
+void mboxPlayRespawnSound(Moby* moby)
+{
+  soundPlay(&RespawnSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
@@ -166,7 +170,13 @@ void mboxActivateQuad(void)
     if (!player || !player->SkinMoby)
       continue;
 
-    player->timers.damageMuliplierTimer = ITEM_QUAD_DURATION_TPS;
+    // increase duration by player pickup cooldown upgrade
+    short duration = ITEM_QUAD_DURATION_TPS;
+    if (MapConfig.State) {
+      duration += MapConfig.State->PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 1.00 * 2;
+    }
+
+    player->timers.damageMuliplierTimer = duration;
     player->DamageMultiplier = 4;
   }
 }
@@ -181,7 +191,13 @@ void mboxActivateShield(void)
     if (!player || !player->SkinMoby)
       continue;
 
-    player->timers.armorLevelTimer = ITEM_SHIELD_DURATION_TPS;
+    // increase duration by player pickup cooldown upgrade
+    short duration = ITEM_SHIELD_DURATION_TPS;
+    if (MapConfig.State) {
+      duration += MapConfig.State->PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 1.25 * 2;
+    }
+
+    player->timers.armorLevelTimer = duration;
     player->ArmorLevel = 3;
   }
 }
@@ -216,6 +232,7 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
 
     int item = MysteryBoxItemProbabilities[i].Item;
     int random = rand(100);
+    item = MYSTERY_BOX_ITEM_TEDDY_BEAR;
 
     guberEventWrite(guberEvent, &activatedByPlayerId, 4);
     guberEventWrite(guberEvent, &item, 4);
@@ -325,7 +342,11 @@ void mboxDraw(Moby* moby)
 
   int item = pvars->Item;
   if (moby->State == MYSTERY_BOX_STATE_CYCLING_ITEMS) {
-    item = rand(MYSTERY_BOX_ITEM_COUNT);
+    if (MapConfig.State && MapConfig.State->PlayerStates[pvars->ActivatedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK) {
+      item = MysteryBoxItemProbabilitiesLucky[rand(MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount)].Item;
+    } else {
+      item = MysteryBoxItemProbabilities[rand(MysteryBoxItemMysteryBoxItemProbabilitiesCount)].Item;
+    }
   }
 
   u32 color = ITEM_COLORS[item];
@@ -400,6 +421,7 @@ void mboxUpdate(Moby* moby)
   Player* activatedByPlayer = players[pvars->ActivatedByPlayerId];
   int timeSinceActivated = gameGetTime() - pvars->ActivatedTime;
   int timeSinceStateChanged = gameGetTime() - pvars->StateChangedAtTime;
+  int ticksSinceLastStateChange = pvars->TicksSinceLastStateChanged++;
 
   if (pvars->ActivatedByPlayerId < 0)
     activatedByPlayer = NULL;
@@ -420,6 +442,7 @@ void mboxUpdate(Moby* moby)
       if (t <= 0) {
         mobySetState(moby, MYSTERY_BOX_STATE_IDLE, -1);
         pvars->StateChangedAtTime = gameGetTime();
+        pvars->TicksSinceLastStateChanged = 0;
       }
       break;
     }
@@ -444,11 +467,17 @@ void mboxUpdate(Moby* moby)
       // transition to next state after
       mobySetState(moby, MYSTERY_BOX_STATE_CLOSING, -1);
       pvars->StateChangedAtTime = gameGetTime();
+      pvars->TicksSinceLastStateChanged = 0;
       break;
     }
     case MYSTERY_BOX_STATE_DISPLAYING_ITEM:
     {
       mboxOpenDoor(moby, 1);
+
+      // play vox dialog on appear
+      if (!ticksSinceLastStateChange && pvars->Item == MYSTERY_BOX_ITEM_TEDDY_BEAR) {
+        playDialog(DIALOG_ID_VOX_JACKPOT, 1);
+      }
 
       // let player who activated interact with item
       // if the item is interactable
@@ -501,6 +530,7 @@ void mboxUpdate(Moby* moby)
       if (timeSinceStateChanged > (TIME_SECOND * 5)) {
         mobySetState(moby, MYSTERY_BOX_STATE_BEFORE_CLOSING, -1);
         pvars->StateChangedAtTime = gameGetTime();
+        pvars->TicksSinceLastStateChanged = 0;
       }
       break;
     }
@@ -512,6 +542,7 @@ void mboxUpdate(Moby* moby)
       if (timeSinceStateChanged > MYSTERY_BOX_CYCLE_ITEMS_DURATION) {
         mobySetState(moby, MYSTERY_BOX_STATE_DISPLAYING_ITEM, -1);
         pvars->StateChangedAtTime = gameGetTime();
+        pvars->TicksSinceLastStateChanged = 0;
       }
       break;
     }
@@ -524,6 +555,7 @@ void mboxUpdate(Moby* moby)
       if (t >= 1) {
         mobySetState(moby, MYSTERY_BOX_STATE_CYCLING_ITEMS, -1);
         pvars->StateChangedAtTime = gameGetTime();
+        pvars->TicksSinceLastStateChanged = 0;
       }
       break;
     }
@@ -552,6 +584,7 @@ void mboxUpdate(Moby* moby)
         vector_copy(moby->Position, pvars->SpawnpointPosition);
         vector_copy(moby->Rotation, pvars->SpawnpointRotation);
         mobySetState(moby, MYSTERY_BOX_STATE_IDLE, -1);
+        mboxPlayRespawnSound(moby);
       }
       break;
     }
@@ -572,6 +605,12 @@ int mboxHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 
 	// set update
 	moby->PUpdate = &mboxUpdate;
+
+	// indicate to survival mode that we can damage players
+  moby->Bolts = -1;
+
+  // update mode reference
+  if (MapConfig.State) MapConfig.State->MysteryBoxMoby = moby;
 
   // set default state
 	mobySetState(moby, MYSTERY_BOX_STATE_IDLE, -1);
@@ -664,6 +703,8 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
         }
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:
         {
+          spawnExplosion(moby->Position, 5, 0x802060C0);
+          damageRadius(moby, moby->Position, 0x00081801, 5, 5);
           mboxSetRandomRespawn(moby, pvars->Random);
           break;
         }

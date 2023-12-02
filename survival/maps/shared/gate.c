@@ -40,20 +40,6 @@ extern VECTOR GateLocations[];
 Moby* GateMobies[GATE_MAX_COUNT] = {};
 void * GateCollisionData = NULL;
 
-SoundDef BaseSoundDef =
-{
-	0.0,	  // MinRange
-	25.0,	  // MaxRange
-	0,		  // MinVolume
-	1200,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
-};
-
 //--------------------------------------------------------------------------
 void gateSetCollision(int collActive)
 {
@@ -143,8 +129,7 @@ void gateDraw(Moby* moby)
 //--------------------------------------------------------------------------
 void gatePlayOpenSound(Moby* moby)
 {
-  BaseSoundDef.Index = 204;
-  soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
+  mobyPlaySoundByClass(0, 0, moby, MOBY_ID_NODE_BASE);
 }
 
 //--------------------------------------------------------------------------

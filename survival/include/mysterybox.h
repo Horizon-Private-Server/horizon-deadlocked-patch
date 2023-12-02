@@ -53,6 +53,7 @@ struct MysteryBoxPVar
   int Random;
   int ActivatedTime;
   int StateChangedAtTime;
+  int TicksSinceLastStateChanged;
   int ActivatedByPlayerId;
   int RoundHidden;
 };

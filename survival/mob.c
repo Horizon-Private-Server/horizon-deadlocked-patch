@@ -2,6 +2,7 @@
 #include "include/drop.h"
 #include "include/utils.h"
 #include "include/game.h"
+#include "include/bubble.h"
 #include "config.h"
 #include <string.h>
 #include <libdl/stdio.h>
@@ -21,7 +22,7 @@ Moby* mobLastInList = 0;
 extern struct SurvivalMapConfig* mapConfig;
 extern PatchConfig_t* playerConfig;
 
-int mobOrderedDrawUpToIndex = MAX_MOBS_SPAWNED;
+int mobOrderedDrawUpToIndex = MAX_MOBS_ALIVE;
 int mobComplexitySum = 0;
 
 #if FIXEDTARGET
@@ -47,8 +48,8 @@ SoundDef BaseSoundDef =
 
 int MobComplexityValueByOClass[MAX_MOB_SPAWN_PARAMS][2];
 
-Moby* AllMobsSorted[MAX_MOBS_SPAWNED + 10];
-int AllMobsSortedFreeSpots = MAX_MOBS_SPAWNED;
+Moby* AllMobsSorted[MAX_MOBS_ALIVE + 10];
+int AllMobsSortedFreeSpots = MAX_MOBS_ALIVE;
 
 extern struct SurvivalState State;
 
@@ -64,14 +65,15 @@ int mobAmIOwner(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void mobStatsOnNewMobCreated(int spawnParamIdx)
+void mobStatsOnNewMobCreated(int spawnParamIdx, int spawnFromUID)
 {
+  State.MobStats.TotalSpawning++;
   if (!mapConfig) return;
 
-  if (spawnParamIdx >= 0 && spawnParamIdx < mapConfig->DefaultSpawnParamsCount) {
+  if (spawnFromUID == -1 && spawnParamIdx >= 0 && spawnParamIdx < mapConfig->DefaultSpawnParamsCount) {
     State.MobStats.NumAlive[spawnParamIdx]++;
     State.MobStats.NumSpawnedThisRound[spawnParamIdx]++;
-    State.MobStats.TotalAlive++;
+    //State.MobStats.TotalAlive++;
     State.MobStats.TotalSpawned++;
     State.MobStats.TotalSpawnedThisRound++;
   }
@@ -80,6 +82,7 @@ void mobStatsOnNewMobCreated(int spawnParamIdx)
 //--------------------------------------------------------------------------
 void mobStatsOnNewMobSpawned(Moby* moby, int spawnFromUID, int fromThisClient)
 {
+  if (fromThisClient) { State.MobStats.TotalSpawning--; }
   if (!moby) return;
   if (!mapConfig) return;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -173,6 +176,11 @@ void mobSendStateUpdateUnreliable(Moby* moby)
   // base msg
   msg.Base.MsgId = MOB_UNRELIABLE_MSG_ID_STATE_UPDATE;
   msg.Base.MobUID = guberGetUID(moby);
+
+  // action update
+  msg.StateUpdate.Action = pvars->MobVars.Action;
+  msg.StateUpdate.ActionId = pvars->MobVars.ActionId;
+  msg.StateUpdate.Random = pvars->MobVars.DynamicRandom;
 
   // state update
   vector_copy(msg.StateUpdate.Position, moby->Position);
@@ -474,7 +482,7 @@ void mobHandleDraw(Moby* moby)
 
 	// if we aren't in the sorted list, try and find an empty spot
 	if (pvars->MobVars.Order < 0 && AllMobsSortedFreeSpots > 0) {
-		for (i = 0; i < MAX_MOBS_SPAWNED; ++i) {
+		for (i = 0; i < MAX_MOBS_ALIVE; ++i) {
 			Moby* m = AllMobsSorted[i];
 			if (m == NULL) {
 				AllMobsSorted[i] = moby;
@@ -571,8 +579,6 @@ void mobUpdate(Moby* moby)
 	u16 nextActionTicks = decTimerU16(&pvars->MobVars.NextActionDelayTicks);
 	decTimerU16(&pvars->MobVars.ActionCooldownTicks);
 	decTimerU16(&pvars->MobVars.AttackCooldownTicks);
-	decTimerU16(&pvars->MobVars.Attack2CooldownTicks);
-	decTimerU16(&pvars->MobVars.Attack3CooldownTicks);
 	u16 scoutCooldownTicks = decTimerU16(&pvars->MobVars.ScoutCooldownTicks);
 	decTimerU16(&pvars->MobVars.FlinchCooldownTicks);
 	decTimerU16(&pvars->MobVars.TimeBombTicks);
@@ -640,17 +646,16 @@ void mobUpdate(Moby* moby)
 			if (nextActionTicks == 0) {
 				mobSetAction(moby, pvars->MobVars.NextAction);
 				pvars->MobVars.NextAction = -1;
-			} else {
-				//mobSetAction(moby, MOB_ACTION_LOOK_AT_TARGET);
 			}
 		}
 		
 		// 
 		if (nextCheckActionDelayTicks == 0 && pvars->VTable && pvars->VTable->GetPreferredAction) {
-      int nextAction = pvars->VTable->GetPreferredAction(moby);
+      int delayTicks = 0;
+      int nextAction = pvars->VTable->GetPreferredAction(moby, &delayTicks);
 			if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction && nextAction != pvars->MobVars.Action) {
 				pvars->MobVars.NextAction = nextAction;
-				pvars->MobVars.NextActionDelayTicks = 0; //nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
+				pvars->MobVars.NextActionDelayTicks = delayTicks; //nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
 			} 
 
 			// get new target
@@ -746,27 +751,33 @@ void mobUpdate(Moby* moby)
     }
 
     // auto destruct after 15 seconds of being stuck
-    else if (pvars->MobVars.MoveVars.StuckTicks > (TPS * 15)) {
+    else if (pvars->MobVars.MoveVars.StuckCounter > 15) {
       pvars->MobVars.Respawn = 1;
     }
-
-		// respawn
-		if (pvars->MobVars.Respawn) {
-			VECTOR p;
-			struct MobConfig config;
-      struct MobSpawnParams* spawnParams = &mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx];
-			if (spawnGetRandomPoint(p, spawnParams)) {
-				memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
-				mobCreate(pvars->MobVars.SpawnParamsIdx, p, 0, guberGetUID(moby), pvars->MobVars.FreeAgent, &config);
-			}
-
-			pvars->MobVars.Respawn = 0;
-			pvars->MobVars.Destroyed = 2;
+    
+    // destroy
+    if (pvars->MobVars.Destroy) {
+			mobDestroy(moby, pvars->MobVars.LastHitBy);
 		}
 
-		// destroy
-		else if (pvars->MobVars.Destroy) {
-			mobDestroy(moby, pvars->MobVars.LastHitBy);
+		// respawn
+		else if (pvars->MobVars.Respawn) {
+
+      // pass to mob
+      // let mob override respawn logic
+      if (!pvars->VTable->OnRespawn || pvars->VTable->OnRespawn(moby)) {
+        VECTOR p;
+        struct MobConfig config;
+        struct MobSpawnParams* spawnParams = &mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx];
+        if (spawnGetRandomPoint(p, spawnParams)) {
+          memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
+          mobCreate(pvars->MobVars.SpawnParamsIdx, p, 0, guberGetUID(moby), pvars->MobVars.FreeAgent, &config);
+        }
+        
+        pvars->MobVars.Destroyed = 2;
+      }
+
+			pvars->MobVars.Respawn = 0;
 		}
 
 		// send changes
@@ -798,9 +809,9 @@ GuberEvent* mobCreateEvent(Moby* moby, u32 eventType)
 //--------------------------------------------------------------------------
 int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 {
-	
 	VECTOR p;
 	float yaw;
+  int i;
 	int spawnFromUID;
   int freeAgent;
 	char random;
@@ -926,6 +937,20 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 		}
 	}
 
+	// if we aren't in the sorted list, try and find an empty spot
+	if (pvars->MobVars.Order < 0 && AllMobsSortedFreeSpots > 0) {
+		for (i = 0; i < MAX_MOBS_ALIVE; ++i) {
+			Moby* m = AllMobsSorted[i];
+			if (m == NULL) {
+				AllMobsSorted[i] = moby;
+				pvars->MobVars.Order = i;
+				--AllMobsSortedFreeSpots;
+				//DPRINTF("set %08X to order %d (free %d)\n", (u32)moby, i, AllMobsSortedFreeSpots);
+				break;
+			}
+		}
+	}
+
   // pass to map
   if (mapConfig->OnMobSpawnedFunc)
     mapConfig->OnMobSpawnedFunc(moby);
@@ -974,7 +999,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
       }
     }
   }
-#endif
+#endif  
 
 #if SHARED_BOLTS
 	if (killedByPlayerId >= 0) {
@@ -1081,17 +1106,23 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
   if (pvars->VTable && pvars->VTable->OnDamage)
     pvars->VTable->OnDamage(moby, &args);
 	
-	// get damager
-	// GuberMoby* damager = (GuberMoby*)guberGetObjectByUID(args.SourceUID);
-
 	// flash
 	mobyStartFlash(moby, FT_HIT, 0x800000FF, 0);
 
 	// decrement health
 	float damage = args.DamageQuarters / 4.0;
+  float appliedDamage = maxf(0, minf(damage, pvars->MobVars.Health));
 	float newHp = pvars->MobVars.Health - damage;
 	pvars->MobVars.Health = newHp;
 	pvars->TargetVars.hitPoints = newHp;
+
+	// get damager
+	Player* damager = playerGetFromUID(args.SourceUID);
+  if (appliedDamage > 0) { // && damager && damager->IsLocal) {
+    VECTOR mobCenter = {0,0,pvars->TargetVars.targetHeight,0};
+    vector_add(mobCenter, mobCenter, moby->Position);
+    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage);
+  }
 
   // 
 
@@ -1119,7 +1150,7 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &args, sizeof(struct MobActionUpdateEventArgs));
 
 	// 
-	if (pvars->MobVars.LastActionId != args.ActionId && pvars->MobVars.Action != args.Action) {
+	if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args.ActionId) > 0 && pvars->MobVars.Action != args.Action) {
 		pvars->MobVars.LastActionId = args.ActionId;
     pvars->MobVars.LastAction = pvars->MobVars.Action;
     
@@ -1152,9 +1183,24 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
   }
 
 	// 
+	if (0 && SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) > 0 && pvars->MobVars.Action != args->Action) {
+		pvars->MobVars.LastActionId = args->ActionId;
+    pvars->MobVars.LastAction = pvars->MobVars.Action;
+    pvars->MobVars.DynamicRandom = args->Random;
+    
+    // pass to mob handler
+    if (pvars->VTable && pvars->VTable->ForceLocalAction)
+      pvars->VTable->ForceLocalAction(moby, args->Action);
+	}
+
+	// 
 	Player* target = (Player*)guberGetObjectByUID(args->TargetUID);
-	if (target)
-		pvars->MobVars.Target = playerGetTargetMoby(target);
+	if (target) {
+    Moby* targetMoby = playerGetTargetMoby(target);
+    if (targetMoby != pvars->MobVars.Target) {
+      pvars->MobVars.Target = targetMoby;
+    }
+  }
 
 #if FIXEDTARGET
   pvars->MobVars.Target = FIXEDTARGETMOBY;
@@ -1287,7 +1333,7 @@ int mobOnUnreliableMsgRemote(void * connection, void * data)
 int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
 {
   // log
-  if (spawnFromUID == -1) mobStatsOnNewMobCreated(spawnParamsIdx);
+  mobStatsOnNewMobCreated(spawnParamsIdx, spawnFromUID);
 
   if (mapConfig->OnMobCreateFunc)
     return mapConfig->OnMobCreateFunc(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
@@ -1357,7 +1403,7 @@ void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float 
 		}
 	}
 
-	for (i = 0; i < MAX_MOBS_SPAWNED; ++i) {
+	for (i = 0; i < MAX_MOBS_ALIVE; ++i) {
 		Moby* m = AllMobsSorted[i];
 		if (m) {
       
@@ -1403,11 +1449,11 @@ void mobTick(void)
   State.MobStats.TotalAlive = 0;
   memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
   mobComplexitySum = 0;
-  mobOrderedDrawUpToIndex = MAX_MOBS_SPAWNED;
+  mobOrderedDrawUpToIndex = MAX_MOBS_ALIVE;
   int maxComplexity = getMaxComplexity();
 
 	// run single pass on sort
-	for (i = 0; i < MAX_MOBS_SPAWNED; ++i)
+	for (i = 0; i < MAX_MOBS_ALIVE; ++i)
 	{
 		Moby* m = AllMobsSorted[i];
 

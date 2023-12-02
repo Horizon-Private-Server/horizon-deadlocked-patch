@@ -3,6 +3,8 @@
 #ifndef SURVIVAL_UTILS_H
 #define SURVIVAL_UTILS_H
 
+#define SEQ_DIFF_U8(a, b) (((b - a + 128*3) % (128*2)) - 128)
+
 #include <tamtypes.h>
 #include <libdl/moby.h>
 #include <libdl/math.h>

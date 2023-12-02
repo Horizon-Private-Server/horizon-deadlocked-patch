@@ -4,11 +4,11 @@
 #define REACTOR_BASE_REACTION_TICKS						  (0.25 * TPS)
 #define REACTOR_BASE_ATTACK_COOLDOWN_TICKS			(1 * TPS)
 #define REACTOR_BASE_EXPLODE_RADIUS						  (5)
-#define REACTOR_MELEE_HIT_RADIUS								(1.75)
+#define REACTOR_MELEE_HIT_RADIUS								(2)
 #define REACTOR_EXPLODE_HIT_RADIUS							(5)
 #define REACTOR_MELEE_ATTACK_RADIUS						  (5)
 
-#define REACTOR_HIT_INV_TICKS                   (0.5 * TPS)
+#define REACTOR_HIT_INV_TICKS                   (0.25 * TPS)
 
 #define REACTOR_MAX_DIST_FOR_CHARGE		          (30)
 #define REACTOR_CHARGE_ATTACK_MIN_COOLDOWN_TICKS    (TPS * 10)
@@ -19,11 +19,18 @@
 #define REACTOR_CHARGE_ACCELERATION             (60)
 #define REACTOR_CHARGE_MAX_SLOPE                (45 * MATH_DEG2RAD)
 
-#define REACTOR_SHOT_WITH_TRAIL_MAX_DIST        (50)
+#define REACTOR_SHOT_WITH_TRAIL_MAX_DIST                      (50)
 #define REACTOR_SHOT_WITH_TRAIL_ATTACK_MIN_COOLDOWN_TICKS     (TPS * 20)
 #define REACTOR_SHOT_WITH_TRAIL_ATTACK_MAX_COOLDOWN_TICKS     (TPS * 40)
-#define REACTOR_SHOT_WITH_TRAIL_TURN_RADIANS_PER_SEC      (45 * MATH_DEG2RAD)
-#define REACTOR_SHOT_WITH_TRAIL_SHOT_SPEED                (30 * MATH_DT)
+#define REACTOR_SHOT_WITH_TRAIL_TURN_RADIANS_PER_SEC          (45 * MATH_DEG2RAD)
+#define REACTOR_SHOT_WITH_TRAIL_SHOT_SPEED                    (30 * MATH_DT)
+
+#define REACTOR_SMASH_ATTACK_MIN_COOLDOWN_TICKS               (TPS * 30)
+#define REACTOR_SMASH_ATTACK_MAX_COOLDOWN_TICKS               (TPS * 120)
+#define REACTOR_SMASH_ATTACK_MIN_COUNT                        (3)
+#define REACTOR_SMASH_ATTACK_MAX_COUNT                        (10)
+#define REACTOR_SMASH_ATTACK_MIN_MINION_SPAWN_COUNT           (3)
+#define REACTOR_SMASH_ATTACK_MAX_MINION_SPAWN_COUNT           (7)
 
 #define REACTOR_TARGET_KEEP_CURRENT_FACTOR      (3)
 
@@ -43,7 +50,7 @@
 #define REACTOR_MAX_COLL_RADIUS								  (4)
 #define REACTOR_AMBSND_MIN_COOLDOWN_TICKS    	  (60 * 2)
 #define REACTOR_AMBSND_MAX_COOLDOWN_TICKS    	  (60 * 3)
-#define REACTOR_FLINCH_PROBABILITY              (0.05)
+#define REACTOR_FLINCH_PROBABILITY              (0.01)
 
 #define REACTOR_DIALOG_COOLDOWN_MIN_TPS         (2 * TPS)
 #define REACTOR_DIALOG_COOLDOWN_MAX_TPS         (10 * TPS)
@@ -107,6 +114,8 @@ enum ReactorAction
 	REACTOR_ACTION_ATTACK_SWING,
 	REACTOR_ACTION_ATTACK_CHARGE,
 	REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL,
+	REACTOR_ACTION_ATTACK_SMASH,
+  REACTOR_ACTION_GLOAT,
 };
 
 enum ReactorSubskeletonJoints
@@ -127,17 +136,25 @@ enum ReactorCustomEventIds
 
 typedef struct ReactorMobVars
 {
+  VECTOR LastHipsPosition;
+  VECTOR LastRightHandPosition;
   Moby* PrepShotWithFireParticleMoby1;
   Moby* PrepShotWithFireParticleMoby2;
   float AnimSpeedAdditive;
   float HealthLastDialog;
   u16 DialogCooldownTicks;
+	u16 AttackChargeCooldownTicks;
+	u16 AttackShotWithTrailCooldownTicks;
+	u16 AttackSmashCooldownTicks;
   char ChargeChargeupTargetCount;
   char ChargeHasPlayedSound;
   char HasFiredTrailshotThisLoop;
+  char SmashTargetCount;
+  char HasSmashedThisLoop;
   u8 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
 } ReactorMobVars_t;
 
+extern int reactorMinionSpawnParamIdx;
 extern int reactorAmbientSoundIds[];
 extern const int reactorAmbientSoundIdsCount;
 extern int reactorHitSoundId;

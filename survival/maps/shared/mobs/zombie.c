@@ -23,7 +23,7 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e);
 int zombieOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void zombieOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* zombieGetNextTarget(Moby* moby);
-int zombieGetPreferredAction(Moby* moby);
+int zombieGetPreferredAction(Moby* moby, int * delayTicks);
 void zombieDoAction(Moby* moby);
 void zombieDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void zombieForceLocalAction(Moby* moby, int action);
@@ -325,7 +325,7 @@ Moby* zombieGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int zombieGetPreferredAction(Moby* moby)
+int zombieGetPreferredAction(Moby* moby, int * delayTicks)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -350,7 +350,7 @@ int zombieGetPreferredAction(Moby* moby)
   }
 
   // jump if we've hit a jump point on the path
-  if (pathShouldJump(moby)) {
+  if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
     return ZOMBIE_ACTION_JUMP;
   }
 
@@ -367,8 +367,10 @@ int zombieGetPreferredAction(Moby* moby)
 		float attackRadiusSqr = pvars->MobVars.Config.AttackRadius * pvars->MobVars.Config.AttackRadius;
 
 		if (distSqr <= attackRadiusSqr) {
-			if (zombieCanAttack(pvars))
+			if (zombieCanAttack(pvars)) {
+        if (delayTicks) *delayTicks = pvars->MobVars.Config.ReactionTickCount;
 				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? ZOMBIE_ACTION_ATTACK : ZOMBIE_ACTION_TIME_BOMB;
+      }
 			return ZOMBIE_ACTION_WALK;
 		} else {
 			return ZOMBIE_ACTION_WALK;
@@ -392,7 +394,7 @@ void zombieRenderPath(Moby* moby)
 
 
   for (i = 0; i < pathLen; ++i) {
-    char* edge = MOB_PATHFINDING_EDGES[path[i]];
+    u8* edge = MOB_PATHFINDING_EDGES[path[i]];
     if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[1]], &x, &y)) {
       gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, i == pathIdx ? "o" : "-", -1, 4);
     }
@@ -483,13 +485,14 @@ void zombieDoAction(Moby* moby)
 
           // use delta height between target as base of jump speed
           // with min speed
-          float jumpSpeed = pathGetJumpSpeed(moby);
+          float jumpSpeed = pvars->MobVars.MoveVars.QueueJumpSpeed;
           if (jumpSpeed <= 0 && target) {
             jumpSpeed = 8; //clamp(0 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 1, 3, 15);
           }
 
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
           pvars->MobVars.MoveVars.Grounded = 0;
+          pvars->MobVars.MoveVars.QueueJumpSpeed = 0;
         }
 				break;
 			}
@@ -531,11 +534,13 @@ void zombieDoAction(Moby* moby)
 			// 
       if (moby->AnimSeqId == ZOMBIE_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
         // wait for jump to land
-      }
-			else if (mobHasVelocity(pvars))
+      } else if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
+        zombieForceLocalAction(moby, ZOMBIE_ACTION_JUMP);
+      } else if (mobHasVelocity(pvars)) {
 				mobTransAnim(moby, ZOMBIE_ANIM_RUN, 0);
-			else
+      } else if (moby->AnimSeqId != ZOMBIE_ANIM_RUN || pvars->MobVars.AnimationLooped) {
 				mobTransAnim(moby, ZOMBIE_ANIM_IDLE, 0);
+      }
 			break;
 		}
     case ZOMBIE_ACTION_DIE:
@@ -630,7 +635,7 @@ void zombieDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void zombieDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, ZOMBIE_SUBSKELETON_JOINT_LEFT_HAND);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, ZOMBIE_SUBSKELETON_JOINT_LEFT_HAND, 1);
 }
 
 //--------------------------------------------------------------------------

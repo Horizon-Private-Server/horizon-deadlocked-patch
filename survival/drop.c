@@ -14,7 +14,6 @@
 #include <libdl/radar.h>
 
 extern struct SurvivalState State;
-extern SoundDef BaseSoundDef;
 
 int dropCount = 0;
 int dropThisFrame = 0;
@@ -40,8 +39,7 @@ int dropAmIOwner(Moby* moby)
 //--------------------------------------------------------------------------
 void dropPlayPickupSound(Moby* moby)
 {
-	BaseSoundDef.Index = 101;
-	soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
+  mobyPlaySoundByClass(1, 0, moby, MOBY_ID_PICKUP_PAD);
 }	
 
 //--------------------------------------------------------------------------
@@ -140,6 +138,8 @@ void dropUpdate(Moby* moby)
 	const int opacities[] = { 64, 32, 44, 51 };
 
 	VECTOR t;
+  VECTOR down = {0,0,-2 * MATH_DT,0};
+  VECTOR offset = {0,0,1,0};
 	int i;
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
 	Player** players = playerGetAll();
@@ -150,6 +150,17 @@ void dropUpdate(Moby* moby)
 
 	// register draw event
 	gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&dropPostDraw, moby);
+
+  // fall to ground
+  if (!pvars->HitGround) {
+    vector_add(t, moby->Position, down);
+    vector_subtract(t, t, offset);
+    if (CollLine_Fix(moby->Position, t, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
+      pvars->HitGround = 1;
+    } else {
+      vector_add(moby->Position, t, offset);
+    }
+  }
 
 	// handle particles
 	u32 color = colorLerp(0, TEAM_COLORS[pvars->Team], 1.0 / 4);
@@ -163,6 +174,7 @@ void dropUpdate(Moby* moby)
 		// update
 		if (particle) {
 			particle->Rot = (int)((gameGetTime() + (i * 100)) / (TIME_SECOND * rotSpeeds[i])) & 0xFF;
+      vector_copy(particle->Position, moby->Position);
 		}
 	}
 
@@ -326,9 +338,9 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 		}
 		case DROP_DOUBLE_POINTS:
 		{
-			DPRINTF("giving double points to all players\n");
-			uiShowPopup(0, "Double points!");
-			uiShowPopup(1, "Double points!");
+			DPRINTF("giving double bolts to all players\n");
+			uiShowPopup(0, "Double bolts!");
+			uiShowPopup(1, "Double bolts!");
 			setDoublePoints(1);
 			break;
 		}

@@ -24,7 +24,7 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e);
 int swarmerOnLocalDamage(Moby* moby, struct MobLocalDamageEventArgs* e);
 void swarmerOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 Moby* swarmerGetNextTarget(Moby* moby);
-int swarmerGetPreferredAction(Moby* moby);
+int swarmerGetPreferredAction(Moby* moby, int * delayTicks);
 void swarmerDoAction(Moby* moby);
 void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void swarmerForceLocalAction(Moby* moby, int action);
@@ -328,7 +328,7 @@ Moby* swarmerGetNextTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int swarmerGetPreferredAction(Moby* moby)
+int swarmerGetPreferredAction(Moby* moby, int * delayTicks)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	VECTOR t;
@@ -357,7 +357,7 @@ int swarmerGetPreferredAction(Moby* moby)
   }
 
   // jump if we've hit a jump point on the path
-  if (pathShouldJump(moby)) {
+  if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
     return SWARMER_ACTION_JUMP;
   }
 
@@ -379,8 +379,10 @@ int swarmerGetPreferredAction(Moby* moby)
 		float attackRadiusSqr = pvars->MobVars.Config.AttackRadius * pvars->MobVars.Config.AttackRadius;
 
 		if (distSqr <= attackRadiusSqr) {
-			if (swarmerCanAttack(pvars))
+			if (swarmerCanAttack(pvars)) {
+        if (delayTicks) *delayTicks = pvars->MobVars.Config.ReactionTickCount;
 				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? SWARMER_ACTION_ATTACK : SWARMER_ACTION_TIME_BOMB;
+      }
 			return SWARMER_ACTION_WALK;
 		} else {
 			return SWARMER_ACTION_WALK;
@@ -404,7 +406,7 @@ void swarmerRenderPath(Moby* moby)
 
 
   for (i = 0; i < pathLen; ++i) {
-    char* edge = MOB_PATHFINDING_EDGES[path[i]];
+    u8* edge = MOB_PATHFINDING_EDGES[path[i]];
     if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[1]], &x, &y)) {
       gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, i == pathIdx ? "o" : "-", -1, 4);
     }
@@ -495,7 +497,7 @@ void swarmerDoAction(Moby* moby)
 
           // use delta height between target as base of jump speed
           // with min speed
-          float jumpSpeed = pathGetJumpSpeed(moby);
+          float jumpSpeed = pvars->MobVars.MoveVars.QueueJumpSpeed;
           if (jumpSpeed <= 0 && target) {
             jumpSpeed = 8; //clamp(0 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 1, 3, 15);
           }
@@ -503,6 +505,7 @@ void swarmerDoAction(Moby* moby)
           //DPRINTF("jump %f\n", jumpSpeed);
           pvars->MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
           pvars->MobVars.MoveVars.Grounded = 0;
+          pvars->MobVars.MoveVars.QueueJumpSpeed = 0;
         }
 				break;
 			}
@@ -544,11 +547,13 @@ void swarmerDoAction(Moby* moby)
 			// 
       if (moby->AnimSeqId == SWARMER_ANIM_JUMP_AND_FALL && !pvars->MobVars.MoveVars.Grounded) {
         // wait for jump to land
-      }
-			else if (mobHasVelocity(pvars))
+      } else if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
+        swarmerForceLocalAction(moby, SWARMER_ACTION_JUMP);
+      } else if (mobHasVelocity(pvars)) {
 				mobTransAnim(moby, SWARMER_ANIM_WALK, 0);
-			else
+      } else if (moby->AnimSeqId != SWARMER_ANIM_WALK || pvars->MobVars.AnimationLooped) {
 				mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
+      }
 			break;
 		}
     case SWARMER_ACTION_DODGE:
@@ -659,7 +664,7 @@ void swarmerDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, SWARMER_SUBSKELETON_JOINT_JAW);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, SWARMER_SUBSKELETON_JOINT_JAW, 1);
 }
 
 //--------------------------------------------------------------------------
@@ -808,6 +813,6 @@ float swarmerGetDodgeProbability(Moby* moby)
   int roundNo = 0;
   if (MapConfig.State) roundNo = MapConfig.State->RoundNumber;
 
-  float factor = clamp(powf(roundNo / 100.0, 3), 0, 1);
-  return lerpf(0.01, 0.25, factor);
+  float factor = clamp(powf(roundNo / 100.0, 2), 0, 1);
+  return lerpf(0.03, 0.25, factor);
 }

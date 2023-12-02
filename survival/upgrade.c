@@ -23,7 +23,7 @@ char UpgradeTexIds[] = {
 	[UPGRADE_HEALTH] 94,
 	[UPGRADE_SPEED] 52,
 	[UPGRADE_DAMAGE] 9,
-	[UPGRADE_MEDIC] 39,
+	[UPGRADE_MEDIC] 13,
 	[UPGRADE_VENDOR] 46,
 	[UPGRADE_PICKUPS] 2,
 };
@@ -40,8 +40,7 @@ int UpgradeMax[] = {
 //--------------------------------------------------------------------------
 void upgradePlayPickupSound(Moby* moby)
 {
-	BaseSoundDef.Index = 101;
-	soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
+  mobyPlaySoundByClass(1, 0, moby, MOBY_ID_PICKUP_PAD);
 }	
 
 //--------------------------------------------------------------------------
