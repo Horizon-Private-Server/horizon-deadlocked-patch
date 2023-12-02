@@ -346,11 +346,6 @@ void INetUpdate(void)
   ((void (*)(void))0x01e9e798)();
 }
 
-void adjustPlayerSyncSettings(void)
-{
-
-}
-
 /*
  * NAME :		runSingletapChargeboot
  * 
@@ -2307,6 +2302,9 @@ void runFixB6EatOnDownSlope(void)
 
   // patch b6 grounded damage check to read our isGrounded state
   POKE_U16(0x003B56E8, 0x30C);
+
+  // increase b6 full damage range for ungrounded targets
+  POKE_U16(0x003b5700, 0x4000);
 }
 
 /*
