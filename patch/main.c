@@ -122,6 +122,7 @@ extern int mapsLocalGlobalVersion;
 
 void resetFreecam(void);
 void processFreecam(void);
+void extraLocalsRun(void);
 
 #if COMP
 void runCompMenuLogic(void);
@@ -2441,6 +2442,11 @@ int patchStateUpdate_Hook(void * a0, void * a1)
 	int v0 = ((int (*)(void*,void*))0x0061e130)(a0, a1);
 	Player * p = (Player*)((u32)a0 - 0x2FEC);
 
+  // we don't have a free bit to store p2/p3 in the tNW_PlayerPadInputMessage
+  // users will have to use new player sync
+  if (p->IsLocal && p->LocalPlayerIndex > 1)
+    return 0;
+
 	// when we're dead we don't really need to send the state very often
 	// so we'll only send it every second
 	// and when we do we'll send a full update (including position and player state)
@@ -3162,7 +3168,7 @@ void runGameStartMessager(void)
 			{
 				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
 			}
-			
+
 #if DEBUG
 			redownloadCustomModeBinaries = 1;
 #endif
@@ -4716,6 +4722,9 @@ int main (void)
 
 	// Run game start messager
 	runGameStartMessager();
+
+  // enable 4 player splitscreen
+  extraLocalsRun();
 
   // old lag fixes
   if (!gameConfig.grNewPlayerSync) {
