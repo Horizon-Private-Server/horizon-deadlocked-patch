@@ -64,6 +64,12 @@ void scavHuntResetBoltSpawnCooldown(void)
 }
 
 //--------------------------------------------------------------------------
+int scavHuntRoll(void)
+{
+  return rand(4) == 0;
+}
+
+//--------------------------------------------------------------------------
 int scavHuntOnReceiveRemoteSettings(void* connection, void* data)
 {
   ScavengerHuntSettingsResponse_t response;
@@ -296,7 +302,7 @@ void scavHuntOnKillDeathMessage(void* killDeathMsg)
 {
   ((void (*)(void*))0x00621CF8)(killDeathMsg);
 
-  if (scavHuntBoltSpawnCooldown) return;
+  if (scavHuntBoltSpawnCooldown || !scavHuntRoll()) return;
 
   Player* localPlayer = playerGetFromSlot(0);
   if (!localPlayer) return;
@@ -312,6 +318,7 @@ void scavHuntCheckForSurvivalSpawnConditions(void)
 {
   static int lastSurvivalRound = 0;
   static int survivalBoltsSpawnedThisRound = 0;
+  static int checkForMobyCooldown = 0;
   static Moby* survivalBoltMoby = NULL;
 
   if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL) return;
@@ -326,7 +333,12 @@ void scavHuntCheckForSurvivalSpawnConditions(void)
   // find zombie and wait for them to die
   if (survivalBoltsSpawnedThisRound < 3) {
     if (!scavHuntBoltSpawnCooldown && !survivalBoltMoby) {
-      survivalBoltMoby = mobyFindNextByOClass(mobyListGetStart(), MOBY_ID_ROBOT_ZOMBIE);
+      if (checkForMobyCooldown) {
+        checkForMobyCooldown--;
+      } else {
+        if (scavHuntRoll()) { survivalBoltMoby = mobyFindNextByOClass(mobyListGetStart(), MOBY_ID_ROBOT_ZOMBIE); }
+        checkForMobyCooldown = 60 * 15;
+      }
     } else if (survivalBoltMoby) {
       if (mobyIsDestroyed(survivalBoltMoby) || survivalBoltMoby->OClass != MOBY_ID_ROBOT_ZOMBIE) {
         survivalBoltMoby = NULL;
@@ -423,11 +435,11 @@ void scavHuntRun(void)
   // decrement cooldown or check for event
   if (scavHuntBoltSpawnCooldown) {
     --scavHuntBoltSpawnCooldown;
-  } else if (flagsCaptured > lastFlagsCaptured) {
+  } else if (flagsCaptured > lastFlagsCaptured && scavHuntRoll()) {
     scavHuntSpawnRandomNearPlayer(localPlayer->PlayerId);
-  } else if (nodesCaptured > lastNodesCaptured) {
+  } else if (nodesCaptured > lastNodesCaptured && scavHuntRoll()) {
     scavHuntSpawnRandomNearPlayer(localPlayer->PlayerId);
-  } else if (nodesSaved > lastNodesSaved) {
+  } else if (nodesSaved > lastNodesSaved && scavHuntRoll()) {
     scavHuntSpawnRandomNearPlayer(localPlayer->PlayerId);
   }
 
