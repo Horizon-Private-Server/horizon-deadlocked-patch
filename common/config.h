@@ -22,7 +22,7 @@ typedef struct PatchConfig
   char enableAutoMaps;
   char enableFpsCounter;
   char disableCircleToHackerRay;
-  char playerAggTime;
+  char disableScavengerHunt;
   char disableCameraShake;
   char minimapScale;
   char minimapBigZoom;

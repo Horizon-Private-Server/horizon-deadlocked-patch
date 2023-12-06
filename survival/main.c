@@ -151,6 +151,8 @@ struct CustomDzoCommandSurvivalDrawReviveMsg
   int PlayerIdx;
 };
 
+void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds);
+
 //--------------------------------------------------------------------------
 void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds)
 {

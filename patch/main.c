@@ -122,6 +122,11 @@ extern int mapsLocalGlobalVersion;
 
 void resetFreecam(void);
 void processFreecam(void);
+void extraLocalsRun(void);
+
+#if SCAVENGER_HUNT
+void scavHuntRun(void);
+#endif
 
 #if COMP
 void runCompMenuLogic(void);
@@ -317,7 +322,7 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 	.enableAutoMaps = 1,
 	.enableFpsCounter = 0,
 	.disableCircleToHackerRay = 0,
-	.playerAggTime = 0,
+	.disableScavengerHunt = 0,
   .playerFov = 0,
   .preferredGameServer = 0,
   .enableSingleTapChargeboot = 0
@@ -344,11 +349,6 @@ PatchGameConfig_t gameConfigHostBackup;
 void INetUpdate(void)
 {
   ((void (*)(void))0x01e9e798)();
-}
-
-void adjustPlayerSyncSettings(void)
-{
-
 }
 
 /*
@@ -2307,6 +2307,9 @@ void runFixB6EatOnDownSlope(void)
 
   // patch b6 grounded damage check to read our isGrounded state
   POKE_U16(0x003B56E8, 0x30C);
+
+  // increase b6 full damage range for ungrounded targets
+  POKE_U16(0x003b5700, 0x3FC0);
 }
 
 /*
@@ -2442,6 +2445,11 @@ int patchStateUpdate_Hook(void * a0, void * a1)
 {
 	int v0 = ((int (*)(void*,void*))0x0061e130)(a0, a1);
 	Player * p = (Player*)((u32)a0 - 0x2FEC);
+
+  // we don't have a free bit to store p2/p3 in the tNW_PlayerPadInputMessage
+  // users will have to use new player sync
+  if (p->IsLocal && p->LocalPlayerIndex > 1)
+    return 0;
 
 	// when we're dead we don't really need to send the state very often
 	// so we'll only send it every second
@@ -3164,7 +3172,10 @@ void runGameStartMessager(void)
 			{
 				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
 			}
-			
+
+      // request latest scavenger hunt settings
+      scavHuntQueryForRemoteSettings();
+
 #if DEBUG
 			redownloadCustomModeBinaries = 1;
 #endif
@@ -4697,9 +4708,6 @@ int main (void)
   // force to 15 ms
   //patchAggTime(15);
 
-  // force agg time
-  //patchAggTime(30 + config.playerAggTime * 5);
-
 #if COMP
 	// run comp patch logic
 	runCompLogic();
@@ -4718,6 +4726,14 @@ int main (void)
 
 	// Run game start messager
 	runGameStartMessager();
+
+#if SCAVENGER_HUNT
+  // scavenger hunt
+  scavHuntRun();
+#endif
+
+  // enable 4 player splitscreen
+  extraLocalsRun();
 
   // old lag fixes
   if (!gameConfig.grNewPlayerSync) {
@@ -4850,7 +4866,7 @@ int main (void)
     //POKE_U32(0x005282dc, 0);
 
     // disable guber wait for dispatchTime
-    //POKE_U32(0x00611518, 0x24040000);
+    POKE_U32(0x00611518, 0x24040000);
 
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
