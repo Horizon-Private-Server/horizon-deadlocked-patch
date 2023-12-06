@@ -29,6 +29,7 @@ extern PatchGameConfig_t gameConfigHostBackup;
 
 extern char aa_value;
 extern int redownloadCustomModeBinaries;
+extern int scavHuntEnabled;
 
 extern VoteToEndState_t voteToEndState;
 
@@ -93,6 +94,7 @@ void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* stat
 void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -226,7 +228,7 @@ MenuElem_t menuElementsGeneral[] = {
 #endif
   { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler },
 #if SCAVENGER_HUNT
-  { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableScavengerHunt },
+  { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateScavengerHuntEnabledHandler, &config.disableScavengerHunt },
 #endif
   // { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
@@ -938,6 +940,15 @@ void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (!scavHuntEnabled)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
 // 

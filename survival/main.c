@@ -143,6 +143,8 @@ struct CustomDzoCommandSurvivalDrawReviveMsg
   int PlayerIdx;
 };
 
+void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds);
+
 //--------------------------------------------------------------------------
 void uiShowLowerPopup(int localPlayerIdx, int msgStringId)
 {
@@ -728,7 +730,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 
 	GadgetBox* gBox = p->GadgetBox;
 	gBox->Gadgets[weaponId].Level = -1;
-	playerGiveWeapon(gBox, weaponId, level);
+	playerGiveWeapon(gBox, weaponId, level, 1);
 	if (p->Gadgets[0].pMoby && p->Gadgets[0].id == weaponId)
 		customBangelizeWeapons(p->Gadgets[0].pMoby, weaponId, level);
 

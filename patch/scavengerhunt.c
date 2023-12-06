@@ -30,6 +30,10 @@
 extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 extern PatchStateContainer_t patchStateContainer;
+float scavHuntSpawnFactor = 1;
+int scavHuntShownPopup = 0;
+int scavHuntHasGotSettings = 0;
+int scavHuntEnabled = 0;
 int scavHuntInitialized = 0;
 int scavHuntBoltSpawnCooldown = 0;
 
@@ -56,7 +60,31 @@ struct HBoltPVar {
 //--------------------------------------------------------------------------
 void scavHuntResetBoltSpawnCooldown(void)
 {
-  scavHuntBoltSpawnCooldown = randRangeInt(HBOLT_MIN_SPAWN_DELAY_TPS, HBOLT_MAX_SPAWN_DELAY_TPS);
+  scavHuntBoltSpawnCooldown = randRangeInt(HBOLT_MIN_SPAWN_DELAY_TPS, HBOLT_MAX_SPAWN_DELAY_TPS) / scavHuntSpawnFactor;
+}
+
+//--------------------------------------------------------------------------
+int scavHuntOnReceiveRemoteSettings(void* connection, void* data)
+{
+  ScavengerHuntSettingsResponse_t response;
+  memcpy(&response, data, sizeof(response));
+
+  scavHuntEnabled = response.Enabled;
+  scavHuntSpawnFactor = response.SpawnFactor;
+  DPRINTF("received scav hunt %d %f\n", scavHuntEnabled, scavHuntSpawnFactor);
+}
+
+//--------------------------------------------------------------------------
+void scavHuntQueryForRemoteSettings(void)
+{
+  void* connection = netGetLobbyServerConnection();
+  if (!connection) return;
+
+  // reset, server will update
+  scavHuntEnabled = 0;
+  scavHuntSpawnFactor = 1;
+
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_SCAVENGER_HUNT_SETTINGS, 0, NULL);
 }
 
 //--------------------------------------------------------------------------
@@ -198,7 +226,7 @@ void scavHuntSpawn(VECTOR position)
   moby->PUpdate = &scavHuntHBoltUpdate;
   vector_copy(moby->Position, position);
   moby->UpdateDist = -1;
-  moby->ModeBits = 0x5040;
+  moby->ModeBits = MOBY_MODE_BIT_UNK_40;
   moby->ModeBits2 = 0x10;
   moby->CollData = NULL;
   moby->DrawDist = 0;
@@ -321,11 +349,31 @@ void scavHuntRun(void)
 {
   GameSettings* gs = gameGetSettings();
   GameData* gameData = gameGetData();
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_RESPONSE_SCAVENGER_HUNT_SETTINGS, &scavHuntOnReceiveRemoteSettings);
+
+  // if the hunt is live then show a first time popup on the online lobby
+  if (isInMenus() && uiGetActive() == UI_ID_ONLINE_MAIN_MENU && !scavHuntShownPopup && !config.disableScavengerHunt && scavHuntEnabled) {
+    uiShowOkDialog("Scavenger Hunt", "The Horizon Scavenger Hunt is live! Hunt for Horizon Bolts for a chance to win prizes! Join our discord for more info: discord.gg/horizonps");
+    scavHuntShownPopup = 1;
+  }
+
+  // request settings on first download of the patch
+  if (!scavHuntHasGotSettings) {
+    scavHuntHasGotSettings = 1;
+    scavHuntQueryForRemoteSettings();
+  }
+
+  // only continue if enabled and in game
   if (config.disableScavengerHunt || !isInGame() || !gs || !gameData) {
     scavHuntInitialized = 0;
     return;
   }
 
+  // disabled
+  if (!scavHuntEnabled) { scavHuntShownPopup = 0; return; }
+  if (scavHuntSpawnFactor <= 0) { scavHuntShownPopup = 0; return; }
+
+  // reset cooldown on beginning of game
   if (!scavHuntInitialized) {
     scavHuntResetBoltSpawnCooldown();
     scavHuntInitialized = 1;

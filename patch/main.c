@@ -3173,6 +3173,9 @@ void runGameStartMessager(void)
 				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
 			}
 
+      // request latest scavenger hunt settings
+      scavHuntQueryForRemoteSettings();
+
 #if DEBUG
 			redownloadCustomModeBinaries = 1;
 #endif
