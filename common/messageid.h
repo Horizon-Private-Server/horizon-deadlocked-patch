@@ -236,6 +236,11 @@ enum CustomMessageId
     CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE = 41,
 
     /*
+     * Sent by the client to the server when the client has collected a horizon bolt.
+     */
+    CUSTOM_MSG_ID_CLIENT_PICKED_UP_HORIZON_BOLT = 42,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,

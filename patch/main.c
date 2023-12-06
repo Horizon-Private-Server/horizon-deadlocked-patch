@@ -124,6 +124,10 @@ void resetFreecam(void);
 void processFreecam(void);
 void extraLocalsRun(void);
 
+#if SCAVENGER_HUNT
+void scavHuntRun(void);
+#endif
+
 #if COMP
 void runCompMenuLogic(void);
 void runCompLogic(void);
@@ -318,7 +322,7 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 	.enableAutoMaps = 1,
 	.enableFpsCounter = 0,
 	.disableCircleToHackerRay = 0,
-	.playerAggTime = 0,
+	.disableScavengerHunt = 0,
   .playerFov = 0,
   .preferredGameServer = 0,
   .enableSingleTapChargeboot = 0
@@ -4701,9 +4705,6 @@ int main (void)
   // force to 15 ms
   //patchAggTime(15);
 
-  // force agg time
-  //patchAggTime(30 + config.playerAggTime * 5);
-
 #if COMP
 	// run comp patch logic
 	runCompLogic();
@@ -4722,6 +4723,11 @@ int main (void)
 
 	// Run game start messager
 	runGameStartMessager();
+
+#if SCAVENGER_HUNT
+  // scavenger hunt
+  scavHuntRun();
+#endif
 
   // enable 4 player splitscreen
   extraLocalsRun();
@@ -4857,7 +4863,7 @@ int main (void)
     //POKE_U32(0x005282dc, 0);
 
     // disable guber wait for dispatchTime
-    //POKE_U32(0x00611518, 0x24040000);
+    POKE_U32(0x00611518, 0x24040000);
 
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;

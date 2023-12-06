@@ -7,6 +7,7 @@ EE_INCS := -I../common -I../libdl/include
 EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 EE_DEFS += -DDEBUG
+EE_DEFS += -DSCAVENGER_HUNT
 #EE_DEFS += -DTWEAKERS
 #EE_DEFS += -DDEV
 #EE_DEFS += -DMAPEDITOR
@@ -19,6 +20,11 @@ EE_DEFS += -DDEBUG
 # build test if defined
 ifneq (,$(findstring -DTEST,$(EE_DEFS)))
     EE_OBJS += test.o
+endif
+
+# build scavenger hunt if defined
+ifneq (,$(findstring -DSCAVENGER_HUNT,$(EE_DEFS)))
+    EE_OBJS += scavengerhunt.o
 endif
 
 all: $(EE_BIN) clean copy

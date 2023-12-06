@@ -187,14 +187,6 @@ MenuElem_RangeData_t dataMinimapSmallZoom = {
     .maxValue = 10,
 };
 
-// player aggregation time offset range item
-MenuElem_RangeData_t dataPlayerAggTime = {
-    .value = &config.playerAggTime,
-    .stateHandler = NULL,
-    .minValue = -6,
-    .maxValue = 6,
-};
-
 // game servers
 MenuElem_ListData_t dataGameServers = {
   .value = &config.preferredGameServer,
@@ -233,10 +225,12 @@ MenuElem_t menuElementsGeneral[] = {
   { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
   { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler },
+#if SCAVENGER_HUNT
+  { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableScavengerHunt },
+#endif
   // { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
-  // { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements },
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
