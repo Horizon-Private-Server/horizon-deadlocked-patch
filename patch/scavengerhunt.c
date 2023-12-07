@@ -24,19 +24,20 @@
 #define HBOLT_SPRITE_COLOR          (0x00131341)
 #define HBOLT_SCALE                 (0.5)
 
-#define HBOLT_MIN_SPAWN_DELAY_TPS   (60 * 60 * 2)
-#define HBOLT_MAX_SPAWN_DELAY_TPS   (60 * 60 * 4)
+#define HBOLT_MIN_SPAWN_DELAY_TPS   (60 * 10)
+#define HBOLT_MAX_SPAWN_DELAY_TPS   (60 * 20)
+#define HBOLT_SPAWN_PROBABILITY     (0.25)
 
 extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 extern PatchStateContainer_t patchStateContainer;
 float scavHuntSpawnFactor = 1;
+float scavHuntSpawnTimerFactor = 1;
 int scavHuntShownPopup = 0;
 int scavHuntHasGotSettings = 0;
 int scavHuntEnabled = 0;
 int scavHuntInitialized = 0;
 int scavHuntBoltSpawnCooldown = 0;
-
 
 struct PartInstance {	
 	char IClass;
@@ -60,13 +61,15 @@ struct HBoltPVar {
 //--------------------------------------------------------------------------
 void scavHuntResetBoltSpawnCooldown(void)
 {
-  scavHuntBoltSpawnCooldown = randRangeInt(HBOLT_MIN_SPAWN_DELAY_TPS, HBOLT_MAX_SPAWN_DELAY_TPS) / scavHuntSpawnFactor;
+  scavHuntBoltSpawnCooldown = randRangeInt(HBOLT_MIN_SPAWN_DELAY_TPS, HBOLT_MAX_SPAWN_DELAY_TPS) / scavHuntSpawnTimerFactor;
 }
 
 //--------------------------------------------------------------------------
 int scavHuntRoll(void)
 {
-  return rand(4) == 0;
+  float roll = (randRange(0, 1) / scavHuntSpawnFactor);
+  DPRINTF("scavenger hunt rolled %f => %d\n", roll, roll <= HBOLT_SPAWN_PROBABILITY);
+  return roll <= HBOLT_SPAWN_PROBABILITY;
 }
 
 //--------------------------------------------------------------------------
@@ -76,7 +79,8 @@ int scavHuntOnReceiveRemoteSettings(void* connection, void* data)
   memcpy(&response, data, sizeof(response));
 
   scavHuntEnabled = response.Enabled;
-  scavHuntSpawnFactor = response.SpawnFactor;
+  scavHuntSpawnFactor = maxf(response.SpawnFactor, 0.1);
+  scavHuntSpawnTimerFactor = clamp(scavHuntSpawnFactor, 1, 5);
   DPRINTF("received scav hunt %d %f\n", scavHuntEnabled, scavHuntSpawnFactor);
 }
 
@@ -250,7 +254,7 @@ void scavHuntSpawn(VECTOR position)
 
 	mobySetState(moby, 0, -1);
   scavHuntResetBoltSpawnCooldown();
-  mobyPlaySoundByClass(1, 0, moby, MOBY_ID_PICKUP_PAD);
+  mobyPlaySoundByClass(0, 0, moby, MOBY_ID_NODE_BASE);
 	DPRINTF("hbolt spawned at %08X destroyAt:%d %04X\n", (u32)moby, pvars->DestroyAtTime, moby->ModeBits);
 }
 
@@ -264,7 +268,7 @@ void scavHuntSpawnRandomNearPosition(VECTOR position)
     // generate random position
     VECTOR from, to = {0,0,-6,0}, p = {0,0,1,0};
     float theta = randRadian();
-    float radius = randRange(3, 8);
+    float radius = randRange(5, 10);
     vector_fromyaw(from, theta);
     vector_scale(from, from, radius);
     from[2] = 3;
@@ -428,9 +432,11 @@ void scavHuntRun(void)
   static int lastFlagsCaptured = 0;
   static int lastNodesCaptured = 0;
   static int lastNodesSaved = 0;
+  static int lastHillTime = 0;
   int flagsCaptured = gameData->PlayerStats.CtfFlagsCaptures[localPlayer->PlayerId];
   int nodesCaptured = gameData->PlayerStats.ConquestNodesCaptured[localPlayer->PlayerId];
   int nodesSaved = gameData->PlayerStats.ConquestNodeSaves[localPlayer->PlayerId];
+  int hillTime = (int)(gameData->PlayerStats.KingHillHoldTime[localPlayer->PlayerId] / (10 / scavHuntSpawnTimerFactor));
 
   // decrement cooldown or check for event
   if (scavHuntBoltSpawnCooldown) {
@@ -441,6 +447,8 @@ void scavHuntRun(void)
     scavHuntSpawnRandomNearPlayer(localPlayer->PlayerId);
   } else if (nodesSaved > lastNodesSaved && scavHuntRoll()) {
     scavHuntSpawnRandomNearPlayer(localPlayer->PlayerId);
+  } else if (hillTime > lastHillTime && scavHuntRoll()) {
+    scavHuntSpawnRandomNearPlayer(localPlayer->PlayerId);
   }
 
   scavHuntCheckForSurvivalSpawnConditions();
@@ -448,4 +456,5 @@ void scavHuntRun(void)
   lastFlagsCaptured = flagsCaptured;
   lastNodesCaptured = nodesCaptured;
   lastNodesSaved = nodesSaved;
+  lastHillTime = hillTime;
 }
