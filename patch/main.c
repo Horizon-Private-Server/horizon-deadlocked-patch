@@ -4750,7 +4750,7 @@ int main (void)
 
 	// Run add singleplayer music
   if (isInMenus()) {
-	  runEnableSingleplayerMusic();
+	  //runEnableSingleplayerMusic();
   }
 
 	// detects when to download a new custom mode patch
