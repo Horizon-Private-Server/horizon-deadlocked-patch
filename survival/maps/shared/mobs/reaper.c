@@ -471,6 +471,8 @@ void reaperDoAction(Moby* moby)
 				vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
 			} else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
+      } else if (pvars->MobVars.CurrentActionForTicks > (1*TPS) && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.StuckCounter) {
+        mobStand(moby);
       }
 			break;
 		}

@@ -404,7 +404,12 @@ void swarmerRenderPath(Moby* moby)
   int pathLen = pvars->MobVars.MoveVars.PathEdgeCount;
   int pathIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
 
-
+  if (pathLen > 0) {
+    u8* edge = MOB_PATHFINDING_EDGES[path[0]];
+    if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[0]], &x, &y)) {
+      gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, i == pathIdx ? "o" : "-", -1, 4);
+    }
+  }
   for (i = 0; i < pathLen; ++i) {
     u8* edge = MOB_PATHFINDING_EDGES[path[i]];
     if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[1]], &x, &y)) {
@@ -462,6 +467,8 @@ void swarmerDoAction(Moby* moby)
         vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
       } else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
+      } else if (pvars->MobVars.CurrentActionForTicks > (1*TPS) && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.StuckCounter) {
+        mobStand(moby);
       }
 			break;
 		}
@@ -518,30 +525,28 @@ void swarmerDoAction(Moby* moby)
     }
     case SWARMER_ACTION_WALK:
 		{
-      if (!isInAirFromFlinching) {
-        if (target) {
+      if (target) {
 
-          float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+        float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
 
-          // determine next position
-          pathGetTargetPos(t, moby);
-          //vector_copy(t, target->Position);
-          vector_subtract(t, t, moby->Position);
-          float dist = vector_length(t);
-          if (dist < 10.0) {
-            swarmerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-            vector_add(t, t, t2);
-          }
-          vector_scale(t, t, 1 / dist);
-          vector_add(t, moby->Position, t);
-
-
-          mobTurnTowards(moby, t, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
-        } else {
-          // stand
-          mobStand(moby);
+        // determine next position
+        pathGetTargetPos(t, moby);
+        //vector_copy(t, target->Position);
+        vector_subtract(t, t, moby->Position);
+        float dist = vector_length(t);
+        if (dist < 10.0) {
+          swarmerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
+          vector_add(t, t, t2);
         }
+        vector_scale(t, t, 1 / dist);
+        vector_add(t, moby->Position, t);
+
+
+        mobTurnTowards(moby, t, turnSpeed);
+        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+      } else {
+        // stand
+        mobStand(moby);
       }
       
 			// 

@@ -307,6 +307,7 @@ void trailshotSpawn(Moby* creatorMoby, VECTOR position, VECTOR velocity, u32 col
   pvars->ShotLifeTicks = lifeTicks;
   pvars->TrailParticleLifeTicks = TPS * 60 * 1;
   pvars->Damage = damage;
+  pvars->DistanceSinceLastTrailParticle = 0;
   vector_copy(pvars->Velocity, velocity);
   
   trailshotPlayFireSound(moby);

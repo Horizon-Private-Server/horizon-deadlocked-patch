@@ -170,7 +170,7 @@ Add blessing statues
 ++Replace "EMP" with health gun
 
 Tweak weapons
-Fix charge clipping walls
+++Fix charge clipping walls
 ++Al big yellow dot radar
 ++Reaper aggro less likely to flinch
 ++Buff viper cooldown on reactor (2x)
@@ -178,8 +178,8 @@ Fix charge clipping walls
 ++Add vox laugh dialog on mbox vox
 ++Give reactor a little lunge when swinging
 ++Slow down reactor smash animation
-Fix mobs flinching into walls and getting stuck
-Improve overall EE performance for mobs (reduce movecheck to 3)
-Block small hallway on minimap
+++Fix mobs flinching into walls and getting stuck
+++Improve overall EE performance for mobs (reduce movecheck to 3)
+++Block small hallway on minimap
 ++Move mines to front of small hallway
 Move drops and upgrades into map

@@ -67,6 +67,7 @@ VECTOR MoveCheckFinal;
 VECTOR MoveCheckUp;
 VECTOR MoveCheckDown;
 VECTOR MoveNextPos;
+VECTOR MoveTargetLineOfSightHit;
 #endif
 
 int mobMoveCheckCollideWithOtherMobsRotatingIndex = 0;
@@ -506,6 +507,20 @@ void mobMove(Moby* moby)
   u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
   u8 moveSkipTicks = decTimerU8(&pvars->MobVars.MoveVars.MoveSkipTicks);
 
+#if DEBUGMOVE
+  if (pvars->MobVars.Target) {
+    VECTOR from, to, delta;
+    vector_subtract(delta, pvars->MobVars.Target->Position, moby->Position);
+    vector_add(from, moby->Position, up);
+    vector_add(to, pvars->MobVars.Target->Position, up);
+    if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
+      vector_copy(MoveTargetLineOfSightHit, CollLine_Fix_GetHitPosition());
+    } else {
+      vector_copy(MoveTargetLineOfSightHit, to);
+    }
+  }
+#endif
+
   if (moveSkipTicks == 0) {
 
 #if GATE
@@ -548,9 +563,7 @@ void mobMove(Moby* moby)
       // move physics check twice to prevent clipping walls
       if (mobMoveCheck(moby, nextPos, moby->Position, nextPos)) {
         if (mobMoveCheck(moby, nextPos, moby->Position, nextPos)) {
-          if (mobMoveCheck(moby, nextPos, moby->Position, nextPos)) {
-            vector_copy(nextPos, moby->Position); // don't move
-          }
+          vector_copy(nextPos, moby->Position); // don't move
         }
       }
 
@@ -626,7 +639,7 @@ void mobMove(Moby* moby)
     // is less than 1 in magnitude
     if (!stuckCheckTicks) {
       pvars->MobVars.MoveVars.StuckCheckTicks = 60;
-      pvars->MobVars.MoveVars.IsStuck = /* pvars->MobVars.MoveVars.HitWall && */ vector_sqrmag(pvars->MobVars.MoveVars.SumPositionDelta) < (pvars->MobVars.MoveVars.SumSpeedOver * TPS * 0.25);
+      pvars->MobVars.MoveVars.IsStuck = /* pvars->MobVars.MoveVars.HitWall && */ vector_length(pvars->MobVars.MoveVars.SumPositionDelta) < (pvars->MobVars.MoveVars.SumSpeedOver * 0.25);
       if (!pvars->MobVars.MoveVars.IsStuck) {
         pvars->MobVars.MoveVars.StuckJumpCount = 0;
         pvars->MobVars.MoveVars.StuckCounter = 0;
@@ -643,7 +656,8 @@ void mobMove(Moby* moby)
     vector_subtract(temp, pvars->MobVars.MoveVars.NextPosition, pvars->MobVars.MoveVars.LastPosition);
     vector_projectonhorizontal(temp, temp);
     vector_add(pvars->MobVars.MoveVars.SumPositionDelta, pvars->MobVars.MoveVars.SumPositionDelta, temp);
-    pvars->MobVars.MoveVars.SumSpeedOver += vector_sqrmag(temp);
+    vector_projectonhorizontal(temp, pvars->MobVars.MoveVars.Velocity);
+    pvars->MobVars.MoveVars.SumSpeedOver += vector_length(temp);
 
     vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
     pvars->MobVars.MoveVars.MoveSkipTicks = pvars->MobVars.MoveVars.MoveStep;
@@ -828,6 +842,7 @@ void mobPostDrawDebug(Moby* moby)
   draw3DMarker(MoveCheckUp, 1, 0x80FFFFFF, "^");
   draw3DMarker(MoveCheckDown, 1, 0x80FFFFFF, "v");
   draw3DMarker(MoveNextPos, 1, 0x80FFFFFF, "o");
+  draw3DMarker(MoveTargetLineOfSightHit, 1, 0x80FFFFFF, "x");
 #endif
 }
 #endif

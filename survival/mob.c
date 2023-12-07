@@ -1102,6 +1102,12 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	// read event
 	guberEventRead(event, &args, sizeof(struct MobDamageEventArgs));
 
+#if MOB_INVINCIBLE
+  pvars->MobVars.Config.MaxHealth = (args.DamageQuarters / 4.0) + 1;
+  pvars->MobVars.Config.Health = pvars->MobVars.Config.MaxHealth;
+  pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
+#endif
+
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnDamage)
     pvars->VTable->OnDamage(moby, &args);
@@ -1113,8 +1119,10 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	float damage = args.DamageQuarters / 4.0;
   float appliedDamage = maxf(0, minf(damage, pvars->MobVars.Health));
 	float newHp = pvars->MobVars.Health - damage;
+#if !MOB_INVINCIBLE
 	pvars->MobVars.Health = newHp;
 	pvars->TargetVars.hitPoints = newHp;
+#endif
 
 	// get damager
 	Player* damager = playerGetFromUID(args.SourceUID);

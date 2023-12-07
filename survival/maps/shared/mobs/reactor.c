@@ -744,6 +744,8 @@ void reactorDoAction(Moby* moby)
 				vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
 			} else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
+      } else if (pvars->MobVars.CurrentActionForTicks > (1*TPS) && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.StuckCounter) {
+        mobStand(moby);
       }
 			break;
 		}
@@ -1541,7 +1543,7 @@ void reactorFireTrailshot(Moby* moby)
   // get pos
   vector_copy(forward, moby->M0_03);
   mobyGetJointMatrix(moby, 2, mtx);
-  vector_scale(forward, forward, 2);
+  vector_scale(forward, forward, 0.2);
   vector_add(pos, &mtx[12], forward);
 
   // if we have a target, vertically orient towards them

@@ -385,7 +385,7 @@ void pathGetPath(Moby* moby)
 
 #if DEBUGPATH
   DPRINTF("NEW PATH GENERATED: (%d)\n", gameGetTime());
-  DPRINTF("\tFROM NODE %d (skip:%d)\n", closestNodeIdxToMob, pvars->MobVars.MoveVars.PathHasReachedStart);
+  DPRINTF("\tFROM NODE %d (skip:%d,%d,%d)\n", closestNodeIdxToMob, pvars->MobVars.MoveVars.PathHasReachedStart, canBeSkipped, isOnSameSegment);
   DPRINTF("\tTO NODE %d\n", closestNodeIdxToTarget);
   DPRINTF("\tNODES: ");
   
@@ -458,8 +458,9 @@ int pathGetTargetNodeIdx(Moby* moby)
   if (pvars->MobVars.MoveVars.PathEdgeCurrent == (pvars->MobVars.MoveVars.PathEdgeCount-1) && pvars->MobVars.MoveVars.PathHasReachedEnd)
     return -1;
 
-  if (pvars->MobVars.MoveVars.PathEdgeCurrent == 0 && !pvars->MobVars.MoveVars.PathHasReachedStart)
+  if (pvars->MobVars.MoveVars.PathEdgeCurrent == 0 && !pvars->MobVars.MoveVars.PathHasReachedStart) {
     return MOB_PATHFINDING_EDGES[edgeIdx][0];
+  }
 
   return MOB_PATHFINDING_EDGES[edgeIdx][1];
 }
@@ -629,7 +630,7 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
   }
   
   // skip end if its backwards along path
-  if (pvars->MobVars.MoveVars.PathEdgeCurrent == (pvars->MobVars.MoveVars.PathEdgeCount-1)) {
+  if (pvars->MobVars.MoveVars.PathEdgeCurrent > 0 && pvars->MobVars.MoveVars.PathEdgeCurrent == (pvars->MobVars.MoveVars.PathEdgeCount-1)) {
     u8* lastEdge = pathGetCurrentEdge(moby);
     if (lastEdge && pathCanBeSkippedForTarget(moby)) {
       VECTOR targetToStart, targetToNext;

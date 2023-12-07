@@ -2643,7 +2643,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 
 #if DEBUG
-	//State.RoundNumber = 14;
+	State.RoundNumber = 19;
 	//State.RoundIsSpecial = 1;
 	//State.RoundSpecialIdx = 4;
 
@@ -2684,9 +2684,9 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
     }
     case CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS:
     {
-      FIXEDTARGETMOBY->Position[0] = 659.404419;
-      FIXEDTARGETMOBY->Position[1] = 867.973633;
-      FIXEDTARGETMOBY->Position[2] = 508.891419;
+      FIXEDTARGETMOBY->Position[0] = 599.368225;
+      FIXEDTARGETMOBY->Position[1] = 902.109131;
+      FIXEDTARGETMOBY->Position[2] = 505.583221;
       break;
     }
   }
@@ -2823,7 +2823,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       // force one mob type
       //manSpawnMobId = 0;
       //manSpawnMobId = 5;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
+			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
