@@ -144,6 +144,23 @@ GuberEvent* guberCreateEvent(Moby* moby, u32 eventType)
 }
 
 //--------------------------------------------------------------------------
+struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx)
+{
+	u32 a3 = *(u32*)0x002218E8;
+	u32 t0 = *(u32*)0x002218E4;
+	float f12 = *(float*)0x002218DC;
+	float f1 = *(float*)0x002218E0;
+
+	return ((struct PartInstance* (*)(VECTOR, u32, char, u32, u32, int, int, int, float))0x00533308)(position, color, opacity, a3, t0, -1, 0, 0, f12 + (f1 * idx));
+}
+
+//--------------------------------------------------------------------------
+void destroyParticle(struct PartInstance* particle)
+{
+	((void (*)(struct PartInstance*))0x005284d8)(particle);
+}
+
+//--------------------------------------------------------------------------
 float getSignedRelativeSlope(VECTOR forward, VECTOR normal)
 {
   VECTOR up = {0,0,1,0}, right;

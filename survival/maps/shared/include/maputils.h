@@ -20,6 +20,9 @@ void playPaidSound(Player* player);
 int tryPlayerInteract(Moby* moby, Player* player, char* message, int boltCost, int tokenCost, int actionCooldown, float sqrDistance);
 GuberEvent* guberCreateEvent(Moby* moby, u32 eventType);
 
+struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);
+void destroyParticle(struct PartInstance* particle);
+
 float getSignedSlope(VECTOR forward, VECTOR normal);
 float getSignedRelativeSlope(VECTOR forward, VECTOR normal);
 

@@ -72,7 +72,7 @@ struct DropPickupEventArgs
 
 
 void dropTick(void);
-void dropInitialize(void);
+void dropInit(void);
 int dropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int team);
 int dropHandleEvent(Moby* moby, GuberEvent* event);
 

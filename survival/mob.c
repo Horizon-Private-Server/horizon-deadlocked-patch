@@ -212,6 +212,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 {
 	VECTOR delta;
 	struct MobDamageEventArgs args;
+  memset(&args, 0, sizeof(args));
 
 	// determine knockback
 	Player * pDamager = playerGetFromUID(guberGetUID(sourcePlayer));
@@ -222,6 +223,17 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 			args.Knockback.Power = (u8)playerGetWeaponAlphaModCount(pDamager, weaponId, ALPHA_MOD_IMPACT);
 	    args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
 		}
+
+    if (weaponId == WEAPON_ID_FLAIL) {
+      args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
+      args.Knockback.Power += 3;
+    } else if (weaponId == WEAPON_ID_OMNI_SHIELD) {
+      damageFlags |= 0x40000000;
+    } else if (weaponId == WEAPON_ID_VIPERS) {
+      amount *= 1.2; // damage buff
+    } else if (weaponId == WEAPON_ID_ARBITER) {
+      amount *= 3; // damage buff
+    }
 	}
 
 	// determine angle
@@ -752,7 +764,7 @@ void mobUpdate(Moby* moby)
 
     // auto destruct after 15 seconds of being stuck
     else if (pvars->MobVars.MoveVars.StuckCounter > 15) {
-      pvars->MobVars.Respawn = 1;
+      //pvars->MobVars.Respawn = 1;
     }
     
     // destroy
@@ -839,6 +851,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	moby->ModeBits |= 0x1030;
 	moby->Opacity = 0x80;
 	moby->CollActive = 1;
+  moby->UpdateDist = -1;
 
 
 	// update pvars
@@ -987,14 +1000,14 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	int xp = pvars->MobVars.Config.Xp;
 
 #if DROPS
-  if (!State.RoundIsSpecial || !mapConfig || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops) {
+  if (mapConfig && mapConfig->CreateMobDropFunc && !State.RoundIsSpecial || !mapConfig || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops) {
     if (killedByPlayerId >= 0 && gameAmIHost()) {
       Player * killedByPlayer = players[(int)killedByPlayerId];
       if (killedByPlayer) {
         float randomValue = randRange(0.0, 1.0);
         float probability = State.PlayerStates[(int)killedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
         if (randomValue < probability) {
-          dropCreate(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
+          mapConfig->CreateMobDropFunc(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
         }
       }
     }

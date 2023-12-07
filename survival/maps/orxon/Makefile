@@ -1,5 +1,5 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o config.o path.o gaspath.o wraith.o surge.o ../shared/gate.o gas.o power.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
+EE_OBJS = main.o config.o path.o gaspath.o wraith.o surge.o gas.o power.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
 EE_ELF = orxon.elf
 EE_BIN = orxon.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude

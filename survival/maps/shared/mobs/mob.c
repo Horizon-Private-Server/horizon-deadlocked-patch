@@ -401,6 +401,15 @@ void mobStand(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+int mobResetMoveStep(Moby* moby)
+{
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  vector_copy(pvars->MobVars.MoveVars.NextPosition, moby->Position);
+  pvars->MobVars.MoveVars.MoveSkipTicks = 0;
+}
+
+//--------------------------------------------------------------------------
 int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -506,6 +515,7 @@ void mobMove(Moby* moby)
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
   u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
   u8 moveSkipTicks = decTimerU8(&pvars->MobVars.MoveVars.MoveSkipTicks);
+  u8 slowTicks = decTimerU8(&pvars->MobVars.SlowTicks);
 
 #if DEBUGMOVE
   if (pvars->MobVars.Target) {
@@ -552,6 +562,11 @@ void mobMove(Moby* moby)
 
       // compute simulated velocity by multiplying velocity by number of ticks to simulate
       vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, (float)(pvars->MobVars.MoveVars.MoveStep + 1));
+
+      // slow speed in short freeze
+      if (slowTicks > 0) {
+        vector_scale(targetVelocity, targetVelocity, MOB_SHORT_FREEZE_SPEED_FACTOR);
+      }
 
       // get horizontal normalized velocity
       vector_normalize(normalizedVelocity, targetVelocity);

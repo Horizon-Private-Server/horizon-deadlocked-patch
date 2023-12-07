@@ -165,6 +165,7 @@ struct MobMoveVars {
   u8 PathTicks;
   u8 PathNewTicks;
   u8 PathCheckNearAndSeeTargetTicks;
+  u8 PathCheckSkipEndTicks;
   u8 CurrentPath[20];
 };
 
@@ -198,6 +199,7 @@ struct MobVars {
 	u16 TimeLastGroundedTicks;
 	u8 ActionId;
 	u8 LastActionId;
+  u8 SlowTicks;
 	char Owner;
 	char IsTraversing;
 	char AnimationLooped;

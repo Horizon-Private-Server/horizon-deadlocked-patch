@@ -55,7 +55,7 @@ struct UpgradePickupEventArgs
 int UpgradeMax[UPGRADE_COUNT];
 
 void upgradeTick(void);
-void upgradeInitialize(void);
+void upgradeInit(void);
 int upgradeHandleEvent(Moby* moby, GuberEvent* event);
 int upgradeCreate(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
 void upgradePickup(Moby* moby, int pickedUpByPlayerId);

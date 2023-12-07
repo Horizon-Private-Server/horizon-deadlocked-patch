@@ -160,7 +160,7 @@ Try and improve overall teleporting of mobs and boss
 ++Change reactor activate statue to shoot them
 ++Add waiting for host to start round after boss round
 ++Add damage numbers on damage
-Add description to blessings
+++Add description to blessings
 Add blessing statues
 ++Have cooldown upgrade affect quad/shield mbox item
 ++Fix clank dialog when opening weapons menu
@@ -182,4 +182,4 @@ Tweak weapons
 ++Improve overall EE performance for mobs (reduce movecheck to 3)
 ++Block small hallway on minimap
 ++Move mines to front of small hallway
-Move drops and upgrades into map
+++Move drops and upgrades into map

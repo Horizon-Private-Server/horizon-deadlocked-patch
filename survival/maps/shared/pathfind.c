@@ -165,6 +165,14 @@ int pathCanBeSkippedForTarget(Moby* moby)
       return 0;
   }
 
+  VECTOR up = {0,0,1,0};
+  VECTOR from, to;
+  u8* currentEdge = MOB_PATHFINDING_EDGES[edge];
+  vector_add(from, up, moby->Position);
+  vector_add(to, up, MOB_PATHFINDING_NODES[currentEdge[1]]);
+  if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL))
+    return 0;
+
   return 1;
 }
 
@@ -630,7 +638,7 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
   }
   
   // skip end if its backwards along path
-  if (pvars->MobVars.MoveVars.PathEdgeCurrent > 0 && pvars->MobVars.MoveVars.PathEdgeCurrent == (pvars->MobVars.MoveVars.PathEdgeCount-1)) {
+  if (!pvars->MobVars.MoveVars.PathCheckSkipEndTicks && pvars->MobVars.MoveVars.PathEdgeCurrent == (pvars->MobVars.MoveVars.PathEdgeCount-1)) {
     u8* lastEdge = pathGetCurrentEdge(moby);
     if (lastEdge && pathCanBeSkippedForTarget(moby)) {
       VECTOR targetToStart, targetToNext;
@@ -640,6 +648,8 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
         pvars->MobVars.MoveVars.PathHasReachedEnd = 1;
       }
     }
+
+    pvars->MobVars.MoveVars.PathCheckSkipEndTicks = TPS;
   }
 
   targetNodeIdx = pathGetTargetNodeIdx(moby);

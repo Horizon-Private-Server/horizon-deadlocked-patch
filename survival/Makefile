@@ -1,7 +1,7 @@
 
 EE_ELF = survival-11184.elf
 EE_BIN = survival-11184.bin
-EE_OBJS = main.o mob.o upgrade.o drop.o utils.o config.o demonbell.o bubble.o
+EE_OBJS = main.o mob.o utils.o config.o demonbell.o bubble.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
@@ -42,7 +42,7 @@ EE_DEFS += -DMOB_NO_DAMAGE
 EE_DEFS += -DPAYDAY
 #EE_DEFS += -DBENCHMARK
 #EE_DEFS += -DPRINT_MOB_COMPLEXITY
-EE_DEFS += -DFIXEDTARGET
+#EE_DEFS += -DFIXEDTARGET
 #EE_DEFS += -DJOINT_TEST
 #EE_DEFS += -DLOG_STATS
 #EE_DEFS += -DLOG_STATS2

@@ -6,6 +6,7 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 #include "upgrade.h"
+#include "drop.h"
 #include "demonbell.h"
 #include "gate.h"
 #include "mysterybox.h"
@@ -47,6 +48,9 @@
 #define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(100)
 #define MOB_MOVE_SKIP_TICKS                   (3)
 #define MOB_MAX_STUCK_COUNTER_FOR_NEW_PATH    (5)
+
+#define MOB_SHORT_FREEZE_DURATION_TICKS       (60)
+#define MOB_SHORT_FREEZE_SPEED_FACTOR         (0.15)
 
 #define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(1)
 #define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)
@@ -186,9 +190,9 @@ enum MobStatId
 enum BlessingItemId
 {
   BLESSING_ITEM_NONE           = 0,
-  BLESSING_ITEM_QUAD_JUMP      = 1,
+  BLESSING_ITEM_MULTI_JUMP      = 1,
   BLESSING_ITEM_LUCK           = 2,
-  BLESSING_ITEM_INF_CBOOT      = 3,
+  BLESSING_ITEM_BULL      = 3,
   BLESSING_ITEM_ELEM_IMMUNITY  = 4,
   BLESSING_ITEM_HEALTH_REGEN   = 5,
   BLESSING_ITEM_AMMO_REGEN     = 6,
@@ -203,10 +207,21 @@ struct MobSpawnParams;
 typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
 typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int freeAgent);
-typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 typedef int (*ModeCreateMob_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 typedef int (*SpawnGetRandomPoint_func)(VECTOR out, struct MobSpawnParams* mob);
+typedef void (*ModeMobNuke_func)(int killedByPlayerId);
+typedef void (*ModeSetDoublePoints_func)(int isActive);
+typedef void (*ModeSetDoubleXP_func)(int isActive);
+typedef void (*ModeSetFreezeMobs_func)(int isActive);
+typedef void (*ModeRevivePlayer_func)(Player* player, int fromPlayerId);
+
+typedef void (*MapOnMobSpawned_func)(Moby* moby);
+typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+typedef int (*CreateUpgradePickup_func)(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
+typedef int (*HandleUpgradePickupEvent_func)(Moby* moby, GuberEvent* event);
+typedef void (*PickupUpgradePickup_func)(Moby* moby, int pickedUpByPlayerId);
+typedef int (*CreateMobDrop_func)(VECTOR position, enum DropType dropType, int destroyAtTime, int team);
+typedef int (*HandleMobDropEvent_func)(Moby* moby, GuberEvent* event);
 
 typedef struct SurvivalBakedSpawnpoint
 {
@@ -330,13 +345,26 @@ struct SurvivalMapConfig
   struct SurvivalSpecialRoundParam* SpecialRoundParams;
   int SpecialRoundParamsCount; 
   
+  // mode
   SpawnGetRandomPoint_func SpawnGetRandomPointFunc;
   UpgradePlayerWeapon_func UpgradePlayerWeaponFunc;
   PushSnack_func PushSnackFunc;
   PopulateSpawnArgs_func PopulateSpawnArgsFunc;
   ModeCreateMob_func ModeCreateMobFunc;
+  ModeMobNuke_func ModeMobNukeFunc;
+  ModeSetDoublePoints_func ModeSetDoublePointsFunc;
+  ModeSetDoubleXP_func ModeSetDoubleXPFunc;
+  ModeSetFreezeMobs_func ModeSetFreezeMobsFunc;
+  ModeRevivePlayer_func ModeRevivePlayerFunc;
+
+  // map
   MapOnMobCreate_func OnMobCreateFunc;
   MapOnMobSpawned_func OnMobSpawnedFunc;
+  CreateUpgradePickup_func CreateUpgradePickupFunc;
+  HandleUpgradePickupEvent_func OnUpgradePickupEventFunc;
+  PickupUpgradePickup_func PickupUpgradeFunc;
+  CreateMobDrop_func CreateMobDropFunc;
+  HandleMobDropEvent_func OnMobDropEventFunc;
 };
 
 struct SurvivalSpecialRoundParam

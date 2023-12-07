@@ -257,7 +257,11 @@ void trailshotUpdate(Moby* moby)
     pvars->ShotLifeTicks--;
 
     vector_add(next, moby->Position, pvars->Velocity);
-    if (CollLine_Fix(moby->Position, next, COLLISION_FLAG_IGNORE_NONE, moby->PParent, NULL)) {
+    weaponTurnOnHoloshields(-1);
+    int hit = CollLine_Fix(moby->Position, next, COLLISION_FLAG_IGNORE_NONE, moby->PParent, NULL);
+    weaponTurnOffHoloshields();
+
+    if (hit) {
       vector_copy(next, CollLine_Fix_GetHitPosition());
 
       // get hit wall slope

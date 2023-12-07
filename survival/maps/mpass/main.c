@@ -31,6 +31,8 @@
 #include "module.h"
 #include "messageid.h"
 #include "game.h"
+#include "upgrade.h"
+#include "drop.h"
 #include "maputils.h"
 #include "mob.h"
 #include "pathfind.h"
@@ -101,30 +103,38 @@ const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
 // blessings
 const char * INTERACT_BLESSING_MESSAGE = "\x11 %s";
 const char* BLESSING_NAMES[] = {
-  [BLESSING_ITEM_QUAD_JUMP]     "Blessing of the Hare",
+  [BLESSING_ITEM_MULTI_JUMP]     "Blessing of the Hare",
   [BLESSING_ITEM_LUCK]          "Blessing of the Clover",
-  [BLESSING_ITEM_INF_CBOOT]     "Blessing of the Bull",
-  [BLESSING_ITEM_ELEM_IMMUNITY] "Blessing of Corrosion",
+  [BLESSING_ITEM_BULL]     "Blessing of the Bull",
+  //[BLESSING_ITEM_ELEM_IMMUNITY] "Blessing of Corrosion",
+  [BLESSING_ITEM_THORNS]        "Blessing of the Rose",
   [BLESSING_ITEM_HEALTH_REGEN]  "Blessing of Vitality",
   [BLESSING_ITEM_AMMO_REGEN]    "Blessing of the Hunt",
-  [BLESSING_ITEM_THORNS]        "Blessing of the Rose",
+};
+
+const char* BLESSING_DESCRIPTIONS[BLESSING_ITEM_COUNT] = {
+  [BLESSING_ITEM_MULTI_JUMP]      "Suddenly the walls seem.. shorter...",
+  [BLESSING_ITEM_LUCK]            "Vox appreciates your business...",
+  [BLESSING_ITEM_BULL]       "You feel as though you could charge forever...",
+  [BLESSING_ITEM_THORNS]          "You feel.. protected...",
+  [BLESSING_ITEM_HEALTH_REGEN]    "The nanomites inside you begin to change...",
+  [BLESSING_ITEM_AMMO_REGEN]      "The nanomites inside your weapons begin to change...",
 };
 
 const int BLESSINGS[] = {
-  BLESSING_ITEM_QUAD_JUMP,
+  BLESSING_ITEM_MULTI_JUMP,
   BLESSING_ITEM_LUCK,
-  BLESSING_ITEM_INF_CBOOT,
-  // BLESSING_ITEM_ELEM_IMMUNITY,
+  BLESSING_ITEM_BULL,
   BLESSING_ITEM_THORNS,
   BLESSING_ITEM_HEALTH_REGEN,
   BLESSING_ITEM_AMMO_REGEN,
+  // BLESSING_ITEM_ELEM_IMMUNITY,
 };
 
 const VECTOR BLESSING_POSITIONS[BLESSING_ITEM_COUNT] = {
-  [BLESSING_ITEM_QUAD_JUMP]     { 449.3509, 829.1361, 404.1362, (-90) * MATH_DEG2RAD },
+  [BLESSING_ITEM_MULTI_JUMP]     { 449.3509, 829.1361, 404.1362, (-90) * MATH_DEG2RAD },
   [BLESSING_ITEM_LUCK]          { 439.1009, 811.3826, 404.1362, (-30) * MATH_DEG2RAD },
-  [BLESSING_ITEM_INF_CBOOT]     { 418.6009, 811.3826, 404.1362, (30) * MATH_DEG2RAD },
-  // [BLESSING_ITEM_ELEM_IMMUNITY] { 408.3509, 829.1361, 404.1362, (90) * MATH_DEG2RAD },
+  [BLESSING_ITEM_BULL]     { 418.6009, 811.3826, 404.1362, (30) * MATH_DEG2RAD },
   [BLESSING_ITEM_THORNS]        { 408.3509, 829.1361, 404.1362, (90) * MATH_DEG2RAD },
   [BLESSING_ITEM_HEALTH_REGEN]  { 418.6009, 846.8896, 404.1362, (150) * MATH_DEG2RAD },
   [BLESSING_ITEM_AMMO_REGEN]    { 439.1009, 846.8896, 404.1362, (-150) * MATH_DEG2RAD },
@@ -212,6 +222,7 @@ void updateBlessingTotems(void)
 
         if (padGetButtonDown(local, PAD_CIRCLE) > 0) {
           playerData->State.ItemBlessing = blessing;
+          pushSnack(local, BLESSING_DESCRIPTIONS[blessing], TPS * 2);
         }
         break;
       }
@@ -230,10 +241,12 @@ void updateBlessingTeleporter(void)
     TeleporterMoby->UpdateDist = 64;
     TeleporterMoby->CollActive = 0;
   } else {
+#if !DEBUG
     mobySetState(TeleporterMoby, 2, -1);
     TeleporterMoby->DrawDist = 0;
     TeleporterMoby->UpdateDist = 0;
     TeleporterMoby->CollActive = -1;
+#endif
   }
 }
 
@@ -362,6 +375,8 @@ void initialize(void)
   configInit();
   bigalInit();
   statueInit();
+  upgradeInit();
+  dropInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
   // find teleporters
@@ -428,6 +443,8 @@ int main (void)
 
   mobTick();
   pathTick();
+  upgradeTick();
+  dropTick();
   updateBossMeter();
   updateBlessingTotems();
   updateBlessingTeleporter();

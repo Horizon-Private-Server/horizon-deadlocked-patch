@@ -33,6 +33,8 @@
 #include "mob.h"
 #include "pathfind.h"
 #include "orxon.h"
+#include "upgrade.h"
+#include "drop.h"
 
 Moby* gateCreate(VECTOR start, VECTOR end, float height);
 void gateSetCollision(int collActive);
@@ -178,6 +180,8 @@ void initialize(void)
   mboxInit();
   mobInit();
   configInit();
+  upgradeInit();
+  dropInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
   // only have gate collision on when processing players
@@ -233,6 +237,8 @@ int main (void)
 
   mobTick();
   pathTick();
+  upgradeTick();
+  dropTick();
 
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;

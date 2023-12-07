@@ -1,7 +1,3 @@
-#include "include/drop.h"
-#include "include/mob.h"
-#include "include/utils.h"
-#include "include/game.h"
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
@@ -12,8 +8,10 @@
 #include <libdl/graphics.h>
 #include <libdl/random.h>
 #include <libdl/radar.h>
-
-extern struct SurvivalState State;
+#include "drop.h"
+#include "mob.h"
+#include "maputils.h"
+#include "game.h"
 
 int dropCount = 0;
 int dropThisFrame = 0;
@@ -326,8 +324,8 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 					if (!playerIsDead(p) && p->Health > 0) {
 						playerSetHealth(p, p->MaxHealth);
 					}
-					else if (State.PlayerStates[i].ReviveCooldownTicks) {
-						playerRevive(p, args.PickedUpByPlayerId);
+					else if (MapConfig.ModeRevivePlayerFunc && MapConfig.State && MapConfig.State->PlayerStates[i].ReviveCooldownTicks) {
+			      MapConfig.ModeRevivePlayerFunc(p, args.PickedUpByPlayerId);
 					}
 
 					if (p->IsLocal)
@@ -341,7 +339,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 			DPRINTF("giving double bolts to all players\n");
 			uiShowPopup(0, "Double bolts!");
 			uiShowPopup(1, "Double bolts!");
-			setDoublePoints(1);
+			if (MapConfig.ModeSetDoublePointsFunc) MapConfig.ModeSetDoublePointsFunc(1);
 			break;
 		}
 		case DROP_DOUBLE_XP:
@@ -349,7 +347,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 			DPRINTF("giving double xp to all players\n");
 			uiShowPopup(0, "Double XP!");
 			uiShowPopup(1, "Double XP!");
-			setDoubleXP(1);
+			if (MapConfig.ModeSetDoubleXPFunc) MapConfig.ModeSetDoubleXPFunc(1);
 			break;
 		}
 		case DROP_FREEZE:
@@ -357,7 +355,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 			DPRINTF("freezing all mobs\n");
 			uiShowPopup(0, "Freeze activated!");
 			uiShowPopup(1, "Freeze activated!");
-			setFreeze(1);
+			if (MapConfig.ModeSetFreezeMobsFunc) MapConfig.ModeSetFreezeMobsFunc(1);
 			break;
 		}
 		case DROP_NUKE:
@@ -365,7 +363,7 @@ int dropHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 			DPRINTF("killing all mobs\n");
 			uiShowPopup(0, "Nuke activated!");
 			uiShowPopup(1, "Nuke activated!");
-			mobNuke(args.PickedUpByPlayerId);
+			if (MapConfig.ModeMobNukeFunc) MapConfig.ModeMobNukeFunc(args.PickedUpByPlayerId);
 			break;
 		}
 	}
@@ -420,13 +418,13 @@ int dropHandleEvent(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int dropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int team)
 {
-	if (State.DropCooldownTicks > 0)
+	if (!MapConfig.State || MapConfig.State->DropCooldownTicks > 0)
 		return 0;
 
 	struct DropSpawnEventArgs args;
 
 	// set cooldown
-	State.DropCooldownTicks = randRangeInt(DROP_COOLDOWN_TICKS_MIN, DROP_COOLDOWN_TICKS_MAX);
+	MapConfig.State->DropCooldownTicks = randRangeInt(DROP_COOLDOWN_TICKS_MIN, DROP_COOLDOWN_TICKS_MAX);
 
 	// create guber object
 	GuberEvent * guberEvent = 0;
@@ -452,19 +450,10 @@ int dropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int t
 }
 
 //--------------------------------------------------------------------------
-void dropInitialize(void)
+void dropInit(void)
 {
-	Moby* testMoby = mobySpawn(DROP_MOBY_OCLASS, 0);
-	if (testMoby) {
-		u32 mobyFunctionsPtr = (u32)mobyGetFunctions(testMoby);
-		if (mobyFunctionsPtr) {
-			// set vtable callbacks
-			*(u32*)(mobyFunctionsPtr + 0x04) = (u32)&getGuber;
-			*(u32*)(mobyFunctionsPtr + 0x14) = (u32)&handleEvent;
-		}
-
-		mobyDestroy(testMoby);
-	}
+  MapConfig.CreateMobDropFunc = &dropCreate;
+  MapConfig.OnMobDropEventFunc = &dropHandleEvent;
 }
 
 //--------------------------------------------------------------------------
@@ -472,6 +461,6 @@ void dropTick(void)
 {
 	dropThisFrame = 0;
 
-	if (State.DropCooldownTicks > 0)
-		--State.DropCooldownTicks;
+	if (MapConfig.State && MapConfig.State->DropCooldownTicks > 0)
+		--MapConfig.State->DropCooldownTicks;
 }

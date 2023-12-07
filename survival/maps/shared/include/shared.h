@@ -31,6 +31,7 @@ void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
 void mobTransAnim(Moby* moby, int animId, float startOff);
 int mobHasVelocity(struct MobPVar* pvars);
 void mobStand(Moby* moby);
+int mobResetMoveStep(Moby* moby);
 int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to);
 void mobMove(Moby* moby);
 void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed);

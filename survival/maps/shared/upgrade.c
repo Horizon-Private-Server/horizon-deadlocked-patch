@@ -1,8 +1,3 @@
-#include "include/upgrade.h"
-#include "include/drop.h"
-#include "include/mob.h"
-#include "include/utils.h"
-#include "include/game.h"
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
@@ -13,9 +8,12 @@
 #include <libdl/graphics.h>
 #include <libdl/random.h>
 #include <libdl/radar.h>
-
-extern struct SurvivalState State;
-extern SoundDef BaseSoundDef;
+#include "upgrade.h"
+#include "drop.h"
+#include "mob.h"
+#include "utils.h"
+#include "game.h"
+#include "maputils.h"
 
 GuberEvent* upgradeCreateEvent(Moby* moby, u32 eventType);
 
@@ -26,15 +24,6 @@ char UpgradeTexIds[] = {
 	[UPGRADE_MEDIC] 13,
 	[UPGRADE_VENDOR] 46,
 	[UPGRADE_PICKUPS] 2,
-};
-
-int UpgradeMax[] = {
-	[UPGRADE_HEALTH] 1000,
-	[UPGRADE_SPEED] 33,
-	[UPGRADE_DAMAGE] 100,
-	[UPGRADE_MEDIC] 16,
-	[UPGRADE_VENDOR] 16,
-	[UPGRADE_PICKUPS] 33,
 };
 
 //--------------------------------------------------------------------------
@@ -69,19 +58,21 @@ void upgradeSpawnNew(enum UpgradeType type)
   VECTOR delta, spPos;
   int isFree = 0;
 
+  if (!MapConfig.State || !MapConfig.BakedConfig) return;
+
   // iterate list of baked spawn points
   for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
 
     isFree = 1;
     
     // find upgrade spawn points
-    if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_UPGRADE) {
+    if (MapConfig.BakedConfig->BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_UPGRADE) {
 
       // check if already in use
       for (j = 0; j < UPGRADE_COUNT; ++j) {
-        if (State.UpgradeMobies[j]) {
-          memcpy(spPos, BakedConfig.BakedSpawnPoints[i].Position, 12);
-          vector_subtract(delta, State.UpgradeMobies[j]->Position, spPos);
+        if (MapConfig.State->UpgradeMobies[j]) {
+          memcpy(spPos, MapConfig.BakedConfig->BakedSpawnPoints[i].Position, 12);
+          vector_subtract(delta, MapConfig.State->UpgradeMobies[j]->Position, spPos);
           if (vector_sqrmag(delta) < 0.1) {
             isFree = 0;
             break;
@@ -104,7 +95,7 @@ void upgradeSpawnNew(enum UpgradeType type)
   i = freeBakedSpawnPointsIdxs[randRangeInt(0, 100) % freeBakedSpawnPointsIdxCount];
 
   // spawn
-  upgradeCreate(BakedConfig.BakedSpawnPoints[i].Position, BakedConfig.BakedSpawnPoints[i].Rotation, type);
+  upgradeCreate(MapConfig.BakedConfig->BakedSpawnPoints[i].Position, MapConfig.BakedConfig->BakedSpawnPoints[i].Rotation, type);
 }
 
 //--------------------------------------------------------------------------
@@ -236,7 +227,8 @@ int upgradeHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 		((GuberMoby*)guber)->TeamNum = 10;
 	
 	// set reference in state
-	State.UpgradeMobies[args.Type] = moby;
+  if (MapConfig.State)
+	  MapConfig.State->UpgradeMobies[args.Type] = moby;
 
 	// 
 	mobySetState(moby, 0, -1);
@@ -261,8 +253,8 @@ int upgradeHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	}
 
   // remove reference
-  if (State.UpgradeMobies[pvars->Type] == moby)
-    State.UpgradeMobies[pvars->Type] = NULL;
+  if (MapConfig.State && MapConfig.State->UpgradeMobies[pvars->Type] == moby)
+    MapConfig.State->UpgradeMobies[pvars->Type] = NULL;
 
 	guberMobyDestroy(moby);
 	return 0;
@@ -286,7 +278,9 @@ int upgradeHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 		return 0;
 
 	// give
-	State.PlayerStates[args.PickedUpByPlayerId].State.Upgrades[pvars->Type] += 1;
+  if (MapConfig.State) {
+	  MapConfig.State->PlayerStates[args.PickedUpByPlayerId].State.Upgrades[pvars->Type] += 1;
+  }
 
 	// handle effect
 	if (targetPlayer->IsLocal) {
@@ -388,19 +382,11 @@ int upgradeCreate(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType
 }
 
 //--------------------------------------------------------------------------
-void upgradeInitialize(void)
+void upgradeInit(void)
 {
-	Moby* testMoby = mobySpawn(UPGRADE_MOBY_OCLASS, 0);
-	if (testMoby) {
-		u32 mobyFunctionsPtr = (u32)mobyGetFunctions(testMoby);
-		if (mobyFunctionsPtr) {
-			// set vtable callbacks
-			*(u32*)(mobyFunctionsPtr + 0x04) = (u32)&getGuber;
-			*(u32*)(mobyFunctionsPtr + 0x14) = (u32)&handleEvent;
-		}
-
-		mobyDestroy(testMoby);
-	}
+  MapConfig.CreateUpgradePickupFunc = &upgradeCreate;
+  MapConfig.OnUpgradePickupEventFunc = &upgradeHandleEvent;
+  MapConfig.PickupUpgradeFunc = &upgradePickup;
 }
 
 //--------------------------------------------------------------------------

@@ -122,6 +122,7 @@ void executionerPreUpdate(Moby* moby)
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
+  decTimerU8(&pvars->MobVars.MoveVars.PathCheckSkipEndTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
 
   mobPreUpdate(moby);
@@ -236,6 +237,7 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
   int isShock = e->DamageFlags & 0x40;
+  int isShortFreeze = e->DamageFlags & 0x40000000;
 
 	// destroy
 	if (newHp <= 0) {
@@ -266,6 +268,12 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
       }
     }
 	}
+
+  // short freeze
+  if (isShortFreeze && pvars->MobVars.SlowTicks < MOB_SHORT_FREEZE_DURATION_TICKS) {
+    pvars->MobVars.SlowTicks = MOB_SHORT_FREEZE_DURATION_TICKS;
+    mobResetMoveStep(moby);
+  }
 }
 
 //--------------------------------------------------------------------------
