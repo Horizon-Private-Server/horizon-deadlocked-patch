@@ -39,6 +39,11 @@
 void powerOnMysteryBoxActivatePower(void);
 #endif
 
+#if DEBUGMBOX
+int MysteryBoxItemCounts[MYSTERY_BOX_ITEM_COUNT];
+int MysteryBoxTotalRolls = 0;
+#endif
+
 char* ITEM_NAMES[] = {
   [MYSTERY_BOX_ITEM_RESET_GATE] "",
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] "",
@@ -150,14 +155,9 @@ int mboxGetAlphaMod(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int mboxRand(int mod)
+float mboxRand(void)
 {
-  static unsigned int seed = 0;
-  if (!seed)
-    seed = gameGetTime();
-
-  seed = (1664525 * seed + 1013904223);
-  return seed % mod;
+  return randRange(0, 1);
 }
 
 //--------------------------------------------------------------------------
@@ -206,7 +206,7 @@ void mboxActivateShield(void)
 void mboxActivate(Moby* moby, int activatedByPlayerId)
 {
   int i;
-  int hasLuck = 0;
+  int item = MYSTERY_BOX_ITEM_WEAPON_MOD;
 
 	// create event
 	GuberEvent * guberEvent = guberCreateEvent(moby, MYSTERY_BOX_EVENT_ACTIVATE);
@@ -217,27 +217,33 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
     if (MapConfig.State && MapConfig.State->PlayerStates[activatedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK) {
       for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount-1); ++i)
       {
-        float r = mboxRand(1000000) / 999999.0;
-        if (r < MysteryBoxItemProbabilitiesLucky[i].Probability)
+        float r = mboxRand();
+        if (r < MysteryBoxItemProbabilitiesLucky[i].Probability) {
+          DPRINTF("lucky hit %d (%s) %f<%f\n", MysteryBoxItemProbabilitiesLucky[i].Item, ITEM_NAMES[MysteryBoxItemProbabilitiesLucky[i].Item], r, MysteryBoxItemProbabilitiesLucky[i].Probability);
           break;
+        }
       }
+
+      item = MysteryBoxItemProbabilitiesLucky[i].Item;
     } else {
       for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesCount-1); ++i)
       {
-        float r = mboxRand(1000000) / 999999.0;
-        if (r < MysteryBoxItemProbabilities[i].Probability)
+        float r = mboxRand();
+        if (r < MysteryBoxItemProbabilities[i].Probability) {
+          DPRINTF("hit %d (%s) %f<%f\n", MysteryBoxItemProbabilities[i].Item, ITEM_NAMES[MysteryBoxItemProbabilities[i].Item], r, MysteryBoxItemProbabilitiesLucky[i].Probability);
           break;
+        }
       }
+
+      item = MysteryBoxItemProbabilities[i].Item;
     }
 
-    int item = MysteryBoxItemProbabilities[i].Item;
+    item = MYSTERY_BOX_ITEM_QUAD;
     int random = rand(100);
-    item = MYSTERY_BOX_ITEM_TEDDY_BEAR;
 
     guberEventWrite(guberEvent, &activatedByPlayerId, 4);
     guberEventWrite(guberEvent, &item, 4);
     guberEventWrite(guberEvent, &random, 4);
-    
   }
 }
 
@@ -527,11 +533,17 @@ void mboxUpdate(Moby* moby)
       }
 
       // transition to next state after
+#if DEBUGMBOX
+      mobySetState(moby, MYSTERY_BOX_STATE_BEFORE_CLOSING, -1);
+      pvars->StateChangedAtTime = gameGetTime();
+      pvars->TicksSinceLastStateChanged = 0;
+#else
       if (timeSinceStateChanged > (TIME_SECOND * 5)) {
         mobySetState(moby, MYSTERY_BOX_STATE_BEFORE_CLOSING, -1);
         pvars->StateChangedAtTime = gameGetTime();
         pvars->TicksSinceLastStateChanged = 0;
       }
+#endif
       break;
     }
     case MYSTERY_BOX_STATE_CYCLING_ITEMS:
@@ -539,11 +551,17 @@ void mboxUpdate(Moby* moby)
       mboxOpenDoor(moby, 1);
 
       // transition to next state after
+#if DEBUGMBOX
+      mobySetState(moby, MYSTERY_BOX_STATE_DISPLAYING_ITEM, -1);
+      pvars->StateChangedAtTime = gameGetTime();
+      pvars->TicksSinceLastStateChanged = 0;
+#else
       if (timeSinceStateChanged > MYSTERY_BOX_CYCLE_ITEMS_DURATION) {
         mobySetState(moby, MYSTERY_BOX_STATE_DISPLAYING_ITEM, -1);
         pvars->StateChangedAtTime = gameGetTime();
         pvars->TicksSinceLastStateChanged = 0;
       }
+#endif
       break;
     }
     case MYSTERY_BOX_STATE_OPENING:
@@ -630,6 +648,24 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
   guberEventRead(event, &activatedByPlayerId, 4);
   guberEventRead(event, &item, 4);
   guberEventRead(event, &random, 4);
+
+#if DEBUGMBOX
+  MysteryBoxTotalRolls += 1;
+  MysteryBoxItemCounts[item] += 1;
+  printf("Total Rolls: %d\n", MysteryBoxTotalRolls);
+  int i;
+  for (i = 0; i < MysteryBoxItemProbabilitiesLuckyCount; ++i) {
+    int it = MysteryBoxItemProbabilitiesLucky[i].Item;
+    float p = MysteryBoxItemCounts[it] / (float)MysteryBoxTotalRolls;
+    if (strlen(item) > 0) {
+      printf("%s: %d (%f of %f)\n", it, MysteryBoxItemCounts[it], p, MysteryBoxItemProbabilitiesLucky[i].Probability);
+    } else {
+      printf("%d: %d (%f of %f)\n", it, MysteryBoxItemCounts[it], p, MysteryBoxItemProbabilitiesLucky[i].Probability);
+    }
+  }
+
+  printf("\n\n");
+#endif
   
   // increment stat
   if (activatedByPlayerId >= 0 && MapConfig.State) {
@@ -705,7 +741,9 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
         {
           spawnExplosion(moby->Position, 5, 0x802060C0);
           damageRadius(moby, moby->Position, 0x00081801, 5, 5);
+#if !DEBUGMBOX
           mboxSetRandomRespawn(moby, pvars->Random);
+#endif
           break;
         }
         case MYSTERY_BOX_ITEM_ACTIVATE_POWER:
@@ -864,4 +902,8 @@ void mboxInit(void)
     DPRINTF("MBOX oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
+
+#if DEBUGMBOX
+  memset(MysteryBoxItemCounts, 0, sizeof(MysteryBoxItemCounts));
+#endif
 }

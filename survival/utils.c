@@ -305,3 +305,51 @@ int localPlayerHasInput(void)
 
   return !localPlayer->timers.noInput && !gameIsStartMenuOpen() && !State.PlayerStates[localPlayer->PlayerId].IsInWeaponsMenu;
 }
+
+//--------------------------------------------------------------------------
+void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y)
+{
+  int localCount = playerGetNumLocals();
+
+  //
+  switch (localCount)
+  {
+    case 0: // 1 player
+    case 1: return;
+    case 2: // 2 players
+    {
+      // vertical split
+      *y *= 0.5;
+      if (localPlayerIndex == 1)
+        *y += 0.5 * SCREEN_HEIGHT;
+
+      break;
+    }
+    case 3: // 3 players
+    {
+      // player 1 on top
+      // player 2/3 horizontal split on bottom
+      *y *= 0.5;
+      if (localPlayerIndex > 0) {
+        *x *= 0.5;
+        *y += 0.5 * SCREEN_HEIGHT;
+        if (localPlayerIndex == 2)
+          *x += 0.5 * SCREEN_WIDTH;
+      }
+      break;
+    }
+    case 4: // 4 players
+    {
+      // player 1/2 horizontal split on top
+      // player 2/3 horizontal split on bottom
+      *x *= 0.5;
+      *y *= 0.5;
+      if ((localPlayerIndex % 2) == 1)
+        *x += 0.5 * SCREEN_WIDTH;
+      if ((localPlayerIndex / 2) == 1)
+        *y += 0.5 * SCREEN_HEIGHT;
+
+      break;
+    }
+  }
+}

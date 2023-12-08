@@ -250,6 +250,7 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
     reaperVars->AggroTriggered = 1;
     reaperVars->AggroTriggeredBy = sourcePlayer;
     pvars->MobVars.Target = playerGetTargetMoby(sourcePlayer);
+    DPRINTF("aggro triggered by %d\n", sourcePlayer->PlayerId);
   }
 
   // flinch
@@ -302,19 +303,19 @@ Moby* reaperGetNextTarget(Moby* moby)
 	Player * closestPlayer = NULL;
 	float closestPlayerDist = 100000;
 
+  // target player who hit us
+  Moby* aggroTriggeredByTarget = playerGetTargetMoby(reaperVars->AggroTriggeredBy);
+  if (reaperVars->AggroTriggered && aggroTriggeredByTarget) {
+    reaperVars->AggroTriggeredBy = NULL;
+    return aggroTriggeredByTarget;
+  }
+
   // don't change target when aggro
   if (pvars->MobVars.Action == REAPER_ACTION_AGGRO && currentTarget) {
     Player* currentPlayerTarget = guberMobyGetPlayerDamager(currentTarget);
     if (currentPlayerTarget && !playerIsDead(currentPlayerTarget)) {
       return currentTarget;
     }
-  }
-
-  // target player who hit us
-  Moby* aggroTriggeredByTarget = playerGetTargetMoby(reaperVars->AggroTriggeredBy);
-  if (reaperVars->AggroTriggered && aggroTriggeredByTarget) {
-    reaperVars->AggroTriggeredBy = NULL;
-    return aggroTriggeredByTarget;
   }
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {

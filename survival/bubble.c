@@ -42,7 +42,7 @@ u32 bubbleGetColor(int damage, int life)
 }
 
 //--------------------------------------------------------------------------
-void bubblePush(VECTOR position, float randomRadius, float damage)
+void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal)
 {
   int i;
   int lowestLifeIdx = -1;
@@ -58,7 +58,7 @@ void bubblePush(VECTOR position, float randomRadius, float damage)
     if (damageBubbles[i].Life == 0) {
       lowestLifeIdx = i;
       break;
-    } else if (damageBubbles[i].Life < lowestLife) {
+    } else if (damageBubbles[i].Life < lowestLife && isLocal >= damageBubbles[i].IsLocal) {
       lowestLife = damageBubbles[i].Life;
       lowestLifeIdx = i;
     }
@@ -67,6 +67,7 @@ void bubblePush(VECTOR position, float randomRadius, float damage)
   if (lowestLifeIdx >= 0) {
     damageBubbles[lowestLifeIdx].Life = BUBBLE_LIFE_TICKS;
     damageBubbles[lowestLifeIdx].Damage = (short)ceilf(damage);
+    damageBubbles[lowestLifeIdx].IsLocal = isLocal;
     vector_add(damageBubbles[lowestLifeIdx].Position, position, offset);
   }
 }
@@ -78,11 +79,20 @@ void bubbleTick(void)
   int x,y;
   char buf[32];
   float scale;
+  VECTOR dt;
+  GameCamera* camera = cameraGetGameCamera(0);
 
   if (!damageBubbles) return;
+  if (!camera) return;
+  if (playerGetNumLocals() > 1) return; // don't support more than 1 player
 
   for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i) {
     if (damageBubbles[i].Life) {
+
+      if (!damageBubbles[i].IsLocal) {
+        vector_subtract(dt, damageBubbles[i].Position, camera->pos);
+        if (vector_sqrmag(dt) > (BUBBLE_MAX_NONLOCAL_DIST*BUBBLE_MAX_NONLOCAL_DIST)) continue;
+      }
 
       if (gfxWorldSpaceToScreenSpace(damageBubbles[i].Position, &x, &y)) {
         snprintf(buf, sizeof(buf), "%d", damageBubbles[i].Damage);

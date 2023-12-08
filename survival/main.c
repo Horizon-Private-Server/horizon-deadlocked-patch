@@ -885,7 +885,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 	
 	State.PlayerStates[playerId].IsDead = 0;
 	State.PlayerStates[playerId].State.TimesRevived++;
-	State.PlayerStates[playerId].State.TimesRevivedSinceLastFullDeath++;
+	State.PlayerStates[playerId].State.TimesRevivedSinceRoundStart++;
 	Player* player = playerGetAll()[playerId];
 	if (!player)
 		return;
@@ -1297,7 +1297,7 @@ void respawnDeadPlayers(void) {
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
 		if (p && playerIsDead(p)) {
-			State.PlayerStates[i].State.TimesRevivedSinceLastFullDeath = 0;
+			State.PlayerStates[i].State.TimesRevivedSinceRoundStart = 0;
       if (p->IsLocal) {
 			  playerRespawn(p);
       }
@@ -1338,7 +1338,7 @@ int getPlayerReviveCost(Player * fromPlayer, Player * player) {
 	// determine discount rate
 	float rate = clamp(1 - (PLAYER_UPGRADE_MEDIC_FACTOR * State.PlayerStates[fromPlayer->PlayerId].State.Upgrades[UPGRADE_MEDIC]), 0, 1);
 
-	return ceilf(rate * ((State.PlayerStates[player->PlayerId].State.TimesRevivedSinceLastFullDeath + 1) * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber))));
+	return ceilf(rate * ((State.PlayerStates[player->PlayerId].State.TimesRevivedSinceRoundStart + 1) * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber))));
 }
 
 //--------------------------------------------------------------------------
@@ -1437,6 +1437,7 @@ void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damage
       return;
 
     hitpoints = 10 * (1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * State.PlayerStates[sourcePlayer->PlayerId].State.Upgrades[UPGRADE_DAMAGE]));
+    hitpoints *= sourcePlayer->DamageMultiplier;
     DPRINTF("headbutt %08X %04X with %f and %X\n", (u32)hitMoby, hitMoby->OClass, hitpoints, damageFlags);
   }
 
@@ -1538,7 +1539,7 @@ void processPlayerBlessing(Player* player, int blessing) {
 
         VECTOR dt;
         vector_subtract(dt, blessingLastPosition[player->PlayerId], player->PlayerPosition);
-        if (vector_sqrmag(dt) > 1) {
+        if (vector_sqrmag(dt) > (2*2)) {
           struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[player->WeaponHeldId];
           int maxAmmo = playerGetWeaponMaxAmmo(player->GadgetBox, player->WeaponHeldId);
           int ammo = gadgetEntry->Ammo;
@@ -2372,6 +2373,11 @@ void resetRoundState(void)
   memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
   memset(State.MobStats.NumSpawnedThisRound, 0, sizeof(State.MobStats.NumSpawnedThisRound));
 
+  // reset revive counters
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    State.PlayerStates[i].State.TimesRevivedSinceRoundStart = 0;
+  }
+
 	// 
 	if (State.RoundIsSpecial) {
 		State.RoundMaxSpawnedAtOnce = mapConfig->SpecialRoundParams[State.RoundSpecialIdx].MaxSpawnedAtOnce;
@@ -2872,7 +2878,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 #if DEBUG
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_BULL;
+    State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_AMMO_REGEN;
     //State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
   }
 #endif
@@ -2995,96 +3001,119 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
   }
 
   // draw hud stuff
-  if (!gameIsStartMenuOpen() && !localPlayerData->IsInWeaponsMenu && shouldDrawHud()) {
+  if (!gameIsStartMenuOpen() && shouldDrawHud()) {
 
-    // draw round number
-    char* roundStr = uiMsgString(0x25A9);
-    gfxScreenSpaceText(31, 281, 0.7, 0.7, 0x40000000, roundStr, -1, 1);
-    gfxScreenSpaceText(30, 280, 0.7, 0.7, 0x80E0E0E0, roundStr, -1, 1);
-    sprintf(buffer, "%d", State.RoundNumber + 1);
-    gfxScreenSpaceText(31, 292, 1, 1, 0x40000000, buffer, -1, 1);
-    gfxScreenSpaceText(30, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
+    if (!localPlayerData->IsInWeaponsMenu) {
+      // draw round number
+      char* roundStr = uiMsgString(0x25A9);
+      gfxScreenSpaceText(31, 281, 0.7, 0.7, 0x40000000, roundStr, -1, 1);
+      gfxScreenSpaceText(30, 280, 0.7, 0.7, 0x80E0E0E0, roundStr, -1, 1);
+      sprintf(buffer, "%d", State.RoundNumber + 1);
+      gfxScreenSpaceText(31, 292, 1, 1, 0x40000000, buffer, -1, 1);
+      gfxScreenSpaceText(30, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
-    // draw double bolts
-    if (localPlayer && State.PlayerStates[localPlayer->PlayerId].IsDoublePoints) {
-      gfxScreenSpaceText(490+1, 40+1, 0.7, 0.7, 0x40000000, "x2", -1, 1);
-      gfxScreenSpaceText(490+0, 40+0, 0.7, 0.7, 0x8029E5E6, "x2", -1, 1);
+      // draw double bolts
+      if (localPlayer && State.PlayerStates[localPlayer->PlayerId].IsDoublePoints) {
+        gfxScreenSpaceText(490+1, 40+1, 0.7, 0.7, 0x40000000, "x2", -1, 1);
+        gfxScreenSpaceText(490+0, 40+0, 0.7, 0.7, 0x8029E5E6, "x2", -1, 1);
+      }
+
+      // draw double xp
+      if (localPlayer && State.PlayerStates[localPlayer->PlayerId].IsDoubleXP) {
+        gfxScreenSpaceText(208+1, 18+1, 0.7, 0.7, 0x40000000, "x2", -1, 1);
+        gfxScreenSpaceText(208+0, 18+0, 0.7, 0.7, 0x8029E5E6, "x2", -1, 1);
+      }
+
+      // draw number of mobs spawned
+      char* enemiesStr = "ENEMIES";
+      gfxScreenSpaceText(31, 241, 0.7, 0.7, 0x40000000, enemiesStr, -1, 1);
+      gfxScreenSpaceText(30, 240, 0.7, 0.7, 0x80E0E0E0, enemiesStr, -1, 1);
+      sprintf(buffer, "%d", State.MobStats.TotalAlive + State.MobStats.TotalSpawning);
+      gfxScreenSpaceText(31, 252, 1, 1, 0x40000000, buffer, -1, 1);
+      gfxScreenSpaceText(30, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
     }
 
-    // draw double xp
-    if (localPlayer && State.PlayerStates[localPlayer->PlayerId].IsDoubleXP) {
-      gfxScreenSpaceText(208+1, 18+1, 0.7, 0.7, 0x40000000, "x2", -1, 1);
-      gfxScreenSpaceText(208+0, 18+0, 0.7, 0.7, 0x8029E5E6, "x2", -1, 1);
-    }
-
-    // draw number of mobs spawned
-    char* enemiesStr = "ENEMIES";
-    gfxScreenSpaceText(31, 241, 0.7, 0.7, 0x40000000, enemiesStr, -1, 1);
-    gfxScreenSpaceText(30, 240, 0.7, 0.7, 0x80E0E0E0, enemiesStr, -1, 1);
-    sprintf(buffer, "%d", State.MobStats.TotalAlive + State.MobStats.TotalSpawning);
-    gfxScreenSpaceText(31, 252, 1, 1, 0x40000000, buffer, -1, 1);
-    gfxScreenSpaceText(30, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
-
-    // draw dread tokens
+    // draw player specific values
     // TODO: add support for 3,4 local players
     for (i = 0; i < GAME_MAX_LOCALS; ++i) {
       Player* p = playerGetFromSlot(i);
-      if (p && p->PlayerMoby) {
-        float y = 57 + (i * 0.5 * SCREEN_HEIGHT);
-        snprintf(buffer, 32, "%d", State.PlayerStates[p->PlayerId].State.CurrentTokens);
-        gfxScreenSpaceText(457+2, y+8+2, 1, 1, 0x40000000, buffer, -1, 2);
-        gfxScreenSpaceText(457,   y+8,   1, 1, 0x80C0C0C0, buffer, -1, 2);
-        drawDreadTokenIcon(462, y, 32);
+      if (!p || !p->PlayerMoby) continue;
+
+      struct SurvivalPlayer* playerData = &State.PlayerStates[p->PlayerId];
+      float x = 0, y = 0;
+
+      if (playerData->IsInWeaponsMenu) continue;
+
+      // draw dread tokens
+      {
+        x = 457;
+        y = 114;
+        transformToSplitscreenPixelCoordinates(i, &x, &y);
+        snprintf(buffer, 32, "%d", playerData->State.CurrentTokens);
+        gfxScreenSpaceText(x+2, y+8+2, 1, 1, 0x40000000, buffer, -1, 2);
+        gfxScreenSpaceText(x,   y+8,   1, 1, 0x80C0C0C0, buffer, -1, 2);
+        drawDreadTokenIcon(x+5, y, 32);
       }
-    }
-    
-    // draw blessing
-    int itemTexId = -1;
-    int itemTexWH = 32;
-    u32 itemColor = 0x80C0C0C0;
-    switch (localPlayerData->State.ItemBlessing)
-    {
-      case BLESSING_ITEM_MULTI_JUMP: itemTexId = 111 - 3; itemTexWH = 64; break;
-      case BLESSING_ITEM_LUCK: itemTexId = 112 - 3; itemTexWH = 64; break;
-      case BLESSING_ITEM_BULL: itemTexId = 113 - 3; itemTexWH = 64; break;
-      case BLESSING_ITEM_ELEM_IMMUNITY: itemTexId = 114 - 3; itemTexWH = 64; break;
-      case BLESSING_ITEM_HEALTH_REGEN: itemTexId = 115 - 3; itemTexWH = 64; break;
-      case BLESSING_ITEM_AMMO_REGEN: itemTexId = 116 - 3; itemTexWH = 64; break;
-      case BLESSING_ITEM_THORNS: itemTexId = 117 - 3; itemTexWH = 64; break;
-      default: break;
-    }
+      
+      // draw blessing
+      int itemTexId = -1;
+      int itemTexWH = 32;
+      u32 itemColor = 0x80C0C0C0;
+      switch (playerData->State.ItemBlessing)
+      {
+        case BLESSING_ITEM_MULTI_JUMP: itemTexId = 111 - 3; itemTexWH = 64; break;
+        case BLESSING_ITEM_LUCK: itemTexId = 112 - 3; itemTexWH = 64; break;
+        case BLESSING_ITEM_BULL: itemTexId = 113 - 3; itemTexWH = 64; break;
+        case BLESSING_ITEM_ELEM_IMMUNITY: itemTexId = 114 - 3; itemTexWH = 64; break;
+        case BLESSING_ITEM_HEALTH_REGEN: itemTexId = 115 - 3; itemTexWH = 64; break;
+        case BLESSING_ITEM_AMMO_REGEN: itemTexId = 116 - 3; itemTexWH = 64; break;
+        case BLESSING_ITEM_THORNS: itemTexId = 117 - 3; itemTexWH = 64; break;
+        default: break;
+      }
 
-    if (itemTexId > 0) {
-      gfxSetupGifPaging(0);
-      u64 itemSprite = gfxGetFrameTex(itemTexId);
-      gfxDrawSprite(15+2, SCREEN_HEIGHT-100+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
-      gfxDrawSprite(15,   SCREEN_HEIGHT-100,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
-      gfxDoGifPaging();
-    }
+      if (itemTexId > 0) {
+        x = 15;
+        y = SCREEN_HEIGHT - 100;
+        transformToSplitscreenPixelCoordinates(i, &x, &y);
 
-    // draw current item
-    itemTexId = -1;
-    itemTexWH = 32;
-    char useItemChar = 0;
-    itemColor = 0x80C0C0C0;
-    switch (localPlayerData->State.Item)
-    {
-      case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
-      case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 140 - 3; useItemChar = '\x1A'; break;
-      case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN: itemTexId = 15 - 3; useItemChar = '\x1A'; break;
-      default: break;
-    }
+        gfxSetupGifPaging(0);
+        u64 itemSprite = gfxGetFrameTex(itemTexId);
+        gfxDrawSprite(x+2, y+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
+        gfxDrawSprite(x,   y,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
+        gfxDoGifPaging();
+      }
 
-    if (itemTexId > 0) {
-      gfxSetupGifPaging(0);
-      u64 itemSprite = gfxGetFrameTex(itemTexId);
-      gfxDrawSprite(20+2, SCREEN_HEIGHT-50+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
-      gfxDrawSprite(20,   SCREEN_HEIGHT-50,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
-      gfxDoGifPaging();
-    }
+      // draw current item
+      itemTexId = -1;
+      itemTexWH = 32;
+      char useItemChar = 0;
+      itemColor = 0x80C0C0C0;
+      switch (playerData->State.Item)
+      {
+        case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
+        case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 140 - 3; useItemChar = '\x1A'; break;
+        case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN: itemTexId = 15 - 3; useItemChar = '\x1A'; break;
+        default: break;
+      }
 
-    if (useItemChar) {
-      gfxScreenSpaceText(5, SCREEN_HEIGHT - 40, 0.75, 0.75, 0x80FFFFFF, &useItemChar, 1, 0);
+      if (itemTexId > 0) {
+        x = 20;
+        y = SCREEN_HEIGHT - 50;
+        transformToSplitscreenPixelCoordinates(i, &x, &y);
+
+        gfxSetupGifPaging(0);
+        u64 itemSprite = gfxGetFrameTex(itemTexId);
+        gfxDrawSprite(x+2, y+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
+        gfxDrawSprite(x,   y,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
+        gfxDoGifPaging();
+      }
+
+      if (useItemChar) {
+        x = 5;
+        y = SCREEN_HEIGHT - 40;
+        transformToSplitscreenPixelCoordinates(i, &x, &y);
+        gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, &useItemChar, 1, 0);
+      }
     }
   }
 

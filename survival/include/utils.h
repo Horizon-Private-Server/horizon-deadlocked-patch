@@ -41,4 +41,6 @@ Player* mobyGetPlayer(Moby* moby);
 Moby* playerGetTargetMoby(Player* player);
 int localPlayerHasInput(void);
 
+void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
+
 #endif // SURVIVAL_UTILS_H

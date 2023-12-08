@@ -183,3 +183,15 @@ Tweak weapons
 ++Block small hallway on minimap
 ++Move mines to front of small hallway
 ++Move drops and upgrades into map
+++Flail knockback power increment with flail level
+++Apply quad to headbutt
+++Reset revive cost of each player at start of round
+Add bank to deposit withdraw bolts
+++Add quad to holoshield damage
+Add ability to unlock additional blessing slot by trading in v10
+++Change hunt to not count jumping
+Tweak EE lag on ps2 (damage popups)
+Increase LOD distance for ties on mpass
+Fix reaper aggroing wrong target
+Fix bolt counter for locals
+Fix weapons menu for locals

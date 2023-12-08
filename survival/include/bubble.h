@@ -12,15 +12,17 @@
 #include <libdl/sound.h>
 
 #define BUBBLE_LIFE_TICKS         (TPS * 2)
+#define BUBBLE_MAX_NONLOCAL_DIST  (50.0)
 
 struct SurvivalDamageBubble
 {
   VECTOR Position;
-  u16 Life;
   u16 Damage;
+  u8 Life;
+  char IsLocal;
 };
 
-void bubblePush(VECTOR position, float randomRadius, float damage);
+void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal);
 void bubbleTick(void);
 void bubbleInit(void);
 void bubbleDeinit(void);

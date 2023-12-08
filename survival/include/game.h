@@ -96,7 +96,7 @@
 #define MOB_HAS_DROP_PROBABILITY_LUCKY			  (0.05)
 #define DROP_MAX_SPAWNED											(4)
 
-#define PLAYER_BASE_REVIVE_COST								(5000)
+#define PLAYER_BASE_REVIVE_COST								(10000)
 #define PLAYER_REVIVE_COST_PER_PLAYER					(1000)
 #define PLAYER_REVIVE_COST_PER_ROUND					(0)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
@@ -126,11 +126,11 @@
 #define ITEM_EMP_HEALTH_EFFECT_RADIUS         (15)
 
 #define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 1)
-#define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 3)
+#define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 5)
 #define ITEM_BLESSING_THORN_DAMAGE_FACTOR     (0.2)
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
-#define DAMAGE_BUBBLE_MAX_COUNT               (32)
+#define DAMAGE_BUBBLE_MAX_COUNT               (16)
 
 #define MAX_MOB_SPAWN_PARAMS                  (10)
 #define MAX_MOB_COMPLEXITY_DRAWN              (7500)
@@ -245,7 +245,7 @@ struct SurvivalPlayerState
 	int Kills;
 	int Revives;
 	int TimesRevived;
-	int TimesRevivedSinceLastFullDeath;
+	int TimesRevivedSinceRoundStart;
 	int TotalTokens;
 	int CurrentTokens;
   int Item;

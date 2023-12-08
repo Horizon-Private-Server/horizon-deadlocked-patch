@@ -226,9 +226,11 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 
     if (weaponId == WEAPON_ID_FLAIL) {
       args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
-      args.Knockback.Power += 3;
+      args.Knockback.Power += pDamager->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Level + 1;
     } else if (weaponId == WEAPON_ID_OMNI_SHIELD) {
       damageFlags |= 0x40000000;
+      amount *= 2; // damage buff
+      amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
     } else if (weaponId == WEAPON_ID_VIPERS) {
       amount *= 1.2; // damage buff
     } else if (weaponId == WEAPON_ID_ARBITER) {
@@ -764,7 +766,7 @@ void mobUpdate(Moby* moby)
 
     // auto destruct after 15 seconds of being stuck
     else if (pvars->MobVars.MoveVars.StuckCounter > 15) {
-      //pvars->MobVars.Respawn = 1;
+      pvars->MobVars.Respawn = 1;
     }
     
     // destroy
@@ -1142,7 +1144,7 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
   if (appliedDamage > 0) { // && damager && damager->IsLocal) {
     VECTOR mobCenter = {0,0,pvars->TargetVars.targetHeight,0};
     vector_add(mobCenter, mobCenter, moby->Position);
-    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage);
+    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, damager->IsLocal);
   }
 
   // 
