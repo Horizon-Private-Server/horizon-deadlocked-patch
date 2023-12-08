@@ -46,7 +46,7 @@
 #define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
 #define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(100)
-#define MOB_MOVE_SKIP_TICKS                   (3)
+#define MOB_MOVE_SKIP_TICKS                   (4)
 #define MOB_MAX_STUCK_COUNTER_FOR_NEW_PATH    (5)
 
 #define MOB_SHORT_FREEZE_DURATION_TICKS       (60)

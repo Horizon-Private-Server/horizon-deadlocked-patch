@@ -151,6 +151,7 @@ struct MobMoveVars {
   char HitWall;
   char IsStuck;
   char MoveStep;
+  char LastMoveStep;
   u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;

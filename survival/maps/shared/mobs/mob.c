@@ -511,6 +511,7 @@ void mobMove(Moby* moby)
   int isMovingDown = 0;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   int isOwner = mobAmIOwner(moby);
+  int moveStep = pvars->MobVars.MoveVars.LastMoveStep;
 
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
   u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
@@ -532,6 +533,11 @@ void mobMove(Moby* moby)
 #endif
 
   if (moveSkipTicks == 0) {
+
+  // reset move step
+  moveStep = pvars->MobVars.MoveVars.MoveStep;
+  if (!isOwner && !moby->Drawn)
+    moveStep += 2;
 
 #if GATE
     gateSetCollision(0);
@@ -561,7 +567,7 @@ void mobMove(Moby* moby)
       vector_add(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.AddVelocity);
 
       // compute simulated velocity by multiplying velocity by number of ticks to simulate
-      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, (float)(pvars->MobVars.MoveVars.MoveStep + 1));
+      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, (float)(moveStep + 1));
 
       // slow speed in short freeze
       if (slowTicks > 0) {
@@ -646,7 +652,7 @@ void mobMove(Moby* moby)
     }
 
     // add gravity to velocity with clamp on downwards speed
-    pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT * (float)(pvars->MobVars.MoveVars.MoveStep + 1);
+    pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT * (float)(moveStep + 1);
     if (pvars->MobVars.MoveVars.Velocity[2] < -10 * MATH_DT)
       pvars->MobVars.MoveVars.Velocity[2] = -10 * MATH_DT;
 
@@ -675,7 +681,8 @@ void mobMove(Moby* moby)
     pvars->MobVars.MoveVars.SumSpeedOver += vector_length(temp);
 
     vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
-    pvars->MobVars.MoveVars.MoveSkipTicks = pvars->MobVars.MoveVars.MoveStep;
+    pvars->MobVars.MoveVars.MoveSkipTicks = moveStep;
+    pvars->MobVars.MoveVars.LastMoveStep = moveStep;
   }
 
   // tell mob we want to jump
@@ -683,7 +690,7 @@ void mobMove(Moby* moby)
     pvars->MobVars.MoveVars.QueueJumpSpeed = pathGetJumpSpeed(moby);
   }
 
-  float t = clamp(1 - (pvars->MobVars.MoveVars.MoveSkipTicks / (float)(pvars->MobVars.MoveVars.MoveStep + 1)), 0, 1);
+  float t = clamp(1 - (pvars->MobVars.MoveVars.MoveSkipTicks / (float)(moveStep + 1)), 0, 1);
   vector_lerp(moby->Position, pvars->MobVars.MoveVars.LastPosition, pvars->MobVars.MoveVars.NextPosition, t);
 
   mobForceIntoMapBounds(moby);

@@ -357,12 +357,24 @@ int mobyGetComplexity(Moby* moby)
 
   int i;
   int freeIdx = -1;
+  float factor = 1;
+
+  if (playerGetNumLocals() > 1)
+    factor *= 2;
+  
+  VECTOR dt;
+  Player* p0 = playerGetFromSlot(0);
+  if (p0) {
+    vector_subtract(dt, moby->Position, p0->CameraPos);
+    if (vector_sqrmag(dt) < (5*5))
+      factor *= 2;
+  }
 
   // ensure we don't already have
   for (i = 0; i < MAX_MOB_SPAWN_PARAMS; ++i) {
     int oclass = MobComplexityValueByOClass[i][0];
     if (oclass == moby->OClass)
-      return MobComplexityValueByOClass[i][1];
+      return MobComplexityValueByOClass[i][1] * factor;
     else if (oclass == 0 && freeIdx < 0)
       freeIdx = i;
   }
@@ -395,7 +407,8 @@ int mobyGetComplexity(Moby* moby)
 
   // compute and save
   MobComplexityValueByOClass[freeIdx][0] = moby->OClass;
-  return MobComplexityValueByOClass[freeIdx][1] = complexity;
+  MobComplexityValueByOClass[freeIdx][1] = complexity;
+  return complexity * factor;
 }
 
 //--------------------------------------------------------------------------
