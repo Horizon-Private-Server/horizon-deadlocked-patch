@@ -152,6 +152,10 @@ int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 
 		u8 random = (u8)rand(100);
 
+    // scale health by # players
+    if (MapConfig.State)
+      args.StartHealth += MapConfig.State->ActivePlayerCount * REACTOR_ADD_HEALTH_PER_PLAYER;
+
     position[2] += 1; // spawn slightly above point
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &yaw, 4);
@@ -306,7 +310,7 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
 
   // targeting
 	pvars->TargetVars.targetHeight = 1.5;
-  pvars->MobVars.BlipType = 5;
+  pvars->MobVars.BlipType = 6;
 
   // move step
   pvars->MobVars.MoveVars.MoveStep = 0;

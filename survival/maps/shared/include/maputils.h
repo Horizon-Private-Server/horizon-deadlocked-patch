@@ -37,6 +37,7 @@ int isInDrawDist(Moby* moby);
 int mobyIsMob(Moby* moby);
 Player* mobyGetPlayer(Moby* moby);
 Moby* playerGetTargetMoby(Player* player);
+int playerHasBlessing(int playerId, int blessing);
 
 void draw3DMarker(VECTOR position, float scale, u32 color, char* str);
 

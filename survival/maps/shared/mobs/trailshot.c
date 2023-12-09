@@ -292,7 +292,7 @@ void trailshotUpdate(Moby* moby)
 //--------------------------------------------------------------------------
 void trailshotSpawn(Moby* creatorMoby, VECTOR position, VECTOR velocity, u32 color, float damage, int lifeTicks)
 {
-  Moby* moby = mobySpawn(0x01F7, sizeof(TrailshotPVar_t));
+  Moby* moby = mobySpawn(0x01F8, sizeof(TrailshotPVar_t));
   if (!moby) return;
 
   mobySetState(moby, TRAILSHOT_ACTIVE, -1);

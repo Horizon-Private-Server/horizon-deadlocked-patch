@@ -56,12 +56,14 @@ int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
 
 char LocalPlayerStrBuffer[2][48];
+char HasEquippedNewBlessing[GAME_MAX_PLAYERS];
 
 int aaa = 0;
 
 extern Moby* reactorActiveMoby;
 Moby* TeleporterMoby = NULL;
 int StatuesActivated = 0;
+int BlessingSlotsUnlocked = 0;
 
 // spawn
 VECTOR pStart = { 658.3901, 828.0401, 499.7961, 0 };
@@ -103,19 +105,19 @@ const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
 // blessings
 const char * INTERACT_BLESSING_MESSAGE = "\x11 %s";
 const char* BLESSING_NAMES[] = {
-  [BLESSING_ITEM_MULTI_JUMP]     "Blessing of the Hare",
-  [BLESSING_ITEM_LUCK]          "Blessing of the Clover",
-  [BLESSING_ITEM_BULL]     "Blessing of the Bull",
+  [BLESSING_ITEM_MULTI_JUMP]      "NBA Sponsorship",
+  [BLESSING_ITEM_LUCK]            "Vox Industries Sponsorship",
+  [BLESSING_ITEM_BULL]            "Texas Longhorns Sponsorship",
   //[BLESSING_ITEM_ELEM_IMMUNITY] "Blessing of Corrosion",
-  [BLESSING_ITEM_THORNS]        "Blessing of the Rose",
-  [BLESSING_ITEM_HEALTH_REGEN]  "Blessing of Vitality",
-  [BLESSING_ITEM_AMMO_REGEN]    "Blessing of the Hunt",
+  [BLESSING_ITEM_THORNS]          "Courtney Gears Sponsorship",
+  [BLESSING_ITEM_HEALTH_REGEN]    "Nanotech Sponsorship",
+  [BLESSING_ITEM_AMMO_REGEN]      "Gadgetron Sponsorship",
 };
 
 const char* BLESSING_DESCRIPTIONS[BLESSING_ITEM_COUNT] = {
   [BLESSING_ITEM_MULTI_JUMP]      "Suddenly the walls seem.. shorter...",
   [BLESSING_ITEM_LUCK]            "Vox appreciates your business...",
-  [BLESSING_ITEM_BULL]       "You feel as though you could charge forever...",
+  [BLESSING_ITEM_BULL]            "You feel as though you could charge forever...",
   [BLESSING_ITEM_THORNS]          "You feel.. protected...",
   [BLESSING_ITEM_HEALTH_REGEN]    "The nanomites inside you begin to change...",
   [BLESSING_ITEM_AMMO_REGEN]      "The nanomites inside your weapons begin to change...",
@@ -159,6 +161,28 @@ typedef struct HudBoss_CommonData { // 0x38
 } HudBoss_CommonData_t;
 
 //--------------------------------------------------------------------------
+int onHasPlayerUsedTeleporter(Moby* moby, Player* player)
+{
+	// pointer to player is in $s1
+	asm volatile (
+    ".set noreorder;\n"
+		"move %0, $s1"
+		: : "r" (player)
+	);
+
+  // only filter for the top teleporter moby
+  if (moby != TeleporterMoby) return 0;
+
+  return HasEquippedNewBlessing[player->PlayerId];
+}
+
+//--------------------------------------------------------------------------
+void playerSetPlayerHasEquippedNewBlessing(Player* player, int hasEntered)
+{
+  HasEquippedNewBlessing[player->PlayerId] = hasEntered;
+}
+
+//--------------------------------------------------------------------------
 void updateBossMeter(void)
 {
   static float lastHealth = -1;
@@ -195,7 +219,7 @@ void updateBossMeter(void)
 //--------------------------------------------------------------------------
 void updateBlessingTotems(void)
 {
-  int local, i;
+  int local, i, j;
   int count = sizeof(BLESSINGS)/sizeof(int);
   VECTOR dt;
   static char buf[4][64];
@@ -207,10 +231,11 @@ void updateBlessingTotems(void)
     if (!player) continue;
 
     struct SurvivalPlayer* playerData = &MapConfig.State->PlayerStates[player->PlayerId];
+    if (!playerData->State.BlessingSlots) continue;
 
     for (i = 0; i < count; ++i) {
       int blessing = BLESSINGS[i];
-      if (playerData->State.ItemBlessing == blessing) continue;
+      if (playerHasBlessing(player->PlayerId, blessing)) continue;
 
       vector_subtract(dt, player->PlayerPosition, (float*)BLESSING_POSITIONS[blessing]);
       if (vector_sqrmag(dt) < (4*4)) {
@@ -221,8 +246,11 @@ void updateBlessingTotems(void)
         playerData->MessageCooldownTicks = 2;
 
         if (padGetButtonDown(local, PAD_CIRCLE) > 0) {
-          playerData->State.ItemBlessing = blessing;
+          for (j = 0; j < playerData->State.BlessingSlots;)
+            if (playerData->State.ItemBlessings[j++] == BLESSING_ITEM_NONE) break;
+          playerData->State.ItemBlessings[j-1] = blessing;
           pushSnack(local, BLESSING_DESCRIPTIONS[blessing], TPS * 2);
+          playerSetPlayerHasEquippedNewBlessing(player, 1);
         }
         break;
       }
@@ -231,11 +259,48 @@ void updateBlessingTotems(void)
 }
 
 //--------------------------------------------------------------------------
+int statuesAreActivated(void)
+{
+  return StatuesActivated == statueSpawnPositionRotationsCount;
+}
+
+//--------------------------------------------------------------------------
+void updateUnlockedBlessingSlots(void)
+{
+  static int unlockedThisRound = 0;
+  static int lastRoundNumber = 0;
+  static int roundWasSpecial = 0;
+  if (!MapConfig.State) return;
+
+#if DEBUG
+  BlessingSlotsUnlocked = 3;
+#endif
+
+  if (BlessingSlotsUnlocked < 3 && MapConfig.State->RoundCompleteTime && !unlockedThisRound && roundWasSpecial && statuesAreActivated()) {
+    BlessingSlotsUnlocked += 1;
+    unlockedThisRound = 1;
+    DPRINTF("unlocked blessing slots %d\n", BlessingSlotsUnlocked);
+  }
+
+  // force
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    MapConfig.State->PlayerStates[i].State.BlessingSlots = BlessingSlotsUnlocked;
+  }
+
+  if (lastRoundNumber != MapConfig.State->RoundNumber) {
+    lastRoundNumber = MapConfig.State->RoundNumber;
+    roundWasSpecial = MapConfig.State->RoundIsSpecial;
+    unlockedThisRound = 0;
+  }
+}
+
+//--------------------------------------------------------------------------
 void updateBlessingTeleporter(void)
 {
   if (!TeleporterMoby) return;
 
-  if (StatuesActivated == statueSpawnPositionRotationsCount && !reactorActiveMoby) {
+  if (statuesAreActivated() && !reactorActiveMoby && MapConfig.State->RoundCompleteTime) {
     mobySetState(TeleporterMoby, 1, -1);
     TeleporterMoby->DrawDist = 64;
     TeleporterMoby->UpdateDist = 64;
@@ -274,6 +339,9 @@ void mapReturnPlayersToMap(void)
       vector_add(p, p, pStart);
       playerSetPosRot(player, p, pRotStart);
     }
+
+    // reset so they can enter next time the teleporter appears
+    playerSetPlayerHasEquippedNewBlessing(player, 0);
   }
 }
 
@@ -361,6 +429,24 @@ void onBeforeUpdateHeroes2(u32 a0)
 }
 
 //--------------------------------------------------------------------------
+void bboxSpawn(void)
+{
+  static int spawned = 0;
+  if (spawned)
+    return;
+
+  // spawn
+  if (gameAmIHost()) {
+
+    VECTOR p = {582.43,792.27,501.0247,0};
+    VECTOR r = {0,0,(75 + 90) * MATH_DEG2RAD,0};
+    bboxCreate(p, r);
+  }
+
+  spawned = 1;
+}
+
+//--------------------------------------------------------------------------
 void initialize(void)
 {
   static int initialized = 0;
@@ -377,7 +463,10 @@ void initialize(void)
   statueInit();
   upgradeInit();
   dropInit();
+  bboxInit();
   MapConfig.OnMobCreateFunc = &createMob;
+
+  memset(HasEquippedNewBlessing, 0, sizeof(HasEquippedNewBlessing));
 
   // find teleporters
   TeleporterMoby = mobyFindNextByOClass(mobyListGetStart(), MOBY_ID_TELEPORT_PAD);
@@ -400,7 +489,11 @@ void initialize(void)
   POKE_U32(0x00417200, 0x8D080060);
 
   // enable teleporter for everyone
-  POKE_U32(0x003DFD20, 0x10000006);
+  HOOK_JAL(0x003dfd18, &onHasPlayerUsedTeleporter);
+  POKE_U32(0x003dfd1c, 0x0240202D);
+  DPRINTF("%08X\n", (u32)uiMsgString(0x25f9));
+  strncpy(uiMsgString(0x25f9), "You have no pending sponsorship deals.", 41);
+  //POKE_U32(0x003DFD20, 0x10000006);
   POKE_U32(0x003DFD6C, 0x00000000);
 
   DPRINTF("path %08X end %08X\n", (u32)&MOB_PATHFINDING_PATHS, (u32)&MOB_PATHFINDING_PATHS + (MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH * MOB_PATHFINDING_NODES_COUNT * MOB_PATHFINDING_NODES_COUNT));
@@ -438,6 +531,7 @@ int main (void)
     mboxSpawn();
     bigalSpawn();
     statueSpawn();
+    bboxSpawn();
     gateSpawn(GateLocations, GateLocationsCount);
   }
 
@@ -445,6 +539,7 @@ int main (void)
   pathTick();
   upgradeTick();
   dropTick();
+  updateUnlockedBlessingSlots();
   updateBossMeter();
   updateBlessingTotems();
   updateBlessingTeleporter();

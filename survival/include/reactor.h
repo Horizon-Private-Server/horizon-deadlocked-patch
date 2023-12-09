@@ -8,6 +8,8 @@
 #define REACTOR_EXPLODE_HIT_RADIUS							(5)
 #define REACTOR_MELEE_ATTACK_RADIUS						  (5)
 
+#define REACTOR_ADD_HEALTH_PER_PLAYER           (MOB_BASE_HEALTH * 10)
+
 #define REACTOR_HIT_INV_TICKS                   (0.25 * TPS)
 
 #define REACTOR_MAX_DIST_FOR_CHARGE		          (30)

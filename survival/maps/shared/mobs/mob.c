@@ -169,7 +169,7 @@ int mobMobyProcessHitFlags(Moby* moby, Moby* hitMoby, float damage, int reactToT
   if (hitMoby == pvars->MobVars.Target) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET;
   if (mobyIsMob(hitMoby)) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_MOB;
   
-  if (player && player->timers.postHitInvinc == 0 && MapConfig.State && MapConfig.State->PlayerStates[player->PlayerId].State.ItemBlessing == BLESSING_ITEM_THORNS) {
+  if (player && player->timers.postHitInvinc == 0 && playerHasBlessing(player->PlayerId, BLESSING_ITEM_THORNS)) {
     result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER_THORNS;
     if (reactToThorns) mobReactToThorns(moby, damage, player->PlayerId);
   }

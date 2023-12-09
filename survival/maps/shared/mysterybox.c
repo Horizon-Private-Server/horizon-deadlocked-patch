@@ -214,7 +214,7 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
 
     // check if user has luck
     // pick random by weight
-    if (MapConfig.State && MapConfig.State->PlayerStates[activatedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK) {
+    if (playerHasBlessing(activatedByPlayerId, BLESSING_ITEM_LUCK)) {
       for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount-1); ++i)
       {
         float r = mboxRand();
@@ -348,7 +348,7 @@ void mboxDraw(Moby* moby)
 
   int item = pvars->Item;
   if (moby->State == MYSTERY_BOX_STATE_CYCLING_ITEMS) {
-    if (MapConfig.State && MapConfig.State->PlayerStates[pvars->ActivatedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK) {
+    if (MapConfig.State && playerHasBlessing(pvars->ActivatedByPlayerId, BLESSING_ITEM_LUCK)) {
       item = MysteryBoxItemProbabilitiesLucky[rand(MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount)].Item;
     } else {
       item = MysteryBoxItemProbabilities[rand(MysteryBoxItemMysteryBoxItemProbabilitiesCount)].Item;

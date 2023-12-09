@@ -56,6 +56,8 @@ extern struct SurvivalState State;
 GuberEvent* mobCreateEvent(Moby* moby, u32 eventType);
 void sendPlayerStats(int playerId);
 int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob);
+void playerRewardXp(int playerId, int weaponId, int xp);
+int playerHasBlessing(int playerId, int blessing);
 
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
@@ -236,6 +238,10 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
     } else if (weaponId == WEAPON_ID_ARBITER) {
       amount *= 3; // damage buff
     }
+
+    // prestige damage 2x per prestige
+    int weaponSlot = weaponIdToSlot(weaponId);
+    amount *= 1 + (2 * State.PlayerStates[pDamager->PlayerId].State.WeaponPrestige[weaponSlot]);
 	}
 
 	// determine angle
@@ -1015,12 +1021,12 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	int xp = pvars->MobVars.Config.Xp;
 
 #if DROPS
-  if (mapConfig && mapConfig->CreateMobDropFunc && !State.RoundIsSpecial || !mapConfig || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops) {
+  if (mapConfig && mapConfig->CreateMobDropFunc && (!State.RoundIsSpecial || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops)) {
     if (killedByPlayerId >= 0 && gameAmIHost()) {
       Player * killedByPlayer = players[(int)killedByPlayerId];
       if (killedByPlayer) {
         float randomValue = randRange(0.0, 1.0);
-        float probability = State.PlayerStates[(int)killedByPlayerId].State.ItemBlessing == BLESSING_ITEM_LUCK ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
+        float probability = playerHasBlessing(killedByPlayerId, BLESSING_ITEM_LUCK) ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
         if (randomValue < probability) {
           mapConfig->CreateMobDropFunc(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
         }
@@ -1051,34 +1057,23 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	}
 #endif
 
+  // shared xp
+  if (mapConfig && mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].Config.SharedXp) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* p = players[i];
+      if (p && !playerIsDead(p) && i != killedByPlayerId) {
+        playerRewardXp(i, 0, xp);
+      }
+    }
+  }
+
 	if (killedByPlayerId >= 0) {
 		Player * killedByPlayer = players[(int)killedByPlayerId];
 		struct SurvivalPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
 		GameData * gameData = gameGetData();
 
-		// give xp
-		pState->State.XP += xp * (pState->IsDoubleXP ? 2 : 1);
-		u64 targetForNextToken = getXpForNextToken(pState->State.TotalTokens);
-
-		// handle weapon xp
-		if (weaponId > 1 && killedByPlayer) {
-			int xpCount = playerGetWeaponAlphaModCount(killedByPlayer, weaponId, ALPHA_MOD_XP);
-
-      pState->State.XP += xpCount * XP_ALPHAMOD_XP;
-		}
-
-		// give tokens
-		while (pState->State.XP >= targetForNextToken)
-		{
-			pState->State.XP -= targetForNextToken;
-			pState->State.TotalTokens += 1;
-			pState->State.CurrentTokens += 1;
-			targetForNextToken = getXpForNextToken(pState->State.TotalTokens);
-
-			if (killedByPlayer->IsLocal) {
-				sendPlayerStats(killedByPlayerId);
-			}
-		} 
+    // give xp
+    playerRewardXp(killedByPlayerId, weaponId, xp);
 
 		// handle weapon jackpot
 		if (weaponId > 1 && killedByPlayer) {

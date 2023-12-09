@@ -34,6 +34,7 @@
 #include <libdl/dl.h>
 #include <libdl/utils.h>
 #include <libdl/collision.h>
+#include <libdl/radar.h>
 #include "module.h"
 #include "messageid.h"
 #include "config.h"
@@ -56,6 +57,10 @@ const char * SURVIVAL_HEALTH_GUN = "Health Gun";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x18 Revive [\x0E%d\x08]";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
+const char * SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE = "Balance \x0A%d\x08";
+const char * SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE = "\x11 Deposit \x13 Withdraw";
+const char * SURVIVAL_PRESTIGE_WEAPON_MESSAGE = "\x11 Prestige [\x0E%d\x08]";
+const char * SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE = "Your weapon is not powerful enough";
 const char * SURVIVAL_MAXED_OUT_UPGRADE_MESSAGE = "Maxed Out";
 const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
 	[UPGRADE_HEALTH] "\x11 Health Upgrade",
@@ -76,6 +81,15 @@ const char * ALPHA_MODS[] = {
 	"XP Mod",
 	"Jackpot Mod",
 	"Nanoleech Mod"
+};
+
+const char WEAPON_PRESTIGE_PREFIX[WEAPON_PRESTIGE_MAX] = {
+  [0] '\x08',
+  [1] '\x09',
+  [2] '\x0A',
+  [3] '\x0B',
+  [4] '\x0E',
+  [5] '\x0D',
 };
 
 const u8 UPGRADEABLE_WEAPONS[] = {
@@ -102,7 +116,7 @@ int UpgradeMax[] = {
 Moby* FIXEDTARGETMOBY = NULL;
 #endif
 
-char LocalPlayerStrBuffer[2][48];
+char LocalPlayerStrBuffer[2][64];
 
 int * LocalBoltCount = (int*)0x00171B40;
 
@@ -752,12 +766,14 @@ char * customGetGadgetVersionName(int localPlayerIndex, int weaponId, int showWe
 		strIdOffset = capitalize ? 12 : 10;
 
 	char* str = uiMsgString(gadgetDef[strIdOffset]);
+  int prestige = State.PlayerStates[p->PlayerId].State.WeaponPrestige[weaponIdToSlot(weaponId)];
 
 	if (level < 9 && level >= minLevel) {
-		sprintf(buf, "%s V%d", str, level+1);
+		sprintf(buf, "%c%s V%d", WEAPON_PRESTIGE_PREFIX[prestige], str, level+1);
 		return buf;
 	} else {
-		return str;
+		sprintf(buf, "%c%s", WEAPON_PRESTIGE_PREFIX[prestige], str);
+		return buf;
 	}
 }
 
@@ -792,6 +808,141 @@ void customMineMobyUpdate(Moby* moby)
 	
 	// call base
 	((void (*)(Moby*))0x003C6C28)(moby);
+}
+
+//--------------------------------------------------------------------------
+void onPlayerWithdrawnBankBox(int playerId, int bolts)
+{
+  if (!State.Bankbox) return;
+
+  struct BankBoxPVar* pvars = (struct BankBoxPVar*)State.Bankbox->PVar;
+  pvars->TotalBolts -= bolts;
+  pvars->BoltsWithdrawnThisRound += bolts;
+  State.PlayerStates[playerId].State.Bolts += bolts;
+  playPaidSound(playerGetAll()[playerId]);
+}
+
+//--------------------------------------------------------------------------
+int onPlayerWithdrawnBankBoxRemote(void * connection, void * data)
+{
+	SurvivalPlayerWithdrawnBankBoxMessage_t * message = (SurvivalPlayerWithdrawnBankBoxMessage_t*)data;
+	onPlayerWithdrawnBankBox(message->PlayerId, message->Amount);
+
+	return sizeof(SurvivalPlayerWithdrawnBankBoxMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void playerWithdrawnBankBox(int playerId, int bolts)
+{
+	SurvivalPlayerWithdrawnBankBoxMessage_t message;
+
+	// send out
+	message.PlayerId = playerId;
+  message.Amount = bolts;
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_WITHDRAWN_BANK_BOX, sizeof(SurvivalPlayerWithdrawnBankBoxMessage_t), &message);
+
+	// set locally
+	onPlayerWithdrawnBankBox(message.PlayerId, message.Amount);
+}
+
+//--------------------------------------------------------------------------
+void onPlayerInteractBankBox(int playerId, int deposit)
+{
+  if (!State.Bankbox) return;
+
+  struct BankBoxPVar* pvars = (struct BankBoxPVar*)State.Bankbox->PVar;
+  
+  if (deposit) {
+    pvars->TotalBolts += BANK_BOX_AMOUNT;
+    pvars->BoltsDepositThisRound += BANK_BOX_AMOUNT;
+  } else if (gameAmIHost() && pvars->TotalBolts > 0) {
+    int amount = pvars->TotalBolts;
+    if (amount > BANK_BOX_AMOUNT)
+      amount = BANK_BOX_AMOUNT;
+    playerWithdrawnBankBox(playerId, amount);
+  }
+}
+
+//--------------------------------------------------------------------------
+int onPlayerInteractBankBoxRemote(void * connection, void * data)
+{
+	SurvivalPlayerInteractBankBoxMessage_t * message = (SurvivalPlayerInteractBankBoxMessage_t*)data;
+	onPlayerUpgradeWeapon(message->PlayerId, message->Deposit);
+
+	return sizeof(SurvivalPlayerInteractBankBoxMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void playerInteractBankBox(Player* player, int deposit)
+{
+	SurvivalPlayerInteractBankBoxMessage_t message;
+
+	// send out
+	message.PlayerId = player->PlayerId;
+  message.Deposit = deposit;
+  if (deposit) State.PlayerStates[player->PlayerId].State.Bolts -= BANK_BOX_AMOUNT;
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_INTERACT_BANK_BOX, sizeof(SurvivalPlayerInteractBankBoxMessage_t), &message);
+
+	// set locally
+	onPlayerInteractBankBox(message.PlayerId, message.Deposit);
+}
+
+//--------------------------------------------------------------------------
+void onPlayerPrestigeWeapon(int playerId, int weaponId, int prestigeId)
+{
+  char buf[64];
+	Player* p = playerGetAll()[playerId];
+	if (!p)
+		return;
+
+	GadgetBox* gBox = p->GadgetBox;
+	gBox->Gadgets[weaponId].Level = -1;
+	playerGiveWeapon(gBox, weaponId, 0, 1);
+	if (p->Gadgets[0].pMoby && p->Gadgets[0].id == weaponId)
+		customBangelizeWeapons(p->Gadgets[0].pMoby, weaponId, 0);
+
+	// stats
+	int wepSlotId = weaponIdToSlot(weaponId);
+  State.PlayerStates[playerId].State.WeaponPrestige[wepSlotId] = prestigeId;
+
+	// play upgrade sound
+	playUpgradeSound(p);
+
+	DPRINTF("%d (%08X) weapon %d prestiged to %d\n", playerId, (u32)p, weaponId, prestigeId);
+}
+
+//--------------------------------------------------------------------------
+int onPlayerPrestigeWeaponRemote(void * connection, void * data)
+{
+	SurvivalWeaponPrestigeMessage_t * message = (SurvivalWeaponPrestigeMessage_t*)data;
+	onPlayerPrestigeWeapon(message->PlayerId, message->WeaponId, message->PrestigeId);
+
+	return sizeof(SurvivalWeaponPrestigeMessage_t);
+}
+
+//--------------------------------------------------------------------------
+int playerPrestigeWeapon(Player* player, int weaponId)
+{
+	SurvivalWeaponPrestigeMessage_t message;
+
+  int slotId = weaponIdToSlot(weaponId);
+  if (slotId <= 0) return 0;
+  int nextPrestige = State.PlayerStates[player->PlayerId].State.WeaponPrestige[slotId] + 1;
+  if (nextPrestige >= WEAPON_PRESTIGE_MAX) return 0;
+  if (player->GadgetBox->Gadgets[weaponId].Level != VENDOR_MAX_WEAPON_LEVEL) return 0;
+
+	// send out
+	message.PlayerId = player->PlayerId;
+	message.WeaponId = weaponId;
+	message.PrestigeId = nextPrestige;
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_PRESTIGE, sizeof(SurvivalWeaponPrestigeMessage_t), &message);
+
+	// set locally
+	onPlayerPrestigeWeapon(message.PlayerId, message.WeaponId, message.PrestigeId);
+
+  // some weapons stay in their v10 state until they are re-equipped
+  player->ChangeWeaponHeldId = WEAPON_ID_WRENCH;
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -1305,6 +1456,7 @@ void respawnDeadPlayers(void) {
 		
 		State.PlayerStates[i].IsDead = 0;
 		State.PlayerStates[i].ReviveCooldownTicks = 0;
+    //memset(State.PlayerStates[i].State.WeaponPrestige, 0, sizeof(State.PlayerStates[i].State.WeaponPrestige));
 	}
 }
 
@@ -1399,6 +1551,49 @@ Moby* onEmpFired(int oclass, int pvarSize, Moby* empLauncherMoby) {
 }
 
 //--------------------------------------------------------------------------
+int playerHasBlessing(int playerId, int blessing)
+{
+  int i;
+  for (i = 0; i < PLAYER_MAX_BLESSINGS; ++i) {
+    if (State.PlayerStates[playerId].State.ItemBlessings[i] == blessing) return 1;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+void playerRewardXp(int playerId, int weaponId, int xp)
+{
+  Player* player = playerGetAll()[playerId];
+  if (!player || !player->PlayerMoby) return;
+
+	struct SurvivalPlayer* pState = &State.PlayerStates[playerId];
+
+  // give xp
+  pState->State.XP += xp * (pState->IsDoubleXP ? 2 : 1);
+  u64 targetForNextToken = getXpForNextToken(pState->State.TotalTokens);
+
+  // handle weapon xp
+  if (weaponId > 1) {
+    int xpCount = playerGetWeaponAlphaModCount(player, weaponId, ALPHA_MOD_XP);
+    pState->State.XP += xpCount * XP_ALPHAMOD_XP;
+  }
+
+  // give tokens
+  while (pState->State.XP >= targetForNextToken)
+  {
+    pState->State.XP -= targetForNextToken;
+    pState->State.TotalTokens += 1;
+    pState->State.CurrentTokens += 1;
+    targetForNextToken = getXpForNextToken(pState->State.TotalTokens);
+
+    if (player->IsLocal) {
+      sendPlayerStats(playerId);
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
 void playerOnPushedIntoWall(Player* player)
 {
   if (!player || !player->SkinMoby || !player->PlayerMoby) return;
@@ -1433,7 +1628,7 @@ void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damage
       return;
 
     // only headbutt if bull blessing
-    if (State.PlayerStates[sourcePlayer->PlayerId].State.ItemBlessing != BLESSING_ITEM_BULL)
+    if (!playerHasBlessing(sourcePlayer->PlayerId, BLESSING_ITEM_BULL))
       return;
 
     hitpoints = 10 * (1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * State.PlayerStates[sourcePlayer->PlayerId].State.Upgrades[UPGRADE_DAMAGE]));
@@ -1446,12 +1641,11 @@ void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damage
 
 //--------------------------------------------------------------------------
 void playerStateUpdate(Player* player, int stateId, int a2, int a3, int t0) {
-	struct SurvivalPlayer * playerData = &State.PlayerStates[player->PlayerId];
   PlayerVTable* vtable = playerGetVTable(player);
   if (!vtable) return;
 
   // if player has bull blessing, then don't let walls stop them from cbooting
-  if (playerData->State.ItemBlessing == BLESSING_ITEM_BULL && stateId == PLAYER_STATE_JUMP_BOUNCE) {
+  if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_BULL) && stateId == PLAYER_STATE_JUMP_BOUNCE) {
     return;
   }
 
@@ -1460,13 +1654,12 @@ void playerStateUpdate(Player* player, int stateId, int a2, int a3, int t0) {
 
 //--------------------------------------------------------------------------
 void playerBlessingOnDoubleJump(Player* player, int stateId, int a2, int a3, int t0) {
-	struct SurvivalPlayer * playerData = &State.PlayerStates[player->PlayerId];
   PlayerVTable* vtable = playerGetVTable(player);
   if (!vtable) return;
 
-  if (playerData->State.ItemBlessing == BLESSING_ITEM_MULTI_JUMP
+  if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_MULTI_JUMP)
       && (player->PlayerState == PLAYER_STATE_JUMP || player->PlayerState == PLAYER_STATE_RUN_JUMP)
-      && blessingQuadJumpJumpCount[player->PlayerId] < 3) {
+      && blessingQuadJumpJumpCount[player->PlayerId] < ITEM_BLESSING_MULTI_JUMP_COUNT) {
     blessingQuadJumpJumpCount[player->PlayerId] += 1;
     vtable->UpdateState(player, PLAYER_STATE_JUMP, a2, a3, t0);
   } else {
@@ -1495,64 +1688,67 @@ int playerBlessingGetAmmoRegenAmount(int weaponId) {
 }
 
 //--------------------------------------------------------------------------
-void processPlayerBlessing(Player* player, int blessing) {
+void processPlayerBlessings(Player* player) {
   if (!player) return;
 
   // reset quad jump counter when not in first jump state
   if (player->PlayerState != PLAYER_STATE_JUMP && player->PlayerState != PLAYER_STATE_RUN_JUMP)
     blessingQuadJumpJumpCount[player->PlayerId] = 0;
 
-  switch (blessing)
-  {
-    case BLESSING_ITEM_BULL:
+  int i;
+  for (i = 0; i < State.PlayerStates[player->PlayerId].State.BlessingSlots && i < PLAYER_MAX_BLESSINGS; ++i) {
+    switch (State.PlayerStates[player->PlayerId].State.ItemBlessings[i])
     {
-      if (player->PlayerState == PLAYER_STATE_CHARGE && player->timers.state > 55 && playerPadGetButton(player, PAD_L2) > 0) {
-        player->timers.state = 55;
-      }
-      break;
-    }
-    case BLESSING_ITEM_ELEM_IMMUNITY:
-    {
-      player->timers.acidTimer = 0;
-      player->timers.freezeTimer = 0;
-      break;
-    }
-    case BLESSING_ITEM_HEALTH_REGEN:
-    {
-      if (!player->IsLocal) break;
-      if (blessingTimeBasedTickers[player->PlayerId] > 0) {
-        --blessingTimeBasedTickers[player->PlayerId];
-      } else if (!playerIsDead(player)) {
-        player->Health = clamp(player->Health + (player->MaxHealth * 0.02), 0, player->MaxHealth);
-        if (player->pNetPlayer)
-          player->pNetPlayer->pNetPlayerData->hitPoints = player->Health;
-        blessingTimeBasedTickers[player->PlayerId] = ITEM_BLESSING_HEALTH_REGEN_RATE_TPS;
-      }
-      break;
-    }
-    case BLESSING_ITEM_AMMO_REGEN:
-    {
-      if (!player->IsLocal) break;
-      if (blessingTimeBasedTickers[player->PlayerId] > 0) {
-        --blessingTimeBasedTickers[player->PlayerId];
-      } else {
-
-        VECTOR dt;
-        vector_subtract(dt, blessingLastPosition[player->PlayerId], player->PlayerPosition);
-        if (vector_sqrmag(dt) > (2*2)) {
-          struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[player->WeaponHeldId];
-          int maxAmmo = playerGetWeaponMaxAmmo(player->GadgetBox, player->WeaponHeldId);
-          int ammo = gadgetEntry->Ammo;
-          int ammoInc = (int)ceilf(maxAmmo * 0.1); //playerBlessingGetAmmoRegenAmount(player->WeaponHeldId);
-          if (ammoInc > 0 && ammo < maxAmmo) {
-            gadgetEntry->Ammo = (ammo + ammoInc) > maxAmmo ? maxAmmo : (ammo + ammoInc);
-          }
+      case BLESSING_ITEM_BULL:
+      {
+        if (player->PlayerState == PLAYER_STATE_CHARGE && player->timers.state > 55 && playerPadGetButton(player, PAD_L2) > 0) {
+          player->timers.state = 55;
         }
-
-        vector_copy(blessingLastPosition[player->PlayerId], player->PlayerPosition);
-        blessingTimeBasedTickers[player->PlayerId] = ITEM_BLESSING_AMMO_REGEN_RATE_TPS;
+        break;
       }
-      break;
+      case BLESSING_ITEM_ELEM_IMMUNITY:
+      {
+        player->timers.acidTimer = 0;
+        player->timers.freezeTimer = 0;
+        break;
+      }
+      case BLESSING_ITEM_HEALTH_REGEN:
+      {
+        if (!player->IsLocal) break;
+        if (blessingTimeBasedTickers[player->PlayerId] > 0) {
+          --blessingTimeBasedTickers[player->PlayerId];
+        } else if (!playerIsDead(player)) {
+          player->Health = clamp(player->Health + (player->MaxHealth * 0.02), 0, player->MaxHealth);
+          if (player->pNetPlayer)
+            player->pNetPlayer->pNetPlayerData->hitPoints = player->Health;
+          blessingTimeBasedTickers[player->PlayerId] = ITEM_BLESSING_HEALTH_REGEN_RATE_TPS;
+        }
+        break;
+      }
+      case BLESSING_ITEM_AMMO_REGEN:
+      {
+        if (!player->IsLocal) break;
+        if (blessingTimeBasedTickers[player->PlayerId] > 0) {
+          --blessingTimeBasedTickers[player->PlayerId];
+        } else {
+
+          VECTOR dt;
+          vector_subtract(dt, blessingLastPosition[player->PlayerId], player->PlayerPosition);
+          if (vector_sqrmag(dt) > (2*2)) {
+            struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[player->WeaponHeldId];
+            int maxAmmo = playerGetWeaponMaxAmmo(player->GadgetBox, player->WeaponHeldId);
+            int ammo = gadgetEntry->Ammo;
+            int ammoInc = (int)ceilf(maxAmmo * 0.1); //playerBlessingGetAmmoRegenAmount(player->WeaponHeldId);
+            if (ammoInc > 0 && ammo < maxAmmo) {
+              gadgetEntry->Ammo = (ammo + ammoInc) > maxAmmo ? maxAmmo : (ammo + ammoInc);
+            }
+          }
+
+          vector_copy(blessingLastPosition[player->PlayerId], player->PlayerPosition);
+          blessingTimeBasedTickers[player->PlayerId] = ITEM_BLESSING_AMMO_REGEN_RATE_TPS;
+        }
+        break;
+      }
     }
   }
 }
@@ -1636,8 +1832,8 @@ void processPlayer(int pIndex) {
   playerStates[pIndex] = player->PlayerState;
 
   // blessing
-  if (playerData->State.ItemBlessing) {
-    processPlayerBlessing(player, playerData->State.ItemBlessing);
+  if (playerData->State.BlessingSlots) {
+    processPlayerBlessings(player);
   }
 
 	if (player->IsLocal) {
@@ -1796,6 +1992,75 @@ void processPlayer(int pIndex) {
 					playerData->ActionCooldownTicks = WEAPON_MENU_COOLDOWN_TICKS;
 					playerData->IsInWeaponsMenu = 1;
 				}
+			}
+		}
+
+		// handle bank logic
+		if (State.Bankbox) {
+
+      struct BankBoxPVar* bboxPvars = (struct BankBoxPVar*)State.Bankbox->PVar;
+
+			// check distance
+			vector_subtract(t, player->PlayerPosition, State.Bankbox->Position);
+			if (vector_sqrmag(t) < (BANK_BOX_MAX_DIST * BANK_BOX_MAX_DIST) && vector_innerproduct(t, player->CameraForward) < -0.6) {
+				
+				// draw help popup
+        // pad the balance so that it always remains at the top of the popup
+        // then append the deposit/withdraw button mapping
+        char buf[32];
+        memset(LocalPlayerStrBuffer[localPlayerIndex], 0x20, sizeof(LocalPlayerStrBuffer[localPlayerIndex]) - 1);
+        sprintf(buf, SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE, bboxPvars->TotalBolts);
+        int balanceStrLen = strlen(buf);
+        int paddingLen = (40 - balanceStrLen) / 2;
+        sprintf(LocalPlayerStrBuffer[localPlayerIndex] + paddingLen, "%s", buf);
+        LocalPlayerStrBuffer[localPlayerIndex][paddingLen + balanceStrLen] = ' ';
+        sprintf(LocalPlayerStrBuffer[localPlayerIndex] + 40, "%s", SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE);
+				uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+				hasMessage = 1;
+				playerData->MessageCooldownTicks = 2;
+
+				if (padGetButtonDown(localPlayerIndex, PAD_SQUARE) > 0 && bboxPvars->TotalBolts > 0) {
+					playerInteractBankBox(player, 0);
+					playerData->ActionCooldownTicks = PLAYER_BANK_BOX_COOLDOWN_TICKS;
+				} else if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= BANK_BOX_AMOUNT) {
+					playerInteractBankBox(player, 1);
+          playPaidSound(player);
+					playerData->ActionCooldownTicks = PLAYER_BANK_BOX_COOLDOWN_TICKS;
+				}
+			}
+		}
+
+		// handle prestige logic
+		if (State.PrestigeMachine) {
+
+			// check distance
+			vector_subtract(t, player->PlayerPosition, State.PrestigeMachine->Position);
+			if (vector_sqrmag(t) < (PRESTIGE_MACHINE_MAX_DIST * PRESTIGE_MACHINE_MAX_DIST)) {
+				
+        int weaponId = player->WeaponHeldId;
+        int slotId = weaponIdToSlot(weaponId);
+        if (slotId > 0) {
+
+          int canPrestige = player->GadgetBox->Gadgets[weaponId].Level == VENDOR_MAX_WEAPON_LEVEL;
+
+          // draw help popup
+          if (canPrestige)
+            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_MESSAGE, PRESTIGE_MACHINE_COST);
+          else
+            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE);
+
+          uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+          hasMessage = 1;
+          playerData->MessageCooldownTicks = 2;
+
+          if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= PRESTIGE_MACHINE_COST) {
+            if (playerPrestigeWeapon(player, weaponId)) {
+              playerData->State.Bolts -= PRESTIGE_MACHINE_COST;
+              playerData->ActionCooldownTicks = 10;
+              playPaidSound(player);
+            }
+          }
+        }
 			}
 		}
 
@@ -1971,6 +2236,17 @@ void onSetRoundComplete(int gameTime, int boltBonus)
 			State.PlayerStates[i].State.TotalBolts += boltBonus;
 		}
 	}
+
+  // vest
+  if (State.Bankbox) {
+    struct BankBoxPVar* pvars = (struct BankBoxPVar*)State.Bankbox->PVar;
+    int vestable = pvars->BoltsAtStartOfRound - pvars->BoltsWithdrawnThisRound;
+    if (vestable < 0) vestable = 0;
+
+    DPRINTF("bank vested %d (- %d)=>%d (total %d=>%d)", pvars->BoltsAtStartOfRound, pvars->BoltsWithdrawnThisRound, (int)(vestable * (1 + BANK_VEST_FACTOR)), pvars->TotalBolts, pvars->TotalBolts + (int)(vestable * BANK_VEST_FACTOR));
+
+    pvars->TotalBolts += vestable * BANK_VEST_FACTOR;
+  }
 
 	respawnDeadPlayers();
 }
@@ -2378,6 +2654,15 @@ void resetRoundState(void)
     State.PlayerStates[i].State.TimesRevivedSinceRoundStart = 0;
   }
 
+  // reset bank
+  if (State.Bankbox) {
+    struct BankBoxPVar* bankPvars = (struct BankBoxPVar*)State.Bankbox->PVar;
+    bankPvars->BoltsAtStartOfRound = bankPvars->TotalBolts;
+    bankPvars->BoltsDepositThisRound = 0;
+    bankPvars->BoltsWithdrawnThisRound = 0;
+    DPRINTF("bank vestable bolts this round:%d\n", bankPvars->BoltsAtStartOfRound);
+  }
+
 	// 
 	if (State.RoundIsSpecial) {
 		State.RoundMaxSpawnedAtOnce = mapConfig->SpecialRoundParams[State.RoundSpecialIdx].MaxSpawnedAtOnce;
@@ -2548,6 +2833,9 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_FREEZE, &onSetFreezeRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_USE_ITEM, &onPlayerUseItemRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_WEAPON_PRESTIGE, &onPlayerPrestigeWeaponRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_INTERACT_BANK_BOX, &onPlayerInteractBankBoxRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_WITHDRAWN_BANK_BOX, &onPlayerWithdrawnBankBoxRemote);
 
 	// set game over string
 	strncpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
@@ -2689,6 +2977,13 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.BigAl = FindMobyOrSpawnBox(0, 2);
 #endif
 
+	// find prestige machine
+#if defined(PRESTIGEMACHINE_OCLASS)
+	State.PrestigeMachine = FindMobyOrSpawnBox(PRESTIGEMACHINE_OCLASS, 2);
+#else
+	State.PrestigeMachine = FindMobyOrSpawnBox(0, 2);
+#endif
+
 #if UPGRADES
 	// spawn upgrades
 	spawnUpgrades();
@@ -2699,8 +2994,10 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	spawnDemonBell();
 #endif
 
+  State.Bankbox = NULL;
 	DPRINTF("vendor %08X\n", (u32)State.Vendor);
 	DPRINTF("big al %08X\n", (u32)State.BigAl);
+	DPRINTF("prestige machine %08X\n", (u32)State.PrestigeMachine);
 
   // set vendor icon
   if (State.Vendor) {
@@ -2722,8 +3019,8 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.InitializedTime = gameGetTime();
 	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
 
-#if DEBUG
-	State.RoundNumber = 49;
+#if STARTROUND
+	State.RoundNumber = STARTROUND - 1;
 	//State.RoundIsSpecial = 1;
 	//State.RoundSpecialIdx = 4;
 
@@ -2878,7 +3175,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 #if DEBUG
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    State.PlayerStates[i].State.ItemBlessing = BLESSING_ITEM_AMMO_REGEN;
+    //State.PlayerStates[i].State.BlessingSlots = 3;
+    //State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_AMMO_REGEN;
+    //State.PlayerStates[i].State.ItemBlessings[1] = BLESSING_ITEM_MULTI_JUMP;
+    //State.PlayerStates[i].State.ItemBlessings[2] = BLESSING_ITEM_BULL;
     //State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
   }
 #endif
@@ -2901,9 +3201,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      //manSpawnMobId = 0;
+      manSpawnMobId = 0;
       //manSpawnMobId = 5;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
@@ -3055,64 +3355,69 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
         drawDreadTokenIcon(x+5, y, 32);
       }
       
-      // draw blessing
-      int itemTexId = -1;
-      int itemTexWH = 32;
-      u32 itemColor = 0x80C0C0C0;
-      switch (playerData->State.ItemBlessing)
-      {
-        case BLESSING_ITEM_MULTI_JUMP: itemTexId = 111 - 3; itemTexWH = 64; break;
-        case BLESSING_ITEM_LUCK: itemTexId = 112 - 3; itemTexWH = 64; break;
-        case BLESSING_ITEM_BULL: itemTexId = 113 - 3; itemTexWH = 64; break;
-        case BLESSING_ITEM_ELEM_IMMUNITY: itemTexId = 114 - 3; itemTexWH = 64; break;
-        case BLESSING_ITEM_HEALTH_REGEN: itemTexId = 115 - 3; itemTexWH = 64; break;
-        case BLESSING_ITEM_AMMO_REGEN: itemTexId = 116 - 3; itemTexWH = 64; break;
-        case BLESSING_ITEM_THORNS: itemTexId = 117 - 3; itemTexWH = 64; break;
-        default: break;
-      }
+      // draw blessings
+      int j;
+      for (j = playerData->State.BlessingSlots-1; j >= 0; --j) {
+        int itemTexId = -1;
+        int itemTexWH = 32;
+        u32 itemColor = 0x80C0C0C0;
+        switch (playerData->State.ItemBlessings[j])
+        {
+          case BLESSING_ITEM_MULTI_JUMP: itemTexId = 111 - 3; itemTexWH = 64; break;
+          case BLESSING_ITEM_LUCK: itemTexId = 112 - 3; itemTexWH = 64; break;
+          case BLESSING_ITEM_BULL: itemTexId = 113 - 3; itemTexWH = 64; break;
+          case BLESSING_ITEM_ELEM_IMMUNITY: itemTexId = 114 - 3; itemTexWH = 64; break;
+          case BLESSING_ITEM_HEALTH_REGEN: itemTexId = 115 - 3; itemTexWH = 64; break;
+          case BLESSING_ITEM_AMMO_REGEN: itemTexId = 116 - 3; itemTexWH = 64; break;
+          case BLESSING_ITEM_THORNS: itemTexId = 117 - 3; itemTexWH = 64; break;
+          default: break;
+        }
 
-      if (itemTexId > 0) {
-        x = 15;
-        y = SCREEN_HEIGHT - 100;
-        transformToSplitscreenPixelCoordinates(i, &x, &y);
+        if (itemTexId > 0) {
+          x = 15 + (j*20);
+          y = SCREEN_HEIGHT - 100;
+          transformToSplitscreenPixelCoordinates(i, &x, &y);
 
-        gfxSetupGifPaging(0);
-        u64 itemSprite = gfxGetFrameTex(itemTexId);
-        gfxDrawSprite(x+2, y+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
-        gfxDrawSprite(x,   y,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
-        gfxDoGifPaging();
+          gfxSetupGifPaging(0);
+          u64 itemSprite = gfxGetFrameTex(itemTexId);
+          gfxDrawSprite(x+2, y+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
+          gfxDrawSprite(x,   y,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
+          gfxDoGifPaging();
+        }
       }
 
       // draw current item
-      itemTexId = -1;
-      itemTexWH = 32;
-      char useItemChar = 0;
-      itemColor = 0x80C0C0C0;
-      switch (playerData->State.Item)
       {
-        case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
-        case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 140 - 3; useItemChar = '\x1A'; break;
-        case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN: itemTexId = 15 - 3; useItemChar = '\x1A'; break;
-        default: break;
-      }
+        int itemTexId = -1;
+        int itemTexWH = 32;
+        u32 itemColor = 0x80C0C0C0;
+        char useItemChar = 0;
+        switch (playerData->State.Item)
+        {
+          case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
+          case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 140 - 3; useItemChar = '\x1A'; break;
+          case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN: itemTexId = 15 - 3; useItemChar = '\x1A'; break;
+          default: break;
+        }
 
-      if (itemTexId > 0) {
-        x = 20;
-        y = SCREEN_HEIGHT - 50;
-        transformToSplitscreenPixelCoordinates(i, &x, &y);
+        if (itemTexId > 0) {
+          x = 20;
+          y = SCREEN_HEIGHT - 50;
+          transformToSplitscreenPixelCoordinates(i, &x, &y);
 
-        gfxSetupGifPaging(0);
-        u64 itemSprite = gfxGetFrameTex(itemTexId);
-        gfxDrawSprite(x+2, y+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
-        gfxDrawSprite(x,   y,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
-        gfxDoGifPaging();
-      }
+          gfxSetupGifPaging(0);
+          u64 itemSprite = gfxGetFrameTex(itemTexId);
+          gfxDrawSprite(x+2, y+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
+          gfxDrawSprite(x,   y,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
+          gfxDoGifPaging();
+        }
 
-      if (useItemChar) {
-        x = 5;
-        y = SCREEN_HEIGHT - 40;
-        transformToSplitscreenPixelCoordinates(i, &x, &y);
-        gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, &useItemChar, 1, 0);
+        if (useItemChar) {
+          x = 5;
+          y = SCREEN_HEIGHT - 40;
+          transformToSplitscreenPixelCoordinates(i, &x, &y);
+          gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, &useItemChar, 1, 0);
+        }
       }
     }
   }

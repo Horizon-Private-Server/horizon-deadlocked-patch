@@ -106,10 +106,11 @@ struct MobConfig {
 	float HitRadius;
   float CollRadius;
 	u16 Bangles;
-	u8 Xp;
+	u16 Xp;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 	char MobAttribute;
+  char SharedXp;
 };
 
 struct MobSpawnParams {
@@ -318,7 +319,7 @@ struct MobStateUpdateEventArgs
 struct MobSpawnEventArgs
 {
 	int Bolts;
-	u16 StartHealth;
+	int StartHealth;
 	u16 Bangles;
 	u16 SpeedEighths;
 	u16 Damage;

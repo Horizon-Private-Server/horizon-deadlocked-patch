@@ -89,6 +89,7 @@ void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, fl
 //--------------------------------------------------------------------------
 void playPaidSound(Player* player)
 {
+  if (!player) return;
   soundPlay(&PaidSoundDef, 0, player->PlayerMoby, 0, 0x400);
 }
 
@@ -287,6 +288,19 @@ Moby* playerGetTargetMoby(Player* player)
 {
   if (!player) return NULL;
   return player->SkinMoby;
+}
+
+//--------------------------------------------------------------------------
+int playerHasBlessing(int playerId, int blessing)
+{
+  if (!MapConfig.State) return 0;
+
+  int i;
+  for (i = 0; i < PLAYER_MAX_BLESSINGS; ++i) {
+    if (MapConfig.State->PlayerStates[playerId].State.ItemBlessings[i] == blessing) return 1;
+  }
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------

@@ -196,7 +196,7 @@ void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID
 
   // targeting
 	pvars->TargetVars.targetHeight = 3.5;
-  pvars->MobVars.BlipType = 5;
+  pvars->MobVars.BlipType = 6;
 
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;

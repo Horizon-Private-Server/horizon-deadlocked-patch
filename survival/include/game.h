@@ -10,6 +10,7 @@
 #include "demonbell.h"
 #include "gate.h"
 #include "mysterybox.h"
+#include "bankbox.h"
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
@@ -104,12 +105,17 @@
 #define PLAYER_KNOCKBACK_BASE_POWER						(0.4)
 #define PLAYER_KNOCKBACK_BASE_TICKS						(5)
 #define PLAYER_COLL_RADIUS          					(0.5)
+#define PLAYER_MAX_BLESSINGS                  (4)
 
 #define BIG_AL_MAX_DIST												(5)
 #define WEAPON_VENDOR_MAX_DIST								(3)
 #define WEAPON_UPGRADE_COOLDOWN_TICKS					(60)
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
+
+#define PRESTIGE_MACHINE_MAX_DIST							(5)
+#define PRESTIGE_MACHINE_COST                 (100000)
+#define WEAPON_PRESTIGE_MAX                   (6)
 
 #define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.08)
 #define PLAYER_UPGRADE_SPEED_FACTOR           (0.03)
@@ -128,6 +134,7 @@
 #define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 1)
 #define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 5)
 #define ITEM_BLESSING_THORN_DAMAGE_FACTOR     (0.2)
+#define ITEM_BLESSING_MULTI_JUMP_COUNT        (5)
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
@@ -159,7 +166,10 @@ enum GameNetMessage
 	CUSTOM_MSG_PLAYER_SET_DOUBLE_XP,
 	CUSTOM_MSG_PLAYER_SET_FREEZE,
   CUSTOM_MSG_PLAYER_USE_ITEM,
-  CUSTOM_MSG_MOB_UNRELIABLE_MSG
+  CUSTOM_MSG_MOB_UNRELIABLE_MSG,
+	CUSTOM_MSG_WEAPON_PRESTIGE,
+	CUSTOM_MSG_INTERACT_BANK_BOX,
+  CUSTOM_MSG_WITHDRAWN_BANK_BOX,
 };
 
 enum BakedSpawnpointType
@@ -249,16 +259,18 @@ struct SurvivalPlayerState
 	int TotalTokens;
 	int CurrentTokens;
   int Item;
-  int ItemBlessing;
   int BestRound;
   int TimesRolledMysteryBox;
   int TimesActivatedDemonBell;
   int TimesActivatedPower;
   int TokensUsedOnGates;
+  int BlessingSlots;
 	int KillsPerMob[MAX_MOB_SPAWN_PARAMS];
 	short DeathsByMob[MAX_MOB_SPAWN_PARAMS];
 	short Upgrades[UPGRADE_COUNT];
 	short AlphaMods[8];
+  char ItemBlessings[PLAYER_MAX_BLESSINGS];
+  char WeaponPrestige[9];
 	char BestWeaponLevel[9];
 };
 
@@ -317,6 +329,8 @@ struct SurvivalState
 	int RoundInitialized;
 	Moby* Vendor;
 	Moby* BigAl;
+  Moby* PrestigeMachine;
+  Moby* Bankbox;
 	Moby* UpgradeMobies[UPGRADE_COUNT];
   Moby* GateMobies[GATE_MAX_COUNT];
   Moby* MysteryBoxMoby;
@@ -409,6 +423,18 @@ typedef struct SurvivalRoundCompleteMessage
 	int BoltBonus;
 } SurvivalRoundCompleteMessage_t;
 
+typedef struct SurvivalPlayerWithdrawnBankBoxMessage
+{
+  int Amount;
+	char PlayerId;
+} SurvivalPlayerWithdrawnBankBoxMessage_t;
+
+typedef struct SurvivalPlayerInteractBankBoxMessage
+{
+	char PlayerId;
+	char Deposit;
+} SurvivalPlayerInteractBankBoxMessage_t;
+
 typedef struct SurvivalWeaponUpgradeMessage
 {
 	char PlayerId;
@@ -416,6 +442,13 @@ typedef struct SurvivalWeaponUpgradeMessage
 	char Level;
 	char Alphamod;
 } SurvivalWeaponUpgradeMessage_t;
+
+typedef struct SurvivalWeaponPrestigeMessage
+{
+	char PlayerId;
+	char WeaponId;
+  char PrestigeId;
+} SurvivalWeaponPrestigeMessage_t;
 
 typedef struct SurvivalRoundStartMessage
 {
