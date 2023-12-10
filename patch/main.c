@@ -2309,7 +2309,7 @@ void runFixB6EatOnDownSlope(void)
   POKE_U16(0x003B56E8, 0x30C);
 
   // increase b6 full damage range for ungrounded targets
-  POKE_U16(0x003b5700, 0x3FC0);
+  POKE_U16(0x003b5700, 0x3F80);
 }
 
 /*
