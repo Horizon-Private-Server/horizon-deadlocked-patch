@@ -894,18 +894,17 @@ void reactorDoAction(Moby* moby)
 			reactorTransAnim(moby, attack1AnimId, 0);
       moby->AnimFlags = 0x10;
 
-			float speedMult = 0.1;
+      float speedCurve = powf(clamp((20 - moby->AnimSeqT) / 2, 0, 2.5), 2);
+			float speed = MOB_BASE_SPEED * ((moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 0 && moby->AnimSeqT <= 16) ? speedCurve : 0);
 			int swingAttackReady = moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 14 && moby->AnimSeqT < 18;
 
-      if (!isInAirFromFlinching) {
-        if (target) {
-          mobTurnTowards(moby, target->Position, turnSpeed);
-          mobStand(moby);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
-        } else {
-          // stand
-          mobStand(moby);
-        }
+      if (target) {
+        mobTurnTowards(moby, target->Position, turnSpeed);
+        mobStand(moby);
+        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speed, acceleration);
+      } else {
+        // stand
+        mobStand(moby);
       }
 
 			if (swingAttackReady && damageFlags) {
@@ -1420,19 +1419,21 @@ int reactorCanAttack(struct MobPVar* pvars, enum ReactorAction action)
     }
     case REACTOR_ACTION_ATTACK_CHARGE:
     {
-      return reactorVars->AttackChargeCooldownTicks == 0;
+      // charge doesn't activate until 80% health
+      return pvars->MobVars.Health <= (pvars->MobVars.Config.MaxHealth * 0.80) && reactorVars->AttackChargeCooldownTicks == 0;
     }
     case REACTOR_ACTION_ATTACK_SHOT_WITH_TRAIL:
     {
-      return reactorVars->AttackShotWithTrailCooldownTicks == 0;
+      // trailshot doesn't activate until 60% health
+      return pvars->MobVars.Health <= (pvars->MobVars.Config.MaxHealth * 0.60) && reactorVars->AttackShotWithTrailCooldownTicks == 0;
     }
     case REACTOR_ACTION_ATTACK_SMASH:
     {
       // must have less than 10 alive
       if (MapConfig.State && MapConfig.State->MobStats.TotalAlive > 10) return 0;
       
-      // smash doesn't activate until half health
-      return pvars->MobVars.Health <= (pvars->MobVars.Config.MaxHealth * 0.5) && reactorVars->AttackSmashCooldownTicks == 0;
+      // smash doesn't activate until 40% health
+      return pvars->MobVars.Health <= (pvars->MobVars.Config.MaxHealth * 0.40) && reactorVars->AttackSmashCooldownTicks == 0;
     }
     default: return 0;
   }

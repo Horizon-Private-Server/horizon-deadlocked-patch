@@ -129,13 +129,14 @@ void trailshotDrawTrailParticles(Moby* moby)
 
   for (i = 0; i < pvars->TrailParticleCount; ++i) {
 
-    // check for player
-    
+    // check for hits
     if (CollMobysSphere_Fix(pvars->TrailParticlePositions[i], COLLISION_FLAG_IGNORE_NONE, moby->PParent, NULL, scale * 0.5) > 0) {
       Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
       Moby* hitMoby;
       while ((hitMoby = *hitMobies++)) {
-        trailshotDamage(mob, hitMoby, 0x00008801, TRAILSHOT_TRAIL_DAMAGE);
+        if (!mobyIsMob(hitMoby)) {
+          trailshotDamage(mob, hitMoby, 0x00008841, TRAILSHOT_TRAIL_DAMAGE);
+        }
       }
     }
 

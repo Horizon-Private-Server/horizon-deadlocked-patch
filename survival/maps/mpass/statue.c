@@ -120,9 +120,9 @@ void statueUpdate(Moby* moby)
 
   // enable/disable target and react vars
   if (reactorActiveMoby) {
-    moby->ModeBits |= MOBY_MODE_BIT_CAN_BE_DAMAGED; 
+    moby->ModeBits |= MOBY_MODE_BIT_CAN_BE_DAMAGED | MOBY_MODE_BIT_HAS_SPECIAL_VARS | MOBY_MODE_BIT_CAN_BE_AUTO_TARGETED; 
   } else {
-    moby->ModeBits &= ~MOBY_MODE_BIT_CAN_BE_DAMAGED;
+    moby->ModeBits &= ~(MOBY_MODE_BIT_CAN_BE_DAMAGED | MOBY_MODE_BIT_HAS_SPECIAL_VARS | MOBY_MODE_BIT_CAN_BE_AUTO_TARGETED);
   }
   
   if (moby->State == STATUE_STATE_ACTIVATED) {

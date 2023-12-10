@@ -199,6 +199,10 @@ void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
   // targeting
 	pvars->TargetVars.targetHeight = 1;
   pvars->MobVars.BlipType = 4;
+  
+#if MOB_DAMAGETYPES
+  pvars->TargetVars.damageTypes = MOB_DAMAGETYPES;
+#endif
 
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
@@ -600,12 +604,9 @@ void zombieDoAction(Moby* moby)
       int attack1AnimId = ZOMBIE_ANIM_SLAP;
 			mobTransAnim(moby, attack1AnimId, 0);
 
-			float speedMult = (moby->AnimSeqId == attack1AnimId && moby->AnimSeqT < 5) ? (difficulty * 2) : 1;
+			float speedMult = clamp((moby->AnimSeqId == attack1AnimId && moby->AnimSeqT < 5) ? (difficulty * 2) : 1, 1, 5);
 			int swingAttackReady = moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 11 && moby->AnimSeqT < 14;
 			u32 damageFlags = 0x00081801;
-
-      if (speedMult < 1)
-				speedMult = 1;
 
       if (!isInAirFromFlinching) {
         if (target) {

@@ -61,6 +61,7 @@ const char * SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE = "Balance \x0A%d\x08";
 const char * SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE = "\x11 Deposit \x13 Withdraw";
 const char * SURVIVAL_PRESTIGE_WEAPON_MESSAGE = "\x11 Prestige [\x0E%d\x08]";
 const char * SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE = "Your weapon is not powerful enough";
+const char * SURVIVAL_PRESTIGE_WEAPON_MAXED_MESSAGE = "Your weapon is too powerful";
 const char * SURVIVAL_MAXED_OUT_UPGRADE_MESSAGE = "Maxed Out";
 const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
 	[UPGRADE_HEALTH] "\x11 Health Upgrade",
@@ -83,7 +84,7 @@ const char * ALPHA_MODS[] = {
 	"Nanoleech Mod"
 };
 
-const char WEAPON_PRESTIGE_PREFIX[WEAPON_PRESTIGE_MAX] = {
+const char WEAPON_PRESTIGE_PREFIX[WEAPON_PRESTIGE_MAX+1] = {
   [0] '\x08',
   [1] '\x09',
   [2] '\x0A',
@@ -846,20 +847,20 @@ void playerWithdrawnBankBox(int playerId, int bolts)
 }
 
 //--------------------------------------------------------------------------
-void onPlayerInteractBankBox(int playerId, int deposit)
+void onPlayerInteractBankBox(int playerId, int deposit, int amount)
 {
   if (!State.Bankbox) return;
 
   struct BankBoxPVar* pvars = (struct BankBoxPVar*)State.Bankbox->PVar;
   
   if (deposit) {
-    pvars->TotalBolts += BANK_BOX_AMOUNT;
-    pvars->BoltsDepositThisRound += BANK_BOX_AMOUNT;
+    pvars->TotalBolts += amount;
+    pvars->BoltsDepositThisRound += amount;
   } else if (gameAmIHost() && pvars->TotalBolts > 0) {
-    int amount = pvars->TotalBolts;
-    if (amount > BANK_BOX_AMOUNT)
-      amount = BANK_BOX_AMOUNT;
-    playerWithdrawnBankBox(playerId, amount);
+    int withdraw = pvars->TotalBolts;
+    if (withdraw > BANK_BOX_AMOUNT)
+      withdraw = BANK_BOX_AMOUNT;
+    playerWithdrawnBankBox(playerId, withdraw);
   }
 }
 
@@ -867,7 +868,7 @@ void onPlayerInteractBankBox(int playerId, int deposit)
 int onPlayerInteractBankBoxRemote(void * connection, void * data)
 {
 	SurvivalPlayerInteractBankBoxMessage_t * message = (SurvivalPlayerInteractBankBoxMessage_t*)data;
-	onPlayerUpgradeWeapon(message->PlayerId, message->Deposit);
+	onPlayerInteractBankBox(message->PlayerId, message->Deposit, message->Amount);
 
 	return sizeof(SurvivalPlayerInteractBankBoxMessage_t);
 }
@@ -877,14 +878,20 @@ void playerInteractBankBox(Player* player, int deposit)
 {
 	SurvivalPlayerInteractBankBoxMessage_t message;
 
+  int amount = BANK_BOX_AMOUNT;
+  if (deposit && State.PlayerStates[player->PlayerId].State.Bolts < amount) {
+    amount = State.PlayerStates[player->PlayerId].State.Bolts;
+  }
+
 	// send out
 	message.PlayerId = player->PlayerId;
   message.Deposit = deposit;
-  if (deposit) State.PlayerStates[player->PlayerId].State.Bolts -= BANK_BOX_AMOUNT;
+  message.Amount = amount;
+  if (deposit) State.PlayerStates[player->PlayerId].State.Bolts -= amount;
 	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_INTERACT_BANK_BOX, sizeof(SurvivalPlayerInteractBankBoxMessage_t), &message);
 
 	// set locally
-	onPlayerInteractBankBox(message.PlayerId, message.Deposit);
+	onPlayerInteractBankBox(message.PlayerId, message.Deposit, message.Amount);
 }
 
 //--------------------------------------------------------------------------
@@ -928,7 +935,7 @@ int playerPrestigeWeapon(Player* player, int weaponId)
   int slotId = weaponIdToSlot(weaponId);
   if (slotId <= 0) return 0;
   int nextPrestige = State.PlayerStates[player->PlayerId].State.WeaponPrestige[slotId] + 1;
-  if (nextPrestige >= WEAPON_PRESTIGE_MAX) return 0;
+  if (nextPrestige > WEAPON_PRESTIGE_MAX) return 0;
   if (player->GadgetBox->Gadgets[weaponId].Level != VENDOR_MAX_WEAPON_LEVEL) return 0;
 
 	// send out
@@ -1400,6 +1407,12 @@ void setFreeze(int isActive)
 
 	// locally
 	onSetFreeze(isActive);
+}
+
+//--------------------------------------------------------------------------
+int getWeaponPrestigeCost(int prestigeLevel)
+{
+  return PRESTIGE_MACHINE_BASE_COST + (PRESTIGE_MACHINE_COST_PER_LEVEL * prestigeLevel);
 }
 
 //--------------------------------------------------------------------------
@@ -2022,7 +2035,7 @@ void processPlayer(int pIndex) {
 				if (padGetButtonDown(localPlayerIndex, PAD_SQUARE) > 0 && bboxPvars->TotalBolts > 0) {
 					playerInteractBankBox(player, 0);
 					playerData->ActionCooldownTicks = PLAYER_BANK_BOX_COOLDOWN_TICKS;
-				} else if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= BANK_BOX_AMOUNT) {
+				} else if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts > 0) {
 					playerInteractBankBox(player, 1);
           playPaidSound(player);
 					playerData->ActionCooldownTicks = PLAYER_BANK_BOX_COOLDOWN_TICKS;
@@ -2042,10 +2055,14 @@ void processPlayer(int pIndex) {
         if (slotId > 0) {
 
           int canPrestige = player->GadgetBox->Gadgets[weaponId].Level == VENDOR_MAX_WEAPON_LEVEL;
+          int maxPrestige = playerData->State.WeaponPrestige[slotId] >= WEAPON_PRESTIGE_MAX;
+          int cost = getWeaponPrestigeCost(playerData->State.WeaponPrestige[slotId]);
 
           // draw help popup
-          if (canPrestige)
-            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_MESSAGE, PRESTIGE_MACHINE_COST);
+          if (maxPrestige)
+            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_MAXED_MESSAGE);
+          else if (canPrestige)
+            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_MESSAGE, cost);
           else
             sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE);
 
@@ -2053,9 +2070,9 @@ void processPlayer(int pIndex) {
           hasMessage = 1;
           playerData->MessageCooldownTicks = 2;
 
-          if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= PRESTIGE_MACHINE_COST) {
+          if (!maxPrestige && canPrestige && padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts >= cost) {
             if (playerPrestigeWeapon(player, weaponId)) {
-              playerData->State.Bolts -= PRESTIGE_MACHINE_COST;
+              playerData->State.Bolts -= cost;
               playerData->ActionCooldownTicks = 10;
               playPaidSound(player);
             }
@@ -3024,10 +3041,24 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	//State.RoundIsSpecial = 1;
 	//State.RoundSpecialIdx = 4;
 
+#if !PAYDAY
+  for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
+    State.PlayerStates[j].State.Bolts = 10000;
+    State.PlayerStates[j].State.XP = 1500;
+  }
+#endif
+
   // 
 	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
   for (i = 0; i < State.RoundNumber; ++i) {
     State.MobStats.TotalSpawned += MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(i * State.Difficulty * playerCountMultiplier, 0.75)));
+    
+#if !PAYDAY
+    for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
+      State.PlayerStates[j].State.Bolts *= 1.225;
+      State.PlayerStates[j].State.XP *= 1.225;
+    }
+#endif
   }
 
   DPRINTF("Skipped to Round #%d with %d mobs spawned\n", State.RoundNumber + 1, State.MobStats.TotalSpawned);
@@ -3426,6 +3457,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
   if (padGetButton(0, PAD_CROSS)) {
     *(float*)0x00347BD8 = 0.125;
   }
+
+  //State.PlayerStates[0].State.Upgrades[UPGRADE_SPEED] = 30;
 #endif
 
 #if FIXEDTARGET

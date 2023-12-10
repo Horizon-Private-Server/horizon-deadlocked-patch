@@ -238,7 +238,6 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
       item = MysteryBoxItemProbabilities[i].Item;
     }
 
-    item = MYSTERY_BOX_ITEM_QUAD;
     int random = rand(100);
 
     guberEventWrite(guberEvent, &activatedByPlayerId, 4);

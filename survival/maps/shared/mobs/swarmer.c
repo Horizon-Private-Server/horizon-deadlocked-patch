@@ -212,6 +212,10 @@ void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
 	pvars->TargetVars.targetHeight = 1;
   pvars->MobVars.BlipType = 4;
 
+#if MOB_DAMAGETYPES
+  pvars->TargetVars.damageTypes = MOB_DAMAGETYPES;
+#endif
+
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
 }

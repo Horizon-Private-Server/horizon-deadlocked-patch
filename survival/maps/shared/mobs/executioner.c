@@ -198,6 +198,10 @@ void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID
 	pvars->TargetVars.targetHeight = 3.5;
   pvars->MobVars.BlipType = 6;
 
+#if MOB_DAMAGETYPES
+  pvars->TargetVars.damageTypes = MOB_DAMAGETYPES;
+#endif
+
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
 }

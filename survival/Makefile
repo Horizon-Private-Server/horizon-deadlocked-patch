@@ -8,7 +8,7 @@ EE_INCS := -I../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := RELEASE
+BUILD_CONFIG := DEBUG
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
@@ -28,7 +28,7 @@ BUILD_CONFIG := RELEASE
 #		UPGRADES							When enabled, spawns the player upgrade mobies around the map.
 #		PRINT_MOB_COMPLEXITY	When enabled, draws "complexity" number as sum of drawn mobs
 
-ifeq ($(BUILD_CONFIG),DEBUG)
+ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DDEBUG -DMOB_CORN
 EE_DEFS += -DDROPS -DUPGRADES -DDEMONBELL -DSHARED_BOLTS
 EE_DEFS += -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643
@@ -50,6 +50,7 @@ EE_DEFS += -DPAYDAY
 #EE_DEFS += -DLOG_STATS2
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643 -DDROPS -DUPGRADES -DDEMONBELL -DSHARED_BOLTS
+EE_DEFS += -DSTARTROUND=18
 endif
 
 .PHONY: all maps orxon mpass

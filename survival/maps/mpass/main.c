@@ -2,7 +2,7 @@
  * FILENAME :		main.c
  * 
  * DESCRIPTION :
- * 		Custom map logic for Survival V2's Orxon.
+ * 		Custom map logic for Survival V2's Mountain Pass.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -105,13 +105,13 @@ const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
 // blessings
 const char * INTERACT_BLESSING_MESSAGE = "\x11 %s";
 const char* BLESSING_NAMES[] = {
-  [BLESSING_ITEM_MULTI_JUMP]      "NBA Sponsorship",
-  [BLESSING_ITEM_LUCK]            "Vox Industries Sponsorship",
-  [BLESSING_ITEM_BULL]            "Texas Longhorns Sponsorship",
+  [BLESSING_ITEM_MULTI_JUMP]      "Blessing of the Hare",
+  [BLESSING_ITEM_LUCK]            "Blessing of the Clover",
+  [BLESSING_ITEM_BULL]            "Blessing of the Bull",
   //[BLESSING_ITEM_ELEM_IMMUNITY] "Blessing of Corrosion",
-  [BLESSING_ITEM_THORNS]          "Courtney Gears Sponsorship",
-  [BLESSING_ITEM_HEALTH_REGEN]    "Nanotech Sponsorship",
-  [BLESSING_ITEM_AMMO_REGEN]      "Gadgetron Sponsorship",
+  [BLESSING_ITEM_THORNS]          "Blessing of the Rose",
+  [BLESSING_ITEM_HEALTH_REGEN]    "Blessing of Vitality",
+  [BLESSING_ITEM_AMMO_REGEN]      "Blessing of the Hunt",
 };
 
 const char* BLESSING_DESCRIPTIONS[BLESSING_ITEM_COUNT] = {
@@ -436,12 +436,9 @@ void bboxSpawn(void)
     return;
 
   // spawn
-  if (gameAmIHost()) {
-
-    VECTOR p = {582.43,792.27,501.0247,0};
-    VECTOR r = {0,0,(75 + 90) * MATH_DEG2RAD,0};
-    bboxCreate(p, r);
-  }
+  VECTOR p = {582.43,792.27,501.0247,0};
+  VECTOR r = {0,0,(75 + 90) * MATH_DEG2RAD,0};
+  bboxCreate(p, r);
 
   spawned = 1;
 }
@@ -491,8 +488,7 @@ void initialize(void)
   // enable teleporter for everyone
   HOOK_JAL(0x003dfd18, &onHasPlayerUsedTeleporter);
   POKE_U32(0x003dfd1c, 0x0240202D);
-  DPRINTF("%08X\n", (u32)uiMsgString(0x25f9));
-  strncpy(uiMsgString(0x25f9), "You have no pending sponsorship deals.", 41);
+  strncpy(uiMsgString(0x25f9), "The gods have blessed you plenty.", 34);
   //POKE_U32(0x003DFD20, 0x10000006);
   POKE_U32(0x003DFD6C, 0x00000000);
 

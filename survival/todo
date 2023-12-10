@@ -195,4 +195,15 @@ Fix reaper aggroing wrong target
 Fix bolt counter for locals
 Fix weapons menu for locals
 ++Add additional blessing slots, each time you beat reactor
-Add weapon prestige machine
+++Add weapon prestige machine
++-Fix reactor trailshot slope around statues
+++Nerf vipers
+++Nerf arbiter
+++Increase cost of prestige each time
+++Fix reactor going around sloped walls
+++Move reactor attacks to 75% health, 50% health, etc
+Break up solo/coop runs in leaderboard
+Lower survival leaderboard xp rate (even less for coop)
+++Fix not moving mobs still respawning even if at target
+++Add lunge to reactor swing
+++Adjust probability for quad/shield with luck

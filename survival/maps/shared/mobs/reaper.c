@@ -195,6 +195,10 @@ void reaperOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
 	pvars->TargetVars.targetHeight = 1;
   pvars->MobVars.BlipType = 4;
 
+#if MOB_DAMAGETYPES
+  pvars->TargetVars.damageTypes = MOB_DAMAGETYPES;
+#endif
+
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
 }
@@ -645,12 +649,9 @@ void reaperDoAction(Moby* moby)
       int attack1AnimId = REAPER_ANIM_SWING;
 			mobTransAnim(moby, attack1AnimId, 0);
 
-			float speedMult = (moby->AnimSeqId == attack1AnimId && moby->AnimSeqT < 5) ? (difficulty * 2) : 1;
+			float speedMult = clamp((moby->AnimSeqId == attack1AnimId && moby->AnimSeqT < 5) ? (difficulty * 2) : 1, 1, 5);
 			int swingAttackReady = moby->AnimSeqId == attack1AnimId && moby->AnimSeqT >= 14 && moby->AnimSeqT < 17;
 			u32 damageFlags = 0x00081801;
-
-      if (speedMult < 1)
-				speedMult = 1;
 
       if (target) {
         mobTurnTowards(moby, target->Position, turnSpeed);

@@ -89,6 +89,8 @@ void bubbleTick(void)
   for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i) {
     if (damageBubbles[i].Life) {
 
+      damageBubbles[i].Life--;
+      damageBubbles[i].Position[2] += 1*MATH_DT;
       if (!damageBubbles[i].IsLocal) {
         vector_subtract(dt, damageBubbles[i].Position, camera->pos);
         if (vector_sqrmag(dt) > (BUBBLE_MAX_NONLOCAL_DIST*BUBBLE_MAX_NONLOCAL_DIST)) continue;
@@ -98,11 +100,7 @@ void bubbleTick(void)
         snprintf(buf, sizeof(buf), "%d", damageBubbles[i].Damage);
         scale = bubbleGetScale(&damageBubbles[i]);
         gfxScreenSpaceText(x, y, scale, scale, bubbleGetColor(damageBubbles[i].Damage, damageBubbles[i].Life), buf, -1, 4);
-
-        damageBubbles[i].Position[2] += 1*MATH_DT;
       }
-
-      damageBubbles[i].Life--;
     }
   }
 }

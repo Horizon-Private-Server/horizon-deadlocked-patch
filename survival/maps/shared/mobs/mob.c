@@ -415,7 +415,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   VECTOR delta, horizontalDelta, reflectedDelta;
   VECTOR hitTo, hitFrom;
-  VECTOR hitToEx, hitNormal;
+  VECTOR hitToEx, hitNormal, hitToExBack;
   VECTOR up = {0,0,0,0};
   float collRadius = pvars->MobVars.Config.CollRadius;
   if (!pvars)
@@ -425,6 +425,10 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
   // we have to alternate because when many mobs are in one space
   // collision checks against all of them become extremely expensive
   int collFlag = (mobMoveCheckCollideWithOtherMobsRotatingIndex == pvars->MobVars.Order) ? COLLISION_FLAG_IGNORE_NONE : COLLISION_FLAG_IGNORE_DYNAMIC;
+
+  // if we're stuck, ignore other mobs and just try and get unstuck
+  if (pvars->MobVars.MoveVars.IsStuck)
+    collFlag = COLLISION_FLAG_IGNORE_DYNAMIC;
 
   // move up by collradius
   up[2] = collRadius; // 0.5;
@@ -445,9 +449,10 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 
   // move to further out to factor in the radius of the mob
   vector_normalize(hitToEx, delta);
-  vector_scale(hitToEx, hitToEx, pvars->MobVars.Config.CollRadius);
+  vector_scale(hitToExBack, hitToEx, collRadius);
+  vector_scale(hitToEx, hitToEx, collRadius * (1 + 0.25 * pvars->MobVars.MoveVars.StuckCounter));
   vector_add(hitTo, hitTo, hitToEx);
-  vector_subtract(hitFrom, hitFrom, hitToEx);
+  vector_subtract(hitFrom, hitFrom, hitToExBack);
 
   // check if we hit something
   if (CollLine_Fix(hitFrom, hitTo, collFlag, moby, NULL)) {
@@ -455,7 +460,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
 
     // compute wall slope
-    pvars->MobVars.MoveVars.WallSlope = getSignedSlope(horizontalDelta, hitNormal);
+    pvars->MobVars.MoveVars.WallSlope = maxf(pvars->MobVars.MoveVars.WallSlope, getSignedSlope(horizontalDelta, hitNormal));
     pvars->MobVars.MoveVars.HitWall = 1;
 
     // check if we hit another mob
@@ -473,6 +478,13 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     // then we want to snap back before to
     vector_subtract(to, CollLine_Fix_GetHitPosition(), up);
     
+    // stop if hit steep wall
+    if (pvars->MobVars.MoveVars.WallSlope > (60 * MATH_DEG2RAD)) {
+      vector_projectonhorizontal(hitToEx, hitToEx);
+      vector_subtract(outputPos, to, hitToEx);
+      return 2;
+    }
+
     //vector_projectonhorizontal(hitToEx, hitToEx);
     vector_reflect(reflectedDelta, hitToEx, hitNormal);
     //if (reflectedDelta[2] > delta[2])
@@ -483,15 +495,6 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 #if DEBUGMOVE
     vector_copy(MoveCheckFinal, outputPos);
 #endif
-    return 1;
-
-    // reflect velocity on hit normal and add back to starting position
-    vector_reflect(reflectedDelta, delta, hitNormal);
-    //vectorProjectOnHorizontal(delta, delta);
-    if (reflectedDelta[2] > delta[2])
-      reflectedDelta[2] = delta[2];
-
-    vector_add(outputPos, to, reflectedDelta);
     return 1;
   }
 
@@ -582,14 +585,15 @@ void mobMove(Moby* moby)
       vector_add(nextPos, moby->Position, targetVelocity);
 
       // move physics check twice to prevent clipping walls
-      if (mobMoveCheck(moby, nextPos, moby->Position, nextPos)) {
+      if (mobMoveCheck(moby, nextPos, moby->Position, nextPos) == 1) {
         if (mobMoveCheck(moby, nextPos, moby->Position, nextPos)) {
           vector_copy(nextPos, moby->Position); // don't move
+          pvars->MobVars.MoveVars.IsStuck = 1;
         }
       }
 
       // check ground or ceiling
-      isMovingDown = vector_innerproduct(targetVelocity, up) < 0;
+      isMovingDown = targetVelocity[2] <= 0.0001;
       if (isMovingDown) {
         vector_copy(groundCheckFrom, nextPos);
         groundCheckFrom[2] = maxf(moby->Position[2], nextPos[2]) + ZOMBIE_BASE_STEP_HEIGHT;
