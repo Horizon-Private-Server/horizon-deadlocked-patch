@@ -249,15 +249,19 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	if (mobAmIOwner(moby))
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
+    float powerFactor = TREMOR_FLINCH_PROBABILITY_PWR_FACTOR * e->Knockback.Power;
+    float probability = (damageRatio * TREMOR_FLINCH_PROBABILITY) + powerFactor;
     if (canFlinch) {
-      if (isShock) {
-        mobSetAction(moby, TREMOR_ACTION_FLINCH);
-      }
-      else if (e->Knockback.Force || randRangeInt(0, 10) < e->Knockback.Power) {
+      if (e->Knockback.Force) {
         mobSetAction(moby, TREMOR_ACTION_BIG_FLINCH);
-      }
-      else if (randRange(0, 1) < (TREMOR_FLINCH_PROBABILITY * damageRatio)) {
+      } else if (isShock) {
         mobSetAction(moby, TREMOR_ACTION_FLINCH);
+      } else if (randRange(0, 1) < probability) {
+        if (randRange(0, 1) < powerFactor) {
+          mobSetAction(moby, TREMOR_ACTION_BIG_FLINCH);
+        } else {
+          mobSetAction(moby, TREMOR_ACTION_FLINCH);
+        }
       }
     }
 	}
@@ -408,7 +412,7 @@ void tremorDoAction(Moby* moby)
       mobTransAnim(moby, animFlinchId, 0);
       
 			if (pvars->MobVars.Knockback.Ticks > 0) {
-				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
+				float power = PLAYER_KNOCKBACK_BASE_POWER;
 				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
 				t[2] = 1.0;
 				vector_scale(t, t, power * 2 * MATH_DT);

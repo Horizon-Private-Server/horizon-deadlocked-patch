@@ -93,6 +93,14 @@ const char WEAPON_PRESTIGE_PREFIX[WEAPON_PRESTIGE_MAX+1] = {
   [5] '\x0D',
 };
 
+const int WEAPON_PRESTIGE_COST[WEAPON_PRESTIGE_MAX] = {
+  [0] 100000,
+  [1] 200000,
+  [2] 400000,
+  [3] 800000,
+  [4] 1600000,
+};
+
 const u8 UPGRADEABLE_WEAPONS[] = {
 	WEAPON_ID_VIPERS,
 	WEAPON_ID_MAGMA_CANNON,
@@ -104,10 +112,16 @@ const u8 UPGRADEABLE_WEAPONS[] = {
 	WEAPON_ID_FLAIL
 };
 
+char UpgradesEnabled[] = {
+  UPGRADE_HEALTH,
+  UPGRADE_SPEED,
+  UPGRADE_DAMAGE
+};
+
 int UpgradeMax[] = {
 	[UPGRADE_HEALTH] 1000,
-	[UPGRADE_SPEED] 33,
-	[UPGRADE_DAMAGE] 100,
+	[UPGRADE_SPEED] 1000,
+	[UPGRADE_DAMAGE] 1000,
 	[UPGRADE_MEDIC] 16,
 	[UPGRADE_VENDOR] 16,
 	[UPGRADE_PICKUPS] 33,
@@ -596,8 +610,11 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   // scale config by round
   if (isBaseConfig) {
     //printf("1 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
-    damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
-    speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
+    //damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
+    //speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
+    
+    damage = damage * (1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)));
+    speed = speed * (1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)));
     health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
     //printf("2 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
   }
@@ -615,7 +632,7 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   output->SpawnParamsIdx = spawnParamsIdx;
   output->Bolts = (config->Bolts + randRangeInt(-50, 50)) * BOLT_TAX[(int)gs->PlayerCount];
   output->Xp = config->Xp;
-  output->StartHealth = (u16)health;
+  output->StartHealth = health;
   output->Bangles = (u16)config->Bangles;
   output->Damage = (u16)damage;
   output->AttackRadiusEighths = (u8)(config->AttackRadius * 8);
@@ -1412,7 +1429,7 @@ void setFreeze(int isActive)
 //--------------------------------------------------------------------------
 int getWeaponPrestigeCost(int prestigeLevel)
 {
-  return PRESTIGE_MACHINE_BASE_COST + (PRESTIGE_MACHINE_COST_PER_LEVEL * prestigeLevel);
+  return WEAPON_PRESTIGE_COST[prestigeLevel];
 }
 
 //--------------------------------------------------------------------------
@@ -2606,13 +2623,14 @@ void spawnUpgrades(void)
 	}
 
 	// spawn
-	for (i = 0; i < UPGRADE_COUNT; ++i) {
-		int bakedSpIdx = upgradeBakedSpawnpointIdx[i];
+	for (i = 0; i < sizeof(UpgradesEnabled); ++i) {
+    int upgradeId = UpgradesEnabled[i];
+		int bakedSpIdx = upgradeBakedSpawnpointIdx[upgradeId];
 		if (bakedSpIdx < 0)
 			continue;
 
     // don't spawn medic on solo runs
-    if (State.ActivePlayerCount == 1 && i == UPGRADE_MEDIC)
+    if (State.ActivePlayerCount == 1 && upgradeId == UPGRADE_MEDIC)
       continue;
 
 		SurvivalBakedSpawnpoint_t* sp = &BakedConfig.BakedSpawnPoints[bakedSpIdx];
@@ -2621,7 +2639,7 @@ void spawnUpgrades(void)
 
     // spawn
     if (mapConfig && mapConfig->CreateUpgradePickupFunc)
-		  mapConfig->CreateUpgradePickupFunc(pos, rot, i);
+		  mapConfig->CreateUpgradePickupFunc(pos, rot, upgradeId);
 	}
 }
 
@@ -3232,7 +3250,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			static int manSpawnMobId = 0;
 
       // force one mob type
-      manSpawnMobId = 0;
+      //manSpawnMobId = 0;
       //manSpawnMobId = 5;
 			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
 
@@ -3378,7 +3396,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       // draw dread tokens
       {
         x = 457;
-        y = 114;
+        y = 54;
         transformToSplitscreenPixelCoordinates(i, &x, &y);
         snprintf(buffer, 32, "%d", playerData->State.CurrentTokens);
         gfxScreenSpaceText(x+2, y+8+2, 1, 1, 0x40000000, buffer, -1, 2);

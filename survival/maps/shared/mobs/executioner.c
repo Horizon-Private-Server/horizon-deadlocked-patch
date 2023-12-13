@@ -260,15 +260,19 @@ void executionerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	if (mobAmIOwner(moby))
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
+    float powerFactor = EXECUTIONER_FLINCH_PROBABILITY_PWR_FACTOR * e->Knockback.Power;
+    float probability = (damageRatio * EXECUTIONER_FLINCH_PROBABILITY) + powerFactor;
     if (canFlinch) {
-      if (isShock) {
-        mobSetAction(moby, EXECUTIONER_ACTION_FLINCH);
-      }
-      else if (e->Knockback.Force || randRangeInt(0, 10) < e->Knockback.Power) {
+      if (e->Knockback.Force) {
         mobSetAction(moby, EXECUTIONER_ACTION_BIG_FLINCH);
-      }
-      else if (randRange(0, 1) < (EXECUTIONER_FLINCH_PROBABILITY * damageRatio)) {
+      } else if (isShock) {
         mobSetAction(moby, EXECUTIONER_ACTION_FLINCH);
+      } else if (randRange(0, 1) < probability) {
+        if (randRange(0, 1) < powerFactor) {
+          mobSetAction(moby, EXECUTIONER_ACTION_BIG_FLINCH);
+        } else {
+          mobSetAction(moby, EXECUTIONER_ACTION_FLINCH);
+        }
       }
     }
 	}
@@ -420,7 +424,7 @@ void executionerDoAction(Moby* moby)
       mobTransAnim(moby, animFlinchId, 0);
       
 			if (pvars->MobVars.Knockback.Ticks > 0) {
-				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
+				float power = PLAYER_KNOCKBACK_BASE_POWER;
 				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
 				t[2] = 1.0;
 				vector_scale(t, t, power * 1 * MATH_DT);

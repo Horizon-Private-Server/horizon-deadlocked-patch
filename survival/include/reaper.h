@@ -27,7 +27,8 @@
 #define REAPER_MAX_COLL_RADIUS								(4)
 #define REAPER_AMBSND_MIN_COOLDOWN_TICKS    	(60 * 2)
 #define REAPER_AMBSND_MAX_COOLDOWN_TICKS    	(60 * 3)
-#define REAPER_FLINCH_PROBABILITY             (1.0)
+#define REAPER_FLINCH_PROBABILITY             (0.75)
+#define REAPER_FLINCH_PROBABILITY_PWR_FACTOR  (0.05)
 
 enum ReaperAnimId
 {

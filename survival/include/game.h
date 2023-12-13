@@ -68,9 +68,9 @@
 #define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 1)
 
 #define MOB_BASE_DAMAGE										    (10)
-#define MOB_BASE_DAMAGE_SCALE                 (0.02*1)
+#define MOB_BASE_DAMAGE_SCALE                 (0.04*1)
 #define MOB_BASE_SPEED											  (3)
-#define MOB_BASE_SPEED_SCALE                  (0.03*1)
+#define MOB_BASE_SPEED_SCALE                  (0.05*1)
 #define MOB_BASE_HEALTH										    (30)
 #define MOB_BASE_HEALTH_SCALE                 (0.05*1)
 
@@ -102,7 +102,7 @@
 #define PLAYER_REVIVE_COST_PER_ROUND					(0)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
 #define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
-#define PLAYER_KNOCKBACK_BASE_POWER						(0.4)
+#define PLAYER_KNOCKBACK_BASE_POWER						(1.5)
 #define PLAYER_KNOCKBACK_BASE_TICKS						(5)
 #define PLAYER_COLL_RADIUS          					(0.5)
 #define PLAYER_MAX_BLESSINGS                  (4)

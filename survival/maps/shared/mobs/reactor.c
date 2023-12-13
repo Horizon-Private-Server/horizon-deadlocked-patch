@@ -432,11 +432,19 @@ void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	if (mobAmIOwner(moby))
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
+    float powerFactor = REACTOR_FLINCH_PROBABILITY_PWR_FACTOR * e->Knockback.Power;
+    float probability = (damageRatio * REACTOR_FLINCH_PROBABILITY) + powerFactor;
     if (canFlinch) {
-      if (e->Knockback.Force || randRangeInt(0, 50) < e->Knockback.Power) {
+      if (e->Knockback.Force) {
         mobSetAction(moby, REACTOR_ACTION_BIG_FLINCH);
-      } else if (randRange(0, 1) < (REACTOR_FLINCH_PROBABILITY * damageRatio)) {
+      } else if (isShock) {
         mobSetAction(moby, REACTOR_ACTION_FLINCH);
+      } else if (randRange(0, 1) < probability) {
+        if (randRange(0, 1) < powerFactor) {
+          mobSetAction(moby, REACTOR_ACTION_BIG_FLINCH);
+        } else {
+          mobSetAction(moby, REACTOR_ACTION_FLINCH);
+        }
       }
     }
 	}
@@ -749,7 +757,7 @@ void reactorDoAction(Moby* moby)
       reactorTransAnim(moby, nextAnimId, 0);
       
 			if (pvars->MobVars.Knockback.Ticks > 0) {
-				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
+				float power = PLAYER_KNOCKBACK_BASE_POWER;
 				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
 				t[2] = 1.0;
 				vector_scale(t, t, power * 1 * MATH_DT);
@@ -1036,10 +1044,10 @@ void reactorDoAction(Moby* moby)
 			}
 
 			if (attackCanDoChargeDamage && damageFlags) {
-				reactorDoChargeDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage * 2, damageFlags, 0);
+				reactorDoChargeDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage * 1.2, damageFlags, 0);
 			}
       if (attackCanDoSwingDamage && damageFlags) {
-				reactorDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage * 1.5, damageFlags, 0);
+				reactorDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);
 			}
 			break;
 		}

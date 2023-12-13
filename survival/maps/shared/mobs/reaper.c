@@ -262,15 +262,19 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     float pFactor = reaperVars->AggroTriggered ? 0.5 : 1;
+    float powerFactor = REAPER_FLINCH_PROBABILITY_PWR_FACTOR * e->Knockback.Power;
+    float probability = (pFactor * damageRatio * REAPER_FLINCH_PROBABILITY) + powerFactor;
     if (canFlinch) {
-      if (isShock) {
-        mobSetAction(moby, REAPER_ACTION_FLINCH);
-      }
-      else if (e->Knockback.Force || randRangeInt(0, 10 / pFactor) < e->Knockback.Power) {
+      if (e->Knockback.Force) {
         mobSetAction(moby, REAPER_ACTION_BIG_FLINCH);
-      }
-      else if (randRange(0, 1) < (REAPER_FLINCH_PROBABILITY * pFactor * damageRatio)) {
+      } else if (isShock) {
         mobSetAction(moby, REAPER_ACTION_FLINCH);
+      } else if (randRange(0, 1) < probability) {
+        if (randRange(0, 1) < powerFactor) {
+          mobSetAction(moby, REAPER_ACTION_BIG_FLINCH);
+        } else {
+          mobSetAction(moby, REAPER_ACTION_FLINCH);
+        }
       }
     }
 	}
@@ -477,7 +481,7 @@ void reaperDoAction(Moby* moby)
       mobTransAnim(moby, animFlinchId, 0);
       
 			if (pvars->MobVars.Knockback.Ticks > 0) {
-				float power = PLAYER_KNOCKBACK_BASE_POWER * pvars->MobVars.Knockback.Power;
+				float power = PLAYER_KNOCKBACK_BASE_POWER;
 				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
 				t[2] = 1.0;
 				vector_scale(t, t, power * 2 * MATH_DT);
