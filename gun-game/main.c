@@ -442,8 +442,8 @@ void onPlayerKill(char * fragMsg)
 	((void (*)(char*))0x00621CF8)(fragMsg);
 
 	char weaponId = fragMsg[3];
-	char killedPlayerId = fragMsg[2];
-	char sourcePlayerId = fragMsg[0];
+	int killedPlayerId = fragMsg[2];
+	int sourcePlayerId = fragMsg[0];
 
 	if (sourcePlayerId >= 0 && killedPlayerId >= 0 && weaponId == WEAPON_ID_WRENCH) {
 		if (PlayerGunGameStates[killedPlayerId].GunIndex > 0) {
