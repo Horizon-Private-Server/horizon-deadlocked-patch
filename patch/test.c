@@ -14,8 +14,10 @@
 #include <libdl/color.h>
 #include <libdl/utils.h>
 #include "messageid.h"
+#include "config.h"
 
 extern int isUnloading;
+extern PatchGameConfig_t gameConfig;
 
 /*
 typedef struct BaseShotSpawnMessage
@@ -862,6 +864,24 @@ void runB6HitVisualizer(void)
   }
 }
 
+void drawPositionYaw(void)
+{
+  if (isInGame()) {
+    Player * p = playerGetFromSlot(0);
+
+    if (padGetButtonDown(0, PAD_UP) > 0) {
+      p->PlayerState = PLAYER_STATE_WAIT_FOR_RESURRECT;
+      p->timers.resurrectWait = 1;
+    }
+
+    if (p) {
+      char buf[64];
+      sprintf(buf, "%.2f %.2f %.2f   %.3f", p->PlayerPosition[0], p->PlayerPosition[1], p->PlayerPosition[2], p->PlayerRotation[2]);
+      gfxScreenSpaceText(15, SCREEN_HEIGHT - 40, 1, 1, 0x80FFFFFF, buf, -1, 0);
+    }
+  }
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -869,6 +889,9 @@ void runTestLogic(void)
   //runHitmarkerLogic();
 
   //runAllow4Locals();
+
+  gameConfig.grBetterFlags = 1;
+  drawPositionYaw();
   return;
 
   //runSystemTime();

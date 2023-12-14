@@ -216,6 +216,125 @@ SpawnPoint BetterHillPoints[] = {
 	//{ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 } },
 };
 
+/*
+ * Better ctf spawns
+ */
+struct CompactCTFSpawnReplacement
+{
+  u8 MapId;
+  float Flags[4][3];
+  float PointsAndYaw[12][4];
+};
+
+struct CompactCTFSpawnReplacement BetterFlagRules[] = {
+  {
+    .MapId = MAP_ID_CATACROM,
+    .Flags = {
+      { 0,0,0 }, // BLUE
+      { 0,0,0 }, // RED
+      { 0,0,0 }, // GREEN
+      { 0,0,0 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 292.14, 385.52, 68.12, -1.143 }, { 275.86, 362.17, 68.14, -0.530 }, { 240.93, 377.81, 69.60, -1.681 }, // BLUE
+      { 377.98, 232.52, 64, 2.071 }, { 336.15, 228.45, 63.02, 1.614 }, { 361.25, 222.39, 65, 1.959 }, // RED
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
+    }
+  },
+  {
+    .MapId = MAP_ID_SARATHOS,
+    .Flags = {
+      { 412.28, 144, 105.34 }, // BLUE
+      { 272.392, 141.32, 103.578 }, // RED
+      { 0,0,0 }, // GREEN
+      { 0,0,0 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 412.19, 122.00, 105, 3.029 }, { 406.64, 166.92, 106.26, -3.068 }, { 414.87, 155.46, 105.52, -2.772 }, // BLUE
+      { 263.04, 118.53, 104.5, 0.382 }, { 273.14, 162.15, 103.91, -0.136 }, { 254.42, 142.35, 103.51, 0.0037 }, // RED
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
+    }
+  },
+  {
+    .MapId = MAP_ID_SHAAR,
+    .Flags = {
+      { 0,0,0 }, // BLUE
+      { 0,0,0 }, // RED
+      { 459.81, 623.16, 515.54 }, // GREEN
+      { 629.86, 623.02, 515.55 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 452.24, 573.66, 509.31, 0.678 }, { 475.21, 548.50, 509.31, 0.431 }, { 474.42, 559.06, 509.31, 0.850 }, // BLUE
+      { 634.39, 685.51, 515.47, -2.649 }, { 614.11, 666.75, 509.31, -1.984 }, { 570.14, 678.25, 509.31, 0.352 }, // RED
+      { 452.02, 649.29, 515.47, 0.133 }, { 459.69, 603.02, 515.55, -0.481 }, { 449.62, 672.57, 515.47, -0.456 }, // GREEN
+      { 636.13, 650.44, 515.47, 3.047 }, { 629.32, 602.55, 515.55, -2.624 }, { 633.95, 672.63, 515.47, -2.575 }, // ORANGE
+    }
+  },
+  {
+    .MapId = MAP_ID_TORVAL,
+    .Flags = {
+      { 0,0,0 }, // BLUE
+      { 362.49, 328.12, 100.95 }, // RED
+      { 0,0,0 }, // GREEN
+      { 0,0,0 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 234.78, 428.95, 101, -0.567 }, { 238.51, 397.26, 101, 0.357 }, { 280.83, 401.09, 100.26, -2.304 }, // BLUE
+      { 349.24, 320.14, 100.95, 2.296 }, { 361.49, 352.84, 100.55, 2.772 }, { 381.82, 321.13, 101.01, 2.747 }, // RED
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
+    }
+  },
+  {
+    .MapId = MAP_ID_MARAXUS,
+    .Flags = {
+      { 0,0,0 }, // BLUE
+      { 0,0,0 }, // RED
+      { 0,0,0 }, // GREEN
+      { 0,0,0 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 413.80, 732.37, 105.76, 0.335 }, { 401.59, 696.88, 106.13, 0.012 }, { 429.92, 713.81, 104.26, 0.628 }, // BLUE
+      { 567.26, 675.73, 101.73, 1.786 }, { 594.37, 704.85, 102.22, 2.501 }, { 595.47, 659.48, 101.08, 2.156 }, // RED
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
+    }
+  },
+  {
+    .MapId = MAP_ID_GS,
+    .Flags = {
+      { 688.01, 654.57, 100 }, // BLUE
+      { 637.31, 424.72, 103 }, // RED
+      { 583.12, 647.15, 100 }, // GREEN
+      { 676.17, 512.26, 103 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 686.45, 671.93, 100, -1.688 }, { 693.63, 642.35, 100, -2.255 }, { 673.79, 651.94, 99.62, -2.630 }, // BLUE
+      { 626.82, 421.05, 103, 2.526 }, { 654.68, 423.99, 103, 0.752 }, { 638.17, 398.86, 102.77, 1.593 }, // RED
+      { 586, 666, 100, -0.973 }, { 612.39, 669.91, 99.13, -1.195 }, { 587.46, 624.15, 100, -0.653 }, // GREEN
+      { 686.03, 488.20, 103, 1.811 }, { 663.87, 512.97, 103, 2.427 }, { 690.15, 523.61, 101.45, 0.875 }, // ORANGE
+    }
+  },
+  {
+    .MapId = 128 + CUSTOM_MAP_MOUNTAIN_PASS,
+    .Flags = {
+      { 0,0,0 }, // BLUE
+      { 0,0,0 }, // RED
+      { 0,0,0 }, // GREEN
+      { 0,0,0 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 408.05, 817.10, 508.57, -0.037 }, { 430.81, 847.38, 504.80, -1.195 }, { 441.08, 789.67, 506.12, -0.850 }, // BLUE
+      { 673.37, 827.18, 501.13, 2.994 }, { 650.37, 864.23, 500.70, 2.304 }, { 665.01, 811.4, 500.14, 2.766 }, // RED
+      { 570.96, 714.92, 505.18, 2.871 }, { 510.91, 710.36, 504.42, 0.505 }, { 564.05, 731.53, 503.85, -2.673 }, // GREEN
+      { 545.71, 933.02, 510, -2.726 }, { 489.34, 923.72, 506.6, 0.111 }, { 524.15, 912.81, 506.39, -0.899 }, // ORANGE
+    }
+  },
+};
+
+const int BetterFlagRulesCount = COUNT_OF(BetterFlagRules);
 
 void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay);
 
@@ -655,6 +774,27 @@ void alwaysV2sLogic(void)
 }
 
 /*
+ * NAME :		healthBoxNoEnclosureLogic
+ * 
+ * DESCRIPTION :
+ * 			Disables spawning of the healthbox enclosure.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void healthBoxNoEnclosureLogic(void)
+{
+  POKE_U16(0x0041246C, 3);
+  POKE_U32(0x00411F0C, 0x24050004);
+  POKE_U32(0x00411F10, 0xA2050020);
+}
+
+/*
  * NAME :		unlimitedChargebootLogic
  * 
  * DESCRIPTION :
@@ -802,6 +942,10 @@ void onGameplayLoad(void * gameplayMobies, void * a1, void * a2)
 	// 
 	onGameplayLoadRemoveWeaponPickups(gameplay);
 	onGameplayLoadBetterFlags(gameplay);
+
+  // disable initial box spawn
+  if (gameConfig.grNoHealthBoxes == 1)
+    healthBoxNoEnclosureLogic();
 
 	// call base
 	((void (*)())0x004ec720)();
@@ -1116,11 +1260,12 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
 	const int RED_SPAWN_OFF = 3;
 	const int GREEN_SPAWN_OFF = 90;
 	const int ORANGE_SPAWN_OFF = 93;
+  const SPAWN_OFFS[4] = { 0, 3, 90, 93 };
+  u128 zero128 = 0;
 	int i,j,k;
 
 	// better flags disabled
-	// or we loaded a custom map
-	if (!gameConfig.grBetterFlags || gameConfig.customMapId)
+	if (!gameConfig.grBetterFlags)
 		return;
 
 	GameSettings* gameSettings = gameGetSettings();
@@ -1148,6 +1293,110 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
 		, (u32)mpInitPVarData, (u32)flags[0], (u32)flags[1], (u32)flags[2], (u32)flags[3]);
 
 	// 
+  int mapId = gameGetSettings()->GameLevel;
+  if (gameConfig.customMapId)
+    mapId = 128 + gameConfig.customMapId;
+
+  // find better flag rules
+  struct CompactCTFSpawnReplacement* rule = NULL;
+  for (i = 0; i < BetterFlagRulesCount; ++i) {
+    if (BetterFlagRules[i].MapId == mapId) {
+      rule = &BetterFlagRules[i];
+      DPRINTF("found better flag rule for map %d at %d\n", mapId, i);
+      break;
+    }
+  }
+
+  if (rule) {
+
+    // move flags
+    for (i = 0; i < 4; ++i) {
+      if (memcmp(rule->Flags[i], &zero128, 3 * sizeof(float)) != 0) {
+
+        flags[i]->PosX = rule->Flags[i][0];
+        flags[i]->PosY = rule->Flags[i][1];
+        flags[i]->PosZ = rule->Flags[i][2];
+        DPRINTF("better flags update flag %d\n", i);
+      }
+      
+      // set spawn points
+      for (j = 0; j < 3; ++j) {
+        int ptsAndYawIdx = (i * 3) + j;
+        if (memcmp(rule->PointsAndYaw[ptsAndYawIdx], &zero128, 3 * sizeof(float)) == 0) continue;
+
+        int spIndex = mpInitPVarData[SPAWN_OFFS[i] + j];
+        memcpy(&cuboidsHeader->CuboidInstances[spIndex].M0[12], rule->PointsAndYaw[ptsAndYawIdx], 3 * sizeof(float));
+        cuboidsHeader->CuboidInstances[spIndex].M1[14] = rule->PointsAndYaw[ptsAndYawIdx][3];
+        DPRINTF("better flags update flag %d sp %d\n", i, j);
+      }
+    }
+
+  }
+
+  // extra changes
+	switch (mapId)
+  {
+    case MAP_ID_TORVAL:
+    {
+      // move hbox closer to blue
+      int aceStatueHboxMobyIdx = 28;
+      mobyInstancesHeader->MobyInstances[aceStatueHboxMobyIdx].PosX = 241.47;
+      mobyInstancesHeader->MobyInstances[aceStatueHboxMobyIdx].PosY = 393.25;
+      mobyInstancesHeader->MobyInstances[aceStatueHboxMobyIdx].PosZ = 100.95;
+      break;
+    }
+    case MAP_ID_GS:
+    {
+			// move hb into center of blue/green
+			// move three swingshots
+			j = 0; k = 0;
+			for (i = 0; i < mobyInstancesHeader->StaticCount; ++i) {
+				GameplayMobyDef_t* mobyDef = &mobyInstancesHeader->MobyInstances[i];
+				if (mobyDef->OClass == MOBY_ID_HEALTH_BOX_MULT) {
+					
+					if (j == 4) {
+						mobyDef->PosX = 637.5065918;
+						mobyDef->PosY = 647.1673584;
+						mobyDef->PosZ = 99;
+						mobyDef->UNK_54 = 0xFFFF;
+					} else if (j == 5) {
+						mobyDef->PosX = 692.2220459;
+						mobyDef->PosY = 473.4746704;
+						mobyDef->PosZ = 103;
+						mobyDef->UNK_54 = 0xFFFF;
+					}
+
+					++j;
+				}
+				else if (mobyDef->OClass == MOBY_ID_SWINGSHOT_ORB) {
+					if (k == 7) {
+						mobyDef->PosX = 645;
+						mobyDef->PosY = 543.118;
+						mobyDef->PosZ = 109.441;
+						mobyDef->UNK_54 = 0xFFFF;
+					} else if (k == 2) {
+						mobyDef->PosX = 645;
+						mobyDef->PosY = 560.5831;
+						mobyDef->PosZ = 108.3354;
+						mobyDef->UNK_54 = 0xFFFF;
+					} else if (k == 1) {
+						mobyDef->PosX = 645;
+						mobyDef->PosY = 578.0481;
+						mobyDef->PosZ = 107.2299;
+						mobyDef->UNK_54 = 0xFFFF;
+					}
+
+					++k;
+				}
+			}
+
+      break;
+    }
+  }
+
+  return;
+
+  /*
 	switch (gameGetSettings()->GameLevel)
 	{
 		case MAP_ID_CATACROM:
@@ -1357,6 +1606,7 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
 			break;
 		}
 	}
+  */
 }
 
 /*
@@ -1590,9 +1840,9 @@ void grGameStart(void)
 	if (gameConfig.prMirrorWorld)
 		cheatsApplyMirrorWorld(1);
 
-	if (gameConfig.grNoHealthBoxes && !HasDisabledHealthboxes)
+	if (gameConfig.grNoHealthBoxes == 2 && !HasDisabledHealthboxes)
 		HasDisabledHealthboxes = cheatsDisableHealthboxes();
-
+    
 	if (gameConfig.grVampire)
 		vampireLogic(VampireHealRate[gameConfig.grVampire-1]);
 

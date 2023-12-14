@@ -607,6 +607,18 @@ MenuElem_ListData_t dataFusionReticule = {
     }
 };
 
+// healthbox list item
+MenuElem_ListData_t dataHealthBoxes = {
+    &gameConfig.grNoHealthBoxes,
+    NULL,
+    3,
+    {
+      "On",
+      "No Box",
+      "Off"
+    }
+};
+
 // vampire list item
 MenuElem_ListData_t dataVampire = {
     &gameConfig.grVampire,
@@ -677,7 +689,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
   { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
-  { "Healthboxes", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoHealthBoxes },
+  { "Healthboxes", listActionHandler, menuStateHandler_SettingStateHandler, &dataHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
   { "New Player Sync", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNewPlayerSync },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
@@ -2379,7 +2391,7 @@ void configMenuDisable(void)
     {
       case 1: // competitive
       {
-        gameConfig.grNoHealthBoxes = 0;
+        gameConfig.grNoHealthBoxes = 1;
         gameConfig.grNoNames = 0;
         gameConfig.grV2s = 0;
         gameConfig.grVampire = 0;
@@ -2400,7 +2412,7 @@ void configMenuDisable(void)
       }
       case 2: // 1v1
       {
-        gameConfig.grNoHealthBoxes = 1;
+        gameConfig.grNoHealthBoxes = 2;
         gameConfig.grNoNames = 0;
         gameConfig.grV2s = 2;
         gameConfig.grVampire = 3;

@@ -72,6 +72,19 @@ int playerSyncCmdDelta(int fromCmdId, int toCmdId)
 }
 
 //--------------------------------------------------------------------------
+int playerSyncGetSendRate(void)
+{
+  // in survival the mobs already bloat the network, and player syncing is less important, so we can reduce the send rate a lot
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return 8;
+
+  // in larger lobbies we want to reduce network bandwidth by reducing send rate
+  GameSettings* gs = gameGetSettings();
+  if (gs && gs->PlayerCountAtStart > 6) return 4;
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 float playerSyncLerpAngleIfDelta(float from, float to, float lerpAmount, float minAngleBetween)
 {
   float dt = clampAngle(from - to);
@@ -315,6 +328,12 @@ void playerSyncHandlePlayerState(Player* player)
 
     if (!skip) {
       DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateCurrent->State, player->PlayerState);
+
+      if (player->PlayerSubstate > 1) {
+        DPRINTF("substate fix %d=>0\n", player->PlayerSubstate);
+        player->PlayerSubstate = 0;
+      }
+
       vtable->UpdateState(player, stateCurrent->State, 1, 1, 1);
       data->LastStateId = stateCurrent->StateId;
       data->LastState = stateCurrent->State;
@@ -498,11 +517,14 @@ void playerSyncTick(void)
 
   // fix weird overflow caused by player sync
   POKE_U32(0x004BAD64, 0x00412023);
+  POKE_U32(0x004b8078, 0x00412023);
 
   // delay
   if (delay) {
     --delay;
     return;
+  } else {
+    delay = playerSyncGetSendRate();
   }
 
   // player updates

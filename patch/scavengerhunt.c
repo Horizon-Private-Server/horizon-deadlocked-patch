@@ -80,7 +80,7 @@ int scavHuntOnReceiveRemoteSettings(void* connection, void* data)
 
   scavHuntEnabled = response.Enabled;
   scavHuntSpawnFactor = maxf(response.SpawnFactor, 0.1);
-  scavHuntSpawnTimerFactor = clamp(scavHuntSpawnFactor, 1, 5);
+  scavHuntSpawnTimerFactor = clamp(scavHuntSpawnFactor, 1, 30);
   DPRINTF("received scav hunt %d %f\n", scavHuntEnabled, scavHuntSpawnFactor);
 }
 
@@ -170,10 +170,10 @@ void scavHuntHBoltPostDraw(Moby* moby)
   color = opacity | (color & HBOLT_SPRITE_COLOR);
   moby->PrimaryColor = color;
 
-  HOOK_JAL(0x005b64dc, 0x004e4d70);
+  HOOK_JAL(0x205b64dc, 0x004e4d70);
   gfxDrawBillboardQuad(vector_read(moby->Position), HBOLT_SCALE * 0.6, opacity, 0, -MATH_PI / 2, 3, 1, 0);
   gfxDrawBillboardQuad(vector_read(moby->Position), HBOLT_SCALE * 0.5, color, 0, -MATH_PI / 2, 3, 1, 0);
-  HOOK_JAL(0x005b64dc, 0x004c4200);
+  HOOK_JAL(0x205b64dc, 0x004c4200);
 }
 
 //--------------------------------------------------------------------------
@@ -385,6 +385,12 @@ void scavHuntRun(void)
     return;
   }
 
+#if DEBUG
+  if (padGetButtonDown(0, PAD_DOWN) > 0) {
+    scavHuntSpawnRandomNearPlayer(0);
+  }
+#endif
+
   // disabled
   if (!scavHuntEnabled) { scavHuntShownPopup = 0; return; }
   if (scavHuntSpawnFactor <= 0) { scavHuntShownPopup = 0; return; }
@@ -419,12 +425,6 @@ void scavHuntRun(void)
   }
 #endif
 
-#if DEBUG
-  if (padGetButtonDown(0, PAD_DOWN) > 0) {
-    scavHuntSpawnRandomNearPlayer(0);
-  }
-#endif
-
   // hooks
   HOOK_JAL(0x00621c7c, &scavHuntOnKillDeathMessage);
 
@@ -436,7 +436,7 @@ void scavHuntRun(void)
   int flagsCaptured = gameData->PlayerStats.CtfFlagsCaptures[localPlayer->PlayerId];
   int nodesCaptured = gameData->PlayerStats.ConquestNodesCaptured[localPlayer->PlayerId];
   int nodesSaved = gameData->PlayerStats.ConquestNodeSaves[localPlayer->PlayerId];
-  int hillTime = (int)(gameData->PlayerStats.KingHillHoldTime[localPlayer->PlayerId] / (10 / scavHuntSpawnTimerFactor));
+  int hillTime = (int)(gameData->PlayerStats.KingHillHoldTime[localPlayer->PlayerId] / (60 / scavHuntSpawnTimerFactor));
 
   // decrement cooldown or check for event
   if (scavHuntBoltSpawnCooldown) {

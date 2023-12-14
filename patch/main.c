@@ -3235,13 +3235,13 @@ void runPlayerPositionSmooth(void)
   for (i = 0; i < GAME_MAX_PLAYERS; ++i)
   {
     Player* p = players[i];
-    if (p && !playerIsLocal(p))
+    if (p && !playerIsLocal(p) && p->PlayerMoby)
     {
       // determine if the player has strayed too far from the remote player's position
       // it is critical that we run this each frame, regardless if we're already smoothing the player's velocity
       // in case something has changed, we want to recalcuate the smooth velocity instantly
       // instead of waiting for the (possibly) 10 smoothing frames to complete
-      if (p->pNetPlayer && p->pNetPlayer->pNetPlayerData && p->PlayerMoby) {
+      if (p->pNetPlayer && p->pNetPlayer->pNetPlayerData) {
         VECTOR dt, rPos, lPos = {0,0,1,0};
         vector_copy(dt, (float*)((u32)p + 0x3a40));
         vector_copy(rPos, (float*)((u32)p + 0x3a20));

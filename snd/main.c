@@ -1841,7 +1841,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 		return;
 	
   // disable healthboxes
-  gameConfig->grNoHealthBoxes = 1;
+  gameConfig->grNoHealthBoxes = 2;
   gameConfig->grCqDisableTurrets = 0;
   gameConfig->grCqDisableUpgrades = 0;
 
