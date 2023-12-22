@@ -151,10 +151,6 @@ u32 currentFrameJointMatrixAddr = 0;
 VECTOR b6ExplosionPositions[64];
 int b6ExplosionPositionCount = 0;
 
-void bp(void) {
-
-}
-
 void setActive(int v) {
   if (v == active)
     return;
@@ -890,9 +886,7 @@ void runTestLogic(void)
 
   //runAllow4Locals();
 
-  gameConfig.grBetterFlags = 1;
-  drawPositionYaw();
-  return;
+  //drawPositionYaw();
 
   //runSystemTime();
   if (isInGame()) {
@@ -900,7 +894,25 @@ void runTestLogic(void)
     //runDrawQuad();
     //runCameraHeight();
     //runRenderCboot();
-    runB6HitVisualizer();
+    //runB6HitVisualizer();
+
+    if (padGetButtonDown(0, PAD_DOWN) > 0) {
+      Player* p = playerGetFromSlot(0);
+      VECTOR pos;
+      vector_scale(pos, p->CameraForward, 4);
+      vector_add(pos, pos, p->PlayerPosition);
+      pos[2] += 1;
+      u128 vPos = vector_read(pos); 
+      u32 clear = 0;
+      u32 red = 0x800000FF;
+      u32 green = 0x8000FF00;
+      u32 white = 0x80FFFFFF;
+      mobySpawnExplosion(vPos, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 
+        clear, clear, clear, clear, clear, clear, green, red, white,
+        0, 0, 0, 0, 1, 0, 0, 0);
+    }
 
     playerGetFromSlot(0)->Health = 50;
 
