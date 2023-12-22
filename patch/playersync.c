@@ -75,11 +75,11 @@ int playerSyncCmdDelta(int fromCmdId, int toCmdId)
 int playerSyncGetSendRate(void)
 {
   // in survival the mobs already bloat the network, and player syncing is less important, so we can reduce the send rate a lot
-  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return 8;
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return 10;
 
   // in larger lobbies we want to reduce network bandwidth by reducing send rate
   GameSettings* gs = gameGetSettings();
-  if (gs && gs->PlayerCountAtStart > 6) return 4;
+  if (gs && gs->PlayerCountAtStart > 6) return 3;
 
   return 0;
 }
@@ -139,6 +139,7 @@ void playerSyncHandlePlayerState(Player* player)
   PlayerSyncStateUpdateUnpacked_t* stateCurrent = &data->StateUpdates[data->StateUpdateCmdId];
   if (!stateCurrent->Valid) return;
   
+  int rate = playerSyncGetSendRate();
   PlayerVTable* vtable = playerGetVTable(player);
   float tPos = 0.15;
   float tRot = 0.15;
@@ -155,8 +156,9 @@ void playerSyncHandlePlayerState(Player* player)
   }
 
   // extrapolate
-  if (data->TicksSinceLastUpdate > 0 && !playerIsDead(player)) {
-    //vector_add(stateCurrent->Position, stateCurrent->Position, player->Velocity);
+  if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
+    DPRINTF("extrapolate %d\n", data->TicksSinceLastUpdate);
+    vector_add(stateCurrent->Position, stateCurrent->Position, player->Velocity);
   }
 
   // snap position
@@ -481,7 +483,7 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  //gameConfig.grNewPlayerSync = 1;
+  gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;
@@ -519,6 +521,12 @@ void playerSyncTick(void)
   POKE_U32(0x004BAD64, 0x00412023);
   POKE_U32(0x004b8078, 0x00412023);
 
+  // player updates
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    playerSyncHandlePlayerState(players[i]);
+  }
+
   // delay
   if (delay) {
     --delay;
@@ -528,9 +536,7 @@ void playerSyncTick(void)
   }
 
   // player updates
-  Player** players = playerGetAll();
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     playerSyncBroadcastPlayerState(players[i]);
-    playerSyncHandlePlayerState(players[i]);
   }
 }

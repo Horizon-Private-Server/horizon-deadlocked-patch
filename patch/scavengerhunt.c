@@ -385,15 +385,15 @@ void scavHuntRun(void)
     return;
   }
 
+  // disabled
+  if (!scavHuntEnabled) { scavHuntShownPopup = 0; return; }
+  if (scavHuntSpawnFactor <= 0) { scavHuntShownPopup = 0; return; }
+
 #if DEBUG
   if (padGetButtonDown(0, PAD_DOWN) > 0) {
     scavHuntSpawnRandomNearPlayer(0);
   }
 #endif
-
-  // disabled
-  if (!scavHuntEnabled) { scavHuntShownPopup = 0; return; }
-  if (scavHuntSpawnFactor <= 0) { scavHuntShownPopup = 0; return; }
 
   // reset cooldown on beginning of game
   if (!scavHuntInitialized) {
