@@ -9,7 +9,7 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
-#define UPGRADE_MOBY_OCLASS				(0x70)
+#define UPGRADE_MOBY_OCLASS				(0x01F9)
 #define UPGRADE_PICKUP_RADIUS			(4)
 #define UPGRADE_TOKEN_COST				(1)
 #define UPGRADE_MAX_USES  				(15)

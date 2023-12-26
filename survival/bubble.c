@@ -98,6 +98,7 @@ void bubbleTick(void)
   if (!damageBubbles) return;
   if (!camera) return;
   if (playerGetNumLocals() > 1) return; // don't support more than 1 player
+  if (PATCH_INTEROP && PATCH_INTEROP->Client == CLIENT_TYPE_DZO) return;
 
   for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i) {
     if (damageBubbles[i].Life) {

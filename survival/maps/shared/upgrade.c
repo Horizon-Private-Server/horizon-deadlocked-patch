@@ -214,6 +214,9 @@ int upgradeHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	//moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
 	moby->CollData = NULL;
 	moby->DrawDist = 0;
+  moby->ModeBits = 0;
+  moby->AnimSeq = NULL;
+  moby->AnimSeqId = moby->LSeq = 0;
 	//moby->PClass = NULL;
 
 	// update pvars
