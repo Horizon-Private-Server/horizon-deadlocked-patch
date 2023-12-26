@@ -48,7 +48,7 @@ SoundDef BaseSoundDef =
 
 int MobComplexityValueByOClass[MAX_MOB_SPAWN_PARAMS][2];
 
-Moby* AllMobsSorted[MAX_MOBS_ALIVE + 10];
+Moby* AllMobsSorted[MAX_MOBS_ALIVE];
 int AllMobsSortedFreeSpots = MAX_MOBS_ALIVE;
 
 extern struct SurvivalState State;
@@ -235,11 +235,27 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
       amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
     } else if (weaponId == WEAPON_ID_ARBITER) {
       amount *= 2; // damage buff
+    } else if (weaponId == WEAPON_ID_VIPERS && pDamager->GadgetBox->Gadgets[weaponId].Level == 9) {
+      amount *= 0.75; // damage nerf
     }
 
     // prestige damage 2x per prestige
     int weaponSlot = weaponIdToSlot(weaponId);
     amount *= 1 + (2 * State.PlayerStates[pDamager->PlayerId].State.WeaponPrestige[weaponSlot]);
+    
+    // crit
+    if (pDamager->IsLocal) {
+      int critCount = State.PlayerStates[pDamager->PlayerId].State.Upgrades[UPGRADE_CRIT];
+      float critProbability = critCount * PLAYER_UPGRADE_CRIT_FACTOR;
+      float r = randRange(0, 1);
+      if (r < critProbability) {
+        amount *= 3;
+        damageFlags |= 0x20000000;
+        DPRINTF("crit (%f/%f)\n", r, critProbability);
+        //mobyPlaySoundByClass(4, 0, moby, 0x10A9);
+        //mobyPlaySoundByClass(0, 0, moby, MOBY_ID_WRENCH);
+      }
+    }
 	}
 
 	// determine angle
@@ -278,7 +294,7 @@ int getMaxComplexity(void)
   // maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? playerConfig->levelOfDetail : 2);
 
   // dzo bypasses max complexity
-  if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_DZO)
+  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO)
     maxComplexity = MAX_MOB_COMPLEXITY_DRAWN_DZO;
 
   // reduce by map complexity
@@ -528,7 +544,7 @@ void mobHandleDraw(Moby* moby)
   // dzo clients don't need draw optimization as much
   // unfortunately the cost of each mob can cause problems on the VU
   // so we are forced to stop animating some
-  if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_DZO) {
+  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO) {
     minMobsForHiding = 30;
     minRankForDrawCutoff = 0.25;
   }
@@ -740,8 +756,8 @@ void mobUpdate(Moby* moby)
     if (damager) {
       damage *= 1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
 
-      // surge boost
-      if (damager->timers.clankRedEye > 0) {
+      // deal extra damage after being hit
+      if (damager->timers.postHitInvinc > 0) {
         damage *= 2;
       }
     }
@@ -782,7 +798,7 @@ void mobUpdate(Moby* moby)
     }
 
     // auto destruct after 15 seconds of being stuck
-    else if (pvars->MobVars.MoveVars.StuckCounter > 15) {
+    else if (pvars->MobVars.MoveVars.StuckCounter > 5) {
       pvars->MobVars.Respawn = 1;
     }
     
@@ -802,7 +818,7 @@ void mobUpdate(Moby* moby)
         struct MobSpawnParams* spawnParams = &mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx];
         if (spawnGetRandomPoint(p, spawnParams)) {
           memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
-          mobCreate(pvars->MobVars.SpawnParamsIdx, p, 0, guberGetUID(moby), pvars->MobVars.FreeAgent, &config);
+          mobCreate(pvars->MobVars.SpawnParamsIdx, p, 0, guberGetUID(moby), pvars->MobVars.SpawnFlags, &config);
         }
         
         pvars->MobVars.Destroyed = 2;
@@ -844,7 +860,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	float yaw;
   int i;
 	int spawnFromUID;
-  int freeAgent;
+  int spawnFlags;
 	char random;
 	struct MobSpawnEventArgs args;
 
@@ -855,7 +871,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	guberEventRead(event, p, 12);
 	guberEventRead(event, &yaw, 4);
 	guberEventRead(event, &spawnFromUID, 4);
-	guberEventRead(event, &freeAgent, 4);
+	guberEventRead(event, &spawnFlags, 4);
 	guberEventRead(event, &random, 1);
 	guberEventRead(event, &args, sizeof(struct MobSpawnEventArgs));
 
@@ -883,7 +899,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   pvars->AdditionalMobVarsPtr = pvars + 1;
 	
   // free agent data
-  pvars->MobVars.FreeAgent = freeAgent;
+  pvars->MobVars.SpawnFlags = spawnFlags;
 
   // copy spawn params to config
   pvars->MobVars.SpawnParamsIdx = args.SpawnParamsIdx;
@@ -921,7 +937,6 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 #endif
 	//pvars->MobVars.Config.Health = pvars->MobVars.Health = 1;
 
-
 	// initialize target vars
 	pvars->TargetVars.hitPoints = pvars->MobVars.Health;
 	pvars->TargetVars.team = 10;
@@ -953,6 +968,15 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 			break;
 		}
 	}
+
+  // spawn flags
+  if (spawnFlags & MOB_SPAWN_FLAG_RUSSIAN_DOLL) {
+    // give velocity on spawn
+    float theta = randRadian();
+    vector_fromyaw(pvars->MobVars.MoveVars.AddVelocity, theta);
+    vector_scale(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, 6 * MATH_DT);
+    pvars->MobVars.MoveVars.AddVelocity[2] = 6 * MATH_DT;
+  }
 
 	// 
 	mobySetState(moby, 0, -1);
@@ -1153,7 +1177,7 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 
     int isLocal = 0;
     if (damager) isLocal = damager->IsLocal;
-    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal);
+    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, (args.DamageFlags & 0x20000000) ? 1 : 0);
   }
 
   // 
@@ -1362,13 +1386,13 @@ int mobOnUnreliableMsgRemote(void * connection, void * data)
 }
 
 //--------------------------------------------------------------------------
-int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
+int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
   // log
   mobStatsOnNewMobCreated(spawnParamsIdx, spawnFromUID);
 
   if (mapConfig->OnMobCreateFunc)
-    return mapConfig->OnMobCreateFunc(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+    return mapConfig->OnMobCreateFunc(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
 
   return 0;
 }

@@ -404,6 +404,7 @@ MenuElem_ListData_t dataCustomMaps = {
     {
       "None",
       "Ace Hardlight's Suite",
+      "Alpine Junction",
       "Annihilation Nation",
       "Bakisi Isles",
       "Battledome SP",
@@ -422,6 +423,7 @@ MenuElem_ListData_t dataCustomMaps = {
       "Metropolis MP",
       "Mining Facility SP",
       "Mountain Pass",
+      // "Rust",
       "Shaar SP",
       "Snivelak",
       "Spleef",
@@ -943,7 +945,7 @@ void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* sta
 // 
 void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
-  if (CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT)
+  if (CLIENT_TYPE_DZO == PATCH_INTEROP->Client)
     *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
   else
     *state = ELEMENT_HIDDEN;

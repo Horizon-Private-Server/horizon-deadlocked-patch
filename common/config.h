@@ -4,11 +4,10 @@
 /*
  * Fixed pointers to patch container for use by external modules.
  */
-#define PATCH_POINTERS			      ((void*)0x000CFFC0)
-#define PATCH_DZO_INTEROP_FUNCS	  (*(DzoInteropFunctions_t**)0x000CFFC8)
-#define PATCH_POINTERS_CLIENT     (*(u8*)(PATCH_POINTERS + 12))
-#define PATCH_POINTERS_SPECTATE   (*(u8*)(PATCH_POINTERS + 13))
-#define PATCH_POINTERS_PATCHMENU  (*(u8*)(PATCH_POINTERS + 14))
+#define PATCH_INTEROP             (*(PatchInterop_t**)0x000CFFC0)
+#define PATCH_DZO_INTEROP_FUNCS	  (*(DzoInteropFunctions_t**)0x000CFFC4)
+#define PATCH_POINTERS_SPECTATE   (*(u8*)(0x000CFFC0 + 8))
+#define PATCH_POINTERS_PATCHMENU  (*(u8*)(0x000CFFC0 + 9))
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
 typedef struct PatchConfig
@@ -106,6 +105,14 @@ typedef struct PatchGameConfig
   TrainingConfig_t trainingConfig;
 } PatchGameConfig_t;
 
+typedef struct PatchInterop
+{
+  PatchConfig_t* Config;
+  PatchGameConfig_t* GameConfig;
+  char Client;
+  char Month;
+} PatchInterop_t;
+
 typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void * data);
 
 typedef struct DzoInteropFunctions
@@ -139,6 +146,7 @@ enum CUSTOM_MAP_ID
 {
   CUSTOM_MAP_NONE = 0,
   CUSTOM_MAP_ACE_HARDLIGHT_SUITE,
+  CUSTOM_MAP_ALPINE_JUNCTION,
   CUSTOM_MAP_ANNIHILATION_NATION,
   CUSTOM_MAP_BAKISI_ISLES,
   CUSTOM_MAP_BATTLEDOME_SP,
@@ -157,6 +165,7 @@ enum CUSTOM_MAP_ID
   CUSTOM_MAP_METROPOLIS_MP,
   CUSTOM_MAP_MINING_FACILITY_SP,
   CUSTOM_MAP_MOUNTAIN_PASS,
+  // CUSTOM_MAP_RUST,
   CUSTOM_MAP_SHAAR_SP,
   CUSTOM_MAP_SNIVELAK,
   CUSTOM_MAP_SPLEEF,

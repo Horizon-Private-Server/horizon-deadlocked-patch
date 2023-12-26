@@ -21,6 +21,7 @@
 #include <libdl/utils.h>
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
+#include "../../../include/utils.h"
 #include "../include/gate.h"
 #include "../include/maputils.h"
 #include "../include/shared.h"
@@ -63,6 +64,8 @@ extern int aaa;
 
 #if DEBUGMOVE
 VECTOR MoveCheckHit;
+VECTOR MoveCheckFrom;
+VECTOR MoveCheckTo;
 VECTOR MoveCheckFinal;
 VECTOR MoveCheckUp;
 VECTOR MoveCheckDown;
@@ -454,6 +457,11 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
   vector_add(hitTo, hitTo, hitToEx);
   vector_subtract(hitFrom, hitFrom, hitToExBack);
 
+#if DEBUGMOVE
+    vector_copy(MoveCheckFrom, hitFrom);
+    vector_copy(MoveCheckTo, hitTo);
+#endif
+
   // check if we hit something
   if (CollLine_Fix(hitFrom, hitTo, collFlag, moby, NULL)) {
 
@@ -482,6 +490,7 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     if (pvars->MobVars.MoveVars.WallSlope > (60 * MATH_DEG2RAD)) {
       vector_projectonhorizontal(hitToEx, hitToEx);
       vector_subtract(outputPos, to, hitToEx);
+      DPRINTF("movecheck hit steep slope %f\n", pvars->MobVars.MoveVars.WallSlope * MATH_RAD2DEG);
       return 2;
     }
 
@@ -558,6 +567,8 @@ void mobMove(Moby* moby)
 
 #if DEBUGMOVE
     vector_write(MoveCheckHit, 0);
+    vector_write(MoveCheckFrom, 0);
+    vector_write(MoveCheckTo, 0);
     vector_write(MoveCheckFinal, 0);
     vector_write(MoveCheckUp, 0);
     vector_write(MoveCheckDown, 0);
@@ -570,7 +581,7 @@ void mobMove(Moby* moby)
       vector_add(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.AddVelocity);
 
       // compute simulated velocity by multiplying velocity by number of ticks to simulate
-      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, (float)(moveStep + 1));
+      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, (float)moveStep);
 
       // slow speed in short freeze
       if (slowTicks > 0) {
@@ -587,7 +598,7 @@ void mobMove(Moby* moby)
       // move physics check twice to prevent clipping walls
       if (mobMoveCheck(moby, nextPos, moby->Position, nextPos) == 1) {
         if (mobMoveCheck(moby, nextPos, moby->Position, nextPos)) {
-          vector_copy(nextPos, moby->Position); // don't move
+          //vector_copy(nextPos, moby->Position); // don't move
           pvars->MobVars.MoveVars.IsStuck = 1;
         }
       }
@@ -656,7 +667,7 @@ void mobMove(Moby* moby)
     }
 
     // add gravity to velocity with clamp on downwards speed
-    pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT * (float)(moveStep + 1);
+    pvars->MobVars.MoveVars.Velocity[2] -= GRAVITY_MAGNITUDE * MATH_DT * (float)moveStep;
     if (pvars->MobVars.MoveVars.Velocity[2] < -10 * MATH_DT)
       pvars->MobVars.MoveVars.Velocity[2] = -10 * MATH_DT;
 
@@ -687,15 +698,17 @@ void mobMove(Moby* moby)
     vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
     pvars->MobVars.MoveVars.MoveSkipTicks = moveStep;
     pvars->MobVars.MoveVars.LastMoveStep = moveStep;
+  } else {
+    
+    float t = clamp(1 - (pvars->MobVars.MoveVars.MoveSkipTicks / (float)moveStep), 0, 1);
+    vector_lerp(moby->Position, pvars->MobVars.MoveVars.LastPosition, pvars->MobVars.MoveVars.NextPosition, t);
+
   }
 
   // tell mob we want to jump
   if (pathShouldJump(moby)) {
     pvars->MobVars.MoveVars.QueueJumpSpeed = pathGetJumpSpeed(moby);
   }
-
-  float t = clamp(1 - (pvars->MobVars.MoveVars.MoveSkipTicks / (float)(moveStep + 1)), 0, 1);
-  vector_lerp(moby->Position, pvars->MobVars.MoveVars.LastPosition, pvars->MobVars.MoveVars.NextPosition, t);
 
   mobForceIntoMapBounds(moby);
 }
@@ -864,6 +877,8 @@ void mobPostDrawDebug(Moby* moby)
 
 #if DEBUGMOVE
   draw3DMarker(MoveCheckHit, 1, 0x80FFFFFF, "-");
+  draw3DMarker(MoveCheckFrom, 1, 0x80FFFFFF, "a");
+  draw3DMarker(MoveCheckTo, 1, 0x80FFFFFF, "b");
   draw3DMarker(MoveCheckFinal, 1, 0x80FFFFFF, "+");
   draw3DMarker(MoveCheckUp, 1, 0x80FFFFFF, "^");
   draw3DMarker(MoveCheckDown, 1, 0x80FFFFFF, "v");

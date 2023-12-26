@@ -49,11 +49,11 @@ void mobTick(void);
 void configInit(void);
 void pathTick(void);
 
-int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
-int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
-int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
-int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
-int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 
 char LocalPlayerStrBuffer[2][48];
 char HasEquippedNewBlessing[GAME_MAX_PLAYERS];
@@ -131,6 +131,16 @@ const int BLESSINGS[] = {
   BLESSING_ITEM_HEALTH_REGEN,
   BLESSING_ITEM_AMMO_REGEN,
   // BLESSING_ITEM_ELEM_IMMUNITY,
+};
+
+const int BLESSING_TEXIDS[] = {
+  [BLESSING_ITEM_MULTI_JUMP]  111 - 3,
+  [BLESSING_ITEM_LUCK]  112 - 3,
+  [BLESSING_ITEM_BULL]  113 - 3,
+  [BLESSING_ITEM_ELEM_IMMUNITY]  114 - 3,
+  [BLESSING_ITEM_HEALTH_REGEN]  115 - 3,
+  [BLESSING_ITEM_AMMO_REGEN]  116 - 3,
+  [BLESSING_ITEM_THORNS]  117 - 3,
 };
 
 VECTOR BLESSING_POSITIONS[BLESSING_ITEM_COUNT] = {
@@ -217,6 +227,24 @@ void updateBossMeter(void)
 }
 
 //--------------------------------------------------------------------------
+void drawBlessingTotemQuads(void)
+{
+  int count = sizeof(BLESSINGS)/sizeof(int);
+  int i;
+
+  for (i = 0; i < count; ++i) {
+    int blessing = BLESSINGS[i];
+
+    // draw
+    VECTOR p = {0,0,3,0};
+    vector_add(p, BLESSING_POSITIONS[blessing], p);
+    HOOK_JAL(0x205b64dc, 0x004e4d70);
+    gfxDrawBillboardQuad(vector_read(p), 1, 0x80FFFFFF, 0x80 << 24, -MATH_PI / 2, BLESSING_TEXIDS[blessing], 1, 0);
+    HOOK_JAL(0x205b64dc, 0x004c4200);
+  }
+}
+
+//--------------------------------------------------------------------------
 void updateBlessingTotems(void)
 {
   int local, i, j;
@@ -226,15 +254,16 @@ void updateBlessingTotems(void)
 
   if (!MapConfig.State) return;
 
-  for (local = 0; local < GAME_MAX_LOCALS; ++local) {
-    Player* player = playerGetFromSlot(local);
-    if (!player) continue;
+  for (i = 0; i < count; ++i) {
+    int blessing = BLESSINGS[i];
 
-    struct SurvivalPlayer* playerData = &MapConfig.State->PlayerStates[player->PlayerId];
-    if (!playerData->State.BlessingSlots) continue;
+    // handle pickup
+    for (local = 0; local < GAME_MAX_LOCALS; ++local) {
+      Player* player = playerGetFromSlot(local);
+      if (!player) continue;
 
-    for (i = 0; i < count; ++i) {
-      int blessing = BLESSINGS[i];
+      struct SurvivalPlayer* playerData = &MapConfig.State->PlayerStates[player->PlayerId];
+      if (!playerData->State.BlessingSlots) continue;
       if (playerHasBlessing(player->PlayerId, blessing)) continue;
 
       vector_subtract(dt, player->PlayerPosition, (float*)BLESSING_POSITIONS[blessing]);
@@ -299,6 +328,8 @@ void updateUnlockedBlessingSlots(void)
 void updateBlessingTeleporter(void)
 {
   if (!TeleporterMoby) return;
+
+  gfxRegisterDrawFunction((void**)0x0022251C, &drawBlessingTotemQuads, TeleporterMoby);
 
   if (statuesAreActivated() && !reactorActiveMoby && MapConfig.State->RoundCompleteTime) {
     mobySetState(TeleporterMoby, 1, -1);
@@ -374,33 +405,34 @@ int mapPathCanBeSkippedForTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
+int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
   switch (spawnParamsIdx)
   {
     case MOB_SPAWN_PARAM_REACTOR:
     {
-      return reactorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return reactorCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     case MOB_SPAWN_PARAM_REAPER:
     {
-      return reaperCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return reaperCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     case MOB_SPAWN_PARAM_TREMOR:
     {
-      return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     case MOB_SPAWN_PARAM_ACID:
     {
-      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     case MOB_SPAWN_PARAM_NORMAL:
     {
-      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     case MOB_SPAWN_PARAM_SWARMER:
+    case MOB_SPAWN_PARAM_GIANT_SWARMER:
     {
-      return swarmerCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return swarmerCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     default:
     {
@@ -560,16 +592,38 @@ int main (void)
 
 #if DEBUG
   dlPreUpdate();
+  // static int soundTestMobyClass = 0;
+  // short class = *(short*)(0x00249E30 + (2 * soundTestMobyClass));
   // if (padGetButtonDown(0, PAD_LEFT) > 0) {
   //   --aaa;
-  //   //mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_ROBOT_ZOMBIE);
+
+  //   mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, class);
   //   //playDialog(aaa, 1);
-  //   DPRINTF("%d 0x%x\n", aaa, aaa);
+
+  //   DPRINTF("aaa:%d_0x%x class:0x%04x\n", aaa, aaa, class);
   // } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
   //   ++aaa;
-  //   //mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_ROBOT_ZOMBIE);
+
+  //   mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, class);
   //   //playDialog(aaa, 1);
-  //   DPRINTF("%d 0x%x\n", aaa, aaa);
+
+  //   DPRINTF("aaa:%d_0x%x class:0x%04x\n", aaa, aaa, class);
+  // } else if (padGetButtonDown(0, PAD_UP) > 0) {
+  //   soundTestMobyClass += 1;
+  //   class = *(short*)(0x00249E30 + (2 * soundTestMobyClass));
+  //   aaa = 0;
+
+  //   mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, class);
+
+  //   DPRINTF("aaa:%d_0x%x class:0x%04x\n", aaa, aaa, class);
+  // } else if (padGetButtonDown(0, PAD_DOWN) > 0) {
+  //   soundTestMobyClass -= 1;
+  //   class = *(short*)(0x00249E30 + (2 * soundTestMobyClass));
+  //   aaa = 0;
+
+  //   mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, class);
+
+  //   DPRINTF("aaa:%d_0x%x class:0x%04x\n", aaa, aaa, class);
   // }
 
   /*

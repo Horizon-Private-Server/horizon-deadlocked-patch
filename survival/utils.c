@@ -303,7 +303,7 @@ int localPlayerHasInput(void)
   Player* localPlayer = playerGetFromSlot(0);
   if (!localPlayer) return 0;
 
-  return !localPlayer->timers.noInput && !gameIsStartMenuOpen() && !State.PlayerStates[localPlayer->PlayerId].IsInWeaponsMenu;
+  return !localPlayer->timers.noInput && !gameIsStartMenuOpen(0) && !State.PlayerStates[localPlayer->PlayerId].IsInWeaponsMenu;
 }
 
 //--------------------------------------------------------------------------

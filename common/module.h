@@ -20,6 +20,7 @@
 #include <tamtypes.h>
 #include <libdl/gamesettings.h>
 #include "config.h"
+#include "messageid.h"
 
 // Forward declarations
 struct GameModule;
@@ -152,6 +153,7 @@ typedef struct PatchStateContainer
     int ClientsReadyMask;
     int AllClientsReady;
     int VoteToEndPassed;
+    SetNameOverridesMessage_t LobbyNameOverrides;
 } PatchStateContainer_t;
 
 

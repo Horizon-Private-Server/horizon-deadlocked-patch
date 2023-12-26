@@ -251,6 +251,21 @@ enum CustomMessageId
     CUSTOM_MSG_ID_SERVER_RESPONSE_SCAVENGER_HUNT_SETTINGS = 44,
 
     /*
+     * Sent by the server to the client containing the name overrides for everyone in the lobby.
+     */
+    CUSTOM_MSG_ID_SERVER_SET_LOBBY_NAME_OVERRIDES = 45,
+
+    /*
+     * Sent by the client to the server when the client wishes to know the server datetime.
+     */
+    CUSTOM_MSG_ID_CLIENT_REQUEST_SERVER_DATE_TIME = 46,
+
+    /*
+     * Sent by the server to the client containing the server's current datetime.
+     */
+    CUSTOM_MSG_ID_SERVER_DATE_TIME_RESPONSE = 47,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -278,7 +293,8 @@ enum CustomDzoCommandId
   CUSTOM_DZO_CMD_ID_SND_DRAW_ROUND_RESULT = 2,
   CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD = 3,
   CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_REVIVE_MSG = 4,
-  CUSTOM_DZO_CMD_ID_VOTE_TO_END = 5
+  CUSTOM_DZO_CMD_ID_VOTE_TO_END = 5,
+  CUSTOM_DZO_CMD_ID_SURVIVAL_SPAWN_DAMAGE_BUBBLE = 6,
 };
 
 typedef struct ServerDownloadDataRequest
@@ -443,5 +459,17 @@ typedef struct ScavengerHuntSettingsResponse
   float SpawnFactor;
 } ScavengerHuntSettingsResponse_t;
 
+typedef struct SetNameOverridesMessage
+{
+  int AccountIds[10];
+  char Names[10][16];
+} SetNameOverridesMessage_t;
+
+typedef struct ServerDateTimeMessage
+{
+  u16 Year;
+  u8 Month;
+  u8 Day;
+} ServerDateTimeMessage_t;
 
 #endif // _MESSAGEID_H_

@@ -30,7 +30,9 @@
 
 #define MAX_MOBS_BASE													(10)
 #define MAX_MOBS_ROUND_WEIGHT									(10)
-#define MAX_MOBS_ALIVE											(50)
+#define MAX_MOBS_ALIVE											  (60)
+#define MAX_MOBS_ALIVE_BUFFER									(10)
+#define MAX_MOBS_ALIVE_REAL									  (MAX_MOBS_ALIVE - MAX_MOBS_ALIVE_BUFFER)
 
 #define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
 #define ROUND_START_DELAY_MS									(TIME_SECOND * 1)
@@ -123,8 +125,9 @@
 #define PLAYER_UPGRADE_HEALTH_FACTOR          (5)
 #define PLAYER_UPGRADE_MEDIC_FACTOR           (0.05)
 #define PLAYER_UPGRADE_VENDOR_FACTOR          (0.02)
+#define PLAYER_UPGRADE_CRIT_FACTOR            (0.01)
 
-#define BAKED_SPAWNPOINT_COUNT							  (24)
+#define BAKED_SPAWNPOINT_COUNT							  (32)
 
 #define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
 #define ITEM_INFAMMO_DURATION                 (30*TIME_SECOND)
@@ -132,7 +135,7 @@
 #define ITEM_SHIELD_DURATION_TPS              (1*60*TPS)
 #define ITEM_EMP_HEALTH_EFFECT_RADIUS         (15)
 
-#define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 1)
+#define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 0.2)
 #define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 5)
 #define ITEM_BLESSING_THORN_DAMAGE_FACTOR     (0.2)
 #define ITEM_BLESSING_MULTI_JUMP_COUNT        (5)
@@ -201,9 +204,9 @@ enum MobStatId
 enum BlessingItemId
 {
   BLESSING_ITEM_NONE           = 0,
-  BLESSING_ITEM_MULTI_JUMP      = 1,
+  BLESSING_ITEM_MULTI_JUMP     = 1,
   BLESSING_ITEM_LUCK           = 2,
-  BLESSING_ITEM_BULL      = 3,
+  BLESSING_ITEM_BULL           = 3,
   BLESSING_ITEM_ELEM_IMMUNITY  = 4,
   BLESSING_ITEM_HEALTH_REGEN   = 5,
   BLESSING_ITEM_AMMO_REGEN     = 6,
@@ -217,8 +220,8 @@ struct MobSpawnParams;
 
 typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
-typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int freeAgent);
-typedef int (*ModeCreateMob_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int spawnFlags);
+typedef int (*ModeCreateMob_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 typedef int (*SpawnGetRandomPoint_func)(VECTOR out, struct MobSpawnParams* mob);
 typedef void (*ModeMobNuke_func)(int killedByPlayerId);
 typedef void (*ModeSetDoublePoints_func)(int isActive);
@@ -227,7 +230,7 @@ typedef void (*ModeSetFreezeMobs_func)(int isActive);
 typedef void (*ModeRevivePlayer_func)(Player* player, int fromPlayerId);
 
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 typedef int (*CreateUpgradePickup_func)(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
 typedef int (*HandleUpgradePickupEvent_func)(Moby* moby, GuberEvent* event);
 typedef void (*PickupUpgradePickup_func)(Moby* moby, int pickedUpByPlayerId);
@@ -279,10 +282,12 @@ struct SurvivalPlayer
 {
 	float MinSqrDistFromMob;
 	float MaxSqrDistFromMob;
+  float LastHealth;
 	struct SurvivalPlayerState State;
 	int TimeOfDoublePoints;
 	int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
+  int TicksSinceHealthChanged;
 	u16 ReviveCooldownTicks;
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;

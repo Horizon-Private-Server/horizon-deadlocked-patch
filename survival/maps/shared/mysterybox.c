@@ -126,8 +126,8 @@ SoundDef RespawnSoundDef = {
 
 extern struct MysteryBoxItemWeight MysteryBoxItemProbabilities[];
 extern struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[];
-extern const int MysteryBoxItemMysteryBoxItemProbabilitiesCount;
-extern const int MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount;
+extern const int MysteryBoxItemProbabilitiesCount;
+extern const int MysteryBoxItemProbabilitiesLuckyCount;
 
 //--------------------------------------------------------------------------
 void mboxPlayOpenSound(Moby* moby)
@@ -215,7 +215,7 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
     // check if user has luck
     // pick random by weight
     if (playerHasBlessing(activatedByPlayerId, BLESSING_ITEM_LUCK)) {
-      for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount-1); ++i)
+      for (i = 0; i < (MysteryBoxItemProbabilitiesLuckyCount-1); ++i)
       {
         float r = mboxRand();
         if (r < MysteryBoxItemProbabilitiesLucky[i].Probability) {
@@ -226,7 +226,7 @@ void mboxActivate(Moby* moby, int activatedByPlayerId)
 
       item = MysteryBoxItemProbabilitiesLucky[i].Item;
     } else {
-      for (i = 0; i < (MysteryBoxItemMysteryBoxItemProbabilitiesCount-1); ++i)
+      for (i = 0; i < (MysteryBoxItemProbabilitiesCount-1); ++i)
       {
         float r = mboxRand();
         if (r < MysteryBoxItemProbabilities[i].Probability) {
@@ -345,12 +345,12 @@ void mboxDraw(Moby* moby)
 	VECTOR pBL = {0.25,0,-0.25,1};
 	VECTOR pBR = {-0.25,0,-0.25,1};
 
-  int item = pvars->Item;
+  int item = pvars->CycleItem = pvars->Item;
   if (moby->State == MYSTERY_BOX_STATE_CYCLING_ITEMS) {
     if (MapConfig.State && playerHasBlessing(pvars->ActivatedByPlayerId, BLESSING_ITEM_LUCK)) {
-      item = MysteryBoxItemProbabilitiesLucky[rand(MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount)].Item;
+      pvars->CycleItem = item = MysteryBoxItemProbabilitiesLucky[rand(MysteryBoxItemProbabilitiesLuckyCount)].Item;
     } else {
-      item = MysteryBoxItemProbabilities[rand(MysteryBoxItemMysteryBoxItemProbabilitiesCount)].Item;
+      pvars->CycleItem = item = MysteryBoxItemProbabilities[rand(MysteryBoxItemProbabilitiesCount)].Item;
     }
   }
 

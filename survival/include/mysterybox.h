@@ -50,6 +50,7 @@ struct MysteryBoxPVar
   VECTOR SpawnpointPosition;
   VECTOR SpawnpointRotation;
   enum MysteryBoxItem Item;
+  enum MysteryBoxItem CycleItem;
   int Random;
   int ActivatedTime;
   int StateChangedAtTime;

@@ -11,12 +11,12 @@ extern struct SurvivalMapConfig MapConfig;
 struct SurvivalSpecialRoundParam specialRoundParams[] = {
 	// BOSS ROUND
 	{
-    .MinRound = 20,
-    .RepeatEveryNRounds = 20,
+    .MinRound = 25,
+    .RepeatEveryNRounds = 25,
     .RepeatCount = 0,
     .UnlimitedPostRoundTime = 1,
     .DisableDrops = 1,
-		.MaxSpawnedAtOnce = MAX_MOBS_ALIVE,
+		.MaxSpawnedAtOnce = MAX_MOBS_ALIVE_REAL,
     .SpawnCountFactor = 1.0,
     .SpawnRateFactor = 1.0,
 		.SpawnParamCount = 1,
@@ -49,14 +49,14 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .SharedXp = 1,
 			.Bangles = REACTOR_BANGLE_SHOULDER_PLATES,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 15,
-      .DamageScale = 0.5,
+			.MaxDamage = 0,
+      .DamageScale = 2.0,
 			.Speed = MOB_BASE_SPEED * 1.5,
 			.MaxSpeed = MOB_BASE_SPEED * 5.0,
       .SpeedScale = 0.25,
 			.Health = MOB_BASE_HEALTH * 100.0,
 			.MaxHealth = 0,
-      .HealthScale = 1.5,
+      .HealthScale = 1.0,
 			.Bolts = MOB_BASE_BOLTS * 50.0,
 			.AttackRadius = REACTOR_MELEE_ATTACK_RADIUS * 1.0,
 			.HitRadius = REACTOR_MELEE_HIT_RADIUS * 1.0,
@@ -83,7 +83,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 75,
 			.Bangles = ZOMBIE_BANGLE_HEAD_4 | ZOMBIE_BANGLE_TORSO_4,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 5.0,
+			.MaxDamage = 0,
       .DamageScale = 0.5,
 			.Speed = MOB_BASE_SPEED * 1.0,
 			.MaxSpeed = MOB_BASE_SPEED * 1.8,
@@ -98,6 +98,40 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 			.MobAttribute = MOB_ATTRIBUTE_ACID,
+		}
+	},
+  // giant swarmer
+  [MOB_SPAWN_PARAM_GIANT_SWARMER]
+	{
+		.Cost = SWARMER_RENDER_COST,
+    .MaxSpawnedAtOnce = 5,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
+		.MinRound = 40,
+		.CooldownTicks = 0,
+		.Probability = 0.01,
+    .StatId = MOB_STAT_SWARMER,
+		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
+		.Name = "Swarmer",
+		.Config = {
+			.Xp = 250,
+			.Bangles = 0,
+			.Damage = MOB_BASE_DAMAGE * 1.0,
+			.MaxDamage = 0,
+      .DamageScale = 1.0,
+			.Speed = MOB_BASE_SPEED * 2.0,
+			.MaxSpeed = MOB_BASE_SPEED * 3.0,
+      .SpeedScale = 0.25,
+			.Health = MOB_BASE_HEALTH * 5.0,
+			.MaxHealth = 0,
+      .HealthScale = 1.0,
+			.Bolts = MOB_BASE_BOLTS * 2.5,
+			.AttackRadius = SWARMER_MELEE_ATTACK_RADIUS * 1.3,
+			.HitRadius = SWARMER_MELEE_HIT_RADIUS * 2.0,
+      .CollRadius = SWARMER_BASE_COLL_RADIUS * 3.0,
+			.ReactionTickCount = SWARMER_BASE_REACTION_TICKS,
+			.AttackCooldownTickCount = SWARMER_BASE_ATTACK_COOLDOWN_TICKS,
+			.MobAttribute = MOB_ATTRIBUTE_RUSSIAN_DOLL,
 		}
 	},
   // reaper
@@ -117,7 +151,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 150,
 			.Bangles = REAPER_BANGLE_SHOULDER_PAD_LEFT | REAPER_BANGLE_SHOULDER_PAD_RIGHT,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 9,
+			.MaxDamage = 0,
       .DamageScale = 1.2,
 			.Speed = MOB_BASE_SPEED * 0.5,
 			.MaxSpeed = MOB_BASE_SPEED * 1.0,
@@ -151,7 +185,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 30,
 			.Bangles = TREMOR_BANGLE_HEAD | TREMOR_BANGLE_CHEST | TREMOR_BANGLE_LEFT_ARM,
 			.Damage = MOB_BASE_DAMAGE * 0.7,
-			.MaxDamage = MOB_BASE_DAMAGE * 2.2,
+			.MaxDamage = 0,
       .DamageScale = 0.3,
 			.Speed = MOB_BASE_SPEED * 2.0,
 			.MaxSpeed = MOB_BASE_SPEED * 3.0,
@@ -185,7 +219,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 15,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
-			.MaxDamage = MOB_BASE_DAMAGE * 5,
+			.MaxDamage = 0,
       .DamageScale = 1.0,
 			.Speed = MOB_BASE_SPEED * 1.0,
 			.MaxSpeed = MOB_BASE_SPEED * 2.0,
@@ -219,7 +253,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 5,
 			.Bangles = 0,
 			.Damage = MOB_BASE_DAMAGE * 0.2,
-			.MaxDamage = MOB_BASE_DAMAGE * 1.5,
+			.MaxDamage = 0,
       .DamageScale = 1.0,
 			.Speed = MOB_BASE_SPEED * 0.8,
 			.MaxSpeed = MOB_BASE_SPEED * 1.2,
@@ -247,6 +281,7 @@ u32 MobPrimaryColors[] = {
 	[MOB_SPAWN_PARAM_TREMOR] 	  0x00464443,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x00464443,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x00464443,
+  [MOB_SPAWN_PARAM_GIANT_SWARMER] 0x00464443,
 };
 
 u32 MobSecondaryColors[] = {
@@ -256,6 +291,7 @@ u32 MobSecondaryColors[] = {
 	[MOB_SPAWN_PARAM_TREMOR] 	  0x80808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x80202020,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x80808080,
+  [MOB_SPAWN_PARAM_GIANT_SWARMER] 0x80808080,
 };
 
 u32 MobLODColors[] = {
@@ -265,6 +301,7 @@ u32 MobLODColors[] = {
 	[MOB_SPAWN_PARAM_TREMOR] 	  0x00808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	  0x00808080,
 	[MOB_SPAWN_PARAM_SWARMER] 	0x00808080,
+  [MOB_SPAWN_PARAM_GIANT_SWARMER] 0x80808080,
 };
 
 //--------------------------------------------------------------------------
@@ -281,7 +318,7 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
   { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
 };
-const int MysteryBoxItemMysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)/sizeof(struct MysteryBoxItemWeight);
+const int MysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)/sizeof(struct MysteryBoxItemWeight);
 
 struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
   { MYSTERY_BOX_ITEM_RESET_GATE, 0.01 },
@@ -296,7 +333,7 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
   { MYSTERY_BOX_ITEM_DREAD_TOKEN, 0.33333 },
   { MYSTERY_BOX_ITEM_WEAPON_MOD, 1.0 },
 };
-const int MysteryBoxItemMysteryBoxItemProbabilitiesLuckyCount = sizeof(MysteryBoxItemProbabilitiesLucky)/sizeof(struct MysteryBoxItemWeight);
+const int MysteryBoxItemProbabilitiesLuckyCount = sizeof(MysteryBoxItemProbabilitiesLucky)/sizeof(struct MysteryBoxItemWeight);
 
 //--------------------------------------------------------------------------
 // Locations of where to spawn statues
@@ -342,6 +379,16 @@ const int reactorAmbientSoundIdsCount = COUNT_OF(reactorAmbientSoundIds);
 
 int trailshotFireSoundId = 416;
 int trailshotExplodeSoundId = 0x106;
+
+int russianDollSpawnParamIdxs[] = {
+  MOB_SPAWN_PARAM_SWARMER,
+  MOB_SPAWN_PARAM_NORMAL,
+  MOB_SPAWN_PARAM_TREMOR,
+  MOB_SPAWN_PARAM_REAPER,
+  MOB_SPAWN_PARAM_ACID,
+  MOB_SPAWN_PARAM_GIANT_SWARMER
+};
+const int russianDollSpawnParamIdxsCount = COUNT_OF(russianDollSpawnParamIdxs);
 
 void configInit(void)
 {

@@ -517,10 +517,6 @@ void playerSyncTick(void)
   // player link always healthy
   POKE_U32(0x005F7BDC, 0x24020001);
 
-  // fix weird overflow caused by player sync
-  POKE_U32(0x004BAD64, 0x00412023);
-  POKE_U32(0x004b8078, 0x00412023);
-
   // player updates
   Player** players = playerGetAll();
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {

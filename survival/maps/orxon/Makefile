@@ -1,9 +1,9 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o config.o path.o gaspath.o wraith.o surge.o gas.o power.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
+EE_OBJS = main.o config.o path.o gaspath.o wraith.o gas.o power.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/bankbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
 EE_ELF = orxon.elf
 EE_BIN = orxon.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
-EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_EXECUTIONER -DMOB_TREMOR -DMAP_WRAITH -DMAP_SURGE -DGATE -DGAS -DPOWER -fno-builtin -nostdlib -nostartfiles -L.
+EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_EXECUTIONER -DMOB_TREMOR -DMAP_WRAITH -DMAP_SURGE_ -DGATE -DGAS -DPOWER -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
 BUILD_CONFIG := RELEASE
@@ -12,9 +12,9 @@ BUILD_CONFIG := RELEASE
 # 	DEBUG									Enables debug strings and additional misc debug logic.
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DNOGAS -DSURGE_IDLE -DWRAITH_IDLE1 -DMOB_CORN
+EE_DEFS := -DDEBUG -DNOGAS -DSURGE_IDLE_ -DWRAITH_IDLE -DMOB_CORN -DDEBUGMBOX_
 else ifeq ($(BUILD_CONFIG),RELEASE)
-EE_DEFS := -DMOB_CORN
+EE_DEFS := -DRELEASE -DMOB_CORN
 endif
 
 .PHONY: setup

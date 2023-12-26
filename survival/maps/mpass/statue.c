@@ -13,6 +13,7 @@
 
 #include "game.h"
 #include "mpass.h"
+#include "utils.h"
 #include "maputils.h"
 
 extern int aaa;

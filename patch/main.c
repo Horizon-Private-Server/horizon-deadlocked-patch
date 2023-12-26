@@ -159,6 +159,8 @@ int lastRespawnTime = 5;
 int lastCrazyMode = 0;
 int lastClientType = -1;
 int lastAccountId = -1;
+int hasShownSurvivalPrestigeMessage = 0;
+int hasPendingLobbyNameOverrides = 0;
 char mapOverrideResponse = 1;
 char showNeedLatestMapsPopup = 0;
 char showNoMapPopup = 0;
@@ -332,6 +334,12 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 PatchGameConfig_t gameConfig;
 PatchGameConfig_t gameConfigHostBackup;
+PatchInterop_t interopData = {
+  .Config = &config,
+  .GameConfig = &gameConfig,
+  .Client = CLIENT_TYPE_NORMAL,
+  .Month = 0,
+};
 
 /*
  * NAME :		INetUpdate
@@ -1499,7 +1507,7 @@ void patchFrameSkip()
 	static int autoDisableDelayTicks = 0;
 	
 	int addrValue = FRAME_SKIP_WRITE0;
-  int emuClient = CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT || PATCH_POINTERS_CLIENT == CLIENT_TYPE_PCSX2; // force framelimiter off for dzo/emu
+  int emuClient = CLIENT_TYPE_DZO == interopData.Client || interopData.Client == CLIENT_TYPE_PCSX2; // force framelimiter off for dzo/emu
 	int disableFramelimiter = config.framelimiter == 2 || emuClient;
 	int totalTimeMs = renderTimeMs + updateTimeMs;
 	float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
@@ -3176,6 +3184,10 @@ void runGameStartMessager(void)
       // request latest scavenger hunt settings
       scavHuntQueryForRemoteSettings();
 
+      // get server datetime
+      void* connection = netGetLobbyServerConnection();
+      if (connection) netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_SERVER_DATE_TIME, 0, NULL);
+
 #if DEBUG
 			redownloadCustomModeBinaries = 1;
 #endif
@@ -4023,6 +4035,77 @@ int padMappedPadHooked(int padMask, int a1)
 */
 
 /*
+ * NAME :		forceLobbyNameOverrides
+ * 
+ * DESCRIPTION :
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void forceLobbyNameOverrides(void)
+{
+  hasPendingLobbyNameOverrides = 0;
+  GameSettings* gs = gameGetSettings();
+  if (!gs) return;
+
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    int accountId = patchStateContainer.LobbyNameOverrides.AccountIds[i];
+    int j;
+    for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
+      if (gs->PlayerAccountIds[j] == accountId) {
+        strncpy(gs->PlayerNames[j], patchStateContainer.LobbyNameOverrides.Names[i], 16);
+      }
+    }
+  }
+}
+
+/*
+ * NAME :		onServerDateTimeResponseRemote
+ * 
+ * DESCRIPTION :
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onServerDateTimeResponseRemote(void* connection, void* data)
+{
+  ServerDateTimeMessage_t msg;
+  memcpy(&msg, data, sizeof(ServerDateTimeMessage_t));
+  
+  interopData.Month = msg.Month;
+}
+
+/*
+ * NAME :		onServerSetLobbyNameOverridesRemote
+ * 
+ * DESCRIPTION :
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onServerSetLobbyNameOverridesRemote(void* connection, void* data)
+{
+  memcpy(&patchStateContainer.LobbyNameOverrides, data, sizeof(SetNameOverridesMessage_t));
+  hasPendingLobbyNameOverrides = 1;
+}
+
+/*
  * NAME :		onSetRanks
  * 
  * DESCRIPTION :
@@ -4042,6 +4125,15 @@ int onSetRanks(void * connection, void * data)
 
 	// move message payload into local
 	memcpy(&lastSetRanksRequest, data, sizeof(ServerSetRanksRequest_t));
+
+  // 
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && !hasShownSurvivalPrestigeMessage) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      if (lastSetRanksRequest.AccountIds[i] == gameGetMyAccountId() && lastSetRanksRequest.Ranks[i] >= 10000) {
+        hasShownSurvivalPrestigeMessage = 1;
+      }
+    }
+  }
 
 	return sizeof(ServerSetRanksRequest_t);
 }
@@ -4316,12 +4408,12 @@ void sendClientType(void)
   // if the client type is 0 (normal)
   // then it is possible we're on an emulator
   // so let's check if we are on an emu
-  if (PATCH_POINTERS_CLIENT == CLIENT_TYPE_NORMAL && !hasSonyMACAddress())
-    PATCH_POINTERS_CLIENT = CLIENT_TYPE_PCSX2;
+  if (interopData.Client == CLIENT_TYPE_NORMAL && !hasSonyMACAddress())
+    interopData.Client = CLIENT_TYPE_PCSX2;
 
   // get client type
-  msg.ClientType = PATCH_POINTERS_CLIENT;
-  int accountId = *(int*)0x00172194;
+  msg.ClientType = interopData.Client;
+  int accountId = gameGetMyAccountId();
   void* lobbyConnection = netGetLobbyServerConnection();
 
   // get mac address
@@ -4564,6 +4656,11 @@ void onOnlineMenu(void)
     }
   }
 
+  if (hasShownSurvivalPrestigeMessage == 1) {
+    uiShowOkDialog("Survival", "You have reached the max rank. You may prestige using the !prestige command.");
+    hasShownSurvivalPrestigeMessage = 2;
+  }
+
 	if (showNoMapPopup)
 	{
 		if (mapOverrideResponse == -1)
@@ -4655,9 +4752,7 @@ int main (void)
 	}
 
   // write patch pointers
-  POKE_U32(PATCH_POINTERS + 0, &config);
-  POKE_U32(PATCH_POINTERS + 4, &gameConfig);
-  //POKE_U32(PATCH_POINTERS + 8, &patchStateContainer);
+  PATCH_INTEROP = &interopData;
 
 	// invoke exception display installer
 	if (*(u32*)EXCEPTION_DISPLAY_ADDR != 0)
@@ -4693,6 +4788,8 @@ int main (void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_CLIENT_READY, &onClientReadyRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_VOTED_TO_END, &onClientVoteToEndRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED, &onClientVoteToEndStateUpdateRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_NAME_OVERRIDES, &onServerSetLobbyNameOverridesRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DATE_TIME_RESPONSE, &onServerDateTimeResponseRemote);
 
 	// Run map loader
 	runMapLoader();
@@ -4733,7 +4830,7 @@ int main (void)
 #endif
 
   // enable 4 player splitscreen
-  extraLocalsRun();
+  //extraLocalsRun();
 
   // old lag fixes
   if (!gameConfig.grNewPlayerSync) {
@@ -4856,7 +4953,12 @@ int main (void)
 		HOOK_JAL(0x004C3A94, &drawHook);
 		HOOK_JAL(0x004A9A48, &drawHook);
     HOOK_JAL(0x005281F0, &updatePad);
-    
+      
+    // fix weird overflow caused by player sync
+    // also randomly (rarely) triggered by other things too
+    POKE_U32(0x004BAD64, 0x00412023);
+    POKE_U32(0x004b8078, 0x00412023);
+
     // prevents wrench lag
     // by patching 1 frame where mag shot won't stop player when cbooting
     //POKE_U16(0x003EF658, 0x0017);
@@ -4963,6 +5065,8 @@ int main (void)
 				// send
 				configTrySendGameConfig();
 			}
+
+      if (hasPendingLobbyNameOverrides) forceLobbyNameOverrides();
 
 			// try and apply ranks
 			/*

@@ -49,9 +49,9 @@ void pathTick(void);
 
 int isMobyInGasArea(Moby* moby);
 
-int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
-int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
-int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 
 int aaa = 47;
 
@@ -119,17 +119,17 @@ int mapPathCanBeSkippedForTarget(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
+int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
   switch (spawnParamsIdx)
   {
     case MOB_SPAWN_PARAM_TITAN:
     {
-      return executionerCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return executionerCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     case MOB_SPAWN_PARAM_TREMOR:
     {
-      return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     case MOB_SPAWN_PARAM_GHOST:
     case MOB_SPAWN_PARAM_EXPLOSION:
@@ -137,7 +137,7 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
     case MOB_SPAWN_PARAM_FREEZE:
     case MOB_SPAWN_PARAM_NORMAL:
     {
-      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, freeAgent, config);
+      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     default:
     {
@@ -166,6 +166,21 @@ void onBeforeUpdateHeroes2(u32 a0)
 }
 
 //--------------------------------------------------------------------------
+void bboxSpawn(void)
+{
+  static int spawned = 0;
+  if (spawned)
+    return;
+
+  // spawn
+  VECTOR p = {322.91,539.6399,433.9998,0};
+  VECTOR r = {0,0,(-45 + 90) * MATH_DEG2RAD,0};
+  bboxCreate(p, r);
+
+  spawned = 1;
+}
+
+//--------------------------------------------------------------------------
 void initialize(void)
 {
   static int initialized = 0;
@@ -176,7 +191,7 @@ void initialize(void)
 
   gateInit();
   wraithInit();
-  surgeInit();
+  //surgeInit();
   mboxInit();
   mobInit();
   configInit();
@@ -346,12 +361,12 @@ void nodeUpdate(Moby* moby)
     static int asd = 0;
     if (!asd) {
       asd = 1;
-      printf("ready\n");
     }
 
     mboxSpawn();
     wraithSpawn();
-    surgeSpawn();
+    bboxSpawn();
+    //surgeSpawn();
     gateSpawn(GateLocations, GateLocationsCount);
   }
 }

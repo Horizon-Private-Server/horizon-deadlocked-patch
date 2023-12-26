@@ -149,6 +149,11 @@ int pathCanBeSkippedForTarget(Moby* moby)
     return 0;
   }
 
+  // stuck
+  if (pvars->MobVars.MoveVars.StuckCounter) {
+    return 0;
+  }
+
   // check if current edge is required or there is a jump we haven't reached
   edge = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent];
   float jumpAt = MOB_PATHFINDING_EDGES_JUMPPADAT[edge] / 255.0;
@@ -200,7 +205,12 @@ int pathGetClosestNodeInSight(Moby* moby, int * foundInSight)
 {
   int i,j;
   VECTOR position = {0,0,1,0};
+  VECTOR from;
   VECTOR delta;
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  float collRadius = 0.5;
+  if (pvars)
+    collRadius = pvars->MobVars.Config.CollRadius;
 
   char orderedNodesByDist[CLOSEST_NODES_COLL_CHECK_SIZE];
   float nodeDists[MOB_PATHFINDING_NODES_COUNT];
@@ -245,7 +255,10 @@ int pathGetClosestNodeInSight(Moby* moby, int * foundInSight)
 #endif
     
     for (i = 0; i < CLOSEST_NODES_COLL_CHECK_SIZE; ++i) {
-      if (orderedNodesByDist[i] >= 0 && !CollLine_Fix(position, MOB_PATHFINDING_NODES[(u8)orderedNodesByDist[i]], COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
+      vector_subtract(delta, MOB_PATHFINDING_NODES[(u8)orderedNodesByDist[i]], position);
+      vector_scale(delta, delta, collRadius / nodeDists[(u8)orderedNodesByDist[i]]);
+      vector_subtract(from, position, delta);
+      if (orderedNodesByDist[i] >= 0 && !CollLine_Fix(from, MOB_PATHFINDING_NODES[(u8)orderedNodesByDist[i]], COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
         if (foundInSight)
           *foundInSight = 1;
 

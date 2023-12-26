@@ -5,6 +5,18 @@
 
 #define SEQ_DIFF_U8(a, b) (((b - a + 128*3) % (128*2)) - 128)
 
+#if DEBUG
+  #define DEBUG_ONLY(s) s
+#else
+  #define DEBUG_ONLY(s) 
+#endif
+
+#if RELEASE
+  #define RELEASE_ONLY(s) s
+#else
+  #define RELEASE_ONLY(s) 
+#endif
+
 #include <tamtypes.h>
 #include <libdl/moby.h>
 #include <libdl/math.h>

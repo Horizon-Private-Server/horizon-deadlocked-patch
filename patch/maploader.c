@@ -1175,6 +1175,12 @@ void runMapLoader(void)
 		{
 			initialized = 2;
 		}
+    else if (HAS_LOADED_MODULES)
+    {
+      // check if host fs exists
+      useHost = 1;
+      if (!readGlobalVersion(NULL)) useHost = 0;
+    }
 #endif
 	}
 
@@ -1187,4 +1193,7 @@ void runMapLoader(void)
 			settings->GameLevel = State.MapId;
 		}
 	}
+
+  // dzo always use hostfs
+  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO) useHost = 1;
 }

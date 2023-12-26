@@ -137,7 +137,7 @@ void reactorTransAnim(Moby* moby, int animId, float startOff)
 }
 
 //--------------------------------------------------------------------------
-int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
+int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
   
@@ -147,7 +147,7 @@ int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1, freeAgent);
+      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1, spawnFlags);
     }
 
 		u8 random = (u8)rand(100);
@@ -160,7 +160,7 @@ int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &yaw, 4);
 		guberEventWrite(guberEvent, &spawnFromUID, 4);
-		guberEventWrite(guberEvent, &freeAgent, 4);
+		guberEventWrite(guberEvent, &spawnFlags, 4);
 		guberEventWrite(guberEvent, &random, 1);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
 	}
@@ -313,7 +313,7 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
   pvars->MobVars.BlipType = 6;
 
   // move step
-  pvars->MobVars.MoveVars.MoveStep = 0;
+  pvars->MobVars.MoveVars.MoveStep = 1;
 
   // default cooldowns
   reactorVars->AttackSmashCooldownTicks = randRangeInt(REACTOR_CHARGE_ATTACK_MIN_COOLDOWN_TICKS, REACTOR_CHARGE_ATTACK_MAX_COOLDOWN_TICKS);
@@ -855,6 +855,11 @@ void reactorDoAction(Moby* moby)
 
           mobTurnTowards(moby, t, turnSpeed);
           mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+        } else if (dist < (0.5 * pvars->MobVars.Config.CollRadius)) {
+          vector_fromyaw(t, moby->Rotation[2]);
+          vector_scale(t, t, -2 * pvars->MobVars.Config.CollRadius);
+          vector_add(t, moby->Position, t);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
         } else {
           mobStand(moby);
         }
@@ -1044,7 +1049,7 @@ void reactorDoAction(Moby* moby)
 			}
 
 			if (attackCanDoChargeDamage && damageFlags) {
-				reactorDoChargeDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage * 1.2, damageFlags, 0);
+				reactorDoChargeDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage * 1.5, damageFlags, 0);
 			}
       if (attackCanDoSwingDamage && damageFlags) {
 				reactorDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);

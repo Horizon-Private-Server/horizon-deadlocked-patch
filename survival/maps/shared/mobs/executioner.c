@@ -73,7 +73,7 @@ extern u32 MobSecondaryColors[];
 extern u32 MobLODColors[];
 
 //--------------------------------------------------------------------------
-int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config)
+int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
   
@@ -83,7 +83,7 @@ int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnF
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1, freeAgent);
+      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1, spawnFlags);
     }
 
 		u8 random = (u8)rand(100);
@@ -92,7 +92,7 @@ int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnF
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &yaw, 4);
 		guberEventWrite(guberEvent, &spawnFromUID, 4);
-		guberEventWrite(guberEvent, &freeAgent, 4);
+		guberEventWrite(guberEvent, &spawnFlags, 4);
 		guberEventWrite(guberEvent, &random, 1);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
 	}
@@ -201,6 +201,11 @@ void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID
 #if MOB_DAMAGETYPES
   pvars->TargetVars.damageTypes = MOB_DAMAGETYPES;
 #endif
+
+  // russion doll
+  if (pvars->MobVars.SpawnFlags & MOB_SPAWN_FLAG_RUSSIAN_DOLL) {
+    mobSetAction(moby, EXECUTIONER_ACTION_BIG_FLINCH);
+  }
 
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;

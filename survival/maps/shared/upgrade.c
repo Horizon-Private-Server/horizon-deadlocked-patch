@@ -24,6 +24,7 @@ char UpgradeTexIds[] = {
 	[UPGRADE_MEDIC] 13,
 	[UPGRADE_VENDOR] 46,
 	[UPGRADE_PICKUPS] 2,
+  [UPGRADE_CRIT] 7,
 };
 
 //--------------------------------------------------------------------------
@@ -113,7 +114,7 @@ void upgradePostDraw(Moby* moby)
 
 	// determine color
 	u32 color = 0x00FFFFFF;
-  float opacity = lerpf(0, 1, pvars->Uses / (float)UPGRADE_MAX_USES);
+  float opacity = lerpf(0, 1, clamp(pvars->Uses / 5.0, 0, 1));
   color |= (u8)(0x70 * opacity) << 24;
 
 	// set draw args
@@ -219,6 +220,7 @@ int upgradeHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	struct UpgradePVar* pvars = (struct UpgradePVar*)moby->PVar;
 	pvars->Type = args.Type;
   pvars->Uses = UPGRADE_MAX_USES;
+  pvars->TexId = UpgradeTexIds[args.Type];
 	memset(pvars->Particles, 0, sizeof(pvars->Particles));
 
 	// set team
@@ -288,32 +290,37 @@ int upgradeHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 		{
 			case UPGRADE_HEALTH:
 			{
-				uiShowPopup(targetPlayer->LocalPlayerIndex, "Health upgraded!");
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Health Upgraded!");
 				break;
 			}
 			case UPGRADE_SPEED:
 			{
-				uiShowPopup(targetPlayer->LocalPlayerIndex, "Speed upgraded!");
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Speed Upgraded!");
 				break;
 			}
 			case UPGRADE_DAMAGE:
 			{
-				uiShowPopup(targetPlayer->LocalPlayerIndex, "Damage upgraded!");
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Damage Upgraded!");
 				break;
 			}
 			case UPGRADE_MEDIC:
 			{
-				uiShowPopup(targetPlayer->LocalPlayerIndex, "Revive discount!");
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Revive Discount!");
 				break;
 			}
 			case UPGRADE_VENDOR:
 			{
-				uiShowPopup(targetPlayer->LocalPlayerIndex, "Vendor discount!");
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Vendor Discount!");
 				break;
 			}
 			case UPGRADE_PICKUPS:
 			{
-				uiShowPopup(targetPlayer->LocalPlayerIndex, "Powerup duration increased!");
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Powerup Duration Increased!");
+				break;
+			}
+			case UPGRADE_CRIT:
+			{
+				uiShowPopup(targetPlayer->LocalPlayerIndex, "Critical Hit Upgraded!");
 				break;
 			}
 		}

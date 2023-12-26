@@ -508,7 +508,7 @@ void processFreecam(void)
         POKE_U32((u32)player + 0x2FC, 0);
 
       // only process input when in game
-      if (gameIsStartMenuOpen() || isConfigMenuActive)
+      if (gameIsAnyStartMenuOpen() || isConfigMenuActive)
         continue;
 
       if (!playerIsDead(player))

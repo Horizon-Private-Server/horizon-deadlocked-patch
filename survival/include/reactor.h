@@ -30,7 +30,7 @@
 #define REACTOR_SMASH_ATTACK_MIN_COOLDOWN_TICKS               (TPS * 30)
 #define REACTOR_SMASH_ATTACK_MAX_COOLDOWN_TICKS               (TPS * 120)
 #define REACTOR_SMASH_ATTACK_MIN_COUNT                        (3)
-#define REACTOR_SMASH_ATTACK_MAX_COUNT                        (10)
+#define REACTOR_SMASH_ATTACK_MAX_COUNT                        (6)
 #define REACTOR_SMASH_ATTACK_MIN_MINION_SPAWN_COUNT           (3)
 #define REACTOR_SMASH_ATTACK_MAX_MINION_SPAWN_COUNT           (7)
 

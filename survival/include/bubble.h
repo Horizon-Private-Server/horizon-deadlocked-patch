@@ -20,9 +20,10 @@ struct SurvivalDamageBubble
   u16 Damage;
   u8 Life;
   char IsLocal;
+  char IsCrit;
 };
 
-void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal);
+void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, int isCrit);
 void bubbleTick(void);
 void bubbleInit(void);
 void bubbleDeinit(void);

@@ -12,7 +12,7 @@
 #define UPGRADE_MOBY_OCLASS				(0x70)
 #define UPGRADE_PICKUP_RADIUS			(4)
 #define UPGRADE_TOKEN_COST				(1)
-#define UPGRADE_MAX_USES  				(5)
+#define UPGRADE_MAX_USES  				(15)
 #define PLAYER_UPGRADE_COOLDOWN_TICKS					(60)
 
 enum UpgradeType {
@@ -22,6 +22,7 @@ enum UpgradeType {
 	UPGRADE_MEDIC,
 	UPGRADE_VENDOR,
   UPGRADE_PICKUPS,
+  UPGRADE_CRIT,
 	UPGRADE_COUNT
 };
 
@@ -34,6 +35,7 @@ enum UpgradeEventType {
 struct UpgradePVar {
 	enum UpgradeType Type;
   int Uses;
+  int TexId;
 	struct PartInstance* Particles[4];
 };
 

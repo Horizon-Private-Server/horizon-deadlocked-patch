@@ -22,6 +22,7 @@ enum MobAttributeType
 	MOB_ATTRIBUTE_ACID,
 	MOB_ATTRIBUTE_GHOST,
   MOB_ATTRIBUTE_EXPLODE,
+  MOB_ATTRIBUTE_RUSSIAN_DOLL,
 	MOB_ATTRIBUTE_COUNT
 };
 
@@ -43,6 +44,13 @@ enum MobSpawnType {
 	SPAWN_TYPE_NEAR_PLAYER = 2,
 	SPAWN_TYPE_ON_PLAYER = 4,
 	SPAWN_TYPE_NEAR_HEALTHBOX = 8,
+};
+
+// 
+enum MobSpawnFlags {
+  MOB_SPAWN_FLAG_NONE = 0,
+  MOB_SPAWN_FLAG_FREE_AGENT = 1,
+  MOB_SPAWN_FLAG_RUSSIAN_DOLL = 2
 };
 
 // 
@@ -176,7 +184,7 @@ struct MobVars {
 	struct Knockback Knockback;
   struct MobMoveVars MoveVars;
   int SpawnParamsIdx;
-  int FreeAgent;
+  int SpawnFlags;
   VECTOR TargetPosition;
 	int Action;
 	int NextAction;
@@ -350,8 +358,11 @@ int mobOnUnreliableMsgRemote(void* connection, void* data);
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);
 int mobHandleEvent(Moby* moby, GuberEvent* event);
-int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int freeAgent, struct MobConfig *config);
+int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 void mobInitialize(void);
 void mobTick(void);
+
+extern int russianDollSpawnParamIdxs[];
+extern const int russianDollSpawnParamIdxsCount;
 
 #endif // SURVIVAL_MOB_H
