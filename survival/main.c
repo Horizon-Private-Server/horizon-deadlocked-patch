@@ -46,6 +46,7 @@
 #include "include/gate.h"
 
 #define DIFFICULTY_FACTOR                   (State.MobStats.TotalSpawned / 100)
+#define SPAWNPOINT_NEAR_BUFFER_SIZE         (3)
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
@@ -143,15 +144,15 @@ int Initialized = 0;
 struct SurvivalState State;
 struct SurvivalMapConfig* mapConfig = (struct SurvivalMapConfig*)0x01EF0010;
 
-struct SurvivalSnackItem snackItems[SNACK_ITEM_MAX_COUNT];
+struct SurvivalSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
 
-int defaultSpawnParamsCooldowns[MAX_MOB_SPAWN_PARAMS];
+int defaultSpawnParamsCooldowns[MAX_MOB_SPAWN_PARAMS] = {};
 
 PatchConfig_t* playerConfig = NULL;
 
-int playerStates[GAME_MAX_PLAYERS];
-int playerStateTimers[GAME_MAX_PLAYERS];
+int playerStates[GAME_MAX_PLAYERS] = {};
+int playerStateTimers[GAME_MAX_PLAYERS] = {};
 
 char blessingQuadJumpJumpCount[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
 short blessingHealthRegenTickers[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
@@ -254,7 +255,7 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
   }
 	
 	// set exp bar
-	expBar->iFrame.ScaleX = 0.2275 * expPercent;
+	expBar->iFrame.ScaleX = 0.2275 * clamp(expPercent, 0, 1);
 	expBar->iFrame.PositionX = 0.406 + (expBar->iFrame.ScaleX / 2);
 	expBar->iFrame.PositionY = 0.0546875;
 	expBar->iFrame.Color = hudGetTeamColor(player->Team, 2);
@@ -264,7 +265,7 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
 
 	struct HUDWidgetTextObject* healthText = (struct HUDWidgetTextObject*)hudCanvasGetObject(canvas, 0xF000010E);
 	if (!healthText) {
-		DPRINTF("no health text %d\n", localPlayerIndex);
+		//DPRINTF("no health text %d\n", localPlayerIndex);
     return;
   }
 	
@@ -570,7 +571,8 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
 	int spCount = spawnPointGetCount();
 	int i,j;
   int found = 0;
-	float bestPointDistSqr = 100000;
+	float bestPointDistSqr[SPAWNPOINT_NEAR_BUFFER_SIZE] = {100000,100000,100000};
+  int bestPoints[SPAWNPOINT_NEAR_BUFFER_SIZE] = {-1,-1,-1};
 	float minDistSqr = minDist * minDist;
   float closestDistSqr = 0;
   Player** players = playerGetAll();
@@ -591,23 +593,38 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
       float d = vector_sqrmag(t);
 
       // randomize order a little
-      d += randRange(0, 15 * 15);
+      d += randRange(0, minDistSqr * 0.5);
 
       if (d < closestDistSqr)
         closestDistSqr = d;
     }
     
     if (closestDistSqr >= minDistSqr) {
-      if (closestDistSqr < bestPointDistSqr) {
-        vector_copy(out, (float*)&sp->M0[12]);
-        vector_fromyaw(t, randRadian());
-        vector_scale(t, t, 3);
-        vector_add(out, out, t);
-        found = 1;
-        bestPointDistSqr = closestDistSqr;
+      for (j = found; j >= 0; --j) {
+        if (j >= SPAWNPOINT_NEAR_BUFFER_SIZE) continue;
+
+        if (closestDistSqr < bestPointDistSqr[j]) {
+          
+          if (found <= j) found = j+1;
+          bestPoints[j] = i;
+          bestPointDistSqr[j] = closestDistSqr;
+          break;
+        }
       }
     }
 	}
+
+  // pick random from best points
+  if (found)
+  {
+    int pick = rand(found);
+    int idx = bestPoints[pick];
+    SpawnPoint* sp = spawnPointGet(idx);
+    vector_copy(out, (float*)&sp->M0[12]);
+    vector_fromyaw(t, randRadian());
+    vector_scale(t, t, 3);
+    vector_add(out, out, t);
+  }
 
 	return found;
 }
@@ -616,10 +633,10 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
 int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
 	// harder difficulty, better chance mob spawns near you
 	float r = randRange(0, 1) / State.Difficulty;
-  float demonBellFactor = 0;
+  float demonBellFactor = 1;
 
   if (State.DemonBellCount > 0) {
-    demonBellFactor = lerpf(1, 0.5, powf(State.RoundDemonBellCount / (float)State.DemonBellCount, 2));
+    demonBellFactor = lerpf(1, 0.33, powf(State.RoundDemonBellCount / (float)State.DemonBellCount, 2));
   }
 
 #if QUICK_SPAWN
@@ -751,7 +768,7 @@ struct MobSpawnParams* spawnGetRandomMobParams(int * mobIdx)
 
 	for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i) {
 		struct MobSpawnParams* mob = &mapConfig->DefaultSpawnParams[i];
-		DPRINTF("CANT SPAWN round:%d mobIdx:%d mobMinRound:%d mobCost:%d mobProb:%f\n", State.RoundNumber, i, mob->MinRound, mob->Cost, mob->Probability);
+		//DPRINTF("CANT SPAWN round:%d mobIdx:%d mobMinRound:%d mobCost:%d mobProb:%f\n", State.RoundNumber, i, mob->MinRound, mob->Cost, mob->Probability);
 	}
 	
 	return NULL;
@@ -1005,7 +1022,9 @@ void onPlayerPrestigeWeapon(int playerId, int weaponId, int prestigeId)
 	// play upgrade sound
 	playUpgradeSound(p);
 
+#if LOG_STATS2
 	DPRINTF("%d (%08X) weapon %d prestiged to %d\n", playerId, (u32)p, weaponId, prestigeId);
+#endif
 }
 
 //--------------------------------------------------------------------------
@@ -1203,7 +1222,9 @@ void onSetPlayerDead(int playerId, char isDead)
 {
 	State.PlayerStates[playerId].IsDead = isDead;
 	State.PlayerStates[playerId].ReviveCooldownTicks = isDead ? 60 * 60 : 0;
+#if LOG_STATS2
 	DPRINTF("%d died (%d)\n", playerId, isDead);
+#endif
 }
 
 //--------------------------------------------------------------------------
@@ -1241,7 +1262,9 @@ void onSetPlayerWeaponMods(int playerId, int weaponId, u8* mods)
 	for (i = 0; i < 10; ++i)
 		gBox->Gadgets[weaponId].AlphaMods[i] = mods[i];
 		
+#if LOG_STATS2
 	DPRINTF("%d set %d mods\n", playerId, weaponId);
+#endif
 }
 
 //--------------------------------------------------------------------------
@@ -1736,7 +1759,9 @@ void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damage
 
     hitpoints = 10 * (1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * State.PlayerStates[sourcePlayer->PlayerId].State.Upgrades[UPGRADE_DAMAGE]));
     hitpoints *= sourcePlayer->DamageMultiplier;
+#if LOG_STATS2
     DPRINTF("headbutt %08X %04X with %f and %X\n", (u32)hitMoby, hitMoby->OClass, hitpoints, damageFlags);
+#endif
   }
 
   ((void (*)(float, Moby*, Moby*, int, VECTOR, VECTOR))0x00503500)(hitpoints, hitMoby, sourceMoby, damageFlags, fromPos, t0);
@@ -2350,7 +2375,9 @@ int getRoundBonus(int roundNumber, int numPlayers)
 void onSetRoundComplete(int gameTime, int boltBonus)
 {
 	int i;
+#if LOG_STATS2
 	DPRINTF("round complete. zombies spawned %d/%d\n", State.MobStats.TotalSpawnedThisRound, State.RoundMaxMobCount);
+#endif
 
 	// 
 	State.RoundEndTime = 0;
@@ -2370,7 +2397,9 @@ void onSetRoundComplete(int gameTime, int boltBonus)
     int vestable = pvars->BoltsAtStartOfRound - pvars->BoltsWithdrawnThisRound;
     if (vestable < 0) vestable = 0;
 
+#if LOG_STATS2
     DPRINTF("bank vested %d (- %d)=>%d (total %d=>%d)", pvars->BoltsAtStartOfRound, pvars->BoltsWithdrawnThisRound, (int)(vestable * (1 + BANK_VEST_FACTOR)), pvars->TotalBolts, pvars->TotalBolts + (int)(vestable * BANK_VEST_FACTOR));
+#endif
 
     pvars->TotalBolts += vestable * BANK_VEST_FACTOR;
   }
@@ -2548,15 +2577,15 @@ void randomizeWeaponPickups(void)
 	memset(wepEnabled, 0, sizeof(wepEnabled));
 	memset(wepCounts, 0, sizeof(wepCounts));
 
-	if (gameOptions->WeaponFlags.DualVipers) { wepEnabled[2] = 1; pickupOptionCount++; DPRINTF("dv\n"); }
-	if (gameOptions->WeaponFlags.MagmaCannon) { wepEnabled[3] = 1; pickupOptionCount++; DPRINTF("mag\n"); }
-	if (gameOptions->WeaponFlags.Arbiter) { wepEnabled[4] = 1; pickupOptionCount++; DPRINTF("arb\n"); }
-	if (gameOptions->WeaponFlags.FusionRifle) { wepEnabled[5] = 1; pickupOptionCount++; DPRINTF("fusion\n"); }
-	if (gameOptions->WeaponFlags.MineLauncher) { wepEnabled[6] = 1; pickupOptionCount++; DPRINTF("mines\n"); }
-	if (gameOptions->WeaponFlags.B6) { wepEnabled[7] = 1; pickupOptionCount++; DPRINTF("b6\n"); }
-	if (gameOptions->WeaponFlags.Holoshield) { wepEnabled[16] = 1; pickupOptionCount++; DPRINTF("shields\n"); }
-	if (gameOptions->WeaponFlags.Flail) { wepEnabled[12] = 1; pickupOptionCount++; DPRINTF("flail\n"); }
-	if (gameOptions->WeaponFlags.Chargeboots && gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots == 0) { wepEnabled[13] = 1; pickupOptionCount++; DPRINTF("cboots\n"); }
+	if (gameOptions->WeaponFlags.DualVipers) { wepEnabled[2] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.MagmaCannon) { wepEnabled[3] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.Arbiter) { wepEnabled[4] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.FusionRifle) { wepEnabled[5] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.MineLauncher) { wepEnabled[6] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.B6) { wepEnabled[7] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.Holoshield) { wepEnabled[16] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.Flail) { wepEnabled[12] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.Chargeboots && gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots == 0) { wepEnabled[13] = 1; pickupOptionCount++; }
 
 	if (pickupOptionCount > 0) {
 		Moby* moby = mobyListGetStart();
@@ -2584,7 +2613,9 @@ void randomizeWeaponPickups(void)
 				}
 
 				// set pickup
+#if LOG_STATS2
 				DPRINTF("setting pickup at %08X to %d\n", (u32)moby, gadgetId);
+#endif
 				((void (*)(Moby*, int))0x0043A370)(moby, gadgetId);
 
 				++pickupCount;
@@ -2790,7 +2821,9 @@ void resetRoundState(void)
     bankPvars->BoltsAtStartOfRound = bankPvars->TotalBolts;
     bankPvars->BoltsDepositThisRound = 0;
     bankPvars->BoltsWithdrawnThisRound = 0;
+#if LOG_STATS2
     DPRINTF("bank vestable bolts this round:%d\n", bankPvars->BoltsAtStartOfRound);
+#endif
   }
 
 	// 
@@ -2845,6 +2878,11 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   // disable holoshields from disappearing
   //*(u16*)0x00401478 = 2;
 
+  // disable team based holoshield toggling
+  // enables players to shoot through eachothers shields
+  POKE_U32(0x005A3830, 0x2402FFFF);
+  POKE_U32(0x005A3834, 0x14500018);
+
   // force holoshield hit testing
   *(u32*)0x00401194 = 0;
   *(u32*)0x003FFDE8 = 0x1000000D;
@@ -2884,7 +2922,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   u32 mineUpdateFunc = 0x003c6c28;
   u32* updateFuncs = (u32*)0x00249980;
   for (i = 0; i < 113; ++i) {
-    if (*updateFuncs == mineUpdateFunc) { *updateFuncs = (u32)&customMineMobyUpdate; DPRINTF("set %08X to our mine func\n", (u32)updateFuncs); }
+    if (*updateFuncs == mineUpdateFunc) { *updateFuncs = (u32)&customMineMobyUpdate; }
     updateFuncs++;
   }
 
@@ -3173,8 +3211,10 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 #if !PAYDAY
     for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
       State.PlayerStates[j].State.Bolts *= 1.225;
+      //State.PlayerStates[j].State.TotalBolts = State.PlayerStates[j].State.Bolts;
       State.PlayerStates[j].State.XP *= 1.225;
     }
+
 #endif
   }
 
@@ -3332,6 +3372,32 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
   }
 #endif
 
+#if TRAILER
+  static int trailerInit = 0;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_REVIVE_TOTEM;
+    State.PlayerStates[i].State.CurrentTokens = 15;
+    if (State.PlayerStates[i].State.Bolts < 100000)
+      State.PlayerStates[i].State.Bolts = 1000000;
+  }
+
+  if (!trailerInit) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_REVIVE_TOTEM;
+      State.PlayerStates[i].State.BlessingSlots = 1;
+      State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_AMMO_REGEN;
+      State.PlayerStates[i].State.CurrentTokens = 15;
+      State.PlayerStates[i].State.Bolts = 1000000;
+      State.PlayerStates[i].State.Upgrades[UPGRADE_CRIT] = 30;
+      State.PlayerStates[i].State.Upgrades[UPGRADE_HEALTH] = 5;
+      State.PlayerStates[i].State.Upgrades[UPGRADE_SPEED] = 30;
+      State.PlayerStates[i].State.Upgrades[UPGRADE_DAMAGE] = 10;
+    }
+    trailerInit = 1;
+  }
+#endif
+
 #if MANUAL_SPAWN
   if (localPlayerHasInput())
 	{
@@ -3349,6 +3415,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		if (padGetButtonDown(0, PAD_DOWN) > 0) {
 			static int manSpawnMobId = 0;
 
+      //if (manSpawnMobId == 0) manSpawnMobId = 2;
+
       // force one mob type
       //manSpawnMobId = 0;
       //manSpawnMobId = 2;
@@ -3360,9 +3428,12 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       }
 
       // build spawn position
-			VECTOR t = {1,1,1,0};
-      vector_scale(t, t, mapConfig->DefaultSpawnParams[manSpawnMobId].Config.CollRadius*2);
-			vector_add(t, t, localPlayer->PlayerPosition);
+      VECTOR t;
+      if (1 || !spawnGetRandomPoint(t, &mapConfig->DefaultSpawnParams[manSpawnMobId])) {
+        VECTOR offset = {1,1,1,0};
+        vector_scale(t, offset, mapConfig->DefaultSpawnParams[manSpawnMobId].Config.CollRadius*2);
+        vector_add(t, t, localPlayer->PlayerPosition);
+      }
 
       //DPRINTF("spawning mob type %d\n", manSpawnMobId);
       

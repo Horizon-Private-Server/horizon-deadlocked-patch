@@ -157,7 +157,7 @@ void playerSyncHandlePlayerState(Player* player)
 
   // extrapolate
   if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
-    DPRINTF("extrapolate %d\n", data->TicksSinceLastUpdate);
+    //DPRINTF("extrapolate %d\n", data->TicksSinceLastUpdate);
     vector_add(stateCurrent->Position, stateCurrent->Position, player->Velocity);
   }
 
@@ -166,7 +166,7 @@ void playerSyncHandlePlayerState(Player* player)
   if (vector_sqrmag(dt) > (5*5)) {
     vector_copy(player->PlayerPosition, data->LastReceivedPosition);
     vector_copy(stateCurrent->Position, data->LastReceivedPosition);
-    DPRINTF("tp\n");
+    //DPRINTF("tp\n");
   }
 
   // lerp position if distance is greater than threshold
@@ -329,10 +329,10 @@ void playerSyncHandlePlayerState(Player* player)
     }
 
     if (!skip) {
-      DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateCurrent->State, player->PlayerState);
+      //DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateCurrent->State, player->PlayerState);
 
       if (player->PlayerSubstate > 1) {
-        DPRINTF("substate fix %d=>0\n", player->PlayerSubstate);
+        //DPRINTF("substate fix %d=>0\n", player->PlayerSubstate);
         player->PlayerSubstate = 0;
       }
 

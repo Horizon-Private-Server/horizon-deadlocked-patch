@@ -4958,6 +4958,7 @@ int main (void)
     // also randomly (rarely) triggered by other things too
     POKE_U32(0x004BAD64, 0x00412023);
     POKE_U32(0x004b8078, 0x00412023);
+    POKE_U32(0x004b8084, 0x00612023);
 
     // prevents wrench lag
     // by patching 1 frame where mag shot won't stop player when cbooting

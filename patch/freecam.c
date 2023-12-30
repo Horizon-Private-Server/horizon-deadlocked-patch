@@ -490,15 +490,14 @@ void processFreecam(void)
     freecamInitialize();
 
   // Loop through every player
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
 	{
+    Player * player = playerGetFromSlot(i);
     if (!players[i])
       continue;
 
-		Player * player = players[i];
-
     // Next, we have to ensure the player is the local player and they are not dead
-    if (playerIsLocal(player) && player->LocalPlayerIndex < playerGetNumLocals()) 
+    if (!gameIsStartMenuOpen(i) && !isConfigMenuActive) 
     {
       // Grab player-specific spectate data
       freecamData = FreecamData + player->LocalPlayerIndex;
@@ -506,10 +505,6 @@ void processFreecam(void)
       // airwalk
       if (freecamSettings.airwalk)
         POKE_U32((u32)player + 0x2FC, 0);
-
-      // only process input when in game
-      if (gameIsAnyStartMenuOpen() || isConfigMenuActive)
-        continue;
 
       if (!playerIsDead(player))
       {

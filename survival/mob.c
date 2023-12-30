@@ -46,9 +46,9 @@ SoundDef BaseSoundDef =
 	3			  // Bank
 };
 
-int MobComplexityValueByOClass[MAX_MOB_SPAWN_PARAMS][2];
+int MobComplexityValueByOClass[MAX_MOB_SPAWN_PARAMS][2] = {};
 
-Moby* AllMobsSorted[MAX_MOBS_ALIVE];
+Moby* AllMobsSorted[MAX_MOBS_ALIVE] = {};
 int AllMobsSortedFreeSpots = MAX_MOBS_ALIVE;
 
 extern struct SurvivalState State;
@@ -251,7 +251,6 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
       if (r < critProbability) {
         amount *= 3;
         damageFlags |= 0x20000000;
-        DPRINTF("crit (%f/%f)\n", r, critProbability);
         //mobyPlaySoundByClass(4, 0, moby, 0x10A9);
         //mobyPlaySoundByClass(0, 0, moby, MOBY_ID_WRENCH);
       }
@@ -423,7 +422,10 @@ int mobyGetComplexity(Moby* moby)
   */
 
   int complexity = mobyComputeComplexity(moby);
+
+#if LOG_STATS2
   DPRINTF("%04X -> %08X (%d) (max %d)\n", moby->OClass, (u32)moby->PClass, complexity, (getMaxComplexity() / complexity) + 1);
+#endif
 
   // compute and save
   MobComplexityValueByOClass[freeIdx][0] = moby->OClass;

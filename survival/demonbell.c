@@ -42,7 +42,7 @@ void demonbellUpdate(Moby* moby)
 		return;
 
   // force on
-  if (pvars->ForcedOn && moby->State != 1) {
+  if (pvars->ForcedOn) {
     pvars->HitAmount = 1;
     mobySetState(moby, 1, -1);
   }
@@ -79,7 +79,7 @@ void demonbellUpdate(Moby* moby)
           pvars->RecoverCooldownTicks = DEMONBELL_HIT_COOLDOWN_TICKS;
 
           // activate
-          if (pvars->HitAmount == 1 && gameAmIHost()) {
+          if (pvars->HitAmount >= 1 && gameAmIHost()) {
             GuberEvent * guberEvent = demonbellCreateEvent(moby, DEMONBELL_EVENT_ACTIVATE);
             Player* sourcePlayer = guberMobyGetPlayerDamager(colDamage->Damager);
             int activatedByPlayerId = -1;
@@ -158,6 +158,7 @@ int demonbellHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
   // set id
   pvars->Id = id;
+  if (id >= State.DemonBellCount) State.DemonBellCount = id + 1;
 
 	// set team
 	Guber* guber = guberGetObjectByMoby(moby);
@@ -189,7 +190,6 @@ int demonbellHandleEvent_Activate(Moby* moby, GuberEvent* event)
 	if (!pvars)
 		return 0;
 
-
   guberEventRead(event, &activatedByPlayerId, 4);
 
   // increment demon bell stat
@@ -197,6 +197,7 @@ int demonbellHandleEvent_Activate(Moby* moby, GuberEvent* event)
     State.PlayerStates[activatedByPlayerId].State.TimesActivatedDemonBell += 1;
   }
 
+  pvars->HitAmount = 1;
   pvars->RoundActivated = State.RoundNumber;
   State.RoundDemonBellCount += 1;
   mobySetState(moby, 1, -1);

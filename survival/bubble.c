@@ -98,13 +98,15 @@ void bubbleTick(void)
   if (!damageBubbles) return;
   if (!camera) return;
   if (playerGetNumLocals() > 1) return; // don't support more than 1 player
-  if (PATCH_INTEROP && PATCH_INTEROP->Client == CLIENT_TYPE_DZO) return;
-
+  
+  int dzo = PATCH_INTEROP && PATCH_INTEROP->Client == CLIENT_TYPE_DZO;
   for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i) {
     if (damageBubbles[i].Life) {
 
       damageBubbles[i].Life--;
       damageBubbles[i].Position[2] += 1*MATH_DT;
+      if (dzo) continue;
+
       if (!damageBubbles[i].IsLocal) {
         vector_subtract(dt, damageBubbles[i].Position, camera->pos);
         if (vector_sqrmag(dt) > (BUBBLE_MAX_NONLOCAL_DIST*BUBBLE_MAX_NONLOCAL_DIST)) continue;
