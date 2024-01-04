@@ -32,13 +32,13 @@ ifeq ($(BUILD_CONFIG),DEBUG)
 EE_DEFS := -DDEBUG -DMOB_CORN
 EE_DEFS += -DDROPS -DUPGRADES -DDEMONBELL -DSHARED_BOLTS
 EE_DEFS += -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643
-#EE_DEFS += -DMANUAL_DROP_SPAWN
+EE_DEFS += -DMANUAL_DROP_SPAWN
 #EE_DEFS += -DAUTOSTART
-#EE_DEFS += -DDISABLE_SPAWNING
-#EE_DEFS += -DMANUAL_SPAWN
-EE_DEFS += -DSTARTROUND=9
+EE_DEFS += -DDISABLE_SPAWNING
+EE_DEFS += -DMANUAL_SPAWN
+#EE_DEFS += -DSTARTROUND=9
 #EE_DEFS += -DMOB_INVINCIBLE
-EE_DEFS += -DMOB_NO_DAMAGE
+#EE_DEFS += -DMOB_NO_DAMAGE
 #EE_DEFS += -DMOB_NO_MOVE
 #EE_DEFS += -DAUTOSTART
 EE_DEFS += -DPAYDAY
@@ -60,7 +60,7 @@ all: mode maps clean
 
 mode: $(EE_BIN) copy
 
-maps: orxon mpass
+maps: orxon mpass veldin
 
 orxon: 
 	cd maps/orxon && $(MAKE)
@@ -68,10 +68,14 @@ orxon:
 mpass: 
 	cd maps/mpass && $(MAKE)
 
+veldin: 
+	cd maps/veldin && $(MAKE)
+
 clean: 
 	rm -f *.irx *.o
 	cd maps/orxon && $(MAKE) clean
 	cd maps/mpass && $(MAKE) clean
+	cd maps/veldin && $(MAKE) clean
  
 include $(CURDIR)/../Makefile.pref
 include $(CURDIR)/../Makefile.eeglobal

@@ -17,7 +17,7 @@
 struct SurvivalDamageBubble
 {
   VECTOR Position;
-  u16 Damage;
+  u32 Damage;
   u8 Life;
   char IsLocal;
   char IsCrit;

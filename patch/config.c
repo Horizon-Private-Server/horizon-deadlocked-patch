@@ -433,6 +433,7 @@ MenuElem_ListData_t dataCustomMaps = {
       // -- SURVIVAL MAPS --
       [CUSTOM_MAP_SURVIVAL_MINING_FACILITY] "Orxon",
       [CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS] "Mountain Pass",
+      [CUSTOM_MAP_SURVIVAL_VELDIN] "Veldin"
     }
 };
 

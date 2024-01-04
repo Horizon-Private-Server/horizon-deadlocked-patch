@@ -1788,8 +1788,7 @@ void playerBlessingOnDoubleJump(Player* player, int stateId, int a2, int a3, int
   if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_MULTI_JUMP)
       && (player->PlayerState == PLAYER_STATE_JUMP || player->PlayerState == PLAYER_STATE_RUN_JUMP)
       && blessingQuadJumpJumpCount[player->PlayerId] < ITEM_BLESSING_MULTI_JUMP_COUNT) {
-    blessingQuadJumpJumpCount[player->PlayerId] += 1;
-    vtable->UpdateState(player, PLAYER_STATE_JUMP, a2, a3, t0);
+        // don't let the player flip until after they've used their jumps
   } else {
     blessingQuadJumpJumpCount[player->PlayerId] = 0;
     vtable->UpdateState(player, stateId, a2, a3, t0);
@@ -1821,6 +1820,19 @@ void processPlayerBlessings(Player* player) {
 
   struct SurvivalPlayer* playerData = &State.PlayerStates[player->PlayerId];
 
+  // 
+  int jumpBits = padGetMappedPad(0x40, player->PlayerId) << 8;
+  PlayerVTable* vtable = playerGetVTable(player);
+  if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_MULTI_JUMP)
+      && vtable
+      && playerPadGetAnyButtonDown(player, jumpBits)
+      && player->timers.state > 6
+      && (player->PlayerState == PLAYER_STATE_JUMP || player->PlayerState == PLAYER_STATE_RUN_JUMP)
+      && blessingQuadJumpJumpCount[player->PlayerId] < ITEM_BLESSING_MULTI_JUMP_COUNT) {
+    blessingQuadJumpJumpCount[player->PlayerId] += 1;
+    vtable->UpdateState(player, PLAYER_STATE_JUMP, 1, 1, 1);
+  }
+
   // reset quad jump counter when not in first jump state
   if (player->PlayerState != PLAYER_STATE_JUMP && player->PlayerState != PLAYER_STATE_RUN_JUMP)
     blessingQuadJumpJumpCount[player->PlayerId] = 0;
@@ -1851,6 +1863,7 @@ void processPlayerBlessings(Player* player) {
           --blessingHealthRegenTickers[player->PlayerId];
           break;
         }
+        if (player->Health >= player->MaxHealth) break;
 
         playerData->LastHealth = player->Health = clamp(player->Health + 4, 0, player->MaxHealth);
         if (player->pNetPlayer) player->pNetPlayer->pNetPlayerData->hitPoints = player->Health;
@@ -1901,6 +1914,17 @@ int playerIsSmashingFlail(Player* player)
   }
   
   return 0;
+}
+
+//--------------------------------------------------------------------------
+void playerDecHitpointHooked(Player* player, float amount)
+{
+  float factor = 1;
+
+  if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_THORNS))
+    factor = 1 - ITEM_BLESSING_THORN_DAMAGE_FACTOR;
+
+  playerDecHealth(player, amount * factor);
 }
 
 //--------------------------------------------------------------------------
@@ -2164,10 +2188,10 @@ void processPlayer(int pIndex) {
 				hasMessage = 1;
 				playerData->MessageCooldownTicks = 2;
 
-				if (padGetButtonDown(localPlayerIndex, PAD_SQUARE) > 0 && bboxPvars->TotalBolts > 0) {
+				if (padGetButton(localPlayerIndex, PAD_SQUARE) > 0 && bboxPvars->TotalBolts > 0) {
 					playerInteractBankBox(player, 0);
 					playerData->ActionCooldownTicks = PLAYER_BANK_BOX_COOLDOWN_TICKS;
-				} else if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts > 0) {
+				} else if (padGetButton(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.Bolts > 0) {
 					playerInteractBankBox(player, 1);
           playPaidSound(player);
 					playerData->ActionCooldownTicks = PLAYER_BANK_BOX_COOLDOWN_TICKS;
@@ -2207,6 +2231,7 @@ void processPlayer(int pIndex) {
               playerData->State.Bolts -= cost;
               playerData->ActionCooldownTicks = 10;
               playPaidSound(player);
+              pushSnack("Your weapon seems more powerful...", 60, localPlayerIndex);
             }
           }
         }
@@ -2918,6 +2943,10 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   HOOK_JAL(0x004209bc, &onEmpExplode);
   HOOK_JAL(0x0041fb8c, &onEmpFired);
 
+  // hook when player takes damage
+  HOOK_JAL(0x00605820, &playerDecHitpointHooked);
+  POKE_U32(0x005E1870, 0);
+
 	// Change mine update function to ours
   u32 mineUpdateFunc = 0x003c6c28;
   u32* updateFuncs = (u32*)0x00249980;
@@ -3365,10 +3394,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK;
     State.PlayerStates[i].State.BlessingSlots = 3;
-    State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_AMMO_REGEN;
+    State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_MULTI_JUMP;
     State.PlayerStates[i].State.ItemBlessings[1] = BLESSING_ITEM_HEALTH_REGEN;
-    State.PlayerStates[i].State.ItemBlessings[2] = BLESSING_ITEM_BULL;
-    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
+    State.PlayerStates[i].State.ItemBlessings[2] = BLESSING_ITEM_THORNS;
   }
 #endif
 
@@ -3418,9 +3446,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       //if (manSpawnMobId == 0) manSpawnMobId = 2;
 
       // force one mob type
-      //manSpawnMobId = 0;
+      manSpawnMobId = 0;
       //manSpawnMobId = 2;
-			manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {

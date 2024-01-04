@@ -284,6 +284,7 @@ struct MobPVar {
 	struct FlashVars FlashVars;
 	struct MobVars MobVars;
   struct MobVTable* VTable;
+  int TicksSinceLastStateUpdate;
 };
 
 struct MobDamageEventArgs
@@ -291,7 +292,7 @@ struct MobDamageEventArgs
 	struct Knockback Knockback;
 	int SourceUID;
   u32 DamageFlags;
-	u16 DamageQuarters;
+	u32 DamageQuarters;
 	u16 SourceOClass;
 };
 

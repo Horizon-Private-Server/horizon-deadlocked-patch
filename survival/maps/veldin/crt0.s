@@ -17,28 +17,7 @@
 
 	.ent _start
 _start:
-	j gameStart
+	j main
 	nop
-
-_lobbyStart:
-	j lobbyStart
 	nop
-
-_loadStart:
-	j loadStart
 	nop
-
-.globl _getLocalBolts;
-.type _getLocalBolts,@function;
-_getLocalBolts:
-  # get local player idx * 4
-  li $v1, 20
-  divu $v1, $v0, $v1
-
-  # read
-  la $a1, BoltCounts
-  addu $a1, $a1, $v1
-  lw $a1, 0($a1)
-  
-  j 0x00557C08
-  nop

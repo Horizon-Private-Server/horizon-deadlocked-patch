@@ -72,7 +72,7 @@ void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, 
 
   if (lowestLifeIdx >= 0) {
     damageBubbles[lowestLifeIdx].Life = BUBBLE_LIFE_TICKS;
-    damageBubbles[lowestLifeIdx].Damage = (short)ceilf(damage);
+    damageBubbles[lowestLifeIdx].Damage = (int)ceilf(damage);
     damageBubbles[lowestLifeIdx].IsLocal = isLocal;
     damageBubbles[lowestLifeIdx].IsCrit = isCrit;
     vector_add(damageBubbles[lowestLifeIdx].Position, position, offset);

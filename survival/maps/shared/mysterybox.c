@@ -877,7 +877,7 @@ void mboxSpawn(void)
   // spawn
   if (gameAmIHost()) {
 
-    VECTOR p = {639.44,847.07,499.28,0};
+    VECTOR p = {184.1991,439.6302,85.858,0};
     VECTOR r = {0,0,0,0};
     mboxGetRandomRespawn(rand(10), p, r);
 

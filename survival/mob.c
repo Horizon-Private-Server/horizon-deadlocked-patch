@@ -634,6 +634,7 @@ void mobUpdate(Moby* moby)
 	u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
 	u16 ambientSoundCooldownTicks = decTimerU16(&pvars->MobVars.AmbientSoundCooldownTicks);
 	decTimerU8(&pvars->MobVars.Knockback.Ticks);
+  pvars->TicksSinceLastStateUpdate += 1;
   
 	// validate owner
 	Player * ownerPlayer = NULL;
@@ -646,7 +647,7 @@ void mobUpdate(Moby* moby)
   }
 
   // default owner to host
-	if (!ownerPlayer && gameAmIHost()) {
+	if ((!ownerPlayer || pvars->TicksSinceLastStateUpdate > (MOB_AUTO_DIRTY_COOLDOWN_TICKS * 15)) && gameAmIHost()) {
 		pvars->MobVars.Owner = gameGetHostId();
 		mobSendOwnerUpdate(moby, pvars->MobVars.Owner);
   }
@@ -821,9 +822,8 @@ void mobUpdate(Moby* moby)
         if (spawnGetRandomPoint(p, spawnParams)) {
           memcpy(&config, &pvars->MobVars.Config, sizeof(struct MobConfig));
           mobCreate(pvars->MobVars.SpawnParamsIdx, p, 0, guberGetUID(moby), pvars->MobVars.SpawnFlags, &config);
+          pvars->MobVars.Destroyed = 2;
         }
-        
-        pvars->MobVars.Destroyed = 2;
       }
 
 			pvars->MobVars.Respawn = 0;
@@ -1233,6 +1233,9 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
 	if (!pvars || mobAmIOwner(moby) || !args)
 		return 0;
 
+  // 
+  pvars->TicksSinceLastStateUpdate = 0;
+
 	// teleport position if far away
 	vector_subtract(t, moby->Position, args->Position);
 	if (vector_sqrmag(t) > 25) {
@@ -1296,6 +1299,9 @@ int mobHandleEvent_OwnerUpdate(Moby* moby, GuberEvent* event)
 	char newOwner;
 	if (!pvars)
 		return 0;
+    
+  // 
+  pvars->TicksSinceLastStateUpdate = 0;
 
 	// read event
 	guberEventRead(event, &newOwner, 1);
