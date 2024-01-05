@@ -4611,6 +4611,10 @@ void onOnlineMenu(void)
 	// call normal draw routine
 	((void (*)(void))0x00707F28)();
 	
+  // let the user read the EULA/Announcements without a big download bar appearing over it
+  if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_1) == uiGetActivePointer()) return;
+  if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_2) == uiGetActivePointer()) return;
+
 	// 
 	lastMenuInvokedTime = gameGetTime();
 

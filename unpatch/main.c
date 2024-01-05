@@ -112,6 +112,9 @@ const int patches[][3] = {
 	//{ 1, 0x0060ed9c, 0x0C135C12 },
 	//{ 1, 0x004189ec, 0x0C105DF2 },
 	//{ 1, 0x005ce330, 0x0C173D64 },
+  // colors
+  { 0, 0x004C8A68, 0x802020E0 }, // color code 0E red
+  { 0, 0x004C8A6C, 0x80E0E040 }, // color code 0F aqua
 };
 
 const int clears[][2] = {
@@ -177,6 +180,10 @@ void onOnlineMenu(void)
 	// only show on main menu
 	//if (uiGetActive() != UI_ID_ONLINE_MAIN_MENU)
 	//	return;
+
+  // let the user read the EULA/Announcements without a big download bar appearing over it
+  if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_1) == uiGetActivePointer()) return;
+  if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_2) == uiGetActivePointer()) return;
 
 	gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, bgColorDownload);
 	gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, barBgColor);

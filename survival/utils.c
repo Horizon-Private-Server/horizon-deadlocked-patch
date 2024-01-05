@@ -145,7 +145,8 @@ u32 decTimerU32(u32* timeValue)
 //--------------------------------------------------------------------------
 u32 getXpForNextToken(int counter)
 {
-	return (u32)(250 * powf(1.05, counter));
+  //return 200 + (counter * 20 * powf(1.001, counter));
+  return (u32)(250 * powf(1.05, counter));
 }
 
 //--------------------------------------------------------------------------

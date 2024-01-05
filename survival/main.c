@@ -123,7 +123,7 @@ char UpgradesEnabled[] = {
 
 int UpgradeMax[] = {
 	[UPGRADE_HEALTH] 1000,
-	[UPGRADE_SPEED] 1000,
+	[UPGRADE_SPEED] 40,
 	[UPGRADE_DAMAGE] 1000,
   [UPGRADE_CRIT] 100,
 	[UPGRADE_MEDIC] 16,
@@ -1620,6 +1620,25 @@ int getPlayerReviveCost(Player * fromPlayer, Player * player) {
 }
 
 //--------------------------------------------------------------------------
+void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
+{
+  if (in->Damager) {
+    VECTOR dt;
+    vector_subtract(dt, target->Position, in->Damager->Position);
+    float dist = vector_length(dt);
+    float min = 0.1;
+    Player* damager = guberMobyGetPlayerDamager(in->Damager);
+    if (damager) min += 0.05 * playerGetWeaponAlphaModCount(damager, WEAPON_ID_MAGMA_CANNON, ALPHA_MOD_AREA);
+
+    float falloff = maxf(min, minf(1, 1 - (dist / 32)));
+    float origDmg = in->DamageHp;
+    in->DamageHp *= falloff;
+  }
+
+  mobyCollDamageDirect(target, in);
+}
+
+//--------------------------------------------------------------------------
 void onEmpExplode(Moby* moby, VECTOR from, VECTOR to, u32 a3, u32 t0, u32 t1, u32 t2, u32 t3, float f12, float f13, float f14, float f15) {
   
   int i;
@@ -2008,6 +2027,22 @@ void processPlayer(int pIndex) {
 		u32 nextXp = getXpForNextToken(playerData->State.TotalTokens);
     if (playerGetNumLocals() > 1) setPlayerWeaponsMenu(localPlayerIndex);
 		setPlayerEXP(localPlayerIndex, xp / (float)nextXp);
+
+    // clamp to map bounds 
+#warning MOVE TO MAP LOGIC
+    switch (PATCH_INTEROP->GameConfig->customMapId)
+    {
+      case CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS:
+      {
+        if (player->PlayerPosition[0] < 500 && player->PlayerPosition[0] > 450
+          && player->PlayerPosition[1] < 950 && player->PlayerPosition[1] > 775
+          && player->PlayerPosition[2] > 514) {
+          player->PlayerPosition[2] = 514;
+          if (player->PlayerMoby) player->PlayerMoby->Position[2] = 514;
+        }
+        break;
+      }
+    }
 
 		// find closest mob
 		playerData->MinSqrDistFromMob = 1000000;
@@ -2947,6 +2982,9 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   HOOK_JAL(0x00605820, &playerDecHitpointHooked);
   POKE_U32(0x005E1870, 0);
 
+  // hook when v10 mag shot hits
+  HOOK_JAL(0x0044B374, &onV10MagDamageMoby);
+
 	// Change mine update function to ours
   u32 mineUpdateFunc = 0x003c6c28;
   u32* updateFuncs = (u32*)0x00249980;
@@ -3222,13 +3260,14 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 
 #if STARTROUND
 	State.RoundNumber = STARTROUND - 1;
+  int xp[GAME_MAX_PLAYERS];
 	//State.RoundIsSpecial = 1;
 	//State.RoundSpecialIdx = 4;
 
 #if !PAYDAY
   for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
     State.PlayerStates[j].State.Bolts = 10000;
-    State.PlayerStates[j].State.XP = 1500;
+    xp[j] = 1500;
   }
 #endif
 
@@ -3241,10 +3280,14 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
     for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
       State.PlayerStates[j].State.Bolts *= 1.225;
       //State.PlayerStates[j].State.TotalBolts = State.PlayerStates[j].State.Bolts;
-      State.PlayerStates[j].State.XP *= 1.225;
+      xp[j] *= 1.125;
     }
-
 #endif
+  }
+
+  for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
+    playerRewardXp(j, -1, xp[j]);
+    State.PlayerStates[j].State.Upgrades[UPGRADE_HEALTH] = STARTROUND / 4;
   }
 
   DPRINTF("Skipped to Round #%d with %d mobs spawned\n", State.RoundNumber + 1, State.MobStats.TotalSpawned);
@@ -3394,9 +3437,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK;
     State.PlayerStates[i].State.BlessingSlots = 3;
-    State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_MULTI_JUMP;
+    State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_AMMO_REGEN;
     State.PlayerStates[i].State.ItemBlessings[1] = BLESSING_ITEM_HEALTH_REGEN;
-    State.PlayerStates[i].State.ItemBlessings[2] = BLESSING_ITEM_THORNS;
+    State.PlayerStates[i].State.ItemBlessings[2] = BLESSING_ITEM_BULL;
   }
 #endif
 
