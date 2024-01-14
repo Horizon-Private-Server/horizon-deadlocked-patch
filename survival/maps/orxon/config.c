@@ -123,7 +123,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
 		.Name = "Titan",
 		.Config = {
-			.Xp = 250,
+			.Xp = 500,
 			.Bangles = EXECUTIONER_BANGLE_LEFT_CHEST_PLATE | EXECUTIONER_BANGLE_RIGHT_CHEST_PLATE
                 | EXECUTIONER_BANGLE_LEFT_COLLAR_BONE | EXECUTIONER_BANGLE_RIGHT_COLLAR_BONE
                 | EXECUTIONER_BANGLE_HELMET | EXECUTIONER_BANGLE_BRAIN,
@@ -387,6 +387,8 @@ u32 MobLODColors[] = {
 //--------------------------------------------------------------------------
 struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_RESET_GATE, 0.03 },
+  { MYSTERY_BOX_ITEM_QUAD, 0.0526 },
+  { MYSTERY_BOX_ITEM_SHIELD, 0.0526 },
   { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
   { MYSTERY_BOX_ITEM_EMP_HEALTH_GUN, 0.0555 },
   { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },

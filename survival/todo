@@ -230,3 +230,5 @@ Increase brightness of sprites on DZO
 Fix wrapping of popup text (bank) on DZO
 ++Fix mobys being dark
 ++Fix spawn cheese on mpass
+++Fix revive angle
+++Add commas to bank balance

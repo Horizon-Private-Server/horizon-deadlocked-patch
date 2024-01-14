@@ -72,7 +72,7 @@ VECTOR pRotStart = { 0, 0, MATH_PI, 0 };
 // set by mode
 struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
 	.State = NULL,
-  .BakedConfig = NULL
+  .BakedConfig = NULL,
 };
 
 SoundDef def =
@@ -238,9 +238,9 @@ void drawBlessingTotemQuads(void)
     // draw
     VECTOR p = {0,0,3,0};
     vector_add(p, BLESSING_POSITIONS[blessing], p);
-    HOOK_JAL(0x205b64dc, 0x004e4d70);
+    //HOOK_JAL(0x205b64dc, 0x004e4d70);
     gfxDrawBillboardQuad(vector_read(p), 1, 0x80FFFFFF, 0x80 << 24, -MATH_PI / 2, BLESSING_TEXIDS[blessing], 1, 0);
-    HOOK_JAL(0x205b64dc, 0x004c4200);
+    //HOOK_JAL(0x205b64dc, 0x004c4200);
   }
 }
 
@@ -483,6 +483,7 @@ void initialize(void)
     return;
 
   MapConfig.Magic = MAP_CONFIG_MAGIC;
+  MapConfig.WeaponPickupCooldownFactor = 1;
 
   gateInit();
   mboxInit();
@@ -503,6 +504,9 @@ void initialize(void)
 
   // enable replaying dialog
   //POKE_U32(0x004E3E2C, 0);
+
+  // change DrawBillboardQuad to use frame tex
+  HOOK_JAL(0x005b64dc, 0x004e4d70);
 
   // disable jump pad effect
   POKE_U32(0x0042608C, 0);

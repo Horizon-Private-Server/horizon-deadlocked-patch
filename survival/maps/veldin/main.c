@@ -55,7 +55,7 @@ char LocalPlayerStrBuffer[2][48];
 // set by mode
 struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
 	.State = NULL,
-  .BakedConfig = NULL
+  .BakedConfig = NULL,
 };
 
 // spawn
@@ -183,6 +183,7 @@ void initialize(void)
     return;
 
   MapConfig.Magic = MAP_CONFIG_MAGIC;
+  MapConfig.WeaponPickupCooldownFactor = 0.5;
 
   gateInit();
   mboxInit();

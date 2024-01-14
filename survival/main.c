@@ -55,10 +55,10 @@ const char * SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE = "Waiting for Host";
 const char * SURVIVAL_NEXT_ROUND_TIMER_MESSAGE = "Next Round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_HEALTH_GUN = "Health Gun";
-const char * SURVIVAL_REVIVE_MESSAGE = "\x18 Revive [\x0E%d\x08]";
+const char * SURVIVAL_REVIVE_MESSAGE = "\x1c (DOWN) Revive %s";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
-const char * SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE = "Balance \x0A%d\x08";
+const char * SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE = "Balance \x0A%'d\x08";
 const char * SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE = "\x11 Deposit \x13 Withdraw";
 const char * SURVIVAL_PRESTIGE_WEAPON_MESSAGE = "\x11 Prestige [\x0E%d\x08]";
 const char * SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE = "Your weapon is not powerful enough";
@@ -593,7 +593,8 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
       float d = vector_sqrmag(t);
 
       // randomize order a little
-      d += randRange(0, minDistSqr * 0.5);
+      //d += randRange(0, 15 * 15);
+      d += randRange(0, 0.5 * minDistSqr);
 
       if (d < closestDistSqr)
         closestDistSqr = d;
@@ -696,6 +697,8 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   float damage = config->Damage;
   float speed = config->Speed;
   float health = config->Health;
+  float difficultyBump = 0.6 + powf(1.5, State.RoundNumber / 25) * 0.4;
+  float difficulty = DIFFICULTY_FACTOR * difficultyBump * State.Difficulty;
 
   // scale config by round
   if (isBaseConfig) {
@@ -703,9 +706,9 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
     //damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
     //speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
     
-    damage = damage * (1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty));
-    speed = speed * (1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty));
-    health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * DIFFICULTY_FACTOR * State.Difficulty), 2);
+    damage = damage * (1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * difficulty));
+    speed = speed * (1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * difficulty));
+    health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * difficulty), 2);
     //printf("2 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
   }
 
@@ -1220,8 +1223,11 @@ void playerRevive(Player* player, int fromPlayerId)
 //--------------------------------------------------------------------------
 void onSetPlayerDead(int playerId, char isDead)
 {
+  int totalTicks = PLAYER_BASE_REVIVE_TICKS - (PLAYER_REVIVE_COST_PER_REVIVE_TICKS * State.PlayerStates[playerId].State.TimesRevivedSinceRoundStart);
+  if (totalTicks < PLAYER_MIN_REVIVE_TICKS) totalTicks = PLAYER_MIN_REVIVE_TICKS;
+
 	State.PlayerStates[playerId].IsDead = isDead;
-	State.PlayerStates[playerId].ReviveCooldownTicks = isDead ? 60 * 60 : 0;
+	State.PlayerStates[playerId].ReviveCooldownTicks = isDead ? totalTicks : 0;
 #if LOG_STATS2
 	DPRINTF("%d died (%d)\n", playerId, isDead);
 #endif
@@ -1609,17 +1615,6 @@ void setPlayerShieldCooldownTimer(void) {
 }
 
 //--------------------------------------------------------------------------
-int getPlayerReviveCost(Player * fromPlayer, Player * player) {
-	if (!player || !fromPlayer)
-		return 0;
-
-	// determine discount rate
-	float rate = clamp(1 - (PLAYER_UPGRADE_MEDIC_FACTOR * State.PlayerStates[fromPlayer->PlayerId].State.Upgrades[UPGRADE_MEDIC]), 0, 1);
-
-	return ceilf(rate * ((State.PlayerStates[player->PlayerId].State.TimesRevivedSinceRoundStart + 1) * (PLAYER_BASE_REVIVE_COST + (PLAYER_REVIVE_COST_PER_PLAYER * State.ActivePlayerCount) + (PLAYER_REVIVE_COST_PER_ROUND * State.RoundNumber))));
-}
-
-//--------------------------------------------------------------------------
 void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
 {
   if (in->Damager) {
@@ -1954,6 +1949,7 @@ void processPlayer(int pIndex) {
 	Player** players = playerGetAll();
 	Player* player = players[pIndex];
 	struct SurvivalPlayer * playerData = &State.PlayerStates[pIndex];
+  GameSettings* gs = gameGetSettings();
 
 	if (!player || !player->PlayerMoby)
 		return;
@@ -1967,7 +1963,7 @@ void processPlayer(int pIndex) {
     VECTOR pos = {0,0,1,0};
     vector_add(pos, player->PlayerPosition, pos);
     if (gfxWorldSpaceToScreenSpace(pos, &x, &y)) {
-      sprintf(strBuf, "\x18  %02d", reviveCooldownTicks/60);
+      sprintf(strBuf, "\x1c  %02d", reviveCooldownTicks/60);
       gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
       dzoDrawReviveMsg(pIndex, pos, reviveCooldownTicks/60);
     }
@@ -2027,22 +2023,6 @@ void processPlayer(int pIndex) {
 		u32 nextXp = getXpForNextToken(playerData->State.TotalTokens);
     if (playerGetNumLocals() > 1) setPlayerWeaponsMenu(localPlayerIndex);
 		setPlayerEXP(localPlayerIndex, xp / (float)nextXp);
-
-    // clamp to map bounds 
-#warning MOVE TO MAP LOGIC
-    switch (PATCH_INTEROP->GameConfig->customMapId)
-    {
-      case CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS:
-      {
-        if (player->PlayerPosition[0] < 500 && player->PlayerPosition[0] > 450
-          && player->PlayerPosition[1] < 950 && player->PlayerPosition[1] > 775
-          && player->PlayerPosition[2] > 514) {
-          player->PlayerPosition[2] = 514;
-          if (player->PlayerMoby) player->PlayerMoby->Position[2] = 514;
-        }
-        break;
-      }
-    }
 
 		// find closest mob
 		playerData->MinSqrDistFromMob = 1000000;
@@ -2209,16 +2189,9 @@ void processPlayer(int pIndex) {
 			if (vector_sqrmag(t) < (BANK_BOX_MAX_DIST * BANK_BOX_MAX_DIST) && vector_innerproduct(t, player->CameraForward) < -0.6) {
 				
 				// draw help popup
-        // pad the balance so that it always remains at the top of the popup
-        // then append the deposit/withdraw button mapping
         char buf[32];
-        memset(LocalPlayerStrBuffer[localPlayerIndex], 0x20, sizeof(LocalPlayerStrBuffer[localPlayerIndex]) - 1);
         sprintf(buf, SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE, bboxPvars->TotalBolts);
-        int balanceStrLen = strlen(buf);
-        int paddingLen = (40 - balanceStrLen) / 2;
-        sprintf(LocalPlayerStrBuffer[localPlayerIndex] + paddingLen, "%s", buf);
-        LocalPlayerStrBuffer[localPlayerIndex][paddingLen + balanceStrLen] = ' ';
-        sprintf(LocalPlayerStrBuffer[localPlayerIndex] + 40, "%s", SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE);
+        sprintf(LocalPlayerStrBuffer[localPlayerIndex], "%s %s", SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE, buf);
 				uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
 				hasMessage = 1;
 				playerData->MessageCooldownTicks = 2;
@@ -2314,6 +2287,7 @@ void processPlayer(int pIndex) {
 		}
 
 		// handle revive logic
+    int revivingPlayerId = -1;
 		if (!isDeadState) {
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				if (i != pIndex) {
@@ -2321,33 +2295,58 @@ void processPlayer(int pIndex) {
 					// ensure player exists, is dead, and is on the same team
 					struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
 					Player * otherPlayer = players[i];
-					if (otherPlayer && otherPlayerData->IsDead && otherPlayerData->ReviveCooldownTicks > 0) {
+					if (otherPlayer && otherPlayerData->IsDead && (otherPlayerData->ReviveCooldownTicks > 0 || (playerData->RevivingPlayerTicks > 0 && playerData->RevivingPlayerId == i))) {
 
 						// check distance
 						vector_subtract(t, player->PlayerPosition, otherPlayer->PlayerPosition);
 						if (vector_sqrmag(t) < (PLAYER_REVIVE_MAX_DIST * PLAYER_REVIVE_MAX_DIST)) {
-							
-							// get revive cost
-							int cost = getPlayerReviveCost(player, otherPlayer);
 
-							// draw help popup
-							sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_REVIVE_MESSAGE, cost);
-							uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-							hasMessage = 1;
-							playerData->MessageCooldownTicks = 2;
+              // draw revive player popup
+              // or draw how 
+              if (playerData->RevivingPlayerId == -1) {
+                sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_REVIVE_MESSAGE, gs->PlayerNames[i]);
+                uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+                hasMessage = 1;
+                playerData->MessageCooldownTicks = 2;
+              } else if (playerData->RevivingPlayerId == i) {
+                float time = (PLAYER_TIME_TO_REVIVE_TICKS - playerData->RevivingPlayerTicks) / (float)TPS;
+                sprintf(LocalPlayerStrBuffer[localPlayerIndex], "Reviving... %.2f", time);
+                uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+                hasMessage = 1;
+                playerData->MessageCooldownTicks = 2;
+              }
 
-							// handle pad input
-							if (padGetButtonDown(localPlayerIndex, PAD_L3) > 0 && playerData->State.Bolts >= cost) {
-								playerData->State.Bolts -= cost;
-								playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
-								playerRevive(otherPlayer, player->PlayerId);
-                playPaidSound(player);
-							}
+              // check for interaction pad
+              if (padGetButton(localPlayerIndex, PAD_DOWN) > 0) {
+
+                // check that we are reviving this player or no one yet
+                if (playerData->RevivingPlayerId == i || playerData->RevivingPlayerId == -1) {
+                  //playerData->ActionCooldownTicks = PLAYER_REVIVE_COOLDOWN_TICKS;
+
+                  // count ticks
+                  if (playerData->RevivingPlayerId != i) playerData->RevivingPlayerTicks = 0;
+                  playerData->RevivingPlayerTicks++;
+                  revivingPlayerId = i;
+
+                  // revive after n ticks have passed
+                  if (playerData->RevivingPlayerTicks > PLAYER_TIME_TO_REVIVE_TICKS) {
+                    playerRevive(otherPlayer, player->PlayerId);
+                    playPaidSound(player);
+                    playerData->RevivingPlayerTicks = 0;
+                    revivingPlayerId = -1;
+                  }
+
+                  break;
+                }
+              }
 						}
 					}
 				}
 			}
 		}
+
+    // 
+    playerData->RevivingPlayerId = revivingPlayerId;
 
     // handle items
     if (padGetButtonDown(0, PAD_LEFT) > 0) {
@@ -2461,7 +2460,12 @@ void onSetRoundComplete(int gameTime, int boltBonus)
     DPRINTF("bank vested %d (- %d)=>%d (total %d=>%d)", pvars->BoltsAtStartOfRound, pvars->BoltsWithdrawnThisRound, (int)(vestable * (1 + BANK_VEST_FACTOR)), pvars->TotalBolts, pvars->TotalBolts + (int)(vestable * BANK_VEST_FACTOR));
 #endif
 
-    pvars->TotalBolts += vestable * BANK_VEST_FACTOR;
+    int vested = vestable * BANK_VEST_FACTOR;
+    if (vested > BANK_MAX_VEST) vested = BANK_MAX_VEST;
+
+    int totalBolts = pvars->TotalBolts + vested;
+    if (totalBolts > BANK_MAX_BOLTS) totalBolts = BANK_MAX_BOLTS;
+    pvars->TotalBolts = totalBolts;
   }
 
 	respawnDeadPlayers();
@@ -2712,7 +2716,8 @@ void setWeaponPickupRespawnTime(void)
 				int weaponBaseRespawnTime = WEAPON_PICKUP_BASE_RESPAWN_TIMES[slotId];
 
 				// otherwise set cooldown by configuration
-				POKE_U32((u32)moby->PVar + 0x0C, (weaponBaseRespawnTime - respawnTimeOffset) * TIME_SECOND);
+        int ms = (weaponBaseRespawnTime - respawnTimeOffset) * mapConfig->WeaponPickupCooldownFactor * TIME_SECOND;
+				POKE_U32((u32)moby->PVar + 0x0C, ms);
 			}
 		}
 		++moby;
@@ -2854,8 +2859,7 @@ void resetRoundState(void)
 	int gameTime = gameGetTime();
 
 	// 
-	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
-	State.RoundMaxMobCount = MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(State.RoundNumber * State.Difficulty * playerCountMultiplier, 0.75)));
+	State.RoundMaxMobCount = MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + State.RoundNumber));
 	State.RoundMaxSpawnedAtOnce = MAX_MOBS_ALIVE_REAL;
 	State.RoundInitialized = 0;
 	State.RoundStartTime = gameTime;
@@ -3143,6 +3147,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 		Player * p = players[i];
 		memset(&State.PlayerStates[i], 0, sizeof(struct SurvivalPlayer));
     State.PlayerStates[i].State.Item = -1;
+    State.PlayerStates[i].RevivingPlayerId = -1;
 
 #if PAYDAY
 		State.PlayerStates[i].State.CurrentTokens = 100;
@@ -3272,9 +3277,8 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 #endif
 
   // 
-	float playerCountMultiplier = powf((float)State.ActivePlayerCount, 0.6);
   for (i = 0; i < State.RoundNumber; ++i) {
-    State.MobStats.TotalSpawned += MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + powf(i * State.Difficulty * playerCountMultiplier, 0.75)));
+    State.MobStats.TotalSpawned += MAX_MOBS_BASE + (int)(MAX_MOBS_ROUND_WEIGHT * (1 + i));
     
 #if !PAYDAY
     for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
@@ -3489,7 +3493,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       //if (manSpawnMobId == 0) manSpawnMobId = 2;
 
       // force one mob type
-      manSpawnMobId = 0;
+      //manSpawnMobId = 0;
       //manSpawnMobId = 2;
 			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
 

@@ -18,7 +18,7 @@ typedef struct PatchConfig
   char enableSingleplayerMusic;
   char levelOfDetail;
   char enablePlayerStateSync;
-  char enableAutoMaps;
+  char disableAimAssist;
   char enableFpsCounter;
   char disableCircleToHackerRay;
   char disableScavengerHunt;

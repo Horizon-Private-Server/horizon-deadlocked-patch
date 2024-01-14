@@ -439,13 +439,14 @@ void htCtfTick(void)
 		}
 		case HT_INTERMISSION2:
 		{
-			// Drop held items
+			// Drop held items and reset health
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 			{
 				if (!players[i])
 					continue;
 
 				players[i]->HeldMoby = 0;
+        players[i]->Health = players[i]->MaxHealth;
 			}
 
 			// reset flags
@@ -904,6 +905,7 @@ void otCtfTick(void)
 					continue;
 
 				players[i]->HeldMoby = 0;
+        players[i]->Health = players[i]->MaxHealth;
 			}
 
 			// reset flags

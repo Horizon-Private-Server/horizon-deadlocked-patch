@@ -322,9 +322,9 @@ const int MysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)
 
 struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
   { MYSTERY_BOX_ITEM_RESET_GATE, 0.01 },
-  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.03 },
   { MYSTERY_BOX_ITEM_QUAD, 0.07 },
   { MYSTERY_BOX_ITEM_SHIELD, 0.07 },
+  { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.075 },
   { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.10 },
   { MYSTERY_BOX_ITEM_EMP_HEALTH_GUN, 0.10 },
   { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.10 },

@@ -321,7 +321,7 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 	.enableSingleplayerMusic = 0,
 	.levelOfDetail = 2,
 	.enablePlayerStateSync = 0,
-	.enableAutoMaps = 1,
+	.disableAimAssist = 0,
 	.enableFpsCounter = 0,
 	.disableCircleToHackerRay = 0,
 	.disableScavengerHunt = 0,
@@ -736,18 +736,16 @@ void patchLevelOfDetail(void)
 		*(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
 	}
 
-  if (lastClientType == CLIENT_TYPE_NORMAL) {
+  if (lastClientType != CLIENT_TYPE_DZO) {
 
     // force lod on certain maps
     int lod = config.levelOfDetail;
-    if (lastClientType == CLIENT_TYPE_NORMAL) {
-      switch (gameConfig.customMapId)
+    switch (gameConfig.customMapId)
+    {
+      case CUSTOM_MAP_CANAL_CITY:
       {
-        case CUSTOM_MAP_CANAL_CITY:
-        {
-          lod = 0; // always potato on canal city
-          break;
-        }
+        lod = 0; // always potato on canal city
+        break;
       }
     }
 
@@ -1555,6 +1553,35 @@ void patchFrameSkip()
 }
 
 /*
+ * NAME :		patchAimAssist
+ * 
+ * DESCRIPTION :
+ * 			Enables/disables aim assist
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchAimAssist(void)
+{
+  static int lastValue = 0;
+  if (!isInGame()) { lastValue = 0; return; }
+  if (lastValue == config.disableAimAssist) return;
+
+  if (config.disableAimAssist) {
+    POKE_U32(0x004DC294, 0x10000015);
+  } else {
+    POKE_U32(0x004DC294, 0x45010015);
+  }
+
+  lastValue = config.disableAimAssist;
+}
+
+/*
  * NAME :		handleWeaponShotDelayed
  * 
  * DESCRIPTION :
@@ -1583,7 +1610,7 @@ void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0,
 
 		// set weapon shot event time to now if its in the future
 		// because the client is probably lagging behind
-		if (player->Gadgets[0].id == message->GadgetId) {
+		if (player->Gadgets[0].id == message->GadgetId && message->GadgetId == WEAPON_ID_FUSION_RIFLE) {
 			message->ActiveTime = a2 = gameGetTime() - 1;
 		}
 	}
@@ -2566,6 +2593,12 @@ void runCorrectPlayerChargebootRotation(void)
       }
     }
 	}
+}
+
+//--------------------------------------------------------------------------
+int onSetPlayerDzoCosmeticsRemote(void * connection, void * data)
+{
+  return 4 + 0x10*5;
 }
 
 /*
@@ -4795,6 +4828,13 @@ int main (void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_NAME_OVERRIDES, &onServerSetLobbyNameOverridesRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DATE_TIME_RESPONSE, &onServerDateTimeResponseRemote);
 
+  // dzo cosmetics are sent by dzo clients
+  // the dzo patch handles it for us
+  // but for non-dzo clients we need to handle it so that the size is properly returned
+  if (interopData.Client != CLIENT_TYPE_DZO) {
+	  netInstallCustomMsgHandler(CUSTOM_MSG_DZO_COSMETICS_UPDATE, &onSetPlayerDzoCosmeticsRemote);
+  }
+
 	// Run map loader
 	runMapLoader();
 
@@ -4878,6 +4918,9 @@ int main (void)
 
 	// Patch frame skip
 	patchFrameSkip();
+
+  // Toggle aim assist
+  patchAimAssist();
 
 	// Patch shots to be less laggy
 	patchWeaponShotLag();

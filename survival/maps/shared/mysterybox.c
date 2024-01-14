@@ -581,11 +581,12 @@ void mboxUpdate(Moby* moby)
       moby->DrawDist = 64;
       moby->CollActive = 0;
 
-      sprintf(buf, "\x11 Open [\x0E%d\x08]", MYSTERY_BOX_COST);
-
       // find local players to activate
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        if (tryPlayerInteract(moby, players[i], buf, MYSTERY_BOX_COST, 0, PLAYER_MYSTERY_BOX_COOLDOWN_TICKS, 9)) {
+        int cost = MYSTERY_BOX_COST + (MYSTERY_BOX_COST_PER_VOX * pvars->NumVoxPerPlayer[i]);
+        sprintf(buf, "\x11 Open [\x0E%d\x08]", cost);
+
+        if (tryPlayerInteract(moby, players[i], buf, cost, 0, PLAYER_MYSTERY_BOX_COOLDOWN_TICKS, 9)) {
           mboxActivate(moby, i);
           break;
         }
@@ -682,7 +683,8 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
 
     // charge player
     if (MapConfig.State) {
-      MapConfig.State->PlayerStates[activatedByPlayerId].State.Bolts -= MYSTERY_BOX_COST;
+      int cost = MYSTERY_BOX_COST + (MYSTERY_BOX_COST_PER_VOX * pvars->NumVoxPerPlayer[activatedByPlayerId]);
+      MapConfig.State->PlayerStates[activatedByPlayerId].State.Bolts -= cost;
     }
 
     mobySetState(moby, MYSTERY_BOX_STATE_OPENING, -1);
@@ -738,6 +740,9 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
         }
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:
         {
+          if (playerId >= 0) pvars->NumVoxPerPlayer[playerId]++;
+          DPRINTF("mbox voxed %d %d times\n", playerId, pvars->NumVoxPerPlayer[playerId]);
+
           spawnExplosion(moby->Position, 5, 0x802060C0);
           damageRadius(moby, moby->Position, 0x00081801, 5, 5);
 #if !DEBUGMBOX

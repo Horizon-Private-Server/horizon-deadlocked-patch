@@ -70,7 +70,7 @@
 #define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 1)
 
 #define MOB_BASE_DAMAGE										    (10)
-#define MOB_BASE_DAMAGE_SCALE                 (0.04*1)
+#define MOB_BASE_DAMAGE_SCALE                 (0.03*1)
 #define MOB_BASE_SPEED											  (3)
 #define MOB_BASE_SPEED_SCALE                  (0.05*1)
 #define MOB_BASE_HEALTH										    (30)
@@ -99,9 +99,10 @@
 #define MOB_HAS_DROP_PROBABILITY_LUCKY			  (0.05)
 #define DROP_MAX_SPAWNED											(4)
 
-#define PLAYER_BASE_REVIVE_COST								(10000)
-#define PLAYER_REVIVE_COST_PER_PLAYER					(1000)
-#define PLAYER_REVIVE_COST_PER_ROUND					(0)
+#define PLAYER_BASE_REVIVE_TICKS					    (60 * TPS)
+#define PLAYER_MIN_REVIVE_TICKS					      (10 * TPS)
+#define PLAYER_REVIVE_COST_PER_REVIVE_TICKS		(10 * TPS)
+#define PLAYER_TIME_TO_REVIVE_TICKS		        (5 * TPS)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
 #define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
 #define PLAYER_KNOCKBACK_BASE_POWER						(1.5)
@@ -145,9 +146,10 @@
 
 #define MAX_MOB_SPAWN_PARAMS                  (10)
 #define MAX_MOB_COMPLEXITY_DRAWN              (7500)
-#define MAX_MOB_COMPLEXITY_DRAWN_DZO          (MAX_MOB_COMPLEXITY_DRAWN * 3)
+#define MAX_MOB_COMPLEXITY_DRAWN_DZO          (MAX_MOB_COMPLEXITY_DRAWN * 1)
 #define MOB_COMPLEXITY_SKIN_FACTOR            (500)
 #define MAX_MOB_COMPLEXITY_MIN                (1000)
+#define MOB_COMPLEXITY_LOD_FACTOR             (500)
 
 #define SWARMER_RENDER_COST                   (40)
 #define ZOMBIE_RENDER_COST                    (85)
@@ -288,7 +290,9 @@ struct SurvivalPlayer
 	int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
   int TicksSinceHealthChanged;
+  int RevivingPlayerId;
 	u16 ReviveCooldownTicks;
+  u16 RevivingPlayerTicks;
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;
 	char IsLocal;
@@ -385,6 +389,9 @@ struct SurvivalMapConfig
   PickupUpgradePickup_func PickupUpgradeFunc;
   CreateMobDrop_func CreateMobDropFunc;
   HandleMobDropEvent_func OnMobDropEventFunc;
+
+  // misc
+  float WeaponPickupCooldownFactor;
 };
 
 struct SurvivalSpecialRoundParam

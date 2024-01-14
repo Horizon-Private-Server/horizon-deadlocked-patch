@@ -297,6 +297,12 @@ enum CustomDzoCommandId
   CUSTOM_DZO_CMD_ID_SURVIVAL_SPAWN_DAMAGE_BUBBLE = 6,
 };
 
+typedef struct SetMapOverrideResponse
+{
+  int MapId;
+  int MapVersion;
+} SetMapOverrideResponse_t;
+
 typedef struct ServerDownloadDataRequest
 {
     int Id;

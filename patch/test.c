@@ -890,27 +890,26 @@ void runTestLogic(void)
 
   //runSystemTime();
   if (isInGame()) {
-    if (padGetButtonDown(0, PAD_DOWN) > 0) {
-      Player* p = playerGetFromSlot(0);
-      VECTOR to = {5,5,5,0};
-      vector_add(to, to, p->PlayerPosition);
-      Moby* m = gfxDrawSimpleTwoPointLightning(
-        (void*)0x002225A0,
-        p->PlayerPosition,
-        to,
-        3000,
-        1,
-        1,
-        NULL,
-        NULL,
-        NULL,
-        0x80804020
-      );
+    // if (padGetButtonDown(0, PAD_DOWN) > 0) {
+    //   Player* p = playerGetFromSlot(0);
+    //   VECTOR to = {5,5,5,0};
+    //   vector_add(to, to, p->PlayerPosition);
+    //   Moby* m = gfxDrawSimpleTwoPointLightning(
+    //     (void*)0x002225A0,
+    //     p->PlayerPosition,
+    //     to,
+    //     3000,
+    //     1,
+    //     1,
+    //     NULL,
+    //     NULL,
+    //     NULL,
+    //     0x80804020
+    //   );
 
-      DPRINTF("lightning moby %08X\n", m);
-    }
+    //   DPRINTF("lightning moby %08X\n", m);
+    // }
 
-    return;
     //runAnimJointThing();
     //runDrawQuad();
     //runCameraHeight();
@@ -929,9 +928,9 @@ void runTestLogic(void)
       u32 green = 0x8000FF00;
       u32 white = 0x80FFFFFF;
       mobySpawnExplosion(vPos, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 10, 1, 1, 0, 0, 1, 1,
         0, 0, 
-        clear, clear, clear, clear, clear, clear, green, red, white,
+        white, white, white, white, white, white, white, white, white,
         0, 0, 0, 0, 1, 0, 0, 0);
     }
 

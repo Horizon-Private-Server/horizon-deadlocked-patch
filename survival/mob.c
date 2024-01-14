@@ -226,7 +226,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	    args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
 		}
 
-    if (weaponId == WEAPON_ID_FLAIL) {
+    if (weaponId == WEAPON_ID_FLAIL && PATCH_INTEROP->GameConfig->customMapId != CUSTOM_MAP_SURVIVAL_VELDIN) {
       args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
       args.Knockback.Power += pDamager->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Level + 1;
     } else if (weaponId == WEAPON_ID_OMNI_SHIELD) {
@@ -235,8 +235,6 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
       amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
     } else if (weaponId == WEAPON_ID_ARBITER) {
       amount *= 2; // damage buff
-    } else if (weaponId == WEAPON_ID_VIPERS && pDamager->GadgetBox->Gadgets[weaponId].Level == 9) {
-      amount *= 0.75; // damage nerf
     }
 
     // prestige damage 2x per prestige
@@ -290,7 +288,7 @@ int getMaxComplexity(void)
   Player** players = playerGetAll();
 
   // reduce by lod
-  // maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? playerConfig->levelOfDetail : 2);
+  maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? (2 - playerConfig->levelOfDetail) : 0);
 
   // dzo bypasses max complexity
   if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO)
@@ -703,10 +701,11 @@ void mobUpdate(Moby* moby)
 		if (nextCheckActionDelayTicks == 0 && pvars->VTable && pvars->VTable->GetPreferredAction) {
       int delayTicks = 0;
       int nextAction = pvars->VTable->GetPreferredAction(moby, &delayTicks);
+      float delayDifficultyFactor = lerpf(1, 0.25, clamp((State.RoundNumber - 50) / 50.0, 0, 1));
 			if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction && nextAction != pvars->MobVars.Action) {
 				pvars->MobVars.NextAction = nextAction;
-				pvars->MobVars.NextActionDelayTicks = delayTicks; //nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
-			} 
+				pvars->MobVars.NextActionDelayTicks = delayTicks * delayDifficultyFactor; //nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
+			}
 
 			// get new target
 			if (scoutCooldownTicks == 0 && pvars->VTable->GetNextTarget) {
@@ -1081,8 +1080,13 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	}
 #endif
 
-  // shared xp
-  if (mapConfig && mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].Config.SharedXp) {
+#if SHARED_XP
+  int sharedXp = 1;
+#else
+  int sharedXp = mapConfig && mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].Config.SharedXp;
+#endif
+
+  if (sharedXp) {
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       Player* p = players[i];
       if (p && !playerIsDead(p) && i != killedByPlayerId) {

@@ -100,17 +100,17 @@ char * fMap = "%sdl/%s.map";
 char * fVersion = "%sdl/%s.version";
 char * fGlobalVersion = "%sdl/version";
 
+#if MAPTEST
+char * fWadTest = "%sdl/%s.test.wad";
+#endif
+
 typedef struct MapOverrideMessage
 {
 	u8 MapId;
+	u8 LoadingMapId;
 	char MapName[32];
 	char MapFileName[128];
 } MapOverrideMessage;
-
-typedef struct MapOverrideResponseMessage
-{
-	int Version;
-} MapOverrideResponseMessage;
 
 typedef struct MapClientRequestModulesMessage
 {
@@ -162,9 +162,10 @@ char * getMapPathPrefix(void)
 //------------------------------------------------------------------------------
 int onSetMapOverride(void * connection, void * data)
 {
-	MapOverrideMessage *payload = (MapOverrideMessage*)data;
+  MapOverrideMessage payload;
+  memcpy(&payload, data, sizeof(payload));
 
-	if (payload->MapId == 0)
+	if (payload.MapId == 0)
 	{
 		DPRINTF("recv empty map\n");
 		State.Enabled = 0;
@@ -177,17 +178,20 @@ int onSetMapOverride(void * connection, void * data)
 		int version = -1;
 		if (LOAD_MODULES_STATE != 100)
 			version = -1;
-		else if (!readLevelVersion(payload->MapFileName, &version))
+		else if (!readLevelVersion(payload.MapFileName, &version))
 			version = -2;
 
     // read global maps version from usb
     readLocalGlobalVersion();
 
 		// print
-		DPRINTF("MapId:%d MapName:%s MapFileName:%s Version:%d\n", payload->MapId, payload->MapName, payload->MapFileName, version);
+		DPRINTF("MapId:%d MapName:%s MapFileName:%s Version:%d\n", payload.MapId, payload.MapName, payload.MapFileName, version);
 
 		// send response
-		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_SET_MAP_OVERRIDE_RESPONSE, 4, &version);
+    SetMapOverrideResponse_t msg;
+    msg.MapVersion = version;
+    msg.MapId = payload.MapId;
+		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_SET_MAP_OVERRIDE_RESPONSE, sizeof(msg), &msg);
 
 		// enable
 		if (version >= 0)
@@ -195,11 +199,11 @@ int onSetMapOverride(void * connection, void * data)
 			State.Enabled = 1;
 			State.CheckState = 0;
 			mapOverrideResponse = version;
-			State.MapId = payload->MapId;
+			State.MapId = payload.LoadingMapId;
 			State.LoadingFd = -1;
 			State.LoadingFileSize = -1;
-			strncpy(State.MapName, payload->MapName, 32);
-			strncpy(State.MapFileName, payload->MapFileName, 128);
+			strncpy(State.MapName, payload.MapName, 32);
+			strncpy(State.MapFileName, payload.MapFileName, 128);
 		}
 		else
 		{
@@ -562,6 +566,17 @@ int readLevelVersion(char * name, int * version)
 //--------------------------------------------------------------
 int getLevelSizeUsb()
 {
+#if MAPTEST
+	// Generate wad filename
+	sprintf(membuffer, fWadTest, getMapPathPrefix(), State.MapFileName);
+
+	// get file length
+	State.LoadingFileSize = readFileLength(membuffer);
+
+  // if empty/nonexistent file, load real wad
+  if (State.LoadingFileSize > 0) return;
+#endif
+
 	// Generate wad filename
 	sprintf(membuffer, fWad, getMapPathPrefix(), State.MapFileName);
 
@@ -685,8 +700,16 @@ int openLevelUsb()
 		return 0;
 	}
 
+#if MAPTEST
+	// Generate wad filename
+	sprintf(membuffer, fWadTest, getMapPathPrefix(), State.MapFileName);
+  if (readFileLength(membuffer) <= 0) {
+    sprintf(membuffer, fWad, getMapPathPrefix(), State.MapFileName);
+  }
+#else
 	// Generate wad filename
 	sprintf(membuffer, fWad, getMapPathPrefix(), State.MapFileName);
+#endif
 
 	// open wad file
 	rpcUSBopen(membuffer, FIO_O_RDONLY);
@@ -1164,14 +1187,7 @@ void runMapLoader(void)
 		State.CheckState = 0;
 
 		// install on login
-#if DEBUG
-		// always install on login if debug mode
 		if (LOAD_MODULES_RESULT == 0)
-		{
-			initialized = 2;
-		}
-#else
-		if (/*config.enableAutoMaps &&*/ LOAD_MODULES_RESULT == 0)
 		{
 			initialized = 2;
 		}
@@ -1179,9 +1195,11 @@ void runMapLoader(void)
     {
       // check if host fs exists
       useHost = 1;
-      if (!readGlobalVersion(NULL)) useHost = 0;
+      if (!readGlobalVersion(&mapsLocalGlobalVersion)) {
+        useHost = 0;
+        readLocalGlobalVersion();
+      }
     }
-#endif
 	}
 
 	// force map id to current map override if in staging

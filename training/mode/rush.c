@@ -120,7 +120,7 @@ void modeInitialize(void)
 
   // 
   Player* p = playerGetFromSlot(0);
-  if (p) TargetTeam = (((p->Team % 2) + 1) % 2) + (p->Team / 2);
+  if (p) TargetTeam = ((p->Team + 1) % 2) + (p->Team - (p->Team % 2));
 }
 
 //--------------------------------------------------------------------------
@@ -353,11 +353,12 @@ void modeGenerateRecommendedSpawnpoints(enum REC_SPAWN_TYPES type)
   int pts[MAX_REC_SPAWNPOINTS];
   int idxs[MAX_REC_SPAWNPOINTS];
   int count = 0;
+  int spCount = spawnPointGetCount();
 
   memset(pts, 0, sizeof(pts));
   memset(idxs, 0, sizeof(idxs));
 
-  for (i = 0; i < MAX_SPAWNPOINTS; ++i) {
+  for (i = 0; i < spCount; ++i) {
     int add = 0;
 
     int score = modeComputeSpawnpointScore(type, i);
