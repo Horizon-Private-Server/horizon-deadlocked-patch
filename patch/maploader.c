@@ -279,6 +279,11 @@ int onServerSendMapVersion(void * connection, void * data)
 {
   memcpy(&mapsRemoteGlobalVersion, data, 4);
 	DPRINTF("server sent map version %d\n", mapsRemoteGlobalVersion);
+  
+  // read local global version
+  useHost = 1;
+  if (!readGlobalVersion(NULL)) useHost = 0;
+  readLocalGlobalVersion();
 
   return 4;
 }

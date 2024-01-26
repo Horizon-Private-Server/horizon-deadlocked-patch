@@ -49,6 +49,7 @@ enum COMP_ERROR
 
 struct CompState {
   int Initialized;
+  int HasShownMapUpdatesRequiredPopup;
   int InQueue;
   int LastQueue;
   int LastSelectedQueue;
@@ -74,6 +75,9 @@ uiVTable18_func endGameScoreboard18Func = (uiVTable18_func)0x0073BA08;
 uiVTable18_func staging18Func = (uiVTable18_func)0x00759220;
 
 extern int initialized;
+extern int mapsRemoteGlobalVersion;
+extern int mapsLocalGlobalVersion;
+extern int actionState;
 
 int mapsDownloadingModules(void);
 void forceStartGame(void);
@@ -473,6 +477,13 @@ int onCompChatRoom(void * ui, int pad) {
   // show select/stats at all times
   *(u32*)(uiElements[12] + 4) = 2;
 
+  // logout if maps aren't up to date
+  if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+    ((void (*)(int))0x007647B0)(0x23);
+    uiChangeMenu(UI_MENU_ID_ONLINE_PROFILE_SELECT);
+    return -1;
+  }
+
   return result;
 }
 
@@ -674,6 +685,11 @@ void runCompMenuLogic(void) {
     }
   }
 
+  if (!CompState.HasShownMapUpdatesRequiredPopup && !netDoIHaveNetError() && uiGetPointer(UI_MENU_ID_ONLINE_LOBBY) == uiGetActivePointer() && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+    uiShowOkDialog("Custom Maps", "You must install the latest custom maps to play on the Comp Server.");
+    CompState.HasShownMapUpdatesRequiredPopup = 1;
+  }
+
   // if at main menu, put player in clan room
   static int ticksWantingClanRoom = 0;
   if (!netDoIHaveNetError() && uiGetPointer(UI_MENU_ID_ONLINE_LOBBY) == uiGetActivePointer() && netGetLobbyServerConnection() && uiGetActive() == UI_ID_ONLINE_MAIN_MENU)
@@ -699,6 +715,7 @@ void runCompLogic(void) {
   void* connection = netGetLobbyServerConnection();
   if (!connection) {
     CompState.InQueue = 0;
+    CompState.HasShownMapUpdatesRequiredPopup = 0;
     return;
   }
 

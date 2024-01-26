@@ -936,7 +936,7 @@ void runTestLogic(void)
     //   DPRINTF("lightning moby %08X\n", m);
     // }
 
-    sendFusionShot();
+    //sendFusionShot();
     //runAnimJointThing();
     //runDrawQuad();
     //runCameraHeight();
