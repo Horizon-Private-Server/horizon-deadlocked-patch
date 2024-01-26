@@ -9,6 +9,7 @@
 #include <libdl/stdio.h>
 #include <libdl/string.h>
 #include <libdl/stdlib.h>
+#include <libdl/weapon.h>
 #include <libdl/pad.h>
 #include <libdl/collision.h>
 #include <libdl/color.h>
@@ -878,6 +879,31 @@ void drawPositionYaw(void)
   }
 }
 
+void sendFusionShot(void)
+{
+  if (padGetButtonDown(0, PAD_DOWN) <= 0) return;
+  
+  Player* player = playerGetFromSlot(0);
+  void * connection = netGetDmeServerConnection();
+
+  VECTOR from={0,0,1,0};
+  VECTOR to;
+  vector_add(from, from, player->PlayerPosition);
+  vector_add(from, from, player->CameraDir);
+  vector_scale(to, player->CameraDir, 50);
+  vector_add(to, to, player->PlayerPosition);
+
+  struct tNW_GadgetEventMessage msg;
+  msg.PlayerIndex = player->PlayerId;
+  msg.GadgetId = WEAPON_ID_FUSION_RIFLE;
+  msg.GadgetEventType = 8;
+  msg.ActiveTime = gameGetTime() + (TIME_SECOND * 60);
+  msg.TargetUID = -1;
+  memcmp(msg.FiringLoc, from, 12);
+  memcmp(msg.TargetDir, to, 12);
+  netBroadcastMediusAppMessage(NET_DELIVERY_CRITICAL, connection, 14, sizeof(msg), &msg);
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -910,29 +936,30 @@ void runTestLogic(void)
     //   DPRINTF("lightning moby %08X\n", m);
     // }
 
+    sendFusionShot();
     //runAnimJointThing();
     //runDrawQuad();
     //runCameraHeight();
     //runRenderCboot();
     //runB6HitVisualizer();
 
-    if (padGetButtonDown(0, PAD_DOWN) > 0) {
-      Player* p = playerGetFromSlot(0);
-      VECTOR pos;
-      vector_scale(pos, p->CameraForward, 4);
-      vector_add(pos, pos, p->PlayerPosition);
-      pos[2] += 1;
-      u128 vPos = vector_read(pos); 
-      u32 clear = 0;
-      u32 red = 0x800000FF;
-      u32 green = 0x8000FF00;
-      u32 white = 0x80FFFFFF;
-      mobySpawnExplosion(vPos, 0,
-        0, 0, 0, 0, 0, 10, 1, 1, 0, 0, 1, 1,
-        0, 0, 
-        white, white, white, white, white, white, white, white, white,
-        0, 0, 0, 0, 1, 0, 0, 0);
-    }
+    // if (padGetButtonDown(0, PAD_DOWN) > 0) {
+    //   Player* p = playerGetFromSlot(0);
+    //   VECTOR pos;
+    //   vector_scale(pos, p->CameraForward, 4);
+    //   vector_add(pos, pos, p->PlayerPosition);
+    //   pos[2] += 1;
+    //   u128 vPos = vector_read(pos); 
+    //   u32 clear = 0;
+    //   u32 red = 0x800000FF;
+    //   u32 green = 0x8000FF00;
+    //   u32 white = 0x80FFFFFF;
+    //   mobySpawnExplosion(vPos, 0,
+    //     0, 0, 0, 0, 0, 10, 1, 1, 0, 0, 1, 1,
+    //     0, 0, 
+    //     white, white, white, white, white, white, white, white, white,
+    //     0, 0, 0, 0, 1, 0, 0, 0);
+    // }
 
     playerGetFromSlot(0)->Health = 50;
 

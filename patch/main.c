@@ -1597,24 +1597,16 @@ void patchAimAssist(void)
  */
 void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0, struct tNW_GadgetEventMessage * message)
 {
-	if (player && message && message->GadgetEventType == 8) {
-		int delta = a2 - gameGetTime();
+  const int MAX_DELAY = TIME_SECOND * 0.2;
 
-
-		// client is not holding correct weapon on our screen
-		// haven't determined a way to fix this yet but
-		if (player->Gadgets[0].id != message->GadgetId) {
-			//DPRINTF("remote gadgetevent %d from weapon %d but player holding %d\n", message->GadgetEventType, message->GadgetId, player->Gadgets[0].id);
-			//playerEquipWeapon(player, message->GadgetId);
-		}
-
-		// set weapon shot event time to now if its in the future
-		// because the client is probably lagging behind
-		if (player->Gadgets[0].id == message->GadgetId && message->GadgetId == WEAPON_ID_FUSION_RIFLE) {
-			message->ActiveTime = a2 = gameGetTime() - 1;
-		}
-	}
-
+  // put clamp on max delay
+  int delta = a2 - gameGetTime();
+  if (delta > MAX_DELAY) {
+    message->ActiveTime = a2 = gameGetTime() + MAX_DELAY;
+  } else if (delta < 0) {
+    message->ActiveTime = a2 = gameGetTime() - 1;
+  }
+  
 	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, a1, a2, a3, t0, message);
 }
 

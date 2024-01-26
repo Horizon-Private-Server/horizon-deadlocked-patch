@@ -198,7 +198,7 @@ void playerSyncHandlePlayerState(Player* player)
 
   // compute matrix
   matrix_unit(m);
-  matrix_rotate_y(m, m, player->CameraPitch.Value);
+  matrix_rotate_y(m, m, -player->CameraPitch.Value);
   matrix_rotate_z(m, m, player->CameraYaw.Value);
   vector_copy(player->CameraForward, &m[0]);
   vector_copy(player->CameraDir, player->CameraForward);
@@ -206,13 +206,13 @@ void playerSyncHandlePlayerState(Player* player)
 
   // compute inv matrix
   matrix_unit(mInv);
-  matrix_rotate_y(mInv, mInv, clampAngle(player->CameraPitch.Value + MATH_PI));
+  matrix_rotate_y(mInv, mInv, clampAngle(-player->CameraPitch.Value + MATH_PI));
   matrix_rotate_z(mInv, mInv, clampAngle(player->CameraYaw.Value + MATH_PI));
   memcpy((void*)((u32)player + 0x2cf0), mInv, sizeof(VECTOR)*3);
 
   // set camera rotation
   VECTOR camRot;
-  camRot[1] = player->CameraPitch.Value;
+  camRot[1] = -player->CameraPitch.Value;
   camRot[2] = player->CameraYaw.Value;
   camRot[0] = 0;
   vector_copy((float*)((u32)player + 0x2ce0), camRot);
@@ -483,7 +483,7 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  gameConfig.grNewPlayerSync = 1;
+  //gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;

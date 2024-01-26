@@ -459,6 +459,7 @@ MenuElem_ListData_t dataCustomModes = {
       [CUSTOM_MODE_1000_KILLS] "1000 Kills",
       [CUSTOM_MODE_TRAINING] "Training",
       [CUSTOM_MODE_TEAM_DEFENDER] "Team Defender",
+      [CUSTOM_MODE_BENCHMARK] "Benchmark",
 #if DEV
       [CUSTOM_MODE_GRIDIRON] "Gridiron",
       [CUSTOM_MODE_ANIM_EXTRACTOR] "Anim Extractor",
@@ -477,27 +478,12 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_1000_KILLS] NULL,
   [CUSTOM_MODE_TRAINING] NULL,
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
+  [CUSTOM_MODE_BENCHMARK] NULL,
 #if DEV
   [CUSTOM_MODE_GRIDIRON] NULL,
   [CUSTOM_MODE_ANIM_EXTRACTOR] NULL,
 #endif
 };
-
-// survival difficulty
-/*
-MenuElem_ListData_t dataSurvivalDifficulty = {
-    &gameConfig.survivalConfig.difficulty,
-    NULL,
-    5,
-    {
-      "Couch Potato",
-      "Contestant",
-      "Gladiator",
-      "Hero",
-      "Exterminator"
-    }
-};
-*/
 
 // payload contest mode
 MenuElem_ListData_t dataPayloadContestMode = {
@@ -695,7 +681,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
   { "Healthboxes", listActionHandler, menuStateHandler_SettingStateHandler, &dataHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
-  { "New Player Sync", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grNewPlayerSync },
+  { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
   { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire },
   { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks },
@@ -1022,6 +1008,14 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
 
   switch (gm)
   {
+    case CUSTOM_MODE_BENCHMARK:
+    {
+      if (v == CUSTOM_MAP_SURVIVAL_MINING_FACILITY)
+        return 1;
+
+      *value = CUSTOM_MAP_SURVIVAL_MINING_FACILITY;
+      return 0;
+    }
     case CUSTOM_MODE_SURVIVAL:
     {
 #if DEBUG
@@ -2409,6 +2403,7 @@ void configMenuDisable(void)
         gameConfig.grNoPacks = 1;
         gameConfig.grNoPickups = 1;
         //gameConfig.grNoSniperHelpers = 1;
+        gameConfig.grNewPlayerSync = 1;
         gameConfig.grCqPersistentCapture = 1;
         gameConfig.grCqDisableTurrets = 1;
         gameConfig.grCqDisableUpgrades = 1;
@@ -2421,6 +2416,7 @@ void configMenuDisable(void)
         gameConfig.grV2s = 2;
         gameConfig.grVampire = 3;
 
+        gameConfig.grNewPlayerSync = 1;
         gameConfig.grFusionShotsAlwaysHit = 1;
         gameConfig.grNoInvTimer = 1;
         gameConfig.grNoPacks = 1;
