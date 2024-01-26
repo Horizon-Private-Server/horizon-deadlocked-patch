@@ -3352,7 +3352,7 @@ void updateGameState(PatchStateContainer_t * gameState)
     gameState->CustomGameStatsSize = sizeof(struct SurvivalGameData);
 		struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats.Payload;
 		sGameData->RoundNumber = State.RoundNumber;
-		sGameData->Version = 0x00000004;
+		sGameData->Version = 0x00000005;
 
     // set mob ids
     for (i = 0; i < mapConfig->DefaultSpawnParamsCount && i < MAX_MOB_SPAWN_PARAMS; ++i) {

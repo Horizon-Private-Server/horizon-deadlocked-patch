@@ -277,14 +277,13 @@ int onServerSentMapIrxModules(void * connection, void * data)
 //------------------------------------------------------------------------------
 int onServerSendMapVersion(void * connection, void * data)
 {
-  memcpy(&mapsRemoteGlobalVersion, data, 4);
-	DPRINTF("server sent map version %d\n", mapsRemoteGlobalVersion);
-  
-  // read local global version
+  // read local global version first
   useHost = 1;
   if (!readGlobalVersion(NULL)) useHost = 0;
   readLocalGlobalVersion();
 
+  memcpy(&mapsRemoteGlobalVersion, data, 4);
+	DPRINTF("server sent map version %d, local %d\n", mapsRemoteGlobalVersion, mapsLocalGlobalVersion);
   return 4;
 }
 

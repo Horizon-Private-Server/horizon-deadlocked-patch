@@ -478,7 +478,7 @@ int onCompChatRoom(void * ui, int pad) {
   *(u32*)(uiElements[12] + 4) = 2;
 
   // logout if maps aren't up to date
-  if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+  if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion && mapsRemoteGlobalVersion > 0) {
     ((void (*)(int))0x007647B0)(0x23);
     uiChangeMenu(UI_MENU_ID_ONLINE_PROFILE_SELECT);
     return -1;
@@ -685,7 +685,7 @@ void runCompMenuLogic(void) {
     }
   }
 
-  if (!CompState.HasShownMapUpdatesRequiredPopup && !netDoIHaveNetError() && uiGetPointer(UI_MENU_ID_ONLINE_LOBBY) == uiGetActivePointer() && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+  if (!CompState.HasShownMapUpdatesRequiredPopup && !netDoIHaveNetError() && uiGetPointer(UI_MENU_ID_ONLINE_LOBBY) == uiGetActivePointer() && mapsLocalGlobalVersion != mapsRemoteGlobalVersion && mapsRemoteGlobalVersion > 0) {
     uiShowOkDialog("Custom Maps", "You must install the latest custom maps to play on the Comp Server.");
     CompState.HasShownMapUpdatesRequiredPopup = 1;
   }

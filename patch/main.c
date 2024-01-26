@@ -2690,14 +2690,17 @@ void onClientVoteToEnd(int playerId)
  */
 void sendClientVoteForEnd(void)
 {
-  Player* p1 = playerGetFromSlot(0);
-  if (!p1) return;
+  int i = 0;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* p = playerGetFromSlot(i);
+    if (!p) continue;
 
-  int playerId = p1->PlayerId;
-  if (!gameAmIHost()) {
-    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_VOTED_TO_END, 4, &playerId);
-  } else {
-    onClientVoteToEnd(playerId);
+    int playerId = p->PlayerId;
+    if (!gameAmIHost()) {
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_VOTED_TO_END, 4, &playerId);
+    } else {
+      onClientVoteToEnd(playerId);
+    }
   }
 }
 
@@ -2727,7 +2730,7 @@ int voteToEndNumberOfVotesRequired(void)
   }
 
   if (gameData->NumStartTeams > 2) return playerCount;
-  else return (int)(playerCount * 0.75) + 1;
+  else return (int)(playerCount * 0.6) + 1;
 }
 
 /*
@@ -2754,6 +2757,7 @@ void runVoteToEndLogic(void)
   int gameTime = gameGetTime();
   GameData* gameData = gameGetData();
   GameSettings* gs = gameGetSettings();
+  Player* player = playerGetFromSlot(0);
   char buf[64];
 
   int votesNeeded = voteToEndNumberOfVotesRequired();
@@ -2771,11 +2775,22 @@ void runVoteToEndLogic(void)
   }
 
   if (voteToEndState.TimeoutTime > gameTime) {
+
+    // have we voted?
+    int haveVoted = 0;
+    if (player) haveVoted = voteToEndState.Votes[player->PlayerId];
+
     // draw
     int secondsLeft = (voteToEndState.TimeoutTime - gameTime) / TIME_SECOND;
-    snprintf(buf, sizeof(buf), "Vote to End (%d/%d)    %d...", voteToEndState.Count, votesNeeded, secondsLeft);
+    char* buttonCombo = "(\x18+\x19) ";
+    snprintf(buf, sizeof(buf), "%sVote to End (%d/%d)    %d...", haveVoted ? "" : buttonCombo, voteToEndState.Count, votesNeeded, secondsLeft);
     gfxScreenSpaceText(12, SCREEN_HEIGHT - 18, 1, 1, 0x80000000, buf, -1, 0);
     gfxScreenSpaceText(10, SCREEN_HEIGHT - 20, 1, 1, 0x80FFFFFF, buf, -1, 0);
+
+    // vote to end
+    if (!haveVoted && padGetButtonDown(0, PAD_L3 | PAD_R3) > 0) {
+      sendClientVoteForEnd();
+    }
 
     // pass to dzo
     if (PATCH_DZO_INTEROP_FUNCS) {
