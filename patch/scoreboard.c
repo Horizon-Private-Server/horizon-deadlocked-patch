@@ -124,7 +124,7 @@ void igScoreboardRun(void)
   }
 
   // draw
-  if (padGetButtonDown(0, PAD_L3) > 0) PATCH_POINTERS_SCOREBOARD = !PATCH_POINTERS_SCOREBOARD;
+  PATCH_POINTERS_SCOREBOARD = padGetButton(0, PAD_L3) > 0;
   if (PATCH_POINTERS_SCOREBOARD && !isConfigMenuActive && !gameIsStartMenuOpen(0)) {
     igScoreboardDraw();
   }

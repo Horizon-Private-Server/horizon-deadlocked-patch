@@ -235,7 +235,7 @@ void playerSyncHandlePlayerState(Player* player)
   *(float*)((u32)player + 0x2e38) = mag;
   *(float*)((u32)player + 0x0120) = moveX;
   *(float*)((u32)player + 0x0124) = -moveY;
-  *(float*)((u32)player + 0x17b0) = -moveY;
+  //*(float*)((u32)player + 0x17b0) = -moveY;
 
   struct tNW_Player* netPlayer = player->pNetPlayer;
   if (netPlayer) {
@@ -483,7 +483,7 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  //gameConfig.grNewPlayerSync = 1;
+  gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;
