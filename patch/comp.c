@@ -21,9 +21,9 @@ const char * QUEUE_LEAVE_REASONS[] = {
 
 const char * SELECT_QUEUE_TITLE = "SELECT QUEUE";
 const char * QUEUE_NAMES[] = {
-  "King of the Hill",
-  "Capture the Flag",
-  "FFA Deathmatch",
+  "1v1 Deathmatch",
+  "2v2 King of the Hill",
+  "3v3 Capture the Flag",
   "Cancel"
 };
 const int QUEUE_NAMES_SIZE = sizeof(QUEUE_NAMES)/sizeof(char*);
@@ -36,10 +36,33 @@ const char * SELECT_VOTE_NAMES[] = {
 const int SELECT_VOTE_NAMES_SIZE = sizeof(SELECT_VOTE_NAMES)/sizeof(char*);
 
 const char * QUEUE_SHORT_NAMES[] = {
-  "KOTH",
-  "CTF",
-  "FFA DM"
+  "1v1 DM",
+  "2v2 KOTH",
+  "3v3 CTF",
 };
+
+const char * COMP_RANK_NAMES[] = {
+  "Avng.",
+  "Crus.",
+  "Lib.",
+  "Mara.",
+  "Vindicat"
+};
+
+const char * COMP_DIVISION_NAMES[] = {
+  "",
+  "1",
+  "2",
+  "3",
+  "4"
+};
+
+const char * RANK_NAMES[] = {
+  "DM",
+  "KOTH",
+  "CTF"
+};
+const int RANK_NAMES_COUNT = COUNT_OF(RANK_NAMES);
 
 enum COMP_ERROR
 {
@@ -262,6 +285,23 @@ void addSnack(char * message)
 }
 
 //------------------------------------------------------------------------------
+int getRankFromElo(int elo)
+{
+  if (elo < 1000) return 0;         // Avenger
+  else if (elo < 2000) return 1;    // Crusader
+  else if (elo < 3000) return 2;    // Liberator
+  else if (elo < 4000) return 3;    // Marauder
+  return 4;                         // Vindicator
+}
+
+//------------------------------------------------------------------------------
+int getDivisionFromElo(int elo)
+{
+  if (elo >= 4000) return 0; // max rank
+  return 1 + ((elo % 1000) / 250);
+}
+
+//------------------------------------------------------------------------------
 void forceStartGame(void)
 {
   GameSettings* gs = gameGetSettings();
@@ -312,6 +352,15 @@ void generateQueueText(char * dst)
   } else {
     dst[0] = 0;
   }
+}
+
+//------------------------------------------------------------------------------
+int onGetSkillLevel(int elo, char* buf)
+{
+  int rank = getRankFromElo(elo);
+  int div = getDivisionFromElo(elo);
+
+  sprintf(buf, "%s %s", COMP_RANK_NAMES[rank], COMP_DIVISION_NAMES[div]);
 }
 
 //------------------------------------------------------------------------------
@@ -436,12 +485,20 @@ int onGetReturnToMenuId(UiMenu_t * menu)
 }
 
 //------------------------------------------------------------------------------
+void onCompStats(void * ui, int a1, int a2, int a3, int t0, int t1)
+{
+  ((void (*)(void*, int, int, int, int, int))0x007619b0)(ui, a1, a2, a3, t0, t1);
+}
+
+//------------------------------------------------------------------------------
 int onCompChatRoom(void * ui, int pad) {
+  char buf[256];
   u32 * uiElements = (u32*)((u32)ui + 0xB0);
 
   // handle queue and stats pad input
   // if this is 10, then we're in the keyboard
   // and ignore pad
+  //if (pad != 0) DPRINTF("%x\n", pad);
   int context = *(int*)((u32)ui + 0x230);
   if (context != 10) {
     if (pad == 8) {
@@ -452,7 +509,6 @@ int onCompChatRoom(void * ui, int pad) {
     } else if (pad == 6) {
       // open queue
       openQueueSelect();
-
     } else if (context == 8 && pad == 7) {
       // prevent selecting user
       pad = 0;
@@ -767,7 +823,11 @@ void runCompLogic(void) {
     *(u32*)0x00763DC0 = 0x24020003; // disable changing team in staging
     *(u32*)0x0075a7ec = 0x0C000000 | ((u32)&onLeaveStaging / 4);
     *(u32*)0x00759448 = 0; // disable game cancelled popup when host leaves
+    POKE_U32(0x004EE888, &onGetSkillLevel); // change stats page skill level to use comp ranks
+    POKE_U32(0x004EE8E0, &onGetSkillLevel);
+    POKE_U32(0x004EE7E8, &onGetSkillLevel);
     HOOK_J(0x0071C168, &onGetReturnToMenuId); // force return to last menu never returns to main menu
+    HOOK_JAL(0x00760d30, &onCompStats);
     //POKE_U16(0x0072A004, (short)UI_MENU_ID_CLAN_ROOM); // change leave game return to menu to clan room
 
     // change clan room channel name to "Default"

@@ -4212,6 +4212,14 @@ int getCustomGamemodeRankNumber(int offset)
 		}
 	}
 
+#if COMP
+  if (rank < 1000) return 0x759d;         // Avenger
+  else if (rank < 2000) return 0x759e;    // Crusader
+  else if (rank < 3000) return 0x75a0;    // Liberator
+  else if (rank < 4000) return 0x75a1;    // Marauder
+  return 0x75a2;                          // Vindicator
+#endif
+
 	return ((int (*)(float))0x0077B8A0)(rank);
 }
 
@@ -4234,6 +4242,11 @@ void patchStagingRankNumber(void)
 	if (!isInMenus())
 		return;
 	
+#if COMP
+  POKE_U32(0x0075AC48, 0x00408021);
+  POKE_U32(0x0075ac68, 0);
+#endif
+
 	HOOK_JAL(0x0075AC3C, &getCustomGamemodeRankNumber);
 	POKE_U32(0x0075AC40, 0x0060202D);
 }
