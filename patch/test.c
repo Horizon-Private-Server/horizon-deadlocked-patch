@@ -901,7 +901,60 @@ void sendFusionShot(void)
   msg.TargetUID = -1;
   memcmp(msg.FiringLoc, from, 12);
   memcmp(msg.TargetDir, to, 12);
-  netBroadcastMediusAppMessage(NET_DELIVERY_CRITICAL, connection, 14, sizeof(msg), &msg);
+  netBroadcastMediusAppMessage(0, connection, 14, sizeof(msg), &msg);
+}
+
+struct LatencyPing
+{
+  int FromClientIdx;
+  int ToClientIdx;
+  long Ticks;
+};
+
+int runLatencyPing_OnRemotePing(void* connection, void* data)
+{
+  struct LatencyPing msg;
+  memcpy(&msg, data, sizeof(msg));
+
+  if (msg.FromClientIdx == gameGetMyClientId()) {
+    long dticks = timerGetSystemTime() - msg.Ticks;
+    int dms = dticks / SYSTEM_TIME_TICKS_PER_MS;
+    DPRINTF("RTT to CLIENT %d : %dms\n", msg.ToClientIdx, dms);
+  } else {
+    // send back
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, msg.FromClientIdx, 250, sizeof(msg), &msg);
+  }
+
+  return sizeof(struct LatencyPing);
+}
+
+void runLatencyPing(void)
+{
+  static int pingCooldownTicks[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+
+  netInstallCustomMsgHandler(250, &runLatencyPing_OnRemotePing);
+  void * connection = netGetDmeServerConnection();
+  if (!connection) return;
+
+  patchAggTime(5);
+  long ticks = timerGetSystemTime();
+  Player** players = playerGetAll();
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->pNetPlayer) continue;
+    if (pingCooldownTicks[i]) { pingCooldownTicks[i]--; continue; }
+
+    // send
+    struct LatencyPing msg;
+    msg.FromClientIdx = gameGetMyClientId();
+    msg.ToClientIdx = player->pNetPlayer->netClientIndex;
+    msg.Ticks = ticks;
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, msg.ToClientIdx, 250, sizeof(msg), &msg);
+
+    // reset cooldown
+    pingCooldownTicks[i] = 60;
+  }
 }
 
 void runTestLogic(void)
@@ -936,6 +989,7 @@ void runTestLogic(void)
     //   DPRINTF("lightning moby %08X\n", m);
     // }
 
+    //runLatencyPing();
     //sendFusionShot();
     //runAnimJointThing();
     //runDrawQuad();

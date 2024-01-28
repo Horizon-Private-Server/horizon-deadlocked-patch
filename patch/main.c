@@ -123,6 +123,7 @@ extern int mapsLocalGlobalVersion;
 void resetFreecam(void);
 void processFreecam(void);
 void extraLocalsRun(void);
+void igScoreboardRun(void);
 
 #if SCAVENGER_HUNT
 void scavHuntRun(void);
@@ -2693,7 +2694,7 @@ void sendClientVoteForEnd(void)
   int i = 0;
   for (i = 0; i < GAME_MAX_LOCALS; ++i) {
     Player* p = playerGetFromSlot(i);
-    if (!p) continue;
+    if (!p || !p->IsLocal || !p->PlayerMoby) continue;
 
     int playerId = p->PlayerId;
     if (!gameAmIHost()) {
@@ -4853,8 +4854,8 @@ int main (void)
   if (isUnloading) POKE_U32(0x00138d7c, 0x0C04E138);
   else HOOK_JAL(0x00138d7c, &onBeforeVSync);
 
-  // force to 15 ms
-  //patchAggTime(15);
+  // force to 5 ms
+  //patchAggTime(5);
 
 #if COMP
 	// run comp patch logic
@@ -4882,6 +4883,9 @@ int main (void)
 
   // enable 4 player splitscreen
   //extraLocalsRun();
+
+  // enable in game scoreboard
+  igScoreboardRun();
 
   // old lag fixes
   if (!gameConfig.grNewPlayerSync) {

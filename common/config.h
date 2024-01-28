@@ -8,6 +8,7 @@
 #define PATCH_DZO_INTEROP_FUNCS	  (*(DzoInteropFunctions_t**)0x000CFFC4)
 #define PATCH_POINTERS_SPECTATE   (*(u8*)(0x000CFFC0 + 8))
 #define PATCH_POINTERS_PATCHMENU  (*(u8*)(0x000CFFC0 + 9))
+#define PATCH_POINTERS_SCOREBOARD (*(u8*)(0x000CFFC0 + 10))
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
 typedef struct PatchConfig
