@@ -97,6 +97,11 @@ const int patches[][3] = {
   { 1, 0x00608BC4, 0x0040F809 }, // player sync stop cboot state update
   { 1, 0x0060CD44, 0x0040F809 }, // player sync stop cboot state update
   { 1, 0x006265a4, 0x0C189544 }, // ComputePoints patch
+  { 1, 0x005DFE30, 0x0C177CF4 }, // Hero GadgetEventHandler patch
+  { 1, 0x003bd854, 0x0C173876 }, // Hero Update Hook
+  { 1, 0x0061fa74, 0x0C139060 }, // Get Killfeed Msg String
+  { 1, 0x0061fa78, 0x8C440000 }, // Get Killfeed Msg String
+  { 1, 0x005F7E64, 0x0C12DF94 }, // GetHeroAimPos hook
 	// spectator
 	{ 1, 0x0054F46C, 0x0C1734F4 }, // healthbar
 	{ 1, 0x0054f898, 0x0C1734F4 }, // healthbar

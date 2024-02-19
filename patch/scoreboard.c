@@ -15,7 +15,9 @@
 #include "include/config.h"
 
 #define LATENCY_PING_COOLDOWN_TICKS         (60 * 5)
+#define USE_CLIENT_PING                     1
 
+extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 
 struct LatencyPing
@@ -23,6 +25,12 @@ struct LatencyPing
   int FromClientIdx;
   int ToClientIdx;
   long Ticks;
+};
+
+struct ClientPing
+{
+  int FromClientIdx;
+  int Ping;
 };
 
 int ClientLatency[GAME_MAX_PLAYERS];
@@ -37,7 +45,7 @@ int igScoreboardOnRemoteLatencyPing(void* connection, void* data)
     long dticks = timerGetSystemTime() - msg.Ticks;
     int dms = dticks / SYSTEM_TIME_TICKS_PER_MS;
     ClientLatency[msg.ToClientIdx] = dms;
-    DPRINTF("RTT to CLIENT %d : %dms\n", msg.ToClientIdx, dms);
+    //DPRINTF("RTT to CLIENT %d : %dms\n", msg.ToClientIdx, dms);
   } else {
     // send back
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, msg.FromClientIdx, CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, sizeof(msg), &msg);
@@ -70,6 +78,33 @@ void igScoreboardSendLatencyPings(void)
 }
 
 //--------------------------------------------------------------------------
+int igScoreboardOnRemoteClientPing(void* connection, void* data)
+{
+  struct ClientPing msg;
+  memcpy(&msg, data, sizeof(msg));
+
+  ClientLatency[msg.FromClientIdx] = msg.Ping;
+  return sizeof(struct ClientPing);
+}
+
+//--------------------------------------------------------------------------
+void igScoreboardBroadcastClientPing(void)
+{
+  struct ClientPing msg;
+  msg.FromClientIdx = gameGetMyClientId();
+  msg.Ping = gameGetPing();
+
+  // save local ping
+  ClientLatency[msg.FromClientIdx] = msg.Ping;
+
+  // ensure we have a connection to the dme server
+  void * connection = netGetDmeServerConnection();
+  if (!connection) return;
+
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, sizeof(struct ClientPing), &msg);
+}
+
+//--------------------------------------------------------------------------
 void igScoreboardDraw(void)
 {
   char buf[32];
@@ -83,7 +118,11 @@ void igScoreboardDraw(void)
   gfxScreenSpaceText(0.17 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Player", -1, 0);
   gfxScreenSpaceText(0.40 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Kills", -1, 1);
   gfxScreenSpaceText(0.57 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Deaths", -1, 1);
+#if USE_CLIENT_PING
+  gfxScreenSpaceText(0.74 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Ping", -1, 1);
+#else
   gfxScreenSpaceText(0.74 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "RTT", -1, 1);
+#endif
 
   // rows
   int i;
@@ -111,8 +150,12 @@ void igScoreboardRun(void)
   static int reset = 0;
   static int pingCooldown = 0;
 
+#if USE_CLIENT_PING
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, &igScoreboardOnRemoteClientPing);
+#else
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, &igScoreboardOnRemoteLatencyPing);
-  
+#endif
+
   if (!isInGame()) {
     PATCH_POINTERS_SCOREBOARD = 0;
     if (!reset) {
@@ -125,7 +168,7 @@ void igScoreboardRun(void)
 
   // draw
   PATCH_POINTERS_SCOREBOARD = padGetButton(0, PAD_L3) > 0;
-  if (PATCH_POINTERS_SCOREBOARD && !isConfigMenuActive && !gameIsStartMenuOpen(0)) {
+  if (config.enableInGameScoreboard && PATCH_POINTERS_SCOREBOARD && !isConfigMenuActive && !gameIsStartMenuOpen(0)) {
     igScoreboardDraw();
   }
 
@@ -133,7 +176,11 @@ void igScoreboardRun(void)
   if (pingCooldown) {
     --pingCooldown;
   } else {
+#if USE_CLIENT_PING
+    igScoreboardBroadcastClientPing();
+#else
     igScoreboardSendLatencyPings();
+#endif
     pingCooldown = LATENCY_PING_COOLDOWN_TICKS;
   }
 

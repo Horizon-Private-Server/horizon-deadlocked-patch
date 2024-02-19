@@ -529,7 +529,7 @@ void runAnimJointThing(void)
 }
 
 //--------------------------------------------------------------------------
-void drawEffectQuad(VECTOR position, int texId, float scale)
+void drawEffectQuad(VECTOR position, int texId, float scale, u32 color)
 {
 	struct QuadDef quad;
 	MATRIX m2;
@@ -539,9 +539,6 @@ void drawEffectQuad(VECTOR position, int texId, float scale)
 	VECTOR pBL = {0.5,0,-0.5,1};
 	VECTOR pBR = {-0.5,0,-0.5,1};
   
-	// determine color
-	u32 color = 0x80FFFFFF;
-
 	// set draw args
 	matrix_unit(m2);
 
@@ -742,9 +739,12 @@ void drawCBoot(Moby* moby)
       gfxScreenSpaceText(x, y, 1, 1, 0xFFFFFFFF, buf, -1, 4);
     }
 
-    drawEffectQuad(&m[12], i, 1);
+    drawEffectQuad(&m[12], i, 1, 0x80FFFFFF);
   }
 }
+
+VECTOR * drawColliderFrom = (VECTOR*)0x000A0000;
+VECTOR * drawColliderTo = (VECTOR*)0x000A0100;
 
 void drawCollider(Moby* moby)
 {
@@ -752,7 +752,12 @@ void drawCollider(Moby* moby)
   int i,j = 0;
   int x,y;
   char buf[12];
-  Player * p = playerGetFromSlot(0);
+  Player * p = playerGetAll()[moby->Bolts];
+
+  if (gfxWorldSpaceToScreenSpace(p->Ground.point, &x, &y)) {
+    gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
+  }
+  return;
 
   const int steps = 10 * 2;
   const float radius = 2;
@@ -760,7 +765,7 @@ void drawCollider(Moby* moby)
   for (i = 0; i < steps; ++i) {
     for (j = 0; j < steps; ++j) {
       float theta = (i / (float)steps) * MATH_TAU;
-      float omega = (j / (float)steps) * MATH_TAU;
+      float omega = (j / (float)steps) * MATH_TAU;  
 
       vector_copy(pos, p->PlayerPosition);
       pos[0] += radius * sinf(theta) * cosf(omega);
@@ -769,22 +774,46 @@ void drawCollider(Moby* moby)
 
       vector_add(t, p->PlayerPosition, o);
 
-      if (CollLine_Fix(pos, t, 1, NULL, 0)) {
+      if (CollLine_Fix(pos, t, COLLISION_FLAG_IGNORE_STATIC, NULL, 0)) {
         vector_copy(t, CollLine_Fix_GetHitPosition());
-        drawEffectQuad(t, 21, 0.1);
+        drawEffectQuad(t, 22, 0.05, 0x80FFFFFF);
+      }
+    }
+  }
+
+  if (0) {
+    VECTOR dt, offset;
+    for (j = 0; j < 4; ++j) {
+
+      u32 color = 0x800000FF;
+      if (j == 1) color = 0x8000FFFF;
+      if (j == 2) color = 0x80FF00FF;
+      if (j == 3) color = 0x80FF0000;
+
+      vector_subtract(dt, drawColliderTo[j], drawColliderFrom[j]);
+      for (i = 0; i < 20; ++i) {
+        float t = i / 20.0;
+        vector_scale(offset, dt, t);
+        vector_add(offset, offset, drawColliderFrom[j]);
+        drawEffectQuad(offset, 21, 0.1, color);
       }
 
+      if (CollLine_Fix(drawColliderFrom[j], drawColliderTo[j], 0, NULL, NULL)) {
+        drawEffectQuad(CollLine_Fix_GetHitPosition(), 21, 0.3, 0x8000FF00);
+        //DPRINTF("%08X\n", CollLine_Fix_GetHitMoby());
+      }
     }
-
   }
 }
+
+void drawPlayerCollider(void);
 
 renderCBootPUpdate(Moby* m)
 {
   gfxRegisterDrawFunction((void**)0x0022251C, &drawCollider, m);
 }
 
-void runRenderCboot(void)
+void runRenderCboot(int localPlayerIndex)
 {
   VECTOR off = {0,0,2,0};
 
@@ -801,20 +830,25 @@ void runRenderCboot(void)
     m->Scale *= 0.1;
     m->PUpdate = &renderCBootPUpdate;
     m->CollActive = 0;
-    vector_add(m->Position, playerGetFromSlot(0)->PlayerPosition, off);
+    m->Bolts = localPlayerIndex;
+    vector_add(m->Position, playerGetAll()[localPlayerIndex]->PlayerPosition, off);
   }
 
   TestMoby->DrawDist = 0xFF;
   TestMoby->UpdateDist = 0xFF;
 }
 
+void drawB6Hits(void);
+
 drawB6Visualizer(void)
 {
   int i;
 
   for (i = 0; i < b6ExplosionPositionCount; ++i) {
-    drawEffectQuad(b6ExplosionPositions[i], 4, 1);
+    drawEffectQuad(b6ExplosionPositions[i], 4, 0.2, 0x80FFFFFF);
   }
+
+  drawB6Hits();
 }
 
 renderB6Visualizer(Moby* m)
@@ -957,6 +991,83 @@ void runLatencyPing(void)
   }
 }
 
+int onSniperCollLineFix(VECTOR from, VECTOR to, int hitFlag, Moby* ignore, MobyColDamageIn* damageIn)
+{
+  static int idx = 0;
+  vector_copy(drawColliderFrom[idx], from);
+  vector_copy(drawColliderTo[idx], to);
+
+  //((void (*)(int))0x0059b700)(1);
+
+  int r = CollLine_Fix(from, to, hitFlag, ignore, damageIn);
+  vector_print(from);
+  printf(" ");
+  vector_print(to);
+  printf(" %d %08X %08X => %d (%08X)\n", hitFlag, ignore, damageIn, r, CollLine_Fix_GetHitMoby());
+
+  idx = idx + 1;
+  if (idx > 4) idx = 0;
+
+  return r;
+}
+
+void rotEffects(Player* player)
+{
+  if (player->PlayerState == PLAYER_STATE_CHARGE) {
+    //player->PlayerMoby->Rotation[1] += MATH_PI / 2;
+  }
+
+  ((void (*)(Player*))0x005d2388)(player);
+}
+
+void onSetMobyCollPill(Moby* moby, int index, VECTOR pos, float radius, float height)
+{
+  //((void (*)(Moby*, int, VECTOR, float, float))0x004F79A8)(moby, index, pos, radius, height);
+}
+
+void runLocalPlayerChargeboot(void)
+{
+  static VECTOR pos;
+  int pid = 1;
+
+  if (!isInGame()) return;
+  Player* player = playerGetAll()[pid];
+  if (!player || !player->PlayerMoby) return;
+
+  if (isUnloading) {
+    //POKE_U32(0x003FC66C, 0x0C12DF94);
+    //POKE_U32(0x005d6318, 0x0C13DE6A);
+    //POKE_U32(0x005D638C, 0x0C13DE6A);
+    //POKE_U32(0x005d6250, 0x0C1748E2);
+  } else {
+    //HOOK_JAL(0x003FC66C, &onSniperCollLineFix);
+    //HOOK_JAL(0x005d6318, &onSetMobyCollPill);
+    //HOOK_JAL(0x005D638C, &onSetMobyCollPill);
+    //HOOK_JAL(0x005d6250, &rotEffects);
+  }
+
+  if (0) {
+    VECTOR pfixed = { 352.42, 208.53, 107.75, 0 };
+    VECTOR dt;
+    vector_subtract(dt, pfixed, player->PlayerPosition);
+    if (player->PlayerState != PLAYER_STATE_CHARGE && vector_sqrmag(dt) > 0.1) {
+      playerSetPosRot(player, pfixed, player->PlayerRotation);
+    }
+  }
+
+  player->Health = 50;
+  if (player->PlayerState == PLAYER_STATE_CHARGE && player->timers.state <= 21) {
+    player->timers.state = 20;
+    vector_copy(player->PlayerPosition, pos);
+    vector_copy(player->PlayerMoby->Position, pos);
+    //player->Tweakers[0].rot[1] = -MATH_PI / 2;
+  } else {
+    vector_copy(pos, player->PlayerPosition);
+  }
+  
+  runRenderCboot(pid);
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -994,8 +1105,9 @@ void runTestLogic(void)
     //runAnimJointThing();
     //runDrawQuad();
     //runCameraHeight();
-    //runRenderCboot();
+    //runRenderCboot(0);
     //runB6HitVisualizer();
+    //runLocalPlayerChargeboot();
 
     // if (padGetButtonDown(0, PAD_DOWN) > 0) {
     //   Player* p = playerGetFromSlot(0);
@@ -1015,7 +1127,12 @@ void runTestLogic(void)
     //     0, 0, 0, 0, 1, 0, 0, 0);
     // }
 
-    playerGetFromSlot(0)->Health = 50;
+    for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+      Player* p = playerGetFromSlot(i);
+      if (!p) continue;
+      if (p->Health < 10)
+        p->Health = 50;
+    }
 
     if (padGetButton(0, PAD_L1 | PAD_CIRCLE) > 0) {
       *(float*)0x00347BD8 = 0.125;

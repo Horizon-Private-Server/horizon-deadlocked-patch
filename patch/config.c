@@ -193,10 +193,11 @@ MenuElem_RangeData_t dataMinimapSmallZoom = {
 MenuElem_ListData_t dataGameServers = {
   .value = &config.preferredGameServer,
   .stateHandler = NULL,
-  .count = 2,
+  .count = 3,
   .items = {
     "US Central",
-    "Europe"
+    "Europe",
+    "US Central 2"
   }
 };
 
@@ -241,6 +242,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
   { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
   { "Fusion Reticle", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
+  { "In Game Scoreboard (L3)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableInGameScoreboard },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
@@ -682,6 +684,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Healthboxes", listActionHandler, menuStateHandler_SettingStateHandler, &dataHealthBoxes },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
   { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync },
+  { "Quick Chat", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grQuickChat },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
   { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire },
   { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks },
@@ -2402,6 +2405,7 @@ void configMenuDisable(void)
         gameConfig.grNoInvTimer = 1;
         gameConfig.grNoPacks = 1;
         gameConfig.grNoPickups = 1;
+        gameConfig.grQuickChat = 1;
         //gameConfig.grNoSniperHelpers = 1;
         gameConfig.grNewPlayerSync = 1;
         gameConfig.grCqPersistentCapture = 1;

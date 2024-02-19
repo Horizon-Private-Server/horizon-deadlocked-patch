@@ -14,6 +14,7 @@ enum PatchGameNetMessage
   CUSTOM_MSG_DZO_COSMETICS_UPDATE,
   CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE,
   CUSTOM_MSG_PLAYER_LATENCY_TEST_PING,
+  CUSTOM_MSG_PLAYER_QUICK_CHAT,
 };
 
 enum ActionType
@@ -108,6 +109,12 @@ typedef struct CustomDzoCommandDrawVoteToEnd
   int Count;
   int VotesRequired;
 } CustomDzoCommandDrawVoteToEnd_t;
+
+typedef struct CustomDzoCommandDrawQuickChat
+{
+  char FromPlayerId;
+  char ChatId;
+} CustomDzoCommandDrawQuickChat_t;
 
 typedef struct PlayerSyncStateUpdatePacked
 {

@@ -124,6 +124,7 @@ void resetFreecam(void);
 void processFreecam(void);
 void extraLocalsRun(void);
 void igScoreboardRun(void);
+void quickChatRun(void);
 
 #if SCAVENGER_HUNT
 void scavHuntRun(void);
@@ -179,6 +180,10 @@ int redownloadCustomModeBinaries = 0;
 ServerSetRanksRequest_t lastSetRanksRequest;
 VoteToEndState_t voteToEndState;
 int flagRequestCounters[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+
+int magFlinchCooldown[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+int magDamageCooldown[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+float magDamageCooldownDamage[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
 
 extern int dlIsActive;
 
@@ -2266,31 +2271,59 @@ void runHealthPickupFix(void)
 	}
 }
 
-void onB6SetStateExplode(Moby* moby, int state, int a2)
+/*
+ * NAME :		getB6Damage
+ * 
+ * DESCRIPTION :
+ * 			Adds falloff curve to b6 damage AoE.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+float getB6Damage(Player* hitPlayer)
 {
-  VECTOR p, n, d, o;
-  const float maxDistFromHit = 0.25;
+  Moby* b6Moby;
+  float radius, damage;
 
-  vector_copy(p, CollLine_Fix_GetHitPosition());
-  vector_copy(n, CollLine_Fix_GetHitNormal());
-  vector_normalize(n, n);
-  vector_subtract(d, p, moby->Position);
-  float dist = vector_length(d);
+	asm volatile (
+    ".set noreorder;"
+		"move %0, $s4;"
+    "swc1 $f21, 0(%1);"
+    "swc1 $f20, 0(%2);"
+		: : "r" (b6Moby), "r" (&radius), "r" (&damage)
+	);
 
-  printf("\np:");
-  vector_print(p);
-  printf("\nn:");
-  vector_print(n);
-  printf("\nm:");
-  vector_print(moby->Position);
-  printf("\ndist: %f\n", dist);
+  // get hip joint of moby
+  MATRIX hipJoint;
+  mobyGetJointMatrix(hitPlayer->PlayerMoby, 10, hipJoint);
 
-  if (dist > maxDistFromHit) {
-    vector_scale(o, n, maxDistFromHit);
-    vector_add(moby->Position, p, o);
+  VECTOR dt;
+  vector_subtract(dt, b6Moby->Position, &hipJoint[12]);
+  float dist = vector_length(dt);
+  DPRINTF("%f/%f dmg:%f\n", dist, radius, damage);
+
+  Player* sourcePlayer = guberMobyGetPlayerDamager(b6Moby);
+  if (sourcePlayer) {
+    float fullDamage = weaponGetDamage(WEAPON_ID_B6, sourcePlayer->GadgetBox->Gadgets[WEAPON_ID_B6].Level);
+
+    DPRINTF("ground:%d hitJoint:%f groundFromGood:%f\n", hitPlayer->Ground.onGood, hipJoint[14] - b6Moby->Position[2], hitPlayer->PlayerPosition[2] - hitPlayer->Ground.point[2]);
+
+    if (dist < 0.7) damage = fullDamage;
+    else if (hitPlayer->Ground.onGood) damage = damage;
+    else if (fabsf(hipJoint[14] - b6Moby->Position[2]) < 1.5 && (hitPlayer->PlayerPosition[2] - hitPlayer->Ground.point[2]) < 1.0) damage = damage;
+    else damage *= 0.2;
+
+    DPRINTF("damage %f\n", damage);
+    return damage;
   }
 
-  mobySetState(moby, state, a2);
+  DPRINTF("getB6Damage failed\n");
+  return 0;
 }
 
 /*
@@ -2313,31 +2346,121 @@ void runFixB6EatOnDownSlope(void)
 {
   int i = 0;
 
-  while (i < GAME_MAX_LOCALS)
-  {
-    Player* p = playerGetFromSlot(i);
-    if (p) {
-      // determine height delta of player from ground
-      // player is grounded if "onGood" or height delta from ground is less than 0.3 units
-      float hDelta = p->PlayerPosition[2] - *(float*)((u32)p + 0x250 + 0x78);
-      int grounded = hDelta < 0.3 || *(int*)((u32)p + 0x250 + 0xA0) != 0;
-
-      // store grounded in unused part of player data
-      POKE_U32((u32)p + 0x30C, grounded);
-    }
-
-    ++i;
-  }
-
   // patch b6 dist collision calculation to shorter
   // so it explodes closer to target
   POKE_U16(0x003f693c, 0xBD80);
 
   // patch b6 grounded damage check to read our isGrounded state
-  POKE_U16(0x003B56E8, 0x30C);
+  //POKE_U16(0x003B56E8, 0x30C);
+
+  // patch b6 to deal custom damage curve
+  // unless PvE, then use default
+  if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL) {
+    HOOK_JAL(0x003B56E8, &getB6Damage);
+    POKE_U32(0x003B56EC, 0x0040202D);
+    POKE_U32(0x003B56F0, 0x1000000F);
+    POKE_U32(0x003B56F4, 0x46000506);
+  }
 
   // increase b6 full damage range for ungrounded targets
   POKE_U16(0x003b5700, 0x3F80);
+}
+
+/*
+ * NAME :		onHeroUpdate
+ * 
+ * DESCRIPTION :
+ * 			Runs gadget event after player updates.
+ *      Ensures gadget collision tests happen after hero hitbox is updated.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onHeroUpdate(void)
+{
+  // base 
+  ((void (*)(void))0x005ce1d8)();
+
+  // after hero update
+  // gadget events
+  runPlayerGadgetEventHandlers();
+}
+
+/*
+ * NAME :		onCalculateHeroAimPos
+ * 
+ * DESCRIPTION :
+ * 		  Triggered when the game attempts to compute the aim position of a player.
+ *      This hook is for the collision detection from the player to the aiming direction.
+ *      To fix the mag bending, we want to always return 0 (no hit) to prevent bending around hit surface.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onCalculateHeroAimPos(VECTOR from, VECTOR to, u64 hitFlag, Moby * moby, MobyColDamageIn* colDamageIn)
+{
+  if (moby) {
+    Player* player = guberMobyGetPlayerDamager(moby);
+    if (player && player->WeaponHeldId == WEAPON_ID_MAGMA_CANNON) {
+      return 0;
+    }
+  }
+
+  return CollLine_Fix(from, to, hitFlag, moby, colDamageIn);
+}
+
+/*
+ * NAME :		onSetPlayerState_GetHit
+ * 
+ * DESCRIPTION :
+ * 		  Triggered when the game registers a flinch and attempts to set the player to the flinch state.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void onSetPlayerState_GetHit(Player * player, int stateId, int a2, int a3, int t0)
+{
+  // if we're disabling damage cooldown
+  // and the source is the mag, apply a cooldown
+  if (gameConfig.grNoInvTimer && player->LastDamagedMeGadgetId == WEAPON_ID_MAGMA_CANNON) {
+
+    char dmgIdx = player->PlayerMoby->CollDamage;
+    int noFlinch = magFlinchCooldown[player->PlayerId];
+    if (dmgIdx >= 0) {
+      MobyColDamage* colDamage = mobyGetDamage(player->PlayerMoby, 0x80481C40, 0);
+      if (colDamage) {
+        DPRINTF("mag dmg %f\n", colDamage->DamageHp);
+        playerDecHealth(player, colDamage->DamageHp - magDamageCooldownDamage[player->PlayerId]);
+
+        if (!magFlinchCooldown[player->PlayerId]) magFlinchCooldown[player->PlayerId] = 60;
+        if (!magDamageCooldown[player->PlayerId]) magDamageCooldown[player->PlayerId] = 5;
+        magDamageCooldownDamage[player->PlayerId] = maxf(magDamageCooldownDamage[player->PlayerId], colDamage->DamageHp);
+      }
+
+    }
+
+    player->PlayerMoby->CollDamage = -1;
+    POKE_U8((u32)player + 0x2ecc, 0);
+    if (noFlinch) return;
+  }
+
+  PlayerVTable * vtable = playerGetVTable(player);
+  vtable->UpdateState(player, stateId, a2, a3, t0);
 }
 
 /*
@@ -2357,6 +2480,7 @@ void runFixB6EatOnDownSlope(void)
  */
 void patchWeaponShotLag(void)
 {
+  GameSettings* gs = gameGetSettings();
 	if (!isInGame())
 		return;
 
@@ -2398,8 +2522,75 @@ void patchWeaponShotLag(void)
   // extend player from 7.2 seconds to 32.7 seconds
   POKE_U16(0x00613FAC, 0x8000);
 
+  // disable magma cannon shots bending around walls/players
+  //POKE_U32(0x003EEBE4, 0);
+  //POKE_U32(0x003eeb24, 0);
+
+  // disable aim at near target logic
+  HOOK_JAL(0x005F7E64, &onCalculateHeroAimPos);
+
+  // patch GetHit state update to handle custom magma cannon cooldown
+  HOOK_JAL(0x005E1DEC, &onSetPlayerState_GetHit);
+
+  // decrement custom magma cannon cooldowns
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (magDamageCooldown[i]) {
+      --magDamageCooldown[i];
+      if (!magDamageCooldown[i]) {
+        DPRINTF("mag final dmg %d %f\n", i, magDamageCooldownDamage[i]);
+        magDamageCooldownDamage[i] = 0;
+      }
+    }
+
+    if (magFlinchCooldown[i]) magFlinchCooldown[i]--;
+  }
+
+  // hook hero update so we can correct when gadget events and hitboxes are updated
+  // so that player movement are after gadget events (weapon shots)
+  // and hitbox updates are before gadget events
+  // for some reason this breaks lock strafe in CQ.. so just turn it off for CQ since it's not played much
+  if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL && gs->GameRules != GAMERULE_CQ) {
+    u32* heroUpdateHookAddr = (u32*)0x003bd854;
+    if (*heroUpdateHookAddr == 0x0C173876) {
+      HOOK_JAL(0x003bd854, &onHeroUpdate);
+        
+      // disable normal hero gadget event handling
+      // we want to run this at the end of the update
+      POKE_U32(0x005DFE30, 0);
+    }
+  }
+
 	// fix b6 eating on down slope
 	runFixB6EatOnDownSlope();
+}
+
+/*
+ * NAME :		runPlayerGadgetEventHandlers
+ * 
+ * DESCRIPTION :
+ * 			Runs the gadget event handlers for each player.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runPlayerGadgetEventHandlers(void)
+{
+  int i;
+  Player** players = playerGetAll();
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->PlayerMoby) continue;
+
+    // MapToMoby (updates moby hitbox)
+    ((void (*)(Player*))0x005df3d0)(player);
+  }
 }
 
 /*
@@ -4900,6 +5091,9 @@ int main (void)
   // enable in game scoreboard
   igScoreboardRun();
 
+  // enable in game quick chat
+  quickChatRun();
+
   // old lag fixes
   if (!gameConfig.grNewPlayerSync) {
     runPlayerPositionSmooth();
@@ -5031,6 +5225,9 @@ int main (void)
     POKE_U32(0x004b8078, 0x00412023);
     POKE_U32(0x004b8084, 0x00612023);
 
+    // allow local flinching before remote flinch for chargebooting targets
+    POKE_U32(0x005E1C94, 0);
+
     // prevents wrench lag
     // by patching 1 frame where mag shot won't stop player when cbooting
     //POKE_U16(0x003EF658, 0x0017);
@@ -5051,8 +5248,6 @@ int main (void)
 			gameEnd(0);
 		}
 	#endif
-
-    
 
 		//
 		grGameStart();

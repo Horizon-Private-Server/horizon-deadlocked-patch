@@ -1,6 +1,8 @@
 #ifndef _PATCH_CONFIG_
 #define _PATCH_CONFIG_
 
+#include <libdl/gamesettings.h>
+
 /*
  * Fixed pointers to patch container for use by external modules.
  */
@@ -9,6 +11,7 @@
 #define PATCH_POINTERS_SPECTATE   (*(u8*)(0x000CFFC0 + 8))
 #define PATCH_POINTERS_PATCHMENU  (*(u8*)(0x000CFFC0 + 9))
 #define PATCH_POINTERS_SCOREBOARD (*(u8*)(0x000CFFC0 + 10))
+#define PATCH_POINTERS_QUICKCHAT  (*(u8*)(0x000CFFC0 + 11))
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
 typedef struct PatchConfig
@@ -32,6 +35,7 @@ typedef struct PatchConfig
   char preferredGameServer;
   char fixedCycleOrder;
   char enableSingleTapChargeboot;
+  char enableInGameScoreboard;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
@@ -95,6 +99,7 @@ typedef struct PatchGameConfig
   char grCqDisableTurrets;
   char grCqDisableUpgrades;
   char grNewPlayerSync;
+  char grQuickChat;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;
