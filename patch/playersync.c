@@ -30,6 +30,7 @@ typedef struct PlayerSyncStateUpdateUnpacked
   u16 PadBits;
   u8 MoveX;
   u8 MoveY;
+  u8 GadgetId;
   u8 State;
   char StateId;
   char PlayerIdx;
@@ -356,6 +357,7 @@ void playerSyncHandlePlayerState(Player* player)
 
   //
   if (player->pNetPlayer && player->pNetPlayer->pNetPlayerData) {
+    player->pNetPlayer->pNetPlayerData->handGadget = stateCurrent->GadgetId;
     player->pNetPlayer->pNetPlayerData->lastKeepAlive = data->LastNetTime;
     player->pNetPlayer->pNetPlayerData->timeStamp = data->LastNetTime;
     player->pNetPlayer->pNetPlayerData->hitPoints = stateCurrent->Health;
@@ -386,6 +388,7 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
   unpacked.MoveX = msg.MoveX;
   unpacked.MoveY = msg.MoveY;
   unpacked.PadBits = (msg.PadBits1 << 8) | (msg.PadBits0);
+  unpacked.GadgetId = msg.GadgetId;
   unpacked.State = msg.State;
   unpacked.StateId = msg.StateId;
   unpacked.PlayerIdx = msg.PlayerIdx;
@@ -452,6 +455,7 @@ void playerSyncBroadcastPlayerState(Player* player)
   msg.MoveY = ((struct PAD*)player->Paddata)->rdata[7];
   msg.PadBits0 = ((struct PAD*)player->Paddata)->rdata[2];
   msg.PadBits1 = ((struct PAD*)player->Paddata)->rdata[3];
+  msg.GadgetId = player->Gadgets[0].id;
   msg.State = player->PlayerState;
   msg.StateId = data->LastStateId;
   msg.CmdId = data->StateUpdateCmdId = (data->StateUpdateCmdId + 1) % CMD_BUFFER_SIZE;
@@ -516,6 +520,12 @@ void playerSyncTick(void)
 
   // player link always healthy
   POKE_U32(0x005F7BDC, 0x24020001);
+
+  // disable tnw_PlayerData update gadgetid
+  POKE_U32(0x0060F010, 0);
+
+  // disable tnw_PlayerData time update
+  POKE_U32(0x0060FFAC, 0);
 
   // player updates
   Player** players = playerGetAll();

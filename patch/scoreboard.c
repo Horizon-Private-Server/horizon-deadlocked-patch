@@ -14,7 +14,7 @@
 #include "config.h"
 #include "include/config.h"
 
-#define LATENCY_PING_COOLDOWN_TICKS         (60 * 5)
+#define LATENCY_PING_COOLDOWN_TICKS         (60 * 1)
 #define USE_CLIENT_PING                     1
 
 extern PatchConfig_t config;
@@ -101,7 +101,7 @@ void igScoreboardBroadcastClientPing(void)
   void * connection = netGetDmeServerConnection();
   if (!connection) return;
 
-  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, sizeof(struct ClientPing), &msg);
+  netBroadcastCustomAppMessage(0, connection, CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, sizeof(struct ClientPing), &msg);
 }
 
 //--------------------------------------------------------------------------
