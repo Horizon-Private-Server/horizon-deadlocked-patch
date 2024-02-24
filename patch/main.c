@@ -2383,12 +2383,17 @@ void runFixB6EatOnDownSlope(void)
  */
 void onHeroUpdate(void)
 {
+  playerSyncTick();
+
   // base 
   ((void (*)(void))0x005ce1d8)();
 
   // after hero update
   // gadget events
-  runPlayerGadgetEventHandlers();
+  GameSettings* gs = gameGetSettings();
+  if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL && gs && gs->GameRules != GAMERULE_CQ) {
+    runPlayerGadgetEventHandlers();
+  }
 }
 
 /*
@@ -2550,13 +2555,13 @@ void patchWeaponShotLag(void)
   // so that player movement are after gadget events (weapon shots)
   // and hitbox updates are before gadget events
   // for some reason this breaks lock strafe in CQ.. so just turn it off for CQ since it's not played much
-  if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL && gs->GameRules != GAMERULE_CQ) {
-    u32* heroUpdateHookAddr = (u32*)0x003bd854;
-    if (*heroUpdateHookAddr == 0x0C173876) {
-      HOOK_JAL(0x003bd854, &onHeroUpdate);
-        
-      // disable normal hero gadget event handling
-      // we want to run this at the end of the update
+  u32* heroUpdateHookAddr = (u32*)0x003bd854;
+  if (*heroUpdateHookAddr == 0x0C173876) {
+    HOOK_JAL(0x003bd854, &onHeroUpdate);
+      
+    // disable normal hero gadget event handling
+    // we want to run this at the end of the update
+    if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL && gs->GameRules != GAMERULE_CQ) {
       POKE_U32(0x005DFE30, 0);
     }
   }
@@ -4590,7 +4595,6 @@ void updateHook(void)
     onConfigGameMenu();
 
 	long t0 = timerGetSystemTime();
-  playerSyncTick();
 	((void (*)(void))0x005986b0)();
 	long t1 = timerGetSystemTime();
 

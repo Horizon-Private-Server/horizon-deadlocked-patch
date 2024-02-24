@@ -14,7 +14,7 @@
 #include "include/config.h"
 
 #define PLAYER_SYNC_DATAS_PTR     (*(PlayerSyncPlayerData_t**)0x000CFFB0)
-#define CMD_BUFFER_SIZE           (40)
+#define CMD_BUFFER_SIZE           (32)
 
 typedef struct PlayerSyncStateUpdateUnpacked
 {
@@ -41,6 +41,8 @@ typedef struct PlayerSyncStateUpdateUnpacked
 typedef struct PlayerSyncPlayerData
 {
   VECTOR LastReceivedPosition;
+  VECTOR LastLocalPosition;
+  VECTOR LastLocalRotation;
   int LastNetTime;
   int LastState;
   int LastStateTime;
@@ -75,12 +77,15 @@ int playerSyncCmdDelta(int fromCmdId, int toCmdId)
 //--------------------------------------------------------------------------
 int playerSyncGetSendRate(void)
 {
+  return 3;
+  
   // in survival the mobs already bloat the network, and player syncing is less important, so we can reduce the send rate a lot
   if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return 10;
 
   // in larger lobbies we want to reduce network bandwidth by reducing send rate
   GameSettings* gs = gameGetSettings();
   if (gs && gs->PlayerCountAtStart > 6) return 3;
+  if (gs && gs->PlayerCountAtStart > 4) return 1;
 
   return 0;
 }
@@ -157,14 +162,23 @@ void playerSyncHandlePlayerState(Player* player)
   }
 
   // extrapolate
+  //if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
   if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
     //DPRINTF("extrapolate %d\n", data->TicksSinceLastUpdate);
-    vector_add(stateCurrent->Position, stateCurrent->Position, player->Velocity);
+    
+    // extrapolate position
+    vector_subtract(dt, player->PlayerPosition, data->LastLocalPosition);
+    vector_add(stateCurrent->Position, stateCurrent->Position, dt);
+
+    // extrapolate rotation
+    vector_subtract(dt, player->PlayerRotation, data->LastLocalRotation);
+    vector_add(stateCurrent->Rotation, stateCurrent->Rotation, dt);
+    //stateCurrent->CameraYaw += dt[2];
   }
 
   // snap position
   vector_subtract(dt, data->LastReceivedPosition, player->PlayerPosition);
-  if (vector_sqrmag(dt) > (5*5)) {
+  if (vector_sqrmag(dt) > (7*7)) {
     vector_copy(player->PlayerPosition, data->LastReceivedPosition);
     vector_copy(stateCurrent->Position, data->LastReceivedPosition);
     //DPRINTF("tp\n");
@@ -362,6 +376,9 @@ void playerSyncHandlePlayerState(Player* player)
     player->pNetPlayer->pNetPlayerData->hitPoints = stateCurrent->Health;
     vector_copy(player->pNetPlayer->pNetPlayerData->vPosition, player->PlayerPosition);
   }
+
+  vector_copy(data->LastLocalPosition, player->PlayerPosition);
+  vector_copy(data->LastLocalRotation, player->PlayerRotation);
   data->TicksSinceLastUpdate += 1;
 }
 
