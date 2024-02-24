@@ -271,11 +271,20 @@ void quickChatRun(void)
 {
   static int ticksMenuOpen[GAME_MAX_LOCALS];
   static int quickChatMenu[GAME_MAX_LOCALS];
+  static int init = 0;
 
   // save quick chat menu for p0
   PATCH_POINTERS_QUICKCHAT = quickChatMenu[0];
 
-  if (!isInGame()) { memset(quickChatMenu, 0, sizeof(quickChatMenu)); memset(ticksMenuOpen, 0, sizeof(ticksMenuOpen)); return; }
+  if (!isInGame()) {
+    if (init) {
+      memset(quickChatMenu, 0, sizeof(quickChatMenu));
+      memset(ticksMenuOpen, 0, sizeof(ticksMenuOpen));
+      memset(QuickChats, 0, sizeof(QuickChats));
+      init = 0;
+    }
+    return;
+  }
   if (!gameConfig.grQuickChat) return;
   if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return;
   if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) return;
@@ -358,4 +367,5 @@ void quickChatRun(void)
   }
 
   if (QuickChatShowTicks) --QuickChatShowTicks;
+  init = 1;
 }

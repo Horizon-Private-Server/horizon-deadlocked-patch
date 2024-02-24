@@ -131,7 +131,6 @@ typedef struct SNDPlayerState
 {
 	int PlayerIndex;
 	int IsBombCarrier;
-	int IsDead;
 	short BombsPlanted;
 	short BombsDefused;
 	short BombsNinjaDefused;
@@ -756,8 +755,10 @@ void * spawnPackHook(u16 OClass, int pvarSize, int guberId, int arg4, int arg5)
 		Moby * newMoby = (Moby*)(*(u32*)((u32)result + 0x18));
 
 		// only bomb pack can spawn
-		if (SNDState.BombPackMoby && SNDState.BombPackMoby != newMoby)
-			killPack();
+		if (SNDState.BombPackMoby && SNDState.BombPackMoby != newMoby) {
+			DPRINTF("kill pack not bomb pack moby\n");
+      killPack();
+    }
 
 		SNDState.BombPackMoby = newMoby;
 		SNDState.BombPackMoby->ModeBits2 = (SNDState.BombPackMoby->ModeBits2 & 0xff) | ((0x80 + (8 * SNDState.AttackerTeamId)) << 8);
@@ -959,7 +960,7 @@ void onSetBombOutcome(int nodeIndex, int team, int playerId, int gameTime)
 			int attackerAlive = 0;
 			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 				Player* p = players[i];
-				if (p && !SNDState.Players[i].IsDead && p->Team == SNDState.AttackerTeamId) {
+				if (p && !playerIsDead(p) && p->Team == SNDState.AttackerTeamId) {
 					attackerAlive = 1;
 					break;
 				}
@@ -1090,7 +1091,7 @@ void playerLogic(SNDPlayerState_t * playerState)
 	}
 
 	// Check if died
-	if (!playerState->IsDead && playerIsDead(player))
+	if (playerIsDead(player))
 	{
 		// spawn new bomb on bomb carrier death
 		if (playerState->IsBombCarrier)
@@ -1119,8 +1120,6 @@ void playerLogic(SNDPlayerState_t * playerState)
 			if (localPlayer->Team == SNDState.AttackerTeamId)
 				uiShowPopup(0, SND_BOMB_DROPPED);
 		}
-
-		playerState->IsDead = 1;
 	}
 }
 
@@ -1161,7 +1160,6 @@ void resetRoundState(void)
 		
 		// update state
 		SNDState.Players[i].PlayerIndex = i;
-		SNDState.Players[i].IsDead = 0;
 		SNDState.Players[i].IsBombCarrier = 0;
 
 		// Remove hacker rays
@@ -1500,6 +1498,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	int gameTime = gameGetTime();
 	GameData * gameData = gameGetData();
 
+  asm (".set noreorder;");
+
 	// Ensure in game
 	if (!gameSettings)
 		return;
@@ -1534,11 +1534,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	{
 		if (SNDState.RoundEndTicks)
 		{
-			// Disable timer
-			gameData->TimeEnd = -1;
-
-			// Destroy pack
-			killPack();
+			// Destroy pack and disable timer
+      if (gameData->TimeEnd != -1) {
+			  killPack();
+			  gameData->TimeEnd = -1;
+      }
 
 			// Handle game outcome
 			if (SNDState.RoundResult)
@@ -1618,6 +1618,8 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		}
 		else
 		{
+      int roundJustStarted = (gameTime - SNDState.RoundStartTicks) < (5 * TIME_SECOND);
+
 			// Set lifetime of bomb pack moby
 			if (SNDState.BombPackMoby)
 			{
@@ -1633,7 +1635,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			}
 
 			// Display hello
-			if ((SNDState.RoundNumber % RoundsToFlip) == 0 && (gameTime - SNDState.RoundStartTicks) < (5 * TIME_SECOND))
+			if ((SNDState.RoundNumber % RoundsToFlip) == 0 && roundJustStarted)
 			{
 				if (localPlayer->Team == SNDState.DefenderTeamId)
 					drawRoundMessage(SND_DEFEND_HELLO, 1);
@@ -1721,8 +1723,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 				if (p)
 				{
+          int isDead = playerIsDead(p);
+
 					// turn off blown up state if not dead
-					if (!SNDState.Players[i].IsDead)
+					if (!isDead)
 					{
 						p->Explode = 0;
 						p->Invisible = 0;
@@ -1731,13 +1735,13 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 					if (p->Team == SNDState.AttackerTeamId)
 					{
 						hasAttackers = 1;
-						if (!SNDState.Players[i].IsDead)
+						if (!isDead)
 							attackersAlive = 1;
 					}
 					else if (p->Team == SNDState.DefenderTeamId)
 					{
 						hasDefenders = 1;
-						if (!SNDState.Players[i].IsDead)
+						if (!isDead)
 							defendersAlive = 1;
 					}
 				}
@@ -1746,32 +1750,35 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			// host specific logic
 			if (SNDState.IsHost)
 			{
-				// End round if timelimit hit and no bomb planted
-				if (SNDState.BombPlantSiteIndex < 0 && (gameTime - SNDState.RoundStartTicks) > (RoundTimelimitSeconds * TIME_SECOND))
-				{
-					setRoundOutcome(SND_OUTCOME_TIME_END);
-				}
+        if (!roundJustStarted)
+        {
+          // End round if timelimit hit and no bomb planted
+          if (SNDState.BombPlantSiteIndex < 0 && (gameTime - SNDState.RoundStartTicks) > (RoundTimelimitSeconds * TIME_SECOND))
+          {
+            setRoundOutcome(SND_OUTCOME_TIME_END);
+          }
 
-				// no attackers alive and bomb hasn't been planted
-				if (hasAttackers && !attackersAlive && !SNDState.BombPlantedTicks)
-				{
-					setRoundOutcome(SND_OUTCOME_ATTACKERS_DEAD);
-				}
+          // no attackers alive and bomb hasn't been planted
+          if (hasAttackers && !attackersAlive && !SNDState.BombPlantedTicks)
+          {
+            setRoundOutcome(SND_OUTCOME_ATTACKERS_DEAD);
+          }
 
-				// no defenders alive and bomb has been planted
-				if (hasDefenders && !defendersAlive && SNDState.BombPlantedTicks)
-				{
-					setRoundOutcome(SND_OUTCOME_BOMB_DETONATED);
-				}
+          // no defenders alive and bomb has been planted
+          if (hasDefenders && !defendersAlive && SNDState.BombPlantedTicks)
+          {
+            setRoundOutcome(SND_OUTCOME_BOMB_DETONATED);
+          }
 
-				// no defenders alive and no attackers alive so just finish the round
-				if (!defendersAlive && !attackersAlive)
-				{
-					if (!SNDState.BombPlantedTicks)
-						setRoundOutcome(SND_OUTCOME_ATTACKERS_DEAD);
-					else
-						setRoundOutcome(SND_OUTCOME_BOMB_DETONATED);
-				}
+          // no defenders alive and no attackers alive so just finish the round
+          if (!defendersAlive && !attackersAlive)
+          {
+            if (!SNDState.BombPlantedTicks)
+              setRoundOutcome(SND_OUTCOME_ATTACKERS_DEAD);
+            else
+              setRoundOutcome(SND_OUTCOME_BOMB_DETONATED);
+          }
+        }
 
 				// Handle spawning pack
 				if (!SNDState.RoundEndTicks && SNDState.SpawnPackAt[3] > 0)
@@ -1844,6 +1851,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
   gameConfig->grNoHealthBoxes = 2;
   gameConfig->grCqDisableTurrets = 0;
   gameConfig->grCqDisableUpgrades = 0;
+  gameConfig->grCqPersistentCapture = 0;
 
 	// set to conquest homenodes
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)cqOptions, sizeof(cqOptions)/sizeof(char));

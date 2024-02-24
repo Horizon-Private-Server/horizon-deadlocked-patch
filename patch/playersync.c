@@ -195,11 +195,11 @@ void playerSyncHandlePlayerState(Player* player)
 
   // lerp camera rotations
   player->CameraYaw.Value = lerpfAngle(player->CameraYaw.Value, stateCurrent->CameraYaw, tCam);
-  player->CameraPitch.Value = lerpfAngle(player->CameraPitch.Value, stateCurrent->CameraPitch, tCam);
+  player->CameraPitch.Value = -lerpfAngle(-player->CameraPitch.Value, -stateCurrent->CameraPitch, tCam);
 
   // compute matrix
   matrix_unit(m);
-  matrix_rotate_y(m, m, -player->CameraPitch.Value);
+  matrix_rotate_y(m, m, player->CameraPitch.Value);
   matrix_rotate_z(m, m, player->CameraYaw.Value);
   vector_copy(player->CameraForward, &m[0]);
   vector_copy(player->CameraDir, player->CameraForward);
@@ -207,13 +207,13 @@ void playerSyncHandlePlayerState(Player* player)
 
   // compute inv matrix
   matrix_unit(mInv);
-  matrix_rotate_y(mInv, mInv, clampAngle(-player->CameraPitch.Value + MATH_PI));
+  matrix_rotate_y(mInv, mInv, clampAngle(player->CameraPitch.Value + MATH_PI));
   matrix_rotate_z(mInv, mInv, clampAngle(player->CameraYaw.Value + MATH_PI));
   memcpy((void*)((u32)player + 0x2cf0), mInv, sizeof(VECTOR)*3);
 
   // set camera rotation
   VECTOR camRot;
-  camRot[1] = -player->CameraPitch.Value;
+  camRot[1] = player->CameraPitch.Value;
   camRot[2] = player->CameraYaw.Value;
   camRot[0] = 0;
   vector_copy((float*)((u32)player + 0x2ce0), camRot);
@@ -229,14 +229,13 @@ void playerSyncHandlePlayerState(Player* player)
   // set joystick
   float moveX = (stateCurrent->MoveX - 127) / 128.0;
   float moveY = (stateCurrent->MoveY - 127) / 128.0;
-  float mag = sqrtf((moveX*moveX) + (moveY*moveY));
+  float mag = minf(1, sqrtf((moveX*moveX) + (moveY*moveY)));
   float ang = atan2f(moveY, moveX);
   *(float*)((u32)player + 0x2e08) = mag;
   *(float*)((u32)player + 0x2e0c) = ang;
   *(float*)((u32)player + 0x2e38) = mag;
   *(float*)((u32)player + 0x0120) = moveX;
   *(float*)((u32)player + 0x0124) = -moveY;
-  //*(float*)((u32)player + 0x17b0) = -moveY;
 
   struct tNW_Player* netPlayer = player->pNetPlayer;
   if (netPlayer) {
