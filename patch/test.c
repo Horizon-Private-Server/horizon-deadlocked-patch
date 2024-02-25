@@ -1076,7 +1076,9 @@ void runTestLogic(void)
   //runDrawTex();
   //runAllow4Locals();
 
-  //drawPositionYaw();
+  drawPositionYaw();
+
+  gameConfig.grBetterFlags = 1;
 
   //runSystemTime();
   if (isInGame()) {
