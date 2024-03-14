@@ -176,6 +176,7 @@ enum GameNetMessage
 	CUSTOM_MSG_WEAPON_PRESTIGE,
 	CUSTOM_MSG_INTERACT_BANK_BOX,
   CUSTOM_MSG_WITHDRAWN_BANK_BOX,
+  CUSTOM_MSG_SET_ROUND_50_TIME,
 };
 
 enum BakedSpawnpointType
@@ -355,6 +356,7 @@ struct SurvivalState
 	short DropCooldownTicks;
 	char Freeze;
 	char NumTeams;
+  int Round50Time;
 };
 
 struct SurvivalMapConfig
@@ -413,6 +415,7 @@ struct SurvivalGameData
 {
 	u32 Version;
 	u32 RoundNumber;
+  u32 Round50Time;
 	u64 Points[GAME_MAX_PLAYERS];
 	int Kills[GAME_MAX_PLAYERS];
 	int Revives[GAME_MAX_PLAYERS];

@@ -197,13 +197,16 @@ int demonbellHandleEvent_Activate(Moby* moby, GuberEvent* event)
     State.PlayerStates[activatedByPlayerId].State.TimesActivatedDemonBell += 1;
   }
 
+  // once activated, stay activated
+  pvars->ForcedOn = 1;
+
   pvars->HitAmount = 1;
   pvars->RoundActivated = State.RoundNumber;
   State.RoundDemonBellCount += 1;
   mobySetState(moby, 1, -1);
   demonbellPlayActivateSound(moby);
   pushSnack("Spawn Rate Increased!", 120, 0);
-	DPRINTF("demonbell activated at %08X by %d\n", (u32)moby, activatedByPlayerId);
+	printf("demonbell activated at %08X by %d (%d/%d)\n", (u32)moby, activatedByPlayerId, State.RoundDemonBellCount, State.DemonBellCount);
 	return 0;
 }
 
@@ -271,8 +274,6 @@ void demonbellOnRoundChanged(int roundNo)
   if (forcedOnCount > State.DemonBellCount)
     forcedOnCount = State.DemonBellCount;
 
-  State.RoundDemonBellCount = forcedOnCount;
-
   // force on
   Moby* m = mobyListGetStart();
   Moby* mEnd = mobyListGetEnd();
@@ -283,8 +284,9 @@ void demonbellOnRoundChanged(int roundNo)
       break;
 
     struct DemonBellPVar* pvars = (struct DemonBellPVar*)m->PVar;
-    if (pvars && pvars->Id < forcedOnCount) {
+    if (pvars && (pvars->Id < forcedOnCount || pvars->ForcedOn)) {
       pvars->ForcedOn = 1;
+      State.RoundDemonBellCount += 1;
     }
 
     ++m;

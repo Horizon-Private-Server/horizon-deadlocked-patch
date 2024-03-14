@@ -2272,10 +2272,9 @@ void runHealthPickupFix(void)
 }
 
 /*
- * NAME :		getB6Damage
+ * NAME :		onMobyUpdate
  * 
  * DESCRIPTION :
- * 			Adds falloff curve to b6 damage AoE.
  * 
  * NOTES :
  * 
@@ -2285,85 +2284,11 @@ void runHealthPickupFix(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-float getB6Damage(Player* hitPlayer)
+void onMobyUpdate(Moby* moby)
 {
-  Moby* b6Moby;
-  float radius, damage;
+  playerSyncTick();
 
-	asm volatile (
-    ".set noreorder;"
-		"move %0, $s4;"
-    "swc1 $f21, 0(%1);"
-    "swc1 $f20, 0(%2);"
-		: : "r" (b6Moby), "r" (&radius), "r" (&damage)
-	);
-
-  // get hip joint of moby
-  MATRIX hipJoint;
-  mobyGetJointMatrix(hitPlayer->PlayerMoby, 10, hipJoint);
-
-  VECTOR dt;
-  vector_subtract(dt, b6Moby->Position, &hipJoint[12]);
-  float dist = vector_length(dt);
-  DPRINTF("%f/%f dmg:%f\n", dist, radius, damage);
-
-  Player* sourcePlayer = guberMobyGetPlayerDamager(b6Moby);
-  if (sourcePlayer) {
-    float fullDamage = weaponGetDamage(WEAPON_ID_B6, sourcePlayer->GadgetBox->Gadgets[WEAPON_ID_B6].Level);
-
-    DPRINTF("ground:%d hitJoint:%f groundFromGood:%f\n", hitPlayer->Ground.onGood, hipJoint[14] - b6Moby->Position[2], hitPlayer->PlayerPosition[2] - hitPlayer->Ground.point[2]);
-
-    if (dist < 0.7) damage = fullDamage;
-    else if (hitPlayer->Ground.onGood) damage = damage;
-    else if (fabsf(hipJoint[14] - b6Moby->Position[2]) < 1.5 && (hitPlayer->PlayerPosition[2] - hitPlayer->Ground.point[2]) < 1.0) damage = damage;
-    else damage *= 0.2;
-
-    DPRINTF("damage %f\n", damage);
-    return damage;
-  }
-
-  DPRINTF("getB6Damage failed\n");
-  return 0;
-}
-
-/*
- * NAME :		runFixB6EatOnDownSlope
- * 
- * DESCRIPTION :
- * 			B6 shots are supposed to do full damage when a player is hit on the ground.
- * 			But the ground detection fails when walking/cbooting down slopes.
- * 			This allows players to take only partial damage in some circumstances.
- * 
- * NOTES :
- * 
- * ARGS : 
- * 
- * RETURN :
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-void runFixB6EatOnDownSlope(void)
-{
-  int i = 0;
-
-  // patch b6 dist collision calculation to shorter
-  // so it explodes closer to target
-  POKE_U16(0x003f693c, 0xBD80);
-
-  // patch b6 grounded damage check to read our isGrounded state
-  //POKE_U16(0x003B56E8, 0x30C);
-
-  // patch b6 to deal custom damage curve
-  // unless PvE, then use default
-  if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL) {
-    HOOK_JAL(0x003B56E8, &getB6Damage);
-    POKE_U32(0x003B56EC, 0x0040202D);
-    POKE_U32(0x003B56F0, 0x1000000F);
-    POKE_U32(0x003B56F4, 0x46000506);
-  }
-
-  // increase b6 full damage range for ungrounded targets
-  POKE_U16(0x003b5700, 0x3F80);
+  ((void (*)(Moby*))0x003BD5A8)(moby);
 }
 
 /*
@@ -2383,8 +2308,6 @@ void runFixB6EatOnDownSlope(void)
  */
 void onHeroUpdate(void)
 {
-  playerSyncTick();
-
   // base 
   ((void (*)(void))0x005ce1d8)();
 
@@ -2466,6 +2389,119 @@ void onSetPlayerState_GetHit(Player * player, int stateId, int a2, int a3, int t
 
   PlayerVTable * vtable = playerGetVTable(player);
   vtable->UpdateState(player, stateId, a2, a3, t0);
+}
+
+/*
+ * NAME :		getB6Damage
+ * 
+ * DESCRIPTION :
+ * 			Adds falloff curve to b6 damage AoE.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+float getB6Damage(Player* hitPlayer)
+{
+  Moby* b6Moby;
+  float radius, damage;
+
+	asm volatile (
+    ".set noreorder;"
+		"move %0, $s4;"
+    "swc1 $f21, 0(%1);"
+    "swc1 $f20, 0(%2);"
+		: : "r" (b6Moby), "r" (&radius), "r" (&damage)
+	);
+
+  // get hip joint of moby
+  MATRIX hipJoint;
+  mobyGetJointMatrix(hitPlayer->PlayerMoby, 10, hipJoint);
+
+  VECTOR dt;
+  vector_subtract(dt, b6Moby->Position, &hipJoint[12]);
+  float dist = vector_length(dt);
+  DPRINTF("%f/%f dmg:%f\n", dist, radius, damage);
+
+  Player* sourcePlayer = guberMobyGetPlayerDamager(b6Moby);
+  if (sourcePlayer) {
+    float fullDamage = weaponGetDamage(WEAPON_ID_B6, sourcePlayer->GadgetBox->Gadgets[WEAPON_ID_B6].Level);
+
+    DPRINTF("ground:%d hitJoint:%f groundFromGood:%f\n", hitPlayer->Ground.onGood, hipJoint[14] - b6Moby->Position[2], hitPlayer->PlayerPosition[2] - hitPlayer->Ground.point[2]);
+
+    if (dist < 0.7) damage = fullDamage;
+    else if (hitPlayer->Ground.onGood) damage = damage;
+    else if (fabsf(hipJoint[14] - b6Moby->Position[2]) < 1.0 && (hitPlayer->PlayerPosition[2] - hitPlayer->Ground.point[2]) < 1.0) damage = damage;
+    else damage *= 0.2;
+
+    DPRINTF("damage %f\n", damage);
+    return damage;
+  }
+
+  DPRINTF("getB6Damage failed\n");
+  return 0;
+}
+
+/*
+ * NAME :		runFixB6EatOnDownSlope
+ * 
+ * DESCRIPTION :
+ * 			B6 shots are supposed to do full damage when a player is hit on the ground.
+ * 			But the ground detection fails when walking/cbooting down slopes.
+ * 			This allows players to take only partial damage in some circumstances.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runFixB6EatOnDownSlope(void)
+{
+  int i = 0;
+
+  while (i < GAME_MAX_LOCALS)
+  {
+    Player* p = playerGetFromSlot(i);
+    if (p) {
+      // determine height delta of player from ground
+      // player is grounded if "onGood" or height delta from ground is less than 0.3 units
+      float hDelta = p->PlayerPosition[2] - *(float*)((u32)p + 0x250 + 0x78);
+      int grounded = hDelta < 0.3 || *(int*)((u32)p + 0x250 + 0xA0) != 0;
+
+      // store grounded in unused part of player data
+      POKE_U32((u32)p + 0x30C, grounded);
+    }
+
+    ++i;
+  }
+
+  // patch b6 dist collision calculation to shorter
+  // so it explodes closer to target
+  POKE_U16(0x003f693c, 0xBD80);
+
+  // patch b6 grounded damage check to read our isGrounded state
+  POKE_U16(0x003B56E8, 0x30C);
+
+  // increase b6 full damage range for ungrounded targets
+  POKE_U16(0x003b5700, 0x3F80);
+
+  
+  // removed because the people do not like
+  // patch b6 to deal custom damage curve
+  // unless PvE, then use default
+  // if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL) {
+  //   HOOK_JAL(0x003B56E8, &getB6Damage);
+  //   POKE_U32(0x003B56EC, 0x0040202D);
+  //   POKE_U32(0x003B56F0, 0x1000000F);
+  //   POKE_U32(0x003B56F4, 0x46000506);
+  // }
 }
 
 /*
@@ -4975,6 +5011,7 @@ void onOnlineMenu(void)
 int main (void)
 {
 	int i;
+  static Moby* mpMoby = NULL;
 	
 	// Call this first
 	dlPreUpdate();
@@ -5243,6 +5280,14 @@ int main (void)
     // disable guber wait for dispatchTime
     POKE_U32(0x00611518, 0x24040000);
 
+    // find and hook multiplayer moby
+    if (!mpMoby) {
+      mpMoby = mobyFindNextByOClass(mobyListGetStart(), 0x106A);
+      if (mpMoby) {
+        mpMoby->PUpdate = &onMobyUpdate;
+      }
+    }
+
 		// reset when in game
 		hasSendReachedEndScoreboard = 0;
 
@@ -5307,6 +5352,8 @@ int main (void)
 		averageRenderTimeMs = 0;
 		updateTimeMs = 0;
 		averageUpdateTimeMs = 0;
+
+    mpMoby = NULL;
     
 		//
 		grLobbyStart();

@@ -753,6 +753,9 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 	if (Initialized && State.StartTime && !State.EndTime)
 		State.EndTime = gameGetTime();
 
+  // disable ranking
+  gameSetIsGameRanked(0);
+
 	// 
 	updateGameState(gameState);
 

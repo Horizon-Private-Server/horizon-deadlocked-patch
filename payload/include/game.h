@@ -87,6 +87,8 @@ struct PayloadPlayer
 	int SoundHandle;
 	int SoundId;
 	int IsNearPayload;
+  int LightningTicks;
+  Moby* LightningMoby;
 	struct PayloadPlayerStats Stats;
 };
 

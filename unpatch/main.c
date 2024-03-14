@@ -78,6 +78,13 @@ const int patches[][3] = {
 	{ 0, 0x0075a7ec, 0x0C1D6E80 }, // leave staging hook
 	{ 0, 0x00759448, 0x0C1C668A }, // enable Game Cancelled popup
 	{ 0, 0x0071C168, 0x03E00008 }, // reset get return to menu id
+  { 0, 0x00760d30, 0x0C1D866C }, // comp stats hook
+  { 0, 0x004EE888, 0x0077A678 }, // on get skill level hook
+  { 0, 0x004EE8E0, 0x0077A678 }, // on get skill level hook
+  { 0, 0x004EE7E8, 0x0077A678 }, // on get skill level hook
+  { 0, 0x0075AC48, 0x24507570 }, // staging skill level sprite id base
+  { 0, 0x0075ac68, 0x0062800A }, // staging skill level sprite id base
+  { 0, 0x00718700, 0x0C046A7B }, // update current nwinfo account name
 	// in game
 	{ 1, 0x005930B8, 0x02C3B020 }, // lod patch
 	{ 1, 0x005605D4, 0x0C15803E }, // start menu back callback

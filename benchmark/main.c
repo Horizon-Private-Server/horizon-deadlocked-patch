@@ -29,7 +29,8 @@ enum BenchmarkTest
   BTEST_NONE = 0,
   BTEST_FREE,
   BTEST_DRAW,
-  BTEST_COLLISION
+  BTEST_COLLISION,
+  BTEST_MOBY_SPAWN
 };
 
 void mobUpdate(Moby* moby);
@@ -41,6 +42,7 @@ int FramesSinceTestBegan = 0;
 long TestBegan = 0;
 long TestEnd = 0;
 int MobsDrawn = 0;
+int MobysCreated = 0;
 Moby* Mobs[MAX_MOB_COUNT];
 
 void spawnMobs(void)
@@ -118,6 +120,13 @@ void drawMobCount(void)
   gfxScreenSpaceText(10, SCREEN_HEIGHT - 80, 1, 1, 0x80FFFFFF, buf, -1, 0);
 }
 
+void drawMobysCount(void)
+{
+  char buf[32];
+  snprintf(buf, sizeof(buf), "Mobys: %d", MobysCreated);
+  gfxScreenSpaceText(10, SCREEN_HEIGHT - 80, 1, 1, 0x80FFFFFF, buf, -1, 0);
+}
+
 void drawScore(int score, int bestScore)
 {
   char buf[32];
@@ -180,6 +189,19 @@ void handleTestCollision(void)
   if (!TestEnd && s > 25) TestEnd = timerGetSystemTime();
   drawScore(FramesSinceTestBegan, (int)ceilf(59.94 * s));
   drawMobCount();
+}
+
+void handleTestMobySpawn(void)
+{
+  // spawn and destroy
+  int i;
+  for (i = 0; i < 1; ++i) {
+    Moby* m = mobySpawn(MOB_OCLASS, 0);
+    if (m) { mobyDestroy(m); ++MobysCreated; }
+  }
+
+  drawTestName("Moby");
+  drawMobysCount();
 }
 
 void mobUpdate(Moby* moby)
@@ -258,6 +280,8 @@ void gameStart(void)
       changeTest(BTEST_DRAW);
     } else if (padGetButtonDown(0, PAD_LEFT) > 0) {
       changeTest(BTEST_COLLISION);
+    } else if (padGetButtonDown(0, PAD_L3) > 0) {
+      changeTest(BTEST_MOBY_SPAWN);
     }
   }
 
@@ -268,6 +292,7 @@ void gameStart(void)
     case BTEST_FREE: handleTestFree(); break;
     case BTEST_DRAW: handleTestDraw(); break;
     case BTEST_COLLISION: handleTestCollision(); break;
+    case BTEST_MOBY_SPAWN: handleTestMobySpawn(); break;
   }
 
   if (!TestEnd) ++FramesSinceTestBegan;
@@ -291,7 +316,8 @@ void gameStart(void)
  */
 void lobbyStart(void)
 {
-  
+  // disable ranking
+  gameSetIsGameRanked(0);
 }
 
 /*

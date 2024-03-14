@@ -187,6 +187,7 @@ struct CustomDzoCommandSurvivalDrawHud
   char HasDblXp;
   char WaitingForHost;
   char RoundCompleteMessage[64];
+  int Timer;
 } dzoDrawHudCmd;
 
 struct CustomDzoCommandSurvivalDrawReviveMsg
@@ -230,6 +231,7 @@ void updateDzoHud(void)
   dzoDrawHudCmd.HasDblPoints = State.LocalPlayerState->IsDoublePoints;
   dzoDrawHudCmd.HasDblXp = State.LocalPlayerState->IsDoubleXP;
   dzoDrawHudCmd.XpPercent = State.LocalPlayerState->State.XP / (float)getXpForNextToken(State.LocalPlayerState->State.TotalTokens);
+  dzoDrawHudCmd.Timer = gameTime - State.InitializedTime;
   PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD, sizeof(dzoDrawHudCmd), &dzoDrawHudCmd);
 
   // reset
@@ -451,6 +453,17 @@ void drawRoundMessage(const char * message, float scale, int yPixelsOffset)
 	y *= SCREEN_HEIGHT;
 	x *= SCREEN_WIDTH;
 	gfxScreenSpaceText(x, y + 5 + yPixelsOffset, scale, scale * 1.5, 0x80FFFFFF, message, -1, 1);
+}
+
+//--------------------------------------------------------------------------
+void drawTimer(int time)
+{
+  char buf[32];
+
+  if (time < 0) time = 0;
+  sprintf(buf, "%02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
+  gfxScreenSpaceText(31, 211, 0.9, 0.9, 0x40000000, buf, -1, 1);
+  gfxScreenSpaceText(30, 210, 0.9, 0.9, 0x80E0E0E0, buf, -1, 1);
 }
 
 //--------------------------------------------------------------------------
@@ -1526,6 +1539,45 @@ void setFreeze(int isActive)
 
 	// locally
 	onSetFreeze(isActive);
+}
+
+//--------------------------------------------------------------------------
+void onSetRound50Time(int time)
+{
+  char buffer[64];
+  
+  snprintf(buffer, sizeof(buffer), "50 Rounds Completed %02d:%02d.%03d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND, time % TIME_SECOND);
+  pushSnack(buffer, TPS * 10, 0);
+  State.Round50Time = time;
+}
+
+//--------------------------------------------------------------------------
+int onSetRound50TimeRemote(void * connection, void * data)
+{
+  int time;
+  memcpy(&time, data, sizeof(time));
+
+  onSetRound50Time(time);
+	return sizeof(time);
+}
+
+//--------------------------------------------------------------------------
+void setRound50Time(int time)
+{
+  if (time <= 0) return;
+
+  // send and set locally
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_SET_ROUND_50_TIME, sizeof(time), &time);
+  onSetRound50Time(time);
+}
+
+//--------------------------------------------------------------------------
+void checkForRound50Time(void)
+{
+  // update time took to beat 50 rounds
+  if (State.RoundNumber == 50 && State.Round50Time == 0 && gameAmIHost()) {
+    setRound50Time(gameGetTime() - State.InitializedTime);
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -2838,7 +2890,7 @@ void spawnUpgrades(void)
 void spawnDemonBell(void)
 {
   int i;
-
+  
   // only spawn if host
   if (!gameAmIHost())
     return;
@@ -2921,9 +2973,17 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 {
 	static int startDelay = TPS * 0.2;
 	static int waitingForClientsReady = 0;
+  static int firstTime = 1;
 	char hasTeam[10] = {0,0,0,0,0,0,0,0,0,0};
 	Player** players = playerGetAll();
 	int i, j;
+
+  if (firstTime) {
+    firstTime = 0;
+    
+    // clear state
+    memset(&State, 0, sizeof(State));
+  }
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
@@ -2970,6 +3030,10 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 
 	// Fix v10 arb overlapping shots
 	*(u32*)0x003F2E70 = 0x24020000;
+
+  // disable timebase query percentile filter
+  // always accept remote time
+  POKE_U32(0x01eabd60, 0);
 
   // Fix locals using same bolt count
   HOOK_J(0x00557C00, &_getLocalBolts);
@@ -3079,6 +3143,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	netInstallCustomMsgHandler(CUSTOM_MSG_WEAPON_PRESTIGE, &onPlayerPrestigeWeaponRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_INTERACT_BANK_BOX, &onPlayerInteractBankBoxRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_WITHDRAWN_BANK_BOX, &onPlayerWithdrawnBankBoxRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_50_TIME, &onSetRound50TimeRemote);
 
 	// set game over string
 	strncpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
@@ -3290,7 +3355,8 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   }
 
   for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
-    playerRewardXp(j, -1, xp[j]);
+    //playerRewardXp(j, -1, xp[j]);
+    State.PlayerStates[j].State.XP = xp[j];
     State.PlayerStates[j].State.Upgrades[UPGRADE_HEALTH] = STARTROUND / 4;
   }
 
@@ -3346,13 +3412,26 @@ void updateGameState(PatchStateContainer_t * gameState)
 		gameState->GameStateUpdate.RoundNumber = State.RoundNumber + 1;
 	}
 
+  if (isInGame()) {
+    // compute round 50 completed time
+    checkForRound50Time();
+
+    // update custom game stats after each round
+    static int roundCompleted = 0;
+    if (roundCompleted != State.RoundNumber && gameAmIHost()) {
+      gameState->UpdateCustomGameStats = 1;
+      roundCompleted = State.RoundNumber;
+    }
+  }
+
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
     gameState->CustomGameStatsSize = sizeof(struct SurvivalGameData);
 		struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats.Payload;
 		sGameData->RoundNumber = State.RoundNumber;
-		sGameData->Version = 0x00000005;
+		sGameData->Version = 0x00000006;
+    sGameData->Round50Time = State.Round50Time;
 
     // set mob ids
     for (i = 0; i < mapConfig->DefaultSpawnParamsCount && i < MAX_MOB_SPAWN_PARAMS; ++i) {
@@ -3674,6 +3753,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
       gfxScreenSpaceText(31, 252, 1, 1, 0x40000000, buffer, -1, 1);
       gfxScreenSpaceText(30, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
     }
+
+    // draw timer
+    drawTimer(gameGetTime() - State.InitializedTime);
 
     // draw player specific values
     // TODO: add support for 3,4 local players
@@ -4134,6 +4216,9 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 
 		Initialized = 2;
 	}
+
+  // disable ranking
+  gameSetIsGameRanked(0);
 
 	// 
 	updateGameState(gameState);

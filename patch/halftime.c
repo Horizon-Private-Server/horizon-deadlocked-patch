@@ -407,19 +407,19 @@ void htCtfTick(void)
   padResetInput(0);
   padResetInput(1);
   
-  // lock players to positions
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player && player->PlayerMoby && player->IsLocal) {
-      vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
-      vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
-    }
-  }
-
 	switch (HalfTimeState)
 	{
 		case HT_INTERMISSION:
 		{
+      // lock players to positions
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+        Player* player = players[i];
+        if (player && player->PlayerMoby && player->IsLocal) {
+          vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
+          vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
+        }
+      }
+
 			if (gameTime > (HalfTimeEnd - (TIME_SECOND * 2)))
 				HalfTimeState = HT_SWITCH;
 			break;
@@ -866,19 +866,19 @@ void otCtfTick(void)
   padResetInput(0);
   padResetInput(1);
 
-  // lock players to positions
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player && player->PlayerMoby && player->IsLocal) {
-      vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
-      vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
-    }
-  }
-
 	switch (OvertimeState)
 	{
 		case OT_INTERMISSION:
 		{
+      // lock players to positions
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+        Player* player = players[i];
+        if (player && player->PlayerMoby && player->IsLocal) {
+          vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
+          vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
+        }
+      }
+
 			if (gameTime > (OvertimeEnd - (TIME_SECOND * 2)))
 				OvertimeState = OT_SWITCH;
 			break;

@@ -86,6 +86,7 @@ struct CompState {
   int HasLeaveRequestTicks;
   int TimeUntilGameStart;
   int TimeAllReady;
+  int NameChangeResult;
   ForceJoinGameRequest_t JoinRequest;
   ForceTeamsRequest_t TeamsRequest;
   enum COMP_ERROR ErrorId;
@@ -257,6 +258,18 @@ int onForceStartGameRequest(void * connection, void * data)
 }
 
 //------------------------------------------------------------------------------
+int onUpdateNameResponse(void * connection, void * data)
+{
+  UpdateNameResponse_t response;
+
+	// move message payload into local
+	memcpy(&response, data, sizeof(UpdateNameResponse_t));
+  CompState.NameChangeResult = response.Success + 1;
+
+	return sizeof(UpdateNameResponse_t);
+}
+
+//------------------------------------------------------------------------------
 void removeSnackAt(int index)
 {
   if (index >= SNACK_MAX_COUNT)
@@ -396,6 +409,24 @@ void onJoinGame()
 }
 
 //------------------------------------------------------------------------------
+int beginAccountNameChangeRequest(void) {
+  UpdateNameRequest_t request;
+  void * connection = netGetLobbyServerConnection();
+
+  memset(&request, 0, sizeof(request));
+  strncpy(request.Name, (char*)0x0017225E, 16);
+  if (uiShowInputDialog("Change Name", request.Name, 15) == 1) {
+
+    // send queue request
+    if (connection) {
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_UPDATE_NAME_REQUEST, sizeof(UpdateNameRequest_t), &request);
+    }
+  }
+  
+  return -1;
+}
+
+//------------------------------------------------------------------------------
 int openQueueSelect(void) {
   int selected = 0, count = QUEUE_NAMES_SIZE - 1;
   if (CompState.LastSelectedQueue >= 0)
@@ -509,6 +540,9 @@ int onCompChatRoom(void * ui, int pad) {
     } else if (pad == 6) {
       // open queue
       openQueueSelect();
+    } else if (pad == 11) {
+      // open name change prompt
+      beginAccountNameChangeRequest();
     } else if (context == 8 && pad == 7) {
       // prevent selecting user
       pad = 0;
@@ -519,7 +553,7 @@ int onCompChatRoom(void * ui, int pad) {
 	int result = chatRoom18Func(ui, pad);
 
   // rename clan room to CIRCLE QUEUE
-  sprintf((char*)(uiElements[11] + 0x60), "\x11 QUEUE");
+  sprintf((char*)(uiElements[11] + 0x60), "\x11 QUEUE \x14 CHANGE NAME");
 
   // rename select to stats
   sprintf((char*)(uiElements[12] + 0x60), "\x13 STATS");
@@ -746,6 +780,11 @@ void runCompMenuLogic(void) {
     CompState.HasShownMapUpdatesRequiredPopup = 1;
   }
 
+  if (CompState.NameChangeResult && CompState.NameChangeResult == 1) {
+    uiShowOkDialog("Name Change", "An error occured. Either the name is not valid or the name is already taken.");
+    CompState.NameChangeResult = 0;
+  }
+
   // if at main menu, put player in clan room
   static int ticksWantingClanRoom = 0;
   if (!netDoIHaveNetError() && uiGetPointer(UI_MENU_ID_ONLINE_LOBBY) == uiGetActivePointer() && netGetLobbyServerConnection() && uiGetActive() == UI_ID_ONLINE_MAIN_MENU)
@@ -799,6 +838,7 @@ void runCompLogic(void) {
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_FORCE_START_GAME_REQUEST, &onForceStartGameRequest);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_GAME_START_TIME_REQUEST, &onSetGameStartTimeRequest);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SHOW_SNACK_MESSAGE_REQUEST, &onShowSnackMessageRequest);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_UPDATE_NAME_RESPONSE, &onUpdateNameResponse);
   
   // refresh queue every 5 seconds
   int gameTime = gameGetTime();
@@ -823,6 +863,7 @@ void runCompLogic(void) {
     *(u32*)0x00763DC0 = 0x24020003; // disable changing team in staging
     *(u32*)0x0075a7ec = 0x0C000000 | ((u32)&onLeaveStaging / 4);
     *(u32*)0x00759448 = 0; // disable game cancelled popup when host leaves
+    POKE_U32(0x00718700, 0); // disable updating account name
     POKE_U32(0x004EE888, &onGetSkillLevel); // change stats page skill level to use comp ranks
     POKE_U32(0x004EE8E0, &onGetSkillLevel);
     POKE_U32(0x004EE7E8, &onGetSkillLevel);

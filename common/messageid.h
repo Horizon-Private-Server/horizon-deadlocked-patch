@@ -266,6 +266,16 @@ enum CustomMessageId
     CUSTOM_MSG_ID_SERVER_DATE_TIME_RESPONSE = 47,
 
     /*
+     * Sent by the client to the server with the client's newly requested account name.
+     */
+    CUSTOM_MSG_ID_UPDATE_NAME_REQUEST = 48,
+
+    /*
+     * Sent by the server to the client containing the result of the update name request.
+     */
+    CUSTOM_MSG_ID_UPDATE_NAME_RESPONSE = 49,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -427,6 +437,16 @@ typedef struct SetGameStartTimeRequest
 {
     int SecondsUntilStart;
 } SetGameStartTimeRequest_t;
+
+typedef struct UpdateNameRequest
+{
+  char Name[16];
+} UpdateNameRequest_t;
+
+typedef struct UpdateNameResponse
+{
+  char Success;
+} UpdateNameResponse_t;
 
 typedef struct ClientRequestPickUpFlag
 {

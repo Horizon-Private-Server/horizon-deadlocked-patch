@@ -180,7 +180,7 @@ void quickChatDraw(void)
 
     // draw team *
     int width = gfxScreenSpaceText(490, yOff + (i * 14), 0.8, 0.8, 0x80FFFFFF, buf, -1, 2);
-    if (chatid > 3) {
+    if (chatid > 7) {
       int team = gs->PlayerTeams[pid];
       Player* player = players[pid];
       if (player) team = player->Team;
@@ -228,7 +228,7 @@ int quickChatOnReceiveRemoteQuickChat(void* connection, void* data)
 
   // if chat msg is post game, then it is global so always show
   // otherwise it is team, make sure local player(s) are on same team as remote
-  if (msg.ChatId >= 4) {
+  if (msg.ChatId >= 8) {
     Player* fromPlayer = playerGetAll()[msg.FromPlayerId];
     if (!fromPlayer) return;
 
@@ -288,7 +288,7 @@ void quickChatRun(void)
   if (!gameConfig.grQuickChat) return;
   if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return;
   if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) return;
-  if (gameGetSettings()->GameRules == GAMERULE_CQ && gameConfig.grCqDisableUpgrades == 0) return;
+  if (gameGetSettings()->GameRules == GAMERULE_CQ) return;
   if (isConfigMenuActive) return;
   
   int localCount = playerGetNumLocals();

@@ -1068,6 +1068,47 @@ void runLocalPlayerChargeboot(void)
   runRenderCboot(pid);
 }
 
+int runSendMonitor_Hook(void* a0, void* a1, int a2)
+{
+  u32 ra;
+  
+	// pointer to gameplay data is stored in $s1
+	asm volatile (
+		"move %0, $ra"
+		: : "r" (ra)
+	);
+
+
+  POKE_U32(0x01EA1270, 0x27BDFFE0);
+  POKE_U32(0x01EA1274, 0x0080482D);
+
+  int msgId = *(int*)((u32)a0 + 0x08);
+  int msgLen = *(int*)((u32)a0 + 0x38);
+  void* msgPtr = *(void**)((u32)a0 + 0x3C);
+  if (a2 == 2 && msgId == 15) {
+    
+    DPRINTF("SEND msgClass:%d msgId:%d msgLen:%d msgBuf:%08X ra:%08X\n", a2, msgId, msgLen, msgPtr, ra);
+  }
+  int result = ((int (*)(void*, void*, int))0x01ea1270)(a0, a1, a2);
+  
+  HOOK_J(0x01EA1270, &runSendMonitor_Hook);
+  POKE_U32(0x01EA1274, 0);
+
+  return result;
+}
+
+void runSendMonitor(void)
+{
+  if (isUnloading) {
+    POKE_U32(0x01EA1270, 0x27BDFFE0);
+    POKE_U32(0x01EA1274, 0x0080482D);
+    return;
+  }
+  
+  HOOK_J(0x01EA1270, &runSendMonitor_Hook);
+  POKE_U32(0x01EA1274, 0);
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -1077,7 +1118,6 @@ void runTestLogic(void)
   //runAllow4Locals();
 
   drawPositionYaw();
-
   gameConfig.grBetterFlags = 1;
 
   //runSystemTime();
@@ -1110,6 +1150,7 @@ void runTestLogic(void)
     //runRenderCboot(0);
     //runB6HitVisualizer();
     //runLocalPlayerChargeboot();
+    //runSendMonitor();
 
     // if (padGetButtonDown(0, PAD_DOWN) > 0) {
     //   Player* p = playerGetFromSlot(0);

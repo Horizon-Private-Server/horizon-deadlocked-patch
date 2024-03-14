@@ -77,13 +77,12 @@ int playerSyncCmdDelta(int fromCmdId, int toCmdId)
 //--------------------------------------------------------------------------
 int playerSyncGetSendRate(void)
 {
-  return 3;
-  
   // in survival the mobs already bloat the network, and player syncing is less important, so we can reduce the send rate a lot
   if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return 10;
 
   // in larger lobbies we want to reduce network bandwidth by reducing send rate
   GameSettings* gs = gameGetSettings();
+  if (gs && gs->PlayerCountAtStart > 8) return 5;
   if (gs && gs->PlayerCountAtStart > 6) return 3;
   if (gs && gs->PlayerCountAtStart > 4) return 1;
 
@@ -329,7 +328,7 @@ void playerSyncHandlePlayerState(Player* player)
       case PLAYER_STATE_GET_HIT:
       {
         // let game handle flinchings
-        skip = 1;
+        //skip = 1;
         break;
       }
       case PLAYER_STATE_SWING:
@@ -542,6 +541,9 @@ void playerSyncTick(void)
 
   // disable tnw_PlayerData time update
   POKE_U32(0x0060FFAC, 0);
+
+  // disable send GetHit
+  POKE_U32(0x0060ff08, 0);
 
   // player updates
   Player** players = playerGetAll();

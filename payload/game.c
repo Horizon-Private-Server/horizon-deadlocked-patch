@@ -1604,32 +1604,6 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	playerElectricitySoundDef.Index = Config.PayloadElectricityEnterSoundId;
 	playerElectricitySoundEndDef.Index = Config.PayloadElectricityExitSoundId;
 
-	// spawn boxes to bridge gap
-	Moby* m = mobySpawn(MOBY_ID_BETA_BOX, 0);
-	m->Position[0] = 177.6;
-	m->Position[2] = 94.36;
-	m->Position[1] = 474.28;
-	m->Rotation[2] = (-17.483 * MATH_PI) / 180.0;
-	m->DrawDist = 0xFF;
-	m->UpdateDist = 0xFF;
-	m->Scale *= 15.21;
-	m = mobySpawn(MOBY_ID_BETA_BOX, 0);
-	m->Position[0] = 190.68;
-	m->Position[2] = 94.36;
-	m->Position[1] = 470.16;
-	m->Rotation[2] = (-17.483 * MATH_PI) / 180.0;
-	m->DrawDist = 0xFF;
-	m->UpdateDist = 0xFF;
-	m->Scale *= 15.21;
-	m = mobySpawn(MOBY_ID_BETA_BOX, 0);
-	m->Position[0] = 204.09;
-	m->Position[2] = 94.36;
-	m->Position[1] = 465.94;
-	m->Rotation[2] = (-17.483 * MATH_PI) / 180.0;
-	m->DrawDist = 0xFF;
-	m->UpdateDist = 0xFF;
-	m->Scale *= 15.21;
-
 	// calculate length of path and segments
 	State.PathLength = 0;
 	for (i = 0; i < (Config.PathVertexCount-1); ++i)
