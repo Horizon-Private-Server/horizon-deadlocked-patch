@@ -106,6 +106,7 @@
 
 // 
 void processSpectate(void);
+void spectateSetSpectate(int localPlayerIndex, int playerToSpectateOrDisable);
 void runMapLoader(void);
 void onMapLoaderOnlineMenu(void);
 void onConfigOnlineMenu(void);
@@ -345,6 +346,7 @@ PatchInterop_t interopData = {
   .GameConfig = &gameConfig,
   .Client = CLIENT_TYPE_NORMAL,
   .Month = 0,
+  .SetSpectate = spectateSetSpectate,
 };
 
 /*
@@ -3071,9 +3073,12 @@ void onClientReady(int clientId)
 
   // check if all clients are ready
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    bit = 1 << i;
-    if (gs->PlayerClients[i] >= 0 && (patchStateContainer.ClientsReadyMask & bit) == 0)
-      return;
+    int clientId = gs->PlayerClients[i];
+    if (clientId >= 0) {
+      bit = 1 << clientId;
+      if ((patchStateContainer.ClientsReadyMask & bit) == 0)
+        return;
+    }
   }
 
   patchStateContainer.AllClientsReady = 1;
@@ -4327,12 +4332,17 @@ void forceLobbyNameOverrides(void)
   if (!gs) return;
 
   int i;
+  int locals[GAME_MAX_PLAYERS];
+  memset(locals, 0, sizeof(locals));
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     int accountId = patchStateContainer.LobbyNameOverrides.AccountIds[i];
     int j;
     for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
       if (gs->PlayerAccountIds[j] == accountId) {
-        strncpy(gs->PlayerNames[j], patchStateContainer.LobbyNameOverrides.Names[i], 16);
+        locals[j]++;
+        if (locals[j] == 0) {
+          strncpy(gs->PlayerNames[j], patchStateContainer.LobbyNameOverrides.Names[i], 16);
+        }
       }
     }
   }

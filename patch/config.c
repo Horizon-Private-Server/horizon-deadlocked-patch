@@ -85,6 +85,7 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
 void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
+void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
@@ -102,14 +103,15 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
-int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
-int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, char* value);
+int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value);
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -399,43 +401,42 @@ MenuElem_t menuElementsFreecam[] = {
 };
 
 // map override list item
-MenuElem_ListData_t dataCustomMaps = {
+MenuElem_OrderedListData_t dataCustomMaps = {
     &gameConfig.customMapId,
     menuStateHandler_SelectedMapOverride,
     CUSTOM_MAP_COUNT,
     {
-      "None",
-      "Ace Hardlight's Suite",
-      "Alpine Junction",
-      "Annihilation Nation",
-      "Bakisi Isles",
-      "Battledome SP",
-      "Blackwater City",
-      "Blackwater Docks",
-      "Canal City",
-      "Containment Suite",
-      "Dark Cathedral Interior",
-      "Ghost Hangar",
-      "Ghost Ship",
-      "Hoven Gorge",
-      "Infinite Climber",
-      "Korgon Outpost",
-      "Launch Site",
-      "Marcadia Palace",
-      "Metropolis MP",
-      "Mining Facility SP",
-      "Mountain Pass",
-      // "Rust",
-      "Shaar SP",
-      "Snivelak",
-      "Spleef",
-      "Torval Lost Factory",
-      "Torval SP",
-      "Tyhrranosis",
+      { CUSTOM_MAP_NONE, "None" },
+      { CUSTOM_MAP_ACE_HARDLIGHT_SUITE, "Ace Hardlight's Suite" },
+      { CUSTOM_MAP_ALPINE_JUNCTION, "Alpine Junction" },
+      { CUSTOM_MAP_ANNIHILATION_NATION, "Annihilation Nation" },
+      { CUSTOM_MAP_BAKISI_ISLES, "Bakisi Isles" },
+      { CUSTOM_MAP_BATTLEDOME_SP, "Battledome SP" },
+      { CUSTOM_MAP_BLACKWATER_CITY, "Blackwater City" },
+      { CUSTOM_MAP_BLACKWATER_DOCKS, "Blackwater Docks" },
+      { CUSTOM_MAP_CANAL_CITY, "Canal City" },
+      { CUSTOM_MAP_CONTAINMENT_SUITE, "Containment Suite" },
+      { CUSTOM_MAP_DARK_CATHEDRAL_INTERIOR, "Dark Cathedral Interior" },
+      { CUSTOM_MAP_GHOST_HANGAR, "Ghost Hangar" },
+      { CUSTOM_MAP_GHOST_SHIP, "Ghost Ship" },
+      { CUSTOM_MAP_HOVEN_GORGE, "Hoven Gorge" },
+      { CUSTOM_MAP_INFINITE_CLIMBER, "Infinite Climber" },
+      { CUSTOM_MAP_KORGON_OUTPOST, "Korgon Outpost" },
+      { CUSTOM_MAP_LAUNCH_SITE, "Launch Site" },
+      { CUSTOM_MAP_MARCADIA_PALACE, "Marcadia Palace" },
+      { CUSTOM_MAP_METROPOLIS_MP, "Metropolis MP" },
+      { CUSTOM_MAP_MINING_FACILITY_SP, "Mining Facility SP" },
+      { CUSTOM_MAP_MOUNTAIN_PASS, "Mountain Pass" },
+      { CUSTOM_MAP_SHAAR_SP, "Shaar SP" },
+      { CUSTOM_MAP_SNIVELAK, "Snivelak" },
+      { CUSTOM_MAP_SPLEEF, "Spleef" },
+      { CUSTOM_MAP_TORVAL_LOST_FACTORY, "Torval Lost Factory" },
+      { CUSTOM_MAP_TORVAL_SP, "Torval SP" },
+      { CUSTOM_MAP_TYHRRANOSIS, "Tyhrranosis" },
       // -- SURVIVAL MAPS --
-      [CUSTOM_MAP_SURVIVAL_MINING_FACILITY] "Orxon",
-      [CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS] "Mountain Pass",
-      [CUSTOM_MAP_SURVIVAL_VELDIN] "Veldin"
+      { CUSTOM_MAP_SURVIVAL_MINING_FACILITY, "Orxon" },
+      { CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS, "Mountain Pass" },
+      { CUSTOM_MAP_SURVIVAL_VELDIN, "Veldin" }
     }
 };
 
@@ -447,24 +448,25 @@ char dataCustomMapsWithExclusiveGameMode[] = {
 const int dataCustomMapsWithExclusiveGameModeCount = sizeof(dataCustomMapsWithExclusiveGameMode)/sizeof(char);
 
 // gamemode override list item
-MenuElem_ListData_t dataCustomModes = {
+MenuElem_OrderedListData_t dataCustomModes = {
     &gameConfig.customModeId,
     menuStateHandler_SelectedGameModeOverride,
     CUSTOM_MODE_COUNT,
     {
-      [CUSTOM_MODE_NONE] "None",
-      [CUSTOM_MODE_GUN_GAME] "Gun Game",
-      [CUSTOM_MODE_INFECTED] "Infected",
-      [CUSTOM_MODE_PAYLOAD] "Payload",
-      [CUSTOM_MODE_SEARCH_AND_DESTROY] "Search and Destroy",
-      [CUSTOM_MODE_SURVIVAL] "Survival",
-      [CUSTOM_MODE_1000_KILLS] "1000 Kills",
-      [CUSTOM_MODE_TRAINING] "Training",
-      [CUSTOM_MODE_TEAM_DEFENDER] "Team Defender",
-      [CUSTOM_MODE_BENCHMARK] "Benchmark",
+      { CUSTOM_MODE_NONE, "None" },
+      { CUSTOM_MODE_BENCHMARK, "Benchmark" },
+      { CUSTOM_MODE_GUN_GAME, "Gun Game" },
+      { CUSTOM_MODE_HNS, "Hide and Seek" },
+      { CUSTOM_MODE_INFECTED, "Infected" },
+      { CUSTOM_MODE_PAYLOAD, "Payload" },
+      { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
+      { CUSTOM_MODE_SURVIVAL, "Survival" },
+      { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
+      { CUSTOM_MODE_TRAINING, "Training" },
+      { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
 #if DEV
-      [CUSTOM_MODE_GRIDIRON] "Gridiron",
-      [CUSTOM_MODE_ANIM_EXTRACTOR] "Anim Extractor",
+      { CUSTOM_MODE_GRIDIRON, "Gridiron" },
+      { CUSTOM_MODE_ANIM_EXTRACTOR, "Anim Extractor" },
 #endif
     }
 };
@@ -473,6 +475,7 @@ MenuElem_ListData_t dataCustomModes = {
 const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_NONE] NULL,
   [CUSTOM_MODE_GUN_GAME] NULL,
+  [CUSTOM_MODE_HNS] NULL,
   [CUSTOM_MODE_INFECTED] NULL,
   [CUSTOM_MODE_PAYLOAD] NULL,
   [CUSTOM_MODE_SEARCH_AND_DESTROY] "SND",
@@ -533,6 +536,19 @@ MenuElem_ListData_t dataTrainingAggression = {
     "Passive",
     "Idle"
   }
+};
+
+// payload contest mode
+MenuElem_ListData_t dataHnsHideDuration = {
+    &gameConfig.hnsConfig.hideStageTime,
+    NULL,
+    4,
+    {
+      "30",
+      "60",
+      "90",
+      "120",
+    }
 };
 
 // player size list item
@@ -653,7 +669,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
 
   // { "Game Settings", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps },
+  { "Map override", orderedListActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps },
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
   { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset },
 
@@ -667,6 +683,9 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Training Type", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingType },
   { "Training Variant", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingVariant },
   { "Bot Aggression", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingAggression },
+
+  // HNS SETTINGS
+  { "Hide Time", listActionHandler, menuStateHandler_HnsSettingStateHandler, &dataHnsHideDuration },
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -1000,7 +1019,7 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 }
 
 // 
-int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value)
+int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, char* value)
 {
   int i;
   if (!value)
@@ -1122,7 +1141,7 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 }
 
 // 
-int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value)
+int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value)
 {
   if (!value)
     return 0;
@@ -1140,6 +1159,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
       case CUSTOM_MODE_1000_KILLS:
       case CUSTOM_MODE_SURVIVAL:
       case CUSTOM_MODE_PAYLOAD:
+      case CUSTOM_MODE_HNS:
       case CUSTOM_MODE_TEAM_DEFENDER:
       {
         if (gs->GameRules == GAMERULE_DM)
@@ -1304,6 +1324,15 @@ void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* el
   GameSettings* gs = gameGetSettings();
 
   if (gameConfig.customModeId != CUSTOM_MODE_TRAINING)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (gameConfig.customModeId != CUSTOM_MODE_HNS)
     *state = ELEMENT_HIDDEN;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
@@ -1489,6 +1518,39 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
   // draw value
   x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
   gfxScreenSpaceText(x, y, 1, 1, color, listData->items[selectedIdx], -1, 2);
+}
+
+//------------------------------------------------------------------------------
+void drawOrderedListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_OrderedListData_t * listData, RECT* rect)
+{
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  int selectedIdx = (int)*listData->value;
+  if (selectedIdx < 0)
+    selectedIdx = 0;
+  
+  float x,y;
+  float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
+  u32 color = colorLerp(colorText, 0, lerp);
+
+  // draw name
+  x = (rect->TopLeft[0] * SCREEN_WIDTH) + 5;
+  y = (rect->TopLeft[1] * SCREEN_HEIGHT) + 5;
+  gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
+
+  // find name
+  int i;
+  for (i = 0; i < listData->count; ++i) {
+    if (listData->items[i].value == selectedIdx) break;
+  }
+
+  // invalid
+  if (i >= listData->count) return;
+
+  // draw value
+  x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
+  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[i].name, -1, 2);
 }
 
 //------------------------------------------------------------------------------
@@ -1751,6 +1813,96 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
   }
 }
 
+//------------------------------------------------------------------------------
+void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+{
+  MenuElem_OrderedListData_t* listData = (MenuElem_OrderedListData_t*)element->userdata;
+  int itemCount = listData->count;
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  // do nothing if hidden
+  if ((state & ELEMENT_VISIBLE) == 0)
+    return;
+
+  switch (actionType)
+  {
+    case ACTIONTYPE_INCREMENT:
+    case ACTIONTYPE_SELECT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char value = *listData->value;
+
+      int index = 0;
+      for (index = 0; index < listData->count; ++index) {
+        if (listData->items[index].value == value) {
+          break;
+        }
+      }
+
+      int startIndex = index;
+      do
+      {
+        index += 1;
+        if (index >= listData->count)
+          index = 0;
+        char tValue = index;
+        if (listData->items[index].name && (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue)))
+          break;
+      } while (index != startIndex);
+
+      *listData->value = listData->items[index].value;
+      break;
+    }
+    case ACTIONTYPE_DECREMENT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char value = *listData->value;
+
+      int index = 0;
+      for (index = 0; index < listData->count; ++index) {
+        if (listData->items[index].value == value) {
+          break;
+        }
+      }
+
+      int startIndex = index;
+      do
+      {
+        index -= 1;
+        if (index < 0)
+          index = listData->count - 1;
+        char tValue = index;
+        if (listData->items[index].name && (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue)))
+          break;
+      } while (index != startIndex);
+
+      *listData->value = listData->items[index].value;
+      break;
+    }
+    case ACTIONTYPE_GETHEIGHT:
+    {
+      *(float*)actionArg = LINE_HEIGHT;
+      break;
+    }
+    case ACTIONTYPE_DRAW:
+    {
+      drawOrderedListMenuElement(tab, element, listData, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_VALIDATE:
+    {
+      if (listData->stateHandler != NULL)
+        listData->stateHandler(listData, listData->value);
+      break;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
 {
   // update name to be based on current gamemode
@@ -1759,7 +1911,7 @@ void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int action
     snprintf(element->name, 40, "%s override", gameGetGameModeName(gs->GameRules));
 
   // pass to default list action handler
-  listActionHandler(tab, element, actionType, actionArg);
+  orderedListActionHandler(tab, element, actionType, actionArg);
 }
 
 //------------------------------------------------------------------------------
@@ -2102,15 +2254,27 @@ void onConfigUpdate(void)
     char * modeName = gameGetGameModeName(gameSettings->GameRules);
 
     // get map override name
-    if (gameConfig.customMapId > 0)
-      mapName = dataCustomMaps.items[(int)gameConfig.customMapId];
+    if (gameConfig.customMapId > 0) {
+      for (i = 0; i < dataCustomMaps.count; ++i) {
+        if (dataCustomMaps.items[i].value == (int)gameConfig.customMapId) {
+          mapName = dataCustomMaps.items[i].name;
+          break;
+        }
+      }
+    }
 
     // get mode override name
     if (gameConfig.customModeId > 0)
     {
       modeName = (char*)CustomModeShortNames[(int)gameConfig.customModeId];
-      if (!modeName)
-        modeName = dataCustomModes.items[(int)gameConfig.customModeId];
+      if (!modeName) {
+        for (i = 0; i < dataCustomModes.count; ++i) {
+          if (dataCustomModes.items[i].value == (int)gameConfig.customModeId) {
+            modeName = dataCustomModes.items[i].name;
+            break;
+          }
+        }
+      }
 
       // set map name to training type
       if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) {

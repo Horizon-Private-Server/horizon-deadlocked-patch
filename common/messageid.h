@@ -306,6 +306,9 @@ enum CustomDzoCommandId
   CUSTOM_DZO_CMD_ID_VOTE_TO_END = 5,
   CUSTOM_DZO_CMD_ID_SURVIVAL_SPAWN_DAMAGE_BUBBLE = 6,
   CUSTOM_DZO_CMD_ID_DRAW_QUICK_CHAT = 7,
+  CUSTOM_DZO_CMD_ID_DRAW_TEXT = 8,
+  CUSTOM_DZO_CMD_ID_DRAW_BOX = 9,
+  CUSTOM_DZO_CMD_ID_DRAW_SPRITE = 10,
 };
 
 typedef struct SetMapOverrideResponse
@@ -498,5 +501,45 @@ typedef struct ServerDateTimeMessage
   u8 Month;
   u8 Day;
 } ServerDateTimeMessage_t;
+
+typedef struct CustomDzoCommandDrawText
+{
+  float AnchorX;
+  float AnchorY;
+  float X;
+  float Y;
+  float Scale;
+  u32 Color;
+  int Alignment;
+  char Text[64];
+} CustomDzoCommandDrawText_t;
+
+typedef struct CustomDzoCommandDrawBox
+{
+  float AnchorX;
+  float AnchorY;
+  float X;
+  float Y;
+  float W;
+  float H;
+  u32 Color;
+  int Alignment;
+  char Stretch;
+} CustomDzoCommandDrawBox_t;
+
+typedef struct CustomDzoCommandDrawSprite
+{
+  float AnchorX;
+  float AnchorY;
+  float X;
+  float Y;
+  float W;
+  float H;
+  u32 Color;
+  int SpriteId;
+  int CustomSpriteId;
+  int Alignment;
+  char Stretch;
+} CustomDzoCommandDrawSprite_t;
 
 #endif // _MESSAGEID_H_

@@ -14,6 +14,9 @@
 #define PATCH_POINTERS_QUICKCHAT  (*(u8*)(0x000CFFC0 + 11))
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
+typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void * data);
+typedef void (*SetSpectateFunc_t)(int localPlayerIndex, int spectatePlayerOrDisable);
+
 typedef struct PatchConfig
 {
   char framelimiter;
@@ -75,6 +78,11 @@ typedef struct TrainingConfig
   u8 opt3;
 } TrainingConfig_t;
 
+typedef struct HNSConfig
+{
+  u8 hideStageTime;
+} HNSConfig_t;
+
 typedef struct PatchGameConfig
 {
   char customMapId;
@@ -109,6 +117,7 @@ typedef struct PatchGameConfig
   SurvivalConfig_t survivalConfig;
   PayloadConfig_t payloadConfig;
   TrainingConfig_t trainingConfig;
+  HNSConfig_t hnsConfig;
 } PatchGameConfig_t;
 
 typedef struct PatchInterop
@@ -117,9 +126,8 @@ typedef struct PatchInterop
   PatchGameConfig_t* GameConfig;
   char Client;
   char Month;
+  SetSpectateFunc_t SetSpectate;
 } PatchInterop_t;
-
-typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void * data);
 
 typedef struct DzoInteropFunctions
 {
@@ -203,6 +211,7 @@ enum CUSTOM_MODE_ID
   CUSTOM_MODE_TEAM_DEFENDER,
   CUSTOM_MODE_TRAINING,
   CUSTOM_MODE_BENCHMARK,
+  CUSTOM_MODE_HNS,
   
 #if DEV
   CUSTOM_MODE_GRIDIRON,
