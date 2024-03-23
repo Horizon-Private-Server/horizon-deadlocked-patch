@@ -1117,8 +1117,8 @@ void runTestLogic(void)
   //runDrawTex();
   //runAllow4Locals();
 
-  drawPositionYaw();
-  gameConfig.grBetterFlags = 1;
+  //drawPositionYaw();
+  //gameConfig.grBetterFlags = 1;
 
   //runSystemTime();
   if (isInGame()) {
@@ -1169,6 +1169,10 @@ void runTestLogic(void)
     //     white, white, white, white, white, white, white, white, white,
     //     0, 0, 0, 0, 1, 0, 0, 0);
     // }
+
+    if (padGetButton(0, PAD_UP) > 0) {
+      uiShowHelpPopup(0, "You have lost connection. Please exit to return to the main menu and have a chance at reconnection.", 10 * 60);
+    }
 
     for (i = 0; i < GAME_MAX_LOCALS; ++i) {
       Player* p = playerGetFromSlot(i);

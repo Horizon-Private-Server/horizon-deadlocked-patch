@@ -27,6 +27,8 @@ extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 extern PatchGameConfig_t gameConfigHostBackup;
 
+extern FreecamSettings_t freecamSettings;
+
 extern char aa_value;
 extern int redownloadCustomModeBinaries;
 extern int scavHuntEnabled;
@@ -128,6 +130,7 @@ void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, 
 void tabDefaultStateHandler(TabElem_t* tab, int * state);
 void tabFreecamStateHandler(TabElem_t* tab, int * state);
 void tabGameSettingsStateHandler(TabElem_t* tab, int * state);
+void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state);
 void tabCustomMapStateHandler(TabElem_t* tab, int * state);
 
 // list select handlers
@@ -149,46 +152,46 @@ void sendClientVoteForEnd(void);
 
 // level of detail list item
 MenuElem_ListData_t dataLevelOfDetail = {
-    &config.levelOfDetail,
-    NULL,
+  .value = &config.levelOfDetail,
+  .stateHandler = NULL,
 #if DEBUG
-    4,
+  .count = 4,
 #else
-    3,
+  .count = 3,
 #endif
-    { "Potato", "Low", "Normal", "High" }
+  .items = { "Potato", "Low", "Normal", "High" }
 };
 
 // framelimiter list item
 MenuElem_ListData_t dataFramelimiter = {
-    &config.framelimiter,
-    NULL,
-    3,
-    { "On", "Auto", "Off" }
+  .value = &config.framelimiter,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = { "On", "Auto", "Off" }
 };
 
 // minimap scale list item
 MenuElem_ListData_t dataMinimapScale = {
-    &config.minimapScale,
-    NULL,
-    2,
-    { "Normal", "Half" }
+  .value = &config.minimapScale,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = { "Normal", "Half" }
 };
 
 // minimap expanded zoom
 MenuElem_RangeData_t dataMinimapBigZoom = {
-    .value = &config.minimapBigZoom,
-    .stateHandler = NULL,
-    .minValue = 0,
-    .maxValue = 10,
+  .value = &config.minimapBigZoom,
+  .stateHandler = NULL,
+  .minValue = 0,
+  .maxValue = 10,
 };
 
 // minimap shrunk zoom
 MenuElem_RangeData_t dataMinimapSmallZoom = {
-    .value = &config.minimapSmallZoom,
-    .stateHandler = NULL,
-    .minValue = 0,
-    .maxValue = 10,
+  .value = &config.minimapSmallZoom,
+  .stateHandler = NULL,
+  .minValue = 0,
+  .maxValue = 10,
 };
 
 // game servers
@@ -205,10 +208,10 @@ MenuElem_ListData_t dataGameServers = {
 
 // player fov range item
 MenuElem_RangeData_t dataFieldOfView = {
-    .value = &config.playerFov,
-    .stateHandler = NULL,
-    .minValue = -5,
-    .maxValue = 5,
+  .value = &config.playerFov,
+  .stateHandler = NULL,
+  .minValue = -5,
+  .maxValue = 5,
 };
 
 // fixed cycle order
@@ -229,30 +232,30 @@ MenuElem_t menuElementsGeneral[] = {
   { "Redownload patch", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadPatchSelectHandler },
   { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
-  { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler },
+  { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler, "Vote to end the game. If a team/player is in the lead they will win." },
 #if SCAVENGER_HUNT
-  { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateScavengerHuntEnabledHandler, &config.disableScavengerHunt },
+  { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateScavengerHuntEnabledHandler, &config.disableScavengerHunt, "If you see this option, there is a Horizon scavenger hunt active. Enabling this will spawn random Horizon bolts in game. Collect the most to win the hunt!" },
 #endif
-  { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
+  { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers, "Which game server you'd like to use when creating a game." },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
-  { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements },
-  { "Camera Pulling", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableAimAssist },
-  { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake },
-  { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
+  { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements, "Enables Dallas commentary in all games." },
+  { "Camera Pulling", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableAimAssist, "Toggles code that pulls the camera towards nearby targets when aiming." },
+  { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake, "Toggles the camera shake caused by nearby explosions." },
+  { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay, "Moves hacker ray into the quickselect menu (secondary select)." },
   { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
-  { "Fixed Cycle Order", listActionHandler, menuStateAlwaysEnabledHandler, &dataFixedCycleOrder },
-  { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
-  { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
-  { "Fusion Reticle", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
-  { "In Game Scoreboard (L3)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableInGameScoreboard },
-  { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
-  { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
-  { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
-  { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom },
+  { "Fixed Cycle Order", listActionHandler, menuStateAlwaysEnabledHandler, &dataFixedCycleOrder, "If you have equipped the B6, Fusion, Magma the configured cycle order will be forced." },
+  { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter, "Toggles the in game FPS counter." },
+  { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter, "If Off (recommended), forces 60 FPS in all games. Otherwise games with 7+ people will run at 30 FPS." },
+  { "Fusion Reticle", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule, "Toggles the in game fusion reticle. Normally disabled in multiplayer this setting adds it back." },
+  { "In Game Scoreboard (L3)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableInGameScoreboard, "Toggles the in game scoreboard. Hold L3 to display." },
+  { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail, "Configures the level of detail of the scene. Lower this to reduce the graphics requirements on laggy maps/survival." },
+  { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale, "Toggles between half and full screen expanded radar." },
+  { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom, "Tweaks the expanded radar zoom." },
+  { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom, "Tweaks the minimized radar zoom." },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
-  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
-  { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot },
-  { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate },
+  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic, "When On, enables all music tracks in game. Currently not supported in Survival." },
+  { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot, "Toggles tapping L2 once to chargeboot." },
+  { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate, "Toggles the custom spectate feature. Use \x13 when dead to spectate." },
   // { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
 };
 
@@ -260,114 +263,114 @@ MenuElem_t menuElementsGeneral[] = {
 
 // character head size range item
 MenuElem_RangeData_t dataCharacterHead = {
-    .value = &config.characterTweakers[0],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[0],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character torso size range item
 MenuElem_RangeData_t dataCharacterTorso = {
-    .value = &config.characterTweakers[1],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[1],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character left arm size range item
 MenuElem_RangeData_t dataCharacterLeftArm = {
-    .value = &config.characterTweakers[2],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[2],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character right arm size range item
 MenuElem_RangeData_t dataCharacterRightArm = {
-    .value = &config.characterTweakers[3],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[3],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character left leg size range item
 MenuElem_RangeData_t dataCharacterLeftLeg = {
-    .value = &config.characterTweakers[4],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[4],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character right leg size range item
 MenuElem_RangeData_t dataCharacterRightLeg = {
-    .value = &config.characterTweakers[5],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[5],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character hips size range item
 MenuElem_RangeData_t dataCharacterHips = {
-    .value = &config.characterTweakers[7],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[7],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character head pos range item
 MenuElem_RangeData_t dataCharacterHeadPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_HEAD_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_HEAD_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character upper torso pos range item
 MenuElem_RangeData_t dataCharacterTorsoPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character lower torso pos range item
 MenuElem_RangeData_t dataCharacterHipsPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character left arm pos range item
 MenuElem_RangeData_t dataCharacterLeftArmPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character right arm pos range item
 MenuElem_RangeData_t dataCharacterRightArmPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character left leg pos range item
 MenuElem_RangeData_t dataCharacterLeftLegPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character right leg pos range item
 MenuElem_RangeData_t dataCharacterRightLegPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character tab menu items
@@ -391,8 +394,6 @@ MenuElem_t menuElementsCharacter[] = {
 
 #endif
 
-extern FreecamSettings_t freecamSettings;
-
 // character tab menu items
 MenuElem_t menuElementsFreecam[] = {
   { "Airwalk", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.airwalk },
@@ -402,42 +403,42 @@ MenuElem_t menuElementsFreecam[] = {
 
 // map override list item
 MenuElem_OrderedListData_t dataCustomMaps = {
-    &gameConfig.customMapId,
-    menuStateHandler_SelectedMapOverride,
-    CUSTOM_MAP_COUNT,
-    {
-      { CUSTOM_MAP_NONE, "None" },
-      { CUSTOM_MAP_ACE_HARDLIGHT_SUITE, "Ace Hardlight's Suite" },
-      { CUSTOM_MAP_ALPINE_JUNCTION, "Alpine Junction" },
-      { CUSTOM_MAP_ANNIHILATION_NATION, "Annihilation Nation" },
-      { CUSTOM_MAP_BAKISI_ISLES, "Bakisi Isles" },
-      { CUSTOM_MAP_BATTLEDOME_SP, "Battledome SP" },
-      { CUSTOM_MAP_BLACKWATER_CITY, "Blackwater City" },
-      { CUSTOM_MAP_BLACKWATER_DOCKS, "Blackwater Docks" },
-      { CUSTOM_MAP_CANAL_CITY, "Canal City" },
-      { CUSTOM_MAP_CONTAINMENT_SUITE, "Containment Suite" },
-      { CUSTOM_MAP_DARK_CATHEDRAL_INTERIOR, "Dark Cathedral Interior" },
-      { CUSTOM_MAP_GHOST_HANGAR, "Ghost Hangar" },
-      { CUSTOM_MAP_GHOST_SHIP, "Ghost Ship" },
-      { CUSTOM_MAP_HOVEN_GORGE, "Hoven Gorge" },
-      { CUSTOM_MAP_INFINITE_CLIMBER, "Infinite Climber" },
-      { CUSTOM_MAP_KORGON_OUTPOST, "Korgon Outpost" },
-      { CUSTOM_MAP_LAUNCH_SITE, "Launch Site" },
-      { CUSTOM_MAP_MARCADIA_PALACE, "Marcadia Palace" },
-      { CUSTOM_MAP_METROPOLIS_MP, "Metropolis MP" },
-      { CUSTOM_MAP_MINING_FACILITY_SP, "Mining Facility SP" },
-      { CUSTOM_MAP_MOUNTAIN_PASS, "Mountain Pass" },
-      { CUSTOM_MAP_SHAAR_SP, "Shaar SP" },
-      { CUSTOM_MAP_SNIVELAK, "Snivelak" },
-      { CUSTOM_MAP_SPLEEF, "Spleef" },
-      { CUSTOM_MAP_TORVAL_LOST_FACTORY, "Torval Lost Factory" },
-      { CUSTOM_MAP_TORVAL_SP, "Torval SP" },
-      { CUSTOM_MAP_TYHRRANOSIS, "Tyhrranosis" },
-      // -- SURVIVAL MAPS --
-      { CUSTOM_MAP_SURVIVAL_MINING_FACILITY, "Orxon" },
-      { CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS, "Mountain Pass" },
-      { CUSTOM_MAP_SURVIVAL_VELDIN, "Veldin" }
-    }
+  .value = &gameConfig.customMapId,
+  .stateHandler = menuStateHandler_SelectedMapOverride,
+  .count = CUSTOM_MAP_COUNT,
+  .items = {
+    { CUSTOM_MAP_NONE, "None" },
+    { CUSTOM_MAP_ACE_HARDLIGHT_SUITE, "Ace Hardlight's Suite" },
+    { CUSTOM_MAP_ALPINE_JUNCTION, "Alpine Junction" },
+    { CUSTOM_MAP_ANNIHILATION_NATION, "Annihilation Nation" },
+    { CUSTOM_MAP_BAKISI_ISLES, "Bakisi Isles" },
+    { CUSTOM_MAP_BATTLEDOME_SP, "Battledome SP" },
+    { CUSTOM_MAP_BLACKWATER_CITY, "Blackwater City" },
+    { CUSTOM_MAP_BLACKWATER_DOCKS, "Blackwater Docks" },
+    { CUSTOM_MAP_CANAL_CITY, "Canal City" },
+    { CUSTOM_MAP_CONTAINMENT_SUITE, "Containment Suite" },
+    { CUSTOM_MAP_DARK_CATHEDRAL_INTERIOR, "Dark Cathedral Interior" },
+    { CUSTOM_MAP_GHOST_HANGAR, "Ghost Hangar" },
+    { CUSTOM_MAP_GHOST_SHIP, "Ghost Ship" },
+    { CUSTOM_MAP_HOVEN_GORGE, "Hoven Gorge" },
+    { CUSTOM_MAP_INFINITE_CLIMBER, "Infinite Climber" },
+    { CUSTOM_MAP_KORGON_OUTPOST, "Korgon Outpost" },
+    { CUSTOM_MAP_LAUNCH_SITE, "Launch Site" },
+    { CUSTOM_MAP_MARCADIA_PALACE, "Marcadia Palace" },
+    { CUSTOM_MAP_METROPOLIS_MP, "Metropolis MP" },
+    { CUSTOM_MAP_MINING_FACILITY_SP, "Mining Facility SP" },
+    { CUSTOM_MAP_MOUNTAIN_PASS, "Mountain Pass" },
+    { CUSTOM_MAP_SHAAR_SP, "Shaar SP" },
+    { CUSTOM_MAP_SNIVELAK, "Snivelak" },
+    { CUSTOM_MAP_SPLEEF, "Spleef" },
+    { CUSTOM_MAP_TORVAL_LOST_FACTORY, "Torval Lost Factory" },
+    { CUSTOM_MAP_TORVAL_SP, "Torval SP" },
+    { CUSTOM_MAP_TYHRRANOSIS, "Tyhrranosis" },
+    // -- SURVIVAL MAPS --
+    { CUSTOM_MAP_SURVIVAL_MINING_FACILITY, "Orxon" },
+    { CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS, "Mountain Pass" },
+    { CUSTOM_MAP_SURVIVAL_VELDIN, "Veldin" }
+  }
 };
 
 // maps with their own exclusive gamemode
@@ -449,26 +450,26 @@ const int dataCustomMapsWithExclusiveGameModeCount = sizeof(dataCustomMapsWithEx
 
 // gamemode override list item
 MenuElem_OrderedListData_t dataCustomModes = {
-    &gameConfig.customModeId,
-    menuStateHandler_SelectedGameModeOverride,
-    CUSTOM_MODE_COUNT,
-    {
-      { CUSTOM_MODE_NONE, "None" },
-      { CUSTOM_MODE_BENCHMARK, "Benchmark" },
-      { CUSTOM_MODE_GUN_GAME, "Gun Game" },
-      { CUSTOM_MODE_HNS, "Hide and Seek" },
-      { CUSTOM_MODE_INFECTED, "Infected" },
-      { CUSTOM_MODE_PAYLOAD, "Payload" },
-      { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
-      { CUSTOM_MODE_SURVIVAL, "Survival" },
-      { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
-      { CUSTOM_MODE_TRAINING, "Training" },
-      { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
+  .value = &gameConfig.customModeId,
+  .stateHandler = menuStateHandler_SelectedGameModeOverride,
+  .count = CUSTOM_MODE_COUNT,
+  .items = {
+    { CUSTOM_MODE_NONE, "None" },
+    { CUSTOM_MODE_BENCHMARK, "Benchmark" },
+    { CUSTOM_MODE_GUN_GAME, "Gun Game" },
+    { CUSTOM_MODE_HNS, "Hide and Seek" },
+    { CUSTOM_MODE_INFECTED, "Infected" },
+    { CUSTOM_MODE_PAYLOAD, "Payload" },
+    { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
+    { CUSTOM_MODE_SURVIVAL, "Survival" },
+    { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
+    { CUSTOM_MODE_TRAINING, "Training" },
+    { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
 #if DEV
-      { CUSTOM_MODE_GRIDIRON, "Gridiron" },
-      { CUSTOM_MODE_ANIM_EXTRACTOR, "Anim Extractor" },
+    { CUSTOM_MODE_GRIDIRON, "Gridiron" },
+    { CUSTOM_MODE_ANIM_EXTRACTOR, "Anim Extractor" },
 #endif
-    }
+  }
 };
 
 // 
@@ -492,34 +493,34 @@ const char* CustomModeShortNames[] = {
 
 // payload contest mode
 MenuElem_ListData_t dataPayloadContestMode = {
-    &gameConfig.payloadConfig.contestMode,
-    NULL,
-    3,
-    {
-      [PAYLOAD_CONTEST_OFF] "Off",
-      [PAYLOAD_CONTEST_SLOW] "Slow",
-      [PAYLOAD_CONTEST_STOP] "Stop"
-    }
+  .value = &gameConfig.payloadConfig.contestMode,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    [PAYLOAD_CONTEST_OFF] "Off",
+    [PAYLOAD_CONTEST_SLOW] "Slow",
+    [PAYLOAD_CONTEST_STOP] "Stop"
+  }
 };
 
 // training type
 MenuElem_ListData_t dataTrainingType = {
-    &gameConfig.trainingConfig.type,
-    NULL, //menuStateHandler_SelectedTrainingTypeOverride,
-    TRAINING_TYPE_MAX,
-    {
-      [TRAINING_TYPE_FUSION] "Fusion",
-      [TRAINING_TYPE_CYCLE] "Cycle",
-      [TRAINING_TYPE_RUSH] "Rushing",
-    }
+  .value = &gameConfig.trainingConfig.type,
+  .stateHandler = NULL, //menuStateHandler_SelectedTrainingTypeOverride,
+  .count = TRAINING_TYPE_MAX,
+  .items = {
+    [TRAINING_TYPE_FUSION] "Fusion",
+    [TRAINING_TYPE_CYCLE] "Cycle",
+    [TRAINING_TYPE_RUSH] "Rushing",
+  }
 };
 
 // training variant
 MenuElem_ListData_t dataTrainingVariant = {
-  &gameConfig.trainingConfig.variant,
-  NULL,
-  2,
-  {
+  .value = &gameConfig.trainingConfig.variant,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
     "Ranked",
     "Endless"
   }
@@ -527,10 +528,10 @@ MenuElem_ListData_t dataTrainingVariant = {
 
 // training aggression
 MenuElem_ListData_t dataTrainingAggression = {
-  &gameConfig.trainingConfig.aggression,
-  menuStateHandler_SelectedTrainingAggressionOverride,
-  4,
-  {
+  .value = &gameConfig.trainingConfig.aggression,
+  .stateHandler = menuStateHandler_SelectedTrainingAggressionOverride,
+  .count = 4,
+  .items = {
     "Aggressive",
     "Aggressive No Damage",
     "Passive",
@@ -540,128 +541,128 @@ MenuElem_ListData_t dataTrainingAggression = {
 
 // payload contest mode
 MenuElem_ListData_t dataHnsHideDuration = {
-    &gameConfig.hnsConfig.hideStageTime,
-    NULL,
-    4,
-    {
-      "30",
-      "60",
-      "90",
-      "120",
-    }
+  .value = &gameConfig.hnsConfig.hideStageTime,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "30",
+    "60",
+    "90",
+    "120",
+  }
 };
 
 // player size list item
 MenuElem_ListData_t dataPlayerSize = {
-    &gameConfig.prPlayerSize,
-    NULL,
-    5,
-    {
-      "Normal",
-      "Large",
-      "Giant",
-      "Tiny",
-      "Small"
-    }
+  .value = &gameConfig.prPlayerSize,
+  .stateHandler = NULL,
+  .count = 5,
+  .items = {
+    "Normal",
+    "Large",
+    "Giant",
+    "Tiny",
+    "Small"
+  }
 };
 
 // headbutt damage list item
 MenuElem_ListData_t dataHeadbutt = {
-    &gameConfig.prHeadbutt,
-    NULL,
-    4,
-    {
-      "Off",
-      "Low Damage",
-      "Medium Damage",
-      "High Damage"
-    }
+  .value = &gameConfig.prHeadbutt,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "Off",
+    "Low Damage",
+    "Medium Damage",
+    "High Damage"
+  }
 };
 
 // weather override list item
 MenuElem_ListData_t dataWeather = {
-    &gameConfig.prWeatherId,
-    NULL,
-    17,
-    {
-      "None",
-      "Random",
-      "Dust Storm",
-      "Heavy Sand Storm",
-      "Light Snow",
-      "Blizzard",
-      "Heavy Rain",
-      "All Off",
-      "Green Mist",
-      "Meteor Lightning",
-      "Black Hole",
-      "Light Rain Lightning",
-      "Settling Smoke",
-      "Upper Atmosphere",
-      "Ghost Station",
-      "Embossed",
-      "Lightning Storm",
-    }
+  .value = &gameConfig.prWeatherId,
+  .stateHandler = NULL,
+  .count = 17,
+  .items = {
+    "None",
+    "Random",
+    "Dust Storm",
+    "Heavy Sand Storm",
+    "Light Snow",
+    "Blizzard",
+    "Heavy Rain",
+    "All Off",
+    "Green Mist",
+    "Meteor Lightning",
+    "Black Hole",
+    "Light Rain Lightning",
+    "Settling Smoke",
+    "Upper Atmosphere",
+    "Ghost Station",
+    "Embossed",
+    "Lightning Storm",
+  }
 };
 
 // fusion reticule allow/disable list item
 MenuElem_ListData_t dataFusionReticule = {
-    &gameConfig.grNoSniperHelpers,
-    NULL,
-    2,
-    {
-      "Permitted",
-      "Disabled"
-    }
+  .value = &gameConfig.grNoSniperHelpers,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
+    "Permitted",
+    "Disabled"
+  }
 };
 
 // healthbox list item
 MenuElem_ListData_t dataHealthBoxes = {
-    &gameConfig.grNoHealthBoxes,
-    NULL,
-    3,
-    {
-      "On",
-      "No Box",
-      "Off"
-    }
+  .value = &gameConfig.grNoHealthBoxes,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    "On",
+    "No Box",
+    "Off"
+  }
 };
 
 // vampire list item
 MenuElem_ListData_t dataVampire = {
-    &gameConfig.grVampire,
-    NULL,
-    4,
-    {
-      "Off",
-      "Quarter Heal",
-      "Half Heal",
-      "Full Heal",
-    }
+  .value = &gameConfig.grVampire,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "Off",
+    "Quarter Heal",
+    "Half Heal",
+    "Full Heal",
+  }
 };
 
 // v2s list item
 MenuElem_ListData_t dataV2s = {
-    &gameConfig.grV2s,
-    NULL,
-    3,
-    {
-      "On",
-      "Always",
-      "Off",
-    }
+  .value = &gameConfig.grV2s,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    "On",
+    "Always",
+    "Off",
+  }
 };
 
 // presets list item
 MenuElem_ListData_t dataGameConfigPreset = {
-    &preset,
-    NULL,
-    3,
-    {
-      "None",
-      "Competitive",
-      "1v1",
-    }
+  .value = &preset,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    "None",
+    "Competitive",
+    "1v1",
+  }
 };
 
 // game settings tab menu items
@@ -669,71 +670,66 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
 
   // { "Game Settings", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Map override", orderedListActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps },
-  { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
-  { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset },
+  { "Map override", orderedListActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
+  { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes, "Change to one of the Horizon Custom Gamemodes." },
+  { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset, "Select one of the preconfigured game rule presets or manually set the custom game rules below." },
 
   // SURVIVAL SETTINGS
   // { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
 
   // PAYLOAD SETTINGS
-  { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode },
+  { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode, "Whether the payload will stop, slow, or move as normal when the defending team is near it." },
 
   // TRAINING SETTINGS
   { "Training Type", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingType },
-  { "Training Variant", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingVariant },
-  { "Bot Aggression", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingAggression },
+  { "Training Variant", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingVariant, "Switch between endless mode and a ranked 5 minute session. Leaderboards available in the Horizon discord." },
+  { "Bot Aggression", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingAggression, "Configure bot behavior. Setting not configurable in ranked mode." },
 
   // HNS SETTINGS
-  { "Hide Time", listActionHandler, menuStateHandler_HnsSettingStateHandler, &dataHnsHideDuration },
+  { "Hide Time", listActionHandler, menuStateHandler_HnsSettingStateHandler, &dataHnsHideDuration, "Time in seconds the hiders have to hide before the seekers can hunt for them." },
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Better Flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags },
-  { "Better Hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills },
-  { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime },
-  { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime },
-  { "CQ Save Capture Progress", toggleActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqPersistentCapture },
-  { "CQ Turrets", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableTurrets },
-  { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades },
-  { "Damage Cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
-  { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
-  { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
-  { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
-  { "Healthboxes", listActionHandler, menuStateHandler_SettingStateHandler, &dataHealthBoxes },
-  { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
-  { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync },
-  { "Quick Chat", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grQuickChat },
-  { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
-  { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire },
-  { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks },
-  { "Weapon Pickups", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPickups },
+  { "Better Flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags, "Moves flag and spawn locations on some vanilla maps to more enjoyable locations." },
+  { "Better Hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills, "Moves hill spawns on some vanilla maps to more enjoyable locations." },
+  { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime, "If a timelimit is set, each team will swap flag bases at half time." },
+  { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime, "If a timelimit is set, prevents the game from ending in a draw." },
+  { "CQ Save Capture Progress", toggleActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqPersistentCapture, "Stops nodes from unhacking themselves over time." },
+  { "CQ Turrets", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableTurrets, "Disables turrets around nodes." },
+  { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades, "Disables conquest node upgrades." },
+  { "Damage Cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer, "Disables the brief hit invincibility after taking damage." },
+  { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit, "Forces sniper shots that hit to register on every client. Can result in shots that appear to phase through walls." },
+  // { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
+  { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars, "Draws a healthbar above each player's nametag." },
+  { "Healthboxes", listActionHandler, menuStateHandler_SettingStateHandler, &dataHealthBoxes, "Whether health pickups are enabled, or if there is a box enclosure that must be broken first before picking up." },
+  { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames, "Disables in game nametags." },
+  { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync, "Replaces the Insomniac player sync netcode with a better custom Horizon implementation. Reduces player teleporting, rubberbanding, and jittery movement. Known on rare occasions to freeze PS2s." },
+  { "Quick Chat", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grQuickChat, "Enables in game quick chat with the D-Pad." },
+  { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s, "Configures V2 weapon upgrades to be disabled, on (default), or always on (spawn with v2 weapons)." },
+  { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire, "Earn health for each kill." },
+  { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks, "Toggle in game weapon packs." },
+  { "Weapon Pickups", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPickups, "Toggle in game weapon pickups." },
 
   // PARTY RULES
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Chargeboot Forever", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prChargebootForever },
-  { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt },
-  { "Headbutt Friendly Fire", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbuttFriendlyFire },
-  { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prMirrorWorld },
-  { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
-  { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons },
-  { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather },
+  { "Chargeboot Forever", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prChargebootForever, "Double tap and hold L2 to chargeboot forever." },
+  { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt, "Deal damage by chargebooting into other players." },
+  { "Headbutt Friendly Fire", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbuttFriendlyFire, "Toggle dealing headbutt damage to teammates." },
+  { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prMirrorWorld, "Enables the mirror world cheat. Currently broken in DZO." },
+  { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize, "Changes the size of the player model." },
+  { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons, "Periodically equips the same random, enabled weapon for all players." },
+  { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather, "Enables the weather cheat code." },
 
   // DEV RULES
   { "Dev Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Freecam", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drFreecam },
+  { "Freecam", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drFreecam, "Enables freecam mod. Use D-Pad Up and L1 to activate." },
 };
 
-// custom map tab menu items
-MenuElem_t menuElementsCustomMap[] = {
-  { "", labelActionHandler, menuStateHandler_InstalledCustomMaps, (void*)LABELTYPE_HEADER },
-  { "To play on custom maps you must first go to", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "rac-horizon.com and download the maps.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "Then install the map files onto a USB drive", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "and insert it into your PS2.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "Finally install the custom maps modules here.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "Install custom map modules", buttonActionHandler, menuStateHandler_InstallCustomMaps, mapsSelectHandler },
-  //{ "Check for map updates", buttonActionHandler, menuStateHandler_CheckForUpdatesCustomMaps, downloadMapUpdatesSelectHandler },
+// game settings tab menu items
+MenuElem_t menuElementsGameSettingsHelp[] = {
+  { "", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
+  { "Please create a game to configure", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
+  { "the custom game settings.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
 };
 
 #if MAPEDITOR
@@ -743,13 +739,13 @@ extern int mapEditorRespawnState;
 
 // map editor enabled list item
 MenuElem_ListData_t dataMapEditor = {
-    &mapEditorState,
-    NULL,
-    2,
-    {
-      "Off",
-      "Spawn Points",
-    }
+  .value = &mapEditorState,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
+    "Off",
+    "Spawn Points",
+  }
 };
 
 // map editor tab menu items
@@ -767,14 +763,13 @@ TabElem_t tabElements[] = {
   { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter)/sizeof(MenuElem_t) },
 #endif
   { "Game Settings", tabGameSettingsStateHandler, menuElementsGameSettings, sizeof(menuElementsGameSettings)/sizeof(MenuElem_t) },
-  // { "Custom Maps", tabCustomMapStateHandler, menuElementsCustomMap, sizeof(menuElementsCustomMap)/sizeof(MenuElem_t) },
+  { "Game Settings", tabGameSettingsHelpStateHandler, menuElementsGameSettingsHelp, sizeof(menuElementsGameSettingsHelp)/sizeof(MenuElem_t) },
 #if MAPEDITOR
   { "Map Editor", tabDefaultStateHandler, menuElementsMapEditor, sizeof(menuElementsMapEditor)/sizeof(MenuElem_t) },
 #endif
 };
 
 const int tabsCount = sizeof(tabElements)/sizeof(TabElem_t);
-
 
 // 
 void tabDefaultStateHandler(TabElem_t* tab, int * state)
@@ -813,7 +808,7 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
   GameSettings * gameSettings = gameGetSettings();
   if (!gameSettings)
   {
-    *state = ELEMENT_VISIBLE;
+    *state = ELEMENT_HIDDEN;
   }
 #if !DEBUG
   // if game has started or not the host, disable editing
@@ -825,6 +820,29 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
   else
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+  }
+#endif
+
+}
+
+// 
+void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state)
+{
+
+#if COMP
+
+  *state = ELEMENT_HIDDEN;
+
+#else
+
+  GameSettings * gameSettings = gameGetSettings();
+  if (!gameSettings)
+  {
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+  }
+  else
+  {
+    *state = ELEMENT_HIDDEN;
   }
 #endif
 
@@ -1848,7 +1866,7 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
         index += 1;
         if (index >= listData->count)
           index = 0;
-        char tValue = index;
+        char tValue = listData->items[index].value;
         if (listData->items[index].name && (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue)))
           break;
       } while (index != startIndex);
@@ -1875,7 +1893,7 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
         index -= 1;
         if (index < 0)
           index = listData->count - 1;
-        char tValue = index;
+        char tValue = listData->items[index].value;
         if (listData->items[index].name && (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue)))
           break;
       } while (index != startIndex);
@@ -2053,6 +2071,11 @@ void drawTab(TabElem_t* tab)
   if (!tab)
     return;
 
+  static int helpLastItemIdx = -1;
+  static int helpItemCooldown1 = 0;
+  static int helpItemCooldown2 = 0;
+  static float helpLastXOffset = 0;
+
   int i = 0, state = 0;
   int menuElementRenderEnd = tab->menuOffset;
   MenuElem_t * menuElements = tab->elements;
@@ -2090,6 +2113,36 @@ void drawTab(TabElem_t* tab)
       state = getMenuElementState(tab, currentElement);
       if (state & ELEMENT_SELECTABLE) {
         gfxScreenSpaceQuad(&drawRect, colorSelected, colorSelected, colorSelected, colorSelected);
+        if (currentElement->help && strlen(currentElement->help) > 0) {
+
+          if (i != helpLastItemIdx) {
+            helpLastItemIdx = i;
+            helpLastXOffset = 0;
+            helpItemCooldown1 = 60 * 3;
+            helpItemCooldown2 = 60 * 6;
+          }
+
+          // draw background
+          gfxScreenSpaceBox(frameX, frameY + frameH - 1.0/SCREEN_HEIGHT, frameW, LINE_HEIGHT, 0x80000000);
+
+          // set scissor
+          gfxSetScissor(
+            frameX * SCREEN_WIDTH,
+            (frameX + frameW) * SCREEN_WIDTH,
+            (frameY + frameH) * SCREEN_HEIGHT,
+            (frameY + frameH + LINE_HEIGHT) * SCREEN_HEIGHT);
+          
+          // get width
+          float w = gfxGetFontWidth(currentElement->help, -1, 1) / (float)SCREEN_WIDTH;
+          if (helpItemCooldown1) --helpItemCooldown1;
+          else if ((helpLastXOffset + w + contentPaddingX*2) >= frameW) helpLastXOffset -= 0.002;
+          else if (helpItemCooldown2) --helpItemCooldown2;
+          else { helpItemCooldown1 = 60 * 3; helpItemCooldown2 = 60 * 6; helpLastXOffset = 0; }
+          gfxScreenSpaceText((frameX + contentPaddingX + helpLastXOffset) * SCREEN_WIDTH, (frameY + frameH) * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, currentElement->help, -1, 0);
+
+          // reset scissor
+          gfxSetScissor(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);
+        }
       }
     }
 

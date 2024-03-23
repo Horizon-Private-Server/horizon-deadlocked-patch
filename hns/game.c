@@ -260,9 +260,9 @@ void stageSeekLogic(void)
 
   // end when hiders die
   if (gameAmIHost() && !State.NumHiders) {
-    //gameSetWinner(TEAM_SEEKERS, 1);
-    //gameEnd(2);
-    //gameSetWinner(TEAM_SEEKERS, 1);
+    gameSetWinner(TEAM_SEEKERS, 1);
+    gameEnd(2);
+    gameSetWinner(TEAM_SEEKERS, 1);
   }
 
   init = 1;

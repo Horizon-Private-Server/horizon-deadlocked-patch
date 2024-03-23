@@ -52,10 +52,10 @@ extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 
 // game mode overrides
-extern struct MenuElem_ListData dataCustomModes;
+extern struct MenuElem_OrderedListData dataCustomModes;
 
 // map overrides
-extern struct MenuElem_ListData dataCustomMaps;
+extern struct MenuElem_OrderedListData dataCustomMaps;
 
 extern u32 colorBlack;
 extern u32 colorBg;
@@ -921,7 +921,7 @@ char* hookedLoadScreenMapNameString(char * dest, char * src)
 //------------------------------------------------------------------------------
 char* hookedLoadScreenModeNameString(char * dest, char * src)
 {
-	int i = 0;
+	int i = 0, j = 0;
 
 	// if we're loading a custom map
 	// and that map has an exclusive gamemode
@@ -930,17 +930,27 @@ char* hookedLoadScreenModeNameString(char * dest, char * src)
 	{
 		if (gameConfig.customMapId == dataCustomMapsWithExclusiveGameMode[i])
 		{
-			strncpy(dest, dataCustomMaps.items[(int)gameConfig.customMapId], 32);
-			return dest;
+      for (j = 0; j < dataCustomMaps.count; ++j) {
+        if (dataCustomMaps.items[j].value == gameConfig.customMapId) {
+          strncpy(dest, dataCustomMaps.items[j].name, 32);
+          return dest;
+        }
+      }
 		}
 	}
 
 	// if custom mode is set
-	if (gameConfig.customModeId > 0)
-		strncpy(dest, dataCustomModes.items[(int)gameConfig.customModeId], 32);
-	else
+	if (gameConfig.customModeId > 0) {
+    for (j = 0; j < dataCustomMaps.count; ++j) {
+      if (dataCustomModes.items[j].value == gameConfig.customModeId) {
+		    strncpy(dest, dataCustomModes.items[j].name, 32);
+        break;
+      }
+    }
+  } else {
 		strncpy(dest, src, 32);
-	
+  }
+
 	return dest;
 }
 

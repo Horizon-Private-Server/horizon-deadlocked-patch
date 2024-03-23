@@ -230,7 +230,7 @@ PatchStateContainer_t patchStateContainer;
 
 extern float _lodScale;
 extern void* _correctTieLod;
-extern MenuElem_ListData_t dataCustomMaps;
+extern MenuElem_OrderedListData_t dataCustomMaps;
 
 struct FlagPVars
 {
@@ -4339,10 +4339,10 @@ void forceLobbyNameOverrides(void)
     int j;
     for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
       if (gs->PlayerAccountIds[j] == accountId) {
-        locals[j]++;
         if (locals[j] == 0) {
           strncpy(gs->PlayerNames[j], patchStateContainer.LobbyNameOverrides.Names[i], 16);
         }
+        locals[j]++;
       }
     }
   }
@@ -4969,7 +4969,7 @@ void onOnlineMenu(void)
 		else
 		{
 #if MAPDOWNLOADER
-			sprintf(buf, "Would you like to download the map now?", dataCustomMaps.items[(int)gameConfig.customMapId]);
+			sprintf(buf, "Would you like to download the map now?");
 			
 			//uiShowOkDialog("Custom Maps", buf);
 			if (uiShowYesNoDialog("Required Map Update", buf) == 1)
@@ -4980,7 +4980,13 @@ void onOnlineMenu(void)
 				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
 			}
 #else
-			sprintf(buf, "Please install %s to play.", dataCustomMaps.items[(int)gameConfig.customMapId]);
+      int i;
+      for (i = 0; i < dataCustomMaps.count; ++i) {
+        if (dataCustomMaps.items[i].value == gameConfig.customMapId) {
+			    sprintf(buf, "Please install %s to play.", dataCustomMaps.items[i].name);
+          break;
+        }
+      }
 			uiShowOkDialog("Custom Maps", buf);
 #endif
 		}
@@ -5393,6 +5399,10 @@ int main (void)
 				// send
 				configTrySendGameConfig();
 			}
+
+      if (gameAmIHost()) {
+        gfxScreenSpaceText(SCREEN_WIDTH - 20, 0, 0.7, 0.7, 0x80FFFFFF, "Press START to configure custom game rules.", -1, 2);
+      }
 
       if (hasPendingLobbyNameOverrides) forceLobbyNameOverrides();
 

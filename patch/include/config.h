@@ -4,6 +4,8 @@
 #include "messageid.h"
 #include <libdl/gamesettings.h>
 
+#define CONFIG_ITEM_HELP_SIZE       (64)
+
 enum PatchGameNetMessage
 {
   // RotatingWeaponsChanged
@@ -62,6 +64,7 @@ typedef struct MenuElem
   ActionHandler handler;
   MenuElementStateHandler stateHandler;
   void * userdata;
+  char * help;
 } MenuElem_t;
 
 typedef struct MenuElem_ListData

@@ -412,7 +412,7 @@ void processSpectate(void)
         spectateIndex = spectateData->Index;
 
         // If dead
-        if (playerIsDead(player) || (gameConfig.customModeId == CUSTOM_MODE_HNS && spectateData->Enabled))
+        if (playerIsDead(player) || (gameConfig.customModeId == CUSTOM_MODE_HNS && player->Team == TEAM_BLUE && spectateData->Enabled))
         {
           // hns allows spectating while alive
           // disable input
@@ -431,7 +431,7 @@ void processSpectate(void)
             }
 
             // When the player presses square and spectate isn't already enabled. Try to enable it.
-            if (playerPadGetButtonDown(player, PAD_SQUARE) > 0) 
+            if (playerPadGetButtonDown(player, PAD_SQUARE) > 0 && (gameConfig.customModeId != CUSTOM_MODE_HNS || player->Team == TEAM_BLUE)) 
             {
               // First check if there is a player to spectate
               spectateIndex = findNextPlayerIndex(i, spectateIndex, 1);
