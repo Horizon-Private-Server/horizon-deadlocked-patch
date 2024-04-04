@@ -243,9 +243,13 @@ void stageSeekLogic(void)
 
       // switch hider to seeker when dead
       if (playerIsDead(player)) {
-        playerSetTeam(player, TEAM_SEEKERS);
-        sendPlayerTeam(i, TEAM_SEEKERS);
-        playerRespawn(player);
+        if (player->timers.resurrectWait == 0) {
+          player->timers.resurrectWait = 100;
+        } else if (player->timers.resurrectWait == 1) {
+          playerSetTeam(player, TEAM_SEEKERS);
+          sendPlayerTeam(i, TEAM_SEEKERS);
+          playerRespawn(player);
+        }
       } else {
         if (!init) uiShowPopup(player->LocalPlayerIndex, "Press UP to switch to spectate mode");
 
@@ -302,6 +306,7 @@ void gameTick(void)
     stageSeekLogic();
   }
 
+  gameSetWinner(State.NumHiders ? TEAM_HIDERS : TEAM_SEEKERS, 1);
   State.StageTicks++;
 }
 

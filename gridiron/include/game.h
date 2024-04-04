@@ -8,7 +8,8 @@
 #include <libdl/math3d.h>
 
 #define TPS																		(60)
-
+#define THROW_BASE_POWER                      (7.0)
+#define PICKUP_COOLDOWN                       (TIME_SECOND * 1.5)
 #define MIN_FLOAT_MAGNITUDE										(0.0001)
 
 #define POINTS_PER_TOUCHDOWN                  (1)
@@ -17,6 +18,15 @@ enum GameNetMessage
 {
 	CUSTOM_MSG_PLAYER_SET_STATS = CUSTOM_MSG_ID_GAME_MODE_START,
 	CUSTOM_MSG_SEND_TEAM_SCORE,
+  CUSTOM_MSG_SEND_BALL_SCORED,
+  CUSTOM_MSG_BALL_PICK_UP_REQUEST,
+};
+
+enum BallResetType
+{
+  BALL_RESET_CENTER,
+  BALL_RESET_TEAM0,
+  BALL_RESET_TEAM1,
 };
 
 struct CGMPlayerStats
@@ -35,6 +45,7 @@ struct CGMPlayer
 struct CGMTeam
 {
   VECTOR BasePosition;
+  VECTOR BallSpawnPosition;
   int TeamId;
 	int Score;
 };
@@ -46,7 +57,6 @@ struct CGMState
 	struct CGMPlayer* LocalPlayerState;
 	struct CGMTeam Teams[2];
   Moby* BallMoby;
-  int CurrentBallCarrierPlayerIdx;
 	int IsHost;
   VECTOR BallSpawnPosition;
 };
@@ -68,11 +78,23 @@ typedef struct SetPlayerStatsMessage
 
 typedef struct SetTeamScoreMessage
 {
-	int TeamScores[GAME_MAX_PLAYERS];
+	int TeamScores[2];
 } SetTeamScoreMessage_t;
+
+typedef struct BallPickupRequestMessage
+{
+	int PickupByPlayerId;
+} BallPickupRequestMessage_t;
+
+typedef struct BallScoredMessage
+{
+	int ScoredByPlayerId;
+} BallScoredMessage_t;
 
 void sendPlayerStats(int playerId);
 void sendTeamScore(void);
+void sendBallScored(int playerIdx);
+void sendBallPickupRequest(int playerIdx);
 void netHookMessages(void);
 void updateTeamScore(int team);
 

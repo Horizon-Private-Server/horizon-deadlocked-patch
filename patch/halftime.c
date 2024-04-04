@@ -84,6 +84,8 @@ int OvertimeEnd = -1;
 Moby * CtfFlags[4] = {0,0,0,0};
 VECTOR CtfHtOtFreezePositions[GAME_MAX_PLAYERS];
 
+extern PatchStateContainer_t patchStateContainer;
+
 /*
  * NAME :		htReset
  * 
@@ -103,6 +105,7 @@ void htReset(void)
   HalfTimeState = 0;
 	HalfTimeEnd = -1;
 	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  patchStateContainer.HalfTimeState = 0;
   memset(CtfHtOtFreezePositions, 0, sizeof(CtfHtOtFreezePositions));
 }
 
@@ -332,19 +335,10 @@ void htCtfSwitch(void)
 		// 
 		gameSettings->PlayerTeams[player->PlayerId] = player->Team;
 		
-		// Respawn
+		// Respawn (first res patch)
+    POKE_U32(0x205e2d48, 0x24070001);
 		playerRespawn(player);
-
-		// Teleport player to base
-		moby = CtfFlags[player->Team];
-		if (moby)
-		{
-			vector_copy(pVector, (float*)moby->PVar);
-			float theta = (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU;
-			pVector[0] += cosf(theta) * 2.5;
-			pVector[1] += sinf(theta) * 2.5;
-			playerSetPosRot(player, pVector, rVector);
-		}
+    POKE_U32(0x205e2d48, 0x0000382d);
 	}
 
 	// Switch team scores
@@ -407,6 +401,7 @@ void htCtfTick(void)
   padResetInput(0);
   padResetInput(1);
   
+  patchStateContainer.HalfTimeState = HalfTimeState;
 	switch (HalfTimeState)
 	{
 		case HT_INTERMISSION:
@@ -492,7 +487,7 @@ void halftimeLogic(void)
 
 	// Check we're in game and that it is compatible
 	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
-		return;
+    return;
 
 	// 
 	switch (HalfTimeState)
@@ -543,6 +538,7 @@ void otReset(void)
   OvertimeState = 0;
   OvertimeEnd = -1;
 	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  patchStateContainer.OverTimeState = 0;
   memset(CtfHtOtFreezePositions, 0, sizeof(CtfHtOtFreezePositions));
 }
 
@@ -625,19 +621,10 @@ void otCtfRespawnPlayers(void)
 		if (player->Vehicle)
 			vehicleRemovePlayer(player->Vehicle, player);
 
-		// Respawn
+		// Respawn (first res patch)
+    POKE_U32(0x205e2d48, 0x24070001);
 		playerRespawn(player);
-
-		// Teleport player to base
-		moby = CtfFlags[player->Team];
-		if (moby)
-		{
-			vector_copy(pVector, (float*)moby->PVar);
-			float theta = (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU;
-			pVector[0] += cosf(theta) * 2.5;
-			pVector[1] += sinf(theta) * 2.5;
-			playerSetPosRot(player, pVector, rVector);
-		}
+    POKE_U32(0x205e2d48, 0x0000382d);
 	}
 
 	// reset flags
@@ -866,6 +853,7 @@ void otCtfTick(void)
   padResetInput(0);
   padResetInput(1);
 
+  patchStateContainer.OverTimeState = OvertimeState;
 	switch (OvertimeState)
 	{
 		case OT_INTERMISSION:

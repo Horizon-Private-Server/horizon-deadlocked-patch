@@ -58,15 +58,67 @@ int onReceiveTeamScoreRemote(void * connection, void * data)
 //--------------------------------------------------------------------------
 void sendTeamScore(void)
 {
+  static int sent = 0;
+  if (sent) return;
+
 	int i;
 	SetTeamScoreMessage_t message;
+  sent = 1;
 
 	// send out
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    message.TeamScores[i] = State.Teams[i].Score;
-	}
-	
+  message.TeamScores[0] = State.Teams[0].Score;
+  message.TeamScores[1] = State.Teams[1].Score;
 	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SEND_TEAM_SCORE, sizeof(SetTeamScoreMessage_t), &message);
+}
+
+//--------------------------------------------------------------------------
+int onReceiveBallPickupRequestRemote(void * connection, void * data)
+{
+  BallPickupRequestMessage_t msg;
+  memcpy(&msg, data, sizeof(msg));
+	DPRINTF("recv BallPickupRequestMessage\n");
+	onReceiveBallPickupRequest(msg.PickupByPlayerId);
+
+	return sizeof(BallPickupRequestMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void sendBallPickupRequest(int playerIdx)
+{
+  static int timeLastSent = 0;
+	BallPickupRequestMessage_t msg;
+
+  // prevent spamming request
+  if ((gameGetTime() - timeLastSent) < TIME_SECOND*0.25) return;
+
+  // send to host
+  msg.PickupByPlayerId = playerIdx;
+	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), gameGetHostId(), CUSTOM_MSG_BALL_PICK_UP_REQUEST, sizeof(msg), &msg);
+  timeLastSent = gameGetTime();
+}
+
+//--------------------------------------------------------------------------
+int onReceiveBallScoredRemote(void * connection, void * data)
+{
+  BallScoredMessage_t msg;
+  memcpy(&msg, data, sizeof(msg));
+	DPRINTF("recv BallScoredMessage\n");
+	onReceiveBallScored(msg.ScoredByPlayerId);
+
+	return sizeof(BallScoredMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void sendBallScored(int playerIdx)
+{
+	BallScoredMessage_t msg;
+
+  // send to all
+  msg.ScoredByPlayerId = playerIdx;
+	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SEND_BALL_SCORED, sizeof(msg), &msg);
+
+  // receive this one locally
+  onReceiveBallScored(playerIdx);
 }
 
 //--------------------------------------------------------------------------
@@ -75,4 +127,6 @@ void netHookMessages(void)
 	// Hook custom net events
 	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_STATS, &onSetPlayerStatsRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_SEND_TEAM_SCORE, &onReceiveTeamScoreRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_SEND_BALL_SCORED, &onReceiveBallScoredRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_BALL_PICK_UP_REQUEST, &onReceiveBallPickupRequestRemote);
 }

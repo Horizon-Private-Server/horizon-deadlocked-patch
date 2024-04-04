@@ -171,7 +171,7 @@ char showMiscPopup = 0;
 char miscPopupTitle[32];
 char miscPopupBody[64];
 const char * patchConfigStr = "PATCH CONFIG";
-char weaponOrderBackup[GAME_MAX_LOCALS][3] = { {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0} };
+char weaponOrderBackup[GAME_MAX_LOCALS][3] = { {0,0,0}, {0,0,0} };
 float lastFps = 0;
 int renderTimeMs = 0;
 float averageRenderTimeMs = 0;
@@ -346,7 +346,7 @@ PatchInterop_t interopData = {
   .GameConfig = &gameConfig,
   .Client = CLIENT_TYPE_NORMAL,
   .Month = 0,
-  .SetSpectate = spectateSetSpectate,
+  .SetSpectate = spectateSetSpectate
 };
 
 /*
@@ -3272,24 +3272,28 @@ void runEnableSingleplayerMusic(void)
 	static int AddedTracks = 0;
   static int Loading = 0;
 
-  // there's an crash issue when loading sp music
-  // in survival
-  // so reject it then
-  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && !isInMenus())
+  if (isInMenus()) {
+    Loading = 0;
     return;
+  }
+
+	if (!config.enableSingleplayerMusic || !musicIsLoaded())
+		return;
 
   // indicate to user we're loading sp music
   // running uiRunCallbacks triggers our vsync hook and reinvokes this method
   // while it is still looping
   if (Loading)
   {
-    gfxScreenSpaceBox(0.3, 0.45, 0.4, 0.1, 0x80000000);
-    gfxScreenSpaceText(0.5 * SCREEN_WIDTH, 0.5 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Loading Music...", 14 + ((gameGetTime()/1000)%3), 4);
+    // after finished loading, and in game, set music to include new tracks
+    if (Loading == 2 && FinishedConvertingTracks && isInGame()) {
+      ((void (*)(int,int,int))0x0051f928)(4,13 + AddedTracks,0x400);
+      POKE_U16(0x004A8328, 13 + AddedTracks);
+      Loading = 3;
+    }
+
     return;
   }
-
-	if (!config.enableSingleplayerMusic || !musicIsLoaded())
-		return;
 
   Loading = 1;
 	u32 NewTracksLocation = 0x001CF940;
@@ -3297,14 +3301,14 @@ void runEnableSingleplayerMusic(void)
 	{
 		AddedTracks = 0;
 		int MultiplayerSectorID = *(u32*)0x001CF85C;
-		int Stack = 0x0023ad00; // Original Location is 0x23ac00, but moving it somewhat fixes a bug with the SectorID.  But also, unsure if this breaks anything yet.
+    char Stack[0x800];
 		int Sector = 0x001CE470;
 		int a;
 		int Offset = 0;
 
 		// Zero out stack by the appropriate heap size (0x2a0 in this case)
 		// This makes sure we get the correct values we need later on.
-		memset((u32*)Stack, 0, 0x2A0);
+		memset((u32*)Stack, 0, 0x800);
 
 		// Loop through each Sector
 		for(a = 0; a < 12; a++)
@@ -3312,7 +3316,7 @@ void runEnableSingleplayerMusic(void)
       // let the game handle net and rendering stuff
       // this prevents the user from lagging out if the disc
       // takes forever to seek
-      uiRunCallbacks();
+      //uiRunCallbacks();
 
 			Offset += 0x18;
 			int MapSector = *(u32*)(Sector + Offset);
@@ -3380,51 +3384,15 @@ void runEnableSingleplayerMusic(void)
 				a--;
 			}
 		}
+
 		// Zero out stack to finish the job.
-		memset((u32*)Stack, 0, 0x2A0);
+		memset((u32*)Stack, 0, 0x800);
 
 		FinishedConvertingTracks = 1;
 		DPRINTF("AddedTracks: %d\n", AddedTracks);
 	};
-	
 
-	int DefaultMultiplayerTracks = 0x0d; // This number will never change
-	int StartingTrack = *(u8*)0x0021EC08;
-	int AllTracks = DefaultMultiplayerTracks + AddedTracks;
-	// Fun fact: The math for TotalTracks is exactly how the assembly is.  Didn't mean to do it that way.  (Minus the AddedTracks part)
-	int TotalTracks = (DefaultMultiplayerTracks - StartingTrack + 1) + AddedTracks;
-	int MusicDataPointer = *(u32*)0x0021DA24; // This is more than just music data pointer, but it's what Im' using it for.
-	int CurrentTrack = *(u16*)0x00206990;
-	// If not in main lobby, game lobby, ect.
-	if(MusicDataPointer != 0x01430700){
-		// if Last Track doesn't equal TotalTracks
-		if(*(u32*)0x0021EC0C != TotalTracks){
-			int MusicFunctionData = MusicDataPointer + 0x28A0D4;
-			*(u16*)MusicFunctionData = AllTracks;
-		}
-	}
-
-	// If in game
-	if (isInGame())
-	{
-		int TrackDuration = *(u32*)0x002069A4;
-		if (*(u32*)0x002069A0 <= 0)
-		{
-			/*
-				This part: (CurrentTrack != -1 && *(u32*)0x020698C != 0)
-				fixes a bug when switching tracks, and running the command
-				to set your own track or stop a track.
-			*/
-			if ((CurrentTrack > DefaultMultiplayerTracks * 2) && (CurrentTrack != -1 && *(u32*)0x020698C != 0) && (TrackDuration <= 0x3000))
-			{
-				// This techinally cues track 1 (the shortest track) with no sound to play.
-				// Doing this lets the current playing track to fade out.
-				musicTransitionTrack(0,0,0,0);
-			}
-		}
-	}
-
-  Loading = 0;
+  Loading = 2;
 }
 
 /*
@@ -5165,9 +5133,7 @@ int main (void)
   runVoteToEndLogic();
 
 	// Run add singleplayer music
-  if (isInMenus()) {
-	  //runEnableSingleplayerMusic();
-  }
+  runEnableSingleplayerMusic();
 
 	// detects when to download a new custom mode patch
 	runPayloadDownloadRequester();

@@ -36,9 +36,10 @@
 #include "include/game.h"
 #include "include/ball.h"
 
-#define DRAG_COEFF (0.1)
-#define BOUNCINESS_COEFF (0.5)
-#define THROW_COEFF (1.2)
+#define DRAG_COEFF (0.05)
+#define BOUNCINESS_COEFF (0.2)
+#define FRICTION_COEFF (0.2)
+#define THROW_COEFF (1.5)
 #define LIFETIME (25)
 
 VECTOR VECTOR_GRAVITY = { 0, 0, -0.005, 0 };
@@ -47,7 +48,50 @@ VECTOR VECTOR_ZERO = { 0, 0, 0, 0 };
 int (*CollWaterHeight)(VECTOR from, VECTOR to, u64 a2, Moby * damageSource, u64 t0) = 0x00503780;
 
 //--------------------------------------------------------------------------
-void ballThrow(Moby * moby)
+void ballRemoveFromHeldPlayer(Moby* moby)
+{
+  Player** players = playerGetAll();
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && player->HeldMoby == moby) {
+      player->HeldMoby = NULL;
+      State.PlayerStates[i].TimeLastCarrier = gameGetTime();
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+int ballGetCarrierIdx(Moby* moby)
+{
+  if (!moby)
+    return -1;
+    
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  return pvars->CarrierIdx;
+}
+
+//--------------------------------------------------------------------------
+void ballDrop(Moby * moby)
+{
+  if (!moby)
+    return;
+
+	Guber* guber = guberGetObjectByMoby(moby);
+  if (!guber) return;
+
+  GuberEvent* event = guberEventCreateEvent(guber, BALL_EVENT_DROP, 0, 0);
+  if (!event) return;
+
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  int time = gameGetTime();
+  guberEventWrite(event, moby->Position, 12);
+  guberEventWrite(event, pvars->Velocity, 12);
+  guberEventWrite(event, &time, 4);
+}
+
+//--------------------------------------------------------------------------
+void ballThrow(Moby * moby, float power)
 {
   VECTOR temp;
   if (!moby)
@@ -73,10 +117,10 @@ void ballThrow(Moby * moby)
   vector_copy(pvars->Velocity, carrier->Velocity);
 
   // generate lob velocity from forward vector and pitch
-  vector_scale(temp, (float*)((u32)carrier + 0x1A60), (1.5 - carrier->CameraPitch.Value) * THROW_COEFF);
-  if (temp[2] < 0.1)
-    temp[2] = 0.1;
+  vector_scale(temp, (float*)((u32)carrier + 0x1A60), (2 + (1 + fabsf(carrier->CameraPitch.Value)) * THROW_COEFF) * power * (1/60.0));
+  temp[2] += 0.1;
   vector_add(pvars->Velocity, pvars->Velocity, temp);
+  ballDrop(moby);
 }
 
 //--------------------------------------------------------------------------
@@ -85,23 +129,82 @@ void ballPickup(Moby * moby, int playerIdx)
   if (!moby)
     return;
 
-  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
-  Player** players = playerGetAll();
-  Player* player = NULL;
-  if (playerIdx >= 0 && playerIdx < GAME_MAX_PLAYERS)
-    player = players[playerIdx];
-  
-  // drop from existing carrier
-  if (pvars->CarrierIdx >= 0 && pvars->CarrierIdx < GAME_MAX_PLAYERS) {
-    Player* carrier = players[pvars->CarrierIdx];
-    if (carrier && carrier->HeldMoby == moby)
-      carrier->HeldMoby = NULL;
-  }
+	Guber* guber = guberGetObjectByMoby(moby);
+  if (!guber) return;
 
-  // set new carrier
-  pvars->CarrierIdx = playerIdx;
-  if (player)
-    player->HeldMoby = moby;
+  GuberEvent* event = guberEventCreateEvent(guber, BALL_EVENT_PICKUP, 0, 0);
+  if (!event) return;
+
+  guberEventWrite(event, &playerIdx, 4);
+}
+
+//--------------------------------------------------------------------------
+void ballResendPickup(Moby * moby)
+{
+  if (!moby)
+    return;
+
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+
+	Guber* guber = guberGetObjectByMoby(moby);
+  if (!guber) return;
+
+  GuberEvent* event = guberEventCreateEvent(guber, BALL_EVENT_PICKUP, 0, 0);
+  if (!event) return;
+
+  guberEventWrite(event, &pvars->CarrierIdx, 4);
+}
+
+//--------------------------------------------------------------------------
+void ballMoveToResetPosition(Moby* moby, int resetType)
+{
+  // move ball to reset position
+  switch (resetType)
+  {
+    case BALL_RESET_CENTER:
+    {
+      vector_copy(moby->Position, State.BallSpawnPosition);
+      break;
+    }
+    case BALL_RESET_TEAM0:
+    {
+      vector_copy(moby->Position, State.Teams[0].BallSpawnPosition);
+      break;
+    }
+    case BALL_RESET_TEAM1:
+    {
+      vector_copy(moby->Position, State.Teams[1].BallSpawnPosition);
+      break;
+    }
+  }
+  
+}
+
+//--------------------------------------------------------------------------
+void ballReset(Moby * moby, int resetType)
+{
+  if (!moby)
+    return;
+
+  // reset locally first
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  vector_write(pvars->Velocity, 0);
+  pvars->SyncTicks = 0;
+  pvars->CarrierIdx = -1;
+  pvars->DieTime = gameGetTime() + (TIME_SECOND * LIFETIME);
+  ballRemoveFromHeldPlayer(moby);
+  ballMoveToResetPosition(moby, resetType);
+
+  // only reset if host
+  if (!gameAmIHost()) return;
+
+	Guber* guber = guberGetObjectByMoby(moby);
+  if (!guber) return;
+
+  GuberEvent* event = guberEventCreateEvent(guber, BALL_EVENT_RESET, 0, 0);
+  if (!event) return;
+
+  guberEventWrite(event, &resetType, 4);
 }
 
 //--------------------------------------------------------------------------
@@ -125,25 +228,24 @@ void ballUpdate(Moby * moby)
     blip->X = moby->Position[0];
     blip->Y = moby->Position[1];
     blip->Life = 0x1F;
-    blip->Type = 4;
-    blip->Team = 0;
+    blip->Type = 2;
+    blip->Team = carrier ? carrier->Team : TEAM_WHITE;
     blip->Moby = moby;
   }
 
   // 
   if (!carrier && pvars->DieTime && gameGetTime() > pvars->DieTime)
   {
-    mobyDestroy(moby);
+    ballReset(moby, BALL_RESET_CENTER);
     return;
   }
 
   // detect drop
-  if (carrier && carrier->HeldMoby != moby)
+  if (carrier && carrier->HeldMoby != moby && carrier->IsLocal)
   {
+    // carry velocity of carrier on drop
     vector_copy(pvars->Velocity, carrier->Velocity);
-    pvars->CarrierIdx = -1;
-    carrier = NULL;
-    pvars->DieTime = gameGetTime() + (TIME_SECOND * LIFETIME);
+    ballDrop(moby);
   }
 
   // if not held do physics
@@ -152,13 +254,15 @@ void ballUpdate(Moby * moby)
     // detect if fell under map
     if (moby->Position[2] < gameGetDeathHeight())
     {
-      vector_copy(moby->Position, State.BallSpawnPosition);
-      vector_copy(pvars->Velocity, VECTOR_ZERO);
+      if (gameAmIHost()) {
+        ballReset(moby, BALL_RESET_CENTER);
+      }
       return;
     }
 
     // add gravity
     vector_add(pvars->Velocity, pvars->Velocity, VECTOR_GRAVITY);
+    vector_scale(pvars->Velocity, pvars->Velocity, (1 - DRAG_COEFF/TPS));
 
     // determine next update position
     vector_add(updatePos, moby->Position, pvars->Velocity);
@@ -172,11 +276,10 @@ void ballUpdate(Moby * moby)
     if (CollLine_Fix(moby->Position, toPos, 2, 0, 0) != 0)
     {
       // get collision type
-      u8 cType = *(u8*)0x0023F91C;
+      u8 cType = CollLine_Fix_GetHitCollisionId() & 0x0F;
       if (cType == 0x0B || cType == 0x01 || cType == 0x04 || cType == 0x05 || cType == 0x0D || cType == 0x03)
       {
-        vector_copy(moby->Position, State.BallSpawnPosition);
-        vector_copy(pvars->Velocity, VECTOR_ZERO);
+        ballReset(moby, BALL_RESET_CENTER);
       }
       else
       {
@@ -186,13 +289,14 @@ void ballUpdate(Moby * moby)
 
         float dot = vector_innerproduct(direction, hitNormal);
         float exp = powf((dot + 1) / 2, 0.2);
-        vector_scale(pvars->Velocity, pvars->Velocity, (clamp(1 - fabsf(dot), 0, 1) + BOUNCINESS_COEFF) * (1 - DRAG_COEFF));
+        vector_scale(pvars->Velocity, pvars->Velocity, (clamp(1 - fabsf(dot), 0, 1) + BOUNCINESS_COEFF) * (1 - FRICTION_COEFF));
         //vector_scale(pvars->Velocity, pvars->Velocity, 0.9);
 
         // correct position based on hit
         //vector_copy()
         
-        //vector_copy(moby->Position, updatePos);
+        vector_scale(toPos, direction, 0.5);
+        vector_subtract(moby->Position, CollLine_Fix_GetHitPosition(), toPos);
       }
     }
     else
@@ -249,7 +353,7 @@ int ballHandleGuberEvent_Spawn(Moby* moby, GuberEvent* event)
   moby->DrawDist = 0x00FF;
   moby->Opacity = 0x80;
   moby->State = 1;
-  moby->MClass = 0x37;
+  //moby->MClass = 0x37;
 
   moby->Scale = (float)0.02;
   moby->Lights = 0x202;
@@ -264,6 +368,97 @@ int ballHandleGuberEvent_Spawn(Moby* moby, GuberEvent* event)
   moby->PClass = BallVisualRefMoby->PClass;
   moby->CollData = BallVisualRefMoby->CollData;
 
+  State.BallMoby = moby;
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int ballHandleGuberEvent_Reset(Moby* moby, GuberEvent* event)
+{
+  int resetType;
+
+  // read
+  guberEventRead(event, &resetType, 4);
+
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  vector_copy(moby->Position, State.BallSpawnPosition);
+  vector_write(pvars->Velocity, 0);
+  pvars->SyncTicks = 0;
+
+  // drop from existing carrier
+  ballRemoveFromHeldPlayer(moby);
+  pvars->CarrierIdx = -1;
+  pvars->DieTime = gameGetTime() + (TIME_SECOND * LIFETIME);
+  ballMoveToResetPosition(moby, resetType);
+  
+  // popup
+  if (resetType == BALL_RESET_CENTER) uiShowPopup(0, "The ball has returned to the center!");
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int ballHandleGuberEvent_Pickup(Moby* moby, GuberEvent* event)
+{
+  // read
+  int playerIdx;
+  guberEventRead(event, &playerIdx, sizeof(playerIdx));
+
+  // pickup
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  Player** players = playerGetAll();
+  Player* player = NULL;
+  if (playerIdx >= 0 && playerIdx < GAME_MAX_PLAYERS)
+    player = players[playerIdx];
+  
+  // drop from existing carrier
+  ballRemoveFromHeldPlayer(moby);
+
+  // set new carrier
+  pvars->CarrierIdx = playerIdx;
+  pvars->SyncTicks = 0;
+  if (player)
+    player->HeldMoby = moby;
+    
+  // popup and play sound
+  if (playerIdx >= 0) {
+    mobyPlaySoundByClass(0, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_RED_FLAG);
+    uiShowPopup(0, "The ball has been picked up!");
+  }
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int ballHandleGuberEvent_Drop(Moby* moby, GuberEvent* event)
+{
+  VECTOR position, velocity;
+  int time;
+
+  // read
+  guberEventRead(event, position, 12);
+  guberEventRead(event, velocity, 12);
+  guberEventRead(event, &time, 4);
+  
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  if (pvars->CarrierIdx >= 0) {
+    Player* player = playerGetAll()[pvars->CarrierIdx];
+    if (player && player->HeldMoby == moby) {
+      player->HeldMoby = NULL;
+    }
+      
+    State.PlayerStates[pvars->CarrierIdx].TimeLastCarrier = time;
+
+    // popup and play sound
+    mobyPlaySoundByClass(1, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_RED_FLAG);
+    uiShowPopup(0, "The ball has been dropped!");
+  }
+  
+  pvars->DieTime = time + (TIME_SECOND * LIFETIME);
+  pvars->CarrierIdx = -1;
+  pvars->SyncTicks = 0;
+  
+  // set
+  vector_copy(moby->Position, position);
+  vector_copy(pvars->Velocity, velocity);
   return 0;
 }
 
@@ -279,6 +474,9 @@ int ballHandleGuberEvent(Moby* moby, GuberEvent* event)
 		switch (eventId)
 		{
 			case BALL_EVENT_SPAWN: return ballHandleGuberEvent_Spawn(moby, event);
+      case BALL_EVENT_RESET: return ballHandleGuberEvent_Reset(moby, event);
+      case BALL_EVENT_PICKUP: return ballHandleGuberEvent_Pickup(moby, event);
+      case BALL_EVENT_DROP: return ballHandleGuberEvent_Drop(moby, event);
 			default:
 			{
 				DPRINTF("unhandle ball event %d\n", eventId);
@@ -291,16 +489,32 @@ int ballHandleGuberEvent(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
+struct GuberMoby* ballGetGuber(Moby* moby)
+{
+	if (moby->OClass == BALL_MOBY_OCLASS && moby->PVar)
+		return moby->GuberMoby;
+	
+  DPRINTF("get guber miss %08X %04X\n", (u32)moby, moby->OClass);
+	return 0;
+}
+
+//--------------------------------------------------------------------------
 void ballInitialize(void)
 {
+  static int init = 0;
+  if (init) return;
+
 	Moby* testMoby = mobySpawn(BALL_MOBY_OCLASS, 0);
 	if (testMoby) {
 		u32 mobyFunctionsPtr = (u32)mobyGetFunctions(testMoby);
 		if (mobyFunctionsPtr) {
 			// set vtable callbacks
+      *(u32*)(mobyFunctionsPtr + 0x04) = (u32)&ballGetGuber;
 			*(u32*)(mobyFunctionsPtr + 0x14) = (u32)&ballHandleGuberEvent;
+      DPRINTF("ball vtable %04X %08X\n", testMoby->OClass, mobyFunctionsPtr);
 		}
 
 		mobyDestroy(testMoby);
+    init = 1;
 	}
 }

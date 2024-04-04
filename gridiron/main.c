@@ -40,8 +40,8 @@ void processPlayer(int pIndex);
 void resetRoundState(void);
 void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState);
 void updateGameState(PatchStateContainer_t * gameState);
-void gameTick(void);
-void frameTick(void);
+void gameTick(PatchStateContainer_t * gameState);
+void frameTick(PatchStateContainer_t * gameState);
 void setLobbyGameOptions(void);
 void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
@@ -74,16 +74,51 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		return;
 	}
 
+  // halftime, flip score
+  static int lastHtValue = 0;
+  if (lastHtValue != gameState->HalfTimeState) {
+    if (gameState->HalfTimeState == 2) {
+      int score = State.Teams[0].Score;
+      State.Teams[0].Score = State.Teams[1].Score;
+      State.Teams[1].Score = score;
+      DPRINTF("flip score\n");
+    } else if (gameState->HalfTimeState == 3) {
+      ballReset(State.BallMoby, BALL_RESET_CENTER);
+      DPRINTF("reset ball\n");
+    }
+
+    lastHtValue = gameState->HalfTimeState;
+  }
+
+  // overtime, reset ball
+  static int lastOtValue = 0;
+  if (lastOtValue != gameState->OverTimeState) {
+    if (gameState->OverTimeState == 3) {
+      DPRINTF("ot reset ball\n");
+      ballReset(State.BallMoby, BALL_RESET_CENTER);
+    }
+
+    lastOtValue = gameState->OverTimeState;
+  }
+
   // handle tick
 	if (!gameHasEnded())
 	{
-		frameTick();
-		gameTick();
+		frameTick(gameState);
+		gameTick(gameState);
 	}
   
   // end game
-  if (gameHasEnded() && State.IsHost) {
-    sendTeamScore();
+  if (gameHasEnded()) {
+    if (State.IsHost) {
+      sendTeamScore();
+    }
+
+    // set winner
+    if (State.Teams[0].Score > State.Teams[1].Score)
+      gameSetWinner(State.Teams[0].TeamId, 1);
+    else if (State.Teams[0].Score < State.Teams[1].Score)
+      gameSetWinner(State.Teams[1].TeamId, 1);
   }
 
 	dlPostUpdate();
@@ -113,6 +148,9 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 
 		Initialized = 2;
 	}
+
+  // disable ranking
+  gameSetIsGameRanked(0);
 
 	// 
 	updateGameState(gameState);

@@ -16,7 +16,6 @@
 #ifndef _MODULE_H_
 #define _MODULE_H_
 
-
 #include <tamtypes.h>
 #include <libdl/gamesettings.h>
 #include "config.h"
@@ -153,6 +152,8 @@ typedef struct PatchStateContainer
     int ClientsReadyMask;
     int AllClientsReady;
     int VoteToEndPassed;
+    int HalfTimeState;
+    int OverTimeState;
     SetNameOverridesMessage_t LobbyNameOverrides;
 } PatchStateContainer_t;
 
