@@ -234,13 +234,14 @@ void playerLogic(int playerIdx)
   // get hero state
   int state = player->PlayerState;
   int canHoldBall = playerStateCanHoldBall(player);
+  int ballCarrierIdx = ballGetCarrierIdx(State.BallMoby);
   int friendlyTeamIdx = 0;
   if (State.Teams[friendlyTeamIdx].TeamId != player->Team)
     friendlyTeamIdx = 1;
   int enemyTeamIdx = !friendlyTeamIdx;
   
   // check for pickup
-  if (player->IsLocal && canHoldBall && State.BallMoby && ballGetCarrierIdx(State.BallMoby) < 0) {
+  if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
     vector_subtract(temp, player->PlayerPosition, State.BallMoby->Position);
     if (vector_sqrmag(temp) < 4) {
       tryEquipBall(playerIdx);
@@ -249,7 +250,7 @@ void playerLogic(int playerIdx)
 
 #if DEBUG
   // quick pickup
-  if (player->IsLocal && canHoldBall && State.BallMoby && ballGetCarrierIdx(State.BallMoby) < 0) {
+  if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
     if (padGetButtonDown(player->LocalPlayerIndex, PAD_L1 | PAD_UP) > 0) {
       tryEquipBall(playerIdx);
     }
@@ -257,49 +258,55 @@ void playerLogic(int playerIdx)
 #endif
 
   if (player->HeldMoby == State.BallMoby) {
-    vector_subtract(temp, State.Teams[enemyTeamIdx].BasePosition, player->PlayerPosition);
 
-    if (player->IsLocal && vector_sqrmag(temp) < 4)
-    {
-      sendBallScored(playerIdx);
-    }
-    else if (!canHoldBall && player->IsLocal)
-    {
-      tryDropBall(playerIdx);
-    }
-    else if (playerPadGetButtonDown(player, PAD_R1))
-    {
-      if (state == PLAYER_STATE_CHARGE
-        || state == PLAYER_STATE_WALK
-        || state == PLAYER_STATE_IDLE
-        || state == PLAYER_STATE_THROW_SHURIKEN
-        || state == PLAYER_STATE_JUMP
-        || state == PLAYER_STATE_DOUBLE_JUMP
-        || state == PLAYER_STATE_SKID
-        || state == PLAYER_STATE_SLIDE
-        || state == PLAYER_STATE_SLOPESLIDE
-        )
+    // drop if ball belongs to someone else
+    if (ballCarrierIdx >= 0 && ballCarrierIdx != playerIdx) {
+		  playerDropFlag(player, 0);
+    } else {
+      vector_subtract(temp, State.Teams[enemyTeamIdx].BasePosition, player->PlayerPosition);
+
+      if (player->IsLocal && vector_sqrmag(temp) < 4)
+      {
+        sendBallScored(playerIdx);
+      }
+      else if (!canHoldBall && player->IsLocal)
+      {
+        tryDropBall(playerIdx);
+      }
+      else if (playerPadGetButtonDown(player, PAD_R1))
+      {
+        if (state == PLAYER_STATE_CHARGE
+          || state == PLAYER_STATE_WALK
+          || state == PLAYER_STATE_IDLE
+          || state == PLAYER_STATE_THROW_SHURIKEN
+          || state == PLAYER_STATE_JUMP
+          || state == PLAYER_STATE_DOUBLE_JUMP
+          || state == PLAYER_STATE_SKID
+          || state == PLAYER_STATE_SLIDE
+          || state == PLAYER_STATE_SLOPESLIDE
+          )
+        {
+          playerTryEnterThrowState(player);
+        }
+      }
+      else if (playerPadGetButtonDown(player, PAD_CIRCLE) && player->IsLocal)
+      {
+        tryDropBall(playerIdx);
+      }
+      else if (playerPadGetButtonDown(player, PAD_TRIANGLE) && state == PLAYER_STATE_THROW_SHURIKEN)
+      {
+        PlayerVTable * table = playerGetVTable(player);
+        table->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
+      }
+      else if (playerPadGetButton(player, PAD_R1) && state == PLAYER_STATE_THROW_SHURIKEN)
       {
         playerTryEnterThrowState(player);
       }
-    }
-    else if (playerPadGetButtonDown(player, PAD_CIRCLE) && player->IsLocal)
-    {
-      tryDropBall(playerIdx);
-    }
-    else if (playerPadGetButtonDown(player, PAD_TRIANGLE) && state == PLAYER_STATE_THROW_SHURIKEN)
-    {
-      PlayerVTable * table = playerGetVTable(player);
-      table->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
-    }
-    else if (playerPadGetButton(player, PAD_R1) && state == PLAYER_STATE_THROW_SHURIKEN)
-    {
-      playerTryEnterThrowState(player);
-    }
-    else if (playerPadGetButtonUp(player, PAD_R1) && state == PLAYER_STATE_THROW_SHURIKEN && player->IsLocal)
-    {
-      tryDropBall(playerIdx);
-      ballThrow(State.BallMoby, THROW_BASE_POWER);
+      else if (playerPadGetButtonUp(player, PAD_R1) && state == PLAYER_STATE_THROW_SHURIKEN && player->IsLocal)
+      {
+        tryDropBall(playerIdx);
+        ballThrow(State.BallMoby, THROW_BASE_POWER);
+      }
     }
   }
 }

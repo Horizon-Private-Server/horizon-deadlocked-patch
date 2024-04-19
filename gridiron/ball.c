@@ -41,6 +41,8 @@
 #define FRICTION_COEFF (0.2)
 #define THROW_COEFF (1.5)
 #define LIFETIME (25)
+#define BALL_PHYSICS_RADIUS (0.35)
+#define BALL_PHYSICS_SPIN (2)
 
 VECTOR VECTOR_GRAVITY = { 0, 0, -0.005, 0 };
 VECTOR VECTOR_ZERO = { 0, 0, 0, 0 };
@@ -263,14 +265,25 @@ void ballUpdate(Moby * moby)
     // add gravity
     vector_add(pvars->Velocity, pvars->Velocity, VECTOR_GRAVITY);
     vector_scale(pvars->Velocity, pvars->Velocity, (1 - DRAG_COEFF/TPS));
+    float speed = vector_length(pvars->Velocity);
 
     // determine next update position
     vector_add(updatePos, moby->Position, pvars->Velocity);
 
     // add radius of model to next position for raycast
     vector_normalize(direction, pvars->Velocity);
-    vector_scale(toPos, direction, 0.5);
+    vector_scale(toPos, direction, BALL_PHYSICS_RADIUS);
     vector_add(toPos, updatePos, toPos);
+
+    // spin/roll in direction of velocity
+    if (vector_sqrmag(pvars->Velocity) > 0.0001) {
+      float yaw = atan2f(pvars->Velocity[1], pvars->Velocity[0]) + (MATH_PI / 2);
+
+      moby->Rotation[0] = clampAngle(moby->Rotation[0] + (speed * BALL_PHYSICS_SPIN));
+      moby->Rotation[2] = lerpf(moby->Rotation[2], yaw, 0.1);
+      
+      moby->ModeBits &= ~MOBY_MODE_BIT_LOCK_ROTATION;
+    }
 
     // hit detect
     if (CollLine_Fix(moby->Position, toPos, 2, 0, 0) != 0)
@@ -295,14 +308,38 @@ void ballUpdate(Moby * moby)
         // correct position based on hit
         //vector_copy()
         
-        vector_scale(toPos, direction, 0.5);
-        vector_subtract(moby->Position, CollLine_Fix_GetHitPosition(), toPos);
+        vector_scale(toPos, direction, BALL_PHYSICS_RADIUS);
+        vector_subtract(updatePos, CollLine_Fix_GetHitPosition(), toPos);
+
+        VECTOR from;
+        vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
+        vector_scale(hitNormal, hitNormal, BALL_PHYSICS_RADIUS);
+        vector_add(from, updatePos, hitNormal);
+        vector_subtract(toPos, updatePos, hitNormal);
+        if (CollLine_Fix(from, toPos, 2, 0, 0) != 0) {
+          vector_add(updatePos, CollLine_Fix_GetHitPosition(), hitNormal);
+        }
+
+        // don't move more than the velocity will allow
+        VECTOR dt;
+        vector_subtract(dt, updatePos, moby->Position);
+        float len = vector_length(dt);
+        if (len > speed)
+          vector_scale(dt, dt, speed / len);
+
+        vector_add(moby->Position, moby->Position, dt);
       }
     }
     else
     {
       vector_copy(moby->Position, updatePos);
     }
+  }
+  else if (carrier->PlayerMoby)
+  {
+    MATRIX m;
+    mobyGetJointMatrix(carrier->PlayerMoby, 18, m);
+    vector_copy(moby->Position, &m[12]);
   }
 }
 
@@ -339,6 +376,8 @@ int ballHandleGuberEvent_Spawn(Moby* moby, GuberEvent* event)
     BallVisualRefMoby = mobySpawn(0x1b37, 0);
     if (!BallVisualRefMoby)
       return 0;
+
+    BallVisualRefMoby->PUpdate = 0;
   }
 
   // spawn ball

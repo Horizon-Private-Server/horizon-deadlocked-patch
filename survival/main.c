@@ -2199,7 +2199,7 @@ void processPlayer(int pIndex) {
 					if (playerData->State.Bolts >= cost) {
 
 						// handle pad input
-						if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0) {
+						if (padGetButton(localPlayerIndex, PAD_CIRCLE) > 0) {
 							playerData->State.Bolts -= cost;
 							playerUpgradeWeapon(player, heldWeapon, 0);
 							uiShowPopup(localPlayerIndex, uiMsgString(0x2330));
@@ -2318,7 +2318,7 @@ void processPlayer(int pIndex) {
               playerData->MessageCooldownTicks = 2;
 
               // handle pad input
-              if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens >= UPGRADE_TOKEN_COST) {
+              if (padGetButton(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens >= UPGRADE_TOKEN_COST) {
                 playerData->State.CurrentTokens -= UPGRADE_TOKEN_COST;
                 playerData->ActionCooldownTicks = PLAYER_UPGRADE_COOLDOWN_TICKS;
                 if (mapConfig) mapConfig->PickupUpgradeFunc(upgradeMoby, pIndex);

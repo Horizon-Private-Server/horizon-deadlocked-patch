@@ -13,7 +13,7 @@
 #define UPGRADE_PICKUP_RADIUS			(4)
 #define UPGRADE_TOKEN_COST				(1)
 #define UPGRADE_MAX_USES  				(15)
-#define PLAYER_UPGRADE_COOLDOWN_TICKS					(60)
+#define PLAYER_UPGRADE_COOLDOWN_TICKS					(15)
 
 enum UpgradeType {
 	UPGRADE_HEALTH,

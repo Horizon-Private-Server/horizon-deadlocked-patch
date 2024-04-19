@@ -112,7 +112,7 @@
 
 #define BIG_AL_MAX_DIST												(5)
 #define WEAPON_VENDOR_MAX_DIST								(3)
-#define WEAPON_UPGRADE_COOLDOWN_TICKS					(60)
+#define WEAPON_UPGRADE_COOLDOWN_TICKS					(15)
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
