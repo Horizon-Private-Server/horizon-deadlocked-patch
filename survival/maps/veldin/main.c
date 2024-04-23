@@ -53,9 +53,11 @@ int aaa = 0;
 char LocalPlayerStrBuffer[2][48];
 
 // set by mode
+extern SurvivalBakedConfig_t bakedConfig;
 struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
+  .Magic = MAP_CONFIG_MAGIC,
 	.State = NULL,
-  .BakedConfig = NULL,
+  .BakedConfig = &bakedConfig,
 };
 
 // spawn

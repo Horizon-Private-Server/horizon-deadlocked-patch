@@ -10,6 +10,7 @@
 
 #ifndef _MESSAGEID_H_
 #define _MESSAGEID_H_
+#include "config.h"
 
 
 #define PATCH_GAME_STATS_VERSION              (1)
@@ -313,8 +314,8 @@ enum CustomDzoCommandId
 
 typedef struct SetMapOverrideResponse
 {
-  int MapId;
   int MapVersion;
+  char MapFilename[64];
 } SetMapOverrideResponse_t;
 
 typedef struct ServerDownloadDataRequest
@@ -332,6 +333,12 @@ typedef struct ClientDownloadDataResponse
     int Id;
     int BytesReceived;
 } ClientDownloadDataResponse_t;
+
+typedef struct ClientSetGameConfig
+{
+  PatchGameConfig_t GameConfig;
+  CustomMapDef_t CustomMap;
+} ClientSetGameConfig_t;
 
 typedef struct ClientInitiateMapDownloadRequest
 {

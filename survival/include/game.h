@@ -533,7 +533,6 @@ extern const float BOLT_TAX[];
 extern const float DIFFICULTY_MAP[];
 extern const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[];
 extern const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[];
-extern SurvivalBakedConfig_t BakedConfig;
 
 struct GuberMoby* getGuber(Moby* moby);
 int handleEvent(Moby* moby, GuberEvent* event);

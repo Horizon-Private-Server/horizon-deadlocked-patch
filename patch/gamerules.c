@@ -82,6 +82,9 @@ extern PatchConfig_t config;
 // game config
 extern PatchGameConfig_t gameConfig;
 
+// patch state container
+extern PatchStateContainer_t patchStateContainer;
+
 // lobby clients patch config
 extern PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 
@@ -317,21 +320,6 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 686.03, 488.20, 103, 1.811 }, { 663.87, 512.97, 103, 2.427 }, { 690.15, 523.61, 101.45, 0.875 }, // ORANGE
     }
   },
-  // {
-  //   .MapId = 128 + CUSTOM_MAP_MOUNTAIN_PASS,
-  //   .Flags = {
-  //     { 0,0,0 }, // BLUE
-  //     { 0,0,0 }, // RED
-  //     { 0,0,0 }, // GREEN
-  //     { 0,0,0 }, // ORANGE
-  //   },
-  //   .PointsAndYaw = {
-  //     { 408.05, 817.10, 508.57, -0.037 }, { 430.81, 847.38, 504.80, -1.195 }, { 441.08, 789.67, 506.12, -0.850 }, // BLUE
-  //     { 673.37, 827.18, 501.13, 2.994 }, { 650.37, 864.23, 500.70, 2.304 }, { 665.01, 811.4, 500.14, 2.766 }, // RED
-  //     { 570.96, 714.92, 505.18, 2.871 }, { 510.91, 710.36, 504.42, 0.505 }, { 564.05, 731.53, 503.85, -2.673 }, // GREEN
-  //     { 545.71, 933.02, 510, -2.726 }, { 489.34, 923.72, 506.6, 0.111 }, { 524.15, 912.81, 506.39, -0.899 }, // ORANGE
-  //   }
-  // },
 };
 
 const int BetterFlagRulesCount = COUNT_OF(BetterFlagRules);
@@ -1287,8 +1275,6 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
 
 	// 
   int mapId = gameGetSettings()->GameLevel;
-  if (gameConfig.customMapId)
-    mapId = 128 + gameConfig.customMapId;
 
   // find better flag rules
   struct CompactCTFSpawnReplacement* rule = NULL;
@@ -1845,7 +1831,7 @@ void grGameStart(void)
   if (gameConfig.grOvertime)
     overtimeLogic();
 
-	if (gameConfig.grBetterHills && gameConfig.customMapId == 0)
+	if (gameConfig.grBetterHills && patchStateContainer.SelectedCustomMapId == 0)
 		betterHillsLogic();
 
 	if (gameConfig.grHealthBars && isInGame())

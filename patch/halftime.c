@@ -440,7 +440,7 @@ void htCtfTick(void)
 				if (!players[i])
 					continue;
 
-				players[i]->HeldMoby = 0;
+        playerDropFlag(players[i], 1);
         players[i]->Health = players[i]->MaxHealth;
 			}
 
@@ -892,7 +892,7 @@ void otCtfTick(void)
 				if (!players[i])
 					continue;
 
-				players[i]->HeldMoby = 0;
+        playerDropFlag(players[i], 1);
         players[i]->Health = players[i]->MaxHealth;
 			}
 

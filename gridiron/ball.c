@@ -50,17 +50,21 @@ VECTOR VECTOR_ZERO = { 0, 0, 0, 0 };
 int (*CollWaterHeight)(VECTOR from, VECTOR to, u64 a2, Moby * damageSource, u64 t0) = 0x00503780;
 
 //--------------------------------------------------------------------------
-void ballRemoveFromHeldPlayer(Moby* moby)
+int ballRemoveFromHeldPlayer(Moby* moby)
 {
   Player** players = playerGetAll();
   int i;
+  int droppedBall = 0;
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     Player* player = players[i];
     if (player && player->HeldMoby == moby) {
-      player->HeldMoby = NULL;
+      playerDropFlag(player, 1);
       State.PlayerStates[i].TimeLastCarrier = gameGetTime();
+      droppedBall = 1;
     }
   }
+
+  return droppedBall;
 }
 
 //--------------------------------------------------------------------------
@@ -111,7 +115,7 @@ void ballThrow(Moby * moby, float power)
     return;
 
   // remove carrier
-  carrier->HeldMoby = NULL;
+  playerDropFlag(carrier, 1);
   pvars->CarrierIdx = -1;
   pvars->DieTime = gameGetTime() + (TIME_SECOND * LIFETIME);
 
@@ -220,6 +224,7 @@ void ballUpdate(Moby * moby)
   Player** players = playerGetAll();
   BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
   int carrierIdx = pvars->CarrierIdx;
+  Moby* visualMoby = pvars->VisualMoby;
   Player * carrier = NULL;
   if (carrierIdx >= 0 && carrierIdx < GAME_MAX_PLAYERS)
     carrier = players[carrierIdx];
@@ -340,6 +345,20 @@ void ballUpdate(Moby * moby)
     MATRIX m;
     mobyGetJointMatrix(carrier->PlayerMoby, 18, m);
     vector_copy(moby->Position, &m[12]);
+    memcpy(moby->M0_03, &m[0], 0x30);
+  }
+  
+  // update ball moby
+  if (visualMoby) {
+    // move ball to held moby position/rotation
+    vector_copy(visualMoby->Position, moby->Position);
+    memcpy(visualMoby->M0_03, moby->M0_03, 0x30);
+
+    // update ball color to match carrier team
+    if (carrier && carrier->PlayerMoby)
+      visualMoby->PrimaryColor = carrier->PlayerMoby->GlowRGBA;
+    else
+      visualMoby->PrimaryColor = 0xFFFFFFFF;
   }
 }
 
@@ -363,26 +382,31 @@ void ballCreate(VECTOR position)
 //--------------------------------------------------------------------------
 int ballHandleGuberEvent_Spawn(Moby* moby, GuberEvent* event)
 {
-  static Moby * BallVisualRefMoby = NULL;
   VECTOR position;
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
 
   // read
   guberEventRead(event, position, 0x0C);
 
   // we need to make sure we have our reference moby to
   // copy the model, animation, and collision of
-  if (!BallVisualRefMoby)
+  if (!pvars->VisualMoby)
   {
-    BallVisualRefMoby = mobySpawn(0x1b37, 0);
-    if (!BallVisualRefMoby)
+    Moby* visualMoby = pvars->VisualMoby = mobySpawn(0x1b37, 0);
+    if (!visualMoby)
       return 0;
 
-    BallVisualRefMoby->PUpdate = 0;
+    visualMoby->AnimSpeed = 4;
+    visualMoby->Scale = (float)0.02;
+    visualMoby->PUpdate = NULL;
+    visualMoby->ModeBits = (visualMoby->ModeBits & 0xFF) | MOBY_MODE_BIT_HAS_GLOW | MOBY_MODE_BIT_LOCK_ROTATION;
+    visualMoby->Opacity = 0xFF;
+    visualMoby->UpdateDist = 0xFF;
+    visualMoby->DrawDist = 0x00FF;
   }
 
   // spawn ball
-	DPRINTF("spawning new ball moby: %08X %.2f %.2f %.2f\n", (u32)moby, position[0], position[1], position[2]);
-  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+	DPRINTF("spawning new ball moby: %08X (%08X) %.2f %.2f %.2f\n", (u32)moby, (u32)pvars->VisualMoby, position[0], position[1], position[2]);
   pvars->DieTime = 0;
   pvars->CarrierIdx = -1;
 
@@ -392,20 +416,11 @@ int ballHandleGuberEvent_Spawn(Moby* moby, GuberEvent* event)
   moby->DrawDist = 0x00FF;
   moby->Opacity = 0x80;
   moby->State = 1;
-  //moby->MClass = 0x37;
 
   moby->Scale = (float)0.02;
-  moby->Lights = 0x202;
-  moby->ModeBits = (moby->ModeBits & 0xFF) | 0x10;
-  moby->PrimaryColor = 0xFFFF4040;
+  moby->ModeBits = (moby->ModeBits & 0xFF) | MOBY_MODE_BIT_HIDDEN;
   moby->PUpdate = &ballUpdate;
-
-  // animation stuff
-  memcpy(&moby->AnimSeq, &BallVisualRefMoby->AnimSeq, 0x20);
-  moby->AnimSpeed = 4;
-
-  moby->PClass = BallVisualRefMoby->PClass;
-  moby->CollData = BallVisualRefMoby->CollData;
+  moby->CollData = NULL;
 
   State.BallMoby = moby;
   return 0;
@@ -440,10 +455,13 @@ int ballHandleGuberEvent_Pickup(Moby* moby, GuberEvent* event)
 {
   // read
   int playerIdx;
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
   guberEventRead(event, &playerIdx, sizeof(playerIdx));
 
+  // already equipped
+  if (pvars->CarrierIdx == playerIdx) return;
+
   // pickup
-  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
   Player** players = playerGetAll();
   Player* player = NULL;
   if (playerIdx >= 0 && playerIdx < GAME_MAX_PLAYERS)
@@ -471,17 +489,20 @@ int ballHandleGuberEvent_Drop(Moby* moby, GuberEvent* event)
 {
   VECTOR position, velocity;
   int time;
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
 
   // read
   guberEventRead(event, position, 12);
   guberEventRead(event, velocity, 12);
   guberEventRead(event, &time, 4);
+
+  // ignore if carrier no longer has ball
+  if (pvars->CarrierIdx < 0) return;
   
-  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
   if (pvars->CarrierIdx >= 0) {
     Player* player = playerGetAll()[pvars->CarrierIdx];
     if (player && player->HeldMoby == moby) {
-      player->HeldMoby = NULL;
+      playerDropFlag(player, 1);
     }
       
     State.PlayerStates[pvars->CarrierIdx].TimeLastCarrier = time;
@@ -490,6 +511,9 @@ int ballHandleGuberEvent_Drop(Moby* moby, GuberEvent* event)
     mobyPlaySoundByClass(1, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_RED_FLAG);
     uiShowPopup(0, "The ball has been dropped!");
   }
+  
+  // remove from everyone else (in case of desync)
+  ballRemoveFromHeldPlayer(moby);
   
   pvars->DieTime = time + (TIME_SECOND * LIFETIME);
   pvars->CarrierIdx = -1;
@@ -530,7 +554,7 @@ int ballHandleGuberEvent(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 struct GuberMoby* ballGetGuber(Moby* moby)
 {
-	if (moby->OClass == BALL_MOBY_OCLASS && moby->PVar)
+	if (moby && moby->OClass == BALL_MOBY_OCLASS && moby->PVar)
 		return moby->GuberMoby;
 	
   DPRINTF("get guber miss %08X %04X\n", (u32)moby, moby->OClass);

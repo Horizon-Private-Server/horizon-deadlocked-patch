@@ -274,6 +274,39 @@ struct MobSpawnParams defaultSpawnParams[] = {
 const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct MobSpawnParams);
 
 //--------------------------------------------------------------------------
+SurvivalBakedConfig_t bakedConfig = {
+  .Difficulty = 1.0,
+  .BakedSpawnPoints = {
+    { .Type = BAKED_SPAWNPOINT_PLAYER_START, .Params = 0, .Position = { 658.3901, 828.0401, 499.7961 }, .Rotation = { 0, 0, -3.141593 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 594.99, 704.85, 507.63 }, .Rotation = { 0, 0, 1.788139E-07 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 503.96, 704.98, 506.32 }, .Rotation = { 0, 0, -7.450579E-07 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 624.6, 801.53, 504.07 }, .Rotation = { 0, 0, -2.283245 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 688.592, 858.57, 514.264 }, .Rotation = { 0, 0, -4.712388 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 504.301, 945.488, 507.915 }, .Rotation = { -5.984646, -7.795392E-09, -2.412499 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 456.14, 791.772, 509.28 }, .Rotation = { 0, 0, -3.979972 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 587.583, 819.116, 502.458 }, .Rotation = { -0.2670273, -2.3173E-08, -5.328631 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 504.936, 821.258, 501.923 }, .Rotation = { -6.177232, 0, -2.660405 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 562.021, 892.229, 508.457 }, .Rotation = { -6.218049, 8.900659E-16, -3.141593 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 448.302, 876.378, 507.799 }, .Rotation = { 0, 0, -5.496722 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 380.211, 826.473, 514.736 }, .Rotation = { -0.3037879, -0.07311971, -2.909856 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 585.6502, 905.4998, 506.599 }, .Rotation = { 0, 0, 1.260871 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 683.7198, 807.9098, 501.27 }, .Rotation = { 0, 0, -3.427705 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 634, 742.02, 507.35 }, .Rotation = { 0, 0, -2.904106 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 513.0701, 738.4099, 504.54 }, .Rotation = { 0, 0, -0.7853986 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 397.75, 793.05, 520.38 }, .Rotation = { 0, 0, -0.27788 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 469.15, 802.01, 504.22 }, .Rotation = { 0, 0, 1.400064 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 541.81, 778.23, 505.95 }, .Rotation = { 0, 0, -1.747867 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 547.39, 858.92, 505.86 }, .Rotation = { 0, 0, -4.371555 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 575.52, 809.11, 500.15 }, .Rotation = { 0, 0, -4.23276 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 512.43, 951.69, 507.16 }, .Rotation = { 0, 0, -1.327776 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 370.8, 813.12, 514.0535 }, .Rotation = { 0, 0, -0.06436086 } },
+    { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 660.2, 793.97, 507.61 }, .Rotation = { 0, 0, -1.570796 } },
+    { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 663.2, 793.97, 507.61 }, .Rotation = { 0, 0, -1.570796 } },
+    { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 666.2, 793.97, 507.61 }, .Rotation = { 0, 0, -1.570796 } }
+  }
+};
+
+//--------------------------------------------------------------------------
 u32 MobPrimaryColors[] = {
 	[MOB_SPAWN_PARAM_REACTOR] 	0x00464443,
 	[MOB_SPAWN_PARAM_ACID] 		  0x00464443,

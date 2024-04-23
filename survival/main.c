@@ -527,17 +527,20 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
   VECTOR t;
 
   // spawn at player start
-  for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
-    if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_PLAYER_START) {
+  SurvivalBakedConfig_t* bakedConfig = mapConfig->BakedConfig;
+  if (bakedConfig) {
+    for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
+      if (bakedConfig->BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_PLAYER_START) {
 
-      memcpy(outPos, BakedConfig.BakedSpawnPoints[i].Position, 12);
-      memcpy(outRot, BakedConfig.BakedSpawnPoints[i].Rotation, 12);
+        memcpy(outPos, bakedConfig->BakedSpawnPoints[i].Position, 12);
+        memcpy(outRot, bakedConfig->BakedSpawnPoints[i].Rotation, 12);
 
-      float theta = player->PlayerId / (float)GAME_MAX_PLAYERS;
-      vector_fromyaw(t, theta * MATH_PI * 2);
-      vector_scale(t, t, 2.5);
-      vector_add(outPos, outPos, t);
-      return;
+        float theta = player->PlayerId / (float)GAME_MAX_PLAYERS;
+        vector_fromyaw(t, theta * MATH_PI * 2);
+        vector_scale(t, t, 2.5);
+        vector_add(outPos, outPos, t);
+        return;
+      }
     }
   }
 
@@ -2838,8 +2841,9 @@ void spawnUpgrades(void)
 	}
 
 	// count number of baked spawnpoints used for upgrade
+  SurvivalBakedConfig_t* bakedConfig = mapConfig->BakedConfig;
 	for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
-		if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_UPGRADE)
+		if (bakedConfig->BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_UPGRADE)
 			++bakedUpgradeSpawnpointCount;
 	}
 
@@ -2855,7 +2859,7 @@ void spawnUpgrades(void)
 		j = 0;
 		while (r) {
 			j = (j + 1) % BAKED_SPAWNPOINT_COUNT;
-			if (BakedConfig.BakedSpawnPoints[j].Type == BAKED_SPAWNPOINT_UPGRADE && !charArrayContains(upgradeBakedSpawnpointIdx, UPGRADE_COUNT, j))
+			if (bakedConfig->BakedSpawnPoints[j].Type == BAKED_SPAWNPOINT_UPGRADE && !charArrayContains(upgradeBakedSpawnpointIdx, UPGRADE_COUNT, j))
 				--r;
 		}
 
@@ -2876,7 +2880,7 @@ void spawnUpgrades(void)
     if (State.ActivePlayerCount == 1 && upgradeId == UPGRADE_MEDIC)
       continue;
 
-		SurvivalBakedSpawnpoint_t* sp = &BakedConfig.BakedSpawnPoints[bakedSpIdx];
+		SurvivalBakedSpawnpoint_t* sp = &bakedConfig->BakedSpawnPoints[bakedSpIdx];
 		memcpy(pos, sp->Position, sizeof(float)*3);
 		memcpy(rot, sp->Rotation, sizeof(float)*3);
 
@@ -2896,9 +2900,10 @@ void spawnDemonBell(void)
     return;
 
 	// count number of baked spawnpoints used for upgrade
+  SurvivalBakedConfig_t* bakedConfig = mapConfig->BakedConfig;
 	for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
-		if (BakedConfig.BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_DEMON_BELL) {
-      demonbellCreate(BakedConfig.BakedSpawnPoints[i].Position, State.DemonBellCount);
+		if (bakedConfig->BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_DEMON_BELL) {
+      demonbellCreate(bakedConfig->BakedSpawnPoints[i].Position, State.DemonBellCount);
       State.DemonBellCount += 1;
     }
 	}
@@ -3103,11 +3108,11 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
   if (mapConfig->Magic != MAP_CONFIG_MAGIC) {
     memset(mapConfig, 0, sizeof(struct SurvivalMapConfig));
     mapConfig->Magic = MAP_CONFIG_MAGIC;
+    printf("clear\n");
   }
 
   // write map config
   mapConfig->State = &State;
-  mapConfig->BakedConfig = &BakedConfig;
   mapConfig->SpawnGetRandomPointFunc = &spawnGetRandomPoint;
   mapConfig->UpgradePlayerWeaponFunc = &mapUpgradePlayerWeaponHandler;
   mapConfig->PushSnackFunc = &pushSnack;
@@ -3326,7 +3331,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.RoundSpecialIdx = 0;
 	State.DropCooldownTicks = DROP_COOLDOWN_TICKS_MAX; // try and stop drops from spawning immediately
 	State.InitializedTime = gameGetTime();
-	State.Difficulty = BakedConfig.Difficulty; //DIFFICULTY_MAP[(int)gameConfig->survivalConfig.difficulty];
+	State.Difficulty = mapConfig->BakedConfig->Difficulty;
 
 #if STARTROUND
 	State.RoundNumber = STARTROUND - 1;
@@ -3380,23 +3385,9 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 
 #if FIXEDTARGET
   FIXEDTARGETMOBY = mobySpawn(0xE7D, 0);
-  switch (gameConfig->customMapId)
-  {
-    case CUSTOM_MAP_SURVIVAL_MINING_FACILITY:
-    {
-      FIXEDTARGETMOBY->Position[0] = 338.455383;
-      FIXEDTARGETMOBY->Position[1] = 559.073792;
-      FIXEDTARGETMOBY->Position[2] = 440.366547;
-      break;
-    }
-    case CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS:
-    {
-      FIXEDTARGETMOBY->Position[0] = 599.368225;
-      FIXEDTARGETMOBY->Position[1] = 902.109131;
-      FIXEDTARGETMOBY->Position[2] = 505.583221;
-      break;
-    }
-  }
+  FIXEDTARGETMOBY->Position[0] = 599.368225;
+  FIXEDTARGETMOBY->Position[1] = 902.109131;
+  FIXEDTARGETMOBY->Position[2] = 505.583221;
 #endif
 
 	Initialized = 1;

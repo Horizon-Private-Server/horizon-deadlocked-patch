@@ -40,6 +40,19 @@ struct PatchStateContainer;
  */
 typedef void (*ModuleStart)(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct PatchStateContainer * gameState);
 
+/*
+ * NAME :		ReadExtraData_f
+ * 
+ * DESCRIPTION :
+ * 			Function that reads the custom map extra data from the usb drive for the current game mode.
+ *      Returns 1 on success, 0 on failure.
+ * 
+ * NOTES :
+ * 
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+typedef int (*ReadExtraData_f)(void* dst, int len);
 
 /*
  * NAME :		GameModuleState
@@ -99,9 +112,9 @@ typedef struct GameModule
     char ModeId;
 
     /*
-     * Respective custom map id.
+     * Argument 2, can be anything related to the custom mode.
      */
-    char MapId;
+    char Arg2;
 
     /*
      * Argument 3, can be anything related to the custom mode.
@@ -155,6 +168,9 @@ typedef struct PatchStateContainer
     int HalfTimeState;
     int OverTimeState;
     SetNameOverridesMessage_t LobbyNameOverrides;
+    int SelectedCustomMapId;
+    int SelectedCustomMapChanged;
+    ReadExtraData_f ReadExtraDataFunc;
 } PatchStateContainer_t;
 
 

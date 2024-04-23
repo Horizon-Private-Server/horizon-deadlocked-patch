@@ -51,7 +51,3 @@ const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[] = {
 	21, // 9 players
 	24, // 10 players
 };
-
-SurvivalBakedConfig_t BakedConfig __attribute__((section(".config"))) = {
-	1.0
-};

@@ -120,6 +120,26 @@ struct MobSpawnParams defaultSpawnParams[] = {
 };
 const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct MobSpawnParams);
 
+//--------------------------------------------------------------------------
+SurvivalBakedConfig_t bakedConfig = {
+  .Difficulty = 1.0,
+  .BakedSpawnPoints = {
+    { .Type = BAKED_SPAWNPOINT_PLAYER_START, .Params = 0, .Position = { 188.15, 450.96, 85.93756 }, .Rotation = { 0, 0, -1.570796 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 192.334, 374.214, 83.09 }, .Rotation = { 0, 0, -3.025695 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 193.86, 359.946, 83.09 }, .Rotation = { 0, 0, -6.143251 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 166.62, 455.08, 88.27 }, .Rotation = { 0, 0, -2.430318 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 174.508, 443.266, 88.27 }, .Rotation = { 0, 0, -5.878619 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 214.57, 416.072, 81.993 }, .Rotation = { -6.155164, 0, -3.141593 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 186.34, 398.56, 81.36 }, .Rotation = { -5.629477, -6.281482, -1.320548 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 186.522, 438.843, 82.383 }, .Rotation = { -5.942438, -5.533558E-08, -2.430318 } },
+    { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 207.508, 388.318, 81.686 }, .Rotation = { -5.7795, -6.23334, -4.782942 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 184.1991, 439.6303, 86.28809 }, .Rotation = { 0, 0, -4.262914 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 169.8801, 367.5203, 80.50705 }, .Rotation = { 0, 0, -0.07412183 } },
+    { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 220.27, 410.4701, 86.02 }, .Rotation = { 0, 0, -3.141592 } },
+    { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 220.27, 407.47, 86.02 }, .Rotation = { 0, 0, -3.141592 } },
+    { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 220.27, 404.4699, 86.02 }, .Rotation = { 0, 0, -3.141592 } }
+  }
+};
 
 //--------------------------------------------------------------------------
 u32 MobPrimaryColors[] = {

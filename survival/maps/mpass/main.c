@@ -70,9 +70,11 @@ VECTOR pStart = { 658.3901, 828.0401, 499.7961, 0 };
 VECTOR pRotStart = { 0, 0, MATH_PI, 0 };
 
 // set by mode
+extern SurvivalBakedConfig_t bakedConfig;
 struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
+  .Magic = MAP_CONFIG_MAGIC,
 	.State = NULL,
-  .BakedConfig = NULL,
+  .BakedConfig = &bakedConfig,
 };
 
 SoundDef def =

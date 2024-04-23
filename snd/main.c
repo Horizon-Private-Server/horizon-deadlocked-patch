@@ -69,7 +69,7 @@
 /*
  * Max number of rounds before game ends
  */
-#define SND_MAX_ROUNDS						(2 * (RoundsToWin-1) + 1)
+#define SND_MAX_ROUNDS						(2 * (MapConfig.RoundsToWin-1) + 1)
 
 /*
  *
@@ -225,6 +225,19 @@ enum GameNetMessage
 	CUSTOM_MSG_SET_BOMB_OUTCOME,
 };
 
+struct SNDMapConfig
+{
+  VECTOR DefendTeamSpawnPoint;
+  VECTOR AttackTeamSpawnPoint;
+  VECTOR Node1SpawnPoint;
+  VECTOR Node2SpawnPoint;
+  VECTOR PackSpawnPoint;
+  int BombDetonationTimer;
+  int RoundsToWin;
+  int RoundsToFlip;
+  int RoundTimelimitSeconds;
+};
+
 /*
  *
  */
@@ -318,33 +331,17 @@ void * NodeBaseCollisionPointer = 0;
 /*
  * Configurable settings
  */
-
-// Where the defending team spawns
-VECTOR DefendTeamSpawnPoint __attribute__((section(".config"))) = { 268.386, 122.752, 103.479, 0.8 };
-
-// Where the attacking team spawns
-VECTOR AttackTeamSpawnPoint __attribute__((section(".config"))) = { 519.269, 396.575, 106.727, -1.351 };
-
-// Where the first node is positioned
-VECTOR Node1SpawnPoint __attribute__((section(".config"))) = { 428.368, 239.646, 106.613, 0 };
-
-// Where the second node is positioned
-VECTOR Node2SpawnPoint __attribute__((section(".config"))) = { 411.456, 143.924, 105.344, 0 };
-
-// Where the pack (bomb) spawns each round
-VECTOR PackSpawnPoint __attribute__((section(".config"))) = { 526.056, 370.259, 107.271, 0 };
-
-// Number of seconds after bomb planted before explosion.
-int BombDetonationTimer __attribute__((section(".config"))) = 30;
-
-// Number of rounds to win.
-int RoundsToWin __attribute__((section(".config"))) = 6;
-
-// Number of rounds before flipping team roles.
-int RoundsToFlip __attribute__((section(".config"))) = 3;
-
-// Timelimit of each round in seconds.
-int RoundTimelimitSeconds __attribute__((section(".config"))) = 2 * 60;
+struct SNDMapConfig MapConfig __attribute__((section(".config"))) = {
+  .DefendTeamSpawnPoint = { 268.386, 122.752, 103.479, 0.8 },
+  .AttackTeamSpawnPoint = { 519.269, 396.575, 106.727, -1.351 },
+  .Node1SpawnPoint = { 428.368, 239.646, 106.613, 0 },
+  .Node2SpawnPoint = { 411.456, 143.924, 105.344, 0 },
+  .PackSpawnPoint = { 526.056, 370.259, 107.271, 0 },
+  .BombDetonationTimer = 30,
+  .RoundsToWin = 6,
+  .RoundsToFlip = 3,
+  .RoundTimelimitSeconds = 2 * 60,
+};
 
 /* 
  * Explosion sound def
@@ -859,7 +856,7 @@ void onSetRoundOutcome(int outcome, int gameTime)
 	SNDState.RoundEndTicks = gameTime + SND_ROUND_TRANSITION_WAIT_MS;
 
 	// print halftime message
-	if ((SNDState.RoundNumber+1) % RoundsToFlip == 0)
+	if ((SNDState.RoundNumber+1) % MapConfig.RoundsToFlip == 0)
 	{
 		uiShowPopup(0, SND_HALF_TIME);
 		uiShowPopup(1, SND_HALF_TIME);
@@ -1013,7 +1010,7 @@ void bombTimerLogic()
 	
 	if (!SNDState.BombDefused && SNDState.BombPlantedTicks > 0 && SNDState.BombPlantSiteIndex >= 0)
 	{
-		int timeLeft = (BombDetonationTimer * TIME_SECOND) - (gameTime - SNDState.BombPlantedTicks);
+		int timeLeft = (MapConfig.BombDetonationTimer * TIME_SECOND) - (gameTime - SNDState.BombPlantedTicks);
 		float timeSecondsLeft = timeLeft / (float)TIME_SECOND;
 		float scale = SND_BOMB_TIMER_TEXT_SCALE;
 		u32 color = 0xFFFFFFFF;
@@ -1078,7 +1075,7 @@ void playerLogic(SNDPlayerState_t * playerState)
 			// Indicate time to spawn
 			if (SNDState.IsHost)
 			{
-				vector_copy(SNDState.SpawnPackAt, PackSpawnPoint);
+				vector_copy(SNDState.SpawnPackAt, MapConfig.PackSpawnPoint);
 				SNDState.SpawnPackAt[3] = 1;
 			}
 			
@@ -1109,7 +1106,7 @@ void playerLogic(SNDPlayerState_t * playerState)
 					|| player->PlayerState == 123 // death lava
 					|| player->PlayerState == 148 // death no fall
 					)
-					vector_copy(SNDState.SpawnPackAt, PackSpawnPoint);
+					vector_copy(SNDState.SpawnPackAt, MapConfig.PackSpawnPoint);
 				else
 					vector_copy(SNDState.SpawnPackAt, player->PlayerPosition);
 
@@ -1143,11 +1140,11 @@ void resetRoundState(void)
 	SNDState.SpawnPackAt[3] = 0;
 
 	// 
-	SNDState.Timer.LastPlaySoundSecond = BombDetonationTimer;
+	SNDState.Timer.LastPlaySoundSecond = MapConfig.BombDetonationTimer;
 	SNDState.Timer.Color = 0xFFFFFFFF;
 
 	// Set round time limit
-	gameData->TimeEnd = (gameTime - gameData->TimeStart) + (RoundTimelimitSeconds * TIME_SECOND);
+	gameData->TimeEnd = (gameTime - gameData->TimeStart) + (MapConfig.RoundTimelimitSeconds * TIME_SECOND);
 
 	// set capture time to fast (plant speed)
 	*(u16*)0x00440E68 = 0x3CA3;
@@ -1167,7 +1164,7 @@ void resetRoundState(void)
 		{
 			if (player->Team == SNDState.AttackerTeamId)
 			{
-				spawnPlayer(player, AttackTeamSpawnPoint);
+				spawnPlayer(player, MapConfig.AttackTeamSpawnPoint);
 
 				// remove hacker ray from attackers
 				GadgetBox* gBox = player->GadgetBox;
@@ -1176,7 +1173,7 @@ void resetRoundState(void)
 			}
 			else
 			{
-				spawnPlayer(player, DefendTeamSpawnPoint);
+				spawnPlayer(player, MapConfig.DefendTeamSpawnPoint);
 			}
 		}
 	}
@@ -1185,8 +1182,8 @@ void resetRoundState(void)
 	if (Initialized)
 	{
 		// move
-		showNode(SNDState.Nodes[0].Moby, Node1SpawnPoint);
-		showNode(SNDState.Nodes[1].Moby, Node2SpawnPoint);
+		showNode(SNDState.Nodes[0].Moby, MapConfig.Node1SpawnPoint);
+		showNode(SNDState.Nodes[1].Moby, MapConfig.Node2SpawnPoint);
 
 		// capture
 		nodeCapture(SNDState.Nodes[0].OrbGuberMoby, SNDState.DefenderTeamId);
@@ -1196,7 +1193,7 @@ void resetRoundState(void)
 	// spawn hacker ray pack
 	if (SNDState.IsHost)
 	{
-		SNDState.BombPackGuber = (GuberMoby*)spawnPackGuber(PackSpawnPoint, 1 << WEAPON_ID_HACKER_RAY);
+		SNDState.BombPackGuber = (GuberMoby*)spawnPackGuber(MapConfig.PackSpawnPoint, 1 << WEAPON_ID_HACKER_RAY);
 	}
 
 	SNDState.RoundInitialized = 1;
@@ -1243,18 +1240,18 @@ void loadGameplayHook(void * gameplayMobies, void * a1, u32 a2)
 			{
 				case 0:
 				{
-					point = Node1SpawnPoint;
+					point = MapConfig.Node1SpawnPoint;
 					break;
 				}
 				case 1:
 				{
-					if (vector_read(Node2SpawnPoint) == 0)
+					if (vector_read(MapConfig.Node2SpawnPoint) == 0)
 					{
 
 					}
 					else
 					{
-						point = Node2SpawnPoint;
+						point = MapConfig.Node2SpawnPoint;
 						break;
 					}
 				}
@@ -1364,7 +1361,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	memset(SNDState.RoundWinner, -1, sizeof(SNDState.RoundWinner));
 
 	// 
-	if (vector_read(Node2SpawnPoint) == 0)
+	if (vector_read(MapConfig.Node2SpawnPoint) == 0)
 		SNDState.NodeCount = 1;
 
 	// Hook set outcome net event
@@ -1552,7 +1549,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 						// defenders win
 						SNDState.RoundWinner[SNDState.RoundNumber] = (u8)(SNDState.BombPlantSiteIndex << 6) | (SNDState.TeamRolesFlipped << 4) | 0x00;
 						DPRINTF("round result %02X\n", (u8)SNDState.RoundWinner[SNDState.RoundNumber]);
-						if (++SNDState.TeamWins[SNDState.DefenderTeamId] >= RoundsToWin)
+						if (++SNDState.TeamWins[SNDState.DefenderTeamId] >= MapConfig.RoundsToWin)
 							SNDState.GameOver = 1;
 						
 						SNDState.RoundLastWinners = SNDState.DefenderTeamId;
@@ -1563,7 +1560,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 						// attackers win
 						SNDState.RoundWinner[SNDState.RoundNumber] = (u8)(SNDState.BombPlantSiteIndex << 6) | (SNDState.TeamRolesFlipped << 4) | 0x01;
 						DPRINTF("round result %02X\n", (u8)SNDState.RoundWinner[SNDState.RoundNumber]);
-						if (++SNDState.TeamWins[SNDState.AttackerTeamId] >= RoundsToWin)
+						if (++SNDState.TeamWins[SNDState.AttackerTeamId] >= MapConfig.RoundsToWin)
 							SNDState.GameOver = 1;
 
 						SNDState.RoundLastWinners = SNDState.AttackerTeamId;
@@ -1597,7 +1594,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 				else
 				{
 					// handle half time
-					if ((SNDState.RoundNumber % RoundsToFlip) == 0)
+					if ((SNDState.RoundNumber % MapConfig.RoundsToFlip) == 0)
 					{
 						SNDState.TeamRolesFlipped = !SNDState.TeamRolesFlipped;
 						SNDState.DefenderTeamId = !SNDState.DefenderTeamId;
@@ -1635,7 +1632,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			}
 
 			// Display hello
-			if ((SNDState.RoundNumber % RoundsToFlip) == 0 && roundJustStarted)
+			if ((SNDState.RoundNumber % MapConfig.RoundsToFlip) == 0 && roundJustStarted)
 			{
 				if (localPlayer->Team == SNDState.DefenderTeamId)
 					drawRoundMessage(SND_DEFEND_HELLO, 1);
@@ -1753,7 +1750,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
         if (!roundJustStarted)
         {
           // End round if timelimit hit and no bomb planted
-          if (SNDState.BombPlantSiteIndex < 0 && (gameTime - SNDState.RoundStartTicks) > (RoundTimelimitSeconds * TIME_SECOND))
+          if (SNDState.BombPlantSiteIndex < 0 && (gameTime - SNDState.RoundStartTicks) > (MapConfig.RoundTimelimitSeconds * TIME_SECOND))
           {
             setRoundOutcome(SND_OUTCOME_TIME_END);
           }
@@ -1791,7 +1788,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 			if (SNDState.BombPlantedTicks)
 				gameData->TimeEnd = -1;
 			else
-				gameData->TimeEnd = (SNDState.RoundStartTicks - gameData->TimeStart) + (RoundTimelimitSeconds * TIME_SECOND);
+				gameData->TimeEnd = (SNDState.RoundStartTicks - gameData->TimeStart) + (MapConfig.RoundTimelimitSeconds * TIME_SECOND);
 
 			//
 			bombTimerLogic();
@@ -1821,7 +1818,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	{
 		GAME_SCOREBOARD_ITEM_COUNT = 2;
 		GAME_SCOREBOARD_NODE_TARGET = SND_MAX_ROUNDS;
-		GAME_SCOREBOARD_TARGET = RoundsToWin;
+		GAME_SCOREBOARD_TARGET = MapConfig.RoundsToWin;
 		GAME_SCOREBOARD_REFRESH_FLAG = 1;
 		ScoreboardChanged = 0;
 	}
@@ -1943,4 +1940,7 @@ void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	// Patch spawning node turrets
 	if (*(u32*)0x0061CB18 == 0x0C18734C)
 		*(u32*)0x0061CB18 = 0x0C000000 | (u32)&spawnGuberHook / 4;
+    
+  // read extra data
+  gameState->ReadExtraDataFunc(&MapConfig, 0x50);
 }

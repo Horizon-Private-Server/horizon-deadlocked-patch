@@ -20,6 +20,7 @@ typedef struct BallPVars
   VECTOR Velocity;
   VECTOR SyncPosition;
   VECTOR SyncVelocity;
+  Moby* VisualMoby;
   int CarrierIdx;
   int DieTime;
   int SyncTicks;

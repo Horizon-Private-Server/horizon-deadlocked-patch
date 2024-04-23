@@ -4,7 +4,8 @@
 #include "messageid.h"
 #include <libdl/gamesettings.h>
 
-#define CONFIG_ITEM_HELP_SIZE       (64)
+#define MAX_CUSTOM_MAP_DEFINITIONS              (64)
+#define CONFIG_ITEM_HELP_SIZE                   (64)
 
 enum PatchGameNetMessage
 {
@@ -108,6 +109,26 @@ typedef struct TabElem
   int menuOffset;
 } TabElem_t;
 
+typedef struct CustomMapVersionFileDef
+{
+  int Version;
+  int BaseMapId;
+  int ForcedCustomModeId;
+  int ExtraDataCount;
+  char Name[32];
+} CustomMapVersionFileDef_t;
+
+typedef struct MapLoaderState
+{
+    u8 Enabled;
+    u8 MapId;
+		u8 CheckState;
+    char MapName[32];
+    char MapFileName[128];
+    int LoadingFileSize;
+    int LoadingFd;
+} MapLoaderState_t;
+
 typedef struct FreecamSettings
 {
   char lockPosition;
@@ -157,6 +178,9 @@ typedef struct PlayerSyncStateUpdatePacked
 } PlayerSyncStateUpdatePacked_t;
 
 extern int isConfigMenuActive;
+extern CustomMapDef_t customMapDefs[MAX_CUSTOM_MAP_DEFINITIONS];
+extern int customMapDefCount;
+extern MapLoaderState_t MapLoaderState;
 
 extern u32 SONY_MAC_ADDRESSES[];
 extern int SONY_MAC_ADDRESSES_COUNT;

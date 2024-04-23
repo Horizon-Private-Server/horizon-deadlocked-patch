@@ -188,6 +188,35 @@ int tryEquipBall(int playerIdx)
 	  ballPickup(State.BallMoby, playerIdx);
   }
 
+  State.PlayerStates[playerIdx].TimeLastEquipPing = gameGetTime();
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int tryPingEquip(int playerIdx)
+{
+  Player* player = playerGetAll()[playerIdx];
+	if (playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS || !player || !player->IsLocal || !State.BallMoby)
+		return 0;
+
+	if (!playerStateCanHoldBall(player))
+		return 0;
+
+  // cooldown
+  if ((gameGetTime() - State.PlayerStates[playerIdx].TimeLastEquipPing) < EQUIP_PING_COOLDOWN)
+    return 0;
+
+	if (player->HeldMoby != State.BallMoby)
+		return 0;
+
+	// hold
+  if (!gameAmIHost()) {
+    sendBallPickupRequest(playerIdx);
+  } else {
+	  ballPickup(State.BallMoby, playerIdx);
+  }
+
+  State.PlayerStates[playerIdx].TimeLastEquipPing = gameGetTime();
   return 1;
 }
 
@@ -240,14 +269,19 @@ void playerLogic(int playerIdx)
     friendlyTeamIdx = 1;
   int enemyTeamIdx = !friendlyTeamIdx;
   
-  // check for pickup
-  if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
+  // if player already holds ball then periodically update other clients
+  if (player->IsLocal && State.BallMoby && ballCarrierIdx == playerIdx) {
+    tryPingEquip(playerIdx);
+  }
+
+  // otherwise, check for pickup
+  else if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
     vector_subtract(temp, player->PlayerPosition, State.BallMoby->Position);
     if (vector_sqrmag(temp) < 4) {
       tryEquipBall(playerIdx);
     }
   }
-
+  
 #if DEBUG
   // quick pickup
   if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {

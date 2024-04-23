@@ -108,6 +108,7 @@
 void processSpectate(void);
 void spectateSetSpectate(int localPlayerIndex, int playerToSpectateOrDisable);
 void runMapLoader(void);
+int mapReadCustomMapExtraData(void* dst, int len);
 void onMapLoaderOnlineMenu(void);
 void onConfigOnlineMenu(void);
 void onConfigGameMenu(void);
@@ -226,11 +227,14 @@ struct GameDataBlock
 };
 
 // 
-PatchStateContainer_t patchStateContainer;
+PatchStateContainer_t patchStateContainer = {
+  .ReadExtraDataFunc = mapReadCustomMapExtraData
+};
 
 extern float _lodScale;
 extern void* _correctTieLod;
 extern MenuElem_OrderedListData_t dataCustomMaps;
+extern MapLoaderState_t MapLoaderState;
 
 struct FlagPVars
 {
@@ -341,12 +345,14 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 PatchGameConfig_t gameConfig;
 PatchGameConfig_t gameConfigHostBackup;
+int selectedMapIdHostBackup;
 PatchInterop_t interopData = {
   .Config = &config,
   .GameConfig = &gameConfig,
   .Client = CLIENT_TYPE_NORMAL,
   .Month = 0,
-  .SetSpectate = spectateSetSpectate
+  .SetSpectate = spectateSetSpectate,
+  .MapLoaderFilename = (char*)MapLoaderState.MapFileName
 };
 
 /*
@@ -748,13 +754,8 @@ void patchLevelOfDetail(void)
 
     // force lod on certain maps
     int lod = config.levelOfDetail;
-    switch (gameConfig.customMapId)
-    {
-      case CUSTOM_MAP_CANAL_CITY:
-      {
-        lod = 0; // always potato on canal city
-        break;
-      }
+    if (patchStateContainer.SelectedCustomMapId && strcmp(customMapDefs[patchStateContainer.SelectedCustomMapId-1].Filename, "canal city") == 0) {
+      lod = 0; // always potato on canal city
     }
 
     // correct lod
@@ -4765,11 +4766,14 @@ void runPayloadDownloadRequester(void)
 		}
 
 		// redownload when set map doesn't match downloaded one
-		if (!redownloadCustomModeBinaries && module->State && module->MapId != gameConfig.customMapId) {
-			redownloadCustomModeBinaries = 1;
-			DPRINTF("map id %d != %d\n", gameConfig.customMapId, module->MapId);
-		}
-    
+		// if (!redownloadCustomModeBinaries && module->State && module->MapId != gameConfig.customMapId) {
+		// 	redownloadCustomModeBinaries = 1;
+		// 	DPRINTF("map id %d != %d\n", gameConfig.customMapId, module->MapId);
+		// }
+    if (!redownloadCustomModeBinaries && patchStateContainer.SelectedCustomMapChanged) {
+      redownloadCustomModeBinaries = 1;
+    }
+
     // redownload if training mode changed
     if (!redownloadCustomModeBinaries && module->State && module->ModeId == CUSTOM_MODE_TRAINING && gameConfig.trainingConfig.type != module->Arg3) {
 			redownloadCustomModeBinaries = 1;
@@ -4779,7 +4783,7 @@ void runPayloadDownloadRequester(void)
 		// disable when module id doesn't match mode
 		// unless mode is forced (negative mode)
 		if (redownloadCustomModeBinaries == 1 || (module->State && !gameConfig.customModeId && module->ModeId >= 0)) {
-			DPRINTF("disabling module map:%d mode:%d\n", module->MapId, module->ModeId);
+			DPRINTF("disabling module mode:%d\n", module->ModeId);
 			module->State = 0;
 			memset((void*)(u32)0x000F0000, 0, 0xF000);
 		}
@@ -4790,6 +4794,8 @@ void runPayloadDownloadRequester(void)
 			DPRINTF("requested mode binaries\n");
 		}
 	}
+
+  patchStateContainer.SelectedCustomMapChanged = 0;
 }
 
 /*
@@ -4949,12 +4955,7 @@ void onOnlineMenu(void)
 			}
 #else
       int i;
-      for (i = 0; i < dataCustomMaps.count; ++i) {
-        if (dataCustomMaps.items[i].value == gameConfig.customMapId) {
-			    sprintf(buf, "Please install %s to play.", dataCustomMaps.items[i].name);
-          break;
-        }
-      }
+      sprintf(buf, "Please install %s to play.", MapLoaderState.MapName);
 			uiShowOkDialog("Custom Maps", buf);
 #endif
 		}
@@ -5361,6 +5362,8 @@ int main (void)
 			{
 				// copy over last game config as host
 				memcpy(&gameConfig, &gameConfigHostBackup, sizeof(PatchGameConfig_t));
+        patchStateContainer.SelectedCustomMapChanged = selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
+        patchStateContainer.SelectedCustomMapId = selectedMapIdHostBackup;
 
 				// send
 				configTrySendGameConfig();

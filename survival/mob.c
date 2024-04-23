@@ -226,7 +226,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	    args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
 		}
 
-    if (weaponId == WEAPON_ID_FLAIL && PATCH_INTEROP->GameConfig->customMapId != CUSTOM_MAP_SURVIVAL_VELDIN) {
+    if (weaponId == WEAPON_ID_FLAIL) {
       args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
       args.Knockback.Power += pDamager->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Level + 1;
     } else if (weaponId == WEAPON_ID_OMNI_SHIELD) {

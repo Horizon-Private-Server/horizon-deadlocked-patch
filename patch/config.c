@@ -11,6 +11,7 @@
 #include <libdl/map.h>
 #include <libdl/utils.h>
 #include "messageid.h"
+#include "module.h"
 #include "config.h"
 #include "include/config.h"
 
@@ -26,6 +27,8 @@ extern PatchConfig_t config;
 // game config
 extern PatchGameConfig_t gameConfig;
 extern PatchGameConfig_t gameConfigHostBackup;
+extern int selectedMapIdHostBackup;
+extern PatchStateContainer_t patchStateContainer;
 
 extern FreecamSettings_t freecamSettings;
 
@@ -96,6 +99,7 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
 void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateEnabledInMenusHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -136,6 +140,7 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state);
 // list select handlers
 void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
 void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 #ifdef DEBUG
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
@@ -148,6 +153,7 @@ void navTab(int direction);
 int mapsGetInstallationResult(void);
 int mapsPromptEnableCustomMaps(void);
 int mapsDownloadingModules(void);
+void refreshCustomMapList(void);
 void sendClientVoteForEnd(void);
 
 // level of detail list item
@@ -233,6 +239,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
   { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler, "Vote to end the game. If a team/player is in the lead they will win." },
+  { "Refresh Maps", buttonActionHandler, menuStateEnabledInMenusHandler, gmRefreshMapsSelectHandler },
 #if SCAVENGER_HUNT
   { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateScavengerHuntEnabledHandler, &config.disableScavengerHunt, "If you see this option, there is a Horizon scavenger hunt active. Enabling this will spawn random Horizon bolts in game. Collect the most to win the hunt!" },
 #endif
@@ -402,51 +409,15 @@ MenuElem_t menuElementsFreecam[] = {
 };
 
 // map override list item
-MenuElem_OrderedListData_t dataCustomMaps = {
-  .value = &gameConfig.customMapId,
+MenuElem_ListData_t dataCustomMaps = {
+  .value = &patchStateContainer.SelectedCustomMapId,
   .stateHandler = menuStateHandler_SelectedMapOverride,
-  .count = CUSTOM_MAP_COUNT,
+  .count = 1,
   .items = {
-    { CUSTOM_MAP_NONE, "None" },
-    { CUSTOM_MAP_ACE_HARDLIGHT_SUITE, "Ace Hardlight's Suite" },
-    { CUSTOM_MAP_ALPINE_JUNCTION, "Alpine Junction" },
-    { CUSTOM_MAP_ANNIHILATION_NATION, "Annihilation Nation" },
-    { CUSTOM_MAP_BAKISI_ISLES, "Bakisi Isles" },
-    { CUSTOM_MAP_BATTLEDOME_SP, "Battledome SP" },
-    { CUSTOM_MAP_BLACKWATER_CITY, "Blackwater City" },
-    { CUSTOM_MAP_BLACKWATER_DOCKS, "Blackwater Docks" },
-    { CUSTOM_MAP_CANAL_CITY, "Canal City" },
-    { CUSTOM_MAP_CONTAINMENT_SUITE, "Containment Suite" },
-    { CUSTOM_MAP_DARK_CATHEDRAL_INTERIOR, "Dark Cathedral Interior" },
-    { CUSTOM_MAP_GHOST_HANGAR, "Ghost Hangar" },
-    { CUSTOM_MAP_GHOST_SHIP, "Ghost Ship" },
-    { CUSTOM_MAP_HOVEN_GORGE, "Hoven Gorge" },
-    { CUSTOM_MAP_INFINITE_CLIMBER, "Infinite Climber" },
-    { CUSTOM_MAP_KORGON_OUTPOST, "Korgon Outpost" },
-    { CUSTOM_MAP_LAUNCH_SITE, "Launch Site" },
-    { CUSTOM_MAP_MARCADIA_PALACE, "Marcadia Palace" },
-    { CUSTOM_MAP_METROPOLIS_MP, "Metropolis MP" },
-    { CUSTOM_MAP_MINING_FACILITY_SP, "Mining Facility SP" },
-    { CUSTOM_MAP_MOUNTAIN_PASS, "Mountain Pass" },
-    { CUSTOM_MAP_SHAAR_SP, "Shaar SP" },
-    { CUSTOM_MAP_SNIVELAK, "Snivelak" },
-    { CUSTOM_MAP_SPLEEF, "Spleef" },
-    { CUSTOM_MAP_TORVAL_LOST_FACTORY, "Torval Lost Factory" },
-    { CUSTOM_MAP_TORVAL_SP, "Torval SP" },
-    { CUSTOM_MAP_TYHRRANOSIS, "Tyhrranosis" },
-    // -- SURVIVAL MAPS --
-    { CUSTOM_MAP_SURVIVAL_MINING_FACILITY, "Orxon" },
-    { CUSTOM_MAP_SURVIVAL_MOUNTAIN_PASS, "Mountain Pass" },
-    { CUSTOM_MAP_SURVIVAL_VELDIN, "Veldin" }
+    "None",
+    [MAX_CUSTOM_MAP_DEFINITIONS+1] NULL
   }
 };
-
-// maps with their own exclusive gamemode
-char dataCustomMapsWithExclusiveGameMode[] = {
-  CUSTOM_MAP_SPLEEF,
-  CUSTOM_MAP_INFINITE_CLIMBER
-};
-const int dataCustomMapsWithExclusiveGameModeCount = sizeof(dataCustomMapsWithExclusiveGameMode)/sizeof(char);
 
 // gamemode override list item
 MenuElem_OrderedListData_t dataCustomModes = {
@@ -455,7 +426,7 @@ MenuElem_OrderedListData_t dataCustomModes = {
   .count = CUSTOM_MODE_COUNT,
   .items = {
     { CUSTOM_MODE_NONE, "None" },
-    { CUSTOM_MODE_BENCHMARK, "Benchmark" },
+    //{ CUSTOM_MODE_BENCHMARK, "Benchmark" },
     { CUSTOM_MODE_GRIDIRON, "DreadBall" },
     { CUSTOM_MODE_GUN_GAME, "Gun Game" },
     { CUSTOM_MODE_HNS, "Hide and Seek" },
@@ -484,7 +455,7 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_1000_KILLS] NULL,
   [CUSTOM_MODE_TRAINING] NULL,
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
-  [CUSTOM_MODE_BENCHMARK] NULL,
+  //[CUSTOM_MODE_BENCHMARK] NULL,
   [CUSTOM_MODE_GRIDIRON] NULL,
 #if DEV
   [CUSTOM_MODE_ANIM_EXTRACTOR] NULL,
@@ -670,7 +641,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
 
   // { "Game Settings", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Map override", orderedListActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
+  { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes, "Change to one of the Horizon Custom Gamemodes." },
   { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset, "Select one of the preconfigured game rule presets or manually set the custom game rules below." },
 
@@ -784,6 +755,20 @@ void tabFreecamStateHandler(TabElem_t* tab, int * state)
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
   else
     *state = ELEMENT_HIDDEN;
+}
+
+// 
+void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  refreshCustomMapList();
+  
+  // popup
+  if (isInMenus())
+  {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Found %d maps", customMapDefCount);
+    uiShowOkDialog("Custom Maps", buf);
+  }
 }
 
 // 
@@ -927,6 +912,7 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   preset = 0;
   memset(&gameConfig, 0, sizeof(gameConfig));
+  patchStateContainer.SelectedCustomMapId = 0;
 }
 
 // 
@@ -967,6 +953,13 @@ void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* st
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
+}
+
+// 
+void menuStateEnabledInMenusHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (isInMenus()) *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
+  else *state = ELEMENT_HIDDEN;
 }
 
 // 
@@ -1048,66 +1041,77 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
 
   switch (gm)
   {
-    case CUSTOM_MODE_BENCHMARK:
-    {
-      if (v == CUSTOM_MAP_SURVIVAL_MINING_FACILITY)
-        return 1;
-
-      *value = CUSTOM_MAP_SURVIVAL_MINING_FACILITY;
-      return 0;
-    }
+    // case CUSTOM_MODE_BENCHMARK:
+    // {
+    //   for (i = 0; i < customMapDefCount; ++i) {
+    //     if (strcmp("benchmark", customMapDefs[i].Filename) == 0) {
+    //       if (v == (i+1)) return 1;
+          
+    //       *value = i+1;
+    //       return 0;
+    //     }
+    //   }
+      
+    //   *value = 0;
+    //   return 0;
+    // }
     case CUSTOM_MODE_SURVIVAL:
     {
 #if DEBUG
       return 1;
 #endif
-      if (v >= CUSTOM_MAP_SURVIVAL_START && v <= CUSTOM_MAP_SURVIVAL_END)
+
+      // accept if selected map is survival
+      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL)
         return 1;
 
-      *value = CUSTOM_MAP_SURVIVAL_START;
+      // force first survival map
+      for (i = 0; i < customMapDefCount; ++i) {
+        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
+          *value = i+1;
+          return 0;
+        }
+      }
+
+      // reset
+      *value = 0;
       return 0;
     }
     case CUSTOM_MODE_SEARCH_AND_DESTROY:
     {
       // supported custom maps
-      switch (v)
-      {
-        case CUSTOM_MAP_BAKISI_ISLES:
-        case CUSTOM_MAP_CANAL_CITY:
-        case CUSTOM_MAP_GHOST_HANGAR:
-        case CUSTOM_MAP_GHOST_SHIP:
-        case CUSTOM_MAP_HOVEN_GORGE:
-        case CUSTOM_MAP_KORGON_OUTPOST:
-        case CUSTOM_MAP_METROPOLIS_MP:
-        case CUSTOM_MAP_MINING_FACILITY_SP:
-        case CUSTOM_MAP_SHAAR_SP:
-        case CUSTOM_MAP_SNIVELAK:
-        case CUSTOM_MAP_TORVAL_LOST_FACTORY:
-        case CUSTOM_MAP_TORVAL_SP:
-        case CUSTOM_MAP_TYHRRANOSIS:
-        case CUSTOM_MAP_NONE:
-          return 1;
-      }
+      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << CUSTOM_MODE_SEARCH_AND_DESTROY)) != 0)
+        return 1;
 
-      *value = CUSTOM_MAP_NONE;
+      if (v == 0) return 1;
+
+      *value = 0;
       return 0;
     }
     case CUSTOM_MODE_PAYLOAD:
     {
-      if (v == CUSTOM_MAP_SNIVELAK || v == CUSTOM_MAP_NONE)
+      // supported custom maps
+      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << CUSTOM_MODE_PAYLOAD)) != 0)
         return 1;
 
-      *value = CUSTOM_MAP_SNIVELAK;
+      if (v == 0) return 1;
+
+      *value = 0;
       return 0;
     }
     case CUSTOM_MODE_TRAINING:
     {
       // endless cycle supports custom maps
       if ((gameConfig.trainingConfig.type == TRAINING_TYPE_CYCLE || gameConfig.trainingConfig.type == TRAINING_TYPE_RUSH) && gameConfig.trainingConfig.variant != 0) {
-        if (v < CUSTOM_MAP_SURVIVAL_START) return 1;
+        if (v && customMapDefs[v-1].ForcedCustomModeId) {
+          *value = 0;
+          return 0;
+        }
+
+        return 1;
       }
 
-      *value = CUSTOM_MAP_NONE;
+      *value = 0;
       return 0;
     }
     default:
@@ -1119,21 +1123,19 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
       // hide maps with gamemode override
       if (gm > CUSTOM_MODE_NONE)
       {
-        for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
+        if (v && customMapDefs[v-1].ForcedCustomModeId && customMapDefs[v-1].ForcedCustomModeId != gm)
         {
-          if (v == dataCustomMapsWithExclusiveGameMode[i])
-          {
-            *value = CUSTOM_MAP_NONE;
-            return 0;
-          }
+          *value = 0;
+          return 0;
         }
       }
 
-      if (v < CUSTOM_MAP_SURVIVAL_START)
-        return 1;
-      
-      *value = CUSTOM_MAP_NONE;
-      return 0;
+      if (v && customMapDefs[v-1].ForcedCustomModeId > 0) {
+        *value = 0;
+        return 0;
+      }
+
+      return 1;
     }
   }
 }
@@ -1145,13 +1147,9 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 
   // hide gamemode for maps with exclusive gamemode
 #if !DEBUG
-  for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
-  {
-    if (gameConfig.customMapId == dataCustomMapsWithExclusiveGameMode[i])
-    {
-      *state = ELEMENT_HIDDEN;
-      return;
-    }
+  if (patchStateContainer.SelectedCustomMapId && customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId < 0) {
+    *state = ELEMENT_HIDDEN;
+    return;
   }
 #endif
 
@@ -2305,14 +2303,10 @@ void onConfigUpdate(void)
     char * modeName = gameGetGameModeName(gameSettings->GameRules);
 
     // get map override name
-    if (gameConfig.customMapId > 0) {
-      for (i = 0; i < dataCustomMaps.count; ++i) {
-        if (dataCustomMaps.items[i].value == (int)gameConfig.customMapId) {
-          mapName = dataCustomMaps.items[i].name;
-          break;
-        }
-      }
-    }
+    if (patchStateContainer.SelectedCustomMapId > 0)
+      mapName = dataCustomMaps.items[patchStateContainer.SelectedCustomMapId];
+    else if (MapLoaderState.MapName[0])
+      mapName = MapLoaderState.MapName;
 
     // get mode override name
     if (gameConfig.customModeId > 0)
@@ -2334,12 +2328,11 @@ void onConfigUpdate(void)
     }
 
     // override gamemode name with map if map has exclusive gamemode
-    for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
+    if (patchStateContainer.SelectedCustomMapId)
     {
-      if (gameConfig.customMapId == dataCustomMapsWithExclusiveGameMode[i])
+      if (customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId < 0)
       {
         modeName = mapName;
-        break;
       }
     }
 
@@ -2485,7 +2478,6 @@ int onSetGameConfig(void * connection, void * data)
   memcpy(&config, data, sizeof(PatchGameConfig_t));
 
   // check for changes
-  int mapChanged = config.customMapId != gameConfig.customMapId;
   redownloadCustomModeBinaries |= config.customModeId != gameConfig.customModeId;
 
   // copy it over
@@ -2537,6 +2529,7 @@ void onConfigInitialize(void)
   // reset game configs
   memset(&gameConfigHostBackup, 0, sizeof(gameConfigHostBackup));
   memset(&gameConfig, 0, sizeof(gameConfig));
+  selectedMapIdHostBackup = 0;
 
   // set defaults
   //gameConfigHostBackup.survivalConfig.difficulty = 4;
@@ -2574,13 +2567,24 @@ void configTrySendGameConfig(void)
       }
     }
 
+    // detect when new map selected
+    patchStateContainer.SelectedCustomMapChanged = selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
+
     // backup
     memcpy(&gameConfigHostBackup, &gameConfig, sizeof(PatchGameConfig_t));
+    selectedMapIdHostBackup = patchStateContainer.SelectedCustomMapId;
 
     // send
     void * lobbyConnection = netGetLobbyServerConnection();
-    if (lobbyConnection)
-      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(PatchGameConfig_t), &gameConfig);
+    if (lobbyConnection) {
+      ClientSetGameConfig_t msg;
+
+      memset(&msg, 0, sizeof(msg));
+      if (patchStateContainer.SelectedCustomMapId > 0)
+        memcpy(&msg.CustomMap, &customMapDefs[patchStateContainer.SelectedCustomMapId-1], sizeof(msg.CustomMap));
+      memcpy(&msg.GameConfig, &gameConfig, sizeof(msg.GameConfig));
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(ClientSetGameConfig_t), &msg);
+    }
   }
 #endif
 
