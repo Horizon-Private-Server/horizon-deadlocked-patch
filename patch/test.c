@@ -915,7 +915,7 @@ void drawPositionYaw(void)
 
 void sendFusionShot(void)
 {
-  if (padGetButtonDown(0, PAD_DOWN) <= 0) return;
+  if (padGetButton(0, PAD_DOWN) <= 0) return;
   
   Player* player = playerGetFromSlot(0);
   void * connection = netGetDmeServerConnection();
@@ -931,10 +931,10 @@ void sendFusionShot(void)
   msg.PlayerIndex = player->PlayerId;
   msg.GadgetId = WEAPON_ID_FUSION_RIFLE;
   msg.GadgetEventType = 8;
-  msg.ActiveTime = gameGetTime() + (TIME_SECOND * 60);
+  msg.ActiveTime = gameGetTime() - (TIME_SECOND * 60);
   msg.TargetUID = -1;
-  memcmp(msg.FiringLoc, from, 12);
-  memcmp(msg.TargetDir, to, 12);
+  memcpy(msg.FiringLoc, from, 12);
+  memcpy(msg.TargetDir, to, 12);
   netBroadcastMediusAppMessage(0, connection, 14, sizeof(msg), &msg);
 }
 
@@ -1143,7 +1143,7 @@ void runTestLogic(void)
     // }
 
     //runLatencyPing();
-    //sendFusionShot();
+    sendFusionShot();
     //runAnimJointThing();
     //runDrawQuad();
     //runCameraHeight();
@@ -1169,10 +1169,6 @@ void runTestLogic(void)
     //     white, white, white, white, white, white, white, white, white,
     //     0, 0, 0, 0, 1, 0, 0, 0);
     // }
-
-    if (padGetButton(0, PAD_UP) > 0) {
-      uiShowHelpPopup(0, "You have lost connection. Please exit to return to the main menu and have a chance at reconnection.", 10 * 60);
-    }
 
     for (i = 0; i < GAME_MAX_LOCALS; ++i) {
       Player* p = playerGetFromSlot(i);

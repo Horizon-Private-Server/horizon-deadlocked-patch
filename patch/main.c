@@ -1604,19 +1604,27 @@ void patchAimAssist(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void handleWeaponShotDelayed(Player* player, char a1, int a2, short a3, char t0, struct tNW_GadgetEventMessage * message)
+void handleWeaponShotDelayed(Player* player, char event, int dispatchTime, short gadgetId, char gadgetIdx, struct tNW_GadgetEventMessage * message)
 {
   const int MAX_DELAY = TIME_SECOND * 0.2;
 
+  int startTime = dispatchTime;
+
   // put clamp on max delay
-  int delta = a2 - gameGetTime();
+  int delta = dispatchTime - gameGetTime();
   if (delta > MAX_DELAY) {
-    message->ActiveTime = a2 = gameGetTime() + MAX_DELAY;
+    dispatchTime = gameGetTime() + MAX_DELAY;
+    if (message) message->ActiveTime = dispatchTime;
   } else if (delta < 0) {
-    message->ActiveTime = a2 = gameGetTime() - 1;
+    dispatchTime = gameGetTime() - 1;
+    if (message) message->ActiveTime = dispatchTime;
   }
   
-	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, a1, a2, a3, t0, message);
+  // if (gadgetId == 5 || (gadgetId == -1 && player->Gadgets[gadgetIdx].id == 5)) {
+  //   DPRINTF("GADGET %d EVENT %d TIME %d=>%d (%d)\n", gadgetId, event, startTime, dispatchTime, gameGetTime());
+  // }
+  
+	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, event, dispatchTime, gadgetId, gadgetIdx, message);
 }
 
 /*
@@ -2507,6 +2515,48 @@ void runFixB6EatOnDownSlope(void)
   // }
 }
 
+u128 fusionShotUpdatePos(Moby* moby) {
+
+  u128 oldPos = vector_read(moby->Position);
+
+  VECTOR t, to;
+  vector_scale(t, (float*)moby->PVar, 8);
+  vector_add(to, moby->Position, t);
+
+  // force pos to within moby grid
+  // if any component of the new pos is <2 or >1021 then clamp pos along velocity within bounds
+  float min = minf(to[0], minf(to[1], to[2]));
+  float max = maxf(to[0], maxf(to[1], to[2]));
+  int component = -1;
+  float target = 0;
+
+  if (min <= 2) {
+    if (to[0] == min) component = 0;
+    if (to[1] == min) component = 1;
+    if (to[2] == min) component = 2;
+
+    target = 2.01;
+  } else if (max >= 1021) {
+    if (to[0] == max) component = 0;
+    if (to[1] == max) component = 1;
+    if (to[2] == max) component = 2;
+
+    target = 1020.99;
+  }
+
+  // clamp by largest (or smallest) component
+  if (component >= 0 && target > 0 && fabsf(t[component]) > 0.01) {
+    float scale = (target - moby->Position[component]) / t[component];
+    if (scale > 0) {
+      vector_scale(t, t, scale);
+      vector_add(to, moby->Position, t);
+    }
+  }
+
+  vector_copy(moby->Position, to);
+  return oldPos;
+}
+
 /*
  * NAME :		patchWeaponShotLag
  * 
@@ -2549,11 +2599,20 @@ void patchWeaponShotLag(void)
 	POKE_U32(0x003fa5c0, 0x0240402D);
 	HOOK_JAL(0x003fa5c8, &getFusionShotDirection);
 
+  // immediately set fusion shot moby state to 1
+  // which begins the process of sending the shot fired packet with 1 frame of latency
+  // instead of the built in 7 (130ms)
+  POKE_U32(0x003fe160, 0);
+  HOOK_JAL(0x003fe018, &fusionShotUpdatePos);
+
 	// patch all weapon shots to be shot on remote as soon as they arrive
 	// instead of waiting for the gametime when they were shot on the remote
 	// since all shots happen immediately (none are sent ahead-of-time)
 	// and this only happens when a client's timebase is desync'd
 	HOOK_JAL(0x0062ac60, &handleWeaponShotDelayed);
+	//HOOK_JAL(0x0060f754, &handleWeaponShotDelayed);
+	//HOOK_JAL(0x0060538c, &handleWeaponShotDelayed);
+	//HOOK_JAL(0x0060f474, &handleWeaponShotDelayed);
 
 	// this disables filtering out fusion shots where the player is facing the opposite direction
 	// in other words, a player may appear to shoot behind them but it's just lag/desync

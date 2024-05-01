@@ -1246,7 +1246,7 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
 	int i,j,k;
 
 	// better flags disabled
-	if (!gameConfig.grBetterFlags)
+	if (!gameConfig.grBetterFlags || MapLoaderState.MapFileName[0])
 		return;
 
 	GameSettings* gameSettings = gameGetSettings();

@@ -234,8 +234,11 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	DPRINTF("server sent map irx modules\n");
 
 	MapServerSentModulesMessage * msg = (MapServerSentModulesMessage*)data;
-
   mapsRemoteGlobalVersion = msg->Version;
+
+  // we've already initialized the usb interface
+  if (rpcInit > 0)
+	  return sizeof(MapServerSentModulesMessage);
 
 	// initiate loading
 	if (LOAD_MODULES_STATE == 0)
@@ -790,6 +793,47 @@ int readLevelUsb(u8 * buf)
 }
 
 //------------------------------------------------------------------------------
+void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
+{
+  // parse extra data
+  CustomMapVersionFileDef_t versionFileDef;
+  int extraDataModeMask = 0, i;
+  memcpy(&versionFileDef, versionFileBuffer, sizeof(CustomMapVersionFileDef_t));
+  for (i = 0; i < versionFileDef.ExtraDataCount; ++i) {
+    short modeId = *(short*)((u32)versionFileBuffer + 0x30 + 8*i);
+    if (modeId > 0) {
+      extraDataModeMask |= (1 << modeId);
+    }
+  }
+
+  // insert alphabetically
+  int insertAtIdx = customMapDefCount;
+  for (i = 0; i < customMapDefCount; ++i) {
+    int c = strncmp(versionFileDef.Name, customMapDefs[i].Name, sizeof(customMapDefs[i].Name));
+    if (c < 0) {
+      insertAtIdx = i;
+      break;
+    }
+  }
+
+  // move maps forward
+  if (insertAtIdx < customMapDefCount) {
+    memmove(&customMapDefs[insertAtIdx+1], &customMapDefs[insertAtIdx], sizeof(CustomMapDef_t)*(customMapDefCount-insertAtIdx));
+  }
+
+  // bring to custom map defs
+  customMapDefs[insertAtIdx].Version = versionFileDef.Version;
+  customMapDefs[insertAtIdx].BaseMapId = versionFileDef.BaseMapId;
+  customMapDefs[insertAtIdx].ForcedCustomModeId = versionFileDef.ForcedCustomModeId;
+  customMapDefs[insertAtIdx].CustomModeExtraDataMask = extraDataModeMask;
+  strncpy(customMapDefs[insertAtIdx].Filename, filenameWithoutExtension, sizeof(customMapDefs[insertAtIdx].Filename));
+  strncpy(customMapDefs[insertAtIdx].Name, versionFileDef.Name, sizeof(customMapDefs[insertAtIdx].Name));
+  customMapDefCount++;
+  
+  //DPRINTF("(%d/%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x\n", insertAtIdx, customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask);
+}
+
+//------------------------------------------------------------------------------
 void refreshCustomMapList(void)
 {
   int fd, r, i;
@@ -842,6 +886,12 @@ void refreshCustomMapList(void)
   {
     uiRunCallbacks();
 
+    // handle case where irx modules 
+    if (actionState != ACTION_REFRESHING_MAPLIST) {
+      actionStateAtStart = actionState;
+      actionState = ACTION_REFRESHING_MAPLIST;
+    }
+
     // read next entry
     // stop if we've reached the end
     if (rpcUSBdread(fd, &dirent) != 0) break;
@@ -890,25 +940,7 @@ void refreshCustomMapList(void)
     if (fWadLen <= 0) continue;
 
     // parse extra data
-    int extraDataModeMask = 0;
-    memcpy(&versionFileDef, buffer, sizeof(CustomMapVersionFileDef_t));
-    for (i = 0; i < versionFileDef.ExtraDataCount; ++i) {
-      short modeId = *(short*)((u32)buffer + 0x30 + 8*i);
-      if (modeId > 0) {
-        extraDataModeMask |= (1 << modeId);
-      }
-    }
-
-    DPRINTF("(%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x\n", customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask);
-
-    // bring to custom map defs
-    customMapDefs[customMapDefCount].Version = versionFileDef.Version;
-    customMapDefs[customMapDefCount].BaseMapId = versionFileDef.BaseMapId;
-    customMapDefs[customMapDefCount].ForcedCustomModeId = versionFileDef.ForcedCustomModeId;
-    customMapDefs[customMapDefCount].CustomModeExtraDataMask = extraDataModeMask;
-    strncpy(customMapDefs[customMapDefCount].Filename, filenameWithoutExtension, sizeof(customMapDefs[customMapDefCount].Filename));
-    strncpy(customMapDefs[customMapDefCount].Name, versionFileDef.Name, sizeof(customMapDefs[customMapDefCount].Name));
-    customMapDefCount++;
+    customMapInsert(buffer, filenameWithoutExtension);
 
     // reached max maps
     if (customMapDefCount >= MAX_CUSTOM_MAP_DEFINITIONS) break;
