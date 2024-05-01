@@ -2303,7 +2303,7 @@ void onConfigUpdate(void)
     char * modeName = gameGetGameModeName(gameSettings->GameRules);
 
     // get map override name
-    if (patchStateContainer.SelectedCustomMapId > 0)
+    if (patchStateContainer.SelectedCustomMapId > 0 && dataCustomMaps.items[patchStateContainer.SelectedCustomMapId])
       mapName = dataCustomMaps.items[patchStateContainer.SelectedCustomMapId];
     else if (MapLoaderState.MapName[0])
       mapName = MapLoaderState.MapName;

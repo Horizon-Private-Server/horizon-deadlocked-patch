@@ -109,6 +109,7 @@ const int patches[][3] = {
   { 1, 0x0061fa74, 0x0C139060 }, // Get Killfeed Msg String
   { 1, 0x0061fa78, 0x8C440000 }, // Get Killfeed Msg String
   { 1, 0x005F7E64, 0x0C12DF94 }, // GetHeroAimPos hook
+  { 1, 0x003fe018, 0x0C0FF7C2 }, // fusionShotUpdatePos hook
 	// spectator
 	{ 1, 0x0054F46C, 0x0C1734F4 }, // healthbar
 	{ 1, 0x0054f898, 0x0C1734F4 }, // healthbar

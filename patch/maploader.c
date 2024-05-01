@@ -181,7 +181,7 @@ int onSetMapOverride(void * connection, void * data)
     // find map in our list
     int i = 0;
     for (i = 0; i < customMapDefCount; ++i) {
-      if (strcmp(customMapDefs[i].Filename, payload.CustomMap.Filename) == 0) {
+      if (strncmp(customMapDefs[i].Filename, payload.CustomMap.Filename, sizeof(customMapDefs[i].Filename)) == 0) {
         patchStateContainer.SelectedCustomMapId = i + 1;
         version = customMapDefs[i].Version;
         break;
@@ -826,11 +826,12 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
   customMapDefs[insertAtIdx].BaseMapId = versionFileDef.BaseMapId;
   customMapDefs[insertAtIdx].ForcedCustomModeId = versionFileDef.ForcedCustomModeId;
   customMapDefs[insertAtIdx].CustomModeExtraDataMask = extraDataModeMask;
+  customMapDefs[insertAtIdx].ShrubMinRenderDistance = versionFileDef.ShrubMinRenderDistance;
   strncpy(customMapDefs[insertAtIdx].Filename, filenameWithoutExtension, sizeof(customMapDefs[insertAtIdx].Filename));
   strncpy(customMapDefs[insertAtIdx].Name, versionFileDef.Name, sizeof(customMapDefs[insertAtIdx].Name));
   customMapDefCount++;
   
-  //DPRINTF("(%d/%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x\n", insertAtIdx, customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask);
+  DPRINTF("(%d/%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x shrub:%d\n", insertAtIdx, customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask, versionFileDef.ShrubMinRenderDistance);
 }
 
 //------------------------------------------------------------------------------

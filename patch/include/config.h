@@ -114,7 +114,8 @@ typedef struct CustomMapVersionFileDef
   int Version;
   int BaseMapId;
   int ForcedCustomModeId;
-  int ExtraDataCount;
+  short ExtraDataCount;
+  short ShrubMinRenderDistance;
   char Name[32];
 } CustomMapVersionFileDef_t;
 

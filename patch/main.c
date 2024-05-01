@@ -758,6 +758,12 @@ void patchLevelOfDetail(void)
       lod = 0; // always potato on canal city
     }
 
+    // use custom map min shrub render distance
+    short minShrubRenderDist = 0;
+    if (patchStateContainer.SelectedCustomMapId) {
+      minShrubRenderDist = customMapDefs[patchStateContainer.SelectedCustomMapId-1].ShrubMinRenderDistance;
+    }
+
     // correct lod
     int lodChanged = lod != lastLodLevel;
     switch (lod)
@@ -765,7 +771,7 @@ void patchLevelOfDetail(void)
       case 0: // potato
       {
         _lodScale = 0.2;
-        SHRUB_RENDER_DISTANCE = 50;
+        SHRUB_RENDER_DISTANCE = maxf(minShrubRenderDist, 50);
         *DRAW_SHADOW_FUNC = 0x03E00008;
         *(DRAW_SHADOW_FUNC + 1) = 0;
 
@@ -783,7 +789,7 @@ void patchLevelOfDetail(void)
       case 1: // low
       {
         _lodScale = 0.2;
-        SHRUB_RENDER_DISTANCE = 50;
+        SHRUB_RENDER_DISTANCE = maxf(minShrubRenderDist, 100);
         *DRAW_SHADOW_FUNC = 0x03E00008;
         *(DRAW_SHADOW_FUNC + 1) = 0;
 
@@ -804,7 +810,7 @@ void patchLevelOfDetail(void)
       case 2: // normal
       {
         _lodScale = 1.0;
-        SHRUB_RENDER_DISTANCE = 500;
+        SHRUB_RENDER_DISTANCE = maxf(minShrubRenderDist, 500);
         *DRAW_SHADOW_FUNC = 0x27BDFF90;
         *(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
         POKE_U16(0x00223158, 960);
@@ -824,7 +830,7 @@ void patchLevelOfDetail(void)
       case 3: // high
       {
         _lodScale = 10.0;
-        SHRUB_RENDER_DISTANCE = 5000;
+        SHRUB_RENDER_DISTANCE = maxf(minShrubRenderDist, 5000);
         *DRAW_SHADOW_FUNC = 0x27BDFF90;
         *(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
 
@@ -5328,6 +5334,8 @@ int main (void)
       if (mpMoby) {
         mpMoby->PUpdate = &onMobyUpdate;
       }
+    } else if (isUnloading && mpMoby) {
+      mpMoby->PUpdate = NULL;
     }
 
 		// reset when in game
@@ -5356,6 +5364,9 @@ int main (void)
 			// disable/enable press circle to equip hacker ray
 			*(u32*)0x005DE870 = config.disableCircleToHackerRay ? 0x24040000 : 0x00C0202D;
 		}
+
+    // increase cboot max slope
+    POKE_U16(0x00608CD0, 0x3F40);
 
 		// close config menu on transition to lobby
 		if (lastGameState != 1)
