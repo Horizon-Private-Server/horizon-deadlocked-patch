@@ -2380,6 +2380,9 @@ int onCalculateHeroAimPos(VECTOR from, VECTOR to, u64 hitFlag, Moby * moby, Moby
  */
 void onSetPlayerState_GetHit(Player * player, int stateId, int a2, int a3, int t0)
 {
+  // disable local flinching for remote targets when using new player sync
+  if (gameConfig.grNewPlayerSync && player && !player->IsLocal) return;
+
   // if we're disabling damage cooldown
   // and the source is the mag, apply a cooldown
   if (gameConfig.grNoInvTimer && player->LastDamagedMeGadgetId == WEAPON_ID_MAGMA_CANNON) {

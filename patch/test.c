@@ -1143,7 +1143,7 @@ void runTestLogic(void)
     // }
 
     //runLatencyPing();
-    sendFusionShot();
+    //sendFusionShot();
     //runAnimJointThing();
     //runDrawQuad();
     //runCameraHeight();
