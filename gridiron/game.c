@@ -299,7 +299,7 @@ void playerLogic(int playerIdx)
     } else {
       vector_subtract(temp, State.Teams[enemyTeamIdx].BasePosition, player->PlayerPosition);
 
-      if (player->IsLocal && vector_sqrmag(temp) < 4)
+      if (player->IsLocal && vector_sqrmag(temp) < 5 && player->Ground.onGood && player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_FLAG_SPAWN_POINT)
       {
         sendBallScored(playerIdx);
       }

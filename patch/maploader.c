@@ -799,7 +799,7 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
   CustomMapVersionFileDef_t versionFileDef;
   int extraDataModeMask = 0, i;
   memcpy(&versionFileDef, versionFileBuffer, sizeof(CustomMapVersionFileDef_t));
-  for (i = 0; i < versionFileDef.ExtraDataCount; ++i) {
+  for (i = 0; i < versionFileDef.ExtraDataCount && i < 24; ++i) {
     short modeId = *(short*)((u32)versionFileBuffer + 0x30 + 8*i);
     if (modeId > 0) {
       extraDataModeMask |= (1 << modeId);
@@ -839,11 +839,11 @@ void refreshCustomMapList(void)
 {
   int fd, r, i;
   const char* versionExt = ".version";
-  char dirpath[64];
-  char fullpath[256];
-  char filename[256];
-  char buf[64];
+  char dirpath[16];
+  char filename[64];
   char filenameWithoutExtension[64];
+  char fullpath[256];
+  char buffer[256];
   int versionExtLen = strlen(versionExt);
   int actionStateAtStart = actionState;
   iox_dirent_t dirent;
@@ -911,14 +911,13 @@ void refreshCustomMapList(void)
     if (strcmp(&filename[len-versionExtLen], versionExt) != 0) continue;
 
     #if DSCRPRINT
-    snprintf(buf, sizeof(buf), "y %s", filename);
-    pushScrPrintLine(buf);
+    snprintf(buffer, sizeof(buffer), "y %s", filename);
+    pushScrPrintLine(buffer);
     #endif
 
     DPRINTF("found version %s\n", filename);
 
     // parse version file
-    char buffer[1024];
     CustomMapVersionFileDef_t versionFileDef;
     snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, filename);
     int read = readFile(fullpath, buffer, 0, sizeof(buffer));
@@ -935,7 +934,7 @@ void refreshCustomMapList(void)
     len = strlen(filenameWithoutExtension);
     filenameWithoutExtension[len - versionExtLen] = 0;
 
-    // ensure version file has matching .world OR .wad
+    // ensure version file has matching .wad
     snprintf(fullpath, sizeof(fullpath), fWad, getMapPathPrefix(), filenameWithoutExtension);
     int fWadLen = readFileLength(fullpath);
     if (fWadLen <= 0) continue;

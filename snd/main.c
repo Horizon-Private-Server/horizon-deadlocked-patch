@@ -1531,6 +1531,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	{
 		if (SNDState.RoundEndTicks)
 		{
+      // global chat between rounds
+      voiceEnableGlobalChat(1);
+
 			// Destroy pack and disable timer
       if (gameData->TimeEnd != -1) {
 			  killPack();
@@ -1616,6 +1619,9 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		else
 		{
       int roundJustStarted = (gameTime - SNDState.RoundStartTicks) < (5 * TIME_SECOND);
+
+      // global chat if dead, team otherwise
+      voiceEnableGlobalChat(playerIsDead(localPlayer));
 
 			// Set lifetime of bomb pack moby
 			if (SNDState.BombPackMoby)

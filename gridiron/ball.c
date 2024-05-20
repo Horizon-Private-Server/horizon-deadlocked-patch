@@ -120,10 +120,17 @@ void ballThrow(Moby * moby, float power)
   pvars->DieTime = gameGetTime() + (TIME_SECOND * LIFETIME);
 
   // set velocity
-  vector_copy(pvars->Velocity, carrier->Velocity);
+  vector_write(pvars->Velocity, 0);
+  //vector_copy(pvars->Velocity, carrier->Velocity);
+
+  // speed up ball if firing in direction of player velocity
+  // slow down if opposite
+  // no effect if perpendicular
+  float carrierVelocityFactor = 0.2 * vector_innerproduct(carrier->Velocity, (float*)((u32)carrier + 0x1A60));
 
   // generate lob velocity from forward vector and pitch
-  vector_scale(temp, (float*)((u32)carrier + 0x1A60), (2 + (1 + fabsf(carrier->CameraPitch.Value)) * THROW_COEFF) * power * (1/60.0));
+  float speed = carrierVelocityFactor + ((2 + (1 + fabsf(carrier->CameraPitch.Value)) * THROW_COEFF) * power * (1/60.0));
+  vector_scale(temp, (float*)((u32)carrier + 0x1A60), speed);
   temp[2] += 0.1;
   vector_add(pvars->Velocity, pvars->Velocity, temp);
   ballDrop(moby);

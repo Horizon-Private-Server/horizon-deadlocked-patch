@@ -143,5 +143,6 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 //--------------------------------------------------------------------------
 void loadStart(void)
 {
+  voiceEnableGlobalChat(0); // team chat
   setLobbyGameOptions();
 }

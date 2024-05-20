@@ -341,7 +341,7 @@ void nodeUpdate(Moby* moby)
   if (gameOptions) {
     gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
     //gameOptions->GameFlags.MultiplayerGameFlags.Lockdown = 1;
-    gameOptions->GameFlags.MultiplayerGameFlags.UNK_09 = 1;
+    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 1;
   }
 
   //

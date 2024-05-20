@@ -5320,6 +5320,11 @@ int main (void)
     // allow local flinching before remote flinch for chargebooting targets
     POKE_U32(0x005E1C94, 0);
 
+    // immediately join global chat when game ends
+    if (gameHasEnded()) {
+      voiceEnableGlobalChat(1);
+    }
+
     // prevents wrench lag
     // by patching 1 frame where mag shot won't stop player when cbooting
     //POKE_U16(0x003EF658, 0x0017);

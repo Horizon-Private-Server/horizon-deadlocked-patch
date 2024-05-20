@@ -232,10 +232,12 @@ void resetFreecam(void)
  */
 float padJoystickToFloat(char value)
 {
-  if (value < 0)
-    return ((u8)value - 128.0) / 128.0;
+  u8 deadzone = 0x10;
   
-  return (127.0 - value) / -127.0;
+  if (value < 0)
+    return clamp(((u8)value - (128.0 + deadzone)) / (128.0 - deadzone), 0, 1);
+  
+  return clamp(((127.0 - deadzone) - value) / (-127.0 + deadzone), -1, 0);
 }
 
 /*
