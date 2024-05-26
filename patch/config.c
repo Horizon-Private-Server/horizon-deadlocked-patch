@@ -204,11 +204,10 @@ MenuElem_RangeData_t dataMinimapSmallZoom = {
 MenuElem_ListData_t dataGameServers = {
   .value = &config.preferredGameServer,
   .stateHandler = NULL,
-  .count = 3,
+  .count = 2,
   .items = {
     "US Central",
-    "Europe",
-    "US Central 2"
+    "Europe"
   }
 };
 
