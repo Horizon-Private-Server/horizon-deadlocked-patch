@@ -18,6 +18,7 @@ enum PatchGameNetMessage
   CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE,
   CUSTOM_MSG_PLAYER_LATENCY_TEST_PING,
   CUSTOM_MSG_PLAYER_QUICK_CHAT,
+  CUSTOM_MSG_B6_BALL_FIRED
 };
 
 enum ActionType
@@ -143,6 +144,14 @@ typedef struct VoteToEndState
   int Count;
   char Votes[GAME_MAX_PLAYERS];
 } VoteToEndState_t;
+
+typedef struct FireB6Ball
+{
+  float Position[3];
+  float Velocity[3];
+  short Level;
+  char FromPlayerId;
+} FireB6Ball_t;
 
 typedef struct CustomDzoCommandDrawVoteToEnd
 {

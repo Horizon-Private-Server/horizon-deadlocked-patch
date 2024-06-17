@@ -104,6 +104,8 @@
 
 #define KOTH_BONUS_POINTS_FACTOR    (0.2)
 
+#define B6_BALL_SHOT_FIRED_REPLACEMENT (1)
+
 // 
 void processSpectate(void);
 void spectateSetSpectate(int localPlayerIndex, int playerToSpectateOrDisable);
@@ -370,7 +372,10 @@ PatchInterop_t interopData = {
  */
 void INetUpdate(void)
 {
-  ((void (*)(void))0x01e9e798)();
+  //((void (*)(void))0x01e9e798)();
+
+  // MGCL update
+  ((void (*)(void))0x00161280)();
 }
 
 /*
@@ -1612,25 +1617,137 @@ void patchAimAssist(void)
  */
 void handleWeaponShotDelayed(Player* player, char event, int dispatchTime, short gadgetId, char gadgetIdx, struct tNW_GadgetEventMessage * message)
 {
-  const int MAX_DELAY = TIME_SECOND * 0.2;
+  const int MAX_DELAY = TIME_SECOND * 0;
 
   int startTime = dispatchTime;
 
   // put clamp on max delay
-  int delta = dispatchTime - gameGetTime();
-  if (delta > MAX_DELAY) {
-    dispatchTime = gameGetTime() + MAX_DELAY;
-    if (message) message->ActiveTime = dispatchTime;
-  } else if (delta < 0) {
-    dispatchTime = gameGetTime() - 1;
-    if (message) message->ActiveTime = dispatchTime;
+  if (message) {
+
+#if B6_BALL_SHOT_FIRED_REPLACEMENT
+    if (event == 8 && gadgetId == WEAPON_ID_B6) {
+      return;
+    }
+#endif
+
+    int delta = dispatchTime - gameGetTime();
+    if (delta > MAX_DELAY) {
+      dispatchTime = gameGetTime() + MAX_DELAY;
+      if (message) message->ActiveTime = dispatchTime;
+    } else if (delta < 0) {
+      dispatchTime = gameGetTime() - 1;
+      if (message) message->ActiveTime = dispatchTime;
+    }
+  } else if (dispatchTime < 0) {
+    dispatchTime = gameGetTime() - TIME_SECOND;
   }
-  
+
   // if (gadgetId == 5 || (gadgetId == -1 && player->Gadgets[gadgetIdx].id == 5)) {
   //   DPRINTF("GADGET %d EVENT %d TIME %d=>%d (%d)\n", gadgetId, event, startTime, dispatchTime, gameGetTime());
   // }
   
 	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, event, dispatchTime, gadgetId, gadgetIdx, message);
+}
+
+/*
+ * NAME :		onB6BallSpawned
+ * 
+ * DESCRIPTION :
+ * 			Hooks B6 ball spawn. Sends B6 fired message.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+Moby* onB6BallSpawned(void)
+{
+  Moby* moby;
+
+	// pointer to b6 ball moby is stored in $v0
+	asm volatile (
+		"move %0, $v0"
+		: : "r" (moby)
+	);
+
+  if (!moby) return NULL;
+  Player* sourcePlayer = *(Player**)(moby->PVar + 0x90);
+  if (!sourcePlayer) return moby;
+  if (!sourcePlayer->IsLocal) return moby;
+
+  FireB6Ball_t msg;
+  msg.FromPlayerId = sourcePlayer->PlayerId;
+  msg.Level = sourcePlayer->GadgetBox->Gadgets[WEAPON_ID_B6].Level;
+  memcpy(msg.Position, moby->Position, 12);
+  memcpy(msg.Velocity, moby->PVar + 0x40, 12);
+
+  void* connection = netGetDmeServerConnection();
+  if (connection) {
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, -1, CUSTOM_MSG_B6_BALL_FIRED, sizeof(msg), &msg);
+  }
+
+  return moby;
+}
+
+/*
+ * NAME :		onB6BallFiredRemote
+ * 
+ * DESCRIPTION :
+ * 			Handles incoming B6 fired event.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onB6BallFiredRemote(void* connection, void* data)
+{
+  FireB6Ball_t msg;
+  memcpy(&msg, data, sizeof(msg));
+
+  if (!isInGame()) return sizeof(msg);
+
+  DPRINTF("RECV B6 FIRED FROM %d\n", msg.FromPlayerId);
+
+  Player* player = playerGetAll()[msg.FromPlayerId];
+  if (!player || !player->PlayerMoby) return sizeof(msg);
+  if (player->Gadgets[0].id != WEAPON_ID_B6) {
+    DPRINTF("player does not have B6 equipped\n");
+    return sizeof(msg);
+  }
+
+  Moby* b6Moby = player->Gadgets[0].pMoby;
+  if (!b6Moby || b6Moby->OClass != MOBY_ID_B6_OBLITERATOR) return sizeof(msg);
+
+  // ensure gadget level matches source player
+  if (player->GadgetBox->Gadgets[WEAPON_ID_B6].Level != msg.Level) {
+    player->GadgetBox->Gadgets[WEAPON_ID_B6].Level = msg.Level;
+    if (b6Moby) weaponMobyUpdateBangles(b6Moby, WEAPON_ID_B6, msg.Level);
+  }
+
+  // player shot recoil animation
+  ((void (*)(Player*, int))0x005dcdd8)(player, -1);
+
+  // b6 moby shot fired animation
+  mobyAnimTransition(b6Moby, 2, 2, 0);
+
+  // play sound
+  mobyPlaySound(0, 0, b6Moby);
+
+  // fire b6 bomb
+  VECTOR pos, vel;
+  memcpy(pos, msg.Position, 12);
+  memcpy(vel, msg.Velocity, 12);
+  Moby* ball = ((Moby* (*)(Moby* gadget, VECTOR pos, VECTOR vel, int, Moby* heroMoby, Player* hero, int dispatchTime, int))0x003f5f80)
+    (player->Gadgets[0].pMoby, pos, vel, 0, player->PlayerMoby, player, gameGetTime(), 0);
+
+	return sizeof(msg);
 }
 
 /*
@@ -2619,9 +2736,13 @@ void patchWeaponShotLag(void)
 	// since all shots happen immediately (none are sent ahead-of-time)
 	// and this only happens when a client's timebase is desync'd
 	HOOK_JAL(0x0062ac60, &handleWeaponShotDelayed);
-	//HOOK_JAL(0x0060f754, &handleWeaponShotDelayed);
-	//HOOK_JAL(0x0060538c, &handleWeaponShotDelayed);
-	//HOOK_JAL(0x0060f474, &handleWeaponShotDelayed);
+	HOOK_JAL(0x0060f754, &handleWeaponShotDelayed);
+	HOOK_JAL(0x0060538c, &handleWeaponShotDelayed);
+	HOOK_JAL(0x0060f474, &handleWeaponShotDelayed);
+
+#if B6_BALL_SHOT_FIRED_REPLACEMENT
+  HOOK_J(0x003F6164, &onB6BallSpawned);
+#endif
 
 	// this disables filtering out fusion shots where the player is facing the opposite direction
 	// in other words, a player may appear to shoot behind them but it's just lag/desync
@@ -2662,16 +2783,16 @@ void patchWeaponShotLag(void)
   // so that player movement are after gadget events (weapon shots)
   // and hitbox updates are before gadget events
   // for some reason this breaks lock strafe in CQ.. so just turn it off for CQ since it's not played much
-  u32* heroUpdateHookAddr = (u32*)0x003bd854;
-  if (*heroUpdateHookAddr == 0x0C173876) {
-    HOOK_JAL(0x003bd854, &onHeroUpdate);
+  // u32* heroUpdateHookAddr = (u32*)0x003bd854;
+  // if (*heroUpdateHookAddr == 0x0C173876) {
+  //   HOOK_JAL(0x003bd854, &onHeroUpdate);
       
-    // disable normal hero gadget event handling
-    // we want to run this at the end of the update
-    if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL && gs->GameRules != GAMERULE_CQ) {
-      POKE_U32(0x005DFE30, 0);
-    }
-  }
+  //   // disable normal hero gadget event handling
+  //   // we want to run this at the end of the update
+  //   if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL && gs->GameRules != GAMERULE_CQ) {
+  //     POKE_U32(0x005DFE30, 0);
+  //   }
+  // }
 
 	// fix b6 eating on down slope
 	runFixB6EatOnDownSlope();
@@ -4376,10 +4497,10 @@ void forceLobbyNameOverrides(void)
     int j;
     for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
       if (gs->PlayerAccountIds[j] == accountId) {
-        if (locals[j] == 0) {
+        if (locals[i] == 0) {
           strncpy(gs->PlayerNames[j], patchStateContainer.LobbyNameOverrides.Names[i], 16);
         }
-        locals[j]++;
+        locals[i]++;
       }
     }
   }
@@ -5133,6 +5254,7 @@ int main (void)
 	netInstallCustomMsgHandler(CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED, &onClientVoteToEndStateUpdateRemote);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_NAME_OVERRIDES, &onServerSetLobbyNameOverridesRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DATE_TIME_RESPONSE, &onServerDateTimeResponseRemote);
+	netInstallCustomMsgHandler(CUSTOM_MSG_B6_BALL_FIRED, &onB6BallFiredRemote);
 
   // dzo cosmetics are sent by dzo clients
   // the dzo patch handles it for us
@@ -5403,6 +5525,9 @@ int main (void)
 		// trigger map editor update
 		onMapEditorGameUpdate();
 #endif
+
+    // run net update after vsync when in game
+    INetUpdate();
 
 		lastGameState = 1;
 	}

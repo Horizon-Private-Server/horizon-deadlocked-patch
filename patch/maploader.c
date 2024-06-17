@@ -905,6 +905,10 @@ void refreshCustomMapList(void)
     if (useHost) strncpy(filename, iomanDirent->name, sizeof(filename));
     else strncpy(filename, dirent.name, sizeof(filename));
 
+    // OSX creates index files starting with a '.'
+    // filter those out
+    if (filename[0] == '.') continue;
+
     // we want to parse the .version files
     // check if filename ends with ".version"
     int len = strlen(filename);

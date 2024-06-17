@@ -152,6 +152,19 @@ u32 currentFrameJointMatrixAddr = 0;
 VECTOR b6ExplosionPositions[64];
 int b6ExplosionPositionCount = 0;
 
+SoundDef baseSoundDef = {
+	0.0,	  // MinRange
+	45.0,	  // MaxRange
+	0,		  // MinVolume
+	1228,		// MaxVolume
+	-635,			// MinPitch
+	635,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	0x17D,		// Index
+	3			  // Bank
+};
+
 void setActive(int v) {
   if (v == active)
     return;
@@ -931,7 +944,7 @@ void sendFusionShot(void)
   msg.PlayerIndex = player->PlayerId;
   msg.GadgetId = WEAPON_ID_FUSION_RIFLE;
   msg.GadgetEventType = 8;
-  msg.ActiveTime = gameGetTime() - (TIME_SECOND * 60);
+  msg.ActiveTime = gameGetTime() + (TIME_SECOND * 60);
   msg.TargetUID = -1;
   memcpy(msg.FiringLoc, from, 12);
   memcpy(msg.TargetDir, to, 12);
@@ -1109,6 +1122,114 @@ void runSendMonitor(void)
   POKE_U32(0x01EA1274, 0);
 }
 
+void playSound(Moby* moby, int id)
+{
+  static short sHandle = 0;
+
+  if (sHandle != 0) {
+    soundKillByHandle(sHandle);
+    sHandle = 0;
+  }
+
+	baseSoundDef.Index = id;
+	short sId = soundPlay(&baseSoundDef, 0, moby, 0, 0x400);
+  if (sId >= 0) {
+    sHandle = soundCreateHandle(sId);
+  }
+}
+
+void runDualViperNapalm(void)
+{
+  VECTOR offset = {0,0,-0.1,0};
+  Moby* m = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+
+  static int aaa = 386;
+
+  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+    --aaa;
+    DPRINTF("%d\n", aaa);
+    playSound(playerGetFromSlot(0)->PlayerMoby, aaa);
+  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+    ++aaa;
+    DPRINTF("%d\n", aaa);
+    playSound(playerGetFromSlot(0)->PlayerMoby, aaa);
+  }
+
+  return;
+
+  // disable napalm explosion
+  POKE_U32(0x00450FE4, 0);
+  POKE_U16(0x00450dfc, 2);
+
+  while (m < mEnd)
+  {
+    if (mobyIsDestroyed(m)) {
+      ++m;
+      continue;
+    }
+
+    int fire = 0;
+    int rate = 10;
+    switch (m->OClass)
+    {
+      case MOBY_ID_DUAL_VIPER_SHOT:
+      case MOBY_ID_ARBITER_ROCKET0:
+      case MOBY_ID_B6_BALL0:
+      {
+        rate = 5;
+        fire = 1;
+        break;
+      }
+      case MOBY_ID_HOLOSHIELD_SHOT:
+      case MOBY_ID_MINE_LAUNCHER_MINE:
+      {
+        rate = 10;
+        fire = 1;
+        break;
+      }
+      case MOBY_ID_FLAIL_HEAD:
+      {
+        rate = 3;
+
+        Moby* flail = m->PParent;
+        if (flail && flail->State == 2)
+          fire = 1;
+        break;
+      }
+    }
+
+    // napalm
+    if (fire) {
+      if (m->Mission >= rate) {
+        Player* player = guberMobyGetPlayerDamager(m);
+        if (player) {
+          Moby* napalm = ((Moby* (*)(u128 pos, u128 a1, u128 a2, Player* player, u32 t0, int t1, u32 t2, u32 t3))0x00450380)(
+            vector_read(m->Position),
+            0,
+            0,
+            player,
+            0x1801,
+            4,
+            0,
+            0
+          );
+
+          if (napalm && napalm->PVar) {
+            ((float*)napalm->PVar)[12] = 10;
+          }
+        }
+
+        m->Mission = 0;
+      } else {
+        m->Mission++;
+      }
+    }
+
+    ++m;
+  }
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -1142,6 +1263,7 @@ void runTestLogic(void)
     //   DPRINTF("lightning moby %08X\n", m);
     // }
 
+    runDualViperNapalm();
     //runLatencyPing();
     //sendFusionShot();
     //runAnimJointThing();

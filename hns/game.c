@@ -173,6 +173,9 @@ void stageHideLogic(void)
   // disable nametags during hide stage
   if (gs) gs->PlayerNamesOn = 0;
 
+  // disable radar for everyone during initial phase
+  POKE_U32(0x00613108, 0x24020001);
+
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     Player* player = players[i];
     if (!player || !player->PlayerMoby || !player->pNetPlayer) continue;
@@ -224,6 +227,11 @@ void stageSeekLogic(void)
     if (player->Team == TEAM_SEEKERS) {
       player->Health = 50;
 
+      // enable team radar for seekers
+      if (player->IsLocal) {
+        POKE_U32(0x00613108, 0x8E022EF4);
+      }
+
       // give all weapons to seekers
       // alpha seekers have juggy pack
       int level = State.AlphaSeeker[i];
@@ -240,6 +248,9 @@ void stageSeekLogic(void)
     }
 
     if (player->IsLocal && player->Team == TEAM_HIDERS) {
+
+      // disable team radar for hiders
+      POKE_U32(0x00613108, 0x24020001);
 
       // switch hider to seeker when dead
       if (playerIsDead(player)) {
@@ -259,7 +270,6 @@ void stageSeekLogic(void)
         }
       }
     }
-
   }
 
   // end when hiders die
@@ -438,30 +448,57 @@ void setLobbyGameOptions(void)
 
   if (gameAmIHost()) {
 
-    // set everyone to blue team
+    // set everyone not red to blue team
     int i;
+    int numPlayers = 0;
+    int numHiders = 0;
+    int numPreSeekers = 0;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       if (gameSettings->PlayerClients[i] >= 0) {
-        gameSettings->PlayerTeams[i] = TEAM_HIDERS;
+        if (gameSettings->PlayerTeams[i] != TEAM_SEEKERS) {
+          gameSettings->PlayerTeams[i] = TEAM_HIDERS;
+          ++numHiders;
+        } else {
+          ++numPreSeekers;
+        }
+
+        ++numPlayers;
       }
     }
 
-    // choose random seekers and set to red team
-    int seekerCount = gameSettings->PlayerCountAtStart > 6 ? 2 : 1;
-    while (seekerCount)
+    int seekerTargetCount = gameSettings->PlayerCountAtStart > 6 ? 2 : 1;
+    int numSeekers = numPreSeekers;
+
+    // if not enough seekers, choose random seekers and set to red team
+    // if too many seekers, choose random seeker and set to hider team
+    while (numSeekers != seekerTargetCount)
     {
-      int r = 1 + (libcRand() % GAME_MAX_PLAYERS);
+      int mod = (numSeekers > seekerTargetCount) ? numSeekers : numHiders;
+      int r = 1 + (libcRand() % mod);
       i = -1;
       while (r)
       {
         i = (i + 1) % GAME_MAX_PLAYERS;
         if (gameSettings->PlayerClients[i] >= 0) {
-          --r;
+          if (numSeekers > seekerTargetCount) {
+            if (gameSettings->PlayerTeams[i] == TEAM_SEEKERS) {
+              --r;
+            }
+          } else {
+            --r;
+          }
         }
       }
 
-      --seekerCount;
-      gameSettings->PlayerTeams[i] = TEAM_SEEKERS;
+      if (numSeekers > seekerTargetCount) {
+        --numSeekers;
+        gameSettings->PlayerTeams[i] = TEAM_HIDERS;
+        ++numHiders;
+      } else {
+        ++numSeekers;
+        gameSettings->PlayerTeams[i] = TEAM_SEEKERS;
+        --numHiders;
+      }
     }
   }
 
