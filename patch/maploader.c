@@ -100,14 +100,11 @@ int useHost = 0;
 
 // paths for level specific files
 char * fWad = "%sdl/%s.wad";
+char * fSound = "%sdl/%s.sound";
 char * fBg = "%sdl/%s.bg";
 char * fMap = "%sdl/%s.map";
 char * fVersion = "%sdl/%s.version";
 char * fGlobalVersion = "%sdl/version";
-
-#if MAPTEST
-char * fWadTest = "%sdl/%s.test.wad";
-#endif
 
 typedef struct MapOverrideMessage
 {
@@ -589,17 +586,6 @@ int readLevelVersion(char * name, int * version)
 //--------------------------------------------------------------
 int getLevelSizeUsb()
 {
-#if MAPTEST
-	// Generate wad filename
-	sprintf(membuffer, fWadTest, getMapPathPrefix(), MapLoaderState.MapFileName);
-
-	// get file length
-	MapLoaderState.LoadingFileSize = readFileLength(membuffer);
-
-  // if empty/nonexistent file, load real wad
-  if (MapLoaderState.LoadingFileSize > 0) return;
-#endif
-
 	// Generate wad filename
 	sprintf(membuffer, fWad, getMapPathPrefix(), MapLoaderState.MapFileName);
 
@@ -714,25 +700,17 @@ int usbWrite(int fd, u8* buf, int len)
 #endif
 
 //--------------------------------------------------------------
-int openLevelUsb()
+int openSoundUsb()
 {
 	// Ensure a wad isn't already open
 	if (MapLoaderState.LoadingFd >= 0)
 	{
-		DPRINTF("openLevelUsb() called but a file is already open (%d)!", MapLoaderState.LoadingFd);
+		DPRINTF("openSoundUsb() called but a file is already open (%d)!", MapLoaderState.LoadingFd);
 		return 0;
 	}
 
-#if MAPTEST
 	// Generate wad filename
-	sprintf(membuffer, fWadTest, getMapPathPrefix(), MapLoaderState.MapFileName);
-  if (readFileLength(membuffer) <= 0) {
-    sprintf(membuffer, fWad, getMapPathPrefix(), MapLoaderState.MapFileName);
-  }
-#else
-	// Generate wad filename
-	sprintf(membuffer, fWad, getMapPathPrefix(), MapLoaderState.MapFileName);
-#endif
+	sprintf(membuffer, fSound, getMapPathPrefix(), MapLoaderState.MapFileName);
 
 	// open wad file
 	rpcUSBopen(membuffer, FIO_O_RDONLY);
@@ -756,7 +734,55 @@ int openLevelUsb()
 		rpcUSBclose(MapLoaderState.LoadingFd);
 		rpcUSBSync(0, NULL, NULL);
 		MapLoaderState.LoadingFd = -1;
-        MapLoaderState.Enabled = 0;
+    MapLoaderState.Enabled = 0;
+		return 0;
+	}
+
+	// Go back to start of file
+	// The read will be called later
+	rpcUSBseek(MapLoaderState.LoadingFd, 0, SEEK_SET);
+	rpcUSBSync(0, NULL, NULL);
+
+	DPRINTF("%s is %d byte long.\n", membuffer, MapLoaderState.LoadingFileSize);
+	return MapLoaderState.LoadingFileSize;
+}
+
+//--------------------------------------------------------------
+int openLevelUsb()
+{
+	// Ensure a wad isn't already open
+	if (MapLoaderState.LoadingFd >= 0)
+	{
+		DPRINTF("openLevelUsb() called but a file is already open (%d)!", MapLoaderState.LoadingFd);
+		return 0;
+	}
+
+	// Generate wad filename
+	sprintf(membuffer, fWad, getMapPathPrefix(), MapLoaderState.MapFileName);
+
+	// open wad file
+	rpcUSBopen(membuffer, FIO_O_RDONLY);
+	rpcUSBSync(0, NULL, &MapLoaderState.LoadingFd);
+	
+	// Ensure wad successfully opened
+	if (MapLoaderState.LoadingFd < 0)
+	{
+		DPRINTF("error opening file (%s): %d\n", membuffer, MapLoaderState.LoadingFd);
+		return 0;									
+	}
+
+	// Get length of file
+	rpcUSBseek(MapLoaderState.LoadingFd, 0, SEEK_END);
+	rpcUSBSync(0, NULL, &MapLoaderState.LoadingFileSize);
+
+	// Check the file has a valid size
+	if (MapLoaderState.LoadingFileSize <= 0)
+	{
+		DPRINTF("error seeking file (%s): %d\n", membuffer, MapLoaderState.LoadingFileSize);
+		rpcUSBclose(MapLoaderState.LoadingFd);
+		rpcUSBSync(0, NULL, NULL);
+		MapLoaderState.LoadingFd = -1;
+    MapLoaderState.Enabled = 0;
 		return 0;
 	}
 
@@ -974,6 +1000,7 @@ void hookedLoad(u64 arg0, void * dest, u32 sectorStart, u32 sectorSize, u64 arg4
 	void (*cdvdLoad)(u64, void*, u32, u32, u64, u64, u64) = (void (*)(u64, void*, u32, u32, u64, u64, u64))0x00163840;
 
 	// Check if loading MP map
+  MapLoaderState.LevelBuffer = dest;
 	if (MapLoaderState.Enabled && HAS_LOADED_MODULES)
 	{
 		int fSize = openLevelUsb();
@@ -996,7 +1023,7 @@ u32 hookedCheck(void)
 
 	// If the wad is not open then we're loading from cdvd
 	if (MapLoaderState.LoadingFd < 0 || !MapLoaderState.Enabled)
-		return check();
+    return check();
 
 	// Otherwise check to see if we've finished loading the data from USB
 	if (rpcUSBSyncNB(0, &cmd, &r) == 1)
@@ -1008,6 +1035,15 @@ u32 hookedCheck(void)
 			rpcUSBclose(MapLoaderState.LoadingFd);
 			rpcUSBSync(0, NULL, NULL);
 			MapLoaderState.LoadingFd = -1;
+
+      // load sound bank
+      if (MapLoaderState.SoundLoadCb && MapLoaderState.SoundBuffer) {
+        r = ((int (*)(void*))0x00158400)(MapLoaderState.SoundBuffer);
+        DPRINTF("load sound bank from EE %08X\n", r);
+        MapLoaderState.SoundLoadCb(r, MapLoaderState.SoundLoadUserData);
+        MapLoaderState.SoundLoadCb = NULL; // reset
+      }
+
 			return check();
 		}
 	}
@@ -1086,9 +1122,40 @@ void hookedGetMap(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0,
 }
 
 //------------------------------------------------------------------------------
-void hookedGetAudio(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0, u64 t1, u64 t2)
+void hookedGetHud(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0, u64 t1, u64 t2)
 {
 	((void (*)(u64, void*,u32,u32,u64,u64,u64))0x00163808)(a0, dest, startSector, sectorCount, t0, t1, t2);
+}
+
+//------------------------------------------------------------------------------
+void hookedSoundCoreBankLoad(int loc, int offset, SndCompleteProc cb, u64 user_data)
+{
+	// Check if loading MP map
+	if (MapLoaderState.Enabled && HAS_LOADED_MODULES && MapLoaderState.LevelBuffer > 0)
+	{
+    // Generate sound filename
+    sprintf(membuffer, fSound, getMapPathPrefix(), MapLoaderState.MapFileName);
+    int filelen = readFileLength(membuffer);
+    if (filelen > 0) {
+        
+      int fSize = openSoundUsb();
+      if (fSize > 0)
+      {
+        MapLoaderState.SoundLoadCb = cb;
+        MapLoaderState.SoundLoadUserData = user_data;
+        MapLoaderState.SoundBuffer = MapLoaderState.LevelBuffer - filelen;
+
+        // read sound bank in background
+        // let hookedCheck handle when sound is finished loading
+        DPRINTF("begin sound bank read\n");
+        if (readLevelUsb(MapLoaderState.SoundBuffer) > 0)
+          return;
+      }
+    }
+	}
+
+  // snd_BankLoadByLoc_CB
+	((void (*)(int, int, SndCompleteProc, u64))0x001582a8)(loc, offset, cb, user_data);
 }
 
 //------------------------------------------------------------------------------
@@ -1323,7 +1390,8 @@ void hook(void)
 	u32 * hookLoadingScreenAddr = (u32*)0x00705554;
 	u32 * hookTableAddr = (u32*)0x00159B20;
 	u32 * hookMapAddr = (u32*)0x00557580;
-	u32 * hookAudioAddr = (u32*)0x0053F970;
+	u32 * hookHudAddr = (u32*)0x0053F970;
+  u32 * hookSoundCoreBank = (u32*)0x005FEC74;
 	u32 * hookLoadCdvdAddr = (u32*)0x00163814;
 	u32 * hookLoadScreenMapNameStringAddr = (u32*)0x007055B4;
 	u32 * hookLoadScreenModeNameStringAddr = (u32*)0x0070583C;
@@ -1345,6 +1413,7 @@ void hook(void)
 		*hookLoadCdvdAddr = 0x0C000000 | ((u32)&hookedLoadCdvd / 4);
 		*hookCheckAddr = 0x0C000000 | ((u32)(&hookedCheck) / 4);
 		*hookLoadAddr = 0x0C000000 | ((u32)(&hookedLoad) / 4);
+    *hookSoundCoreBank = 0x0C000000 | ((u32)(&hookedSoundCoreBankLoad) / 4);
 	}
 
 	// These get hooked after the map loads but before the game starts
@@ -1416,6 +1485,13 @@ void runMapLoader(void)
 		{
 			settings->GameLevel = MapLoaderState.MapId;
 		}
+
+    // reset before we load
+    if (isInMenus()) {
+      MapLoaderState.LevelBuffer = NULL;
+      MapLoaderState.SoundBuffer = NULL;
+      MapLoaderState.SoundLoadCb = NULL;
+    }
 	}
 
   //

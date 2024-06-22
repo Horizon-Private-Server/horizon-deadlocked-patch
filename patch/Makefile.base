@@ -8,7 +8,6 @@ EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 EE_DEFS += -DDEBUG
 EE_DEFS += -DSCAVENGER_HUNT
-#EE_DEFS += -DMAPTEST
 #EE_DEFS += -DTWEAKERS
 #EE_DEFS += -DDEV
 #EE_DEFS += -DMAPEDITOR

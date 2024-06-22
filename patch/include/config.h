@@ -120,6 +120,8 @@ typedef struct CustomMapVersionFileDef
   char Name[32];
 } CustomMapVersionFileDef_t;
 
+typedef void (*SndCompleteProc)(int loc, int user_data);
+
 typedef struct MapLoaderState
 {
     u8 Enabled;
@@ -129,6 +131,10 @@ typedef struct MapLoaderState
     char MapFileName[128];
     int LoadingFileSize;
     int LoadingFd;
+    void * LevelBuffer;
+    void * SoundBuffer;
+    SndCompleteProc SoundLoadCb;
+    u64 SoundLoadUserData;
 } MapLoaderState_t;
 
 typedef struct FreecamSettings
