@@ -1021,6 +1021,20 @@ u32 hookedCheck(void)
 	u32 (*check)(void) = (u32 (*)(void))0x00163928;
 	int r, cmd;
 
+  // delay non-host by some amount of time
+  // useful for testing slow load desyncs
+  /*
+  if (MapLoaderState.LoadingFd < 0 && MapLoaderState.Enabled && !gameAmIHost()) {
+    GameSettings* gs = gameGetSettings();
+    int loadAfter = gs->GameLoadStartTime + (1000 * 45);
+    if (gameGetTime() > loadAfter)
+      return check();
+ 
+    check();
+    return 1;
+  }
+  */
+
 	// If the wad is not open then we're loading from cdvd
 	if (MapLoaderState.LoadingFd < 0 || !MapLoaderState.Enabled)
     return check();

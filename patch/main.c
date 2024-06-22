@@ -3908,7 +3908,14 @@ u64 hookedProcessLevel()
 	GameModule * module = GLOBAL_GAME_MODULES_START;
 
   // increase wait for players to 32 seconds
-  POKE_U32(0x0021E1E8, 32 * 60);
+  POKE_U32(0x0021E1E8, 60 * 60);
+
+  // fade from black delay
+  // if this is not increased, and a player takes more than 2000 ticks to load
+  // players waiting for them to load will load in with a black screen
+  if (*(u16*)0x005ce238 == 2000) {
+    POKE_U16(0x005ce238, 120 * 60);
+  }
 
 	// call gamerules level load
 	grLoadStart();
