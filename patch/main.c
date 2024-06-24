@@ -5564,8 +5564,6 @@ int main (void)
 		patchStagingRankNumber();
 
     // enable selecting any vehicle for all maps
-    //POKE_U16(0x00762692, 0x1000);
-    POKE_U32(0x0072D854, 0);
     HOOK_J(0x00764e48, &getMapVehiclesEnabledTable);
     POKE_U32(0x00764e4c, 0);
     
