@@ -189,6 +189,8 @@ int magFlinchCooldown[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
 int magDamageCooldown[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
 float magDamageCooldownDamage[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
 
+const int allVehiclesEnabledTable[4] = {1,1,1,1};
+
 extern int dlIsActive;
 
 int lastLodLevel = 2;
@@ -1134,6 +1136,25 @@ void patchCreateGame()
 	{
 		GAMESETTINGS_CREATE_PATCH = 0x0C000000 | ((u32)&patchCreateGame_Hook >> 2);
 	}
+}
+
+/*
+ * NAME :		getMapVehiclesEnabledTable
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int* getMapVehiclesEnabledTable(int mapId)
+{
+  return allVehiclesEnabledTable;
 }
 
 /*
@@ -5541,6 +5562,12 @@ int main (void)
 
 		// 
 		patchStagingRankNumber();
+
+    // enable selecting any vehicle for all maps
+    //POKE_U16(0x00762692, 0x1000);
+    POKE_U32(0x0072D854, 0);
+    HOOK_J(0x00764e48, &getMapVehiclesEnabledTable);
+    POKE_U32(0x00764e4c, 0);
     
     // tick player sync
     // normally is only called in game
