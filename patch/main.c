@@ -104,7 +104,7 @@
 
 #define KOTH_BONUS_POINTS_FACTOR    (0.2)
 
-#define B6_BALL_SHOT_FIRED_REPLACEMENT (1)
+//#define B6_BALL_SHOT_FIRED_REPLACEMENT (1)
 
 // 
 void processSpectate(void);
@@ -2752,7 +2752,7 @@ void patchWeaponShotLag(void)
 	if (*(u32*)0x003FCE8C == 0x910407F8)
 		*(u32*)0x003FCE8C = 0x24040040;
 		
-  // extend player from 7.2 seconds to 32.7 seconds
+  // extend player timeout from 7.2 seconds to 32.7 seconds
   POKE_U16(0x00613FAC, 0x8000);
 
   // disable magma cannon shots bending around walls/players
@@ -3907,8 +3907,8 @@ u64 hookedProcessLevel()
 	// Start at the first game module
 	GameModule * module = GLOBAL_GAME_MODULES_START;
 
-  // increase wait for players to 32 seconds
-  POKE_U32(0x0021E1E8, 60 * 60);
+  // increase wait for players to 45 seconds
+  POKE_U32(0x0021E1E8, 45 * 60);
 
   // fade from black delay
   // if this is not increased, and a player takes more than 2000 ticks to load
@@ -5417,18 +5417,6 @@ int main (void)
 
 	// config update
 	onConfigUpdate();
-
-#if MAPINFO
-  static Moby* waterMoby = NULL;
-  if (!isInGame()) {
-    waterMoby = NULL;
-  } else {
-    waterMoby = mobyFindNextByOClass(mobyListGetStart(), MOBY_ID_WATER);
-    if (waterMoby && waterMoby->PVar) {
-      DPRINTF("water %08X height %f\n", (u32)waterMoby, ((float*)waterMoby->PVar)[19]);
-    }
-  }
-#endif
 
 	// in game stuff
 	if (isInGame())

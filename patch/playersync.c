@@ -7,6 +7,7 @@
 #include <libdl/math.h>
 #include <libdl/math3d.h>
 #include <libdl/radar.h>
+#include <libdl/pad.h>
 #include <libdl/graphics.h>
 
 #include "config.h"
@@ -31,6 +32,7 @@ typedef struct PlayerSyncStateUpdateUnpacked
   u8 MoveX;
   u8 MoveY;
   u8 GadgetId;
+  char GadgetLevel;
   u8 State;
   char StateId;
   char PlayerIdx;
@@ -199,44 +201,40 @@ void playerSyncHandlePlayerState(Player* player)
   player->PlayerRotation[2] = lerpfAngle(player->PlayerRotation[2], stateCurrent->Rotation[2], tRot);
   vector_copy(player->RemoteHero.receivedSyncRot, player->PlayerRotation);
 
+  // lerp camera rotation
+  player->CamRot[1] = lerpfAngle(player->CamRot[1], -stateCurrent->CameraPitch, tCam);
+  player->CamRot[2] = lerpfAngle(player->CamRot[2], stateCurrent->CameraYaw, tCam);
+
   // lerp camera position
   vector_write(player->CameraOffset, 0);
   vector_write(player->CameraRotOffset, 0);
   player->CameraOffset[0] = -stateCurrent->CameraDistance;
   vector_copy(&player->CameraMatrix[12], player->CameraPos);
-  vector_copy((float*)((u32)player + 0x2cd0), player->CameraPos);
+  vector_copy(player->CamPos, player->CameraPos);
 
   // lerp camera rotations
-  player->CameraYaw.Value = lerpfAngle(player->CameraYaw.Value, stateCurrent->CameraYaw, tCam);
-  player->CameraPitch.Value = -lerpfAngle(-player->CameraPitch.Value, -stateCurrent->CameraPitch, tCam);
+  player->CameraYaw.Value = player->CamRot[2];
+  player->CameraPitch.Value = -player->CamRot[1];
 
   // compute matrix
   matrix_unit(m);
-  matrix_rotate_y(m, m, player->CameraPitch.Value);
-  matrix_rotate_z(m, m, player->CameraYaw.Value);
+  matrix_rotate_y(m, m, player->CamRot[1]);
+  matrix_rotate_z(m, m, player->CamRot[2]);
   vector_copy(player->CameraForward, &m[0]);
   vector_copy(player->CameraDir, player->CameraForward);
-  vector_copy((float*)((u32)player + 0x590 + 0x40), player->CameraForward);
 
   // compute inv matrix
   matrix_unit(mInv);
-  matrix_rotate_y(mInv, mInv, clampAngle(player->CameraPitch.Value + MATH_PI));
-  matrix_rotate_z(mInv, mInv, clampAngle(player->CameraYaw.Value + MATH_PI));
-  memcpy((void*)((u32)player + 0x2cf0), mInv, sizeof(VECTOR)*3);
-
-  // set camera rotation
-  VECTOR camRot;
-  camRot[1] = player->CameraPitch.Value;
-  camRot[2] = player->CameraYaw.Value;
-  camRot[0] = 0;
-  vector_copy((float*)((u32)player + 0x2ce0), camRot);
+  matrix_rotate_y(mInv, mInv, clampAngle(player->CamRot[1] + MATH_PI));
+  matrix_rotate_z(mInv, mInv, clampAngle(player->CamRot[2] + MATH_PI));
+  memcpy(player->CamUMtx, mInv, sizeof(VECTOR)*3);
 
   // set health
   player->Health = stateCurrent->Health;
 
   // set net camera rotation
   if (player->pNetPlayer) {
-    vector_pack(camRot, player->pNetPlayer->padMessageElems[padIdx].msg.cameraRot);
+    vector_pack(player->CamRot, player->pNetPlayer->padMessageElems[padIdx].msg.cameraRot);
   }
 
   // set joystick
@@ -249,6 +247,11 @@ void playerSyncHandlePlayerState(Player* player)
   *(float*)((u32)player + 0x2e38) = mag;
   *(float*)((u32)player + 0x0120) = moveX;
   *(float*)((u32)player + 0x0124) = -moveY;
+
+  data->Pad[4] = 0x7F;
+  data->Pad[5] = 0x7F;
+  data->Pad[6] = stateCurrent->MoveX;
+  data->Pad[7] = stateCurrent->MoveY;
 
   struct tNW_Player* netPlayer = player->pNetPlayer;
   if (netPlayer) {
@@ -273,19 +276,34 @@ void playerSyncHandlePlayerState(Player* player)
   if (stateCurrent->StateId != data->LastStateId) {
     int skip = 0;
     int playerState = player->PlayerState;
+    DPRINTF("%d => %d\n", data->LastState, stateCurrent->State);
 
     // from
     switch (playerState)
     {
       case PLAYER_STATE_VEHICLE:
+      case PLAYER_STATE_TURRET_DRIVER:
       {
+        if (data->LastState != playerState) break;
+
         // leave vehicle
-        if (stateCurrent->State != PLAYER_STATE_VEHICLE && player->Vehicle) {
-          player->Vehicle->justExited = 1;
-          if (player->Vehicle->pDriver == player) player->Vehicle->pDriver = 0;
-          if (player->Vehicle->pPassenger == player) player->Vehicle->pPassenger = 0;
+        Vehicle* vehicle = player->Vehicle;
+        if (stateCurrent->State != PLAYER_STATE_VEHICLE && vehicle) {
+
+          // driver leave
+          if (vehicle->pDriver == player) {
+            vehicle->pDriver = 0;
+            vehicle->flags |= 2;
+          }
+          
+          // passenger leave
+          if (vehicle->pPassenger == player) {
+            vehicle->pPassenger = 0;
+          }
+
+          vehicle->justExited = player->PlayerId + 1;
           player->InVehicle = 0;
-          player->Vehicle = 0;
+          player->Vehicle = NULL;
         }
         break;
       }
@@ -374,6 +392,18 @@ void playerSyncHandlePlayerState(Player* player)
     player->pNetPlayer->pNetPlayerData->timeStamp = data->LastNetTime;
     player->pNetPlayer->pNetPlayerData->hitPoints = stateCurrent->Health;
     vector_copy(player->pNetPlayer->pNetPlayerData->vPosition, player->PlayerPosition);
+
+    // force weapon level
+    if (player->GadgetBox && stateCurrent->GadgetId >= 0 && stateCurrent->GadgetId < 32) {
+      int level = player->GadgetBox->Gadgets[stateCurrent->GadgetId].Level;
+      if (level != stateCurrent->GadgetLevel) {
+        player->GadgetBox->Gadgets[stateCurrent->GadgetId].Level = stateCurrent->GadgetLevel;
+
+        // update bangles if gadget equipped
+        if (player->Gadgets[0].id == stateCurrent->GadgetId && player->Gadgets[0].pMoby)
+          weaponMobyUpdateBangles(player->Gadgets[0].pMoby, stateCurrent->GadgetId, stateCurrent->GadgetLevel);
+      } 
+    }
   }
 
   vector_copy(data->LastLocalPosition, player->PlayerPosition);
@@ -404,6 +434,7 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
   unpacked.MoveY = msg.MoveY;
   unpacked.PadBits = (msg.PadBits1 << 8) | (msg.PadBits0);
   unpacked.GadgetId = msg.GadgetId;
+  unpacked.GadgetLevel = msg.GadgetLevel;
   unpacked.State = msg.State;
   unpacked.StateId = msg.StateId;
   unpacked.PlayerIdx = msg.PlayerIdx;
@@ -471,9 +502,14 @@ void playerSyncBroadcastPlayerState(Player* player)
   msg.PadBits0 = ((struct PAD*)player->Paddata)->rdata[2];
   msg.PadBits1 = ((struct PAD*)player->Paddata)->rdata[3];
   msg.GadgetId = player->Gadgets[0].id;
+  msg.GadgetLevel = -1;
   msg.State = player->PlayerState;
   msg.StateId = data->LastStateId;
   msg.CmdId = data->StateUpdateCmdId = (data->StateUpdateCmdId + 1) % CMD_BUFFER_SIZE;
+
+  // sync gadget level
+  if (msg.GadgetId >= 0 && msg.GadgetId < 32)
+    msg.GadgetLevel = player->GadgetBox->Gadgets[msg.GadgetId].Level;
 
   netBroadcastCustomAppMessage(0, connection, CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE, sizeof(msg), &msg);
 }

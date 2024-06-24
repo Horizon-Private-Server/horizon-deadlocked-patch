@@ -1263,7 +1263,7 @@ void runTestLogic(void)
     //   DPRINTF("lightning moby %08X\n", m);
     // }
 
-    runDualViperNapalm();
+    //runDualViperNapalm();
     //runLatencyPing();
     //sendFusionShot();
     //runAnimJointThing();
@@ -1295,7 +1295,7 @@ void runTestLogic(void)
     for (i = 0; i < GAME_MAX_LOCALS; ++i) {
       Player* p = playerGetFromSlot(i);
       if (!p) continue;
-      if (p->Health < 10)
+      if (p->Health < 50)
         p->Health = 50;
     }
 

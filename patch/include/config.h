@@ -187,6 +187,7 @@ typedef struct PlayerSyncStateUpdatePacked
   u8 MoveX;
   u8 MoveY;
   u8 GadgetId;
+  char GadgetLevel;
   char State;
   char StateId;
   char PlayerIdx;

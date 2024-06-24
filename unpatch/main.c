@@ -62,7 +62,8 @@ const int patches[][3] = {
 	{ 0, 0x005CF9B0, 0x0C058E4A }, // hookCheckAddr
 	{ -1, 0x00159B20, 0x0C056680 }, // hookTableAddr
 	{ 1, 0x00557580, 0x0C058E02 }, // hookMapAddr
-	{ 1, 0x0053F970, 0x0C058E02 }, // hookAudioAddr
+	{ 1, 0x0053F970, 0x0C058E02 }, // hookHudAddr
+  { 0, 0x005FEC74, 0x0C0560AA }, // hookSoundBankAddr
 	{ 0, 0x007055B4, 0x0C046A7B }, // hook loading screen map name strcpy
 	{ 0, 0x0070583C, 0x0C046A7B }, // hook loading screen map name strcpy
 	// comp

@@ -1446,6 +1446,9 @@ void hook(void)
 //------------------------------------------------------------------------------
 void runMapLoader(void)
 {
+  // prevent refreshing maps when redownloading patch in game (debug)
+  if (!isInMenus() && !initialized) return;
+
 	// 
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_MAP_OVERRIDE, &onSetMapOverride);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_MAP_IRX_MODULES, &onServerSentMapIrxModules);
