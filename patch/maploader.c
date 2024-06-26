@@ -501,7 +501,7 @@ int readFile(char * path, void * buffer, int offset, int length)
 {
 	int r, fd, fSize;
 
-  DPRINTF("read file (%s)\n", path);
+  //DPRINTF("read file (%s)\n", path);
 
 	// Open
 	rpcUSBopen(path, FIO_O_RDONLY);
@@ -540,7 +540,7 @@ int readFile(char * path, void * buffer, int offset, int length)
 	rpcUSBclose(fd);
 	rpcUSBSync(0, NULL, NULL);
 
-  DPRINTF("finished reading %s (%d/%d)\n", path, r, length);
+  //DPRINTF("finished reading %s (%d/%d)\n", path, r, length);
 
 	return r;
 }
@@ -857,7 +857,7 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
   strncpy(customMapDefs[insertAtIdx].Name, versionFileDef.Name, sizeof(customMapDefs[insertAtIdx].Name));
   customMapDefCount++;
   
-  DPRINTF("(%d/%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x shrub:%d\n", insertAtIdx, customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask, versionFileDef.ShrubMinRenderDistance);
+  //DPRINTF("(%d/%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x shrub:%d\n", insertAtIdx, customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask, versionFileDef.ShrubMinRenderDistance);
 }
 
 //------------------------------------------------------------------------------

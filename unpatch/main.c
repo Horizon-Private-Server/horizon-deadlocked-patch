@@ -147,7 +147,6 @@ int onServerDownloadDataRequest(void * connection, void * data)
 {
 	ServerDownloadDataRequest_t* request = (ServerDownloadDataRequest_t*)data;
 
-
 	// copy bytes to target
 	totalBytes = request->TotalSize;
 	bytesReceived += request->DataSize;
@@ -155,7 +154,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
 	DPRINTF("DOWNLOAD: {%d} %d/%d, writing %d to %08X\n", request->Id, bytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
 
 	// respond
-	if (connection)
+	if (connection && (!request->Chunk || bytesReceived >= request->TotalSize))
 	{
 		ClientDownloadDataResponse_t response;
 		response.Id = request->Id;

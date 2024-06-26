@@ -2444,7 +2444,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
 	DPRINTF("DOWNLOAD: %d/%d, writing %d to %08X\n", dlBytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
   
 	// respond
-	if (connection)
+	if (connection && (!request->Chunk || dlBytesReceived >= request->TotalSize))
 	{
 		ClientDownloadDataResponse_t response;
 		response.Id = request->Id;

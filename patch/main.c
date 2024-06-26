@@ -119,6 +119,8 @@ void onConfigUpdate(void);
 void configMenuEnable(void);
 void configMenuDisable(void);
 void configTrySendGameConfig(void);
+void bannerDraw(void);
+void bannerTick(void);
 int readLocalGlobalVersion(void);
 
 extern int mapsRemoteGlobalVersion;
@@ -5130,6 +5132,9 @@ void onOnlineMenu(void)
 	runCompMenuLogic();
 #endif
 
+  // banner
+  bannerDraw();
+
 	// settings
 	onConfigOnlineMenu();
 
@@ -5290,6 +5295,9 @@ int main (void)
   if (interopData.Client != CLIENT_TYPE_DZO) {
 	  netInstallCustomMsgHandler(CUSTOM_MSG_DZO_COSMETICS_UPDATE, &onSetPlayerDzoCosmeticsRemote);
   }
+
+  // banner
+  bannerTick();
 
 	// Run map loader
 	runMapLoader();

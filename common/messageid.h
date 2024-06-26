@@ -277,6 +277,11 @@ enum CustomMessageId
     CUSTOM_MSG_ID_UPDATE_NAME_RESPONSE = 49,
 
     /*
+     * 
+     */
+    CUSTOM_MSG_ID_REQUEST_ANNOUNCEMENT_IMAGE = 50,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -324,6 +329,7 @@ typedef struct ServerDownloadDataRequest
     int TargetAddress;
     int TotalSize;
     int DataOffset;
+    short Chunk;
     short DataSize;
     char Data[1362];
 } ServerDownloadDataRequest_t;
