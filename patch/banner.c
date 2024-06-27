@@ -51,9 +51,8 @@ void bannerTick(void)
   int ui = uiGetActive();
   if (!initialized && ui != UI_ID_ONLINE_SELECT_PROFILE) {
     if (connection) {
-
       if (!BANNER_IMAGE_PTR) {
-        BANNER_IMAGE_PTR = malloc(0x10 + 0x400 + 128 * 64);
+        BANNER_IMAGE_PTR = malloc(0x10 + 0x400 + 256 * 64);
         DPRINTF("banner: %08X\n", BANNER_IMAGE_PTR);
       }
 
