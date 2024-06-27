@@ -268,6 +268,15 @@ int main (void)
 	// Hook menu loop
 	*(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
 
+  // reset when we lose connection
+  void* connection = netGetLobbyServerConnection();
+  if (totalBytes > 0 && !connection)
+  {
+    totalBytes = 0;
+    bytesReceived = 0;
+    DPRINTF("lost connection\n");
+  }
+
 	// disable pad on online main menu
   if (!netGetLobbyServerConnection()) {
     padEnableInput();

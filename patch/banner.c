@@ -1,6 +1,7 @@
 #include <libdl/net.h>
 #include <libdl/string.h>
 #include <libdl/stdio.h>
+#include <libdl/pad.h>
 #include <libdl/graphics.h>
 #include <libdl/ui.h>
 #include <libdl/stdlib.h>
@@ -27,7 +28,7 @@ void bannerDraw(void)
     u64 t = gfxConstructEffectTex(r2, r1, ulog, vlog, 0x13);
     
     gfxSetupGifPaging(0);
-    gfxDrawSprite(207, 86, 279, 118, 0, 0, 1 << ulog, 1 << vlog, 0x80808080, t);
+    gfxDrawSprite(207, 86, 279, 118, 0, 0, 1 << ulog, 1 << vlog, 0x40808080, t);
     gfxDoGifPaging();
   }
 }
@@ -43,8 +44,12 @@ void bannerTick(void)
     }
 
     initialized = 0;
-  } else if (!initialized) {
-    void* connection = netGetLobbyServerConnection();
+    return;
+  } 
+  
+  void* connection = netGetLobbyServerConnection();
+  int ui = uiGetActive();
+  if (!initialized && ui != UI_ID_ONLINE_SELECT_PROFILE) {
     if (connection) {
 
       if (!BANNER_IMAGE_PTR) {
@@ -58,5 +63,7 @@ void bannerTick(void)
         initialized = 1;
       }
     }
+  } else if (!connection) {
+    initialized = 0;
   }
 }

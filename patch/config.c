@@ -2293,6 +2293,16 @@ void onConfigUpdate(void)
 {
   int i;
 
+  // reset when we lose connection
+  void* connection = netGetLobbyServerConnection();
+  if (dlTotalBytes > 0 && (!connection || !dlIsActive))
+  {
+    dlTotalBytes = 0;
+    dlBytesReceived = 0;
+    dlIsActive = 0;
+    DPRINTF("lost connection\n");
+  }
+
   // in staging, update game info
   GameSettings * gameSettings = gameGetSettings();
   if (gameSettings && gameSettings->GameLoadStartTime < 0 && netGetLobbyServerConnection())
@@ -2497,15 +2507,6 @@ void onConfigOnlineMenu(void)
   // draw download data box
 	if (dlTotalBytes > 0)
 	{
-    // reset when we lose connection
-    if (!netGetLobbyServerConnection() || !dlIsActive)
-    {
-      dlTotalBytes = 0;
-      dlBytesReceived = 0;
-      dlIsActive = 0;
-      DPRINTF("lost connection\n");
-    }
-
     gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, colorBlack);
     gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, colorContentBg);
     gfxScreenSpaceText(SCREEN_WIDTH * 0.4, SCREEN_HEIGHT * 0.4, 1, 1, colorText, "Downloading...", 11 + (gameGetTime()/240 % 4), 3);
