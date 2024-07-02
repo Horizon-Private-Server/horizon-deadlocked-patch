@@ -64,6 +64,9 @@ extern PatchGameConfig_t gameConfig;
 
 extern PatchStateContainer_t patchStateContainer;
 
+// ping
+extern int ClientLatency[GAME_MAX_PLAYERS];
+
 //--------------------------------------------------------------------------
 int playerSyncCmdDelta(int fromCmdId, int toCmdId)
 {
@@ -135,6 +138,15 @@ int playerSyncHandlePlayerPadHook(Player* player)
 }
 
 //--------------------------------------------------------------------------
+void playerSyncHandlePostPlayerState(Player* player)
+{
+  if (!player || player->IsLocal || !player->PlayerMoby || !PLAYER_SYNC_DATAS_PTR) return;
+  
+  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
+  data->TicksSinceLastUpdate += 1;
+}
+
+//--------------------------------------------------------------------------
 void playerSyncHandlePlayerState(Player* player)
 {
   MATRIX m, mInv;
@@ -163,8 +175,34 @@ void playerSyncHandlePlayerState(Player* player)
   }
 
   // extrapolate
+  GameSettings* gs = gameGetSettings();
+  if (config.enableNPSLagComp && data->TicksSinceLastUpdate == 0 && !playerIsDead(player) && gs) {
+    
+    VECTOR targetPos, targetRot;
+    vector_copy(targetPos, stateCurrent->Position);
+    vector_copy(targetRot, stateCurrent->Rotation);
+
+    float lagComp = 2 * ((ClientLatency[gs->PlayerClients[player->PlayerId]]*0.5 + ClientLatency[gameGetMyClientId()]*0.5) / 16.66666);
+
+    // extrapolate position
+    vector_subtract(dt, player->PlayerPosition, data->LastLocalPosition);
+    vector_scale(dt, dt, lagComp);
+    vector_add(targetPos, targetPos, dt);
+
+    // extrapolate rotation
+    vector_subtract(dt, player->PlayerRotation, data->LastLocalRotation);
+    targetRot[0] = clampAngle(targetRot[0] + clampAngle(dt[0])*lagComp*0.5);
+    targetRot[1] = clampAngle(targetRot[1] + clampAngle(dt[1])*lagComp*0.5);
+    targetRot[2] = clampAngle(targetRot[2] + clampAngle(dt[2])*lagComp*0.5);
+
+    // update
+    //vector_copy(stateCurrent->Position, targetPos);
+    vector_lerp(stateCurrent->Position, stateCurrent->Position, targetPos, 0.5);
+    vector_copy(stateCurrent->Rotation, targetRot);
+  }
+
   //if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
-  if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
+  else if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
     //DPRINTF("extrapolate %d\n", data->TicksSinceLastUpdate);
     
     // extrapolate position
@@ -173,7 +211,9 @@ void playerSyncHandlePlayerState(Player* player)
 
     // extrapolate rotation
     vector_subtract(dt, player->PlayerRotation, data->LastLocalRotation);
-    vector_add(stateCurrent->Rotation, stateCurrent->Rotation, dt);
+    stateCurrent->Rotation[0] = clampAngle(stateCurrent->Rotation[0] + clampAngle(dt[0]));
+    stateCurrent->Rotation[1] = clampAngle(stateCurrent->Rotation[1] + clampAngle(dt[1]));
+    stateCurrent->Rotation[2] = clampAngle(stateCurrent->Rotation[2] + clampAngle(dt[2]));
     //stateCurrent->CameraYaw += dt[2];
   }
 
@@ -276,7 +316,7 @@ void playerSyncHandlePlayerState(Player* player)
   if (stateCurrent->StateId != data->LastStateId) {
     int skip = 0;
     int playerState = player->PlayerState;
-    DPRINTF("%d => %d\n", data->LastState, stateCurrent->State);
+    //DPRINTF("%d => %d\n", data->LastState, stateCurrent->State);
 
     // from
     switch (playerState)
@@ -408,7 +448,6 @@ void playerSyncHandlePlayerState(Player* player)
 
   vector_copy(data->LastLocalPosition, player->PlayerPosition);
   vector_copy(data->LastLocalRotation, player->PlayerRotation);
-  data->TicksSinceLastUpdate += 1;
 }
 
 //--------------------------------------------------------------------------
@@ -518,6 +557,20 @@ void playerSyncBroadcastPlayerState(Player* player)
 int playerSyncDisablePlayerStateUpdates(void)
 {
   return 0;
+}
+
+//--------------------------------------------------------------------------
+void playerSyncPostTick(void)
+{
+  int i;
+  if (!isInGame()) return;
+  if (!gameConfig.grNewPlayerSync) return;
+
+  // player updates
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    playerSyncHandlePostPlayerState(players[i]);
+  }
 }
 
 //--------------------------------------------------------------------------

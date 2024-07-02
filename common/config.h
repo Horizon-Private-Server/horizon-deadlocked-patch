@@ -39,6 +39,7 @@ typedef struct PatchConfig
   char fixedCycleOrder;
   char enableSingleTapChargeboot;
   char enableInGameScoreboard;
+  char enableNPSLagComp;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];

@@ -2446,6 +2446,8 @@ void onMobyUpdate(Moby* moby)
   playerSyncTick();
 
   ((void (*)(Moby*))0x003BD5A8)(moby);
+
+  playerSyncPostTick();
 }
 
 /*

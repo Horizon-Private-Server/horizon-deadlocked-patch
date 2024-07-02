@@ -45,8 +45,6 @@ int hasDevGameConfig = 0;
 u32 padPointer = 0;
 int preset = 0;
 
-char fixWeaponLagToggle = 1;
-
 //
 int dlBytesReceived = 0;
 int dlTotalBytes = 0;
@@ -258,6 +256,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale, "Toggles between half and full screen expanded radar." },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom, "Tweaks the expanded radar zoom." },
   { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom, "Tweaks the minimized radar zoom." },
+  { "NPS Lag Compensation", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableNPSLagComp, "When New Player Sync is enabled, attempt to reduce latency of player movements." },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
   { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic, "When On, enables all music tracks in game. Currently not supported in Survival." },
   { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot, "Toggles tapping L2 once to chargeboot." },
