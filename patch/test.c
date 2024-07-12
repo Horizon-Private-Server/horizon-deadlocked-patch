@@ -20,6 +20,33 @@
 extern int isUnloading;
 extern PatchGameConfig_t gameConfig;
 
+struct CubicLineEndPoint endpoints[2] = {
+  {
+    .iCoreRGBA = 0,
+    .iGlowRGBA = 0,
+    .bDisabled = 0,
+    .bFadeEnd = 0,
+    .iNumSkipPoints = 0,
+    .numEndPoints = 2,
+    .style = 0,
+    .vPos = { 0,0,0,0 },
+    .vTangent = { 0,0,1,0 },
+    .vTangentOccQuat = { 0,0,0,1 }
+  },
+  {
+    .iCoreRGBA = 0,
+    .iGlowRGBA = 0,
+    .bDisabled = 0,
+    .bFadeEnd = 0,
+    .iNumSkipPoints = 0,
+    .numEndPoints = 2,
+    .style = 0,
+    .vPos = { 0,0,0,0 },
+    .vTangent = { 0,0,1,0 },
+    .vTangentOccQuat = { 0,0,0,1 }
+  }
+};
+
 /*
 typedef struct BaseShotSpawnMessage
 {
@@ -1230,6 +1257,52 @@ void runDualViperNapalm(void)
   }
 }
 
+void runCubicLineDraw_PostDraw(void)
+{
+  u32 color = 0x80FFFFFF;
+  VECTOR delta, playerOffset = {0,0,1,0};
+
+  Player* player = playerGetFromSlot(0);
+  if (!player) return;
+
+  VECTOR target = {0,5,2,0};
+  vector_add(target, target, player->PlayerPosition);
+
+  endpoints[1].iGlowRGBA = endpoints[0].iGlowRGBA = endpoints[1].iCoreRGBA = endpoints[0].iCoreRGBA = color;
+  vector_add(endpoints[1].vPos, player->PlayerPosition, playerOffset);
+  vector_copy(endpoints[0].vPos, target);
+  gfxDrawCubicLine((void*)0x2225a8, endpoints, 2, (void*)0x383a68, 1);
+}
+
+void runCubicLineDraw_Update(Moby* moby)
+{
+	// register post draw function
+	gfxRegisterDrawFunction((void**)0x0022251C, &runCubicLineDraw_PostDraw, moby);
+}
+
+void runCubicLineDraw(void)
+{
+  if (isInGame()) {
+    Player* localPlayer = playerGetFromSlot(0);
+    VECTOR off = {0,0,-10,0};
+
+    if (!TestMoby) {
+      Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
+      m->Scale *= 0.1;
+    }
+
+    if (isUnloading && TestMoby) {
+      TestMoby->PUpdate = 0;
+    }
+    else if (TestMoby && localPlayer) {
+      TestMoby->DrawDist = 0xFF;
+      TestMoby->UpdateDist = 0xFF;
+      vector_add(TestMoby->Position, localPlayer->PlayerPosition, off);
+      TestMoby->PUpdate = &runCubicLineDraw_Update;
+    }
+  }
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -1243,26 +1316,27 @@ void runTestLogic(void)
 
   //runSystemTime();
   if (isInGame()) {
-    // if (padGetButtonDown(0, PAD_DOWN) > 0) {
-    //   Player* p = playerGetFromSlot(0);
-    //   VECTOR to = {5,5,5,0};
-    //   vector_add(to, to, p->PlayerPosition);
-    //   Moby* m = gfxDrawSimpleTwoPointLightning(
-    //     (void*)0x002225A0,
-    //     p->PlayerPosition,
-    //     to,
-    //     3000,
-    //     1,
-    //     1,
-    //     NULL,
-    //     NULL,
-    //     NULL,
-    //     0x80804020
-    //   );
+    if (padGetButtonDown(0, PAD_DOWN) > 0) {
+      Player* p = playerGetFromSlot(0);
+      VECTOR to = {5,5,5,0};
+      vector_add(to, to, p->PlayerPosition);
+      Moby* m = gfxDrawSimpleTwoPointLightning(
+        (void*)0x002225A0,
+        p->PlayerPosition,
+        to,
+        3000,
+        3,
+        1,
+        (void*)0x0,
+        NULL,
+        NULL,
+        0x80804020
+      );
 
-    //   DPRINTF("lightning moby %08X\n", m);
-    // }
+      DPRINTF("lightning moby %08X\n", m);
+    }
 
+    //runCubicLineDraw();
     //runDualViperNapalm();
     //runLatencyPing();
     //sendFusionShot();

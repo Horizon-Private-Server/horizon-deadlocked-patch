@@ -1157,7 +1157,8 @@ void hookedSoundCoreBankLoad(int loc, int offset, SndCompleteProc cb, u64 user_d
       {
         MapLoaderState.SoundLoadCb = cb;
         MapLoaderState.SoundLoadUserData = user_data;
-        MapLoaderState.SoundBuffer = MapLoaderState.LevelBuffer - filelen;
+        MapLoaderState.SoundBuffer = 0x00900000;
+        DPRINTF("level: %08X\nsound: %08X\n", MapLoaderState.LevelBuffer, MapLoaderState.SoundBuffer);
 
         // read sound bank in background
         // let hookedCheck handle when sound is finished loading

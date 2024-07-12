@@ -53,6 +53,7 @@ void initializeScoreboard(void);
 int payloadDestroyedMobiesCount = 0;
 Moby* payloadDestroyedMobies[PAYLOAD_MAX_DESTROYED_MOBIES];
 short payloadDestroyedMobiesDrawDist[PAYLOAD_MAX_DESTROYED_MOBIES];
+Moby* payloadElectricityMobies[GAME_MAX_PLAYERS];
 
 // 
 struct PayloadMapConfig Config __attribute__((section(".config"))) = {
@@ -708,9 +709,9 @@ void payloadExplode(Moby* payload, struct PayloadMobyPVar* pvar)
 //--------------------------------------------------------------------------
 void payloadPostDraw(Moby* payload)
 {
-	int i;
+	int i,j;
 	Player** players = playerGetAll();
-	VECTOR delta, playerOffset = {0,0,1,0};
+	VECTOR delta, playerOffset = {0,0,0.125,0};
 	if (!payload)
 		return;
 
@@ -725,20 +726,67 @@ void payloadPostDraw(Moby* payload)
 		Player * player = players[i];
 		if (player && !playerIsDead(player)) {
 
-			// skip if player is defending and contesting is off
-			if (!State.PlayerStates[i].IsAttacking && State.ContestMode == PAYLOAD_CONTEST_OFF)
-				continue;
+      // spawn moby if not already created
+      Moby* electricityMoby = payloadElectricityMobies[i];
+      if (!electricityMoby || mobyIsDestroyed(electricityMoby) || electricityMoby->OClass != 0x2018) {
+        electricityMoby = payloadElectricityMobies[i] = gfxDrawSimpleTwoPointLightning(
+          (void*)0x002225A0,
+          player->PlayerPosition,
+          payload->Position,
+          3000,
+          1,
+          0,
+          (void*)0x00383C98,
+          player->PlayerMoby,
+          payload,
+          0x80804020
+        );
 
-			if (State.PlayerStates[i].IsNearPayload) {
+        // init pvars
+        if (electricityMoby && electricityMoby->PVar) {
+          POKE_U32(electricityMoby->PVar + 0x40, 1); // disable cyclic flashing
+          vector_copy(electricityMoby->PVar + 0x20, playerOffset);
+          vector_write(electricityMoby->PVar + 0x30, 0);
+        }
+
+        DPRINTF("ELECMOBY %d %08X\n", i, (u32)electricityMoby);
+      }
+
+      if (!electricityMoby || !electricityMoby->PVar) continue;
+      u32* electricityMobyColor = (u32*)(electricityMoby->PVar + 0x1C);
+      u32 targetColor = 0;
+
+      // update life such that it never dies
+      *(short*)(electricityMoby->PVar + 0x02) = 3000;
+
+			// skip if player is defending and contesting is off
+			if (!State.PlayerStates[i].IsAttacking && State.ContestMode == PAYLOAD_CONTEST_OFF) {
+        targetColor = 0;
+      } else if (State.PlayerStates[i].IsNearPayload) {
 				vector_subtract(delta, player->PlayerPosition, pvar->PathPosition);
 				float dist = vector_length(delta);
 				float t = clamp(((dist / PAYLOAD_PLAYER_RADIUS) - 0.8) * (1 / 0.2), 0, 1);
-				u32 color = colorLerp(TEAM_COLORS[player->Team], 0x40ffffff, t);
-				endpoints[1].iGlowRGBA = endpoints[0].iGlowRGBA = endpoints[1].iCoreRGBA = endpoints[0].iCoreRGBA = color;
-				vector_add(endpoints[1].vPos, player->PlayerPosition, playerOffset);
-				vector_copy(endpoints[0].vPos, payload->Position);
-				gfxDrawCubicLine((void*)0x2225a8, endpoints, 2, (void*)0x383a68, 1);
+				targetColor = colorLerp(TEAM_COLORS[player->Team], 0x40ffffff, t);
 			}
+
+      // apply color if changed
+      if (targetColor != *electricityMobyColor) {
+        *electricityMobyColor = targetColor;
+        
+        CubicLineEndPoint** endpoints = (CubicLineEndPoint**)(electricityMoby->PVar + 0x50);
+        for (j = 0; j < 32; ++j) {
+          if (!endpoints[j]) break;
+
+          CubicLineEndPoint* endpoint = (CubicLineEndPoint*)endpoints[j];
+          int numPoints = endpoint->numEndPoints;
+          int k;
+          for (k = 0; k < numPoints; ++k) {
+            endpoint->iCoreRGBA = targetColor;
+            endpoint->iGlowRGBA = targetColor;
+            ++endpoint;
+          }
+        }
+      }
 		}
 	}
 }
