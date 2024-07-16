@@ -2974,7 +2974,7 @@ void resetRoundState(void)
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
 	static int startDelay = TPS * 0.2;
 	static int waitingForClientsReady = 0;
@@ -3455,7 +3455,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 }
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
@@ -3484,10 +3484,10 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	State.IsHost = gameAmIHost();
 
   // 
-  playerConfig = config;
+  playerConfig = gameState->Config;
 
 	if (!Initialized) {
-		initialize(gameConfig, gameState);
+		initialize(gameState);
 		return;
 	}
 
@@ -4189,7 +4189,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int i;
 	int activeId = uiGetActive();
@@ -4222,7 +4222,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 			if (initializedScoreboard)
 				break;
 
-			setEndGameScoreboard(gameConfig);
+			setEndGameScoreboard(gameState->GameConfig);
 			initializedScoreboard = 1;
 
 			// patch rank computation to keep rank unchanged for base mode
@@ -4231,18 +4231,29 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions(gameConfig);
+			setLobbyGameOptions(gameState->GameConfig);
 			break;
 		}
 	}
 }
 
 //--------------------------------------------------------------------------
-void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-	setLobbyGameOptions(gameConfig);
+	setLobbyGameOptions(gameState->GameConfig);
   
 	// point get resurrect point to ours
 	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
 	*(u32*)0x005e2d44 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME: gameStart(module, gameState); break;
+  }
 }

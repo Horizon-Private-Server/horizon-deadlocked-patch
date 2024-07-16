@@ -26,35 +26,6 @@ struct GameModule;
 struct PatchStateContainer;
 
 /*
- * NAME :		ModuleStart
- * 
- * DESCRIPTION :
- * 			Defines the function pointer for all module entrypoints.
- *          Modules will provide a pointer to their entrypoint that will match
- *          this type.
- * 
- * NOTES :
- * 
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-typedef void (*ModuleStart)(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct PatchStateContainer * gameState);
-
-/*
- * NAME :		ReadExtraData_f
- * 
- * DESCRIPTION :
- * 			Function that reads the custom map extra data from the usb drive for the current game mode.
- *      Returns 1 on success, 0 on failure.
- * 
- * NOTES :
- * 
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-typedef int (*ReadExtraData_f)(void* dst, int len);
-
-/*
  * NAME :		GameModuleState
  * 
  * DESCRIPTION :
@@ -85,6 +56,54 @@ typedef enum GameModuleState
      */
     GAMEMODULE_ALWAYS_ON
 } GameModuleState;
+
+/*
+ * NAME :		GameModuleContext
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+typedef enum GameModuleContext
+{
+    GAMEMODULE_LOBBY,
+    GAMEMODULE_LOAD,
+    GAMEMODULE_GAME,
+    GAMEMODULE_GAME_UPDATE,
+} GameModuleContext;
+
+/*
+ * NAME :		ModuleStart
+ * 
+ * DESCRIPTION :
+ * 			Defines the function pointer for all module entrypoints.
+ *          Modules will provide a pointer to their entrypoint that will match
+ *          this type.
+ * 
+ * NOTES :
+ * 
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+typedef void (*ModuleStart)(struct GameModule * module, struct PatchStateContainer * patchStateContainer, enum GameModuleContext context);
+
+/*
+ * NAME :		ReadExtraData_f
+ * 
+ * DESCRIPTION :
+ * 			Function that reads the custom map extra data from the usb drive for the current game mode.
+ *      Returns 1 on success, 0 on failure.
+ * 
+ * NOTES :
+ * 
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+typedef int (*ReadExtraData_f)(void* dst, int len);
 
 
 /*
@@ -122,19 +141,9 @@ typedef struct GameModule
     char Arg3;
 
     /*
-     * Entrypoint of module to be invoked when in game.
+     * Entrypoint of module to be invoked by the patch.
      */
-    ModuleStart GameEntrypoint;
-
-    /*
-     * Entrypoint of module to be invoked when in staging or menus.
-     */
-    ModuleStart LobbyEntrypoint;
-
-    /*
-     * Entrypoint of module to be invoked just before the level loads the map but after the map is read from the disc.
-     */
-    ModuleStart LoadEntrypoint;
+    ModuleStart Entrypoint;
 
 } GameModule;
 
@@ -156,21 +165,23 @@ typedef struct CustomGameModeStats
 
 typedef struct PatchStateContainer
 {
-    int UpdateGameState;
-    UpdateGameStateRequest_t GameStateUpdate;
-    int UpdateCustomGameStats;
-    CustomGameModeStats_t CustomGameStats;
-    GameSettings GameSettingsAtStart;
-    int CustomGameStatsSize;
-    int ClientsReadyMask;
-    int AllClientsReady;
-    int VoteToEndPassed;
-    int HalfTimeState;
-    int OverTimeState;
-    SetNameOverridesMessage_t LobbyNameOverrides;
-    int SelectedCustomMapId;
-    int SelectedCustomMapChanged;
-    ReadExtraData_f ReadExtraDataFunc;
+  PatchConfig_t* Config;
+  PatchGameConfig_t* GameConfig;
+  int UpdateGameState;
+  UpdateGameStateRequest_t GameStateUpdate;
+  int UpdateCustomGameStats;
+  CustomGameModeStats_t CustomGameStats;
+  GameSettings GameSettingsAtStart;
+  int CustomGameStatsSize;
+  int ClientsReadyMask;
+  int AllClientsReady;
+  int VoteToEndPassed;
+  int HalfTimeState;
+  int OverTimeState;
+  SetNameOverridesMessage_t LobbyNameOverrides;
+  int SelectedCustomMapId;
+  int SelectedCustomMapChanged;
+  ReadExtraData_f ReadExtraDataFunc;
 } PatchStateContainer_t;
 
 

@@ -531,12 +531,13 @@ int whoKilledMeHook(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
   static int startDelay = 60 * 0.2;
 	static int waitingForClientsReady = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
+  PatchGameConfig_t* gameConfig = gameState->GameConfig;
 	Player ** players = playerGetAll();
 	int i;
 
@@ -618,7 +619,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
@@ -634,7 +635,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	SpleefState.IsHost = gameIsHost(localPlayer->Guber.Id.GID.HostId);
 
 	if (!Initialized)
-		initialize(gameConfig, gameState);
+		initialize(gameState);
 
 	int killsToWin = gameGetOptions()->GameFlags.MultiplayerGameFlags.KillsToWin;
 
@@ -845,7 +846,7 @@ void setLobbyGameOptions(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
@@ -891,7 +892,18 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	setLobbyGameOptions();
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME: gameStart(module, gameState); break;
+  }
 }

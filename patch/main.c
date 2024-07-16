@@ -232,11 +232,6 @@ struct GameDataBlock
   u8 Payload[484];
 };
 
-// 
-PatchStateContainer_t patchStateContainer = {
-  .ReadExtraDataFunc = mapReadCustomMapExtraData
-};
-
 extern float _lodScale;
 extern void* _correctTieLod;
 extern MenuElem_OrderedListData_t dataCustomMaps;
@@ -359,6 +354,13 @@ PatchInterop_t interopData = {
   .Month = 0,
   .SetSpectate = spectateSetSpectate,
   .MapLoaderFilename = (char*)MapLoaderState.MapFileName
+};
+
+// 
+PatchStateContainer_t patchStateContainer = {
+  .Config = &config,
+  .GameConfig = &gameConfig,
+  .ReadExtraDataFunc = mapReadCustomMapExtraData
 };
 
 /*
@@ -2444,6 +2446,7 @@ void runHealthPickupFix(void)
 void onMobyUpdate(Moby* moby)
 {
   playerSyncTick();
+  processGameModulesUpdate();
 
   ((void (*)(Moby*))0x003BD5A8)(moby);
 
@@ -3946,10 +3949,10 @@ u64 hookedProcessLevel()
 	grLoadStart();
 
 	// pass event to modules
-	while (module->GameEntrypoint || module->LobbyEntrypoint)
+	while (module->Entrypoint)
 	{
-		if (module->State > GAMEMODULE_OFF && module->LoadEntrypoint)
-			module->LoadEntrypoint(module, &config, &gameConfig, &patchStateContainer);
+		if (module->State > GAMEMODULE_OFF)
+			module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOAD);
 
 		++module;
 	}
@@ -4286,7 +4289,7 @@ void processGameModules()
 	GameSettings * gamesettings = gameGetSettings();
 
 	// Iterate through all the game modules until we hit an empty one
-	while (module->GameEntrypoint || module->LobbyEntrypoint)
+	while (module->Entrypoint)
 	{
 		// Ensure we have game settings
 		if (gamesettings)
@@ -4303,17 +4306,13 @@ void processGameModules()
 					if (!gameHasEnded() || gameGetTime() < (gameGetFinishedExitTime() + TIME_SECOND))
 					{
 						// Invoke module
-						if (module->GameEntrypoint)
-							module->GameEntrypoint(module, &config, &gameConfig, &patchStateContainer);
+            module->Entrypoint(module, &patchStateContainer, GAMEMODULE_GAME);
 					}
 				}
 				else if (isInMenus())
 				{
 					// Invoke lobby module if still active
-					if (module->LobbyEntrypoint)
-					{
-						module->LobbyEntrypoint(module, &config, &gameConfig, &patchStateContainer);
-					}
+          module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOBBY);
 				}
 			}
 
@@ -4327,11 +4326,48 @@ void processGameModules()
 		else if (module->State == GAMEMODULE_ALWAYS_ON)
 		{
 			// Invoke lobby module if still active
-			if (isInMenus() && module->LobbyEntrypoint)
+			if (isInMenus())
 			{
-				module->LobbyEntrypoint(module, &config, &gameConfig, &patchStateContainer);
+				module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOBBY);
 			}
 		}
+
+		++module;
+	}
+}
+
+/*
+ * NAME :		processGameModulesUpdate
+ * 
+ * DESCRIPTION :
+ * 
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void processGameModulesUpdate()
+{
+	// Start at the first game module
+	GameModule * module = GLOBAL_GAME_MODULES_START;
+
+	// check we're in game
+  if (!isInGame() || !gameGetSettings()) return;
+  if (gameHasEnded() && gameGetTime() > (gameGetFinishedExitTime() + TIME_SECOND)) return;
+
+	// Iterate through all the game modules until we hit an empty one
+	while (module->Entrypoint)
+	{
+    // Check the module is enabled
+    if (module->State > GAMEMODULE_OFF)
+    {
+      // Invoke module
+      module->Entrypoint(module, &patchStateContainer, GAMEMODULE_GAME_UPDATE);
+    }
 
 		++module;
 	}

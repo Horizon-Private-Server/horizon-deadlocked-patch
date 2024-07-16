@@ -582,7 +582,7 @@ void findBallCenterSpawnPoint(void)
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
   static int startDelay = 60 * 0.2;
 	static int waitingForClientsReady = 0;

@@ -38,7 +38,7 @@ struct CGMState State;
 
 void processPlayer(int pIndex);
 void resetRoundState(void);
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState);
+void initialize(PatchStateContainer_t* gameState);
 void updateGameState(PatchStateContainer_t * gameState);
 void gameTick(void);
 void frameTick(void);
@@ -46,11 +46,12 @@ void setLobbyGameOptions(void);
 void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 
   // disable quick chat, health boxes, and v2s
+  PatchGameConfig_t* gameConfig = gameState->GameConfig;
   gameConfig->grQuickChat = 0;
   gameConfig->grNoHealthBoxes = 2;
   gameConfig->grV2s = 2;
@@ -67,7 +68,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 	if (!Initialized)
 	{
-		initialize(gameConfig, gameState);
+		initialize(gameState);
 		return;
 	}
 
@@ -83,7 +84,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int i;
 	int activeId = uiGetActive();
@@ -107,7 +108,18 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 }
 
 //--------------------------------------------------------------------------
-void loadStart(void)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
   setLobbyGameOptions();
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME: gameStart(module, gameState); break;
+  }
 }

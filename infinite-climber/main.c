@@ -204,7 +204,8 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 			return 0;
 		}
 
-		sourceBox->OClass = def->OClass;
+		//sourceBox->OClass = def->OClass;
+		sourceBox->Bolts = def->OClass; // store oclass so dzo client knows which moby this is
 		sourceBox->PClass = mobyClass;
 		sourceBox->CollData = *(int*) ((u32)mobyClass + 0x10);
 		sourceBox->MClass = *(u8*)(0x0024a110 + def->OClass);
@@ -441,7 +442,7 @@ void updateGameState(PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
   static int startDelay = 60 * 0.2;
 	static int waitingForClientsReady = 0;
@@ -592,7 +593,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
@@ -608,7 +609,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	State.IsHost = gameAmIHost();
 
 	if (!Initialized) {
-		initialize(gameConfig, gameState);
+		initialize(gameState);
 		return;
 	}
 
@@ -744,7 +745,7 @@ void setLobbyGameOptions(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
@@ -797,7 +798,18 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(void)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
   setLobbyGameOptions();
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME: gameStart(module, gameState); break;
+  }
 }

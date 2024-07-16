@@ -354,7 +354,7 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int i = 0;
 	int playerCount = 0;
@@ -487,7 +487,7 @@ void setLobbyGameOptions(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
@@ -503,7 +503,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 			if (initializedScoreboard)
 				break;
 
-      setEndGameScoreboard(gameConfig);
+      setEndGameScoreboard(gameState->GameConfig);
 			initializedScoreboard = 1;
 
 			// patch rank computation to keep rank unchanged for base mode
@@ -533,7 +533,18 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(void)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
   setLobbyGameOptions();
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME: gameStart(module, gameState); break;
+  }
 }

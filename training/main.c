@@ -72,7 +72,7 @@ void correctEndGameData(void)
 }
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 
@@ -88,11 +88,11 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 
 	// Determine if host
 	State.IsHost = gameAmIHost();
-  State.AggroMode = gameConfig->trainingConfig.aggression;
+  State.AggroMode = gameState->GameConfig->trainingConfig.aggression;
 
 	if (!Initialized)
 	{
-		initialize(gameConfig);
+		initialize(gameState->GameConfig);
 		return;
 	}
 
@@ -122,7 +122,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int i;
 	int activeId = uiGetActive();
@@ -153,7 +153,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 			if (initializedScoreboard)
 				break;
 
-			modeSetEndGameScoreboard(gameConfig);
+			modeSetEndGameScoreboard(gameState->GameConfig);
 			initializedScoreboard = 1;
 
 			// patch rank computation to keep rank unchanged for base mode
@@ -162,14 +162,25 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			modeSetLobbyGameOptions(gameConfig);
+			modeSetLobbyGameOptions(gameState->GameConfig);
 			break;
 		}
 	}
 }
 
 //--------------------------------------------------------------------------
-void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-	modeSetLobbyGameOptions(gameConfig);
+	modeSetLobbyGameOptions(gameState->GameConfig);
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME: gameStart(module, gameState); break;
+  }
 }

@@ -1592,7 +1592,7 @@ void resetRoundState(void)
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
   static int startDelay = 60 * 0.2;
 	static int waitingForClientsReady = 0;
@@ -1741,7 +1741,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.GameOver = 0;
 	State.RoundLimit = 2;
 	State.RoundNumber = 0;
-	State.ContestMode = (enum PayloadContestMode)gameConfig->payloadConfig.contestMode;
+	State.ContestMode = (enum PayloadContestMode)gameState->GameConfig->payloadConfig.contestMode;
 	if (gameData->TimeEnd > 0)
 		State.RoundDuration = gameData->TimeEnd / 2;
 	else

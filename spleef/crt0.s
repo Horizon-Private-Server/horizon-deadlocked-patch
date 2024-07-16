@@ -17,13 +17,5 @@
 
 	.ent _start
 _start:
-	j gameStart
-	nop
-
-_lobbyStart:
-	j lobbyStart
-	nop
-
-_loadStart:
-	j loadStart
+	j start
 	nop

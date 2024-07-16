@@ -1333,7 +1333,7 @@ void updateGameState(PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
 	static int delayStart = 60 * 0.2;
 	static int waitingForClientsReady = 0;
@@ -1486,7 +1486,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int i = 0;
 	GameSettings * gameSettings = gameGetSettings();
@@ -1507,7 +1507,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	// Initialize if not yet initialized
 	if (!Initialized)
 	{
-		initialize(gameConfig, gameState);
+		initialize(gameState);
 		return;
 	}
 
@@ -1883,7 +1883,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int i;
 	int activeId = uiGetActive();
@@ -1908,7 +1908,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions(gameConfig);
+			setLobbyGameOptions(gameState->GameConfig);
 			break;
 		}
 	}
@@ -1930,9 +1930,9 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
 
-void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-	setLobbyGameOptions(gameConfig);
+	setLobbyGameOptions(gameState->GameConfig);
 
 	// only handle when loading level
 	GameSettings* gs = gameGetSettings();
@@ -1949,4 +1949,15 @@ void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
     
   // read extra data
   gameState->ReadExtraDataFunc(&MapConfig, 0x50);
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME: gameStart(module, gameState); break;
+  }
 }
