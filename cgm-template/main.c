@@ -64,7 +64,13 @@ int getTeamCount(void)
 }
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameUpdateTick(struct GameModule * module, PatchStateContainer_t * gameState)
+{
+  
+}
+
+//--------------------------------------------------------------------------
+void gameFrameTick(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
@@ -153,7 +159,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 			if (initializedScoreboard)
 				break;
 
-			setEndGameScoreboard(gameConfig);
+			setEndGameScoreboard(gameState->GameConfig);
 			initializedScoreboard = 1;
 
 			// patch rank computation to keep rank unchanged for base mode
@@ -181,6 +187,7 @@ void start(struct GameModule * module, PatchStateContainer_t * gameState, enum G
   {
     case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
     case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME: gameStart(module, gameState); break;
+    case GAMEMODULE_GAME: gameFrameTick(module, gameState); break;
+    case GAMEMODULE_GAME_UPDATE: gameUpdateTick(module, gameState); break;
   }
 }

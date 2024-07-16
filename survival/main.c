@@ -4255,5 +4255,6 @@ void start(struct GameModule * module, PatchStateContainer_t * gameState, enum G
     case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
     case GAMEMODULE_LOAD: loadStart(module, gameState); break;
     case GAMEMODULE_GAME: gameStart(module, gameState); break;
+    case GAMEMODULE_GAME_UPDATE: break;
   }
 }
