@@ -745,6 +745,14 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
+  
+  // set everyone to their own team
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (gameSettings->PlayerClanTags[i] >= 0) {
+      gameSettings->PlayerTeams[i] = i;
+    }
+  }
 }
 
 void setEndGameScoreboard(void)
