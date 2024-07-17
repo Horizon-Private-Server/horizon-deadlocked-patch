@@ -34,6 +34,7 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
+#include "common.h"
 #include "include/game.h"
 #include "include/utils.h"
 #include "include/bezier.h"
@@ -719,9 +720,7 @@ void payloadPostDraw(Moby* payload)
 	if (!pvar)
 		return;
 
-	if (State.RoundEndTime || State.GameOver || pvar->State >= PAYLOAD_STATE_DELIVERED)
-		return;
-	
+  int roundOrGameOver = State.RoundEndTime || State.GameOver || pvar->State >= PAYLOAD_STATE_DELIVERED;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * player = players[i];
 		if (player && !playerIsDead(player)) {
@@ -760,7 +759,9 @@ void payloadPostDraw(Moby* payload)
       *(short*)(electricityMoby->PVar + 0x02) = 3000;
 
 			// skip if player is defending and contesting is off
-			if (!State.PlayerStates[i].IsAttacking && State.ContestMode == PAYLOAD_CONTEST_OFF) {
+      if (roundOrGameOver) {
+        targetColor = 0; // hide if round/game is over
+      } else if (!State.PlayerStates[i].IsAttacking && State.ContestMode == PAYLOAD_CONTEST_OFF) {
         targetColor = 0;
       } else if (State.PlayerStates[i].IsNearPayload) {
 				vector_subtract(delta, player->PlayerPosition, pvar->PathPosition);
@@ -1135,25 +1136,27 @@ void processPlayer(int pIndex)
   if (shouldDrawHud()) {
     // draw payload moving icon
     if (pvar->State == PAYLOAD_STATE_MOVING_FORWARD) {
-      gfxDrawSprite(370, 16, 16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
+      gfxHelperDrawSprite(370, 16, 0, 0, 16, 16, 32, 32, 52, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     } else if (pvar->State == PAYLOAD_STATE_MOVING_BACKWARD) {
-      gfxDrawSprite(370 + 16, 16, -16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
+      gfxHelperDrawSprite(370, 16, 16, 0, -16, 16, 32, 32, 52, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     }
 
     // number of attacking players near payload
     if (pvar->AttackerNearCount) {
       sprintf(strBuf, "x%d", pvar->AttackerNearCount);
       u32 color = colorLerp(TEAM_COLORS[State.Teams[1].TeamId], 0x80E0E0E0, pulseTime);
-      gfxDrawSprite(395, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
-      gfxScreenSpaceText(395 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
+      
+      gfxHelperDrawSprite(370, 16, 25, 0, 16, 16, 32, 32, 16, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(370, 16 + 12, 25 + 10, 0, 0.7, color, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     }
 
     // number of defending players near payload
     if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->DefenderNearCount) {
       sprintf(strBuf, "x%d", pvar->DefenderNearCount);
       u32 color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], 0x80E0E0E0, pulseTime);
-      gfxDrawSprite(420, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
-      gfxScreenSpaceText(420 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
+
+      gfxHelperDrawSprite(370, 16, 50, 0, 16, 16, 32, 32, 16, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(370, 16 + 12, 50 + 10, 0, 0.7, color, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     }
   }
 
@@ -1189,40 +1192,37 @@ void processPlayer(int pIndex)
 
 		// draw world space icon if obstructed
 		if (CollLine_Fix(player->CameraPos, payload->Position, 2, payload, 0)) {
+      u32 color = 0x80E0E0E0;
+      switch (pvar->State)
+      {
+        case PAYLOAD_STATE_MOVING_FORWARD:
+        {
+          color = TEAM_COLORS[State.Teams[1].TeamId] + 0x40000000;
+          break;
+        }
+        case PAYLOAD_STATE_MOVING_BACKWARD:
+        {
+          color = TEAM_COLORS[State.Teams[0].TeamId] + 0x40000000;
+          break;
+        }
+      }
+
+      // if contesting set color as average of two team colors
+      if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->AttackerNearCount && pvar->DefenderNearCount) {
+        color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], TEAM_COLORS[State.Teams[1].TeamId], 0.5);
+      }
+
 			vector_copy(t, payload->Position);
 			t[2] += 4;
-			if (gfxWorldSpaceToScreenSpace(t, &x, &y))
-			{
-				u32 color = 0x80E0E0E0;
-				switch (pvar->State)
-				{
-					case PAYLOAD_STATE_MOVING_FORWARD:
-					{
-						color = TEAM_COLORS[State.Teams[1].TeamId] + 0x40000000;
-						break;
-					}
-					case PAYLOAD_STATE_MOVING_BACKWARD:
-					{
-						color = TEAM_COLORS[State.Teams[0].TeamId] + 0x40000000;
-						break;
-					}
-				}
-
-				// if contesting set color as average of two team colors
-				if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->AttackerNearCount && pvar->DefenderNearCount) {
-					color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], TEAM_COLORS[State.Teams[1].TeamId], 0.5);
-				}
-
-				gfxDrawSprite(x-12, y-12, 24, 24, 0, 0, 32, 32, colorLerp(0x80808080, color, 0.5 + (pulseTime*0.5)), gfxGetFrameTex(81));
-			}
+      gfxHelperDrawSprite_WS(t, 24, 24, 32, 32, 81, colorLerp(0x80808080, color, 0.5 + (pulseTime*0.5)), TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 		}
 
 		// draw bomb site icon
 		vector_copy(t, Config.Path[Config.PathVertexCount-1].ControlPoint);
 		t[2] += 1;
-		if (CollLine_Fix(player->CameraPos, t, 2, NULL, 0) == 0 && gfxWorldSpaceToScreenSpace(t, &x, &y)) {
+		if (CollLine_Fix(player->CameraPos, t, 2, NULL, 0) == 0) {
 			float opacity = powf(clamp((pvar->Distance / State.PathLength) - 0.5, 0, 0.5) * 2, 3);
-			gfxDrawSprite(x-8, y-8, 16, 16, 0, 0, 32, 32, colorLerp(0x00808080, 0x80FFFFFF, opacity), gfxGetFrameTex(10));
+      gfxHelperDrawSprite_WS(t, 16, 16, 32, 32, 10, colorLerp(0x80808080, 0x80FFFFFF, opacity), TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 		}
 		
 		// play electricity sound if near
@@ -1282,8 +1282,8 @@ void processPlayer(int pIndex)
 
 		// 
     if (shouldDrawHud()) {
-		  gfxScreenSpaceText(452+1, 16+1, 1, 1, 0x80000000, strBuf, -1, 0);
-		  gfxScreenSpaceText(452, 16, 1, 1, 0x80FFFFFF, strBuf, -1, 0);
+      gfxHelperDrawText(470, 16, 1, 1, 1, 0x80000000, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(470, 16, 0, 0, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
     }
 
 		// draw end round timer
@@ -1300,7 +1300,7 @@ void processPlayer(int pIndex)
 
 			// draw timer
 			sprintf(strBuf, "%d", secondsLeftInt);
-			gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT * 0.15, scale, scale, color, strBuf, -1, 4);
+      gfxHelperDrawText(SCREEN_WIDTH/2, SCREEN_HEIGHT * 0.15, 0, 0, scale, color, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
 			// tick timer
 			if (secondsLeftInt != State.TimerLastPlaySoundSecond)
@@ -1315,11 +1315,12 @@ void processPlayer(int pIndex)
 	if (player->LocalPlayerIndex == 0 && shouldDrawHud()) {
 		const float height = 250.0;
 		const float x = 470.0;
+		const float dx = SCREEN_WIDTH - x;
 		const float y = 50.0;
 
 		// background
-		gfxPixelSpaceBox(x, y, 10.0, height, 0x80808080);
-		gfxPixelSpaceBox(x+2, y+2, 6.0, height-4, 0x80404040);
+    gfxHelperDrawBox(SCREEN_WIDTH, y, dx + 0, 0, 10, height, 0x80808080, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawBox(SCREEN_WIDTH, y, dx + 2, 2, 10-4, height-4, 0x80808080, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 
 		// progress
 		for (i = 0; i < 2; ++i) {
@@ -1329,15 +1330,15 @@ void processPlayer(int pIndex)
 			float h = floorf((height-4.0) * t);
 			float yPos = ((height-4.0) + y + 2.0 - h);
 			u32 color = TEAM_COLORS[State.Teams[i].TeamId] + 0x40000000;
-			gfxPixelSpaceBox(x + 2, yPos, 6.0, h, color);
+      gfxHelperDrawBox(SCREEN_WIDTH, yPos, dx + 2, 0, 10-4, h, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 
 			// marker
 			if (i == 0 && State.RoundNumber > 0) {
-				gfxPixelSpaceBox(x, yPos, 10.0, 2.0, color);
+        gfxHelperDrawBox(SCREEN_WIDTH, yPos, dx + 0, 0, 10, 2, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 			}
 
 			// draw marker icons
-			gfxDrawSprite(x + 20, yPos - 6, 12, 12, 0, 0, 32, 32, color, gfxGetFrameTex(42));
+      gfxHelperDrawSprite(SCREEN_WIDTH, yPos, dx + 20, -6, 12, 12, 32, 32, 42, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 		}
 	}
 

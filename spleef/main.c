@@ -29,6 +29,7 @@
 #include <libdl/net.h>
 #include <libdl/utils.h>
 #include "module.h"
+#include "common.h"
 #include "messageid.h"
 #include "include/game.h"
 
@@ -322,20 +323,18 @@ void drawRoundMessage(const char * message, float scale)
 	GameSettings * gameSettings = gameGetSettings();
 	char* rankStrings[] = { "1st", "2nd", "3rd" };
 	int fw = gfxGetFontWidth(message, -1, scale);
-	float x = 0.5;
-	float y = 0.16;
-	float p = 0.02;
+	float x = 0.5 * SCREEN_WIDTH;
+	float y = 0.16 * SCREEN_HEIGHT;
+	float p = 10;
 	float w = maxf(196.0, fw);
 	float h = 120.0;
 	int i;
 
 	// draw container
-	gfxScreenSpaceBox(x-(w/(SCREEN_WIDTH*2.0)), y, (w / SCREEN_WIDTH) + p, (h / SCREEN_HEIGHT) + p, 0x20ffffff);
+  gfxHelperDrawBox(x, y, 0, 0, w + p, h + p, 0x20FFFFFF, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
 
 	// draw message
-	y *= SCREEN_HEIGHT;
-	x *= SCREEN_WIDTH;
-	gfxScreenSpaceText(x, y + 5, scale, scale * 1.5, 0x80FFFFFF, message, -1, 1);
+  gfxHelperDrawText(x, y, 0, 5, scale, 0x80FFFFFF, message, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
 
 	// draw ranks
 	y += 24.0 * scale;
@@ -347,8 +346,8 @@ void drawRoundMessage(const char * message, float scale)
 		if (pId >= 0)
 		{
 			y += 18.0 * scale;
-			gfxScreenSpaceText(x-(w/2), y, scale, scale, 0x80FFFFFF, rankStrings[i-1], -1, 3);
-			gfxScreenSpaceText(x+(w/2), y, scale, scale, 0x80FFFFFF, gameSettings->PlayerNames[pId], -1, 5);
+      gfxHelperDrawText(x, y, -(w/2), 0, scale, 0x80FFFFFF, rankStrings[i-1], -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(x, y, (w/2), 0, scale, 0x80FFFFFF, gameSettings->PlayerNames[pId], -1, TEXT_ALIGN_MIDDLERIGHT, COMMON_DZO_DRAW_NORMAL);
 		}
 	}
 }

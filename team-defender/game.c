@@ -34,6 +34,7 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
+#include "common.h"
 #include "include/game.h"
 #include "include/utils.h"
 
@@ -177,8 +178,8 @@ void drawAssistFeed(void)
 
       // draw
       snprintf(buf, sizeof(buf), "+%d", POINTS_PER_ASSIST);
-      gfxScreenSpaceText(0.77 * SCREEN_WIDTH + 2, 0.09 * SCREEN_HEIGHT + (drawn * 16) + 2, 1, 1, alphaCol, buf, -1, 0);
-      gfxScreenSpaceText(0.77 * SCREEN_WIDTH + 0, 0.09 * SCREEN_HEIGHT + (drawn * 16) + 0, 1, 1, alphaCol | color, buf, -1, 0);
+      gfxHelperDrawText(0.77 * SCREEN_WIDTH, 0.09 * SCREEN_HEIGHT, 2, (drawn * 16) + 2, 1, alphaCol, buf, -1, 0, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(0.77 * SCREEN_WIDTH, 0.09 * SCREEN_HEIGHT, 0, (drawn * 16) + 0, 1, alphaCol | color, buf, -1, 0, COMMON_DZO_DRAW_NORMAL);
     
       // increment
       item->TicksLeft -= 1;

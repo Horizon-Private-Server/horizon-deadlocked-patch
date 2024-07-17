@@ -29,6 +29,9 @@ EE_ASFLAGS := -G0 $(EE_ASFLAGS)
 EE_C_COMPILE = $(EE_CC) $(EE_CFLAGS) $(EE_INCS)
 EE_CXX_COMPILE = $(EE_CXX) $(EE_CXXFLAGS) $(EE_INCS)
 
+common.o : /src/common/common.c
+	$(EE_CC) $(EE_CFLAGS) $(EE_DEFS) $(EE_INCS) $(EE_LDFLAGS) -c $< -o $@
+
 %.o : %.c
 	$(EE_CC) $(EE_CFLAGS) $(EE_DEFS) $(EE_INCS) $(EE_LDFLAGS) -c $< -o $@
 

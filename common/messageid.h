@@ -11,6 +11,7 @@
 #ifndef _MESSAGEID_H_
 #define _MESSAGEID_H_
 #include "config.h"
+#include <libdl/math3d.h>
 
 
 #define PATCH_GAME_STATS_VERSION              (1)
@@ -315,6 +316,9 @@ enum CustomDzoCommandId
   CUSTOM_DZO_CMD_ID_DRAW_TEXT = 8,
   CUSTOM_DZO_CMD_ID_DRAW_BOX = 9,
   CUSTOM_DZO_CMD_ID_DRAW_SPRITE = 10,
+  CUSTOM_DZO_CMD_ID_DRAW_WS_TEXT = 11,
+  CUSTOM_DZO_CMD_ID_DRAW_WS_BOX = 12,
+  CUSTOM_DZO_CMD_ID_DRAW_WS_SPRITE = 13,
 };
 
 typedef struct SetMapOverrideResponse
@@ -554,5 +558,34 @@ typedef struct CustomDzoCommandDrawSprite
   int Alignment;
   char Stretch;
 } CustomDzoCommandDrawSprite_t;
+
+typedef struct CustomDzoCommandDrawWSText
+{
+  VECTOR Position;
+  float Scale;
+  u32 Color;
+  int Alignment;
+  char Text[64];
+} CustomDzoCommandDrawWSText_t;
+
+typedef struct CustomDzoCommandDrawWSBox
+{
+  VECTOR Position;
+  float W;
+  float H;
+  u32 Color;
+  int Alignment;
+} CustomDzoCommandDrawWSBox_t;
+
+typedef struct CustomDzoCommandDrawWSSprite
+{
+  VECTOR Position;
+  float W;
+  float H;
+  u32 Color;
+  int SpriteId;
+  int CustomSpriteId;
+  int Alignment;
+} CustomDzoCommandDrawWSSprite_t;
 
 #endif // _MESSAGEID_H_

@@ -35,6 +35,7 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
+#include "common.h"
 #include "include/game.h"
 #include "include/utils.h"
 
@@ -740,8 +741,8 @@ void modeTick(void)
 		u32 color = colorLerp(0x8029E5E6, 0x800000FF, timeT);
 
 		snprintf(buf, 32, "%02d", capTimeMs / 1000);
-		gfxScreenSpaceText(32+1, 130+1, 1, 1, 0x40000000, buf, -1, 1);
-		gfxScreenSpaceText(32, 130, 1, 1, color, buf, -1, 1);
+    gfxHelperDrawText(0, 130, 32 + 1, 1, 1, 0x40000000, buf, -1, 1, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(0, 130, 32, 0, 1, color, buf, -1, 1, COMMON_DZO_DRAW_NORMAL);
 	}
 
   --tallyTicker;
@@ -764,31 +765,31 @@ void modeTick(void)
     }
   }
   
-  if (0)
-  {
-    static int renderSpawnsTicker = 0;
-    if (renderSpawnsTicker <= 0) {
-      modeGenerateRecommendedSpawnpoints(REC_SPAWN_TYPE_MID);
-      renderSpawnsTicker = 60;
-    } else {
-      renderSpawnsTicker--;
-    }
+  // if (0)
+  // {
+  //   static int renderSpawnsTicker = 0;
+  //   if (renderSpawnsTicker <= 0) {
+  //     modeGenerateRecommendedSpawnpoints(REC_SPAWN_TYPE_MID);
+  //     renderSpawnsTicker = 60;
+  //   } else {
+  //     renderSpawnsTicker--;
+  //   }
 
-    int x,y;
-    for (i = 0; i < MAX_REC_SPAWNPOINTS; ++i) {
-      int spIdx = RecommendedSpawnPoints[REC_SPAWN_TYPE_MID][i];
-      if (spIdx > 0) {
-        SpawnPoint* sp = spawnPointGet(spIdx);
-        if (gfxWorldSpaceToScreenSpace(&sp->M0[12], &x, &y)) {
-          gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
-        }
-      }
-    }
+  //   int x,y;
+  //   for (i = 0; i < MAX_REC_SPAWNPOINTS; ++i) {
+  //     int spIdx = RecommendedSpawnPoints[REC_SPAWN_TYPE_MID][i];
+  //     if (spIdx > 0) {
+  //       SpawnPoint* sp = spawnPointGet(spIdx);
+  //       if (gfxWorldSpaceToScreenSpace(&sp->M0[12], &x, &y)) {
+  //         gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
+  //       }
+  //     }
+  //   }
 
-    if (gfxWorldSpaceToScreenSpace((float*)modeGetOurFlag()->PVar, &x, &y)) {
-      gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
-    }
-  }
+  //   if (gfxWorldSpaceToScreenSpace((float*)modeGetOurFlag()->PVar, &x, &y)) {
+  //     gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
+  //   }
+  // }
 
   // reset flag when player dies
   if (player && targetFlag && playerIsDead(player) && !flagIsAtBase(targetFlag)) {

@@ -34,6 +34,7 @@
 #include <libdl/utils.h>
 #include <libdl/net.h>
 #include "module.h"
+#include "common.h"
 #include "messageid.h"
 
 #include "include/pvars.h"

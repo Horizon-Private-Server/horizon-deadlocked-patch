@@ -1,7 +1,7 @@
 
 EE_ELF = hns-11184.elf
 EE_BIN = hns-11184.bin
-EE_OBJS = main.o game.o scoreboard.o utils.o config.o net.o
+EE_OBJS = common.o main.o game.o scoreboard.o utils.o config.o net.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common

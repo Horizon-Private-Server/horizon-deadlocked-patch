@@ -35,6 +35,7 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
+#include "common.h"
 #include "include/game.h"
 #include "include/utils.h"
 
@@ -791,8 +792,8 @@ void modeTick(void)
 	// draw difficulty
 	gfxSetupGifPaging(0);
 	u64 difficultySprite = gfxGetFrameTex(64 + computeDifficultyIdx());
-	gfxDrawSprite(20+1, 180+1, 24, 24, 0, 0, 32, 32, 0x40000000, difficultySprite);
-	gfxDrawSprite(20, 180, 24, 24, 0, 0, 32, 32, 0x80808080, difficultySprite);
+  gfxHelperDrawSprite(20, 180, 1, 1, 24, 24, 32, 32, 0x40000000, difficultySprite);
+  gfxHelperDrawSprite(20, 180, 0, 0, 24, 24, 32, 32, 0x80808080, difficultySprite);
 	gfxDoGifPaging();
 
 	#if DEBUG

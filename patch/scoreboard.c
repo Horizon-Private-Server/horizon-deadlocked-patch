@@ -12,6 +12,7 @@
 #include <libdl/utils.h>
 #include "messageid.h"
 #include "config.h"
+#include "common.h"
 #include "include/config.h"
 
 #define LATENCY_PING_COOLDOWN_TICKS         (60 * 1)
@@ -111,17 +112,26 @@ void igScoreboardDraw(void)
   GameSettings* gs = gameGetSettings();
   if (!isInGame() || !gs) return;
 
+  float anchorX = 0.5 * SCREEN_WIDTH;
+  float anchorY = 0.3 * SCREEN_HEIGHT;
+  float width = 0.65 * SCREEN_WIDTH;
+  float height = 0.08 * SCREEN_HEIGHT;
+  float rowHeight = 0.04 * SCREEN_HEIGHT;
+  float aY = anchorY + height/2;
+  const float offsets[] = { -160, -50, 45, 140 };
+
   // bg
-  gfxScreenSpaceBox(0.15, 0.3, 0.65, 0.08, 0x20000000);
+  //gfxScreenSpaceBox(0.15, 0.3, 0.65, 0.08, 0x20000000);
+  gfxHelperDrawBox(anchorX, anchorY, 0, 0, width, height, 0x20000000, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
 
   // columns
-  gfxScreenSpaceText(0.17 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Player", -1, 0);
-  gfxScreenSpaceText(0.40 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Kills", -1, 1);
-  gfxScreenSpaceText(0.57 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Deaths", -1, 1);
+  gfxHelperDrawText(anchorX, aY, offsets[0], 0, 1, 0x80FFFFFF, "Player", -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(anchorX, aY, offsets[1], 0, 1, 0x80FFFFFF, "Kills", -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(anchorX, aY, offsets[2], 0, 1, 0x80FFFFFF, "Deaths", -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 #if USE_CLIENT_PING
-  gfxScreenSpaceText(0.74 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "Ping", -1, 1);
+  gfxHelperDrawText(anchorX, aY, offsets[3], 0, 1, 0x80FFFFFF, "Ping", -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 #else
-  gfxScreenSpaceText(0.74 * SCREEN_WIDTH, 0.32 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, "RTT", -1, 1);
+  gfxHelperDrawText(anchorX, aY, offsets[3], 0, 1, 0x80FFFFFF, "RTT", -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 #endif
 
   // rows
@@ -132,15 +142,22 @@ void igScoreboardDraw(void)
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     if (gs->PlayerNames[i][0] == 0) continue;
 
+    float yOff = (SCREEN_HEIGHT/2) - y - rowHeight - 1;
+    aY = anchorY + rowHeight/2;
+
     int team = gs->PlayerTeams[i];
     if (players[i]) team = players[i]->Team;
-    gfxScreenSpaceBox(0.15, y / SCREEN_HEIGHT, 0.65, 0.04, TEAM_COLORS[team]);
-    gfxScreenSpaceText(0.17 * SCREEN_WIDTH, y, 1, 1, 0x80FFFFFF, gs->PlayerNames[i], -1, 0);
-    snprintf(buf, sizeof(buf), "%d", gdata->PlayerStats.Kills[i]); gfxScreenSpaceText(0.40 * SCREEN_WIDTH, y, 1, 1, 0x80FFFFFF, buf, -1, 1);
-    snprintf(buf, sizeof(buf), "%d", gdata->PlayerStats.Deaths[i]); gfxScreenSpaceText(0.57 * SCREEN_WIDTH, y, 1, 1, 0x80FFFFFF, buf, -1, 1);
-    snprintf(buf, sizeof(buf), "%dms", ClientLatency[gs->PlayerClients[i]]); gfxScreenSpaceText(0.74 * SCREEN_WIDTH, y, 1, 1, 0x80FFFFFF, buf, -1, 1);
+    gfxHelperDrawBox(anchorX, aY, 0, yOff, width, rowHeight, TEAM_COLORS[team], TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(anchorX, aY, offsets[0], yOff, 1, 0x80FFFFFF, gs->PlayerNames[i], -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
 
-    y += 0.04 * SCREEN_HEIGHT;
+    snprintf(buf, sizeof(buf), "%d", gdata->PlayerStats.Kills[i]);
+    gfxHelperDrawText(anchorX, aY, offsets[1], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    snprintf(buf, sizeof(buf), "%d", gdata->PlayerStats.Deaths[i]);
+    gfxHelperDrawText(anchorX, aY, offsets[2], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    snprintf(buf, sizeof(buf), "%dms", ClientLatency[gs->PlayerClients[i]]);
+    gfxHelperDrawText(anchorX, aY, offsets[3], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+    y -= rowHeight;
   }
 }
 

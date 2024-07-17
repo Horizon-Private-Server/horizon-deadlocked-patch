@@ -21,6 +21,7 @@
 #include "module.h"
 #include "messageid.h"
 #include "config.h"
+#include "common.h"
 #include "include/config.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
@@ -5136,7 +5137,7 @@ void onOnlineMenu(void)
 
 	// call normal draw routine
 	((void (*)(void))0x00707F28)();
-	
+
   // let the user read the EULA/Announcements without a big download bar appearing over it
   if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_1) == uiGetActivePointer()) return;
   if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_2) == uiGetActivePointer()) return;

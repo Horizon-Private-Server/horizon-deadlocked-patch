@@ -91,19 +91,6 @@ u32 decTimerU32(u32* timeValue)
 }
 
 //--------------------------------------------------------------------------
-void drawRoundMessage(const char * message, float scale)
-{
-	int fw = gfxGetFontWidth(message, -1, scale);
-	float x = 0.5;
-	float y = 0.16;
-
-	// draw message
-	y *= SCREEN_HEIGHT;
-	x *= SCREEN_WIDTH;
-	gfxScreenSpaceText(x, y + 5, scale, scale * 1.5, 0x80FFFFFF, message, -1, 1);
-}
-
-//--------------------------------------------------------------------------
 Player * playerGetRandom(void)
 {
 	int r = rand(GAME_MAX_PLAYERS);

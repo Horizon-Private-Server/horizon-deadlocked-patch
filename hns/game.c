@@ -34,6 +34,7 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
+#include "common.h"
 #include "include/game.h"
 #include "include/utils.h"
 
@@ -89,33 +90,8 @@ void drawSeekerOverlay(int localPlayerIndex, int time)
   float vertScale = 1.0 / localCount;
   float yOff = localPlayerIndex * 0.5;
   snprintf(buf, sizeof(buf), "It's not rabbit season yet... %02d", time);
-  gfxScreenSpaceBox(0, yOff, 1, vertScale, 0x80000000);
-  gfxScreenSpaceText(SCREEN_WIDTH/2, (SCREEN_HEIGHT*yOff) + (SCREEN_HEIGHT*vertScale)/2, 1, 1, 0x80FFFFFF, buf, -1, 4);
-  
-  if (PATCH_DZO_INTEROP_FUNCS) {
-    CustomDzoCommandDrawBox_t boxCmd;
-    boxCmd.AnchorX = 0;
-    boxCmd.AnchorY = localPlayerIndex * vertScale;
-    boxCmd.X = 0;
-    boxCmd.Y = 0;
-    boxCmd.W = 1;
-    boxCmd.H = vertScale;
-    boxCmd.Color = 0x80000000;
-    boxCmd.Alignment = TEXT_ALIGN_TOPLEFT;
-    boxCmd.Stretch = 1;
-    PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_DRAW_BOX, sizeof(boxCmd), &boxCmd);
-
-    CustomDzoCommandDrawText_t textCmd;
-    textCmd.AnchorX = 0.5;
-    textCmd.AnchorY = 0.5 + (localPlayerIndex * 0.5 * vertScale);
-    textCmd.X = 0;
-    textCmd.Y = 0;
-    textCmd.Scale = 1;
-    textCmd.Color = 0x80FFFFFF;
-    textCmd.Alignment = TEXT_ALIGN_MIDDLECENTER;
-    strncpy(textCmd.Text, buf, sizeof(textCmd.Text));
-    PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_DRAW_TEXT, sizeof(textCmd), &textCmd);
-  }
+  gfxHelperDrawBox(0, SCREEN_HEIGHT*yOff, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT*vertScale, 0x80000000, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_STRETCHED);
+  gfxHelperDrawText(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 }
 
 //--------------------------------------------------------------------------
