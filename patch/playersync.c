@@ -174,6 +174,12 @@ void playerSyncHandlePlayerState(Player* player)
     player->timers.noInput = stateCurrent->NoInput;
   }
 
+  // resurrecting
+  if (playerIsDead(player) && player->pNetPlayer && player->pNetPlayer->warpMessage.isResurrecting) {
+    ((void (*)(Player*))0x005e2940)(player);
+    player->pNetPlayer->warpMessage.isResurrecting = 0;
+  }
+
   // extrapolate
   GameSettings* gs = gameGetSettings();
   if (config.enableNPSLagComp && data->TicksSinceLastUpdate == 0 && !playerIsDead(player) && gs) {
@@ -591,7 +597,7 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  gameConfig.grNewPlayerSync = 1;
+  //gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;

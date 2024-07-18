@@ -433,7 +433,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	return;
 }
 
-void setLobbyGameOptions(void)
+void setLobbyGameOptions(PatchStateContainer_t * gameState)
 {
   int i;
 
@@ -463,6 +463,7 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 5;
+  gameState->GameConfig->grNoPickups = 0;
 
   // set everyone to blue
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -512,7 +513,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameState);
 			break;
 		}
 	}
@@ -535,7 +536,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
  */
 void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-  setLobbyGameOptions();
+  setLobbyGameOptions(gameState);
 }
 
 //--------------------------------------------------------------------------

@@ -1315,7 +1315,7 @@ void processPlayer(int pIndex)
 	if (player->LocalPlayerIndex == 0 && shouldDrawHud()) {
 		const float height = 250.0;
 		const float x = 470.0;
-		const float dx = SCREEN_WIDTH - x;
+		const float dx = x - SCREEN_WIDTH;
 		const float y = 50.0;
 
 		// background
