@@ -108,6 +108,7 @@ typedef struct PatchGameConfig
   char grCqDisableUpgrades;
   char grNewPlayerSync;
   char grQuickChat;
+  char grNoFusionADS;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;

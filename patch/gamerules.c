@@ -1871,6 +1871,11 @@ void grGameStart(void)
   if (gameConfig.grCqDisableUpgrades)
     cqDisableUpgradesLogic();
 
+  if (gameConfig.grNoFusionADS && isInGame()) {
+    POKE_U16(0x00528320, 0x000F);
+    POKE_U16(0x00528326, 0);
+  }
+
 #if TWEAKERS
 	tweakers();
 #endif

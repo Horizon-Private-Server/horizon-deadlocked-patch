@@ -585,6 +585,17 @@ MenuElem_ListData_t dataFusionReticule = {
   }
 };
 
+// fusion scoping allow/disable list item
+MenuElem_ListData_t dataFusionScoping = {
+  .value = &gameConfig.grNoFusionADS,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
+    "Permitted",
+    "Disabled"
+  }
+};
+
 // healthbox list item
 MenuElem_ListData_t dataHealthBoxes = {
   .value = &gameConfig.grNoHealthBoxes,
@@ -629,7 +640,7 @@ MenuElem_ListData_t dataGameConfigPreset = {
   .count = 3,
   .items = {
     "None",
-    "Competitive",
+    "Cycle",
     "1v1",
   }
 };
@@ -669,6 +680,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Damage Cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer, "Disables the brief hit invincibility after taking damage." },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit, "Forces sniper shots that hit to register on every client. Can result in shots that appear to phase through walls." },
   // { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
+  { "Fusion Scoping", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionScoping },
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars, "Draws a healthbar above each player's nametag." },
   { "Healthboxes", listActionHandler, menuStateHandler_SettingStateHandler, &dataHealthBoxes, "Whether health pickups are enabled, or if there is a box enclosure that must be broken first before picking up." },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames, "Disables in game nametags." },
@@ -2608,7 +2620,7 @@ void configMenuDisable(void)
     // force game config to preset
     switch (preset)
     {
-      case 1: // competitive
+      case 1: // cycle
       {
         gameConfig.grNoHealthBoxes = 1;
         gameConfig.grNoNames = 0;
