@@ -5501,6 +5501,7 @@ int main (void)
     POKE_U32(0x004BAD64, 0x00412023);
     POKE_U32(0x004b8078, 0x00412023);
     POKE_U32(0x004b8084, 0x00612023);
+    POKE_U32(0x004b80a0, 0x00622023);
 
     // allow local flinching before remote flinch for chargebooting targets
     POKE_U32(0x005E1C94, 0);
