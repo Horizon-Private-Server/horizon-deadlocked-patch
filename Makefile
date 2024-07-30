@@ -21,6 +21,7 @@ all:
 	$(MAKE) -C mapdownloader
 	$(MAKE) -C anim-extractor
 	$(MAKE) -C elfloader
+	$(MAKE) -C tag
 	
 clean:
 	$(MAKE) -C patch clean
@@ -43,4 +44,5 @@ clean:
 	$(MAKE) -C mapdownloader clean
 	$(MAKE) -C anim-extractor clean
 	$(MAKE) -C elfloader clean
+	$(MAKE) -C tag clean
 

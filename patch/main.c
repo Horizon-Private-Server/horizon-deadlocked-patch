@@ -4307,7 +4307,7 @@ void processGameModules()
 					if (!gameHasEnded() || gameGetTime() < (gameGetFinishedExitTime() + TIME_SECOND))
 					{
 						// Invoke module
-            module->Entrypoint(module, &patchStateContainer, GAMEMODULE_GAME);
+            module->Entrypoint(module, &patchStateContainer, GAMEMODULE_GAME_FRAME);
 					}
 				}
 				else if (isInMenus())

@@ -435,6 +435,7 @@ MenuElem_OrderedListData_t dataCustomModes = {
     { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
     { CUSTOM_MODE_TRAINING, "Training" },
     { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
+    { CUSTOM_MODE_TAG, "Tag" },
 #if DEV
     { CUSTOM_MODE_ANIM_EXTRACTOR, "Anim Extractor" },
 #endif
@@ -453,6 +454,7 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_1000_KILLS] NULL,
   [CUSTOM_MODE_TRAINING] NULL,
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
+  [CUSTOM_MODE_TAG] NULL,
   //[CUSTOM_MODE_BENCHMARK] NULL,
   [CUSTOM_MODE_GRIDIRON] NULL,
 #if DEV
@@ -1213,6 +1215,14 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listDa
       case CUSTOM_MODE_GRIDIRON:
       {
         if (gs->GameRules == GAMERULE_CTF)
+          return 1;
+          
+        *value = CUSTOM_MODE_NONE;
+        return 0;
+      }
+      case CUSTOM_MODE_TAG:
+      {
+        if (gs->GameRules == GAMERULE_KOTH)
           return 1;
           
         *value = CUSTOM_MODE_NONE;

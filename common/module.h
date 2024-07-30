@@ -72,7 +72,7 @@ typedef enum GameModuleContext
 {
     GAMEMODULE_LOBBY,
     GAMEMODULE_LOAD,
-    GAMEMODULE_GAME,
+    GAMEMODULE_GAME_FRAME,
     GAMEMODULE_GAME_UPDATE,
 } GameModuleContext;
 

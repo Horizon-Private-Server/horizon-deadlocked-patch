@@ -34,7 +34,7 @@
 #include "include/utils.h"
 
 int Initialized = 0;
-struct PayloadState State;
+struct CGMState State;
 
 void processPlayer(int pIndex);
 void resetRoundState(void);
@@ -42,7 +42,7 @@ void initialize(PatchStateContainer_t* gameState);
 void updateGameState(PatchStateContainer_t * gameState);
 void gameTick(void);
 void frameTick(void);
-void setLobbyGameOptions(void);
+void setLobbyGameOptions(PatchStateContainer_t * gameState);
 void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
 int getTeamCount(void)
@@ -64,7 +64,7 @@ int getTeamCount(void)
 }
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameUpdateTick(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
@@ -74,19 +74,17 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	int gameTime = gameGetTime();
 	static int teamsAtStart = 0;
 
-	//
 	dlPreUpdate();
-
-	// 
 	updateGameState(gameState);
 
 	// Ensure in game
 	if (!gameSettings || !isInGame())
 		return;
 
-	// Determine if host
+	// determine if host
 	State.IsHost = gameAmIHost();
 
+  // initialize
 	if (!Initialized)
 	{
 		initialize(gameState);
@@ -94,42 +92,37 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 		return;
 	}
 
-	//
-	if (!State.GameOver)
-	{
+  if (!State.GameOver)
+  {
 		// end if all but one team left
 		int teamsLeft = getTeamCount();
-		if (teamsLeft <= 1 && teamsLeft < teamsAtStart)
-			State.GameOver = 1;
+		if (teamsLeft <= 1 && teamsLeft < teamsAtStart) {
+      State.GameOver = 9; // enemies left
+    }
 
-		// handle round switching and game over
-		if (State.RoundEndTime && gameTime > State.RoundEndTime)
-		{
-			State.RoundNumber++;
-
-			if (State.RoundNumber < State.RoundLimit)
-				resetRoundState();
-			else
-				State.GameOver = 1;
-		}
-
-		// handle frame tick
-		frameTick();
-		gameTick();
-	}
-	else
-	{
-		// end game
-		if (State.GameOver == 1)
-		{
-			gameSetWinner(State.WinningTeam, 1);
-			gameEnd(4);
-			State.GameOver = 2;
-		}
-	}
+    // invoke custom mode game update logic
+    gameTick();
+  }
+  else if (State.GameOver > 0)
+  {
+    gameSetWinner(State.WinningTeam, 1);
+    gameEnd(State.GameOver);
+    State.GameOver = -1;
+  }
 
 	dlPostUpdate();
-	return;
+}
+
+//--------------------------------------------------------------------------
+void gameFrameTick(struct GameModule * module, PatchStateContainer_t * gameState)
+{
+	if (!gameGetSettings() || !isInGame())
+		return;
+
+  // invoke custom mode frame update logic
+	if (!State.GameOver)
+		frameTick();
+
 }
 
 //--------------------------------------------------------------------------
@@ -173,7 +166,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameState);
 			break;
 		}
 	}
@@ -182,7 +175,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-  setLobbyGameOptions();
+  setLobbyGameOptions(gameState);
 }
 
 //--------------------------------------------------------------------------
@@ -192,7 +185,7 @@ void start(struct GameModule * module, PatchStateContainer_t * gameState, enum G
   {
     case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
     case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
-    case GAMEMODULE_GAME_UPDATE: break;
+    case GAMEMODULE_GAME_FRAME: gameFrameTick(module, gameState); break;
+    case GAMEMODULE_GAME_UPDATE: gameUpdateTick(module, gameState); break;
   }
 }

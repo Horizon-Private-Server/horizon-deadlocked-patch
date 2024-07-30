@@ -187,7 +187,7 @@ void start(struct GameModule * module, PatchStateContainer_t * gameState, enum G
   {
     case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
     case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME: gameFrameTick(module, gameState); break;
+    case GAMEMODULE_GAME_FRAME: gameFrameTick(module, gameState); break;
     case GAMEMODULE_GAME_UPDATE: gameUpdateTick(module, gameState); break;
   }
 }
