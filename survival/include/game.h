@@ -67,7 +67,7 @@
 #define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(1)
 #define MOB_SPAWN_BURST_MIN_INC_PER_ROUND			(0)
 
-#define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 1)
+#define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
 
 #define MOB_BASE_DAMAGE										    (10)
 #define MOB_BASE_DAMAGE_SCALE                 (0.03*1)

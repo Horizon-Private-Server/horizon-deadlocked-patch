@@ -3848,7 +3848,7 @@ void runPlayerStateSync(void)
 								p->timers.state = condition->MaxTicks;
 							} else {
 								//DPRINTF("%d changing remote player %08x (%d) state to %d (from %d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, localState, pStateTimer);
-								vtable->UpdateState(p, remoteState, 1, 1, 1);
+								vtable->UpdateState(p, remoteState, 1, 0, 1);
 								p->timers.state = remoteStateTicks;
 							}
 							RemoteStateTimeStart[i].TimeLastRemoteStateForced = gameTime;

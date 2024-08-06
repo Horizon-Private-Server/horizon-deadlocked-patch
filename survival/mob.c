@@ -477,7 +477,7 @@ void mobSetTarget(Moby* moby, Moby* target)
 }
 
 //--------------------------------------------------------------------------
-void mobSetAction(Moby* moby, int action)
+void mobSetAction(Moby* moby, int action, int dirty)
 {
 	struct MobActionUpdateEventArgs args;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -486,13 +486,24 @@ void mobSetAction(Moby* moby, int action)
 	if (pvars->MobVars.Action == action)
 		return;
 
-	GuberEvent* event = mobCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
-	if (event) {
-		args.Action = action;
-		args.ActionId = ++pvars->MobVars.ActionId;
-    args.Random = (char)rand(255);
-		guberEventWrite(event, &args, sizeof(struct MobActionUpdateEventArgs));
-	}
+  // we send this unreliably now
+	// GuberEvent* event = mobCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
+	// if (event) {
+	// 	args.Action = action;
+	// 	args.ActionId = ++pvars->MobVars.ActionId;
+  //   args.Random = (char)rand(255);
+	// 	guberEventWrite(event, &args, sizeof(struct MobActionUpdateEventArgs));
+	// }
+
+  pvars->MobVars.LastActionId = pvars->MobVars.ActionId++;
+  pvars->MobVars.LastAction = pvars->MobVars.Action;
+  if (dirty) pvars->MobVars.Dirty = 1;
+  
+  // pass to mob handler
+  if (pvars->VTable && pvars->VTable->ForceLocalAction)
+    pvars->VTable->ForceLocalAction(moby, action);
+
+  pvars->MobVars.DynamicRandom = (char)rand(255);
 }
 
 //--------------------------------------------------------------------------
@@ -585,6 +596,7 @@ void mobUpdate(Moby* moby)
 	GameOptions* gameOptions = gameGetOptions();
   GameSettings* gameSettings = gameGetSettings();
   Player** players = playerGetAll();
+  int useClientSideActions = moby->OClass != REACTOR_MOBY_OCLASS;
   int isFrozen = mobIsFrozen(moby);
 	if (!pvars || pvars->MobVars.Destroyed || !pvars->VTable)
 		return;
@@ -638,14 +650,14 @@ void mobUpdate(Moby* moby)
 	Player * ownerPlayer = NULL;
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     Player* p = players[i];
-    if (p && p->PlayerMoby && p->pNetPlayer && gameSettings->PlayerClients[i] == pvars->MobVars.Owner) {
+    if (p && playerIsConnected(p) && gameSettings->PlayerClients[i] == pvars->MobVars.Owner) {
       ownerPlayer = p;
       break;
     }
   }
 
   // default owner to host
-	if ((!ownerPlayer || pvars->TicksSinceLastStateUpdate > (MOB_AUTO_DIRTY_COOLDOWN_TICKS * 15)) && gameAmIHost()) {
+	if ((!ownerPlayer || pvars->TicksSinceLastStateUpdate > (MOB_AUTO_DIRTY_COOLDOWN_TICKS * 3)) && gameAmIHost()) {
 		pvars->MobVars.Owner = gameGetHostId();
 		mobSendOwnerUpdate(moby, pvars->MobVars.Owner);
   }
@@ -688,11 +700,11 @@ void mobUpdate(Moby* moby)
   }
 
 	//
-	if (isOwner && !isFrozen) {
+	if (!isFrozen && (useClientSideActions || isOwner)) {
 		// set next state
 		if (pvars->MobVars.NextAction >= 0 && pvars->MobVars.Knockback.Ticks == 0) {
 			if (nextActionTicks == 0) {
-				mobSetAction(moby, pvars->MobVars.NextAction);
+				mobSetAction(moby, pvars->MobVars.NextAction, isOwner && !useClientSideActions);
 				pvars->MobVars.NextAction = -1;
 			}
 		}
@@ -708,7 +720,7 @@ void mobUpdate(Moby* moby)
 			}
 
 			// get new target
-			if (scoutCooldownTicks == 0 && pvars->VTable->GetNextTarget) {
+			if (isOwner && scoutCooldownTicks == 0 && pvars->VTable->GetNextTarget) {
 #if FIXEDTARGET
         mobSetTarget(moby, FIXEDTARGETMOBY);
 #elif BENCHMARK
@@ -833,6 +845,7 @@ void mobUpdate(Moby* moby)
 			mobSendStateUpdateUnreliable(moby);
 			pvars->MobVars.Dirty = 0;
 			pvars->MobVars.AutoDirtyCooldownTicks = MOB_AUTO_DIRTY_COOLDOWN_TICKS;
+      printf("%d send unreliable state %d %08X\n", gameGetTime(), pvars->MobVars.Action, (u32)moby);
 		}
 	}
   
@@ -1248,7 +1261,7 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
   }
 
 	// 
-	if (0 && SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) > 0 && pvars->MobVars.Action != args->Action) {
+	if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) > 0 && pvars->MobVars.Action != args->Action) {
 		pvars->MobVars.LastActionId = args->ActionId;
     pvars->MobVars.LastAction = pvars->MobVars.Action;
     pvars->MobVars.DynamicRandom = args->Random;

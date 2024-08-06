@@ -413,7 +413,8 @@ void playerSyncHandlePlayerState(Player* player)
         player->PlayerSubstate = 0;
       }
 
-      vtable->UpdateState(player, stateCurrent->State, 1, 1, 1);
+      int force = playerStateIsDead(player->PlayerState) && !playerStateIsDead(stateCurrent->State);
+      vtable->UpdateState(player, stateCurrent->State, 1, force, 1);
       data->LastStateId = stateCurrent->StateId;
       data->LastState = stateCurrent->State;
 
@@ -597,7 +598,7 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  //gameConfig.grNewPlayerSync = 1;
+  gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;
