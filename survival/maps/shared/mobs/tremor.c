@@ -28,10 +28,9 @@ void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int
 void tremorForceLocalAction(Moby* moby, int action);
 short tremorGetArmor(Moby* moby);
 int tremorIsAttacking(Moby* moby);
+int tremorCanNonOwnerTransitionToAction(Moby* moby, int action);
+int tremorShouldForceStateUpdateOnAction(Moby* moby, int action);
 
-void tremorPlayHitSound(Moby* moby);
-void tremorPlayAmbientSound(Moby* moby);
-void tremorPlayDeathSound(Moby* moby);
 int tremorIsSpawning(struct MobPVar* pvars);
 int tremorCanAttack(struct MobPVar* pvars);
 int tremorIsFlinching(Moby* moby);
@@ -53,19 +52,8 @@ struct MobVTable TremorVTable = {
   .DoDamage = &tremorDoDamage,
   .GetArmor = &tremorGetArmor,
   .IsAttacking = &tremorIsAttacking,
-};
-
-SoundDef TremorSoundDef = {
-	0.0,	  // MinRange
-	45.0,	  // MaxRange
-	0,		  // MinVolume
-	1228,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
+  .CanNonOwnerTransitionToAction = &tremorCanNonOwnerTransitionToAction,
+  .ShouldForceStateUpdateOnAction = &tremorShouldForceStateUpdateOnAction,
 };
 
 extern u32 MobPrimaryColors[];
@@ -113,11 +101,6 @@ void tremorPreUpdate(Moby* moby)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (mobIsFrozen(moby))
     return;
-
-	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0) {
-		tremorPlayAmbientSound(moby);
-		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(TREMOR_AMBSND_MIN_COOLDOWN_TICKS, TREMOR_AMBSND_MAX_COOLDOWN_TICKS);
-	}
 
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
@@ -234,6 +217,10 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
             && pvars->MobVars.Action != TREMOR_ACTION_BIG_FLINCH
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
+#if ALWAYS_FLINCH
+  canFlinch = 1;
+#endif
+
   int isShock = e->DamageFlags & 0x40;
   int isShortFreeze = e->DamageFlags & 0x40000000;
 
@@ -255,7 +242,13 @@ void tremorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     float powerFactor = TREMOR_FLINCH_PROBABILITY_PWR_FACTOR * e->Knockback.Power;
-    float probability = (damageRatio * TREMOR_FLINCH_PROBABILITY) + powerFactor;
+    float probability = clamp((damageRatio * TREMOR_FLINCH_PROBABILITY) + powerFactor, 0, MOB_MAX_FLINCH_PROBABILITY);
+
+#if ALWAYS_FLINCH
+    probability = 2;
+    powerFactor = 2;
+#endif
+
     if (canFlinch) {
       if (e->Knockback.Force) {
         mobSetAction(moby, TREMOR_ACTION_BIG_FLINCH);
@@ -405,7 +398,7 @@ void tremorDoAction(Moby* moby)
 	{
 		case TREMOR_ACTION_SPAWN:
 		{
-      mobTransAnim(moby, TREMOR_ANIM_SPAWN, 0);
+      mobTransAnim(moby, TREMOR_ANIM_IDLE, 0);
       mobStand(moby);
 			break;
 		}
@@ -417,10 +410,8 @@ void tremorDoAction(Moby* moby)
       mobTransAnim(moby, animFlinchId, 0);
       
 			if (pvars->MobVars.Knockback.Ticks > 0) {
-				float power = PLAYER_KNOCKBACK_BASE_POWER;
-				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
-				t[2] = 1.0;
-				vector_scale(t, t, power * 2 * MATH_DT);
+        mobGetKnockbackVelocity(moby, t);
+				vector_scale(t, t, TREMOR_KNOCKBACK_MULTIPLIER);
 				vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
 			} else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
@@ -577,7 +568,7 @@ void tremorDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void tremorDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, TREMOR_SUBSKELETON_JOINT_RIGHT_HAND_CLAW, 1);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, TREMOR_SUBSKELETON_JOINT_RIGHT_HAND_CLAW, 1, 0);
 }
 
 //--------------------------------------------------------------------------
@@ -633,7 +624,6 @@ void tremorForceLocalAction(Moby* moby, int action)
 		case TREMOR_ACTION_FLINCH:
 		case TREMOR_ACTION_BIG_FLINCH:
 		{
-			tremorPlayHitSound(moby);
 			pvars->MobVars.FlinchCooldownTicks = TREMOR_FLINCH_COOLDOWN_TICKS;
 			break;
 		}
@@ -660,37 +650,28 @@ short tremorGetArmor(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void tremorPlayHitSound(Moby* moby)
-{
-  if (tremorHitSoundId < 0) return;
-
-	TremorSoundDef.Index = tremorHitSoundId;
-	soundPlay(&TremorSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void tremorPlayAmbientSound(Moby* moby)
-{
-  if (!tremorAmbientSoundIdsCount) return;
-
-	TremorSoundDef.Index = tremorAmbientSoundIds[rand(tremorAmbientSoundIdsCount)];
-	soundPlay(&TremorSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void tremorPlayDeathSound(Moby* moby)
-{
-  if (tremorDeathSoundId < 0) return;
-
-	TremorSoundDef.Index = tremorDeathSoundId;
-	soundPlay(&TremorSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
 int tremorIsAttacking(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return pvars->MobVars.Action == TREMOR_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
+}
+
+//--------------------------------------------------------------------------
+int tremorCanNonOwnerTransitionToAction(Moby* moby, int action)
+{
+  // always let non-owners simulate an action unless its the death action
+  if (action == TREMOR_ACTION_DIE) return 0;
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int tremorShouldForceStateUpdateOnAction(Moby* moby, int action)
+{
+  // only send state updates at regular intervals, unless dying
+  if (action == TREMOR_ACTION_DIE) return 1;
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------

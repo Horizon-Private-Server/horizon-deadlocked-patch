@@ -35,13 +35,9 @@ void reactorDoDamage(Moby* moby, float radius, float amount, int damageFlags, in
 void reactorForceLocalAction(Moby* moby, int action);
 short reactorGetArmor(Moby* moby);
 int reactorIsAttacking(Moby* moby);
+int reactorCanNonOwnerTransitionToAction(Moby* moby, int action);
+int reactorShouldForceStateUpdateOnAction(Moby* moby, int action);
 
-void reactorPlayHitSound(Moby* moby);
-void reactorPlayAmbientSound(Moby* moby);
-void reactorPlayDeathSound(Moby* moby);
-void reactorPlaySmashSound(Moby* moby);
-void reactorPlayChargeSound(Moby* moby);
-void reactorPlayChargeHitWallStunSound(Moby* moby);
 int reactorIsWalkingOrIdle(struct MobPVar* pvars);
 int reactorIsSpawning(struct MobPVar* pvars);
 int reactorCanAttack(struct MobPVar* pvars, enum ReactorAction action);
@@ -73,32 +69,8 @@ struct MobVTable ReactorVTable = {
   .DoDamage = &reactorDoDamage,
   .GetArmor = &reactorGetArmor,
   .IsAttacking = &reactorIsAttacking,
-};
-
-SoundDef ReactorSoundDef = {
-	0.0,	  // MinRange
-	100.0,	  // MaxRange
-	0,		  // MinVolume
-	1228,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
-};
-
-SoundDef ReactorQuietSoundDef = {
-	0.0,	  // MinRange
-	75.0,	  // MaxRange
-	0,		  // MinVolume
-	600,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
+  .CanNonOwnerTransitionToAction = &reactorCanNonOwnerTransitionToAction,
+  .ShouldForceStateUpdateOnAction = &reactorShouldForceStateUpdateOnAction,
 };
 
 const int reactorOnSpawnDialogIds[] = {
@@ -183,11 +155,6 @@ void reactorPreUpdate(Moby* moby)
   ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
   if (mobIsFrozen(moby))
     return;
-
-	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0 && reactorIsWalkingOrIdle(pvars)) {
-		reactorPlayAmbientSound(moby);
-		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(REACTOR_AMBSND_MIN_COOLDOWN_TICKS, REACTOR_AMBSND_MAX_COOLDOWN_TICKS);
-	}
 
   // update react vars
   ((void (*)(Moby*))0x0051b860)(moby);
@@ -379,7 +346,7 @@ void reactorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
     0, 0, expColor, expColor, expColor, expColor, expColor, expColor, expColor, expColor,
     0, 0, 0, 0, 0, 1, 0, 0, 0);
 
-  reactorPlayDeathSound(moby);
+  mobyPlaySoundByClass(0, 0, moby, MOBY_ID_ARBITER_ROCKET0);
 }
 
 //--------------------------------------------------------------------------
@@ -391,6 +358,10 @@ void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	int canFlinch = pvars->MobVars.Action != REACTOR_ACTION_FLINCH 
             && pvars->MobVars.Action != REACTOR_ACTION_BIG_FLINCH
             && pvars->MobVars.FlinchCooldownTicks == 0;
+
+#if ALWAYS_FLINCH
+  canFlinch = 1;
+#endif
 
   int isShock = e->DamageFlags & 0x40;
   int isShortFreeze = e->DamageFlags & 0x40000000;
@@ -433,7 +404,13 @@ void reactorOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     float powerFactor = REACTOR_FLINCH_PROBABILITY_PWR_FACTOR * e->Knockback.Power;
-    float probability = (damageRatio * REACTOR_FLINCH_PROBABILITY) + powerFactor;
+    float probability = clamp((damageRatio * REACTOR_FLINCH_PROBABILITY) + powerFactor, 0, MOB_MAX_FLINCH_PROBABILITY);
+
+#if ALWAYS_FLINCH
+    probability = 2;
+    powerFactor = 2;
+#endif
+
     if (canFlinch) {
       if (e->Knockback.Force) {
         mobSetAction(moby, REACTOR_ACTION_BIG_FLINCH);
@@ -627,6 +604,11 @@ int reactorGetPreferredAction(Moby* moby, int * delayTicks)
 		float distSqr = vector_sqrmag(t);
 		float attackRadiusSqr = pvars->MobVars.Config.AttackRadius * pvars->MobVars.Config.AttackRadius;
 
+    // if we're on top of the target then step away
+    if (distSqr < (REACTOR_BASE_COLL_RADIUS*REACTOR_BASE_COLL_RADIUS)) {
+      return REACTOR_ACTION_WALK;
+    }
+
     // near then swing
 		if (distSqr <= attackRadiusSqr && reactorCanAttack(pvars, REACTOR_ACTION_ATTACK_SWING)) {
       if (delayTicks) *delayTicks = pvars->MobVars.Config.ReactionTickCount;
@@ -757,10 +739,8 @@ void reactorDoAction(Moby* moby)
       reactorTransAnim(moby, nextAnimId, 0);
       
 			if (pvars->MobVars.Knockback.Ticks > 0) {
-				float power = PLAYER_KNOCKBACK_BASE_POWER;
-				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
-				t[2] = 1.0;
-				vector_scale(t, t, power * 1 * MATH_DT);
+        mobGetKnockbackVelocity(moby, t);
+				vector_scale(t, t, REACTOR_KNOCKBACK_MULTIPLIER);
 				vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
 			} else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
@@ -841,7 +821,21 @@ void reactorDoAction(Moby* moby)
         vector_subtract(t, t, moby->Position);
         float dist = vector_length(t);
 
-        if (dist > (pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius)) {
+        if (dist < REACTOR_BASE_COLL_RADIUS) {
+          
+          // if reactor is on top of its target then we want to have him move backwards, away from the target
+          VECTOR backTarget, forward;
+          if (dist < 0.1) {
+            vector_fromyaw(forward, moby->Rotation[2]);
+          } else {
+            vector_projectonhorizontal(forward, t);
+          }
+          vector_scale(forward, forward, 5);
+          vector_subtract(backTarget, target->Position, forward);
+
+          mobTurnTowards(moby, backTarget, turnSpeed);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, backTarget, pvars->MobVars.Config.Speed, acceleration);
+        } else if (dist > (pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius)) {
 
           pathGetTargetPos(t, moby);
           vector_subtract(t, t, moby->Position);
@@ -1008,10 +1002,8 @@ void reactorDoAction(Moby* moby)
           acceleration = REACTOR_CHARGE_ACCELERATION;
           if (pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.WallSlope > REACTOR_CHARGE_MAX_SLOPE && (!pvars->MobVars.MoveVars.HitWallMoby || pvars->MobVars.MoveVars.HitWallMoby->OClass == STATUE_MOBY_OCLASS)) {
             nextAnimId = REACTOR_ANIM_STEP_BACK_KNEE_DOWN;
-            reactorPlayChargeHitWallStunSound(moby);
             playDialog(DIALOG_ID_REACTOR_OOH_IM_GONNA_NEED_TO_SIT_FOR_A_SEC, 1);
           } else if (moby->AnimSeqT > 6 && !reactorVars->ChargeHasPlayedSound) {
-            reactorPlayChargeSound(moby);
             reactorVars->ChargeHasPlayedSound = 1;
           } else if (moby->AnimSeqT > 7 && moby->AnimSeqT < 13) {
             
@@ -1195,7 +1187,7 @@ void reactorDoChargeDamage(Moby* moby, float radius, float amount, int damageFla
   // get current hips matrix
   mobyGetJointMatrix(moby, REACTOR_SUBSKELETON_JOINT_HIPS, m);
   
-  if (mobDoSweepDamage(moby, reactorVars->LastHipsPosition, &m[12], 1.0, radius * 2.0, amount, damageFlags, friendlyFire, 0) & MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER) {
+  if (mobDoSweepDamage(moby, reactorVars->LastHipsPosition, &m[12], 1.0, radius * 2.0, amount, damageFlags, friendlyFire, 0, 0) & MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER) {
     if (rand(5) == 0) {
       reactorPlayDialog(moby, reactorOnDamagePlayerDialogIds[rand(COUNT_OF(reactorOnDamagePlayerDialogIds))]);
     }
@@ -1212,7 +1204,7 @@ void reactorDoDamage(Moby* moby, float radius, float amount, int damageFlags, in
   // get current hips matrix
   mobyGetJointMatrix(moby, REACTOR_SUBSKELETON_JOINT_RIGHT_HAND, m);
   
-  if (mobDoSweepDamage(moby, reactorVars->LastRightHandPosition, &m[12], 1.0, radius, amount, damageFlags, friendlyFire, 1) & MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER) {
+  if (mobDoSweepDamage(moby, reactorVars->LastRightHandPosition, &m[12], 1.0, radius, amount, damageFlags, friendlyFire, 1, 0) & MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER) {
     if (rand(5) == 0) {
       reactorPlayDialog(moby, reactorOnDamagePlayerDialogIds[rand(COUNT_OF(reactorOnDamagePlayerDialogIds))]);
     }
@@ -1310,7 +1302,6 @@ void reactorForceLocalAction(Moby* moby, int action)
 		case REACTOR_ACTION_FLINCH:
 		case REACTOR_ACTION_BIG_FLINCH:
 		{
-			reactorPlayHitSound(moby);
 			pvars->MobVars.FlinchCooldownTicks = REACTOR_FLINCH_COOLDOWN_TICKS;
 			break;
 		}
@@ -1343,57 +1334,19 @@ short reactorGetArmor(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void reactorPlayHitSound(Moby* moby)
+int reactorCanNonOwnerTransitionToAction(Moby* moby, int action)
 {
-  if (reactorHitSoundId < 0) return;
-
-	ReactorSoundDef.Index = reactorHitSoundId;
-	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
+  // only let owner choose actions for reactor
+  // since for this boss it is critical it syncs well
+  return 0;
 }
 
 //--------------------------------------------------------------------------
-void reactorPlayAmbientSound(Moby* moby)
+int reactorShouldForceStateUpdateOnAction(Moby* moby, int action)
 {
-  if (!reactorAmbientSoundIdsCount) return;
-
-	ReactorSoundDef.Index = reactorAmbientSoundIds[rand(reactorAmbientSoundIdsCount)];
-	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void reactorPlayDeathSound(Moby* moby)
-{
-  if (reactorDeathSoundId < 0) return;
-
-	ReactorSoundDef.Index = reactorDeathSoundId;
-	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void reactorPlaySmashSound(Moby* moby)
-{
-  if (reactorSmashSoundId < 0) return;
-
-	ReactorSoundDef.Index = reactorSmashSoundId;
-	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void reactorPlayChargeSound(Moby* moby)
-{
-  if (reactorChargeSoundId < 0) return;
-
-	ReactorSoundDef.Index = reactorChargeSoundId;
-	soundPlay(&ReactorSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void reactorPlayChargeHitWallStunSound(Moby* moby)
-{
-  if (reactorKneeDownSoundId < 0) return;
-
-	ReactorQuietSoundDef.Index = reactorKneeDownSoundId;
-	soundPlay(&ReactorQuietSoundDef, 0, moby, 0, 0x400);
+  // always send state update whenever action changes
+  // uses a lot more network bandwidth but reduces desyncing
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -1542,9 +1495,6 @@ void reactorDoSmashEffect(Moby* moby, float radius)
     1, 0, 0, 0, 100, 7, 4, 0, 0, 0, 0, 1, 0, 0, NULL,
     expNoColor, expNoColor, expNoColor, expNoColor, expNoColor, expNoColor, expColor, expNoColor, expDarkColor,
     0, 0, 0, 0, 5, 0, 0, 0);
-
-  // sound
-  reactorPlaySmashSound(moby);
 
   // spawn mobs
   if (mobAmIOwner(moby)) {

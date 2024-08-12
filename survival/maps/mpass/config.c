@@ -276,6 +276,8 @@ const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct M
 //--------------------------------------------------------------------------
 SurvivalBakedConfig_t bakedConfig = {
   .Difficulty = 1.0,
+  .SpawnDistanceFactor = 1.0,
+  .BoltRankMultiplier = 1,
   .BakedSpawnPoints = {
     { .Type = BAKED_SPAWNPOINT_PLAYER_START, .Params = 0, .Position = { 658.3901, 828.0401, 499.7961 }, .Rotation = { 0, 0, -3.141593 } },
     { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 594.99, 704.85, 507.63 }, .Rotation = { 0, 0, 1.788139E-07 } },
@@ -343,6 +345,7 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_QUAD, 0.0526 },
   { MYSTERY_BOX_ITEM_SHIELD, 0.0526 },
   { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
+  { MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS, 0.0526 },
   { MYSTERY_BOX_ITEM_EMP_HEALTH_GUN, 0.0555 },
   { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
   { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },
@@ -355,6 +358,7 @@ const int MysteryBoxItemProbabilitiesCount = sizeof(MysteryBoxItemProbabilities)
 
 struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
   { MYSTERY_BOX_ITEM_RESET_GATE, 0.01 },
+  { MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS, 0.03 },
   { MYSTERY_BOX_ITEM_QUAD, 0.07 },
   { MYSTERY_BOX_ITEM_SHIELD, 0.07 },
   { MYSTERY_BOX_ITEM_TEDDY_BEAR, 0.075 },
@@ -381,37 +385,7 @@ VECTOR statueSpawnPositionRotations[] = {
 const int statueSpawnPositionRotationsCount = sizeof(statueSpawnPositionRotations) / (sizeof(VECTOR) * 2);
 
 //--------------------------------------------------------------------------
-int zombieHitSoundId = 407;
-int zombieAmbientSoundIds[] = { 403, 404 };
-int zombieDeathSoundId = -1;
-const int zombieAmbientSoundIdsCount = COUNT_OF(zombieAmbientSoundIds);
-
-int tremorHitSoundId = 407;
-int tremorAmbientSoundIds[] = {  };
-int tremorDeathSoundId = -1;
-const int tremorAmbientSoundIdsCount = COUNT_OF(tremorAmbientSoundIds);
-
-int swarmerHitSoundId = 407;
-int swarmerAmbientSoundIds[] = { };
-int swarmerDeathSoundId = -1;
-const int swarmerAmbientSoundIdsCount = COUNT_OF(swarmerAmbientSoundIds);
-
-int reaperHitSoundId = 173;
-int reaperAmbientSoundIds[] = { 403, 404 };
-int reaperDeathSoundId = -1;
-const int reaperAmbientSoundIdsCount = COUNT_OF(reaperAmbientSoundIds);
-
 int reactorMinionSpawnParamIdx = MOB_SPAWN_PARAM_ACID;
-int reactorHitSoundId = 407;
-int reactorSmashSoundId = 317;
-int reactorChargeSoundId = 184;
-int reactorKneeDownSoundId = 103;
-int reactorAmbientSoundIds[] = { 403, 404 };
-int reactorDeathSoundId = 123;
-const int reactorAmbientSoundIdsCount = COUNT_OF(reactorAmbientSoundIds);
-
-int trailshotFireSoundId = 416;
-int trailshotExplodeSoundId = 0x106;
 
 int russianDollSpawnParamIdxs[] = {
   MOB_SPAWN_PARAM_SWARMER,

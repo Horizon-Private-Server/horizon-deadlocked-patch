@@ -123,6 +123,32 @@ void mobSpawnCorn(Moby* moby, int bangle)
 }
 
 //--------------------------------------------------------------------------
+void mobResetSoundTrigger(Moby* moby)
+{
+  moby->SoundTrigger = 0;
+  moby->SoundDesired = -1;
+}
+
+//--------------------------------------------------------------------------
+void mobGetKnockbackVelocity(Moby* moby, VECTOR out)
+{
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  vector_write(out, 0);
+  if (pvars->MobVars.Knockback.Ticks <= 0) return;
+
+  // compute
+  float slerpFactor = powf(100, pvars->MobVars.Knockback.Ticks / (float)PLAYER_KNOCKBACK_BASE_TICKS) / 100;
+  float power = PLAYER_KNOCKBACK_BASE_POWER * powf(1.1, pvars->MobVars.Knockback.Power) * slerpFactor;
+  vector_fromyaw(out, pvars->MobVars.Knockback.Angle / 1000.0);
+  out[2] = 1;
+  vector_normalize(out, out);
+  vector_scale(out, out, power * MATH_DT);
+
+  DPRINTF("knockback %d %d => %f %f\n", pvars->MobVars.Knockback.Ticks, pvars->MobVars.Knockback.Power, power, slerpFactor);
+}
+
+//--------------------------------------------------------------------------
 void mobReactToThorns(Moby* moby, float damage, int byPlayerId)
 {
   if (byPlayerId < 0) return;
@@ -181,21 +207,38 @@ int mobMobyProcessHitFlags(Moby* moby, Moby* hitMoby, float damage, int reactToT
 }
 
 //--------------------------------------------------------------------------
-int mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqrHitRadius, int damageFlags, float amount)
+int mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, int isAoE, float sqrHitRadius, int damageFlags, float amount)
 {
   VECTOR mobToHitMoby, mobToJoint, jointToHitMoby;
+  VECTOR hitMobyCenter = {0,0,1,0};
+  MATRIX playerJointMtx;
+  Player* player = guberMobyGetPlayerDamager(hitMoby);
 	MobyColDamageIn in;
+  float hitMobyCollRadiusSqr = 0;
 
-  vector_subtract(mobToHitMoby, hitMoby->Position, moby->Position);
+  if (player && player->PlayerMoby) {
+    mobyGetJointMatrix(player->PlayerMoby, 10, playerJointMtx);
+    vector_copy(hitMobyCenter, &playerJointMtx[12]);
+    hitMobyCenter[2] = clamp(jointPosition[2], playerJointMtx[14] - player->Coll.bot, playerJointMtx[14] + player->Coll.top);
+    hitMobyCollRadiusSqr = player->Coll.radiusSqd;
+  } else {
+    vector_add(hitMobyCenter, hitMobyCenter, hitMoby->Position);
+  }
+
+  vector_subtract(mobToHitMoby, hitMobyCenter, moby->Position);
   vector_subtract(mobToJoint, jointPosition, moby->Position);
-  vector_subtract(jointToHitMoby, hitMoby->Position, jointPosition);
+  vector_subtract(jointToHitMoby, hitMobyCenter, jointPosition);
 
   // ignore if hit behind
-  if (vector_innerproduct(mobToHitMoby, mobToJoint) < 0)
+  if (!isAoE && vector_innerproduct(mobToHitMoby, mobToJoint) < 0)
+    return 0;
+
+  // clamp within arbitrary vertical limit
+  if (!isAoE && fabsf(jointToHitMoby[2]) > 0.25)
     return 0;
 
   // ignore if past attack radius
-  if (vector_innerproduct(mobToHitMoby, jointToHitMoby) > 0 && vector_sqrmag(jointToHitMoby) > sqrHitRadius)
+  if (vector_innerproduct(mobToHitMoby, jointToHitMoby) > 0 && vector_sqrmag(jointToHitMoby) > (hitMobyCollRadiusSqr + sqrHitRadius))
     return 0;
 
   vector_write(in.Momentum, 0);
@@ -212,7 +255,7 @@ int mobDoDamageTryHit(Moby* moby, Moby* hitMoby, VECTOR jointPosition, float sqr
 }
 
 //--------------------------------------------------------------------------
-int mobDoSweepDamage(Moby* moby, VECTOR from, VECTOR to, float step, float radius, float amount, int damageFlags, int friendlyFire, int reactToThorns)
+int mobDoSweepDamage(Moby* moby, VECTOR from, VECTOR to, float step, float radius, float amount, int damageFlags, int friendlyFire, int reactToThorns, int isAoE)
 {
 	VECTOR p, delta;
   Player** players = playerGetAll();
@@ -243,16 +286,15 @@ int mobDoSweepDamage(Moby* moby, VECTOR from, VECTOR to, float step, float radiu
         if (vector_sqrmag(delta) > firstPassSqrRadius)
           continue;
 
-        if (mobDoDamageTryHit(moby, player->PlayerMoby, p, sqrRadius, damageFlags, amount)) {
+        if (mobDoDamageTryHit(moby, player->PlayerMoby, p, isAoE, sqrRadius, damageFlags, amount)) {
           result |= mobMobyProcessHitFlags(moby, player->PlayerMoby, amount, reactToThorns);
         }
       }
-    }
-    else if (CollMobysSphere_Fix(p, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL, 5 + radius) > 0) {
+    } else if (CollMobysSphere_Fix(p, COLLISION_FLAG_IGNORE_NONE, moby, NULL, 5 + radius) > 0) {
       Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
       Moby* hitMoby;
       while ((hitMoby = *hitMobies++)) {
-        if (mobDoDamageTryHit(moby, hitMoby, p, sqrRadius, damageFlags, amount)) {
+        if (mobDoDamageTryHit(moby, hitMoby, p, isAoE, sqrRadius, damageFlags, amount)) {
           result |= mobMobyProcessHitFlags(moby, hitMoby, amount, reactToThorns);
         }
       }
@@ -263,7 +305,7 @@ int mobDoSweepDamage(Moby* moby, VECTOR from, VECTOR to, float step, float radiu
 }
 
 //--------------------------------------------------------------------------
-int mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId, int reactToThorns)
+int mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId, int reactToThorns, int isAoE)
 {
 	VECTOR p, delta;
 	MATRIX jointMtx;
@@ -283,23 +325,22 @@ int mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int fri
   if (!friendlyFire) {
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       Player* player = players[i];
-      if (!player || !player->SkinMoby || playerIsDead(player))
+      if (!player || !playerIsConnected(player) || playerIsDead(player))
         continue;
 
       vector_subtract(delta, player->PlayerPosition, p);
       if (vector_sqrmag(delta) > firstPassSqrRadius)
         continue;
 
-      if (mobDoDamageTryHit(moby, player->PlayerMoby, p, sqrRadius, damageFlags, amount)) {
+      if (mobDoDamageTryHit(moby, player->PlayerMoby, p, isAoE, sqrRadius, damageFlags, amount)) {
         result |= mobMobyProcessHitFlags(moby, player->PlayerMoby, amount, reactToThorns);
       }
     }
-  }
-  else if (CollMobysSphere_Fix(p, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL, 5 + radius) > 0) {
+  } else if (CollMobysSphere_Fix(p, COLLISION_FLAG_IGNORE_NONE, moby, NULL, 5 + radius) > 0) {
     Moby** hitMobies = CollMobysSphere_Fix_GetHitMobies();
     Moby* hitMoby;
     while ((hitMoby = *hitMobies++)) {
-      if (mobDoDamageTryHit(moby, hitMoby, p, sqrRadius, damageFlags, amount)) {
+      if (mobDoDamageTryHit(moby, hitMoby, p, isAoE, sqrRadius, damageFlags, amount)) {
         result |= mobMobyProcessHitFlags(moby, hitMoby, amount, reactToThorns);
       }
     }
@@ -318,12 +359,27 @@ void mobSetAction(Moby* moby, int action)
 	if (pvars->MobVars.Action == action)
 		return;
 
-	GuberEvent* event = guberCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
-	if (event) {
-		args.Action = action;
-		args.ActionId = ++pvars->MobVars.ActionId;
-		guberEventWrite(event, &args, sizeof(struct MobActionUpdateEventArgs));
-	}
+  // we send this unreliably now
+	// GuberEvent* event = mobCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
+	// if (event) {
+	// 	args.Action = action;
+	// 	args.ActionId = ++pvars->MobVars.ActionId;
+  //   args.Random = (char)rand(255);
+	// 	guberEventWrite(event, &args, sizeof(struct MobActionUpdateEventArgs));
+	// }
+
+  // mark dirty if owner and mob wants state update
+  if (mobAmIOwner(moby) && pvars->VTable && pvars->VTable->ShouldForceStateUpdateOnAction && pvars->VTable->ShouldForceStateUpdateOnAction(moby, action))
+    pvars->MobVars.Dirty = 1;
+  
+  pvars->MobVars.LastActionId = pvars->MobVars.ActionId++;
+  pvars->MobVars.LastAction = pvars->MobVars.Action;
+  
+  // pass to mob handler
+  if (pvars->VTable && pvars->VTable->ForceLocalAction)
+    pvars->VTable->ForceLocalAction(moby, action);
+
+  pvars->MobVars.DynamicRandom = (char)rand(255);
 }
 
 //--------------------------------------------------------------------------
@@ -693,7 +749,7 @@ void mobMove(Moby* moby)
     vector_projectonhorizontal(temp, temp);
     vector_add(pvars->MobVars.MoveVars.SumPositionDelta, pvars->MobVars.MoveVars.SumPositionDelta, temp);
     vector_projectonhorizontal(temp, pvars->MobVars.MoveVars.Velocity);
-    pvars->MobVars.MoveVars.SumSpeedOver += vector_length(temp);
+    pvars->MobVars.MoveVars.SumSpeedOver += vector_length(temp) * moveStep;
 
     vector_write(pvars->MobVars.MoveVars.AddVelocity, 0);
     pvars->MobVars.MoveVars.MoveSkipTicks = moveStep;
@@ -706,7 +762,11 @@ void mobMove(Moby* moby)
   }
 
   // tell mob we want to jump
-  if (pathShouldJump(moby)) {
+  // but check that we're moving towards the next node/target first before jumping
+  VECTOR targetPos, mobyToTargetDelta;
+  pathGetTargetPos(targetPos, moby);
+  vector_subtract(mobyToTargetDelta, targetPos, moby->Position);
+  if (vector_innerproduct(pvars->MobVars.MoveVars.Velocity, mobyToTargetDelta) > 0.5 && pathShouldJump(moby)) {
     pvars->MobVars.MoveVars.QueueJumpSpeed = pathGetJumpSpeed(moby);
   }
 
@@ -804,6 +864,38 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
 }
 
 //--------------------------------------------------------------------------
+void mobGetVelocityToTargetSimple(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed, float acceleration)
+{
+  VECTOR targetVelocity;
+  VECTOR fromToTarget;
+  VECTOR next, nextToTarget;
+  VECTOR temp;
+  float targetSpeed = speed * MATH_DT;
+
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (!pvars)
+    return;
+
+  float collRadius = pvars->MobVars.Config.CollRadius + 0.5;
+  
+  // target velocity from rotation
+  vector_subtract(targetVelocity, to, from);
+  vector_normalize(targetVelocity, targetVelocity);
+
+  // acclerate velocity towards target velocity
+  vector_scale(targetVelocity, targetVelocity, targetSpeed);
+  vector_subtract(temp, targetVelocity, velocity);
+  vector_projectonhorizontal(temp, temp);
+  vector_scale(temp, temp, acceleration * MATH_DT);
+  vector_add(velocity, velocity, temp);
+  
+  if (targetSpeed <= 0) {
+    vector_projectonvertical(velocity, velocity);
+    return;
+  }
+}
+
+//--------------------------------------------------------------------------
 void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 {
 	struct QuadDef quad;
@@ -835,7 +927,7 @@ void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
   quad.VertexUVs[1] = (struct UV){1,0};
   quad.VertexUVs[2] = (struct UV){0,1};
   quad.VertexUVs[3] = (struct UV){1,1};
-	quad.Clamp = 1;
+	quad.Clamp = 0x0000000100000001;
 	quad.Tex0 = gfxGetFrameTex(texId);
 	quad.Tex1 = 0xFF9000000260;
 	quad.Alpha = 0x8000000044;
@@ -856,8 +948,8 @@ void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 //--------------------------------------------------------------------------
 void mobPostDrawDebug(Moby* moby)
 {
-#if PRINT_JOINTS
   MATRIX jointMtx;
+#if PRINT_JOINTS
   int i = 0;
   char buf[32];
   int animJointCount = 0;

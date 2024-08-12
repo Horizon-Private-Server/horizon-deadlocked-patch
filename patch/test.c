@@ -1316,25 +1316,25 @@ void runTestLogic(void)
 
   //runSystemTime();
   if (isInGame()) {
-    if (padGetButtonDown(0, PAD_DOWN) > 0) {
-      Player* p = playerGetFromSlot(0);
-      VECTOR to = {5,5,5,0};
-      vector_add(to, to, p->PlayerPosition);
-      Moby* m = gfxDrawSimpleTwoPointLightning(
-        (void*)0x002225A0,
-        p->PlayerPosition,
-        to,
-        3000,
-        3,
-        1,
-        (void*)0x0,
-        NULL,
-        NULL,
-        0x80804020
-      );
+    // if (padGetButtonDown(0, PAD_DOWN) > 0) {
+    //   Player* p = playerGetFromSlot(0);
+    //   VECTOR to = {5,5,5,0};
+    //   vector_add(to, to, p->PlayerPosition);
+    //   Moby* m = gfxDrawSimpleTwoPointLightning(
+    //     (void*)0x002225A0,
+    //     p->PlayerPosition,
+    //     to,
+    //     3000,
+    //     3,
+    //     1,
+    //     (void*)0x0,
+    //     NULL,
+    //     NULL,
+    //     0x80804020
+    //   );
 
-      DPRINTF("lightning moby %08X\n", m);
-    }
+    //   DPRINTF("lightning moby %08X\n", m);
+    // }
 
     //runCubicLineDraw();
     //runDualViperNapalm();

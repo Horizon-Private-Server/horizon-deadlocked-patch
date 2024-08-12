@@ -54,13 +54,13 @@ const char * SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE = "\x1d   Start Round";
 const char * SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE = "Waiting for Host";
 const char * SURVIVAL_NEXT_ROUND_TIMER_MESSAGE = "Next Round";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
-const char * SURVIVAL_HEALTH_GUN = "Health Gun";
+const char * SURVIVAL_HEALTH_GUN = "Health Tornado";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x1c (DOWN) Revive %s";
-const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%d\x08]";
+const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%'d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
 const char * SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE = "Balance \x0A%'d\x08";
 const char * SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE = "\x11 Deposit \x13 Withdraw";
-const char * SURVIVAL_PRESTIGE_WEAPON_MESSAGE = "\x11 Prestige [\x0E%d\x08]";
+const char * SURVIVAL_PRESTIGE_WEAPON_MESSAGE = "\x11 Prestige [\x0E%'d\x08]";
 const char * SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE = "Your weapon is not powerful enough";
 const char * SURVIVAL_PRESTIGE_WEAPON_MAXED_MESSAGE = "Your weapon is too powerful";
 const char * SURVIVAL_MAXED_OUT_UPGRADE_MESSAGE = "Maxed Out";
@@ -91,8 +91,8 @@ const char WEAPON_PRESTIGE_PREFIX[WEAPON_PRESTIGE_MAX+1] = {
   [1] '\x09',
   [2] '\x0A',
   [3] '\x0B',
-  [4] '\x0E',
-  [5] '\x0D',
+  [4] '\x0F',
+  [5] '\x0E',
 };
 
 const int WEAPON_PRESTIGE_COST[WEAPON_PRESTIGE_MAX] = {
@@ -148,16 +148,12 @@ struct SurvivalSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
 
 int defaultSpawnParamsCooldowns[MAX_MOB_SPAWN_PARAMS] = {};
+u8 mobPlaySoundCooldownTicks[MAX_MOB_SPAWN_PARAMS][MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS] = {};
 
 PatchConfig_t* playerConfig = NULL;
 
 int playerStates[GAME_MAX_PLAYERS] = {};
 int playerStateTimers[GAME_MAX_PLAYERS] = {};
-
-char blessingQuadJumpJumpCount[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
-short blessingHealthRegenTickers[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
-short blessingAmmoRegenTickers[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
-VECTOR blessingLastPosition[GAME_MAX_PLAYERS] = {};
 
 SoundDef TestSoundDef =
 {
@@ -225,7 +221,7 @@ void updateDzoHud(void)
   dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
   memcpy(dzoDrawHudCmd.Blessings, State.LocalPlayerState->State.ItemBlessings, 4);
   dzoDrawHudCmd.CurrentRoundNumber = State.RoundNumber;
-  dzoDrawHudCmd.EnemiesAlive = State.MobStats.TotalAlive;
+  dzoDrawHudCmd.EnemiesAlive = (State.RoundMaxMobCount - State.MobStats.TotalSpawnedThisRound) + State.MobStats.TotalAlive + State.MobStats.TotalSpawning; //State.MobStats.TotalAlive;
   dzoDrawHudCmd.StartRoundTimer = State.RoundEndTime - gameTime;
   dzoDrawHudCmd.WaitingForHost = State.RoundCompleteTime && State.RoundEndTime < 0;
   dzoDrawHudCmd.HasDblPoints = State.LocalPlayerState->IsDoublePoints;
@@ -461,7 +457,7 @@ void drawTimer(int time)
   char buf[32];
 
   if (time < 0) time = 0;
-  sprintf(buf, "%02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
+  snprintf(buf, sizeof(buf), "%02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
   gfxScreenSpaceText(31, 211, 0.9, 0.9, 0x40000000, buf, -1, 1);
   gfxScreenSpaceText(30, 210, 0.9, 0.9, 0x80E0E0E0, buf, -1, 1);
 }
@@ -680,16 +676,16 @@ int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
 
 	// spawn near player
 	if (r <= MOB_SPAWN_NEAR_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_NEAR_PLAYER)) {
-		return spawnPointGetNearToPlayer(out, 30 * demonBellFactor);
+		return spawnPointGetNearToPlayer(out, 30 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
 	}
 
 	// spawn semi near player
 	if (r <= MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_SEMI_NEAR_PLAYER)) {
-		return spawnPointGetNearToPlayer(out, 60 * demonBellFactor);
+		return spawnPointGetNearToPlayer(out, 60 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
 	}
 
 	// spawn
-	return spawnPointGetNearToPlayer(out, 100 * demonBellFactor);
+	return spawnPointGetNearToPlayer(out, 100 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
 }
 
 //--------------------------------------------------------------------------
@@ -896,10 +892,10 @@ char * customGetGadgetVersionName(int localPlayerIndex, int weaponId, int showWe
   int prestige = State.PlayerStates[p->PlayerId].State.WeaponPrestige[weaponIdToSlot(weaponId)];
 
 	if (level < 9 && level >= minLevel) {
-		sprintf(buf, "%c%s V%d", WEAPON_PRESTIGE_PREFIX[prestige], str, level+1);
+		snprintf(buf, 0x40, "%c%s V%d", WEAPON_PRESTIGE_PREFIX[prestige], str, level+1);
 		return buf;
 	} else {
-		sprintf(buf, "%c%s", WEAPON_PRESTIGE_PREFIX[prestige], str);
+		snprintf(buf, 0x40, "%c%s", WEAPON_PRESTIGE_PREFIX[prestige], str);
 		return buf;
 	}
 }
@@ -1098,7 +1094,7 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 
 	if (p->IsLocal && alphaMod) {
 		gBox->ModBasic[alphaMod-1]++;
-		sprintf(buf, "Got %s", ALPHA_MODS[alphaMod]);
+		snprintf(buf, sizeof(buf), "Got %s", ALPHA_MODS[alphaMod]);
     pushSnack(buf, TPS * 1, p->LocalPlayerIndex);
     //State.PlayerStates[playerId].MessageCooldownTicks = 0;
 	}
@@ -1139,7 +1135,7 @@ void playerUpgradeWeapon(Player* player, int weaponId, int noAlphaMod)
 	message.PlayerId = player->PlayerId;
 	message.WeaponId = weaponId;
 	message.Level = gBox->Gadgets[weaponId].Level + 1;
-	message.Alphamod = rand(7) + 1;
+	message.Alphamod = ENABLED_ALPHA_MODS[rand(ENABLED_ALPHA_MODS_COUNT)];
   if (noAlphaMod)
     message.Alphamod = 0;
 	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_UPGRADE, sizeof(SurvivalWeaponUpgradeMessage_t), &message);
@@ -1357,6 +1353,14 @@ void onPlayerUseItem(int playerId, enum MysteryBoxItem item)
       State.PlayerStates[playerId].InvisibilityCloakStopTime = gameGetTime() + ITEM_INVISCLOAK_DURATION;
       if (State.PlayerStates[playerId].IsLocal) {
         pushSnack("Invisibility Cloak Equipped!", TPS, players[playerId]->LocalPlayerIndex);
+      }
+      break;
+    }
+    case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
+    {
+      State.PlayerStates[playerId].HealthTornadoStopTime = gameGetTime() + ITEM_HEALTHTORNADO_DURATION;
+      if (State.PlayerStates[playerId].IsLocal) {
+        pushSnack("Health Tornado Activated!", TPS, players[playerId]->LocalPlayerIndex);
       }
       break;
     }
@@ -1676,16 +1680,52 @@ void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
     VECTOR dt;
     vector_subtract(dt, target->Position, in->Damager->Position);
     float dist = vector_length(dt);
-    float min = 0.1;
+    float min = 0.2;
     Player* damager = guberMobyGetPlayerDamager(in->Damager);
-    if (damager) min += 0.05 * playerGetWeaponAlphaModCount(damager, WEAPON_ID_MAGMA_CANNON, ALPHA_MOD_AREA);
+    if (damager) min += 0.05 * playerGetWeaponAlphaModCount(damager->GadgetBox, WEAPON_ID_MAGMA_CANNON, ALPHA_MOD_AREA);
 
-    float falloff = maxf(min, minf(1, 1 - (dist / 32)));
+    float falloff = minf(1, maxf(min, minf(1, 1 - (dist / 32))));
     float origDmg = in->DamageHp;
     in->DamageHp *= falloff;
   }
 
   mobyCollDamageDirect(target, in);
+}
+
+//--------------------------------------------------------------------------
+void onHealthBomb(Player* fromPlayer, VECTOR position) {
+  
+  int i;
+  VECTOR dt;
+  Player** players = playerGetAll();
+
+  // heal / revive
+  if (fromPlayer) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* player = players[i];
+      if (!player || !playerIsConnected(player)) continue;
+
+      vector_subtract(dt, player->PlayerPosition, position);
+      if (vector_sqrmag(dt) < (ITEM_EMP_HEALTH_EFFECT_RADIUS*ITEM_EMP_HEALTH_EFFECT_RADIUS)) {
+        if (playerIsDead(player) && player->IsLocal) {
+          playerRevive(player, fromPlayer->PlayerId);
+        } else {
+          playerSetHealth(player, clamp(player->Health + (player->MaxHealth * ITEM_HEALTHTORNADO_HEAL_PERCENT), 0, player->MaxHealth));
+        }
+      }
+    }
+  }
+  
+  // explode
+  //spawnExplosion(position, 5, 0x80800000);
+  u32 color = 0x80800000;
+  mobyPlaySoundByClass(0, 0, mobySpawnExplosion(
+    vector_read(position), 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,
+    0, 0, color, color, color, color, color, color, color, color, color,
+    0, 0, 0, 0, 2, 0, 0, 0
+  ), MOBY_ID_ARBITER_ROCKET0);
+
+  if (fromPlayer && fromPlayer->IsLocal) mobReactToExplosionAt(fromPlayer->PlayerId, position, 1, 8);
 }
 
 //--------------------------------------------------------------------------
@@ -1746,17 +1786,6 @@ Moby* onEmpFired(int oclass, int pvarSize, Moby* empLauncherMoby) {
 }
 
 //--------------------------------------------------------------------------
-int playerHasBlessing(int playerId, int blessing)
-{
-  int i;
-  for (i = 0; i < PLAYER_MAX_BLESSINGS; ++i) {
-    if (State.PlayerStates[playerId].State.ItemBlessings[i] == blessing) return 1;
-  }
-
-  return 0;
-}
-
-//--------------------------------------------------------------------------
 void playerRewardXp(int playerId, int weaponId, int xp)
 {
   Player* player = playerGetAll()[playerId];
@@ -1770,7 +1799,7 @@ void playerRewardXp(int playerId, int weaponId, int xp)
 
   // handle weapon xp
   if (weaponId > 1) {
-    int xpCount = playerGetWeaponAlphaModCount(player, weaponId, ALPHA_MOD_XP);
+    int xpCount = playerGetWeaponAlphaModCount(player->GadgetBox, weaponId, ALPHA_MOD_XP);
     pState->State.XP += xpCount * XP_ALPHAMOD_XP;
   }
 
@@ -1813,161 +1842,6 @@ void onV10VipersHitSurface(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damageFlags, VECTOR fromPos, VECTOR t0)
-{
-  // allow damaging healthbox
-  // otherwise check if player can headbutt mob, and deny if not
-  if (hitMoby && hitMoby->OClass != MOBY_ID_HEALTH_BOX_MULT) {
-    Player * sourcePlayer = guberMobyGetPlayerDamager(sourceMoby);
-    if (!sourcePlayer || !mobyIsMob(hitMoby))
-      return;
-
-    // only headbutt if bull blessing
-    if (!playerHasBlessing(sourcePlayer->PlayerId, BLESSING_ITEM_BULL))
-      return;
-
-    hitpoints = 10 * (1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * State.PlayerStates[sourcePlayer->PlayerId].State.Upgrades[UPGRADE_DAMAGE]));
-    hitpoints *= sourcePlayer->DamageMultiplier;
-#if LOG_STATS2
-    DPRINTF("headbutt %08X %04X with %f and %X\n", (u32)hitMoby, hitMoby->OClass, hitpoints, damageFlags);
-#endif
-  }
-
-  ((void (*)(float, Moby*, Moby*, int, VECTOR, VECTOR))0x00503500)(hitpoints, hitMoby, sourceMoby, damageFlags, fromPos, t0);
-}
-
-//--------------------------------------------------------------------------
-void playerStateUpdate(Player* player, int stateId, int a2, int a3, int t0) {
-  PlayerVTable* vtable = playerGetVTable(player);
-  if (!vtable) return;
-
-  // if player has bull blessing, then don't let walls stop them from cbooting
-  if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_BULL) && stateId == PLAYER_STATE_JUMP_BOUNCE) {
-    return;
-  }
-
-  vtable->UpdateState(player, stateId, a2, a3, t0);
-}
-
-//--------------------------------------------------------------------------
-void playerBlessingOnDoubleJump(Player* player, int stateId, int a2, int a3, int t0) {
-  PlayerVTable* vtable = playerGetVTable(player);
-  if (!vtable) return;
-
-  if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_MULTI_JUMP)
-      && (player->PlayerState == PLAYER_STATE_JUMP || player->PlayerState == PLAYER_STATE_RUN_JUMP)
-      && blessingQuadJumpJumpCount[player->PlayerId] < ITEM_BLESSING_MULTI_JUMP_COUNT) {
-        // don't let the player flip until after they've used their jumps
-  } else {
-    blessingQuadJumpJumpCount[player->PlayerId] = 0;
-    vtable->UpdateState(player, stateId, a2, a3, t0);
-  }
-}
-
-//--------------------------------------------------------------------------
-int playerBlessingGetAmmoRegenAmount(int weaponId) {
-	
-  switch (weaponId)
-  {
-    case WEAPON_ID_VIPERS: return 5;
-    case WEAPON_ID_MAGMA_CANNON:
-    case WEAPON_ID_ARBITER:
-    case WEAPON_ID_MINE_LAUNCHER:
-    case WEAPON_ID_FUSION_RIFLE:
-    case WEAPON_ID_OMNI_SHIELD:
-    case WEAPON_ID_FLAIL:
-    case WEAPON_ID_B6:
-      return 1;
-  }
-
-  return 0;
-}
-
-//--------------------------------------------------------------------------
-void processPlayerBlessings(Player* player) {
-  if (!player) return;
-
-  struct SurvivalPlayer* playerData = &State.PlayerStates[player->PlayerId];
-
-  // 
-  int jumpBits = padGetMappedPad(0x40, player->PlayerId) << 8;
-  PlayerVTable* vtable = playerGetVTable(player);
-  if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_MULTI_JUMP)
-      && vtable
-      && playerPadGetAnyButtonDown(player, jumpBits)
-      && player->timers.state > 6
-      && (player->PlayerState == PLAYER_STATE_JUMP || player->PlayerState == PLAYER_STATE_RUN_JUMP)
-      && blessingQuadJumpJumpCount[player->PlayerId] < ITEM_BLESSING_MULTI_JUMP_COUNT) {
-    blessingQuadJumpJumpCount[player->PlayerId] += 1;
-    vtable->UpdateState(player, PLAYER_STATE_JUMP, 1, 1, 1);
-  }
-
-  // reset quad jump counter when not in first jump state
-  if (player->PlayerState != PLAYER_STATE_JUMP && player->PlayerState != PLAYER_STATE_RUN_JUMP)
-    blessingQuadJumpJumpCount[player->PlayerId] = 0;
-
-  int i;
-  for (i = 0; i < playerData->State.BlessingSlots && i < PLAYER_MAX_BLESSINGS; ++i) {
-    switch (playerData->State.ItemBlessings[i])
-    {
-      case BLESSING_ITEM_BULL:
-      {
-        if (player->PlayerState == PLAYER_STATE_CHARGE && player->timers.state > 55 && playerPadGetButton(player, PAD_L2) > 0) {
-          player->timers.state = 55;
-        }
-        break;
-      }
-      case BLESSING_ITEM_ELEM_IMMUNITY:
-      {
-        player->timers.acidTimer = 0;
-        player->timers.freezeTimer = 0;
-        break;
-      }
-      case BLESSING_ITEM_HEALTH_REGEN:
-      {
-        if (!player->IsLocal) break;
-        if (playerData->TicksSinceHealthChanged < (TPS * 10)) break;
-        if (playerIsDead(player)) break;
-        if (blessingHealthRegenTickers[player->PlayerId] > 0) {
-          --blessingHealthRegenTickers[player->PlayerId];
-          break;
-        }
-        if (player->Health >= player->MaxHealth) break;
-
-        playerData->LastHealth = player->Health = clamp(player->Health + 4, 0, player->MaxHealth);
-        if (player->pNetPlayer) player->pNetPlayer->pNetPlayerData->hitPoints = player->Health;
-        blessingHealthRegenTickers[player->PlayerId] = ITEM_BLESSING_HEALTH_REGEN_RATE_TPS;
-        break;
-      }
-      case BLESSING_ITEM_AMMO_REGEN:
-      {
-        if (!player->IsLocal) break;
-        if (blessingAmmoRegenTickers[player->PlayerId] > 0) {
-          --blessingAmmoRegenTickers[player->PlayerId];
-        } else {
-
-          VECTOR dt;
-          vector_subtract(dt, blessingLastPosition[player->PlayerId], player->PlayerPosition);
-          if (vector_sqrmag(dt) > (2*2)) {
-            struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[player->WeaponHeldId];
-            int maxAmmo = playerGetWeaponMaxAmmo(player->GadgetBox, player->WeaponHeldId);
-            int ammo = gadgetEntry->Ammo;
-            int ammoInc = (int)ceilf(maxAmmo * 0.1); //playerBlessingGetAmmoRegenAmount(player->WeaponHeldId);
-            if (ammoInc > 0 && ammo < maxAmmo) {
-              gadgetEntry->Ammo = (ammo + ammoInc) > maxAmmo ? maxAmmo : (ammo + ammoInc);
-            }
-          }
-
-          vector_copy(blessingLastPosition[player->PlayerId], player->PlayerPosition);
-          blessingAmmoRegenTickers[player->PlayerId] = ITEM_BLESSING_AMMO_REGEN_RATE_TPS;
-        }
-        break;
-      }
-    }
-  }
-}
-
-//--------------------------------------------------------------------------
 int playerIsSmashingFlail(Player* player)
 {
   if (!player) return 0;
@@ -1983,17 +1857,6 @@ int playerIsSmashingFlail(Player* player)
   }
   
   return 0;
-}
-
-//--------------------------------------------------------------------------
-void playerDecHitpointHooked(Player* player, float amount)
-{
-  float factor = 1;
-
-  if (playerHasBlessing(player->PlayerId, BLESSING_ITEM_THORNS))
-    factor = 1 - ITEM_BLESSING_THORN_DAMAGE_FACTOR;
-
-  playerDecHealth(player, amount * factor);
 }
 
 //--------------------------------------------------------------------------
@@ -2018,7 +1881,7 @@ void processPlayer(int pIndex) {
     VECTOR pos = {0,0,1,0};
     vector_add(pos, player->PlayerPosition, pos);
     if (gfxWorldSpaceToScreenSpace(pos, &x, &y)) {
-      sprintf(strBuf, "\x1c  %02d", reviveCooldownTicks/60);
+      snprintf(strBuf, sizeof(strBuf), "\x1c  %02d", reviveCooldownTicks/60);
       gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, strBuf, -1, 4);
       dzoDrawReviveMsg(pIndex, pos, reviveCooldownTicks/60);
     }
@@ -2033,7 +1896,10 @@ void processPlayer(int pIndex) {
 	player->MaxHealth = 50 + (PLAYER_UPGRADE_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_HEALTH]);
 
 	// set speed
+  // increase with speed upgrades
+  // add base speed boost with hoverboots
 	player->Speed = 1 + (PLAYER_UPGRADE_SPEED_FACTOR * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED]);
+  player->Speed += playerGetStackableCount(pIndex, STACKABLE_ITEM_HOVERBOOTS) * ITEM_STACKABLE_HOVERBOOTS_SPEED_BUF;
   if (player->timers.freezeTimer)
     player->Speed *= 0.65;
 
@@ -2055,17 +1921,29 @@ void processPlayer(int pIndex) {
     }
   }
 
+  // handle health tornado
+  if (playerData->HealthTornadoStopTime > 0) {
+    int timeUntilEnd = gameGetTime() - playerData->HealthTornadoStopTime;
+    if (timeUntilEnd < 0) {
+      if (!playerData->HealthTornadoActivateTicks) {
+        onHealthBomb(player, player->PlayerPosition);
+        playerData->HealthTornadoActivateTicks = ITEM_HEALTHTORNADO_PERIOD_TICKS;
+      }
+      else {
+        playerData->HealthTornadoActivateTicks--;
+      }
+    } else {
+      playerData->HealthTornadoActivateTicks = 0;
+      playerData->HealthTornadoStopTime = -1;
+    }
+  }
+
   // update state timers
   if (playerStates[pIndex] != player->PlayerState)
     playerStateTimers[pIndex] = 0;
   else
     playerStateTimers[pIndex] += 1;
   playerStates[pIndex] = player->PlayerState;
-
-  // blessing
-  if (playerData->State.BlessingSlots) {
-    processPlayerBlessings(player);
-  }
 
 	if (player->IsLocal) {
 		
@@ -2155,7 +2033,8 @@ void processPlayer(int pIndex) {
 			&& player->timers.state >= 60) {
 				if (gBox->Gadgets[WEAPON_ID_FLAIL].Ammo > 0) {
 					if ((player->timers.state % 60) == 0) {
-						gBox->Gadgets[WEAPON_ID_FLAIL].Ammo -= 1;
+            ((void (*)(GadgetBox*, int, int))0x00627180)(gBox, WEAPON_ID_FLAIL, 1);
+						//gBox->Gadgets[WEAPON_ID_FLAIL].Ammo -= 1;
 					}
 				} else {
 					PlayerVTable* vtable = playerGetVTable(player);
@@ -2193,7 +2072,7 @@ void processPlayer(int pIndex) {
 					int cost = getUpgradeCost(player, heldWeapon);
 
 					// draw help popup
-					sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_UPGRADE_MESSAGE, cost);
+					snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_UPGRADE_MESSAGE, cost);
 					uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
 					hasMessage = 1;
 					playerData->MessageCooldownTicks = 2;
@@ -2241,12 +2120,12 @@ void processPlayer(int pIndex) {
 
 			// check distance
 			vector_subtract(t, player->PlayerPosition, State.Bankbox->Position);
-			if (vector_sqrmag(t) < (BANK_BOX_MAX_DIST * BANK_BOX_MAX_DIST) && vector_innerproduct(t, player->CameraForward) < -0.6) {
+			if (vector_sqrmag(t) < (BANK_BOX_MAX_DIST * BANK_BOX_MAX_DIST) /* && vector_innerproduct(t, player->CameraForward) < -0.6 */) {
 				
 				// draw help popup
         char buf[32];
-        sprintf(buf, SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE, bboxPvars->TotalBolts);
-        sprintf(LocalPlayerStrBuffer[localPlayerIndex], "%s %s", SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE, buf);
+        snprintf(buf, sizeof(buf), SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE, bboxPvars->TotalBolts);
+        snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), "%s %s", SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE, buf);
 				uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
 				hasMessage = 1;
 				playerData->MessageCooldownTicks = 2;
@@ -2279,11 +2158,11 @@ void processPlayer(int pIndex) {
 
           // draw help popup
           if (maxPrestige)
-            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_MAXED_MESSAGE);
+            snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_PRESTIGE_WEAPON_MAXED_MESSAGE);
           else if (canPrestige)
-            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_MESSAGE, cost);
+            snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_PRESTIGE_WEAPON_MESSAGE, cost);
           else
-            sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE);
+            snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE);
 
           uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
           hasMessage = 1;
@@ -2315,7 +2194,7 @@ void processPlayer(int pIndex) {
               if (!upgradePVars) continue;
 
               // draw help popup
-              sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_BUY_UPGRADE_MESSAGES[i], upgradePVars->Uses);
+              snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_BUY_UPGRADE_MESSAGES[i], upgradePVars->Uses);
               uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
               hasMessage = 1;
               playerData->MessageCooldownTicks = 2;
@@ -2330,7 +2209,7 @@ void processPlayer(int pIndex) {
             } else {
 
               // draw maxed out popup
-              sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_MAXED_OUT_UPGRADE_MESSAGE);
+              snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_MAXED_OUT_UPGRADE_MESSAGE);
               uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
               hasMessage = 1;
               playerData->MessageCooldownTicks = 2;
@@ -2359,13 +2238,13 @@ void processPlayer(int pIndex) {
               // draw revive player popup
               // or draw how 
               if (playerData->RevivingPlayerId == -1) {
-                sprintf(LocalPlayerStrBuffer[localPlayerIndex], SURVIVAL_REVIVE_MESSAGE, gs->PlayerNames[i]);
+                snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_REVIVE_MESSAGE, gs->PlayerNames[i]);
                 uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
                 hasMessage = 1;
                 playerData->MessageCooldownTicks = 2;
               } else if (playerData->RevivingPlayerId == i) {
                 float time = (PLAYER_TIME_TO_REVIVE_TICKS - playerData->RevivingPlayerTicks) / (float)TPS;
-                sprintf(LocalPlayerStrBuffer[localPlayerIndex], "Reviving... %.2f", time);
+                snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), "Reviving... %.2f", time);
                 uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
                 hasMessage = 1;
                 playerData->MessageCooldownTicks = 2;
@@ -2404,7 +2283,7 @@ void processPlayer(int pIndex) {
     playerData->RevivingPlayerId = revivingPlayerId;
 
     // handle items
-    if (padGetButtonDown(0, PAD_LEFT) > 0) {
+    if (!isDeadState && padGetButtonDown(0, PAD_LEFT) > 0) {
       switch (playerData->State.Item)
       {
         case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
@@ -2414,7 +2293,9 @@ void processPlayer(int pIndex) {
         }
         case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
         {
-          playerEquipWeapon(player, WEAPON_ID_EMP);
+          playerUseItem(pIndex, playerData->State.Item);
+          //onHealthBomb(player, player->PlayerPosition);
+          //playerEquipWeapon(player, WEAPON_ID_EMP);
           break;
         }
       }
@@ -2797,6 +2678,21 @@ int whoKilledMeHook(Player* player, Moby* moby, int b)
 }
 
 //--------------------------------------------------------------------------
+int onMobyPlayDesiredSound(int sound, int a1, Moby* moby)
+{
+  // catch mobs
+  if (mobyIsMob(moby)) {
+    int midx = ((struct MobPVar*)moby->PVar)->MobVars.SpawnParamsIdx;
+    int sidx = sound % MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS;
+    if (mobPlaySoundCooldownTicks[midx][sidx]) return -1;
+    mobPlaySoundCooldownTicks[midx][sidx] = MOBS_PLAY_SOUND_COOLDOWN;
+  }
+
+  // pass to mobyPlaySound
+  return mobyPlaySound(sound, a1, moby);
+}
+
+//--------------------------------------------------------------------------
 Moby* FindMobyOrSpawnBox(int oclass, int defaultToSpawnpointId)
 {
 	// find
@@ -2997,10 +2893,6 @@ void initialize(PatchStateContainer_t* gameState)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
   *(u32*)0x006210D8 = 0;	// all enemies leave (9)
 
-	// enable headbutt
-	*(u32*)0x005F98D0 = 0x24020001;
-	*(u32*)0x005f9920 = 0x0C000000 | ((u32)&headbuttDamage >> 2);
-
   // spawn area mod explosion on each ricochet of the v10 vipers
   //HOOK_JAL(0x003C283C, &onV10VipersHitSurface);
 
@@ -3036,6 +2928,11 @@ void initialize(PatchStateContainer_t* gameState)
 	// Fix v10 arb overlapping shots
 	*(u32*)0x003F2E70 = 0x24020000;
 
+  // hook when MobyPlayDesiredSound plays a sound for a moby
+  // lets us reduce the # of mob sounds
+  HOOK_JAL(0x004f790c, &onMobyPlayDesiredSound);
+  HOOK_J(0x004fa800, &onMobyPlayDesiredSound);
+
   // disable timebase query percentile filter
   // always accept remote time
   POKE_U32(0x01eabd60, 0);
@@ -3045,15 +2942,11 @@ void initialize(PatchStateContainer_t* gameState)
   POKE_U32(0x00557C04, 0);
 
   // fix emp
-  POKE_U32(0x0042075C, 0x2C42010B);
+  //POKE_U32(0x0042075C, 0x2C42010B);
   //POKE_U32(0x00420610, 0x24050001);
-  HOOK_JAL(0x00420634, &onEmpHitMoby);
-  HOOK_JAL(0x004209bc, &onEmpExplode);
-  HOOK_JAL(0x0041fb8c, &onEmpFired);
-
-  // hook when player takes damage
-  HOOK_JAL(0x00605820, &playerDecHitpointHooked);
-  POKE_U32(0x005E1870, 0);
+  //HOOK_JAL(0x00420634, &onEmpHitMoby);
+  //HOOK_JAL(0x004209bc, &onEmpExplode);
+  //HOOK_JAL(0x0041fb8c, &onEmpFired);
 
   // hook when v10 mag shot hits
   HOOK_JAL(0x0044B374, &onV10MagDamageMoby);
@@ -3123,10 +3016,6 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->ModeSetDoubleXPFunc = &setDoubleXP;
   mapConfig->ModeSetFreezeMobsFunc = &setFreeze;
   mapConfig->ModeRevivePlayerFunc = &playerRevive;
-
-  // hook blessings
-  HOOK_JAL(0x0060C660, &playerBlessingOnDoubleJump);
-  HOOK_JAL(0x0060CD44, &playerStateUpdate);
 
 	// custom damage cooldown time
 	//POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
@@ -3220,7 +3109,7 @@ void initialize(PatchStateContainer_t* gameState)
     State.PlayerStates[i].RevivingPlayerId = -1;
 
 #if PAYDAY
-		State.PlayerStates[i].State.CurrentTokens = 100;
+		State.PlayerStates[i].State.CurrentTokens = 1000;
 #endif
 
 		if (p) {
@@ -3335,9 +3224,9 @@ void initialize(PatchStateContainer_t* gameState)
 
 #if STARTROUND
 	State.RoundNumber = STARTROUND - 1;
-  int xp[GAME_MAX_PLAYERS];
 	//State.RoundIsSpecial = 1;
 	//State.RoundSpecialIdx = 4;
+  int xp[GAME_MAX_PLAYERS];
 
 #if !PAYDAY
   for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
@@ -3393,6 +3282,7 @@ void initialize(PatchStateContainer_t* gameState)
 	Initialized = 1;
 }
 
+//--------------------------------------------------------------------------
 void updateGameState(PatchStateContainer_t * gameState)
 {
 	int i,j;
@@ -3435,7 +3325,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 			sGameData->Kills[i] = State.PlayerStates[i].State.Kills;
 			sGameData->Revives[i] = State.PlayerStates[i].State.Revives;
 			sGameData->TimesRevived[i] = State.PlayerStates[i].State.TimesRevived;
-			sGameData->Points[i] = State.PlayerStates[i].State.TotalBolts;
+			sGameData->Points[i] = State.PlayerStates[i].State.TotalBolts * ((mapConfig && mapConfig->BakedConfig) ? mapConfig->BakedConfig->BoltRankMultiplier : 1);
 			sGameData->BestRound[i] = State.PlayerStates[i].State.BestRound;
 			sGameData->TimesRolledMysteryBox[i] = State.PlayerStates[i].State.TimesRolledMysteryBox;
 			sGameData->TimesActivatedDemonBell[i] = State.PlayerStates[i].State.TimesActivatedDemonBell;
@@ -3507,13 +3397,47 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	}
 #endif
 
-#if DEBUG
+#if DEBUG_MPASS
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK;
     State.PlayerStates[i].State.BlessingSlots = 3;
     State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_AMMO_REGEN;
     State.PlayerStates[i].State.ItemBlessings[1] = BLESSING_ITEM_HEALTH_REGEN;
     State.PlayerStates[i].State.ItemBlessings[2] = BLESSING_ITEM_BULL;
+  }
+#endif
+
+#if DEBUG_ORXON
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_JUMP] = 5;
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] = 1;
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_SHOT] = 2;
+    //State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_HOVERBOOTS] = 1;
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_VAMPIRE] = 3;
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_AMMO] = 5;
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_SPEED] = 5;
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_AREA] = 5;
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_IMPACT] = 5;
+    State.PlayerStates[i].State.Upgrades[UPGRADE_SPEED] = UpgradeMax[UPGRADE_SPEED];
+  }
+#endif
+
+#if DEBUG_SOUNDS
+  {
+    static int aaa = 0;
+    const int mobyClass = 0x2751;
+		if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+			aaa += 1;
+			printf("%d\n", aaa);
+      mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
+		} else if (padGetButtonDown(0, PAD_LEFT) > 0) {
+			aaa -= 1;
+			printf("%d\n", aaa);
+      mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
+		} else if (padGetButtonDown(0, PAD_UP) > 0) {
+			printf("%d\n", aaa);
+      mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
+		}
   }
 #endif
 
@@ -3566,6 +3490,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       //manSpawnMobId = 0;
       //manSpawnMobId = 2;
 			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 2;
+			//manSpawnMobId = mapConfig->DefaultSpawnParamsCount - 1;
 
       // skip invalid params
       while (mapConfig->DefaultSpawnParams[manSpawnMobId].Probability < 0) {
@@ -3637,6 +3562,19 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	// ticks
 	mobTick();
   bubbleTick();
+
+  if (mapConfig && mapConfig->OnFrameTickFunc)
+    mapConfig->OnFrameTickFunc();
+
+  // tick down mob sound cooldown
+  int j;
+  for (i = 0; i < MAX_MOB_SPAWN_PARAMS; ++i) {
+    for (j = 0; j < MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS; ++j) {
+      if (mobPlaySoundCooldownTicks[i][j] > 0) {
+        --mobPlaySoundCooldownTicks[i][j];
+      }
+    }
+  }
 
   // handle inf ammo
   if (State.InfiniteAmmoStopTime > 0) {
@@ -3720,7 +3658,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       char* roundStr = uiMsgString(0x25A9);
       gfxScreenSpaceText(31, 281, 0.7, 0.7, 0x40000000, roundStr, -1, 1);
       gfxScreenSpaceText(30, 280, 0.7, 0.7, 0x80E0E0E0, roundStr, -1, 1);
-      sprintf(buffer, "%d", State.RoundNumber + 1);
+      snprintf(buffer, sizeof(buffer), "%d", State.RoundNumber + 1);
       gfxScreenSpaceText(31, 292, 1, 1, 0x40000000, buffer, -1, 1);
       gfxScreenSpaceText(30, 291, 1, 1, 0x8029E5E6, buffer, -1, 1);
 
@@ -3740,7 +3678,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       char* enemiesStr = "ENEMIES";
       gfxScreenSpaceText(31, 241, 0.7, 0.7, 0x40000000, enemiesStr, -1, 1);
       gfxScreenSpaceText(30, 240, 0.7, 0.7, 0x80E0E0E0, enemiesStr, -1, 1);
-      sprintf(buffer, "%d", State.MobStats.TotalAlive + State.MobStats.TotalSpawning);
+      //snprintf(buffer, sizeof(buffer), "%d", State.MobStats.TotalAlive + State.MobStats.TotalSpawning);
+      snprintf(buffer, sizeof(buffer), "%d", (State.RoundMaxMobCount - State.MobStats.TotalSpawnedThisRound) + State.MobStats.TotalAlive + State.MobStats.TotalSpawning);
       gfxScreenSpaceText(31, 252, 1, 1, 0x40000000, buffer, -1, 1);
       gfxScreenSpaceText(30, 251, 1, 1, 0x8029E5E6, buffer, -1, 1);
     }
@@ -3936,7 +3875,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 		{
 			// draw round complete message
 			if (gameTime < (State.RoundCompleteTime + ROUND_MESSAGE_DURATION_MS)) {
-				sprintf(buffer, SURVIVAL_ROUND_COMPLETE_MESSAGE, State.RoundNumber);
+				snprintf(buffer, sizeof(buffer), SURVIVAL_ROUND_COMPLETE_MESSAGE, State.RoundNumber);
 				drawRoundMessage(buffer, 1.5, 0);
 			}
 
@@ -3992,7 +3931,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 		{
 			// draw round start message
 			if (gameTime < (State.RoundStartTime + ROUND_MESSAGE_DURATION_MS)) {
-				sprintf(buffer, SURVIVAL_ROUND_START_MESSAGE, State.RoundNumber+1);
+				snprintf(buffer, sizeof(buffer), SURVIVAL_ROUND_START_MESSAGE, State.RoundNumber+1);
 				drawRoundMessage(buffer, 1.5, 0);
 				if (State.RoundIsSpecial) {
 					drawRoundMessage(mapConfig->SpecialRoundParams[State.RoundSpecialIdx].Name, 1, 35);
@@ -4126,7 +4065,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 
   // disable custom game rules
   if (gameConfig) {
-    gameConfig->grNoHealthBoxes = 0;
+    gameConfig->grNoHealthBoxes = 1;
     gameConfig->grNoInvTimer = 0;
     gameConfig->grNoPickups = 0;
     gameConfig->grV2s = 0;

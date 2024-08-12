@@ -133,7 +133,7 @@ void upgradePostDraw(Moby* moby)
 	quad.VertexUVs[1] = (struct UV){1,0};
 	quad.VertexUVs[2] = (struct UV){0,1};
 	quad.VertexUVs[3] = (struct UV){1,1};
-	quad.Clamp = 1;
+	quad.Clamp = 0x0000000100000001;
 	quad.Tex0 = gfxGetFrameTex(UpgradeTexIds[pvars->Type]);
 	quad.Tex1 = 0xFF9000000260;
 	quad.Alpha = 0x8000000044;
@@ -159,6 +159,17 @@ void upgradeUpdate(Moby* moby)
 
 	// register draw event
 	gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&upgradePostDraw, moby);
+
+  // draw on radar
+  int blipIdx = radarGetBlipIndex(moby);
+  if (blipIdx >= 0) {
+    RadarBlip * blip = radarGetBlips() + blipIdx;
+    blip->X = moby->Position[0];
+    blip->Y = moby->Position[1];
+    blip->Life = 0x1F;
+    blip->Type = 4;
+    blip->Team = TEAM_AQUA;
+  }
 
 	return;
 
@@ -334,7 +345,9 @@ int upgradeHandleEvent_Pickup(Moby* moby, GuberEvent* event)
 
   // reduce uses
   // respawn at next spot if used
+#if !DEBUG
   pvars->Uses--;
+#endif
   if (!pvars->Uses && gameAmIHost()) {
     upgradeSpawnNew(pvars->Type);
     upgradeDestroy(moby);

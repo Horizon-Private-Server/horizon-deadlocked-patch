@@ -131,6 +131,7 @@ typedef struct MapLoaderState
     char MapFileName[128];
     int LoadingFileSize;
     int LoadingFd;
+    int Loaded;
     void * LevelBuffer;
     void * SoundBuffer;
     SndCompleteProc SoundLoadCb;

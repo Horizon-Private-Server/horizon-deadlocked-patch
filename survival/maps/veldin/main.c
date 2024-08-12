@@ -50,7 +50,7 @@ int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 
 int aaa = 0;
-char LocalPlayerStrBuffer[2][48];
+char LocalPlayerStrBuffer[2][64];
 
 // set by mode
 extern SurvivalBakedConfig_t bakedConfig;

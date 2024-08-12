@@ -1,5 +1,6 @@
 #include "include/game.h"
 #include <libdl/math3d.h>
+#include <libdl/utils.h>
 
 const int UPGRADE_COST[] = {
 	8000,			// v2
@@ -51,3 +52,14 @@ const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[] = {
 	21, // 9 players
 	24, // 10 players
 };
+
+const int ENABLED_ALPHA_MODS[] = {
+  ALPHA_MOD_SPEED,
+  ALPHA_MOD_AMMO,
+  ALPHA_MOD_IMPACT,
+  ALPHA_MOD_AREA,
+  ALPHA_MOD_JACKPOT,
+  ALPHA_MOD_XP
+};
+
+const int ENABLED_ALPHA_MODS_COUNT = COUNT_OF(ENABLED_ALPHA_MODS);

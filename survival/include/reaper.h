@@ -21,6 +21,7 @@
 #define REAPER_ANIM_ATTACK_TICKS							(30)
 #define REAPER_TIMEBOMB_TICKS									(60 * 2)
 #define REAPER_FLINCH_COOLDOWN_TICKS					(60 * 7)
+#define REAPER_KNOCKBACK_MULTIPLIER				    (0.5)
 #define REAPER_ACTION_COOLDOWN_TICKS					(30)
 #define REAPER_RESPAWN_AFTER_TICKS						(60 * 30)
 #define REAPER_BASE_COLL_RADIUS								(1.0)
@@ -49,6 +50,22 @@ enum ReaperAnimId
 	REAPER_ANIM_FLINCH_FALL_DOWN,
 	REAPER_ANIM_FLINCH_KNOCKBACK,
 	REAPER_ANIM_FALL_AND_DIE,
+};
+
+enum ReaperSoundId
+{
+	REAPER_SOUND_MOAN = 2,
+	REAPER_SOUND_FOOTSTEP_1 = 3,
+	REAPER_SOUND_FOOTSTEP_2 = 4,
+	REAPER_SOUND_GRUNT_1 = 5,
+	REAPER_SOUND_GRUNT_2 = 7,
+	REAPER_SOUND_GRUNT_3 = 8,
+	REAPER_SOUND_SWING = 11,
+	REAPER_SOUND_BARF = 13,
+	REAPER_SOUND_THORN_FIRE = 17,
+	REAPER_SOUND_THORN_EXPLODE = 18,
+	REAPER_SOUND_THORN_HIT = 19,
+	REAPER_SOUND_GETHIT = 20,
 };
 
 enum ReaperBangles {
@@ -104,10 +121,5 @@ typedef struct ReaperMobVars
   Player* AggroTriggeredBy;
   char AggroTriggered;
 } ReaperMobVars_t;
-
-extern int reaperAmbientSoundIds[];
-extern const int reaperAmbientSoundIdsCount;
-extern int reaperHitSoundId;
-extern int reaperDeathSoundId;
 
 #endif // SURVIVAL_MOB_REAPER_H

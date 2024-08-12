@@ -23,8 +23,7 @@ GuberEvent* demonbellCreateEvent(Moby* moby, u32 eventType);
 //--------------------------------------------------------------------------
 void demonbellPlayActivateSound(Moby* moby)
 {
-	BaseSoundDef.Index = 366;
-	soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
+  mobyPlaySoundByClass(0, 0, moby, 0x2751);
 }	
 
 //--------------------------------------------------------------------------
@@ -206,7 +205,7 @@ int demonbellHandleEvent_Activate(Moby* moby, GuberEvent* event)
   mobySetState(moby, 1, -1);
   demonbellPlayActivateSound(moby);
   pushSnack("Spawn Rate Increased!", 120, 0);
-	printf("demonbell activated at %08X by %d (%d/%d)\n", (u32)moby, activatedByPlayerId, State.RoundDemonBellCount, State.DemonBellCount);
+	DPRINTF("demonbell activated at %08X by %d (%d/%d)\n", (u32)moby, activatedByPlayerId, State.RoundDemonBellCount, State.DemonBellCount);
 	return 0;
 }
 

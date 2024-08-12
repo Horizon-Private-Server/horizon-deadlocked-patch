@@ -49,6 +49,7 @@ int preset = 0;
 int dlBytesReceived = 0;
 int dlTotalBytes = 0;
 int dlIsActive = 0;
+int dlConnectionTimeout = 0;
 
 
 // constants
@@ -431,11 +432,11 @@ MenuElem_OrderedListData_t dataCustomModes = {
     { CUSTOM_MODE_INFECTED, "Infected" },
     { CUSTOM_MODE_PAYLOAD, "Payload" },
     { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
-    { CUSTOM_MODE_SURVIVAL, "Survival" },
     { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
     { CUSTOM_MODE_TRAINING, "Training" },
     { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
     { CUSTOM_MODE_TAG, "Tag" },
+    { CUSTOM_MODE_SURVIVAL, "Zombie Survival" },
 #if DEV
     { CUSTOM_MODE_ANIM_EXTRACTOR, "Anim Extractor" },
 #endif
@@ -1070,7 +1071,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
     case CUSTOM_MODE_SURVIVAL:
     {
 #if DEBUG
-      return 1;
+      //return 1;
 #endif
 
       // accept if selected map is survival
@@ -2316,13 +2317,17 @@ void onConfigUpdate(void)
 
   // reset when we lose connection
   void* connection = netGetLobbyServerConnection();
-  if (dlTotalBytes > 0 && (!connection || !dlIsActive))
-  {
-    dlTotalBytes = 0;
-    dlBytesReceived = 0;
-    dlIsActive = 0;
-    DPRINTF("lost connection\n");
-  }
+  if (dlTotalBytes > 0 && (!connection || !dlIsActive)) {
+    if (dlConnectionTimeout > 60 || !dlIsActive) {
+      dlTotalBytes = 0;
+      dlBytesReceived = 0;
+      dlIsActive = 0;
+      dlConnectionTimeout = 0;
+      DPRINTF("lost connection\n");
+    } else {
+      ++dlConnectionTimeout;
+    }
+  } else { dlConnectionTimeout = 0; }
 
   // in staging, update game info
   GameSettings * gameSettings = gameGetSettings();

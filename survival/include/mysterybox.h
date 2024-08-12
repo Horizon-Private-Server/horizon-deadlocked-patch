@@ -43,6 +43,7 @@ enum MysteryBoxItem {
   MYSTERY_BOX_ITEM_QUAD,
   MYSTERY_BOX_ITEM_SHIELD,
   MYSTERY_BOX_ITEM_EMP_HEALTH_GUN,
+  MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS,
   MYSTERY_BOX_ITEM_COUNT
 };
 
@@ -58,6 +59,7 @@ struct MysteryBoxPVar
   int TicksSinceLastStateChanged;
   int ActivatedByPlayerId;
   int RoundHidden;
+  int ItemTexId;
   int NumVoxPerPlayer[GAME_MAX_PLAYERS];
 };
 

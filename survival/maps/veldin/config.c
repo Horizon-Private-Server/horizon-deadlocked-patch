@@ -123,6 +123,8 @@ const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct M
 //--------------------------------------------------------------------------
 SurvivalBakedConfig_t bakedConfig = {
   .Difficulty = 1.0,
+  .SpawnDistanceFactor = 1.0,
+  .BoltRankMultiplier = 1,
   .BakedSpawnPoints = {
     { .Type = BAKED_SPAWNPOINT_PLAYER_START, .Params = 0, .Position = { 188.15, 450.96, 85.93756 }, .Rotation = { 0, 0, -1.570796 } },
     { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 192.334, 374.214, 83.09 }, .Rotation = { 0, 0, -3.025695 } },
@@ -165,6 +167,7 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_QUAD, 0.0526 },
   { MYSTERY_BOX_ITEM_SHIELD, 0.0526 },
   { MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK, 0.0526 },
+  { MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS, 0.0526 },
   { MYSTERY_BOX_ITEM_EMP_HEALTH_GUN, 0.0555 },
   { MYSTERY_BOX_ITEM_REVIVE_TOTEM, 0.0555 },
   { MYSTERY_BOX_ITEM_INFINITE_AMMO, 0.0555 },
@@ -181,21 +184,6 @@ struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[] = {
 const int MysteryBoxItemProbabilitiesLuckyCount = sizeof(MysteryBoxItemProbabilitiesLucky)/sizeof(struct MysteryBoxItemWeight);
 
 //--------------------------------------------------------------------------
-int zombieHitSoundId = 0x17D;
-int zombieAmbientSoundIds[] = { 0x17A, 0x179 };
-int zombieDeathSoundId = -1;
-const int zombieAmbientSoundIdsCount = COUNT_OF(zombieAmbientSoundIds);
-
-int tremorHitSoundId = 0x17D;
-int tremorAmbientSoundIds[] = { 0x17A, 0x179 };
-int tremorDeathSoundId = -1;
-const int tremorAmbientSoundIdsCount = COUNT_OF(tremorAmbientSoundIds);
-
-int reaperHitSoundId = 0x17D;
-int reaperAmbientSoundIds[] = { 0x17A, 0x179 };
-int reaperDeathSoundId = -1;
-const int reaperAmbientSoundIdsCount = COUNT_OF(reaperAmbientSoundIds);
-
 void configInit(void)
 {
   MapConfig.DefaultSpawnParams = defaultSpawnParams;

@@ -22,6 +22,7 @@
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
 #include <libdl/dialog.h>
+#include <libdl/hud.h>
 #include <libdl/sound.h>
 #include <libdl/patch.h>
 #include <libdl/collision.h>
@@ -30,8 +31,9 @@
 #include <libdl/color.h>
 #include <libdl/utils.h>
 #include "game.h"
+#include "../../include/game.h"
 
-extern char LocalPlayerStrBuffer[2][48];
+extern char LocalPlayerStrBuffer[2][64];
 extern struct SurvivalMapConfig MapConfig;
 
 
@@ -94,10 +96,11 @@ void playPaidSound(Player* player)
 }
 
 //--------------------------------------------------------------------------
-int tryPlayerInteract(Moby* moby, Player* player, char* message, int boltCost, int tokenCost, int actionCooldown, float sqrDistance)
+int tryPlayerInteract(Moby* moby, Player* player, char* message, char* lowerMessage, int boltCost, int tokenCost, int actionCooldown, float sqrDistance, int btns)
 {
+  static int shown[GAME_MAX_LOCALS] = {0,0};
   VECTOR delta;
-  if (!player || !player->PlayerMoby || !player->IsLocal)
+  if (!player || !player->PlayerMoby || !player->IsLocal || !isInGame())
     return 0;
 
   struct SurvivalPlayer* playerData = NULL;
@@ -112,11 +115,12 @@ int tryPlayerInteract(Moby* moby, Player* player, char* message, int boltCost, i
   if (vector_sqrmag(delta) < sqrDistance) {
 
     // draw help popup
-    sprintf(LocalPlayerStrBuffer[localPlayerIndex], message);
+    snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), message);
     uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+    shown[localPlayerIndex] = gameGetTime();
 
     // handle pad input
-    if (padGetButtonDown(localPlayerIndex, PAD_CIRCLE) > 0 && (!playerData || (playerData->State.Bolts >= boltCost && playerData->State.CurrentTokens >= tokenCost))) {
+    if (padGetAnyButtonDown(localPlayerIndex, btns) > 0 && (!playerData || (playerData->State.Bolts >= boltCost && playerData->State.CurrentTokens >= tokenCost))) {
       if (playerData) {
         //playerData->State.Bolts -= boltCost;
         //playerData->State.CurrentTokens -= tokenCost;
@@ -126,6 +130,16 @@ int tryPlayerInteract(Moby* moby, Player* player, char* message, int boltCost, i
 
       return 1;
     }
+    
+    // draw lower message
+    if (lowerMessage) {
+      char* a = uiMsgString(0x2415);
+      strncpy(a, lowerMessage, 0x40);
+      uiShowLowerPopup(0, 0x2415);
+    }
+  } else if (shown[localPlayerIndex] && gameGetTime() > shown[localPlayerIndex]) {
+    hudHidePopup();
+    shown[localPlayerIndex] = 0;
   }
 
   return 0;
@@ -227,6 +241,12 @@ void pushSnack(int localPlayerIdx, char* string, int ticksAlive)
 }
 
 //--------------------------------------------------------------------------
+void uiShowLowerPopup(int localPlayerIdx, int msgStringId)
+{
+	((void (*)(int, int, int))0x0054ea30)(localPlayerIdx, msgStringId, 0);
+}
+
+//--------------------------------------------------------------------------
 int isInDrawDist(Moby* moby)
 {
   int i;
@@ -304,6 +324,14 @@ int playerHasBlessing(int playerId, int blessing)
 }
 
 //--------------------------------------------------------------------------
+int playerGetStackableCount(int playerId, int stackable)
+{
+  if (!MapConfig.State) return 0;
+
+  return MapConfig.State->PlayerStates[playerId].State.ItemStackable[stackable];
+}
+
+//--------------------------------------------------------------------------
 void draw3DMarker(VECTOR position, float scale, u32 color, char* str)
 {
   int x,y;
@@ -323,4 +351,52 @@ void playDialog(short dialogId, int force)
   }
 
   ((int (*)(short, short))0x004e3da8)(dialogId, flag);
+}
+
+//--------------------------------------------------------------------------
+void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y)
+{
+  int localCount = playerGetNumLocals();
+
+  //
+  switch (localCount)
+  {
+    case 0: // 1 player
+    case 1: return;
+    case 2: // 2 players
+    {
+      // vertical split
+      *y *= 0.5;
+      if (localPlayerIndex == 1)
+        *y += 0.5 * SCREEN_HEIGHT;
+
+      break;
+    }
+    case 3: // 3 players
+    {
+      // player 1 on top
+      // player 2/3 horizontal split on bottom
+      *y *= 0.5;
+      if (localPlayerIndex > 0) {
+        *x *= 0.5;
+        *y += 0.5 * SCREEN_HEIGHT;
+        if (localPlayerIndex == 2)
+          *x += 0.5 * SCREEN_WIDTH;
+      }
+      break;
+    }
+    case 4: // 4 players
+    {
+      // player 1/2 horizontal split on top
+      // player 2/3 horizontal split on bottom
+      *x *= 0.5;
+      *y *= 0.5;
+      if ((localPlayerIndex % 2) == 1)
+        *x += 0.5 * SCREEN_WIDTH;
+      if ((localPlayerIndex / 2) == 1)
+        *y += 0.5 * SCREEN_HEIGHT;
+
+      break;
+    }
+  }
 }

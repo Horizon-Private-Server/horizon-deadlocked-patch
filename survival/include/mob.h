@@ -77,6 +77,8 @@ typedef void (*MobForceLocalAction_func)(Moby* moby, int action);
 typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 typedef short (*MobGetArmor_func)(Moby* moby);
 typedef int (*MobIsAttacking_func)(Moby* moby);
+typedef int (*MobCanNonOwnerTransitionToAction_func)(Moby* moby, int action);
+typedef int (*MobShouldForceStateUpdateOnAction_func)(Moby* moby, int action);
 
 struct MobVTable {
   MobGenericCallback_func PreUpdate;
@@ -97,6 +99,8 @@ struct MobVTable {
   MobDoDamage_func DoDamage;
   MobGetArmor_func GetArmor;
   MobIsAttacking_func IsAttacking;
+  MobCanNonOwnerTransitionToAction_func CanNonOwnerTransitionToAction;
+  MobShouldForceStateUpdateOnAction_func ShouldForceStateUpdateOnAction;
 };
 
 struct MobConfig {
@@ -202,7 +206,7 @@ struct MobVars {
 	u16 ScoutCooldownTicks;
 	u16 FlinchCooldownTicks;
 	u16 AutoDirtyCooldownTicks;
-	u16 AmbientSoundCooldownTicks;
+	u16 ForcedBlipCooldownTicks;
 	u16 TimeBombTicks;
 	u16 MovingTicks;
 	u16 CurrentActionForTicks;

@@ -4,10 +4,12 @@
 #define EXECUTIONER_BASE_REACTION_TICKS						  (0.25 * TPS)
 #define EXECUTIONER_BASE_ATTACK_COOLDOWN_TICKS			(5 * TPS)
 #define EXECUTIONER_BASE_EXPLODE_RADIUS						  (5)
-#define EXECUTIONER_MELEE_HIT_RADIUS								(1.75)
+#define EXECUTIONER_MELEE_HIT_RADIUS								(1.00)
 #define EXECUTIONER_EXPLODE_HIT_RADIUS							(5)
-#define EXECUTIONER_MELEE_ATTACK_RADIUS						  (5)
-#define EXECUTIONER_TOO_CLOSE_TO_TARGET_RADIUS		  (4)
+#define EXECUTIONER_MELEE_ATTACK_RADIUS						  (4)
+#define EXECUTIONER_TOO_CLOSE_TO_TARGET_RADIUS		  (2.5)
+
+#define EXECUTIONER_HIT_INV_TICKS                   (0.1 * TPS)
 
 #define EXECUTIONER_TARGET_KEEP_CURRENT_FACTOR      (3)
 
@@ -21,6 +23,7 @@
 #define EXECUTIONER_ANIM_ATTACK_TICKS							  (30)
 #define EXECUTIONER_TIMEBOMB_TICKS									(60 * 2)
 #define EXECUTIONER_FLINCH_COOLDOWN_TICKS					  (60 * 7)
+#define EXECUTIONER_KNOCKBACK_MULTIPLIER				    (0.0)
 #define EXECUTIONER_ACTION_COOLDOWN_TICKS					  (30)
 #define EXECUTIONER_RESPAWN_AFTER_TICKS						  (60 * 30)
 #define EXECUTIONER_BASE_COLL_RADIUS								(0.5)
@@ -79,9 +82,9 @@ enum ExecutionerSubskeletonJoints
   EXECUTIONER_SUBSKELETON_JOINT_ = 0,
 };
 
-extern int executionerAmbientSoundIds[];
-extern const int executionerAmbientSoundIdsCount;
-extern int executionerHitSoundId;
-extern int executionerDeathSoundId;
+typedef struct ExecutionerMobVars
+{
+  u8 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
+} ExecutionerMobVars_t;
 
 #endif // SURVIVAL_MOB_EXECUTIONER_H

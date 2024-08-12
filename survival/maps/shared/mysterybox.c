@@ -19,6 +19,7 @@
 #include <libdl/math.h>
 #include <libdl/random.h>
 #include <libdl/math3d.h>
+#include <libdl/radar.h>
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
 #include <libdl/dialog.h>
@@ -47,6 +48,7 @@ int MysteryBoxTotalRolls = 0;
 char* ITEM_NAMES[] = {
   [MYSTERY_BOX_ITEM_RESET_GATE] "",
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] "",
+  [MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS] "",
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] "Upgrade Weapon",
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] "Infinite Ammo",
   [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] "Invisibility Cloak",
@@ -56,12 +58,13 @@ char* ITEM_NAMES[] = {
   [MYSTERY_BOX_ITEM_WEAPON_MOD] "",
   [MYSTERY_BOX_ITEM_QUAD] "Quad",
   [MYSTERY_BOX_ITEM_SHIELD] "Shield",
-  [MYSTERY_BOX_ITEM_EMP_HEALTH_GUN] "Health Gun",
+  [MYSTERY_BOX_ITEM_EMP_HEALTH_GUN] "Health Tornado",
 };
 
 int ITEM_TEX_IDS[] = {
   [MYSTERY_BOX_ITEM_RESET_GATE] 14 - 3,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 132 - 3,
+  [MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS] 16 - 3,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 37 - 3,
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] 93 - 3,
   [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] 140 - 3,
@@ -77,6 +80,7 @@ int ITEM_TEX_IDS[] = {
 u32 ITEM_COLORS[] = {
   [MYSTERY_BOX_ITEM_RESET_GATE] 0x8000FFFF,
   [MYSTERY_BOX_ITEM_TEDDY_BEAR] 0x80808080,
+  [MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_UPGRADE_WEAPON] 0x80FFFFFF,
   [MYSTERY_BOX_ITEM_INFINITE_AMMO] 0x8000FFFF,
   [MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK] 0x80FFFFFF,
@@ -98,6 +102,17 @@ int ALPHA_MOD_TEX_IDS[] = {
   [ALPHA_MOD_JACKPOT] 49 - 3,
   [ALPHA_MOD_XP] 44 - 3,
 };
+
+const int ENABLED_ALPHA_MODS[] = {
+  ALPHA_MOD_SPEED,
+  ALPHA_MOD_AMMO,
+  ALPHA_MOD_IMPACT,
+  ALPHA_MOD_AREA,
+  ALPHA_MOD_JACKPOT,
+  ALPHA_MOD_XP
+};
+
+const int ENABLED_ALPHA_MODS_COUNT = COUNT_OF(ENABLED_ALPHA_MODS);
 
 const char * ALPHA_MODS[] = {
 	"",
@@ -149,15 +164,74 @@ int mboxGetAlphaMod(Moby* moby)
 
   struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
   
-	int alphaMod = (pvars->Random % 7) + 1;
-
-  return alphaMod;
+  return ENABLED_ALPHA_MODS[pvars->Random % ENABLED_ALPHA_MODS_COUNT];
 }
 
 //--------------------------------------------------------------------------
 float mboxRand(void)
 {
   return randRange(0, 1);
+}
+
+//--------------------------------------------------------------------------
+void mboxRandomizeWeaponPickups(void)
+{
+	int i,j;
+	GameOptions* gameOptions = gameGetOptions();
+	char wepCounts[9];
+	char wepEnabled[17];
+	int pickupCount = 0;
+	int pickupOptionCount = 0;
+	memset(wepEnabled, 0, sizeof(wepEnabled));
+	memset(wepCounts, 0, sizeof(wepCounts));
+
+	if (gameOptions->WeaponFlags.DualVipers) { wepEnabled[2] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.MagmaCannon) { wepEnabled[3] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.Arbiter) { wepEnabled[4] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.FusionRifle) { wepEnabled[5] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.MineLauncher) { wepEnabled[6] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.B6) { wepEnabled[7] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.Holoshield) { wepEnabled[16] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.Flail) { wepEnabled[12] = 1; pickupOptionCount++; }
+	if (gameOptions->WeaponFlags.Chargeboots) { wepEnabled[13] = 1; pickupOptionCount++; }
+
+	if (pickupOptionCount > 0) {
+		Moby* moby = mobyListGetStart();
+		Moby* mEnd = mobyListGetEnd();
+
+		while (moby < mEnd) {
+			if (moby->OClass == MOBY_ID_WEAPON_PICKUP && moby->PVar) {
+				
+				int target = pickupCount / pickupOptionCount;
+				int gadgetId = 1;
+				if (target < 2) {
+					do { j = rand(pickupOptionCount); } while (wepCounts[j] != target);
+
+					++wepCounts[j];
+
+					i = -1;
+					do
+					{
+						++i;
+						if (wepEnabled[i])
+							--j;
+					} while (j >= 0);
+
+					gadgetId = i;
+				}
+
+				// set pickup
+#if LOG_STATS2
+				DPRINTF("setting pickup at %08X to %d\n", (u32)moby, gadgetId);
+#endif
+				((void (*)(Moby*, int))0x0043A370)(moby, gadgetId);
+
+				++pickupCount;
+			}
+
+			++moby;
+		}
+	}
 }
 
 //--------------------------------------------------------------------------
@@ -360,6 +434,9 @@ void mboxDraw(Moby* moby)
     texId = ALPHA_MOD_TEX_IDS[mboxGetAlphaMod(moby)];
   }
 
+  // save
+  pvars->ItemTexId = texId;
+
   // determine how far out to draw the sprite
   float openFactor = clamp((gameGetTime() - pvars->ActivatedTime) / (1.0 * TIME_SECOND), 0, 1);
   if (moby->State == MYSTERY_BOX_STATE_CLOSING) {
@@ -382,7 +459,7 @@ void mboxDraw(Moby* moby)
   quad.VertexUVs[1] = (struct UV){1,0};
   quad.VertexUVs[2] = (struct UV){0,1};
   quad.VertexUVs[3] = (struct UV){1,1};
-	quad.Clamp = 1;
+	quad.Clamp = 0x0000000100000001;
 	quad.Tex0 = gfxGetFrameTex(texId);
 	quad.Tex1 = 0xFF9000000260;
 	quad.Alpha = 0x8000000044;
@@ -432,8 +509,19 @@ void mboxUpdate(Moby* moby)
     activatedByPlayer = NULL;
 
 	// post draw
-  if (moby->State != MYSTERY_BOX_STATE_HIDDEN)
+  if (moby->State != MYSTERY_BOX_STATE_HIDDEN) {
     gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&mboxDraw, moby);
+
+    int blipIdx = radarGetBlipIndex(moby);
+    if (blipIdx >= 0) {
+      RadarBlip * blip = radarGetBlips() + blipIdx;
+      blip->X = moby->Position[0];
+      blip->Y = moby->Position[1];
+      blip->Life = 0x1F;
+      blip->Type = 4;
+      blip->Team = TEAM_YELLOW;
+    }
+  }
 
   // handle state
   switch (moby->State)
@@ -460,6 +548,7 @@ void mboxUpdate(Moby* moby)
       {
         case MYSTERY_BOX_ITEM_RESET_GATE:
         case MYSTERY_BOX_ITEM_TEDDY_BEAR:
+        case MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS:
         {
           if ((activatedByPlayer && activatedByPlayer->IsLocal) || (gameAmIHost() && !activatedByPlayer)) {
             mboxGivePlayer(moby, pvars->ActivatedByPlayerId, pvars->Item, pvars->Random);
@@ -494,7 +583,7 @@ void mboxUpdate(Moby* moby)
         {
           case MYSTERY_BOX_ITEM_UPGRADE_WEAPON:
           {
-            sprintf(buf, "\x11 %s", ITEM_NAMES[pvars->Item]);
+            snprintf(buf, sizeof(buf), "\x11 %s", ITEM_NAMES[pvars->Item]);
             random = players[pvars->ActivatedByPlayerId]->WeaponHeldId;
             showInteract = 1;
             break;
@@ -509,14 +598,14 @@ void mboxUpdate(Moby* moby)
           case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
           case MYSTERY_BOX_ITEM_DREAD_TOKEN:
           {
-            sprintf(buf, "\x11 %s", ITEM_NAMES[pvars->Item]);
+            snprintf(buf, sizeof(buf), "\x11 %s", ITEM_NAMES[pvars->Item]);
             showInteract = 1;
             break;
           }
           case MYSTERY_BOX_ITEM_WEAPON_MOD:
           {
             random = mboxGetAlphaMod(moby);
-            sprintf(buf, "\x11 %s", ALPHA_MODS[random]);
+            snprintf(buf, sizeof(buf), "\x11 %s", ALPHA_MODS[random]);
             showInteract = 1;
             break;
           }
@@ -526,13 +615,13 @@ void mboxUpdate(Moby* moby)
           }
         }
 
-        if (showInteract && tryPlayerInteract(moby, players[pvars->ActivatedByPlayerId], buf, 0, 0, PLAYER_MYSTERY_BOX_COOLDOWN_TICKS, 9)) {
+        if (showInteract && tryPlayerInteract(moby, players[pvars->ActivatedByPlayerId], buf, NULL, 0, 0, PLAYER_MYSTERY_BOX_COOLDOWN_TICKS, 9, PAD_CIRCLE)) {
           mboxGivePlayer(moby, pvars->ActivatedByPlayerId, pvars->Item, random);
         }
       }
 
       // transition to next state after
-#if DEBUGMBOX
+#if DEBUGMBOX1
       mobySetState(moby, MYSTERY_BOX_STATE_BEFORE_CLOSING, -1);
       pvars->StateChangedAtTime = gameGetTime();
       pvars->TicksSinceLastStateChanged = 0;
@@ -584,9 +673,9 @@ void mboxUpdate(Moby* moby)
       // find local players to activate
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
         int cost = MYSTERY_BOX_COST + (MYSTERY_BOX_COST_PER_VOX * pvars->NumVoxPerPlayer[i]);
-        sprintf(buf, "\x11 Open [\x0E%d\x08]", cost);
+        snprintf(buf, sizeof(buf), "\x11 Open [\x0E%'d\x08]", cost);
 
-        if (tryPlayerInteract(moby, players[i], buf, cost, 0, PLAYER_MYSTERY_BOX_COOLDOWN_TICKS, 9)) {
+        if (tryPlayerInteract(moby, players[i], buf, NULL, cost, 0, PLAYER_MYSTERY_BOX_COOLDOWN_TICKS, 9, PAD_CIRCLE)) {
           mboxActivate(moby, i);
           break;
         }
@@ -656,9 +745,10 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
   int i;
   for (i = 0; i < MysteryBoxItemProbabilitiesLuckyCount; ++i) {
     int it = MysteryBoxItemProbabilitiesLucky[i].Item;
+    char* str = ITEM_NAMES[it];
     float p = MysteryBoxItemCounts[it] / (float)MysteryBoxTotalRolls;
-    if (strlen(item) > 0) {
-      printf("%s: %d (%f of %f)\n", it, MysteryBoxItemCounts[it], p, MysteryBoxItemProbabilitiesLucky[i].Probability);
+    if (strlen(str) > 0) {
+      printf("%s: %d (%f of %f)\n", str, MysteryBoxItemCounts[it], p, MysteryBoxItemProbabilitiesLucky[i].Probability);
     } else {
       printf("%d: %d (%f of %f)\n", it, MysteryBoxItemCounts[it], p, MysteryBoxItemProbabilitiesLucky[i].Probability);
     }
@@ -748,6 +838,14 @@ int mboxHandleEvent_GivePlayer(Moby* moby, GuberEvent* event)
 #if !DEBUGMBOX
           mboxSetRandomRespawn(moby, pvars->Random);
 #endif
+          break;
+        }
+        case MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS:
+        {
+          if (gameAmIHost()) {
+            mboxRandomizeWeaponPickups();
+          }
+          pushSnack(-1, "Weapon Pickups Randomized!", TPS);
           break;
         }
         case MYSTERY_BOX_ITEM_ACTIVATE_POWER:

@@ -41,22 +41,24 @@ void gateSetCollision(int collActive);
 void powerNodeUpdate(Moby* moby);
 void gateInit(void);
 void gateSpawn(VECTOR gateData[], int count);
-void gasTick(void);
 void mobInit(void);
 void mobTick(void);
 void configInit(void);
 void pathTick(void);
+void stackableInit(void);
+void stackableTick(void);
 
-int isMobyInGasArea(Moby* moby);
+void frameTick(void);
 
 int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 
 int aaa = 47;
 
 
-char LocalPlayerStrBuffer[2][48];
+char LocalPlayerStrBuffer[2][64];
 
 // set by mode
 extern SurvivalBakedConfig_t bakedConfig;
@@ -64,6 +66,7 @@ struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
   .Magic = MAP_CONFIG_MAGIC,
 	.State = NULL,
   .BakedConfig = &bakedConfig,
+  .OnFrameTickFunc = &frameTick
 };
 
 // gate locations
@@ -74,13 +77,28 @@ VECTOR GateLocations[] = {
   { 383.24, 652.23, 430.44, 6.5 }, { 383.24, 638.23, 430.44, 2 },
   { 359.28, 614.63, 430.44, 6.5 }, { 373.28, 614.63, 430.44, 3 },
   { 359.28, 576.26, 430.44, 6.5 }, { 373.28, 576.26, 430.44, 1 },
-  { 470.88, 607.19, 439.14, 9 }, { 470.88, 593.19, 439.14, 6 },
-  { 488.89, 523.54, 430.11, 6.5 }, { 488.89, 509.54, 430.11, 4 },
-  { 488.89, 690.17, 430.11, 6.5 }, { 488.89, 676.17, 430.11, 4 },
-  { 553.5787, 618.6273, 430.11, 6.5 }, { 563.3413, 608.5927, 430.11, 0 },
-  { 587.5181, 599.4265, 430.11, 6.5 }, { 598.042, 590.1935, 430.11, 0 },
 };
 const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
+
+//--------------------------------------------------------------------------
+void mapReturnPlayersToMap(void)
+{
+  int i;
+  VECTOR p;
+
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* player = playerGetFromSlot(i);
+    if (!player || !player->SkinMoby) continue;
+
+    // if we're under the map, teleport back up
+    if (player->PlayerPosition[2] < (gameGetDeathHeight() + 1)) {
+      vector_fromyaw(p, (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU - MATH_PI);
+      vector_scale(p, p, 2.5);
+      vector_add(p, p, bakedConfig.BakedSpawnPoints[0].Position);
+      playerSetPosRot(player, p, bakedConfig.BakedSpawnPoints[0].Rotation);
+    }
+  }
+}
 
 //--------------------------------------------------------------------------
 void mobForceIntoMapBounds(Moby* moby)
@@ -108,15 +126,6 @@ void mobForceIntoMapBounds(Moby* moby)
 //--------------------------------------------------------------------------
 int mapPathCanBeSkippedForTarget(Moby* moby)
 {
-  if (!moby || !moby->PVar)
-    return 1;
-
-  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-
-  // can't skip if target is in gas
-  if (pvars->MobVars.Target && isMobyInGasArea(pvars->MobVars.Target))
-    return 0;
-
   return 1;
 }
 
@@ -140,6 +149,10 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
     case MOB_SPAWN_PARAM_NORMAL:
     {
       return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
+    }
+    case MOB_SPAWN_PARAM_SWARMER:
+    {
+      return swarmerCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
     default:
     {
@@ -183,6 +196,12 @@ void bboxSpawn(void)
 }
 
 //--------------------------------------------------------------------------
+void frameTick(void)
+{
+  sboxFrameTick();
+}
+
+//--------------------------------------------------------------------------
 void initialize(void)
 {
   static int initialized = 0;
@@ -193,13 +212,14 @@ void initialize(void)
   MapConfig.WeaponPickupCooldownFactor = 1;
 
   gateInit();
-  wraithInit();
-  //surgeInit();
   mboxInit();
   mobInit();
   configInit();
   upgradeInit();
   dropInit();
+  bboxInit();
+  sboxInit();
+  stackableInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
   // only have gate collision on when processing players
@@ -212,22 +232,6 @@ void initialize(void)
 
   initialized = 1;
 }
-
-
-SoundDef def =
-{
-	0.0,	// MinRange
-	50.0,	// MaxRange
-	100,		// MinVolume
-	10000,		// MaxVolume
-	0,			// MinPitch
-	0,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	95,    // 98, 95, 
-	3			  // Bank
-};
-
 
 /*
  * NAME :		main
@@ -253,10 +257,21 @@ int main (void)
   // init
   initialize();
 
+  //
+  if (MapConfig.ClientsReady || !netGetDmeServerConnection())
+  {
+    mboxSpawn();
+    //bboxSpawn();
+    sboxSpawn();
+    gateSpawn(GateLocations, GateLocationsCount);
+  }
+
   mobTick();
   pathTick();
   upgradeTick();
   dropTick();
+  stackableTick();
+  mapReturnPlayersToMap();
 
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;
@@ -279,97 +294,6 @@ int main (void)
   }
 #endif
 
-#if DEBUG
-  dlPreUpdate();
-  Player* localPlayer = playerGetFromSlot(0);
-  // if (padGetButtonDown(0, PAD_LEFT) > 0) {
-  //   --aaa;
-  //   DPRINTF("%d\n", aaa);
-  // }
-  // else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-  //   ++aaa;
-  //   DPRINTF("%d\n", aaa);
-  // }
-
-  static int handle = 0;
-  if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-    aaa += 1;
-    def.Index = aaa;
-    if (handle)
-      soundKillByHandle(handle);
-    int id = soundPlay(&def, 0, playerGetFromSlot(0)->PlayerMoby, 0, 0x400);
-    if (id >= 0)
-      handle = soundCreateHandle(id);
-    else
-      handle = 0;
-    DPRINTF("%d\n", aaa);
-  }
-  else if (padGetButtonDown(0, PAD_LEFT) > 0) {
-    aaa -= 1;
-    def.Index = aaa;
-    if (handle)
-      soundKillByHandle(handle);
-    int id = soundPlay(&def, 0, playerGetFromSlot(0)->PlayerMoby, 0, 0x400);
-    if (id >= 0)
-      handle = soundCreateHandle(id);
-    else
-      handle = 0;
-    DPRINTF("%d\n", aaa);
-  }
-
-  dlPostUpdate();
-#endif
-
-  gasTick();
   dlPostUpdate();
 	return 0;
-}
-
-void nodeUpdate(Moby* moby)
-{
-  static int initialized = 0;
-  if (!initialized) {
-    DPRINTF("node %08X bolt:%08X\n", (u32)moby, *(u32*)(moby->PVar + 0xC));
-    initialized = 1;
-  }
-
-  // init
-  initialize();
-  
-  // enable cq
-  GameOptions* gameOptions = gameGetOptions();
-  if (gameOptions) {
-    gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
-    //gameOptions->GameFlags.MultiplayerGameFlags.Lockdown = 1;
-    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 1;
-  }
-
-  //
-  powerNodeUpdate(moby);
-
-  // disable deleting node if not CQ
-  POKE_U32(0x003D16DC, 0x1000001D);
-
-  // disable node captured popup
-  POKE_U32(0x003D2E6C, 0);
-
-  // increase number of turns to turn on power
-  POKE_U32(0x003D2530, 0x3C014000);
-
-  // call base node base update
-  ((void (*)(Moby*))0x003D13C0)(moby);
-
-  if (MapConfig.ClientsReady || !netGetDmeServerConnection())
-  {
-    static int asd = 0;
-    if (!asd) {
-      asd = 1;
-    }
-
-    mboxSpawn();
-    wraithSpawn();
-    bboxSpawn();
-    //surgeSpawn();
-    gateSpawn(GateLocations, GateLocationsCount);
-  }
 }

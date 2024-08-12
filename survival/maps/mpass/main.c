@@ -48,6 +48,8 @@ void mobInit(void);
 void mobTick(void);
 void configInit(void);
 void pathTick(void);
+void blessingsInit(void);
+void blessingsTick(void);
 
 int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
@@ -55,7 +57,7 @@ int tremorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 int reaperCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 
-char LocalPlayerStrBuffer[2][48];
+char LocalPlayerStrBuffer[2][64];
 char HasEquippedNewBlessing[GAME_MAX_PLAYERS];
 
 int aaa = 0;
@@ -496,6 +498,7 @@ void initialize(void)
   upgradeInit();
   dropInit();
   bboxInit();
+  blessingsInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
   memset(HasEquippedNewBlessing, 0, sizeof(HasEquippedNewBlessing));
@@ -573,6 +576,7 @@ int main (void)
   pathTick();
   upgradeTick();
   dropTick();
+  blessingsTick();
   updateUnlockedBlessingSlots();
   updateBossMeter();
   updateBlessingTotems();

@@ -19,8 +19,5 @@
 _start:
 	j main
 	nop
-
-_nodeUpdate:
-	j nodeUpdate
 	nop
-
+	nop

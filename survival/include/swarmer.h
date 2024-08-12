@@ -20,6 +20,7 @@
 #define SWARMER_ANIM_ATTACK_TICKS							(30)
 #define SWARMER_TIMEBOMB_TICKS								(60 * 2)
 #define SWARMER_FLINCH_COOLDOWN_TICKS				  (60 * 7)
+#define SWARMER_KNOCKBACK_MULTIPLIER				  (2.0)
 #define SWARMER_ACTION_COOLDOWN_TICKS					(30)
 #define SWARMER_RESPAWN_AFTER_TICKS						(60 * 30)
 #define SWARMER_BASE_COLL_RADIUS							(0.5)
@@ -27,7 +28,7 @@
 #define SWARMER_AMBSND_MIN_COOLDOWN_TICKS    	(60 * 2)
 #define SWARMER_AMBSND_MAX_COOLDOWN_TICKS    	(60 * 3)
 #define SWARMER_FLINCH_PROBABILITY            (1.0)
-#define SWARMER_FLINCH_PROBABILITY_PWR_FACTOR (0.05)
+#define SWARMER_FLINCH_PROBABILITY_PWR_FACTOR (0.1)
 
 enum SwarmerAnimId
 {
@@ -50,6 +51,14 @@ enum SwarmerAnimId
 	SWARMER_ANIM_FLINCH_SPIN_AND_STAND2
 };
 
+enum SwarmerSoundId
+{
+	SWARMER_SOUND_SPAWN_EXPLOSION = 0,
+	SWARMER_SOUND_GRUNT = 3,
+	SWARMER_SOUND_GRUNT_LOW = 4,
+	SWARMER_SOUND_GRUNT_QUIET = 5,
+};
+
 enum SwarmerAction
 {
 	SWARMER_ACTION_SPAWN,
@@ -70,10 +79,5 @@ enum SwarmerSubskeletonJoints
 {
   SWARMER_SUBSKELETON_JOINT_JAW = 0,
 };
-
-extern int swarmerAmbientSoundIds[];
-extern const int swarmerAmbientSoundIdsCount;
-extern int swarmerHitSoundId;
-extern int swarmerDeathSoundId;
 
 #endif // SURVIVAL_MOB_SWARMER_H

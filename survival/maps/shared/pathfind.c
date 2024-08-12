@@ -38,6 +38,17 @@ u8* pathGetPathAt(int fromNodeIdx, int toNodeIdx)
 }
 
 //--------------------------------------------------------------------------
+void pathGetSegment(u8* currentEdge, VECTOR fromNodePos, VECTOR toNodePos)
+{
+  if (!currentEdge) return;
+
+  vector_copy(fromNodePos, MOB_PATHFINDING_NODES[currentEdge[0]]);
+  vector_copy(toNodePos, MOB_PATHFINDING_NODES[currentEdge[1]]);
+  fromNodePos[3] = 0;
+  toNodePos[3] = 0;
+}
+
+//--------------------------------------------------------------------------
 float pathGetSegmentAlpha(Moby* moby, u8* currentEdge)
 {
   VECTOR startNodeToEndNode, startNodeToMoby;
@@ -166,8 +177,10 @@ int pathCanBeSkippedForTarget(Moby* moby)
     if (PATH_EDGE_IS_EMPTY(edge))
       break;
 
-    if (MOB_PATHFINDING_EDGES_REQUIRED[edge] > 0 || MOB_PATHFINDING_EDGES_JUMPPADSPEED[edge] > 0)
+    if (MOB_PATHFINDING_EDGES_REQUIRED[edge] > 0 || MOB_PATHFINDING_EDGES_JUMPPADSPEED[edge] > 0) {
+      DPRINTF("CANNOT SKIP PATH WITH JUMP %d=>%d\n", MOB_PATHFINDING_EDGES[edge][0], MOB_PATHFINDING_EDGES[edge][1]);
       return 0;
+    }
   }
 
   return 1;
@@ -228,8 +241,9 @@ int pathGetClosestNodeInSight(Moby* moby, int * foundInSight)
   for (i = 0; i < MOB_PATHFINDING_NODES_COUNT; ++i) {
 
     vector_subtract(delta, MOB_PATHFINDING_NODES[i], position);
+    float radius = delta[3];
     delta[3] = 0;
-    float dist = nodeDists[i] = vector_length(delta);
+    float dist = nodeDists[i] = maxf(0, vector_length(delta) - radius);
 
     // if obstructed then increase distance by factor
     //if (CollLine_Fix(position, MOB_PATHFINDING_NODES[i], COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL))
@@ -255,10 +269,20 @@ int pathGetClosestNodeInSight(Moby* moby, int * foundInSight)
 #endif
     
     for (i = 0; i < CLOSEST_NODES_COLL_CHECK_SIZE; ++i) {
-      vector_subtract(delta, MOB_PATHFINDING_NODES[(u8)orderedNodesByDist[i]], position);
-      vector_scale(delta, delta, collRadius / nodeDists[(u8)orderedNodesByDist[i]]);
-      vector_subtract(from, position, delta);
-      if (orderedNodesByDist[i] >= 0 && !CollLine_Fix(from, MOB_PATHFINDING_NODES[(u8)orderedNodesByDist[i]], COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
+      VECTOR nodePos;
+      vector_copy(nodePos, MOB_PATHFINDING_NODES[(u8)orderedNodesByDist[i]]);
+      float radius = nodePos[3];
+
+      // moby to node
+      // compute closest point on node to moby (flat)
+      vector_subtract(delta, nodePos, position);
+      delta[3] = 0; delta[2] = 0;
+      vector_normalize(delta, delta);
+      vector_scale(delta, delta, radius);
+      vector_subtract(nodePos, nodePos, delta);
+
+      // check if closest point is obstructed
+      if (orderedNodesByDist[i] >= 0 && !CollLine_Fix(position, nodePos, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
         if (foundInSight)
           *foundInSight = 1;
 
@@ -321,12 +345,12 @@ int pathShouldFindNewPath(Moby* moby)
     return 1;
   }
 
-  int closestNodeIdxToTarget = pathTargetCacheGetClosestNodeIdx(pvars->MobVars.Target);
   int lastEdge = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCount-1];
   if (PATH_EDGE_IS_EMPTY(lastEdge)) {
     return 1;
   }
 
+  int closestNodeIdxToTarget = pathTargetCacheGetClosestNodeIdx(pvars->MobVars.Target);
   if (MOB_PATHFINDING_EDGES[lastEdge][1] != closestNodeIdxToTarget) {
     return 1;
   }
@@ -574,42 +598,39 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
 
   // check if we can just go straight to the target
   if (!pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks && pvars->MobVars.Target && !pvars->MobVars.MoveVars.PathHasReachedEnd) {
-    
-    if (pathCanBeSkippedForTarget(moby)) {
+  
+    int lockOntoPlayer = 0;
 
-      int lockOntoPlayer = 0;
+    // if target is near and in sight
+    // skip rest of path and go straight towards target
+    vector_subtract(delta, pvars->MobVars.Target->Position, moby->Position);
+    vector_add(from, moby->Position, up);
+    vector_add(to, pvars->MobVars.Target->Position, up);
 
-      // if target is near and in sight
-      // skip rest of path and go straight towards target
-      vector_subtract(delta, pvars->MobVars.Target->Position, moby->Position);
-      vector_add(from, moby->Position, up);
-      vector_add(to, pvars->MobVars.Target->Position, up);
+    // near and can see
+    if (vector_sqrmag(delta) < (MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH*MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH) && !CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
 
-      // near and can see
-      if (vector_sqrmag(delta) < (MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH*MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH) && !CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
+      // not in opposite direction of current edge
+      u8* currentEdge = pathGetCurrentEdge(moby);
+      if (currentEdge) {
+        vector_subtract(edgeDir, MOB_PATHFINDING_NODES[currentEdge[1]], MOB_PATHFINDING_NODES[currentEdge[0]]);
+        edgeDir[3] = 0;
+        vector_normalize(edgeDir, edgeDir);
+        vector_normalize(delta, delta);
 
-        // not in opposite direction of current edge
-        u8* currentEdge = pathGetCurrentEdge(moby);
-        if (currentEdge) {
-          vector_subtract(edgeDir, MOB_PATHFINDING_NODES[currentEdge[1]], MOB_PATHFINDING_NODES[currentEdge[0]]);
-          edgeDir[3] = 0;
-          vector_normalize(edgeDir, edgeDir);
-          vector_normalize(delta, delta);
-
-          if (vector_innerproduct(edgeDir, delta) > 0.3) {
-            lockOntoPlayer = 1;
-          }
+        if (vector_innerproduct(edgeDir, delta) > 0.3) {
+          lockOntoPlayer = 1;
         }
-        
-        if (lockOntoPlayer) {
-          pvars->MobVars.MoveVars.PathEdgeCurrent = pvars->MobVars.MoveVars.PathEdgeCount;
-        }
-      } else if (pvars->MobVars.MoveVars.PathEdgeCurrent && pvars->MobVars.MoveVars.PathEdgeCurrent == pvars->MobVars.MoveVars.PathEdgeCount) {
-        pathGetPath(moby);
       }
-
-      pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks = TPS;
+      
+      if (lockOntoPlayer && pathCanBeSkippedForTarget(moby)) {
+        pvars->MobVars.MoveVars.PathEdgeCurrent = pvars->MobVars.MoveVars.PathEdgeCount;
+      }
+    } else if (pvars->MobVars.MoveVars.PathEdgeCurrent && pvars->MobVars.MoveVars.PathEdgeCurrent == pvars->MobVars.MoveVars.PathEdgeCount) {
+      pathGetPath(moby);
     }
+
+    pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks = TPS;
   }
 
   // check if we've reached the current node
@@ -739,7 +760,6 @@ float pathGetJumpSpeed(Moby* moby)
 //--------------------------------------------------------------------------
 int pathShouldJump(Moby* moby)
 {
-  VECTOR startNodeToMoby, startNodeToEndNode;
   if (!moby || !moby->PVar)
     return 0;
 
@@ -770,7 +790,7 @@ int pathShouldJump(Moby* moby)
 
     // update
     pvars->MobVars.MoveVars.LastPathEdgeAlphaForJump = pvars->MobVars.MoveVars.PathEdgeAlpha;
- 
+
     // we've stepped over threshold for when to jump in the last frame
     if (jumpSpeed > 0 && lastDistOnEdge <= jumpAt && pvars->MobVars.MoveVars.PathEdgeAlpha > jumpAt) {
 #if DEBUGPATH

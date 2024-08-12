@@ -17,7 +17,7 @@ extern struct SurvivalMapConfig MapConfig;
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
 void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, float damageRadius);
 void playPaidSound(Player* player);
-int tryPlayerInteract(Moby* moby, Player* player, char* message, int boltCost, int tokenCost, int actionCooldown, float sqrDistance);
+int tryPlayerInteract(Moby* moby, Player* player, char* message, char* lowerMessage, int boltCost, int tokenCost, int actionCooldown, float sqrDistance, int btns);
 GuberEvent* guberCreateEvent(Moby* moby, u32 eventType);
 
 struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);
@@ -31,6 +31,7 @@ u16 decTimerU16(u16* timeValue);
 u32 decTimerU32(u32* timeValue);
 
 void pushSnack(int localPlayerIdx, char* string, int ticksAlive);
+void uiShowLowerPopup(int localPlayerIdx, int msgStringId);
 
 int isInDrawDist(Moby* moby);
 
@@ -38,9 +39,12 @@ int mobyIsMob(Moby* moby);
 Player* mobyGetPlayer(Moby* moby);
 Moby* playerGetTargetMoby(Player* player);
 int playerHasBlessing(int playerId, int blessing);
+int playerGetStackableCount(int playerId, int stackable);
 
 void draw3DMarker(VECTOR position, float scale, u32 color, char* str);
 
 void playDialog(short dialogId, int force);
+
+void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 
 #endif // SURVIVAL_MAP_UTILS_H

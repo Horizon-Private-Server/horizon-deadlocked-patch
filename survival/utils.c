@@ -70,26 +70,6 @@ void playPaidSound(Player* player)
   soundPlay(&PaidSoundDef, 0, player->PlayerMoby, 0, 0x400);
 }
 
-int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod)
-{
-	int i, c = 0;
-	if (!player)
-		return 0;
-	
-	GadgetBox* gBox = player->GadgetBox;
-	if (!gBox)
-		return 0;
-
-	// count
-	for (i = 0; i < 10; ++i)
-	{
-		if (gBox->Gadgets[weaponId].AlphaMods[i] == alphaMod)
-			++c;
-	}
-
-	return c;
-}
-
 int getWeaponIdFromOClass(short oclass)
 {
 	int weaponId = -1;
@@ -357,4 +337,21 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
       break;
     }
   }
+}
+
+//--------------------------------------------------------------------------
+int playerHasBlessing(int playerId, int blessing)
+{
+  int i;
+  for (i = 0; i < PLAYER_MAX_BLESSINGS; ++i) {
+    if (State.PlayerStates[playerId].State.ItemBlessings[i] == blessing) return 1;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int playerGetStackableCount(int playerId, int stackable)
+{
+  return State.PlayerStates[playerId].State.ItemStackable[stackable];
 }

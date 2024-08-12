@@ -5003,7 +5003,7 @@ void runPayloadDownloadRequester(void)
 {
 	GameModule * module = GLOBAL_GAME_MODULES_START;
 	GameSettings* gs = gameGetSettings();
-	if (!gs || !isInMenus()) {
+	if (!gs) {
 		
     if (dlIsActive == 201) {
       dlIsActive = 0;

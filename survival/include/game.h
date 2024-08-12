@@ -11,6 +11,7 @@
 #include "gate.h"
 #include "mysterybox.h"
 #include "bankbox.h"
+#include "stackbox.h"
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
@@ -27,6 +28,9 @@
 #define BIGAL_MOBY_OCLASS                     (0x2124)
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
+
+#define MOBS_PLAY_SOUND_COOLDOWN              (10)
+#define MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS (20)
 
 #define MAX_MOBS_BASE													(10)
 #define MAX_MOBS_ROUND_WEIGHT									(10)
@@ -105,8 +109,8 @@
 #define PLAYER_TIME_TO_REVIVE_TICKS		        (5 * TPS)
 #define PLAYER_REVIVE_MAX_DIST								(2.5)
 #define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
-#define PLAYER_KNOCKBACK_BASE_POWER						(1.5)
-#define PLAYER_KNOCKBACK_BASE_TICKS						(5)
+#define PLAYER_KNOCKBACK_BASE_POWER						(3.0)
+#define PLAYER_KNOCKBACK_BASE_TICKS						(10)
 #define PLAYER_COLL_RADIUS          					(0.5)
 #define PLAYER_MAX_BLESSINGS                  (4)
 
@@ -135,11 +139,21 @@
 #define ITEM_QUAD_DURATION_TPS                (1*60*TPS)
 #define ITEM_SHIELD_DURATION_TPS              (1*60*TPS)
 #define ITEM_EMP_HEALTH_EFFECT_RADIUS         (15)
+#define ITEM_HEALTHTORNADO_DURATION           (10*TIME_SECOND)
+#define ITEM_HEALTHTORNADO_PERIOD_TICKS       (TPS * 0.25)
+#define ITEM_HEALTHTORNADO_HEAL_PERCENT       (0.05)
 
 #define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 0.2)
 #define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 5)
 #define ITEM_BLESSING_THORN_DAMAGE_FACTOR     (0.2)
 #define ITEM_BLESSING_MULTI_JUMP_COUNT        (5)
+
+#define ITEM_STACKABLE_HOVERBOOTS_DUR_TPS     (2 * TPS)
+#define ITEM_STACKABLE_HOVERBOOTS_SPEED_BUF   (0.1)
+#define ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_FAC (1.5)
+#define ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_RAMP (0.5)
+#define ITEM_STACKABLE_ALPHA_MOD_AMT          (2)
+#define ITEM_STACKABLE_VAMPIRE_HEALTH_AMT     (3)
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
@@ -150,6 +164,8 @@
 #define MOB_COMPLEXITY_SKIN_FACTOR            (500)
 #define MAX_MOB_COMPLEXITY_MIN                (1000)
 #define MOB_COMPLEXITY_LOD_FACTOR             (500)
+#define MOB_MAX_FLINCH_PROBABILITY            (0.25)
+#define MOB_FORCED_BLIP_COOLDOWN_TICKS        (TPS * 5)
 
 #define SWARMER_RENDER_COST                   (40)
 #define ZOMBIE_RENDER_COST                    (85)
@@ -186,6 +202,7 @@ enum BakedSpawnpointType
 	BAKED_SPAWNPOINT_PLAYER_START = 2,
 	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
 	BAKED_SPAWNPOINT_DEMON_BELL = 4,
+	BAKED_SPAWNPOINT_STACK_BOX = 5,
 };
 
 enum MobStatId
@@ -217,6 +234,20 @@ enum BlessingItemId
   BLESSING_ITEM_COUNT
 };
 
+enum StackableItemId
+{
+  STACKABLE_ITEM_LOW_HEALTH_DMG_BUF     = 0, // stack dmg buf
+  STACKABLE_ITEM_EXTRA_JUMP             = 1, // stack +1 jump
+  STACKABLE_ITEM_EXTRA_SHOT             = 2, // stack +1 shot (dmg mult)
+  STACKABLE_ITEM_HOVERBOOTS             = 3, // stack movement speed
+  STACKABLE_ITEM_ALPHA_MOD_SPEED        = 4, // stack +2 speed mod
+  STACKABLE_ITEM_ALPHA_MOD_IMPACT       = 5, // stack +2 impact mod
+  STACKABLE_ITEM_ALPHA_MOD_AREA         = 6, // stack +2 area mod
+  STACKABLE_ITEM_ALPHA_MOD_AMMO         = 7, // stack +2 ammo mod
+  STACKABLE_ITEM_VAMPIRE                = 8, // stack +X health gain
+  STACKABLE_ITEM_COUNT
+};
+
 struct MobConfig;
 struct MobSpawnEventArgs;
 struct MobSpawnParams;
@@ -239,6 +270,8 @@ typedef int (*HandleUpgradePickupEvent_func)(Moby* moby, GuberEvent* event);
 typedef void (*PickupUpgradePickup_func)(Moby* moby, int pickedUpByPlayerId);
 typedef int (*CreateMobDrop_func)(VECTOR position, enum DropType dropType, int destroyAtTime, int team);
 typedef int (*HandleMobDropEvent_func)(Moby* moby, GuberEvent* event);
+typedef int (*FrameTick_func)(void);
+
 
 typedef struct SurvivalBakedSpawnpoint
 {
@@ -251,6 +284,8 @@ typedef struct SurvivalBakedSpawnpoint
 typedef struct SurvivalBakedConfig
 {
 	float Difficulty;
+  float SpawnDistanceFactor;
+  int BoltRankMultiplier;
 	SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];
 } SurvivalBakedConfig_t;
 
@@ -279,6 +314,7 @@ struct SurvivalPlayerState
   char ItemBlessings[PLAYER_MAX_BLESSINGS];
   char WeaponPrestige[9];
 	char BestWeaponLevel[9];
+  u8 ItemStackable[STACKABLE_ITEM_COUNT];
 };
 
 struct SurvivalPlayer
@@ -290,6 +326,8 @@ struct SurvivalPlayer
 	int TimeOfDoublePoints;
 	int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
+  int HealthTornadoStopTime;
+  int HealthTornadoActivateTicks;
   int TicksSinceHealthChanged;
   int RevivingPlayerId;
 	u16 ReviveCooldownTicks;
@@ -342,6 +380,7 @@ struct SurvivalState
 	Moby* BigAl;
   Moby* PrestigeMachine;
   Moby* Bankbox;
+  Moby* Stackbox;
 	Moby* UpgradeMobies[UPGRADE_COUNT];
   Moby* GateMobies[GATE_MAX_COUNT];
   Moby* MysteryBoxMoby;
@@ -391,6 +430,7 @@ struct SurvivalMapConfig
   PickupUpgradePickup_func PickupUpgradeFunc;
   CreateMobDrop_func CreateMobDropFunc;
   HandleMobDropEvent_func OnMobDropEventFunc;
+  FrameTick_func OnFrameTickFunc;
 
   // misc
   float WeaponPickupCooldownFactor;
@@ -451,6 +491,12 @@ typedef struct SurvivalPlayerInteractBankBoxMessage
 	char PlayerId;
 	char Deposit;
 } SurvivalPlayerInteractBankBoxMessage_t;
+
+typedef struct SurvivalPlayerInteractStackBoxMessage
+{
+	char PlayerId;
+  char ItemId;
+} SurvivalPlayerInteractStackBoxMessage_t;
 
 typedef struct SurvivalWeaponUpgradeMessage
 {
@@ -533,6 +579,8 @@ extern const float BOLT_TAX[];
 extern const float DIFFICULTY_MAP[];
 extern const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[];
 extern const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[];
+extern const int ENABLED_ALPHA_MODS[];
+extern const int ENABLED_ALPHA_MODS_COUNT;
 
 struct GuberMoby* getGuber(Moby* moby);
 int handleEvent(Moby* moby, GuberEvent* event);

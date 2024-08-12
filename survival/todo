@@ -232,3 +232,34 @@ Fix wrapping of popup text (bank) on DZO
 ++Fix spawn cheese on mpass
 ++Fix revive angle
 ++Add commas to bank balance
+
+Have revive gun be an on trigger AoE instead of a gun
+Mbox item randomize weapon pickups
+Lower viper base ammo
+Increase base ammo of most weps
+
+Fix mbox sounds
+Refine zombie hit detection (hits side on but not frontal)
+Try to fix zombie jump triggering flinch sound
+
+Fix explosion zombies
+++Fix dzo mbox alpha mod icons
+++Fix dzo map
+++Fix stack box base collision
+++Set hbox nobox
+++Change name to Zombie Survival
+
+Add acquired perk
+Rename to perks
+Find missing mbox
+Fix jumping mobs
+Add reroll option to stackbox
+
+++Add explosion sphere
+Fix freeze jump air speed super slow
+++Fix hoverboot case
+++Fix trigger tornado after dead
+++Add perk icons
+++Explore more than 10 alpha mods
+++Add vampire
+++Add hoverboot boots

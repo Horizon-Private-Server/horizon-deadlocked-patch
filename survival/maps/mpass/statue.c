@@ -21,20 +21,6 @@ extern Moby* reactorActiveMoby;
 extern Moby* TeleporterMoby;
 extern int StatuesActivated;
 
-SoundDef StatueActivatedSoundDef =
-{
-	0.0,	// MinRange
-	50.0,	// MaxRange
-	100,		// MinVolume
-	1000,		// MaxVolume
-	0,			// MinPitch
-	0,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	392,    // 
-	3 		  // Bank
-};
-
 //--------------------------------------------------------------------------
 void statueDrawLightning(Moby* moby)
 {
@@ -180,7 +166,7 @@ int statueHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 	mobySetState(moby, state, -1);
 
   if (state == STATUE_STATE_ACTIVATED) {
-    soundPlay(&StatueActivatedSoundDef, 0, moby, 0, 0x400);
+    mobyPlaySoundByClass(0, 0, moby, 0x2751);
   }
 
   DPRINTF("statue state update: %08X => %d\n", (u32)moby, state);

@@ -28,11 +28,10 @@ void reaperDoAction(Moby* moby);
 void reaperDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 void reaperForceLocalAction(Moby* moby, int action);
 short reaperGetArmor(Moby* moby);
-
-void reaperPlayHitSound(Moby* moby);
-void reaperPlayAmbientSound(Moby* moby);
-void reaperPlayDeathSound(Moby* moby);
 int reaperIsAttacking(Moby* moby);
+int reaperCanNonOwnerTransitionToAction(Moby* moby, int action);
+int reaperShouldForceStateUpdateOnAction(Moby* moby, int action);
+
 int reaperIsSpawning(struct MobPVar* pvars);
 int reaperCanAttack(struct MobPVar* pvars);
 int reaperIsFlinching(Moby* moby);
@@ -54,19 +53,8 @@ struct MobVTable ReaperVTable = {
   .DoDamage = &reaperDoDamage,
   .GetArmor = &reaperGetArmor,
   .IsAttacking = &reaperIsAttacking,
-};
-
-SoundDef ReaperSoundDef = {
-	0.0,	  // MinRange
-	45.0,	  // MaxRange
-	0,		  // MinVolume
-	1228,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
+  .CanNonOwnerTransitionToAction = &reaperCanNonOwnerTransitionToAction,
+  .ShouldForceStateUpdateOnAction = &reaperShouldForceStateUpdateOnAction,
 };
 
 extern u32 MobPrimaryColors[];
@@ -115,12 +103,6 @@ void reaperPreUpdate(Moby* moby)
   if (mobIsFrozen(moby))
     return;
 
-  // ambient sounds
-	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0) {
-		reaperPlayAmbientSound(moby);
-		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(REAPER_AMBSND_MIN_COOLDOWN_TICKS, REAPER_AMBSND_MAX_COOLDOWN_TICKS);
-	}
-  
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
@@ -237,6 +219,10 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
             && pvars->MobVars.Action != REAPER_ACTION_BIG_FLINCH
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
+#if ALWAYS_FLINCH
+  canFlinch = 1;
+#endif
+
   int isShock = e->DamageFlags & 0x40;
   int isShortFreeze = e->DamageFlags & 0x40000000;
 
@@ -269,6 +255,12 @@ void reaperOnDamage(Moby* moby, struct MobDamageEventArgs* e)
     float pFactor = reaperVars->AggroTriggered ? 0.5 : 1;
     float powerFactor = REAPER_FLINCH_PROBABILITY_PWR_FACTOR * e->Knockback.Power;
     float probability = (pFactor * damageRatio * REAPER_FLINCH_PROBABILITY) + powerFactor;
+
+#if ALWAYS_FLINCH
+    probability = 2;
+    powerFactor = 2;
+#endif
+
     if (canFlinch) {
       if (e->Knockback.Force) {
         mobSetAction(moby, REAPER_ACTION_BIG_FLINCH);
@@ -486,10 +478,8 @@ void reaperDoAction(Moby* moby)
       mobTransAnim(moby, animFlinchId, 0);
       
 			if (pvars->MobVars.Knockback.Ticks > 0) {
-				float power = PLAYER_KNOCKBACK_BASE_POWER;
-				vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
-				t[2] = 1.0;
-				vector_scale(t, t, power * 2 * MATH_DT);
+        mobGetKnockbackVelocity(moby, t);
+				vector_scale(t, t, REAPER_KNOCKBACK_MULTIPLIER);
 				vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
 			} else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
@@ -708,7 +698,7 @@ void reaperDoDamage(Moby* moby, float radius, float amount, int damageFlags, int
   ReaperMobVars_t* reaperVars = (ReaperMobVars_t*)pvars->AdditionalMobVarsPtr;
   
   // aggro ends when we finally hit our target
-  if (mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, REAPER_SUBSKELETON_LEFT_HAND, 1) & MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET) {
+  if (mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, REAPER_SUBSKELETON_LEFT_HAND, 1, 0) & MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET) {
     reaperVars->AggroTriggered = 0;
   }
 }
@@ -770,7 +760,6 @@ void reaperForceLocalAction(Moby* moby, int action)
 		case REAPER_ACTION_FLINCH:
 		case REAPER_ACTION_BIG_FLINCH:
 		{
-			reaperPlayHitSound(moby);
 			pvars->MobVars.FlinchCooldownTicks = REAPER_FLINCH_COOLDOWN_TICKS;
 			break;
 		}
@@ -805,37 +794,28 @@ short reaperGetArmor(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void reaperPlayHitSound(Moby* moby)
-{
-  if (reaperHitSoundId < 0) return;
-
-	ReaperSoundDef.Index = reaperHitSoundId;
-	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void reaperPlayAmbientSound(Moby* moby)
-{
-  if (!reaperAmbientSoundIdsCount) return;
-
-	ReaperSoundDef.Index = reaperAmbientSoundIds[rand(reaperAmbientSoundIdsCount)];
-	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void reaperPlayDeathSound(Moby* moby)
-{
-  if (reaperDeathSoundId < 0) return;
-
-	ReaperSoundDef.Index = reaperDeathSoundId;
-	soundPlay(&ReaperSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
 int reaperIsAttacking(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return pvars->MobVars.Action == REAPER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
+}
+
+//--------------------------------------------------------------------------
+int reaperCanNonOwnerTransitionToAction(Moby* moby, int action)
+{
+  // always let non-owners simulate an action unless its the death action
+  if (action == REAPER_ACTION_DIE) return 0;
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int reaperShouldForceStateUpdateOnAction(Moby* moby, int action)
+{
+  // only send state updates at regular intervals, unless dying
+  if (action == REAPER_ACTION_DIE) return 1;
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------

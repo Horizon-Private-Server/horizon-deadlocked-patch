@@ -30,10 +30,9 @@ void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, in
 void swarmerForceLocalAction(Moby* moby, int action);
 short swarmerGetArmor(Moby* moby);
 int swarmerIsAttacking(Moby* moby);
+int swarmerCanNonOwnerTransitionToAction(Moby* moby, int action);
+int swarmerShouldForceStateUpdateOnAction(Moby* moby, int action);
 
-void swarmerPlayHitSound(Moby* moby);
-void swarmerPlayAmbientSound(Moby* moby);
-void swarmerPlayDeathSound(Moby* moby);
 int swarmerIsSpawning(struct MobPVar* pvars);
 int swarmerCanAttack(struct MobPVar* pvars);
 int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars);
@@ -58,19 +57,8 @@ struct MobVTable SwarmerVTable = {
   .DoDamage = &swarmerDoDamage,
   .GetArmor = &swarmerGetArmor,
   .IsAttacking = &swarmerIsAttacking,
-};
-
-SoundDef SwarmerSoundDef = {
-	0.0,	  // MinRange
-	45.0,	  // MaxRange
-	0,		  // MinVolume
-	1228,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
+  .CanNonOwnerTransitionToAction = &swarmerCanNonOwnerTransitionToAction,
+  .ShouldForceStateUpdateOnAction = &swarmerShouldForceStateUpdateOnAction,
 };
 
 extern u32 MobPrimaryColors[];
@@ -118,12 +106,6 @@ void swarmerPreUpdate(Moby* moby)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (mobIsFrozen(moby))
     return;
-
-  // ambient sounds
-	if (!pvars->MobVars.AmbientSoundCooldownTicks && rand(50) == 0) {
-		swarmerPlayAmbientSound(moby);
-		pvars->MobVars.AmbientSoundCooldownTicks = randRangeInt(SWARMER_AMBSND_MIN_COOLDOWN_TICKS, SWARMER_AMBSND_MAX_COOLDOWN_TICKS);
-	}
 
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
@@ -252,6 +234,10 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
             && pvars->MobVars.Action != SWARMER_ACTION_TIME_BOMB_EXPLODE
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
+#if ALWAYS_FLINCH
+  canFlinch = 1;
+#endif
+
   int isShock = e->DamageFlags & 0x40;
   int isShortFreeze = e->DamageFlags & 0x40000000;
 
@@ -264,7 +250,7 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 
 	// knockback
   // swarmers always have knockback
-  e->Knockback.Power += 3;
+  if (e->Knockback.Power < 3) e->Knockback.Power = 3;
 	if (e->Knockback.Power > 0 && (canFlinch || e->Knockback.Force))
 	{
 		memcpy(&pvars->MobVars.Knockback, &e->Knockback, sizeof(struct Knockback));
@@ -275,7 +261,13 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	{
 		float damageRatio = damage / pvars->MobVars.Config.Health;
     float powerFactor = SWARMER_FLINCH_PROBABILITY_PWR_FACTOR * e->Knockback.Power;
-    float probability = (damageRatio * SWARMER_FLINCH_PROBABILITY) + powerFactor;
+    float probability = clamp((damageRatio * SWARMER_FLINCH_PROBABILITY) + powerFactor, 0, MOB_MAX_FLINCH_PROBABILITY);
+
+#if ALWAYS_FLINCH
+    probability = 2;
+    powerFactor = 2;
+#endif
+
     if (canFlinch) {
       if (e->Knockback.Force) {
         mobSetAction(moby, SWARMER_ACTION_BIG_FLINCH);
@@ -483,11 +475,9 @@ void swarmerDoAction(Moby* moby)
       mobTransAnim(moby, animFlinchId, 0);
 
       if (pvars->MobVars.Knockback.Ticks > 0) {
-        float power = PLAYER_KNOCKBACK_BASE_POWER;
-        vector_fromyaw(t, pvars->MobVars.Knockback.Angle / 1000.0);
-        t[2] = 1.0;
-        vector_scale(t, t, power * 2 * MATH_DT);
-        vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
+        mobGetKnockbackVelocity(moby, t);
+				vector_scale(t, t, SWARMER_KNOCKBACK_MULTIPLIER);
+				vector_add(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, t);
       } else if (pvars->MobVars.MoveVars.Grounded) {
         mobStand(moby);
       } else if (pvars->MobVars.CurrentActionForTicks > (1*TPS) && pvars->MobVars.MoveVars.HitWall && pvars->MobVars.MoveVars.StuckCounter) {
@@ -697,7 +687,7 @@ void swarmerDoAction(Moby* moby)
 //--------------------------------------------------------------------------
 void swarmerDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire)
 {
-  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, SWARMER_SUBSKELETON_JOINT_JAW, 1);
+  mobDoDamage(moby, radius, amount, damageFlags, friendlyFire, SWARMER_SUBSKELETON_JOINT_JAW, 1, 0);
 }
 
 //--------------------------------------------------------------------------
@@ -753,7 +743,6 @@ void swarmerForceLocalAction(Moby* moby, int action)
 		case SWARMER_ACTION_FLINCH:
 		case SWARMER_ACTION_BIG_FLINCH:
 		{
-			swarmerPlayHitSound(moby);
 			pvars->MobVars.FlinchCooldownTicks = SWARMER_FLINCH_COOLDOWN_TICKS;
 			break;
 		}
@@ -780,37 +769,28 @@ short swarmerGetArmor(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void swarmerPlayHitSound(Moby* moby)
-{
-  if (swarmerHitSoundId < 0) return;
-
-	SwarmerSoundDef.Index = swarmerHitSoundId;
-	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void swarmerPlayAmbientSound(Moby* moby)
-{
-  if (!swarmerAmbientSoundIdsCount) return;
-
-	SwarmerSoundDef.Index = swarmerAmbientSoundIds[rand(swarmerAmbientSoundIdsCount)];
-	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-void swarmerPlayDeathSound(Moby* moby)
-{
-  if (swarmerDeathSoundId < 0) return;
-
-	SwarmerSoundDef.Index = swarmerDeathSoundId;
-	soundPlay(&SwarmerSoundDef, 0, moby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
 int swarmerIsAttacking(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return pvars->MobVars.Action == SWARMER_ACTION_TIME_BOMB || pvars->MobVars.Action == SWARMER_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == SWARMER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
+}
+
+//--------------------------------------------------------------------------
+int swarmerCanNonOwnerTransitionToAction(Moby* moby, int action)
+{
+  // always let non-owners simulate an action unless its the death action
+  if (action == SWARMER_ACTION_DIE) return 0;
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int swarmerShouldForceStateUpdateOnAction(Moby* moby, int action)
+{
+  // only send state updates at regular intervals, unless dying
+  if (action == SWARMER_ACTION_DIE) return 1;
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------

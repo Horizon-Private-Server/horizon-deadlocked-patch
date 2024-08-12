@@ -70,19 +70,19 @@ void trailshotDamage(Moby* moby, Moby* hitMoby, int damageFlags, float amount)
 //--------------------------------------------------------------------------
 void trailshotPlayFireSound(Moby* moby)
 {
-  if (trailshotFireSoundId < 0) return;
+  //if (trailshotFireSoundId < 0) return;
 
-	trailshotSoundDef.Index = trailshotFireSoundId;
-	soundPlay(&trailshotSoundDef, 0, moby, 0, 0x400);
+	//trailshotSoundDef.Index = trailshotFireSoundId;
+	//soundPlay(&trailshotSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------
 void trailshotPlayExplosionSound(Moby* moby)
 {
-  if (reactorChargeSoundId < 0) return;
+  //if (trailshotExplodeSoundId < 0) return;
 
-	trailshotSoundDef.Index = trailshotExplodeSoundId;
-	soundPlay(&trailshotSoundDef, 0, moby, 0, 0x400);
+	//trailshotSoundDef.Index = trailshotExplodeSoundId;
+	//soundPlay(&trailshotSoundDef, 0, moby, 0, 0x400);
 }
 
 //--------------------------------------------------------------------------

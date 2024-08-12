@@ -248,7 +248,7 @@ void gateUpdate(Moby* moby)
         
         // draw help popup
         snprintf(buf, 32, "\x11 %d Tokens to Open", pvars->Cost);
-        if (gateCanInteract(moby, lp->PlayerPosition) && tryPlayerInteract(moby, lp, buf, 0, 1, PLAYER_GATE_COOLDOWN_TICKS, 10000)) {
+        if (gateCanInteract(moby, lp->PlayerPosition) && tryPlayerInteract(moby, lp, buf, NULL, 0, 1, PLAYER_GATE_COOLDOWN_TICKS, 10000, PAD_CIRCLE)) {
           gatePayToken(moby, lp->PlayerId);
           break;
         }

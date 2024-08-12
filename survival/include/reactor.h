@@ -46,6 +46,7 @@
 #define REACTOR_ANIM_ATTACK_TICKS							  (30)
 #define REACTOR_TIMEBOMB_TICKS									(60 * 2)
 #define REACTOR_FLINCH_COOLDOWN_TICKS					  (60 * 7)
+#define REACTOR_KNOCKBACK_MULTIPLIER				    (0.0)
 #define REACTOR_ACTION_COOLDOWN_TICKS					  (30)
 #define REACTOR_RESPAWN_AFTER_TICKS						  (60 * 30)
 #define REACTOR_BASE_COLL_RADIUS								(1.5)
@@ -98,6 +99,28 @@ enum ReactorAnimId
 	REACTOR_ANIM_ENTER_FLY_MODE,
 	REACTOR_ANIM_FLY_MODE,
 	REACTOR_ANIM_EXIT_FLY_MODE,
+};
+
+enum ReactorSoundId
+{
+	REACTOR_SOUND_GARGLE_SMALL_ROAR = 0,
+	REACTOR_SOUND_WEIRD_LAUGH = 1,
+	REACTOR_SOUND_SHOT_EXPLODE = 2,
+	REACTOR_SOUND_WEIRD_LAUGH_2 = 3,
+	REACTOR_SOUND_LASER_BEAM_1 = 4,
+	REACTOR_SOUND_LASER_BEAM_2 = 7,
+	REACTOR_SOUND_GARGLE_SHORT = 8,
+	REACTOR_SOUND_GARGLE_LONG = 9,
+	REACTOR_SOUND_GRUNT_1 = 11,
+	REACTOR_SOUND_GRUNT_2 = 12,
+	REACTOR_SOUND_LANDING = 13,
+	REACTOR_SOUND_HOVERING = 14,
+	REACTOR_SOUND_HOVERING_IDK = 15,
+	REACTOR_SOUND_HOVERING_IDK_2 = 16,
+	REACTOR_SOUND_GETHIT_1 = 30,
+	REACTOR_SOUND_GETHIT_2 = 31,
+	REACTOR_SOUND_GRUNT_3_LONG = 35,
+	REACTOR_SOUND_GRUNT_4_LOW = 36,
 };
 
 enum ReactorBangles {
@@ -158,12 +181,5 @@ typedef struct ReactorMobVars
 } ReactorMobVars_t;
 
 extern int reactorMinionSpawnParamIdx;
-extern int reactorAmbientSoundIds[];
-extern const int reactorAmbientSoundIdsCount;
-extern int reactorHitSoundId;
-extern int reactorDeathSoundId;
-extern int reactorSmashSoundId;
-extern int reactorChargeSoundId;
-extern int reactorKneeDownSoundId;
 
 #endif // SURVIVAL_MOB_REACTOR_H

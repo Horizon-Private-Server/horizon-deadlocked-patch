@@ -57,7 +57,6 @@ GuberEvent* mobCreateEvent(Moby* moby, u32 eventType);
 void sendPlayerStats(int playerId);
 int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob);
 void playerRewardXp(int playerId, int weaponId, int xp);
-int playerHasBlessing(int playerId, int blessing);
 
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
@@ -222,19 +221,25 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	{
 		int weaponId = getWeaponIdFromOClass(source->OClass);
 		if (weaponId >= 0) {
-			args.Knockback.Power = (u8)playerGetWeaponAlphaModCount(pDamager, weaponId, ALPHA_MOD_IMPACT);
+			args.Knockback.Power = (u8)playerGetWeaponAlphaModCount(pDamager->GadgetBox, weaponId, ALPHA_MOD_IMPACT);
 	    args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
 		}
 
     if (weaponId == WEAPON_ID_FLAIL) {
       args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
-      args.Knockback.Power += pDamager->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Level + 1;
+      args.Knockback.Power += 4; //((pDamager->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Level + 1) / 5) + 1;
     } else if (weaponId == WEAPON_ID_OMNI_SHIELD) {
       damageFlags |= 0x40000000; // short slowdown
       amount *= 2; // damage buff
       amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
     } else if (weaponId == WEAPON_ID_ARBITER) {
       amount *= 2; // damage buff
+    }
+
+    // multishot
+    int multishotCount = playerGetStackableCount(pDamager->PlayerId, STACKABLE_ITEM_EXTRA_SHOT);
+    if (multishotCount > 0) {
+      amount *= 1 + multishotCount;
     }
 
     // prestige damage 2x per prestige
@@ -252,6 +257,15 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
         //mobyPlaySoundByClass(4, 0, moby, 0x10A9);
         //mobyPlaySoundByClass(0, 0, moby, MOBY_ID_WRENCH);
       }
+    }
+
+    // low health dmg buf
+    int lowHealthDmgBufCount = playerGetStackableCount(pDamager->PlayerId, STACKABLE_ITEM_LOW_HEALTH_DMG_BUF);
+    if (lowHealthDmgBufCount > 0) {
+      float healthFactor = pDamager->Health / pDamager->MaxHealth;
+      float healthCurve = 1 - powf(healthFactor, ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_RAMP);
+      float dmgBuf = healthCurve * ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_FAC * lowHealthDmgBufCount;
+      amount *= 1 + dmgBuf;
     }
 	}
 
@@ -477,7 +491,7 @@ void mobSetTarget(Moby* moby, Moby* target)
 }
 
 //--------------------------------------------------------------------------
-void mobSetAction(Moby* moby, int action, int dirty)
+void mobSetAction(Moby* moby, int action)
 {
 	struct MobActionUpdateEventArgs args;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -495,9 +509,12 @@ void mobSetAction(Moby* moby, int action, int dirty)
 	// 	guberEventWrite(event, &args, sizeof(struct MobActionUpdateEventArgs));
 	// }
 
+  // mark dirty if owner and mob wants state update
+  if (mobAmIOwner(moby) && pvars->VTable && pvars->VTable->ShouldForceStateUpdateOnAction && pvars->VTable->ShouldForceStateUpdateOnAction(moby, action))
+    pvars->MobVars.Dirty = 1;
+  
   pvars->MobVars.LastActionId = pvars->MobVars.ActionId++;
   pvars->MobVars.LastAction = pvars->MobVars.Action;
-  if (dirty) pvars->MobVars.Dirty = 1;
   
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->ForceLocalAction)
@@ -559,7 +576,7 @@ void mobHandleDraw(Moby* moby)
     minMobsForHiding = 30;
     minRankForDrawCutoff = 0.25;
   }
-
+  
   if (1) {
     moby->DrawDist = 128;
     if (pvars->MobVars.Order >= mobOrderedDrawUpToIndex) {
@@ -596,7 +613,6 @@ void mobUpdate(Moby* moby)
 	GameOptions* gameOptions = gameGetOptions();
   GameSettings* gameSettings = gameGetSettings();
   Player** players = playerGetAll();
-  int useClientSideActions = moby->OClass != REACTOR_MOBY_OCLASS;
   int isFrozen = mobIsFrozen(moby);
 	if (!pvars || pvars->MobVars.Destroyed || !pvars->VTable)
 		return;
@@ -606,8 +622,10 @@ void mobUpdate(Moby* moby)
     pvars->VTable->PreUpdate(moby);
 
 	// handle radar
-	if (pvars->MobVars.BlipType >= 0 && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_GHOST && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
+  int showBlip = pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_GHOST || pvars->VTable->IsAttacking(moby) || pvars->MobVars.ForcedBlipCooldownTicks == 0;
+	if (pvars->MobVars.BlipType >= 0 && showBlip && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
 	{
+    pvars->MobVars.ForcedBlipCooldownTicks = MOB_FORCED_BLIP_COOLDOWN_TICKS;
 		if (gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips == 1 || pvars->MobVars.ClosestDist < (20 * 20))
 		{
 			int blipId = radarGetBlipIndex(moby);
@@ -642,7 +660,7 @@ void mobUpdate(Moby* moby)
 	decTimerU16(&pvars->MobVars.FlinchCooldownTicks);
 	decTimerU16(&pvars->MobVars.TimeBombTicks);
 	u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
-	u16 ambientSoundCooldownTicks = decTimerU16(&pvars->MobVars.AmbientSoundCooldownTicks);
+	u16 forcedBlipCooldownTicks = decTimerU16(&pvars->MobVars.ForcedBlipCooldownTicks);
 	decTimerU8(&pvars->MobVars.Knockback.Ticks);
   pvars->TicksSinceLastStateUpdate += 1;
   
@@ -700,11 +718,11 @@ void mobUpdate(Moby* moby)
   }
 
 	//
-	if (!isFrozen && (useClientSideActions || isOwner)) {
+	if (!isFrozen) {
 		// set next state
 		if (pvars->MobVars.NextAction >= 0 && pvars->MobVars.Knockback.Ticks == 0) {
-			if (nextActionTicks == 0) {
-				mobSetAction(moby, pvars->MobVars.NextAction, isOwner && !useClientSideActions);
+			if (nextActionTicks == 0 && (isOwner || (pvars->VTable && pvars->VTable->CanNonOwnerTransitionToAction(moby, pvars->MobVars.NextAction)))) {
+				mobSetAction(moby, pvars->MobVars.NextAction);
 				pvars->MobVars.NextAction = -1;
 			}
 		}
@@ -845,7 +863,7 @@ void mobUpdate(Moby* moby)
 			mobSendStateUpdateUnreliable(moby);
 			pvars->MobVars.Dirty = 0;
 			pvars->MobVars.AutoDirtyCooldownTicks = MOB_AUTO_DIRTY_COOLDOWN_TICKS;
-      printf("%d send unreliable state %d %08X\n", gameGetTime(), pvars->MobVars.Action, (u32)moby);
+      DPRINTF("%d send unreliable state %d %08X\n", gameGetTime(), pvars->MobVars.Action, (u32)moby);
 		}
 	}
   
@@ -1113,12 +1131,20 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		struct SurvivalPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
 		GameData * gameData = gameGetData();
 
+    // vampire
+    if (killedByPlayer && killedByPlayer->PlayerMoby) {
+      int vampCount = playerGetStackableCount(killedByPlayerId, STACKABLE_ITEM_VAMPIRE);
+      if (vampCount > 0) {
+        playerSetHealth(killedByPlayer, minf(killedByPlayer->MaxHealth, killedByPlayer->Health + (vampCount * ITEM_STACKABLE_VAMPIRE_HEALTH_AMT)));
+      }
+    }
+
     // give xp
     playerRewardXp(killedByPlayerId, weaponId, xp);
 
 		// handle weapon jackpot
 		if (weaponId > 1 && killedByPlayer) {
-			int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer, weaponId, ALPHA_MOD_JACKPOT);
+			int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
 
 			pState->State.Bolts += jackpotCount * JACKPOT_BOLTS;
 			pState->State.TotalBolts += jackpotCount * JACKPOT_BOLTS;
@@ -1502,8 +1528,8 @@ void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float 
           args.DamageQuarters = damage*4;
           args.DamageFlags = 0;
           args.Knockback.Angle = (short)(angle * 1000);
-          args.Knockback.Ticks = 5;
-          args.Knockback.Power = 10;
+          args.Knockback.Ticks = 10;
+          args.Knockback.Power = 6;
           args.Knockback.Force = 1;
           guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
         }
@@ -1584,7 +1610,7 @@ void mobTick(void)
       
       int x,y;
       if (gfxWorldSpaceToScreenSpace(&jointMtx[12], &x, &y)) {
-        sprintf(buf, "%d", aaa1);
+        snprintf(buf, sizeof(buf), "%d", aaa1);
         gfxScreenSpaceText(x,y,1,1,0x80FFFFFF, buf, -1, 4);
       }
 

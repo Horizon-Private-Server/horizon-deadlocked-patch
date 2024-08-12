@@ -119,7 +119,7 @@ void wraithDrawGasParticle(VECTOR position, WraithParticle_t* particle, int texI
 	quad.VertexUVs[1] = (struct UV){1,0};
 	quad.VertexUVs[2] = (struct UV){0,1};
 	quad.VertexUVs[3] = (struct UV){1,1};
-	quad.Clamp = 1;
+	quad.Clamp = 0x0000000100000001;
 	quad.Tex0 = gfxGetEffectTex(texId, 1);
 	quad.Tex1 = 0;
 	quad.Alpha = 0x8000000048;

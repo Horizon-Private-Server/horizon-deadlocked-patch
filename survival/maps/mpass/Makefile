@@ -1,5 +1,5 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o config.o path.o bigalpath.o bigal.o statue.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/bankbox.o ../shared/mobs/mob.o 
+EE_OBJS = main.o config.o path.o bigalpath.o bigal.o statue.o ../shared/blessings.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/bankbox.o ../shared/mobs/mob.o 
 EE_ELF = mpass.elf
 EE_BIN = mpass.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
@@ -12,7 +12,7 @@ BUILD_CONFIG := RELEASE
 # 	DEBUG									Enables debug strings and additional misc debug logic.
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DMOB_CORN -DMOB_DAMAGETYPES=0x40 -DBIGAL_IDLE -DPRINT_JOINTS_ -DDEBUGPATH_ -DDEBUGMOVE_ -DDEBUGMBOX_ -DBIGAL_IDLE
+EE_DEFS := -DDEBUG -DMOB_CORN -DMOB_DAMAGETYPES=0x40 -DBIGAL_IDLE -DPRINT_JOINTS_ -DDEBUGPATH_ -DDEBUGMOVE_ -DDEBUGMBOX -DBIGAL_IDLE -DALWAYS_FLINCH
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DRELEASE -DMOB_CORN -DMOB_DAMAGETYPES=0x40
 endif
