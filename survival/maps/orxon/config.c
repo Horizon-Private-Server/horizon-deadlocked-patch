@@ -6,7 +6,7 @@
 
 extern struct SurvivalMapConfig MapConfig;
 
-#define ORXON_MOB_MAX_HEALTH            (150000)
+#define ORXON_MOB_MAX_HEALTH            (100000000)
 
 
 //--------------------------------------------------------------------------
@@ -90,7 +90,7 @@ struct SurvivalSpecialRoundParam specialRoundParams[] = {
     .MinRound = 25,
     .RepeatEveryNRounds = 25,
     .RepeatCount = 0,
-    .UnlimitedPostRoundTime = 0,
+    .UnlimitedPostRoundTime = 1,
     .DisableDrops = 0,
 		.MaxSpawnedAtOnce = MAX_MOBS_ALIVE_REAL,
     .SpawnCountFactor = 0.25,
@@ -120,6 +120,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .SpecialRoundOnly = 0,
 		.MinRound = 15,
 		.CooldownTicks = TPS * 1,
+    .CooldownOffsetPerRoundFactor = (1 / 25.0) * -(TPS * 0.25),
 		.Probability = 0.025,
     .StatId = MOB_STAT_EXECUTIONER,
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
@@ -156,6 +157,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .SpecialRoundOnly = 0,
 		.MinRound = 5,
 		.CooldownTicks = TPS * 1,
+    .CooldownOffsetPerRoundFactor = (1 / 25.0) * -(TPS * 0.25),
 		.Probability = 0.05,
     .StatId = MOB_STAT_ZOMBIE_GHOST,
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM | SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
@@ -190,6 +192,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .SpecialRoundOnly = 0,
 		.MinRound = 10,
 		.CooldownTicks = TPS * 0.5,
+    .CooldownOffsetPerRoundFactor = (1 / 25.0) * -(TPS * 0.25),
 		.Probability = 0.08,
     .StatId = MOB_STAT_ZOMBIE_EXPLODE,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_ON_PLAYER,
@@ -225,6 +228,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 10,
 		.Probability = 0.09,
 		.CooldownTicks = TPS * 0.5,
+    .CooldownOffsetPerRoundFactor = (1 / 25.0) * -(TPS * 0.25),
     .StatId = MOB_STAT_ZOMBIE_ACID,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER | SPAWN_TYPE_NEAR_HEALTHBOX,
 		.Name = "Acid",
@@ -258,6 +262,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .SpecialRoundOnly = 0,
 		.MinRound = 10,
 		.CooldownTicks = TPS * 0.5,
+    .CooldownOffsetPerRoundFactor = (1 / 25.0) * -(TPS * 0.25),
 		.Probability = 0.1,
     .StatId = MOB_STAT_ZOMBIE_FREEZE,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
@@ -292,6 +297,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .SpecialRoundOnly = 0,
 		.MinRound = 5,
 		.CooldownTicks = 0,
+    .CooldownOffsetPerRoundFactor = 0,
 		.Probability = 0.1,
     .StatId = MOB_STAT_TREMOR,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
@@ -326,6 +332,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .SpecialRoundOnly = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
+    .CooldownOffsetPerRoundFactor = 0,
 		.Probability = 0.5,
     .StatId = MOB_STAT_ZOMBIE,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
@@ -360,6 +367,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
     .SpecialRoundOnly = 0,
 		.MinRound = 0,
 		.CooldownTicks = 0,
+    .CooldownOffsetPerRoundFactor = 0,
 		.Probability = 1.0,
     .StatId = MOB_STAT_SWARMER,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
@@ -392,9 +400,9 @@ const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct M
 SurvivalBakedConfig_t bakedConfig = {
   .Difficulty = 1.5,
   .SpawnDistanceFactor = 0.5,
-  .BoltRankMultiplier = 3,
+  .BoltRankMultiplier = 1,
   .BakedSpawnPoints = {
-    { .Type = BAKED_SPAWNPOINT_PLAYER_START, .Params = 0, .Position = { 328.6, 544.8498, 433.9998 }, .Rotation = { 0, 0, 0 } },
+    { .Type = BAKED_SPAWNPOINT_PLAYER_START, .Params = 0, .Position = { 328.6, 544.85, 434 }, .Rotation = { 0, 0, 0 } },
     { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 454.05, 566, 429.64 }, .Rotation = { 0, 0, -4.71239 } },
     { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 478.72, 691.459, 430.73 }, .Rotation = { 0, 0, -3.141592 } },
     { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 478.9, 508.54, 430.73 }, .Rotation = { 0, 0, 0 } },

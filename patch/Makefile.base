@@ -15,6 +15,7 @@ EE_DEFS += -DSCAVENGER_HUNT
 #EE_DEFS += -DMAPDOWNLOADER
 #EE_DEFS += -DTEST
 #EE_DEFS += -DPINGTEST
+#EE_DEFS += -DLEVELHOP
 
 # build test if defined
 ifneq (,$(findstring -DTEST,$(EE_DEFS)))

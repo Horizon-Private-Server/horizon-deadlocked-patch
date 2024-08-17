@@ -47,4 +47,6 @@ void playDialog(short dialogId, int force);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 
+int bakedSpawnGetFirst(int bakedSpawnType, VECTOR outPos, VECTOR outRot);
+
 #endif // SURVIVAL_MAP_UTILS_H

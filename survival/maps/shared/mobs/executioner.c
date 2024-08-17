@@ -101,6 +101,11 @@ void executionerPreUpdate(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   ExecutionerMobVars_t* executionerVars = (ExecutionerMobVars_t*)pvars->AdditionalMobVarsPtr;
+  
+  // decrement tickers regardless of frozen state
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+    decTimerU8(&executionerVars->LocalPlayerDamageHitInvTimer[i]);
+
   if (mobIsFrozen(moby))
     return;
 
@@ -109,8 +114,6 @@ void executionerPreUpdate(Moby* moby)
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathCheckSkipEndTicks);
   decTimerU8(&pvars->MobVars.MoveVars.PathNewTicks);
-  for (i = 0; i < GAME_MAX_LOCALS; ++i)
-    decTimerU8(&executionerVars->LocalPlayerDamageHitInvTimer[i]);
 
   mobPreUpdate(moby);
 }

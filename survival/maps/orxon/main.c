@@ -32,6 +32,7 @@
 #include "game.h"
 #include "mob.h"
 #include "pathfind.h"
+#include "maputils.h"
 #include "orxon.h"
 #include "upgrade.h"
 #include "drop.h"
@@ -84,7 +85,7 @@ const int GateLocationsCount = sizeof(GateLocations)/sizeof(VECTOR);
 void mapReturnPlayersToMap(void)
 {
   int i;
-  VECTOR p;
+  VECTOR p,r,o;
 
   for (i = 0; i < GAME_MAX_LOCALS; ++i) {
     Player* player = playerGetFromSlot(i);
@@ -92,10 +93,12 @@ void mapReturnPlayersToMap(void)
 
     // if we're under the map, teleport back up
     if (player->PlayerPosition[2] < (gameGetDeathHeight() + 1)) {
-      vector_fromyaw(p, (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU - MATH_PI);
-      vector_scale(p, p, 2.5);
-      vector_add(p, p, bakedConfig.BakedSpawnPoints[0].Position);
-      playerSetPosRot(player, p, bakedConfig.BakedSpawnPoints[0].Rotation);
+      if (bakedSpawnGetFirst(BAKED_SPAWNPOINT_PLAYER_START, p, r)) {
+        vector_fromyaw(o, (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU - MATH_PI);
+        vector_scale(o, o, 2.5);
+        vector_add(p, p, o);
+        playerSetPosRot(player, p, r);
+      }
     }
   }
 }

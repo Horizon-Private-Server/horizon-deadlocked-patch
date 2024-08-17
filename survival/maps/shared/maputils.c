@@ -400,3 +400,20 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
     }
   }
 }
+
+//--------------------------------------------------------------------------
+int bakedSpawnGetFirst(int bakedSpawnType, VECTOR outPos, VECTOR outRot) {
+  if (!MapConfig.BakedConfig) return 0;
+
+  int i;
+  for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
+    if (MapConfig.BakedConfig->BakedSpawnPoints[i].Type == bakedSpawnType) {
+
+      memcpy(outPos, MapConfig.BakedConfig->BakedSpawnPoints[i].Position, 12);
+      memcpy(outRot, MapConfig.BakedConfig->BakedSpawnPoints[i].Rotation, 12);
+      return 1;
+    }
+  }
+
+  return 0;
+}

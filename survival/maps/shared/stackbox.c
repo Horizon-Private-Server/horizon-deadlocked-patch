@@ -53,12 +53,12 @@ char* STACKABLE_ITEM_DESC[] = {
   [STACKABLE_ITEM_EXTRA_JUMP] "Gives +1 extra jump",
   [STACKABLE_ITEM_EXTRA_SHOT] "Shoots +1 shot each time you fire",
   [STACKABLE_ITEM_HOVERBOOTS] "Gives hoverboots, +10%% movement speed, removes chargeboots",
-  [STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] "Grants +150%% bonus damage for amount of health missing",
+  [STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] "Grants +75%% bonus damage for amount of health missing",
   [STACKABLE_ITEM_ALPHA_MOD_AMMO] "Gives +2 extra ammo mod for all weapons",
   [STACKABLE_ITEM_ALPHA_MOD_SPEED] "Gives +2 extra speed mod for all weapons",
   [STACKABLE_ITEM_ALPHA_MOD_AREA] "Gives +2 extra area mod for all weapons",
   [STACKABLE_ITEM_ALPHA_MOD_IMPACT] "Gives +2 extra impact mod for all weapons",
-  [STACKABLE_ITEM_VAMPIRE] "Gives +3 health for each kill, disables health orbs",
+  [STACKABLE_ITEM_VAMPIRE] "Gives +3 health after each kill, disables health pickups",
 };
 
 int STACKABLE_ITEM_TEX_IDS[] = {
@@ -277,7 +277,7 @@ void sboxUpdate(Moby* moby)
   int timeSinceActivated = gameGetTime() - pvars->ActivatedTime;
 
   // set state
-#if !DEBUG
+#if !DEBUGSBOX
   if (MapConfig.State && MapConfig.State->RoundCompleteTime) {
     if (moby->State != STACK_BOX_STATE_ACTIVE) {
       if (pvars->BaseMoby) pvars->BaseMoby->ModeBits = MOBY_MODE_BIT_HIDE_BACKFACES | MOBY_MODE_BIT_HAS_GLOW;

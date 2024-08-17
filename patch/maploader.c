@@ -1093,10 +1093,18 @@ u32 hookedCheck(void)
 
       if ((MapLoaderState.Loaded & 1) == 0) {
         // finish loading sound wad
-        ((void (*)())0x0066b170)();
-        ((void (*)())0x005fec20)();
-        POKE_U32(0x005cfca0, 0);
-        POKE_U32(0x005cfcd4, 0);
+        if (*(u32*)0x0021E1EC != 0) {
+          ((void (*)())0x0058d5d0)(); // sound_LevelInit()
+          ((void (*)())0x0051f7b8)(); // music_LoadCoreBank()
+          POKE_U32(0x004ea028, 0);    // nop sound_LevelInit()
+          POKE_U32(0x004ea05c, 0);    // nop music_LoadCoreBank()
+        } else {
+          // 
+          ((void (*)())0x0066b170)(); // sound_LevelInit()
+          ((void (*)())0x005fec20)(); // music_LoadCoreBank()
+          POKE_U32(0x005cfca0, 0);    // nop sound_LevelInit()
+          POKE_U32(0x005cfcd4, 0);    // nop music_LoadCoreBank()
+        }
 
         // load level wad
         if (beginLoadingLevelWad()) return;
@@ -1449,6 +1457,17 @@ void hook(void)
 	u32 * hookLoadCdvdAddr = (u32*)0x00163814;
 	u32 * hookLoadScreenMapNameStringAddr = (u32*)0x007055B4;
 	u32 * hookLoadScreenModeNameStringAddr = (u32*)0x0070583C;
+
+  if (isInGame()) {
+    hookLoadAddr = (u32*)0x004e9ed0;
+    hookCheckAddr = (u32*)0x004e9d38;
+    hookLoadingScreenAddr = (u32*)0x00081000;
+    hookTableAddr = (u32*)0x00159B20;
+    hookSoundCoreBank = (u32*)0x0051f80c;
+    hookLoadCdvdAddr = (u32*)0x00163814;
+    hookLoadScreenMapNameStringAddr = (u32*)0x00081000;
+    hookLoadScreenModeNameStringAddr = (u32*)0x00081000;
+  }
 
 	// Load modules
 	u32 * hookLoadModulesAddr = (u32*)0x00161364;

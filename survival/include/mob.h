@@ -131,6 +131,7 @@ struct MobSpawnParams {
   int MaxSpawnedPerRound;
 	int MinRound;
 	int CooldownTicks;
+  float CooldownOffsetPerRoundFactor; // 0 is unchanged, -1 is -1 tick per round, +1 is +1 tick per round
 	float Probability;
   enum MobStatId StatId;
 	enum MobSpawnType SpawnType;

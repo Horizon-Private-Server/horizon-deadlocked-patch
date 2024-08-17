@@ -140,6 +140,7 @@ char LocalPlayerStrBuffer[2][64];
 int BoltCounts[GAME_MAX_LOCALS] = {};
 
 int Initialized = 0;
+int FirstTimeInitialized = 0;
 
 struct SurvivalState State;
 struct SurvivalMapConfig* mapConfig = (struct SurvivalMapConfig*)0x01EF0010;
@@ -795,17 +796,20 @@ int spawnRandomMob(void) {
 	int mobIdx = 0;
 	struct MobSpawnParams* mob = spawnGetRandomMobParams(&mobIdx);
 	if (mob) {
+    int cooldownTicks = mob->CooldownTicks + (mob->CooldownOffsetPerRoundFactor * State.RoundNumber);
+    if (cooldownTicks < 0) cooldownTicks = 0;
+
 		// skip if cooldown not 0
     int cooldown = defaultSpawnParamsCooldowns[mobIdx];
     if (cooldown > 0) {
       return 0;
     }
     else if (State.RoundIsSpecial) {
-      defaultSpawnParamsCooldowns[mobIdx] = lerpf(2 * TPS, mob->CooldownTicks, mapConfig->SpecialRoundParams[State.RoundSpecialIdx].SpawnRateFactor);
+      defaultSpawnParamsCooldowns[mobIdx] = lerpf(2 * TPS, cooldownTicks, mapConfig->SpecialRoundParams[State.RoundSpecialIdx].SpawnRateFactor);
       //DPRINTF("%d => %d\n", mobIdx, defaultSpawnParamsCooldowns[mobIdx]);
     }
     else {
-      defaultSpawnParamsCooldowns[mobIdx] = mob->CooldownTicks;
+      defaultSpawnParamsCooldowns[mobIdx] = cooldownTicks;
     }
 
 		// try and spawn
@@ -2884,6 +2888,9 @@ void initialize(PatchStateContainer_t* gameState)
     
     // clear state
     memset(&State, 0, sizeof(State));
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      State.PlayerStates[i].State.Item = -1;
+    }
   }
 
 	// Disable normal game ending
@@ -3104,8 +3111,6 @@ void initialize(PatchStateContainer_t* gameState)
 	State.ActivePlayerCount = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
-		memset(&State.PlayerStates[i], 0, sizeof(struct SurvivalPlayer));
-    State.PlayerStates[i].State.Item = -1;
     State.PlayerStates[i].RevivingPlayerId = -1;
 
 #if PAYDAY
@@ -3120,7 +3125,7 @@ void initialize(PatchStateContainer_t* gameState)
 				State.LocalPlayerState = &State.PlayerStates[i];
 				
 			// clear alpha mods
-			if (p->GadgetBox)
+			if (p->GadgetBox && !FirstTimeInitialized)
 				memset(p->GadgetBox->ModBasic, 0, sizeof(p->GadgetBox->ModBasic));
 
 			if (!hasTeam[p->Team]) {
@@ -3145,7 +3150,7 @@ void initialize(PatchStateContainer_t* gameState)
 	}
 
   // solo run start with self revive
-  if (State.ActivePlayerCount == 1) {
+  if (State.ActivePlayerCount == 1 && !FirstTimeInitialized) {
     State.PlayerStates[playerGetFromSlot(0)->PlayerId].State.Item = MYSTERY_BOX_ITEM_REVIVE_TOTEM;
   }
 
@@ -3208,8 +3213,6 @@ void initialize(PatchStateContainer_t* gameState)
   }
 
 	// initialize state
-	State.GameOver = 0;
-	State.RoundNumber = 0;
 	State.MobStats.MobsDrawnCurrent = 0;
 	State.MobStats.MobsDrawnLast = 0;
 	State.MobStats.MobsDrawGameTime = 0;
@@ -3219,8 +3222,11 @@ void initialize(PatchStateContainer_t* gameState)
 	State.RoundIsSpecial = 0;
 	State.RoundSpecialIdx = 0;
 	State.DropCooldownTicks = DROP_COOLDOWN_TICKS_MAX; // try and stop drops from spawning immediately
-	State.InitializedTime = gameGetTime();
 	State.Difficulty = mapConfig->BakedConfig->Difficulty;
+  
+	if (!FirstTimeInitialized) {
+    State.InitializedTime = gameGetTime();
+  }
 
 #if STARTROUND
 	State.RoundNumber = STARTROUND - 1;
@@ -3280,6 +3286,7 @@ void initialize(PatchStateContainer_t* gameState)
 #endif
 
 	Initialized = 1;
+  FirstTimeInitialized = 1;
 }
 
 //--------------------------------------------------------------------------
@@ -3407,7 +3414,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
-#if DEBUG_ORXON
+#if DEBUG_PERKS
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_JUMP] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] = 1;
@@ -3547,7 +3554,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 			static int manSpawnDropId = 0;
 			static int manSpawnDropIdx = 0;
 			manSpawnDropId = (manSpawnDropId + 1) % 5;
-      manSpawnDropId = DROP_NUKE;
+      //manSpawnDropId = DROP_NUKE;
 			VECTOR t;
 			vector_copy(t, localPlayer->PlayerPosition);
 			t[0] += 5;
@@ -4179,6 +4186,10 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
+  // reset initialized on load
+  // enables level hopping
+  Initialized = 0;
+
 	setLobbyGameOptions(gameState->GameConfig);
   
 	// point get resurrect point to ours

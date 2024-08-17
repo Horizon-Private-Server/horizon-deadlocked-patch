@@ -743,7 +743,6 @@ void zombieForceLocalAction(Moby* moby, int action)
 		case ZOMBIE_ACTION_FLINCH:
 		case ZOMBIE_ACTION_BIG_FLINCH:
 		{
-      pvars->MobVars.MoveVars.MoveSkipTicks = 0;
 			pvars->MobVars.FlinchCooldownTicks = ZOMBIE_FLINCH_COOLDOWN_TICKS;
 			break;
 		}

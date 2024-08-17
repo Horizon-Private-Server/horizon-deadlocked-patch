@@ -153,6 +153,11 @@ void reactorPreUpdate(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   ReactorMobVars_t* reactorVars = (ReactorMobVars_t*)pvars->AdditionalMobVarsPtr;
+  
+  // decrement tickers regardless of frozen state
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+    decTimerU8(&reactorVars->LocalPlayerDamageHitInvTimer[i]);
+
   if (mobIsFrozen(moby))
     return;
 
@@ -168,9 +173,6 @@ void reactorPreUpdate(Moby* moby)
   decTimerU16(&reactorVars->AttackShotWithTrailCooldownTicks);
   decTimerU16(&reactorVars->AttackSmashCooldownTicks);
   decTimerU16(&reactorVars->DialogCooldownTicks);
-  for (i = 0; i < GAME_MAX_LOCALS; ++i)
-    decTimerU8(&reactorVars->LocalPlayerDamageHitInvTimer[i]);
-
   mobPreUpdate(moby);
 }
 

@@ -5361,6 +5361,31 @@ int main (void)
 	// run test patch logic
 	runTestLogic();
 #endif
+  
+#if LEVELHOP
+  {
+    if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+      int mapId = 48;
+
+      //POKE_U32(0x0021de80, 4);
+      POKE_U32(0x0021e6a4, 6);
+      POKE_U32(0x005A90F4, 0x24020001);
+      //POKE_U32(0x00220250, 1);
+
+      strncpy(MapLoaderState.MapName, "Orxon", sizeof(MapLoaderState.MapName));
+      strncpy(MapLoaderState.MapFileName, "survival v2 mf", sizeof(MapLoaderState.MapFileName));
+      MapLoaderState.Enabled = 1;
+      MapLoaderState.CheckState = 0;
+      MapLoaderState.MapId = mapId;
+      MapLoaderState.LoadingFd = -1;
+      MapLoaderState.LoadingFileSize = -1;
+
+      ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
+      
+      DPRINTF("load %d\n", mapId);
+    }
+  }
+#endif
 
   //
   sendClientType();

@@ -49,6 +49,7 @@ typedef struct PlayerSyncPlayerData
   int LastState;
   int LastStateTime;
   int TicksSinceLastUpdate;
+  int SendRateTicker;
   char LastStateId;
   char Pad[32];
   u8 StateUpdateCmdId;
@@ -90,6 +91,14 @@ int playerSyncGetSendRate(void)
   if (gs && gs->PlayerCountAtStart > 8) return 5;
   if (gs && gs->PlayerCountAtStart > 6) return 3;
   if (gs && gs->PlayerCountAtStart > 4) return 1;
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int playerSyncShouldImmediatelySendStateChange(int fromState, int toState)
+{
+  if (toState == PLAYER_STATE_GET_HIT) return 1;
 
   return 0;
 }
@@ -515,6 +524,18 @@ void playerSyncBroadcastPlayerState(Player* player)
 
   PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
 
+  int rate = playerSyncGetSendRate();
+  int ticker = data->SendRateTicker--;
+
+  // stall until ticker is <= 0
+  // or if there's a state change that must be sent right away
+  if (ticker > 0) {
+    if (data->LastState == player->PlayerState || !playerSyncShouldImmediatelySendStateChange(data->LastState, player->PlayerState))
+      return;
+  }
+
+  data->SendRateTicker = rate;
+
   // set cur frame
   player->LocalHero.UNK_LOCALHERO[0x1EE] = 0;
 
@@ -645,14 +666,6 @@ void playerSyncTick(void)
   Player** players = playerGetAll();
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     playerSyncHandlePlayerState(players[i]);
-  }
-
-  // delay
-  if (delay) {
-    --delay;
-    return;
-  } else {
-    delay = playerSyncGetSendRate();
   }
 
   // player updates
