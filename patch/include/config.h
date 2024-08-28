@@ -196,7 +196,7 @@ typedef struct PlayerSyncStateUpdatePacked
 } PlayerSyncStateUpdatePacked_t;
 
 extern int isConfigMenuActive;
-extern CustomMapDef_t customMapDefs[MAX_CUSTOM_MAP_DEFINITIONS];
+extern CustomMapDef_t *customMapDefs;
 extern int customMapDefCount;
 extern MapLoaderState_t MapLoaderState;
 

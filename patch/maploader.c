@@ -63,7 +63,7 @@ extern struct MenuElem_OrderedListData dataCustomModes;
 extern struct MenuElem_ListData dataCustomMaps;
 
 // custom map defs
-CustomMapDef_t customMapDefs[MAX_CUSTOM_MAP_DEFINITIONS];
+CustomMapDef_t *customMapDefs = NULL;
 int customMapDefCount = 0;
 
 extern u32 colorBlack;
@@ -71,7 +71,7 @@ extern u32 colorBg;
 extern u32 colorRed;
 extern u32 colorContentBg;
 extern u32 colorText;
-
+extern int isUnloading;
 extern char mapOverrideResponse;
 
 enum MenuActionId
@@ -1525,6 +1525,11 @@ void runMapLoader(void)
 		++DownloadState.Ticks;
 #endif
 
+  if (isUnloading && customMapDefs) {
+    free(customMapDefs);
+    customMapDefs = NULL;
+  }
+
 	// 
 	if (!initialized)
 	{
@@ -1533,6 +1538,11 @@ void runMapLoader(void)
 		// set map loader defaults
 		MapLoaderState.Enabled = 0;
 		MapLoaderState.CheckState = 0;
+
+    if (!customMapDefs) {
+      customMapDefs = malloc(sizeof(CustomMapDef_t) * MAX_CUSTOM_MAP_DEFINITIONS);
+      DPRINTF("alloc custom maps defs %08X\n", customMapDefs);
+    }
 
 		// install on login
 		if (LOAD_MODULES_RESULT == 0)

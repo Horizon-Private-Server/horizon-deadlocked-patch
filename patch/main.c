@@ -236,6 +236,7 @@ struct GameDataBlock
 extern float _lodScale;
 extern void* _correctTieLod;
 extern MenuElem_OrderedListData_t dataCustomMaps;
+extern MenuElem_OrderedListData_t dataCustomModes;
 extern MapLoaderState_t MapLoaderState;
 
 struct FlagPVars
@@ -340,7 +341,8 @@ PatchConfig_t config __attribute__((section(".config"))) = {
 	.disableScavengerHunt = 0,
   .playerFov = 0,
   .preferredGameServer = 0,
-  .enableSingleTapChargeboot = 0
+  .enableSingleTapChargeboot = 0,
+  .enableFastLoad = 1
 };
 
 // 
@@ -4172,6 +4174,30 @@ void runFpsCounter(void)
 	}
 }
 
+void runFastLoad(void)
+{
+  if (interopData.Client == CLIENT_TYPE_NORMAL) return; // only DZO/EMU
+  if (!MapLoaderState.Enabled) return; // only custom maps
+
+  GameSettings* gs = gameGetSettings();
+  if (!gs) return;
+
+  if (gs->GameStartTime < 0 && isSceneLoading()) {
+    POKE_U32(0x006868A0, 0);
+    POKE_U32(0x006865b0, 0);
+    POKE_U32(0x005B0354, 0);
+    POKE_U32(0x005B047C, 0);
+    POKE_U32(0x005B04B4, 0);
+    POKE_U32(0x0015B118, 0); // disable timebanditshack
+    //POKE_U32(0x006859fc, 0x24020001);
+  }
+  
+  // re-enable timebanditshack
+  if (!isSceneLoading()) {
+    POKE_U32(0x0015B118, 0xACC40218); 
+  }
+}
+
 int hookCheckHostStartGame(void* a0)
 {
 	GameSettings* gs = gameGetSettings();
@@ -4718,6 +4744,151 @@ void patchStagingRankNumber(void)
 
 	HOOK_JAL(0x0075AC3C, &getCustomGamemodeRankNumber);
 	POKE_U32(0x0075AC40, 0x0060202D);
+}
+
+//--------------------------------------------------------------------------
+void* searchGetSearchResultPtr(int idx)
+{
+  u32 p1 = *(u32*)0x002233a4;
+  if (p1 > 0) {
+    u32 p2 = *(u32*)(p1 + 0x44);
+    if (p2 > 0) {
+      int count = *(int*)(p2 + 0x40);
+      u32 ptrs = *(u32*)(p2 + 0x4C);
+
+      if (idx < count && count > 0 && ptrs > 0) {
+        u32 ptr = *(u32*)(ptrs + idx*4);
+        if (ptr > 0) {
+          return (void*)ptr;
+        }
+      }
+    }
+  }
+
+  return NULL;
+}
+
+//--------------------------------------------------------------------------
+char* searchGetMapNameFromMapId(int mapId)
+{
+  int idx;
+
+	// pointer to b6 ball moby is stored in $v0
+	asm volatile (
+		"move %0, $s1"
+		: : "r" (idx)
+	);
+
+  char* map = ((char* (*)(int))0x00764330)(mapId);
+  void* ptr = searchGetSearchResultPtr(idx / 4);
+  if (ptr) {
+    int len = strlen((char*)(ptr + 0x60));
+    char* customName = (char*)(ptr + 0x60 + len + 2);
+    if (customName[0])
+      return customName;
+  }
+
+  return map;
+}
+
+//--------------------------------------------------------------------------
+char* searchGetMapNameFromMapId2(int mapId, u64 a1, u64 a2, char* gameName)
+{
+  int idx = 0;
+  void* ptr = 0;
+
+  while ((ptr = searchGetSearchResultPtr(idx))) {
+    char* name = (char*)(ptr + 0x60);
+    if (strncmp(name, gameName, 0x10) == 0) {
+      int len = strlen(name);
+      char* customName = (char*)(ptr + 0x60 + len + 2);
+      if (customName[0])
+        return customName;
+      
+      break;
+    }
+
+    ++idx;
+  }
+  
+  return ((char* (*)(int))0x00764330)(mapId);
+}
+
+//--------------------------------------------------------------------------
+char* searchGetModeNameFromModeId2(int modeId)
+{
+  int idx = 0;
+  void* ptr = 0;
+  char* gameName;
+
+	asm volatile (
+		"move %0, $s4"
+		: : "r" (gameName)
+	);
+
+  char* modeName = ((char* (*)(int))0x00764B80)(modeId);
+  while ((ptr = searchGetSearchResultPtr(idx))) {
+    char* name = (char*)(ptr + 0x60);
+    if (strncmp(name, gameName, 0x10) == 0) {
+      int len = strlen((char*)(ptr + 0x60));
+      int customMode = *(u8*)(ptr + 0x60 + len + 1);
+      if (customMode) {
+        int j;
+        for (j = 0; j < dataCustomModes.count; ++j) {
+          if (dataCustomModes.items[j].value == customMode) {
+            return dataCustomModes.items[j].name;
+          }
+        }
+      }
+      
+      break;
+    }
+
+    ++idx;
+  }
+  
+  return modeName;
+}
+
+//--------------------------------------------------------------------------
+void searchSetModeName(UiTextElement_t* element, char* str)
+{
+  int idx;
+  
+	// pointer to b6 ball moby is stored in $v0
+	asm volatile (
+		"move %0, $s3"
+		: : "r" (idx)
+	);
+
+  void* ptr = searchGetSearchResultPtr(idx);
+  if (ptr) {
+    int len = strlen((char*)(ptr + 0x60));
+    int customMode = *(u8*)(ptr + 0x60 + len + 1);
+    if (customMode) {
+      int j;
+      for (j = 0; j < dataCustomModes.count; ++j) {
+        if (dataCustomModes.items[j].value == customMode) {
+          str = dataCustomModes.items[j].name;
+          break;
+        }
+      }
+    }
+  }
+
+  return ((void (*)(UiTextElement_t*, char*))0x00715330)(element, str);
+}
+
+//--------------------------------------------------------------------------
+void runShowCustomMapModeInSearch(void)
+{
+  if (!isInMenus()) return;
+
+  HOOK_JAL(0x00735410, &searchGetMapNameFromMapId);
+  HOOK_JAL(0x00735500, &searchSetModeName);
+  HOOK_JAL(0x00735524, &searchSetModeName);
+  HOOK_JAL(0x00737CBC, &searchGetMapNameFromMapId2);
+  HOOK_JAL(0x00737CF4, &searchGetModeNameFromModeId2);
 }
 
 /*
@@ -5401,6 +5572,10 @@ int main (void)
   scavHuntRun();
 #endif
 
+  if (config.enableFastLoad) {
+    runFastLoad();
+  }
+
   // enable 4 player splitscreen
   //extraLocalsRun();
 
@@ -5632,8 +5807,7 @@ int main (void)
     
 		//
 		grLobbyStart();
-
-		// 
+    runShowCustomMapModeInSearch();
 		patchStagingRankNumber();
 
     // enable selecting any vehicle for all maps
