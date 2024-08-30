@@ -55,6 +55,8 @@ const int patches[][3] = {
 	{ 0, 0x0075AC40, 0xC44C0124 }, // get rank numbers
   { -1, 0x00138d7c, 0x0C04E138 }, // sceGsGetGParam
   { 0, 0x0075B56C, 0x0C1D6CEA }, // extra locals lobby get player pad
+  { 0, 0x00764E48, 0x3C02004F }, // get vehicles enabled
+  { 0, 0x00764E4C, 0x00042100 }, // get vehicles enabled
 	// maploader
 	{ 0, 0x005CFB48, 0x0C058E10 }, // hookLoadAddr
 	{ 0, 0x00705554, 0x0C058E02 }, // hookLoadingScreenAddr

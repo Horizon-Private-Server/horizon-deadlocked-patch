@@ -222,12 +222,62 @@ int onHillMobyConsiderPlayer(Player* player)
 }
 
 //--------------------------------------------------------------------------
+void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
+{
+	int i;
+  int count = spawnPointGetCount();
+  int bestIdx = 0;
+  float bestDistSqr = 1000000;
+  VECTOR delta;
+
+  // hiders use default spawn system
+  if (player && !State.PlayerStates[player->PlayerId].IsSeeker) {
+    playerGetSpawnpoint(player, outPos, outRot, firstRes);
+    return;
+  }
+
+  // find hill moby
+  Moby* hillMoby = mobyFindNextByOClass(mobyListGetStart(), 0x2604);
+  if (!hillMoby) {
+    playerGetSpawnpoint(player, outPos, outRot, firstRes);
+    return;
+  }
+
+  // find closest player spawn to hill
+  for (i = 0; i < count; ++i) {
+    if (!spawnPointIsPlayer(i)) continue;
+
+    SpawnPoint* sp = spawnPointGet(i);
+    vector_subtract(delta, &sp->M0[12], hillMoby->Position);
+    float sqrDist = vector_sqrmag(delta);
+    if (sqrDist < bestDistSqr) {
+      bestIdx = i;
+      bestDistSqr = sqrDist;
+    }
+  }
+
+  // choose closest to hill
+  SpawnPoint* sp = spawnPointGet(bestIdx);
+  vector_copy(outPos, &sp->M0[12]);
+  vector_copy(outRot, &sp->M1[12]);
+}
+
+//--------------------------------------------------------------------------
 int onWhoHitMe(Player* player, Moby* moby, int b)
 {
   // prevent non-seekers from damaging others
   if (moby) {
     Player* sourcePlayer = guberMobyGetPlayerDamager(moby);
-    if (sourcePlayer && !State.PlayerStates[sourcePlayer->PlayerId].IsSeeker) return 0;
+    if (sourcePlayer && !State.PlayerStates[sourcePlayer->PlayerId].IsSeeker) {
+      // if target is also a hider, then stun them (grief mechanic)
+      // make sure hiders cannot stun seeker
+      if (!State.PlayerStates[player->PlayerId].IsSeeker
+          && player->timers.postHitInvinc == 0
+          && player->PlayerState != PLAYER_STATE_ELECTRIC_GET_HIT) {
+        playerGetVTable(player)->UpdateState(player, PLAYER_STATE_ELECTRIC_GET_HIT, 1, 0, 0);
+      }
+      return 0;
+    }
   }
 
   // base
@@ -321,6 +371,38 @@ void frameTick(void)
       cgmPlayer->DisplayLastPtsDeltaTicks = ptsDtTicks - 1;
     }
   }
+
+  // find player in first place (not hider)
+  int bestPts = 0;
+  int leaderIdx = -1;
+  VECTOR leaderWPos = {0,0,3,0};
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (!State.PlayerStates[i].IsSeeker && State.PlayerStates[i].Stats.Points > bestPts) {
+      bestPts = State.PlayerStates[i].Stats.Points;
+      leaderIdx = i;
+    }
+  }
+
+  // draw 1st place player icon
+  if (leaderIdx >= 0) {
+    VECTOR delta;
+    Player* player = playerGetAll()[leaderIdx];
+    if (!player || !playerIsConnected(player) || player->IsLocal) return;
+    
+    // pulse color
+    u32 color = colorLerp(0x8000C0C0, 0x80408080, 0.5 * (1 + sinf(gameGetTime() / 250.0)));
+
+    // get position and scale size by distance
+    vector_add(leaderWPos, leaderWPos, player->PlayerPosition);
+    vector_subtract(delta, leaderWPos, cameraGetGameCamera(0)->pos);
+    float dist = vector_length(delta);
+    float size = clamp(20 - (dist/16), 0, 24);
+    if (size < 16) return;
+
+	  gfxSetupGifPaging(0);
+    gfxHelperDrawSprite_WS(leaderWPos, size, size, 32, 32, 73, color, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    gfxDoGifPaging();
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -391,6 +473,14 @@ void initialize(PatchStateContainer_t* gameState)
 	// patch who hit me to prevent damaging others
   HOOK_JAL(0x005E07C8, &onWhoHitMe);
   HOOK_JAL(0x005E11B0, &onWhoHitMe);
+
+	// hook get resurrect point
+  HOOK_JAL(0x005e2d44, &getResurrectPoint);
+  HOOK_JAL(0x00610724, &getResurrectPoint);
+
+  // move ideal spawn distance from 40 to 2
+  // spawns players closer to other players
+  POKE_U16(0x00624614, 0x4000);
 
   // enable juggernaut aura FX
   POKE_U32(0x005d29a8, 0x2404000A);
