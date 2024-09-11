@@ -59,14 +59,13 @@ typedef struct PlayerSyncPlayerData
 
 // config
 extern PatchConfig_t config;
-
-// game config
 extern PatchGameConfig_t gameConfig;
-
 extern PatchStateContainer_t patchStateContainer;
 
 // ping
 extern int ClientLatency[GAME_MAX_PLAYERS];
+
+extern void* _playerSyncPatchHeroTransAnim;
 
 //--------------------------------------------------------------------------
 int playerSyncCmdDelta(int fromCmdId, int toCmdId)
@@ -649,6 +648,7 @@ void playerSyncTick(void)
   HOOK_JAL(0x0060eb80, &playerSyncDisablePlayerStateUpdates);
   HOOK_JAL(0x0060684c, &playerSyncHandlePlayerPadHook);
   //HOOK_JAL(0x0060cd44, &playerSyncOnPlayerUpdateSetState);
+  HOOK_JAL(0x005f0900, &_playerSyncPatchHeroTransAnim);
 
   // player link always healthy
   POKE_U32(0x005F7BDC, 0x24020001);

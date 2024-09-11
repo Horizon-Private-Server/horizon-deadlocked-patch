@@ -2914,6 +2914,7 @@ void initialize(PatchStateContainer_t* gameState)
   // force holoshield hit testing
   *(u32*)0x00401194 = 0;
   *(u32*)0x003FFDE8 = 0x1000000D;
+  POKE_U32(0x003FFD98, 0x120000DD); // fix holo crash when owner leaves
 
 	// Disables end game draw dialog
 	*(u32*)0x0061fe84 = 0;
@@ -3416,6 +3417,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 #if DEBUG_PERKS
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_JUMP] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] = 1;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_SHOT] = 2;

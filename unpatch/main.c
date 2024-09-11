@@ -106,6 +106,7 @@ const int patches[][3] = {
   { 1, 0x0060684c, 0x0C1833B0 }, // player sync wrench patch
   { 1, 0x00608BC4, 0x0040F809 }, // player sync stop cboot state update
   { 1, 0x0060CD44, 0x0040F809 }, // player sync stop cboot state update
+  { 1, 0x005f0900, 0x0C13EC06 }, // player sync hero trans anim
   { 1, 0x006265a4, 0x0C189544 }, // ComputePoints patch
   { 1, 0x005DFE30, 0x0C177CF4 }, // Hero GadgetEventHandler patch
   { 1, 0x003bd854, 0x0C173876 }, // Hero Update Hook
