@@ -1,0 +1,265 @@
+++ Prevent players from twirling flail infinitely
+Add mob that throws/shoots something
+++ Add pack-a-punch (vending machine)
+++ Add reviving
+-- Change round increment to on complete instead of on start (so the bottom left counter reflects the ne)
+++ Let sniper hit multiple enemies
+Have locals share bolts
+++Fix using sheep vars at start
+++Randomize weapon spawns (game spawns them randomly -- time and place)
+++Fix weapon model not upgrading right away
+++Refill ammo on upgrade
+++Add revive cooldown to prevent paying twice on circle spam
+++increase attack radius of zombies so they dont trap you
+--Add scoreboard showing number of kills per player
+++Change round counter to singleplayer one
+++Add # of spawned zombies to the bottom left
+++Add ability to open weapons menu to move alpha mods around
+++Fix fake mag upgrade giving money and giving mag
+++Disable mod pads
+++Change spawner to work in bursts
+Optimize network code
+++Fix zombie getting stuck and respawning causing round to end if last one
+++Fix zombies floating on spawn
+++Fix ammo being reset to v1 max ammo on upgrade
+++Remove v10 child mines on other peoples screens
+++Auto destruct v10 child mines after n seconds
+++Add weapon level to equipped weapon hud string
+++Fix silencer shots not spreading out in lock strafe and first person mode
+++Fix playing with locals breaking vendor/al spawns
+++Add end game scoreboard with kills/bolts/deaths/revives
+Animate vendor for when you get near the it
+--Send mutators to everyone at start of each round (in case host leaves midgame)
+++Add knockback for impact mod
+++Fix zombies flying across air when step skip is on
+++Add grace period between rounds
+++Improve mob distance based drawing
+++Hook up patch game state updater to round number
+++Fix hasVelocity when MoveStep is greater than 0
+++Enable selecting any alpha mod for any weapon (codesegment at 0x0040B00C)
+++Give +5 ammo for all weapons per ammo alpha mod (codesegment at 0x0017A0F8)
+++Disable mob collision while crawling out of ground
+++Add competitive teamplay logic
+++Change team bolts to multiply by # of teams  --then per team divide by # players on team
+++Turn off player targeting when teams are on
+Fix mob order not working correctly when spectating
+++Add difficulty to end game scoreboard text
+++Change respawn button to not overlap with upgrading weapon
+++Adjust weapon pickup spawn rate to scale with number of players
+++Replace chargeboot pickup with weapon pickup if chargeboots Always or Off
+++Increase damage cooldown for lower difficulties
+++Decrease chargeboot into wall stunlock time for lower difficulties
+++Add random drop pickups for Ammo, Nuke, Slow, and Double Points
+++Add special rounds
+++Fix freeze staying forever after dying with freeze and being revived
+++Fix zombies being immune while spawning
+++Add tank zombies (rare)
+++Adjust multiple player budget curve (change to level out after 3-4 players)
+++Change zombie damage to be tied to animation and hand joint position
+++Give revived players a damage cooldown
+++Add health/speed/damage upgrades (persists between deaths)
+++Add upgrade that lowers the cost of reviving other players
+++Add upgrade that gives discount on vendor
+++Add token system based on XP from killing mobs
+++Add mystery box (pay 10000 bolts)
+  - Teddy bear (respawn random location)
+  - Random weapon mod
+  - Dread token
+  - Totem that auto revives when you die (releases explosion with high damage; you don't get points for kills)
+  - Turn power on for X minutes
+  - Item that, when activated, makes you invisible to zombies
+  - Item that, when activated, acid jumps you high
+  - Upgrade weapon
+  - Chance of being frozen for 1 minute
+  - Can't use random weapon
+  - Foggy vision for 1 minute
+  - Reset gates with 1 token to open
+++Revive cost resets when you fully die
+Get a reward for reviving (ammo/health)
+++Add path finding
+++Force game settings on start
+++Fix knockback throwing mobs into air
+++Fix mobs clipping through walls
+Have power move around the map randomly
+++Balance vendor discount
+++Fix drops not spawning
+++Fix drowning in acid
+++Make power longer to turn on (6 turns)
+++Have upgrades fade and then respawn at another spot
+++Move shield to right path
+++Increase viper ammo to 50 per
+++Add spawnpoints to quad room
+Add random events
+  - Defend something for period of time
+++Add snack manager for events/popups
+++Fix mobs not retargeting to closer players
+++Fix titans not hitting players right on them
+++Add per mob config damage/speed/health scaling factor
+++Sync network pathfinding data
+++Make mobs spawn closer to players more likely
+++Rebalance arbiter damage/ammo
+++Add timed infinite ammo item to mystery box
+++Holoshields damage mobs
+++Fix executioner pathfinding/getting stuck on walls
+++Add XP alpha mod
+++Change executioner blip to big red dot
+++Double XP drop
+++Rename special rounds
+++Make speed upgrade crank bolts faster
+++Fix revive not working near Al
+++Rename medic to revive discount
+++Let people play on any team, but act like they are on same
+++Shield sphere prevents gas damage on orxon
+++Communicate when you reached max player upgrades
+++Medic upgrade hidden in solo runs
+++Solo run spawn in with a self revive
+++Prevents mobs from accidentally spawning on player
+++Fix teleporting mobs
+++Fix speed mod not working on bolt cranks if not blue/red team
+++Remove difficulty setting
+++Increase special round mob count
+--Have mob respawn if stuck
+--Have mob respawn if not near any visible nodes for awhile?
+++Update weapons spawns from unity
+++Surge stun animation
+++Nerf wraith outside of gas
+++Surge damage/flinch mobs
+++Surge buffs wrench damage
+++Add sounds to Surge
+++Add sounds to wraith
+Fix emu crashing when loading too fast/loading too fast in general freezing on Guber event
+++Add death state/animations
+++Fix mobs getting stuck in orxon building
+++Look into moving map code on top of SVO code
+++Buff b6
+++Demon bell to speed up early rounds
+Add more stats
+++Self revive shouldn't give you a revive stat
++-Fix pathfinding rerunning required route when target moves to new node
+    - This needs to be changed to factor in two paths.
+      One from nearest node to target.
+      And one from next node on existing path to target.
+      Choosing the shorter path and then continuing on the current path to the next node if that is the shortest path.
+Cleanup orxon collision
+++Change impact mod to be random probability instead of percent health
+++Up the Arbiter ammo count from 8->12
+++Lower the base health of Executioners.
+++Adjust executioner round
+++Lower the Vendor Discount from 4%->2%
+++Increase the damage upgrade from 5% to 8%
+++Make the max speed cap 200% instead of 180%
+++Fix zombie desync
+Fix OPL crash on load
+++Buff surge
+++Add gate reset (resets gate 100% cost)
+++Teams off ends game when only one team left
+
+++Fix mysterybox sounds on mpass
+++Fix upgrade sounds on mpass
+Try and improve overall teleporting of mobs and boss
+++Change reactor activate statue to shoot them
+++Add waiting for host to start round after boss round
+++Add damage numbers on damage
+++Add description to blessings
+Add blessing statues
+++Have cooldown upgrade affect quad/shield mbox item
+++Fix clank dialog when opening weapons menu
+++Move weapon spawns on mpass
+++Reduce flinch odds on reactor
+++Have drop snap to ground
+++Replace "EMP" with health gun
+
+Tweak weapons
+++Fix charge clipping walls
+++Al big yellow dot radar
+++Reaper aggro less likely to flinch
+++Buff viper cooldown on reactor (2x)
+++Add mbox respawn sound
+++Add vox laugh dialog on mbox vox
+++Give reactor a little lunge when swinging
+++Slow down reactor smash animation
+++Fix mobs flinching into walls and getting stuck
+++Improve overall EE performance for mobs (reduce movecheck to 3)
+++Block small hallway on minimap
+++Move mines to front of small hallway
+++Move drops and upgrades into map
+++Flail knockback power increment with flail level
+++Apply quad to headbutt
+++Reset revive cost of each player at start of round
+++Add bank to deposit withdraw bolts
+++Add quad to holoshield damage
+++Change hunt to not count jumping
+++Tweak EE lag on ps2 (damage popups)
+++Increase LOD distance for ties on mpass
+++Fix reaper aggroing wrong target
+++Fix bolt counter for locals
+++Fix weapons menu for locals
+++Add additional blessing slots, each time you beat reactor
+++Add weapon prestige machine
++-Fix reactor trailshot slope around statues
+++Nerf vipers
+++Nerf arbiter
+++Increase cost of prestige each time
+++Fix reactor going around sloped walls
+++Move reactor attacks to 75% health, 50% health, etc
+++Break up solo/coop runs in leaderboard
+--Lower survival leaderboard xp rate (even less for coop)
+++Fix not moving mobs still respawning even if at target
+++Add lunge to reactor swing
+++Adjust probability for quad/shield with luck
+++Add account prestiging (per level?)
+++Add crit upgrade
+++Fix clank red eye to only after hit
+++Add blessing statues
+++Make wall upgrades more visible
+++Buff crit
+++Move reactor to every 25
+++Adjust xp -> rank curve
+++Fix orxon pathing/getting stuck
+++Fix reactor charge stopping on smallest slope
++-Nerf v10 vipers
+Apply damage adjustments to damage table
+++Add stats display to start menu (upgrades)
+++Add left dpad to use item button to DZO
+++Add reactor stuff to DZO
+++Add damage counters to DZO
+++Fix 13A1 scale in DZO
+++Fix damage bubbles causing lag on DZO
+Increase brightness of sprites on DZO
+++Fix prestige not coloring weapon name on DZO
+Fix wrapping of popup text (bank) on DZO
+++Fix mobys being dark
+++Fix spawn cheese on mpass
+++Fix revive angle
+++Add commas to bank balance
+
+Have revive gun be an on trigger AoE instead of a gun
+Mbox item randomize weapon pickups
+Lower viper base ammo
+Increase base ammo of most weps
+
+Fix mbox sounds
+Refine zombie hit detection (hits side on but not frontal)
+Try to fix zombie jump triggering flinch sound
+
+Fix explosion zombies
+++Fix dzo mbox alpha mod icons
+++Fix dzo map
+++Fix stack box base collision
+++Set hbox nobox
+++Change name to Zombie Survival
+
+Add acquired perk
+Rename to perks
+Find missing mbox
+Fix jumping mobs
+Add reroll option to stackbox
+
+++Add explosion sphere
+Fix freeze jump air speed super slow
+++Fix hoverboot case
+++Fix trigger tornado after dead
+++Add perk icons
+++Explore more than 10 alpha mods
+++Add vampire
+++Add hoverboot boots
