@@ -882,6 +882,35 @@ void mobGetVelocityToTargetSimple(Moby* moby, VECTOR velocity, VECTOR from, VECT
 }
 
 //--------------------------------------------------------------------------
+void mobAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
+{
+	VECTOR up = {0,0,1,0};
+	
+	vector_outerproduct(out, forward, up);
+	vector_normalize(out, out);
+	vector_scale(out, out, amount);
+}
+
+//--------------------------------------------------------------------------
+void mobMoveTowards(Moby* moby, VECTOR targetPosition, float speed, float turnSpeed, float acceleration, float curveNearTargetDir)
+{
+  VECTOR t, t2;
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  vector_subtract(t, targetPosition, moby->Position);
+  float dist = vector_length(t);
+  if (dist < 10.0) {
+    mobAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * curveNearTargetDir);
+    vector_add(t, t, t2);
+  }
+  vector_scale(t, t, 1 / dist);
+  vector_add(t, moby->Position, t);
+
+  mobTurnTowards(moby, t, turnSpeed);
+  mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed * speed, acceleration);
+}
+
+//--------------------------------------------------------------------------
 void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 {
 	struct QuadDef quad;
@@ -967,8 +996,41 @@ void mobPostDrawDebug(Moby* moby)
 #endif
 
 //--------------------------------------------------------------------------
+void mobUpdateTargetOutOfSight(Moby* moby)
+{
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+	Moby* target = pvars->MobVars.Target;
+	VECTOR t, t2;
+  VECTOR up = {0,0,1,0};
+  
+  // increment out of sight ticker
+  if (target) {
+    if (pvars->MobVars.TargetOutOfSightCheckTicks == 0) {
+      vector_add(t, moby->Position, up);
+      vector_add(t2, target->Position, up);
+      if (CollLine_Fix(t, t2, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL) && CollLine_Fix_GetHitMoby() != target) {
+        pvars->MobVars.TimeTargetOutOfSightTicks++;
+      } else {
+        pvars->MobVars.TimeTargetOutOfSightTicks = 0;
+      }
+      
+      pvars->MobVars.TargetOutOfSightCheckTicks = 15;
+    } else {
+      pvars->MobVars.TimeTargetOutOfSightTicks += (pvars->MobVars.TimeTargetOutOfSightTicks > 0) ? 1 : 0;
+    }
+  } else {
+      pvars->MobVars.TimeTargetOutOfSightTicks = 0;
+  }
+}
+
+//--------------------------------------------------------------------------
 void mobPreUpdate(Moby* moby)
 {
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  decTimerU8(&pvars->MobVars.TargetOutOfSightCheckTicks);
+
+  mobUpdateTargetOutOfSight(moby);
+  
 #if DEBUG
 	gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&mobPostDrawDebug, moby);
 #endif

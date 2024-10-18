@@ -105,6 +105,7 @@ enum ZombieAction
 	ZOMBIE_ACTION_LOOK_AT_TARGET,
   ZOMBIE_ACTION_DIE,
 	ZOMBIE_ACTION_ATTACK,
+	ZOMBIE_ACTION_ROAM,
 };
 
 enum ZombieSubskeletonJoints

@@ -322,6 +322,31 @@ int spawnerOnChildConsiderTarget(Moby* moby, Moby* childMoby, u32 userdata, Moby
 }
 
 //--------------------------------------------------------------------------
+int spawnerOnChildConsiderRoamTarget(Moby* moby, Moby* childMoby, u32 userdata, VECTOR targetPosition)
+{
+  int i;
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  // check if target is in a habitable cuboids
+  // if no habitable cuboids are defined, then return 1
+  int inside = 1;
+  for (i = 0; i < SPAWNER_MAX_HABITABLE_CUBOIDS; ++i) {
+    int cuboidIdx = pvars->HabitableCuboidIds[i];
+    if (cuboidIdx < 0) continue;
+
+    SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
+    if (spawnPointIsPointInside(cuboid, targetPosition, NULL)) {
+      inside = 1;
+      break;
+    }
+
+    inside = 0;
+  }
+
+  return inside;
+}
+
+//--------------------------------------------------------------------------
 void spawnerOnGuberCreated(Moby* moby)
 {
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;

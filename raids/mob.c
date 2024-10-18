@@ -134,7 +134,8 @@ void mobSendStateUpdate(Moby* moby)
 	// create event
 	GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_TARGET_UPDATE);
 	if (guberEvent) {
-		vector_copy(args.Position, moby->Position);
+    memcpy(args.Position, moby->Position, 12);
+    memcpy(args.TargetPosition, pvars->MobVars.TargetPosition, 12);
     args.PathCurrentEdgeIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
     args.PathEndNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[0];
     args.PathStartNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[1];
@@ -165,7 +166,8 @@ void mobSendStateUpdateUnreliable(Moby* moby)
   msg.StateUpdate.Random = pvars->MobVars.DynamicRandom;
 
   // state update
-  vector_copy(msg.StateUpdate.Position, moby->Position);
+  memcpy(msg.StateUpdate.Position, moby->Position, 12);
+  memcpy(msg.StateUpdate.TargetPosition, pvars->MobVars.TargetPosition, 12);
   msg.StateUpdate.PathCurrentEdgeIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
   msg.StateUpdate.PathEndNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[0];
   msg.StateUpdate.PathStartNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[1];
@@ -1178,6 +1180,7 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventArgs* args)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  VECTOR remotePos={0,0,0,0};
 	VECTOR t;
 	if (!pvars || mobAmIOwner(moby) || !args)
 		return 0;
@@ -1186,11 +1189,15 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
   pvars->TicksSinceLastStateUpdate = 0;
 
 	// teleport position if far away
-	vector_subtract(t, moby->Position, args->Position);
+  memcpy(remotePos, args->Position, 12);
+	vector_subtract(t, moby->Position, remotePos);
 	if (vector_sqrmag(t) > 25) {
-		vector_copy(moby->Position, args->Position);
-		vector_copy(pvars->MobVars.MoveVars.NextPosition, args->Position);
+    vector_copy(moby->Position, remotePos);
+    vector_copy(pvars->MobVars.MoveVars.NextPosition, remotePos);
   }
+
+  // update target pos (if target moby not used)
+  memcpy(pvars->MobVars.TargetPosition, args->TargetPosition, 12);
 
 	// 
 	if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) > 0 && pvars->MobVars.Action != args->Action) {

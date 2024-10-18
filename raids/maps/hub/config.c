@@ -37,6 +37,7 @@ struct MobSpawnParams mobSpawnParams[] = {
       .AutoAggroMaxRange = 10.0,
       .VisionRange = 35.0,
       .PeripheryRangeTheta = 135.0 * 0.5 * MATH_DEG2RAD,
+      .OutOfSightDeAggroTickCount = TPS * 5,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 		}
@@ -69,6 +70,7 @@ struct MobSpawnParams mobSpawnParams[] = {
       .AutoAggroMaxRange = 10.0,
       .VisionRange = 35.0,
       .PeripheryRangeTheta = 135.0 * 0.5 * MATH_DEG2RAD,
+      .OutOfSightDeAggroTickCount = TPS * 5,
 			.ReactionTickCount = SWARMER_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = SWARMER_BASE_ATTACK_COOLDOWN_TICKS,
 		}

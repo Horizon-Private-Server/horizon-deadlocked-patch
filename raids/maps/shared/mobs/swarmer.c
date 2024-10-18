@@ -35,6 +35,8 @@ int swarmerCanNonOwnerTransitionToAction(Moby* moby, int action);
 int swarmerShouldForceStateUpdateOnAction(Moby* moby, int action);
 
 int swarmerIsSpawning(struct MobPVar* pvars);
+int swarmerIsRoaming(struct MobPVar* pvars);
+int swarmerIsIdling(struct MobPVar* pvars);
 int swarmerCanAttack(struct MobPVar* pvars);
 int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars);
 int swarmerIsFlinching(Moby* moby);
@@ -165,16 +167,6 @@ void swarmerPostDraw(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void swarmerAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
-{
-	VECTOR up = {0,0,1,0};
-	
-	vector_outerproduct(out, forward, up);
-	vector_normalize(out, out);
-	vector_scale(out, out, amount);
-}
-
-//--------------------------------------------------------------------------
 void swarmerMove(Moby* moby)
 {
   mobMove(moby);
@@ -204,6 +196,7 @@ void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
 
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
+  vector_copy(pvars->MobVars.TargetPosition, moby->Position);
 }
 
 //--------------------------------------------------------------------------
@@ -276,6 +269,18 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
         }
       }
     }
+
+    // auto aggro
+    if (!pvars->MobVars.Target) {
+      Player* target = (Player*)guberGetObjectByUID(e->SourceUID);
+      if (target) {
+        Moby* targetMoby = playerGetTargetMoby(target);
+        if (targetMoby) {
+          pvars->MobVars.Target = targetMoby;
+          pvars->MobVars.Dirty = 1;
+        }
+      }
+    }
 	}
 
   // short freeze
@@ -311,7 +316,6 @@ Moby* swarmerGetNextTarget(Moby* moby)
 	float closestPlayerDist = 100000;
 
   vector_fromyaw(forward, moby->Rotation[2]);
-
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
@@ -385,6 +389,12 @@ int swarmerGetPreferredAction(Moby* moby, int * delayTicks)
     return SWARMER_ACTION_JUMP;
   }
 
+  // reset target
+  if (pvars->MobVars.Target && pvars->MobVars.TargetOutOfSightCheckTicks > pvars->MobVars.Config.OutOfSightDeAggroTickCount) {
+    pvars->MobVars.Target = NULL;
+    return SWARMER_ACTION_IDLE;
+  }
+
 	// prevent action changing too quickly
 	if (pvars->MobVars.ActionCooldownTicks)
 		return -1;
@@ -413,7 +423,25 @@ int swarmerGetPreferredAction(Moby* moby, int * delayTicks)
 		}
 	}
 	
-	return SWARMER_ACTION_IDLE;
+  // if roaming, then we want to periodically stop or reroute
+  if (swarmerIsRoaming(pvars)) {
+
+    // check how close we are to target
+    vector_subtract(t, pvars->MobVars.TargetPosition, moby->Position);
+    float dist = vector_length(t);
+    
+    // idle if near target or randomly
+    if (dist < pvars->MobVars.Config.AttackRadius || rand(10007) == 0) {
+      return SWARMER_ACTION_IDLE;
+    }
+  }
+
+  // idle for 3 seconds
+  if (swarmerIsIdling(pvars) && pvars->MobVars.CurrentActionForTicks < TPS*3) {
+    return SWARMER_ACTION_IDLE;
+  }
+	
+	return SWARMER_ACTION_ROAM;
 }
 
 //--------------------------------------------------------------------------
@@ -547,6 +575,25 @@ void swarmerDoAction(Moby* moby)
         mobTurnTowards(moby, target->Position, turnSpeed);
       break;
     }
+    case SWARMER_ACTION_ROAM:
+    {
+      if (!isInAirFromFlinching) {
+        pathGetTargetPos(path, t, moby);
+        mobMoveTowards(moby, t, 0.5, turnSpeed, acceleration, 0);
+      }
+
+			// 
+      if (moby->AnimSeqId == SWARMER_ANIM_JUMP_AND_FALL && !pvars->MobVars.MoveVars.Grounded) {
+        // wait for jump to land
+      } else if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
+        swarmerForceLocalAction(moby, SWARMER_ACTION_JUMP);
+      } else if (mobHasVelocity(pvars)) {
+				mobTransAnim(moby, SWARMER_ANIM_WALK, 0);
+      } else if (moby->AnimSeqId != SWARMER_ANIM_WALK || pvars->MobVars.AnimationLooped) {
+				mobTransAnim(moby, SWARMER_ANIM_IDLE, 0);
+      }
+      break;
+    }
     case SWARMER_ACTION_WALK:
 		{
       if (target) {
@@ -555,19 +602,7 @@ void swarmerDoAction(Moby* moby)
 
         // determine next position
         pathGetTargetPos(path, t, moby);
-        //vector_copy(t, target->Position);
-        vector_subtract(t, t, moby->Position);
-        float dist = vector_length(t);
-        if (dist < 10.0) {
-          swarmerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-          vector_add(t, t, t2);
-        }
-        vector_scale(t, t, 1 / dist);
-        vector_add(t, moby->Position, t);
-
-
-        mobTurnTowards(moby, t, turnSpeed);
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+        mobMoveTowards(moby, t, 1, turnSpeed, acceleration, dir);
       } else {
         // stand
         mobStand(moby);
@@ -715,6 +750,28 @@ void swarmerForceLocalAction(Moby* moby, int action)
 			moby->CollActive = 1;
 			break;
 		}
+    case SWARMER_ACTION_ROAM:
+    {
+      struct PathGraph* path = pathGetMobyPathGraph(moby);
+      if (path && path->NumNodes > 0 && mobAmIOwner(moby)) {
+
+        int r = rand(path->NumNodes);
+        int count = 0;
+
+        // if we're in a spawner
+        // then try and find a node thats in a habitable cuboid
+        if (moby->PParent && moby->PParent->OClass == SPAWNER_OCLASS) {
+          while (count < path->NumNodes && !spawnerOnChildConsiderRoamTarget(moby->PParent, moby, pvars->MobVars.Userdata, path->Nodes[r])) {
+            r = (r + 1) % path->NumNodes;
+            ++count;
+          }
+        }
+
+        vector_copy(pvars->MobVars.TargetPosition, path->Nodes[r]);
+        pvars->MobVars.TargetPosition[3] = 0;
+      }
+      break;
+    }
 		case SWARMER_ACTION_WALK:
 		{
 			
@@ -788,6 +845,18 @@ int swarmerShouldForceStateUpdateOnAction(Moby* moby, int action)
 int swarmerIsSpawning(struct MobPVar* pvars)
 {
 	return pvars->MobVars.Action == SWARMER_ACTION_SPAWN && !pvars->MobVars.AnimationLooped;
+}
+
+//--------------------------------------------------------------------------
+int swarmerIsRoaming(struct MobPVar* pvars)
+{
+	return pvars->MobVars.Action == SWARMER_ACTION_ROAM;
+}
+
+//--------------------------------------------------------------------------
+int swarmerIsIdling(struct MobPVar* pvars)
+{
+	return pvars->MobVars.Action == SWARMER_ACTION_IDLE;
 }
 
 //--------------------------------------------------------------------------

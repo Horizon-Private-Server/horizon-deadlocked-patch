@@ -95,6 +95,7 @@ struct MobConfig {
   float PeripheryRangeTheta;
 	u16 Bangles;
 	u16 Xp;
+  u16 OutOfSightDeAggroTickCount;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 };
@@ -180,6 +181,8 @@ struct MobVars {
 	u16 MovingTicks;
 	u16 CurrentActionForTicks;
 	u16 TimeLastGroundedTicks;
+	u16 TimeTargetOutOfSightTicks;
+  u8 TargetOutOfSightCheckTicks;
 	u8 ActionId;
 	u8 LastActionId;
   u8 SlowTicks;
@@ -284,7 +287,8 @@ struct MobActionUpdateEventArgs
 
 struct MobStateUpdateEventArgs
 {
-	VECTOR Position;
+	float Position[3];
+  float TargetPosition[3];
 	int TargetUID;
 	int Action;
   u8 PathStartNodeIdx;

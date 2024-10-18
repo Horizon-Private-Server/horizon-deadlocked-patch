@@ -34,6 +34,8 @@ int zombieCanNonOwnerTransitionToAction(Moby* moby, int action);
 int zombieShouldForceStateUpdateOnAction(Moby* moby, int action);
 
 int zombieIsSpawning(struct MobPVar* pvars);
+int zombieIsRoaming(struct MobPVar* pvars);
+int zombieIsIdling(struct MobPVar* pvars);
 int zombieCanAttack(struct MobPVar* pvars);
 int zombieIsFlinching(Moby* moby);
 
@@ -154,16 +156,6 @@ void zombiePostDraw(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void zombieAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
-{
-	VECTOR up = {0,0,1,0};
-	
-	vector_outerproduct(out, forward, up);
-	vector_normalize(out, out);
-	vector_scale(out, out, amount);
-}
-
-//--------------------------------------------------------------------------
 void zombieMove(Moby* moby)
 {
   mobMove(moby);
@@ -192,6 +184,7 @@ void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
 
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
+  vector_copy(pvars->MobVars.TargetPosition, moby->Position);
 }
 
 //--------------------------------------------------------------------------
@@ -268,6 +261,18 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e)
         }
       }
     }
+
+    // auto aggro
+    if (!pvars->MobVars.Target) {
+      Player* target = (Player*)guberGetObjectByUID(e->SourceUID);
+      if (target) {
+        Moby* targetMoby = playerGetTargetMoby(target);
+        if (targetMoby) {
+          pvars->MobVars.Target = targetMoby;
+          pvars->MobVars.Dirty = 1;
+        }
+      }
+    }
 	}
 
   // short freeze
@@ -303,7 +308,6 @@ Moby* zombieGetNextTarget(Moby* moby)
 	float closestPlayerDist = 100000;
 
   vector_fromyaw(forward, moby->Rotation[2]);
-
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
@@ -373,6 +377,12 @@ int zombieGetPreferredAction(Moby* moby, int * delayTicks)
     return ZOMBIE_ACTION_JUMP;
   }
 
+  // reset target
+  if (pvars->MobVars.Target && pvars->MobVars.TargetOutOfSightCheckTicks > pvars->MobVars.Config.OutOfSightDeAggroTickCount) {
+    pvars->MobVars.Target = NULL;
+    return ZOMBIE_ACTION_IDLE;
+  }
+
 	// prevent action changing too quickly
 	if (pvars->MobVars.ActionCooldownTicks)
 		return -1;
@@ -395,8 +405,26 @@ int zombieGetPreferredAction(Moby* moby, int * delayTicks)
 			return ZOMBIE_ACTION_WALK;
 		}
 	}
+
+  // if roaming, then we want to periodically stop or reroute
+  if (zombieIsRoaming(pvars)) {
+
+    // check how close we are to target
+    vector_subtract(t, pvars->MobVars.TargetPosition, moby->Position);
+    float dist = vector_length(t);
+    
+    // idle if near target or randomly
+    if (dist < pvars->MobVars.Config.AttackRadius || rand(10007) == 0) {
+      return ZOMBIE_ACTION_IDLE;
+    }
+  }
+
+  // idle for 3 seconds
+  if (zombieIsIdling(pvars) && pvars->MobVars.CurrentActionForTicks < TPS*3) {
+    return ZOMBIE_ACTION_IDLE;
+  }
 	
-	return ZOMBIE_ACTION_IDLE;
+	return ZOMBIE_ACTION_ROAM;
 }
 
 //--------------------------------------------------------------------------
@@ -530,28 +558,34 @@ void zombieDoAction(Moby* moby)
         mobTurnTowards(moby, target->Position, turnSpeed);
       break;
     }
+    case ZOMBIE_ACTION_ROAM:
+    {
+      if (!isInAirFromFlinching) {
+        pathGetTargetPos(path, t, moby);
+        mobMoveTowards(moby, t, 0.5, turnSpeed, acceleration, 0);
+      }
+
+			// 
+      if (moby->AnimSeqId == ZOMBIE_ANIM_JUMP && !pvars->MobVars.MoveVars.Grounded) {
+        // wait for jump to land
+      } else if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
+        zombieForceLocalAction(moby, ZOMBIE_ACTION_JUMP);
+      } else if (mobHasVelocity(pvars)) {
+				mobTransAnim(moby, ZOMBIE_ANIM_WALK, 0);
+      } else if (moby->AnimSeqId != ZOMBIE_ANIM_WALK || pvars->MobVars.AnimationLooped) {
+				mobTransAnim(moby, ZOMBIE_ANIM_IDLE, 0);
+      }
+      break;
+    }
     case ZOMBIE_ACTION_WALK:
 		{
       if (!isInAirFromFlinching) {
         if (target) {
-
           float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
 
           // determine next position
           pathGetTargetPos(path, t, moby);
-          //vector_copy(t, target->Position);
-          vector_subtract(t, t, moby->Position);
-          float dist = vector_length(t);
-          if (dist < 10.0) {
-            zombieAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-            vector_add(t, t, t2);
-          }
-          vector_scale(t, t, 1 / dist);
-          vector_add(t, moby->Position, t);
-
-
-          mobTurnTowards(moby, t, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+          mobMoveTowards(moby, t, 1, turnSpeed, acceleration, dir);
         } else {
           // stand
           mobStand(moby);
@@ -599,7 +633,7 @@ void zombieDoAction(Moby* moby)
 			}
 			break;
 		}
-	}
+  }
 
   pvars->MobVars.CurrentActionForTicks ++;
 }
@@ -644,6 +678,28 @@ void zombieForceLocalAction(Moby* moby, int action)
 			moby->CollActive = 1;
 			break;
 		}
+    case ZOMBIE_ACTION_ROAM:
+    {
+      struct PathGraph* path = pathGetMobyPathGraph(moby);
+      if (path && path->NumNodes > 0 && mobAmIOwner(moby)) {
+
+        int r = rand(path->NumNodes);
+        int count = 0;
+
+        // if we're in a spawner
+        // then try and find a node thats in a habitable cuboid
+        if (moby->PParent && moby->PParent->OClass == SPAWNER_OCLASS) {
+          while (count < path->NumNodes && !spawnerOnChildConsiderRoamTarget(moby->PParent, moby, pvars->MobVars.Userdata, path->Nodes[r])) {
+            r = (r + 1) % path->NumNodes;
+            ++count;
+          }
+        }
+
+        vector_copy(pvars->MobVars.TargetPosition, path->Nodes[r]);
+        pvars->MobVars.TargetPosition[3] = 0;
+      }
+      break;
+    }
 		case ZOMBIE_ACTION_WALK:
 		{
 			
@@ -724,6 +780,18 @@ int zombieShouldForceStateUpdateOnAction(Moby* moby, int action)
 int zombieIsSpawning(struct MobPVar* pvars)
 {
 	return pvars->MobVars.Action == ZOMBIE_ACTION_SPAWN && !pvars->MobVars.AnimationLooped;
+}
+
+//--------------------------------------------------------------------------
+int zombieIsRoaming(struct MobPVar* pvars)
+{
+	return pvars->MobVars.Action == ZOMBIE_ACTION_ROAM;
+}
+
+//--------------------------------------------------------------------------
+int zombieIsIdling(struct MobPVar* pvars)
+{
+	return pvars->MobVars.Action == ZOMBIE_ACTION_IDLE;
 }
 
 //--------------------------------------------------------------------------
