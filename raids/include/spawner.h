@@ -65,6 +65,7 @@ void spawnerOnChildMobKilled(Moby* moby, Moby* childMoby, u32 userdata, int kill
 int spawnerOnChildConsiderTarget(Moby* moby, Moby* childMoby, u32 userdata, Moby* target);
 struct GuberMoby* spawnerGetGuber(Moby* moby);
 int spawnerHandleEvent(Moby* moby, GuberEvent* event);
+void spawnerStart(void);
 void spawnerInit(void);
 
 #endif // RAIDS_SPAWNER_H

@@ -182,7 +182,9 @@ int pathCanBeSkippedForTarget(struct PathGraph* path, Moby* moby)
       break;
 
     if (path->EdgesRequired[edge] > 0 || path->EdgesJumpSpeed[edge] > 0) {
+#if DEBUGPATH
       DPRINTF("CANNOT SKIP PATH WITH JUMP %d=>%d\n", path->Edges[edge][0], path->Edges[edge][1]);
+#endif
       return 0;
     }
   }

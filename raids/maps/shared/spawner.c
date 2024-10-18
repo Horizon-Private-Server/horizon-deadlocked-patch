@@ -40,13 +40,34 @@
 extern struct RaidsMapConfig MapConfig;
 
 //--------------------------------------------------------------------------
+int spawnerIsValidCuboidSpawnIdx(Moby* moby, int index)
+{
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+  return pvars->SpawnCuboidIds[index] >= 0;
+}
+
+//--------------------------------------------------------------------------
+int spawnerIsValidMobSpawnIdx(Moby* moby, int index)
+{
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+  return pvars->SpawnableMobParam[index].MobParamIdx >= 0 && pvars->SpawnableMobParam[index].Probability > 0;
+}
+
+//--------------------------------------------------------------------------
 int spawnerGetRandomSpawnPoint(Moby* moby, int mobParamsIdx, VECTOR outPos, float* outYaw)
 {
   VECTOR pos = {0,0,3,0};
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+  int i;
+
+  int selSpawnIdx = selectRandomIndex(SPAWNER_MAX_SPAWN_CUBOIDS, moby, spawnerIsValidCuboidSpawnIdx);
+  if (selSpawnIdx < 0) return 0;
+
+  int cuboidIdx = pvars->SpawnCuboidIds[selSpawnIdx];
+  if (cuboidIdx < 0) return 0;
 
   // get cuboid
-  SpawnPoint* cuboid = spawnPointGet(pvars->SpawnCuboidIds[0]);
+  SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
 
   // determine where to spawn mob
   pos[0] = randRange(-1, 1);
@@ -88,7 +109,10 @@ int spawnerSpawnRandom(Moby* moby)
 {
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
 
-  int spawnerMobIdx = 0;
+  int i;
+  int spawnerMobIdx = selectRandomIndex(SPAWNER_MAX_MOB_TYPES, moby, spawnerIsValidMobSpawnIdx);
+  if (spawnerMobIdx < 0) return 0;
+  
   struct SpawnerMobParams* mobParams = &pvars->SpawnableMobParam[spawnerMobIdx];
   if (mobParams->MobParamIdx < 0 || mobParams->Probability <= 0)
     return 0;
@@ -298,6 +322,45 @@ int spawnerOnChildConsiderTarget(Moby* moby, Moby* childMoby, u32 userdata, Moby
 }
 
 //--------------------------------------------------------------------------
+void spawnerOnGuberCreated(Moby* moby)
+{
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  // mark initialized
+  pvars->Init = 1;
+
+  // set update
+  moby->PUpdate = &spawnerUpdate;
+
+  // don't render
+  moby->ModeBits = MOBY_MODE_BIT_HIDDEN | MOBY_MODE_BIT_NO_POST_UPDATE;
+
+  // 
+  struct Guber* guber = guberGetObjectByMoby(moby);
+  ((GuberMoby*)guber)->TeamNum = 10;
+
+  // print pvars
+  #if PRINT_SPAWNER_PVARS
+    DPRINTF("NumMobsToSpawn=%d\n", pvars->NumMobsToSpawn);
+    DPRINTF("PathGraphIdx=%d\n", pvars->PathGraphIdx);
+    DPRINTF("TriggerCuboidIds\n");
+    for (i = 0; i < SPAWNER_MAX_TRIGGER_CUBOIDS; ++i) { DPRINTF(" [%d]=%d\n", i, pvars->TriggerCuboidIds[i]); }
+    DPRINTF("SpawnCuboidIds\n");
+    for (i = 0; i < SPAWNER_MAX_SPAWN_CUBOIDS; ++i) { DPRINTF(" [%d]=%d\n", i, pvars->SpawnCuboidIds[i]); }
+    DPRINTF("SpawnableMobParam\n");
+    for (i = 0; i < SPAWNER_MAX_MOB_TYPES; ++i) {
+      DPRINTF(" [%d].MobParamIdx=%d\n", i, pvars->SpawnableMobParam[i].MobParamIdx);
+      DPRINTF(" [%d].Probability=%f\n", i, pvars->SpawnableMobParam[i].Probability);
+      DPRINTF(" [%d].DifficultyMultiplier=%f\n", i, pvars->SpawnableMobParam[i].DifficultyMultiplier);
+      DPRINTF(" [%d].MaxCanSpawnOrUnlimited=%d\n", i, pvars->SpawnableMobParam[i].MaxCanSpawnOrUnlimited);
+    }
+  #endif
+
+  // set default state
+  mobySetState(moby, pvars->DefaultState, -1);  
+}
+
+//--------------------------------------------------------------------------
 int spawnerHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 {
 	int i;
@@ -320,41 +383,7 @@ int spawnerHandleEvent_Spawned(Moby* moby, GuberEvent* event)
   if (!mobyIsDestroyed(spawnFromMoby))
     mobyDestroy(spawnFromMoby);
 
-	// set update
-	moby->PUpdate = &spawnerUpdate;
-
-  // mark initialized
-  pvars->Init = 1;
-
-  // don't render
-  moby->ModeBits = MOBY_MODE_BIT_HIDDEN | MOBY_MODE_BIT_NO_POST_UPDATE;
-
-	// 
-	Guber* guber = guberGetObjectByMoby(moby);
-	if (guber)
-	{
-		((GuberMoby*)guber)->TeamNum = 10;
-	}
-
-  // print pvars
-#if PRINT_SPAWNER_PVARS
-  DPRINTF("NumMobsToSpawn=%d\n", pvars->NumMobsToSpawn);
-  DPRINTF("PathGraphIdx=%d\n", pvars->PathGraphIdx);
-  DPRINTF("TriggerCuboidIds\n");
-  for (i = 0; i < SPAWNER_MAX_TRIGGER_CUBOIDS; ++i) { DPRINTF(" [%d]=%d\n", i, pvars->TriggerCuboidIds[i]); }
-  DPRINTF("SpawnCuboidIds\n");
-  for (i = 0; i < SPAWNER_MAX_SPAWN_CUBOIDS; ++i) { DPRINTF(" [%d]=%d\n", i, pvars->SpawnCuboidIds[i]); }
-  DPRINTF("SpawnableMobParam\n");
-  for (i = 0; i < SPAWNER_MAX_MOB_TYPES; ++i) {
-    DPRINTF(" [%d].MobParamIdx=%d\n", i, pvars->SpawnableMobParam[i].MobParamIdx);
-    DPRINTF(" [%d].Probability=%f\n", i, pvars->SpawnableMobParam[i].Probability);
-    DPRINTF(" [%d].DifficultyMultiplier=%f\n", i, pvars->SpawnableMobParam[i].DifficultyMultiplier);
-    DPRINTF(" [%d].MaxCanSpawnOrUnlimited=%d\n", i, pvars->SpawnableMobParam[i].MaxCanSpawnOrUnlimited);
-  }
-#endif
-
-  // set default state
-	mobySetState(moby, pvars->DefaultState, -1);
+  spawnerOnGuberCreated(moby);
   return 0;
 }
 
@@ -454,6 +483,31 @@ int spawnerCreate(int fromMobyIdx)
 }
 
 //--------------------------------------------------------------------------
+void spawnerStart(void)
+{
+
+  // find all existing spawners
+  // respawn with net
+  Moby* moby = mobyListGetStart();
+	while ((moby = mobyFindNextByOClass(moby, SPAWNER_OCLASS)))
+	{
+		if (!mobyIsDestroyed(moby) && moby->PVar) {
+      struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+      if (!pvars->Init) {
+        DPRINTF("found spawner %08X\n", moby);
+
+        struct GuberMoby* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
+        if (guber) {
+          spawnerOnGuberCreated(moby);
+        }
+      }
+    }
+
+		++moby;
+	}
+}
+
+//--------------------------------------------------------------------------
 void spawnerInit(void)
 {
   Moby* temp = mobySpawn(SPAWNER_OCLASS, 0);
@@ -467,21 +521,4 @@ void spawnerInit(void)
     DPRINTF("SPAWNER oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
-
-  // find all existing spawners
-  // respawn with net
-  Moby* moby = mobyListGetStart();
-	while ((moby = mobyFindNextByOClass(moby, SPAWNER_OCLASS)))
-	{
-    DPRINTF("found spawner %08X\n", moby);
-		if (!mobyIsDestroyed(moby) && moby->PVar) {
-      struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
-      if (!pvars->Init) {
-        int mobyIdx = ((u32)moby - (u32)mobyListGetStart()) / sizeof(Moby);
-        spawnerCreate(mobyIdx);
-      }
-    }
-
-		++moby;
-	}
 }

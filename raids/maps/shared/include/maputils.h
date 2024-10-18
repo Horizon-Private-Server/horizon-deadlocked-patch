@@ -14,6 +14,9 @@
 
 extern struct RaidsMapConfig MapConfig;
 
+typedef int (*CanSelectIndex_func)(void* userdata, int index);
+
+
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
 void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, float damageRadius);
 void playPaidSound(Player* player);
@@ -43,5 +46,7 @@ void draw3DMarker(VECTOR position, float scale, u32 color, char* str);
 void playDialog(short dialogId, int force);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
+
+int selectRandomIndex(int count, void* userdata, CanSelectIndex_func canSelectIndexFunc);
 
 #endif // RAIDS_MAP_UTILS_H

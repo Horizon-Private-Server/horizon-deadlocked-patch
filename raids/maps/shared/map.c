@@ -110,5 +110,6 @@ void mapInstallMobyFunctions(MobyFunctions* mobyFunctions)
   if (!baseHandleGuberEventFunc) baseHandleGuberEventFunc = mobyFunctions->MobyEventHandler;
 
   mobyFunctions->GetGuberObject = &mapGetGuber;
+  mobyFunctions->GetMobyInterface = NULL;
   mobyFunctions->MobyEventHandler = &mapHandleEvent;
 }

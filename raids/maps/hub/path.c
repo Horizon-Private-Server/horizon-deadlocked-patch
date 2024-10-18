@@ -37,18 +37,18 @@ u8 MOB0_PATHFINDING_EDGES[][2] = {
 };
 
 u8 MOB0_PATHFINDING_EDGES_REQUIRED[] = {
+	255,
+	255,
 	0,
 	0,
 	0,
 	0,
 	0,
 	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
+	255,
+	255,
+	255,
+	255,
 };
 
 u8 MOB0_PATHFINDING_EDGES_PATHFIT[] = {

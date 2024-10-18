@@ -168,7 +168,7 @@ int main(void)
   //
   if (MapConfig.ClientsReady || !netGetDmeServerConnection())
   {
-
+    spawnerStart();
   }
 
   mobTick();

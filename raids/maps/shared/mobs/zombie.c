@@ -81,9 +81,10 @@ int zombieCreate(struct MobCreateArgs* args)
 
     // spawn slightly above point
     vector_add(position, position, args->Position);
+    char yaw = args->Yaw * 32;
     
 		guberEventWrite(guberEvent, position, 12);
-		guberEventWrite(guberEvent, &args->Yaw, 4);
+		guberEventWrite(guberEvent, &yaw, 1);
 		guberEventWrite(guberEvent, &args->SpawnFromUID, 4);
 		guberEventWrite(guberEvent, &parentUid, 4);
 		guberEventWrite(guberEvent, &args->Userdata, 4);
@@ -475,8 +476,13 @@ void zombieDoAction(Moby* moby)
 		}
 		case ZOMBIE_ACTION_IDLE:
 		{
-			mobTransAnim(moby, ZOMBIE_ANIM_IDLE, 0);
+      if (pvars->MobVars.AnimationLooped || (moby->AnimSeqId != ZOMBIE_ANIM_IDLE && moby->AnimSeqId != ZOMBIE_ANIM_IDLE_2)) {
+			  mobTransAnim(moby, (rand(1000) == 1) ? ZOMBIE_ANIM_IDLE : ZOMBIE_ANIM_IDLE_2, 0);
+      } else {
+        mobTransAnim(moby, moby->AnimSeqId, 0);
+      }
       mobStand(moby);
+      //mobResetSoundTrigger(moby);
 			break;
 		}
 		case ZOMBIE_ACTION_JUMP:
@@ -587,21 +593,6 @@ void zombieDoAction(Moby* moby)
           mobStand(moby);
         }
       }
-
-			// attribute damage
-			// switch (pvars->MobVars.Config.MobAttribute)
-			// {
-			// 	case MOB_ATTRIBUTE_FREEZE:
-			// 	{
-			// 		damageFlags |= 0x00800000;
-			// 		break;
-			// 	}
-			// 	case MOB_ATTRIBUTE_ACID:
-			// 	{
-			// 		damageFlags |= 0x00000080;
-			// 		break;
-			// 	}
-			// }
 
 			if (swingAttackReady && damageFlags) {
 				zombieDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);

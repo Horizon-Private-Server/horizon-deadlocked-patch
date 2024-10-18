@@ -851,6 +851,9 @@ void initialize(PatchStateContainer_t* gameState)
 	*(u32*)0x005F8A84 = 0x0000102D;
 	*(u32*)0x005F8A88 = 0x24440001;
 
+  // hook net messages
+	netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
+
   // clear if magic not valid
   if (mapConfig->Magic != MAP_CONFIG_MAGIC) {
     memset(mapConfig, 0, sizeof(struct RaidsMapConfig));

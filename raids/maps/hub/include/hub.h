@@ -1,7 +1,7 @@
 #ifndef _RAIDS_HUB_H_
 #define _RAIDS_HUB_H_
 
-#define MAP_BASE_COMPLEXITY         (4000)
+#define MAP_BASE_COMPLEXITY         (5000)
 
 // ordered from least to most probable
 // never more than MAX_MOB_SPAWN_PARAMS total spawn params

@@ -11,6 +11,7 @@
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../include/pathfind.h"
+#include "../include/spawner.h"
 #include "../include/maputils.h"
 #include "../include/shared.h"
 
@@ -82,9 +83,10 @@ int swarmerCreate(struct MobCreateArgs* args)
 
     // spawn slightly above point
     vector_add(position, position, args->Position);
+    char yaw = args->Yaw * 32;
     
 		guberEventWrite(guberEvent, position, 12);
-		guberEventWrite(guberEvent, &args->Yaw, 4);
+		guberEventWrite(guberEvent, &yaw, 1);
 		guberEventWrite(guberEvent, &args->SpawnFromUID, 4);
 		guberEventWrite(guberEvent, &parentUid, 4);
 		guberEventWrite(guberEvent, &args->Userdata, 4);
@@ -303,19 +305,33 @@ Moby* swarmerGetNextTarget(Moby* moby)
 	Player ** players = playerGetAll();
 	int i;
 	VECTOR delta;
+  VECTOR forward;
 	Moby * currentTarget = pvars->MobVars.Target;
 	Player * closestPlayer = NULL;
 	float closestPlayerDist = 100000;
+
+  vector_fromyaw(forward, moby->Rotation[2]);
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
       float dist = vector_length(delta);
+      Moby* pTargetMoby = playerGetTargetMoby(p);
+      int isCurrentTarget = pTargetMoby == currentTarget;
 
+      // determine angle from mob forward to player
+      float theta = acosf(vector_innerproduct(forward, delta));
 			if (dist < 300) {
+        
+        // skip if not in sight or aggro zone, unless already targeted
+        if (!isCurrentTarget) {
+          if (dist > pvars->MobVars.Config.AutoAggroMaxRange && (dist > pvars->MobVars.Config.VisionRange || fabsf(theta) > pvars->MobVars.Config.PeripheryRangeTheta)) continue;
+          if (moby->PParent && moby->PParent->OClass == SPAWNER_OCLASS && !spawnerOnChildConsiderTarget(moby->PParent, moby, pvars->MobVars.Userdata, pTargetMoby)) continue;
+        }
+
 				// favor existing target
-				if (playerGetTargetMoby(p) == currentTarget)
+				if (isCurrentTarget)
 					dist *= (1.0 / SWARMER_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target

@@ -31,6 +31,7 @@
 #include <libdl/color.h>
 #include <libdl/utils.h>
 #include "game.h"
+#include "maputils.h"
 #include "../../include/game.h"
 
 extern char LocalPlayerStrBuffer[2][64];
@@ -327,4 +328,27 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
       break;
     }
   }
+}
+
+//--------------------------------------------------------------------------
+int selectRandomIndex(int count, void* userdata, CanSelectIndex_func canSelectIndexFunc)
+{
+  if (!canSelectIndexFunc) return -1;
+
+  int idx = -1;
+  int ticker = rand(count) + 1;
+  int iterations = 0, hasAny = 0;
+  while (ticker > 0) {
+    
+    // looped all spawn cuboids and none exist
+    if (iterations > count && !hasAny) return -1;
+    
+    idx = iterations++ % count;
+    if (canSelectIndexFunc(userdata, idx)) {
+      hasAny = 1;
+      --ticker;
+    }
+  }
+
+  return idx;
 }

@@ -34,13 +34,45 @@ struct MobSpawnParams mobSpawnParams[] = {
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
-      .AutoAggroMaxRange = 5.0,
-      .VisionRange = 25.0,
+      .AutoAggroMaxRange = 10.0,
+      .VisionRange = 35.0,
       .PeripheryRangeTheta = 135.0 * 0.5 * MATH_DEG2RAD,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 		}
 	},
+  // swarmer
+  [MOB_SPAWN_PARAM_SWARMER]
+	{
+		.RenderCost = SWARMER_RENDER_COST,
+    .MaxSpawnedAtOnce = 0,
+    .SpecialRoundOnly = 0,
+		.CooldownTicks = 0,
+    .CooldownOffsetPerRoundFactor = 0,
+		.Name = "Swarmer",
+		.Config = {
+			.Xp = 5,
+			.Bangles = 0,
+			.Damage = MOB_BASE_DAMAGE * 0.2,
+			.MaxDamage = 0,
+      .DamageScale = 1.0,
+			.Speed = MOB_BASE_SPEED * 0.8,
+			.MaxSpeed = MOB_BASE_SPEED * 1.2,
+      .SpeedScale = 0.5,
+			.Health = MOB_BASE_HEALTH * 0.35,
+			.MaxHealth = 0,
+      .HealthScale = 1.0,
+			.Bolts = MOB_BASE_BOLTS * 0.25,
+			.AttackRadius = SWARMER_MELEE_ATTACK_RADIUS,
+			.HitRadius = SWARMER_MELEE_HIT_RADIUS,
+      .CollRadius = SWARMER_BASE_COLL_RADIUS * 1.0,
+      .AutoAggroMaxRange = 10.0,
+      .VisionRange = 35.0,
+      .PeripheryRangeTheta = 135.0 * 0.5 * MATH_DEG2RAD,
+			.ReactionTickCount = SWARMER_BASE_REACTION_TICKS,
+			.AttackCooldownTickCount = SWARMER_BASE_ATTACK_COOLDOWN_TICKS,
+		}
+  }
 };
 
 //--------------------------------------------------------------------------

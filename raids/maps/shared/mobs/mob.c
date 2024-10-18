@@ -529,7 +529,9 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     if (pvars->MobVars.MoveVars.WallSlope > (60 * MATH_DEG2RAD)) {
       vector_projectonhorizontal(hitToEx, hitToEx);
       vector_subtract(outputPos, to, hitToEx);
+#if DEBUGMOVE
       DPRINTF("movecheck hit steep slope %f\n", pvars->MobVars.MoveVars.WallSlope * MATH_RAD2DEG);
+#endif
       return 2;
     }
 

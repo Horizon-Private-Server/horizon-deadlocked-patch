@@ -118,7 +118,6 @@ void bubbleTick(void)
 void bubbleInit(void)
 {
   if (!damageBubbles) {
-    DPRINTF("malloc\n");
     damageBubbles = malloc(sizeof(struct RaidsDamageBubble) * DAMAGE_BUBBLE_MAX_COUNT);
     if (damageBubbles) {
       memset(damageBubbles, 0, sizeof(struct RaidsDamageBubble) * DAMAGE_BUBBLE_MAX_COUNT);
@@ -130,7 +129,6 @@ void bubbleInit(void)
 void bubbleDeinit(void)
 {
   if (damageBubbles) {
-    DPRINTF("free\n");
     free(damageBubbles);
     damageBubbles = NULL;
   }

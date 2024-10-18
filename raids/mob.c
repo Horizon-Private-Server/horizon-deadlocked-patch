@@ -833,7 +833,7 @@ GuberEvent* mobCreateEvent(Moby* moby, u32 eventType)
 int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 {
 	VECTOR p;
-	float yaw;
+	char yaw;
   int i;
 	int spawnFromUID;
 	int parentUID;
@@ -846,16 +846,18 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// read event
 	guberEventRead(event, p, 12);
-	guberEventRead(event, &yaw, 4);
+	guberEventRead(event, &yaw, 1);
 	guberEventRead(event, &spawnFromUID, 4);
 	guberEventRead(event, &parentUID, 4);
 	guberEventRead(event, &userdata, 4);
 	guberEventRead(event, &random, 1);
 	guberEventRead(event, &args, sizeof(struct MobSpawnEventArgs));
 
+  DPRINTF("spawn mob %08X parentuid:%08X\n", moby, parentUID);
+
 	// set position and rotation
 	vector_copy(moby->Position, p);
-	moby->Rotation[2] = yaw;
+	moby->Rotation[2] = yaw / 32.0;
 
 	// set update
 	moby->PUpdate = &mobUpdate;
