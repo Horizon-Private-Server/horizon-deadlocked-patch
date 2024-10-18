@@ -243,13 +243,18 @@ enum StackableItemId
 
 struct MobConfig;
 struct MobSpawnEventArgs;
+struct MobCreateArgs;
 
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
-typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig);
+typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, float difficultyMult);
 typedef int (*OnGuberEvent_func)(Moby* moby, GuberEvent* event);
 typedef struct GuberMoby* (*OnGetGuber_func)(Moby* moby);
+typedef int (*TryCreateMob_func)(struct MobCreateArgs* args);
 
-typedef int (*CreateMob_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+typedef void (*MapOnMobSpawned_func)(Moby* moby);
+typedef int (*MapOnMobCreate_func)(struct MobCreateArgs* args);
+typedef int (*MapOnMobUpdate_func)(Moby* moby);
+typedef int (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int weaponId);
 typedef int (*FrameTick_func)(void);
 
 typedef struct RaidsBakedConfig
@@ -339,9 +344,13 @@ struct RaidsMapConfig
   PopulateSpawnArgs_func PopulateSpawnArgsFunc;
   OnGuberEvent_func OnGuberEventFunc;
   OnGetGuber_func OnGetGuberFunc;
+  TryCreateMob_func TryCreateMobFunc;
 
   // map
-  CreateMob_func CreateMobFunc;
+  MapOnMobCreate_func OnMobCreateFunc;
+  MapOnMobSpawned_func OnMobSpawnedFunc;
+  MapOnMobUpdate_func OnMobUpdateFunc;
+  MapOnMobKilled_func OnMobKilledFunc;
   FrameTick_func OnFrameTickFunc;
 };
 

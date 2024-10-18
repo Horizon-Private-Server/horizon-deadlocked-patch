@@ -27,27 +27,274 @@
 #include <libdl/patch.h>
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
+#include <libdl/spawnpoint.h>
 #include <libdl/color.h>
 #include <libdl/utils.h>
 #include <libdl/random.h>
 #include "include/maputils.h"
 #include "include/shared.h"
 #include "../../include/spawner.h"
+#include "../../include/mob.h"
 #include "../../include/game.h"
 
 extern struct RaidsMapConfig MapConfig;
 
 //--------------------------------------------------------------------------
-void spawnerUpdate(Moby* moby)
+int spawnerGetRandomSpawnPoint(Moby* moby, int mobParamsIdx, VECTOR outPos, float* outYaw)
+{
+  VECTOR pos = {0,0,3,0};
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  // get cuboid
+  SpawnPoint* cuboid = spawnPointGet(pvars->SpawnCuboidIds[0]);
+
+  // determine where to spawn mob
+  pos[0] = randRange(-1, 1);
+  pos[1] = randRange(-1, 1);
+  pos[2] = 0;
+  vector_apply(pos, pos, cuboid->M0);
+  pos[2] += 3;
+
+  if (outPos) vector_copy(outPos, pos);
+  if (outYaw) *outYaw = cuboid->M1[14] + randRadian();
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int spawnerSpawn(Moby* moby, int mobParamsIdx, int fromUid)
+{
+  if (!MapConfig.TryCreateMobFunc) return 0;
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+  struct SpawnerMobParams* mobParams = &pvars->SpawnableMobParam[mobParamsIdx];
+  struct MobSpawnParams* mobSpawnParams = &MapConfig.MobSpawnParams[mobParams->MobParamIdx];
+
+  struct MobCreateArgs args = {
+    .SpawnParamsIdx = mobParams->MobParamIdx,
+    .Parent = moby,
+    .Userdata = mobParamsIdx,
+    .DifficultyMult = mobParams->DifficultyMultiplier,
+    .Config = &mobSpawnParams->Config,
+    .SpawnFromUID = fromUid,
+  };
+
+  if (spawnerGetRandomSpawnPoint(moby, mobParamsIdx, args.Position, &args.Yaw))
+    return MapConfig.TryCreateMobFunc(&args);
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int spawnerSpawnRandom(Moby* moby)
 {
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
 
-  if (!gameAmIHost()) return;
-  if (moby->State != SPAWNER_STATE_ACTIVATED) return;
+  int spawnerMobIdx = 0;
+  struct SpawnerMobParams* mobParams = &pvars->SpawnableMobParam[spawnerMobIdx];
+  if (mobParams->MobParamIdx < 0 || mobParams->Probability <= 0)
+    return 0;
+
+  if (mobParams->MaxCanSpawnOrUnlimited > 0 && pvars->State.NumSpawned[spawnerMobIdx] >= mobParams->MaxCanSpawnOrUnlimited)
+    return 0;
+
+  if (MapConfig.State && mobParams->MaxCanAliveAtOnce > 0 && mobParams->MaxCanAliveAtOnce <= MapConfig.State->MobStats.NumAlive[mobParams->MobParamIdx])
+    return 0;
+
+  if (pvars->State.Cooldown[spawnerMobIdx] > 0)
+    return 0;
+
+  if (randRange(0, 1) > mobParams->Probability)
+    return 0;
 
   // spawn
+  if (spawnerSpawn(moby, spawnerMobIdx, -1)) {
+    pvars->State.Cooldown[spawnerMobIdx] = mobParams->CooldownTicks;
+    return 1;
+  }
 
+  return 0;
+}
 
+//--------------------------------------------------------------------------
+int spawnerIsCompleted(Moby* moby)
+{
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  return pvars->State.NumTotalKilled >= pvars->NumMobsToSpawn;
+}
+
+//--------------------------------------------------------------------------
+int spawnerAnyTriggerActivated(Moby* moby)
+{
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+  int i,j;
+  Player** players = playerGetAll();
+
+  for (i = 0; i < SPAWNER_MAX_TRIGGER_CUBOIDS; ++i) {
+    int cuboidIdx = pvars->TriggerCuboidIds[i];
+    if (cuboidIdx < 0) continue;
+
+    SpawnPoint* triggerCuboid = spawnPointGet(cuboidIdx);
+    for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
+      Player* p = players[j];
+      if (!p || !p->SkinMoby || !playerIsConnected(p)) continue;
+
+      if (spawnPointIsPointInside(triggerCuboid, p->PlayerPosition, NULL)) {
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int spawnerCanSpawn(Moby* moby)
+{
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  if (MapConfig.State) {
+    int totalAlive = MapConfig.State->MobStats.TotalAlive + MapConfig.State->MobStats.TotalSpawning;
+    if (totalAlive >= MAX_MOBS_ALIVE_REAL) return 0;
+  }
+
+  return moby->State == SPAWNER_STATE_ACTIVATED && !spawnerIsCompleted(moby) && pvars->State.NumTotalSpawned < pvars->NumMobsToSpawn;
+}
+
+//--------------------------------------------------------------------------
+void spawnerBroadcastNewState(Moby* moby, enum SpawnerState state)
+{
+	// create event
+	GuberEvent * guberEvent = guberCreateEvent(moby, SPAWNER_EVENT_SET_STATE);
+  if (guberEvent) {
+    guberEventWrite(guberEvent, &state, 4);
+  }
+}
+
+//--------------------------------------------------------------------------
+void spawnerUpdate(Moby* moby)
+{
+  int i;
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  for (i = 0; i < SPAWNER_MAX_MOB_TYPES; ++i) {
+    decTimerU32(&pvars->State.Cooldown[i]);
+  }
+
+  if (!gameAmIHost()) return;
+
+  // check if we should exit idle
+  if (moby->State == SPAWNER_STATE_IDLE && spawnerAnyTriggerActivated(moby)) {
+    DPRINTF("spawner %08X exit idle\n", moby);
+    spawnerBroadcastNewState(moby, SPAWNER_STATE_ACTIVATED);
+    return;
+  }
+
+  if (moby->State != SPAWNER_STATE_ACTIVATED) return;
+
+  // check if completed
+  if (spawnerIsCompleted(moby)) {
+    DPRINTF("spawner %08X completed\n", moby);
+    spawnerBroadcastNewState(moby, SPAWNER_STATE_COMPLETED);
+    return;
+  }
+
+  // check if we should go into idle mode
+  if (!spawnerAnyTriggerActivated(moby)) {
+    DPRINTF("spawner %08X idle\n", moby);
+    spawnerBroadcastNewState(moby, SPAWNER_STATE_IDLE);
+    return;
+  }
+
+  // spawn
+  if (spawnerCanSpawn(moby)) {
+    if (spawnerSpawnRandom(moby)) {
+      pvars->State.NumTotalSpawned++;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+void spawnerOnChildMobUpdate(Moby* moby, Moby* childMoby, u32 userdata)
+{
+	struct MobPVar* childPVars = (struct MobPVar*)childMoby->PVar;
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+  int i;
+
+  // check if mob has left habitable cuboids
+  // if no habitable cuboids are defined, then this will do nothing
+  int notInside = 0;
+  for (i = 0; i < SPAWNER_MAX_HABITABLE_CUBOIDS; ++i) {
+    int cuboidIdx = pvars->HabitableCuboidIds[i];
+    if (cuboidIdx < 0) continue;
+
+    SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
+    if (spawnPointIsPointInside(cuboid, childMoby->Position, NULL)) {
+      notInside = 0;
+      break;
+    }
+
+    notInside = 1;
+  }
+
+  // if spawner is idled and we're not inside a habitable cuboid, despawn
+  if (moby->State == SPAWNER_STATE_IDLE && notInside) {
+    if (!childPVars->MobVars.Destroyed) {
+      childPVars->MobVars.Destroy = 2;
+    }
+    return;
+  }
+
+  // handle respawn
+  if (childPVars->MobVars.Respawn || notInside) {
+    // pass to mob
+    // let mob override respawn logic
+    if (!childPVars->VTable->OnRespawn || childPVars->VTable->OnRespawn(childMoby)) {
+      if (spawnerSpawn(moby, userdata, guberGetUID(childMoby))) {
+        childPVars->MobVars.Destroyed = 2;
+      }
+    }
+
+    childPVars->MobVars.Respawn = 0;
+  }
+
+}
+
+//--------------------------------------------------------------------------
+void spawnerOnChildMobKilled(Moby* moby, Moby* childMoby, u32 userdata, int killedByPlayerId, int weaponId)
+{
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  // if spawner is activated, save kill
+  if (moby->State == SPAWNER_STATE_ACTIVATED && killedByPlayerId >= 0) {
+    pvars->State.NumTotalKilled++;
+    pvars->State.NumKilled[userdata]++;
+    return;
+  }
+}
+
+//--------------------------------------------------------------------------
+int spawnerOnChildConsiderTarget(Moby* moby, Moby* childMoby, u32 userdata, Moby* target)
+{
+  int i;
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  // check if target has left aggro cuboids
+  // if no aggro cuboids are defined, then return 1
+  int inside = 1;
+  for (i = 0; i < SPAWNER_MAX_AGGRO_CUBOIDS; ++i) {
+    int cuboidIdx = pvars->AggroCuboidIds[i];
+    if (cuboidIdx < 0) continue;
+
+    SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
+    if (spawnPointIsPointInside(cuboid, target->Position, NULL)) {
+      inside = 1;
+      break;
+    }
+
+    inside = 0;
+  }
+
+  return inside;
 }
 
 //--------------------------------------------------------------------------
@@ -66,7 +313,10 @@ int spawnerHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 
   // copy pvars from source moby
   Moby* spawnFromMoby = mobyListGetStart() + spawnFromMobyIdx;
-  memcpy(pvars, spawnFromMoby->PVar, sizeof(struct SpawnerPVar));
+  vector_copy(moby->Position, spawnFromMoby->Position);
+  memcpy(moby->M0_03, spawnFromMoby->M0_03, 0x40);
+  moby->Scale = spawnFromMoby->Scale;
+  memcpy(pvars, spawnFromMoby->PVar, OFFSET_OF(struct SpawnerPVar, State));
   if (!mobyIsDestroyed(spawnFromMoby))
     mobyDestroy(spawnFromMoby);
 
@@ -78,6 +328,13 @@ int spawnerHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 
   // don't render
   moby->ModeBits = MOBY_MODE_BIT_HIDDEN | MOBY_MODE_BIT_NO_POST_UPDATE;
+
+	// 
+	Guber* guber = guberGetObjectByMoby(moby);
+	if (guber)
+	{
+		((GuberMoby*)guber)->TeamNum = 10;
+	}
 
   // print pvars
 #if PRINT_SPAWNER_PVARS
@@ -102,6 +359,50 @@ int spawnerHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
+int spawnerHandleEvent_SetState(Moby* moby, GuberEvent* event)
+{
+  int state;
+  if (!moby || !moby->PVar)
+    return 0;
+
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+  
+	// read event
+	guberEventRead(event, &state, 4);
+
+  switch (state)
+  {
+    case SPAWNER_STATE_DEACTIVATED:
+    {
+      // reset runtime stats when deactivating
+      memset(&pvars->State, 0, sizeof(pvars->State));
+      break;
+    }
+    case SPAWNER_STATE_IDLE:
+    {
+      // when idling, set NumSpawned to NumKilled
+      // so that when we start up again NumSpawned accurately represents the # of mobs killed, and # left to go
+      pvars->State.NumTotalSpawned = pvars->State.NumTotalKilled;
+      memcpy(pvars->State.NumSpawned, pvars->State.NumKilled, sizeof(pvars->State.NumSpawned));
+      break;
+    }
+    case SPAWNER_STATE_ACTIVATED:
+    {
+      break;
+    }
+    case SPAWNER_STATE_COMPLETED:
+    {
+      // reset runtime stats when completed
+      memset(&pvars->State, 0, sizeof(pvars->State));
+      break;
+    }
+  }
+
+  mobySetState(moby, state, -1);
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 struct GuberMoby* spawnerGetGuber(Moby* moby)
 {
 	if (moby->OClass == SPAWNER_OCLASS && moby->PVar)
@@ -122,8 +423,7 @@ int spawnerHandleEvent(Moby* moby, GuberEvent* event)
 		switch (upgradeEvent)
 		{
 			case SPAWNER_EVENT_SPAWN: { return spawnerHandleEvent_Spawned(moby, event); }
-      case SPAWNER_EVENT_ACTIVATE: { mobySetState(moby, SPAWNER_STATE_ACTIVATED, -1); return 0; }
-      case SPAWNER_EVENT_DEACTIVATE: { mobySetState(moby, SPAWNER_STATE_DEACTIVATED, -1); return 0; }
+      case SPAWNER_EVENT_SET_STATE: { return spawnerHandleEvent_SetState(moby, event); }
 			default:
 			{
 				DPRINTF("unhandle spawner event %d\n", upgradeEvent);

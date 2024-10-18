@@ -11,6 +11,7 @@
 #include "../../include/spawner.h"
 #include "../../include/mob.h"
 #include "../../include/game.h"
+#include "maputils.h"
 
 extern struct RaidsMapConfig MapConfig;
 
@@ -18,8 +19,32 @@ MobyGetGuberObject_func baseGetGuberFunc = NULL;
 MobyEventHandler_func baseHandleGuberEventFunc = NULL;
 
 //--------------------------------------------------------------------------
+void mapOnMobUpdate(Moby* moby)
+{
+  if (!moby || !moby->PVar) return;
+
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (moby->PParent && moby->PParent->OClass == SPAWNER_OCLASS) {
+    spawnerOnChildMobUpdate(moby->PParent, moby, pvars->MobVars.Userdata);
+  }
+}
+
+//--------------------------------------------------------------------------
+void mapOnMobKilled(Moby* moby, int killedByPlayerId, int weaponId)
+{
+  if (!moby || !moby->PVar) return;
+
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (moby->PParent && moby->PParent->OClass == SPAWNER_OCLASS) {
+    spawnerOnChildMobKilled(moby->PParent, moby, pvars->MobVars.Userdata, killedByPlayerId, weaponId);
+  }
+}
+
+//--------------------------------------------------------------------------
 struct GuberMoby* mapGetGuber(Moby* moby)
 {
+  if (mobyIsMob(moby)) return moby->GuberMoby;
+
   switch (moby->OClass)
   {
     case SPAWNER_OCLASS: return spawnerGetGuber(moby);

@@ -1,6 +1,8 @@
 #ifndef RAIDS_MOB_SWARMER_H
 #define RAIDS_MOB_SWARMER_H
 
+#include "game.h"
+
 #define SWARMER_BASE_REACTION_TICKS						(0.25 * TPS)
 #define SWARMER_BASE_ATTACK_COOLDOWN_TICKS		(2 * TPS)
 #define SWARMER_BASE_EXPLODE_RADIUS						(5)
@@ -80,5 +82,7 @@ enum SwarmerSubskeletonJoints
 {
   SWARMER_SUBSKELETON_JOINT_JAW = 0,
 };
+
+int swarmerCreate(struct MobCreateArgs* args);
 
 #endif // RAIDS_MOB_SWARMER_H

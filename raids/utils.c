@@ -328,5 +328,11 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
 //--------------------------------------------------------------------------
 int mobyIsMob(Moby* moby)
 {
-  return 0;
+  return moby->OClass == ZOMBIE_MOBY_OCLASS
+    || moby->OClass == EXECUTIONER_MOBY_OCLASS
+    || moby->OClass == TREMOR_MOBY_OCLASS
+    || moby->OClass == SWARMER_MOBY_OCLASS
+    || moby->OClass == REACTOR_MOBY_OCLASS
+    || moby->OClass == REAPER_MOBY_OCLASS
+    ;
 }

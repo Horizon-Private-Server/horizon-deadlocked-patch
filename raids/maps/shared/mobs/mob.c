@@ -181,10 +181,10 @@ int mobMobyProcessHitFlags(Moby* moby, Moby* hitMoby, float damage, int reactToT
   if (hitMoby == pvars->MobVars.Target) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET;
   if (mobyIsMob(hitMoby)) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_MOB;
   
-  if (player && player->timers.postHitInvinc == 0 && playerHasBlessing(player->PlayerId, BLESSING_ITEM_THORNS)) {
-    result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER_THORNS;
-    if (reactToThorns) mobReactToThorns(moby, damage, player->PlayerId);
-  }
+  // if (player && player->timers.postHitInvinc == 0 && playerHasBlessing(player->PlayerId, BLESSING_ITEM_THORNS)) {
+  //   result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER_THORNS;
+  //   if (reactToThorns) mobReactToThorns(moby, damage, player->PlayerId);
+  // }
 
   return result;
 }
@@ -1041,7 +1041,7 @@ void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 //--------------------------------------------------------------------------
 void mobInit(void)
 {
-  //MapConfig.OnMobSpawnedFunc = &mobOnSpawned;
+  MapConfig.OnMobSpawnedFunc = &mobOnSpawned;
 }
 
 //--------------------------------------------------------------------------

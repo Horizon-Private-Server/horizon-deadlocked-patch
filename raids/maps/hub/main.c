@@ -32,6 +32,7 @@
 #include "game.h"
 #include "spawner.h"
 #include "mob.h"
+#include "shared.h"
 #include "pathfind.h"
 #include "hub.h"
 
@@ -62,13 +63,21 @@ int mapPathCanBeSkippedForTarget(struct PathGraph* path, Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int createMob(struct MobCreateArgs* args)
 {
-  switch (spawnParamsIdx)
+  switch (args->SpawnParamsIdx)
   {
+    case MOB_SPAWN_PARAM_NORMAL:
+    {
+      return zombieCreate(args);
+    }
+    case MOB_SPAWN_PARAM_SWARMER:
+    {
+      return swarmerCreate(args);
+    }
     default:
     {
-      DPRINTF("unhandled create spawnParamsIdx %d\n", spawnParamsIdx);
+      DPRINTF("unhandled create spawnParamsIdx %d\n", args->SpawnParamsIdx);
       break;
     }
   }
@@ -118,7 +127,9 @@ void initialize(void)
   mobInit();
   configInit();
   spawnerInit();
-  //MapConfig.OnMobCreateFunc = &createMob;
+  MapConfig.OnMobCreateFunc = &createMob;
+  MapConfig.OnMobUpdateFunc = &mapOnMobUpdate;
+  MapConfig.OnMobKilledFunc = &mapOnMobKilled;
 
   // only have gate collision on when processing players
   HOOK_JAL(0x003bd854, &onBeforeUpdateHeroes);

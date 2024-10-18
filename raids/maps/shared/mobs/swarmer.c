@@ -61,9 +61,10 @@ struct MobVTable SwarmerVTable = {
 };
 
 //--------------------------------------------------------------------------
-int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int swarmerCreate(struct MobCreateArgs* args)
 {
-	struct MobSpawnEventArgs args;
+  VECTOR position = {0,0,1,0};
+	struct MobSpawnEventArgs spawnArgs;
   
 	// create guber object
 	GuberEvent * guberEvent = 0;
@@ -71,17 +72,24 @@ int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1);
+      MapConfig.PopulateSpawnArgsFunc(&spawnArgs, args->Config, args->SpawnParamsIdx, args->SpawnFromUID == -1, args->DifficultyMult);
     }
 
 		u8 random = (u8)rand(100);
+    int parentUid = -1;
+    if (args->Parent)
+      parentUid = guberGetUID(args->Parent);
 
-    position[2] += 1; // spawn slightly above point
+    // spawn slightly above point
+    vector_add(position, position, args->Position);
+    
 		guberEventWrite(guberEvent, position, 12);
-		guberEventWrite(guberEvent, &yaw, 4);
-		guberEventWrite(guberEvent, &spawnFromUID, 4);
+		guberEventWrite(guberEvent, &args->Yaw, 4);
+		guberEventWrite(guberEvent, &args->SpawnFromUID, 4);
+		guberEventWrite(guberEvent, &parentUid, 4);
+		guberEventWrite(guberEvent, &args->Userdata, 4);
 		guberEventWrite(guberEvent, &random, 1);
-		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
+		guberEventWrite(guberEvent, &spawnArgs, sizeof(struct MobSpawnEventArgs));
 	}
 	else
 	{
@@ -98,8 +106,6 @@ void swarmerPreUpdate(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  if (mobIsFrozen(moby))
-    return;
 
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
@@ -138,7 +144,7 @@ void swarmerPostUpdate(Moby* moby)
     animSpeed = 1;
   }
 
-	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == SWARMER_ACTION_WALK)) {
+	if ((moby->DrawDist == 0 && pvars->MobVars.Action == SWARMER_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
 		moby->AnimSpeed = animSpeed;
@@ -230,7 +236,7 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 
 	// destroy
 	if (newHp <= 0) {
-    tremorForceLocalAction(moby, SWARMER_ACTION_DIE);
+    swarmerForceLocalAction(moby, SWARMER_ACTION_DIE);
     pvars->MobVars.LastHitBy = e->SourceUID;
     pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}

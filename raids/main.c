@@ -36,6 +36,7 @@
 #include "config.h"
 #include "common.h"
 #include "include/game.h"
+#include "include/mob.h"
 #include "include/utils.h"
 
 char LocalPlayerStrBuffer[2][64];
@@ -50,6 +51,8 @@ struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
 
 PatchConfig_t* playerConfig = NULL;
+
+u8 mobPlaySoundCooldownTicks[MAX_MOB_SPAWN_PARAMS][MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS] = {};
 
 int playerStates[GAME_MAX_PLAYERS] = {};
 int playerStateTimers[GAME_MAX_PLAYERS] = {};
@@ -230,6 +233,8 @@ int handleEvent(Moby* moby, GuberEvent* event)
 {
 	if (!moby || !event || !isInGame())
 		return 0;
+
+  if (mobyIsMob(moby)) return mobHandleEvent(moby, event);
 
 	return 0;
 }
@@ -432,6 +437,18 @@ void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
   }
 
   mobyCollDamageDirect(target, in);
+}
+
+//--------------------------------------------------------------------------
+void playerRewardXp(int playerId, int weaponId, int xp)
+{
+  Player* player = playerGetAll()[playerId];
+  if (!player || !player->PlayerMoby) return;
+
+	struct RaidsPlayer* pState = &State.PlayerStates[playerId];
+
+  // give xp
+  pState->State.XP += xp;
 }
 
 //--------------------------------------------------------------------------
@@ -671,10 +688,10 @@ int onMobyPlayDesiredSound(int sound, int a1, Moby* moby)
 {
   // catch mobs
   if (mobyIsMob(moby)) {
-    //int midx = ((struct MobPVar*)moby->PVar)->MobVars.SpawnParamsIdx;
-    //int sidx = sound % MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS;
-    //if (mobPlaySoundCooldownTicks[midx][sidx]) return -1;
-    //mobPlaySoundCooldownTicks[midx][sidx] = MOBS_PLAY_SOUND_COOLDOWN;
+    int midx = ((struct MobPVar*)moby->PVar)->MobVars.SpawnParamsIdx;
+    int sidx = sound % MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS;
+    if (mobPlaySoundCooldownTicks[midx][sidx]) return -1;
+    mobPlaySoundCooldownTicks[midx][sidx] = MOBS_PLAY_SOUND_COOLDOWN;
   }
 
   // pass to mobyPlaySound
@@ -842,8 +859,11 @@ void initialize(PatchStateContainer_t* gameState)
 
   // write map config
   mapConfig->State = &State;
-  //mapConfig->OnGetGuberFunc = &getGuber;
-  //mapConfig->OnGuberEventFunc = &handleEvent;
+  mapConfig->PushSnackFunc = &pushSnack;
+  mapConfig->PopulateSpawnArgsFunc = &mobPopulateSpawnArgsFromConfig;
+  mapConfig->OnGetGuberFunc = &getGuber;
+  mapConfig->OnGuberEventFunc = &handleEvent;
+  mapConfig->TryCreateMobFunc = &mobCreate;
 
 	// Hook custom net events
 
@@ -890,6 +910,7 @@ void initialize(PatchStateContainer_t* gameState)
   // re-enable input
   padEnableInput();
 
+  bubbleInit();
   memset(snackItems, 0, sizeof(snackItems));
 
 	// initialize player states
@@ -1060,11 +1081,22 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 #endif
 
 	// ticks
-	//mobTick();
-  //bubbleTick();
+	mobTick();
+  bubbleTick();
 
-  //if (mapConfig && mapConfig->OnFrameTickFunc)
-  //  mapConfig->OnFrameTickFunc();
+  if (mapConfig && mapConfig->OnFrameTickFunc)
+    mapConfig->OnFrameTickFunc();
+  
+  // tick down mob sound cooldown
+  int j;
+  for (i = 0; i < MAX_MOB_SPAWN_PARAMS; ++i) {
+    for (j = 0; j < MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS; ++j) {
+      if (mobPlaySoundCooldownTicks[i][j] > 0) {
+        --mobPlaySoundCooldownTicks[i][j];
+      }
+    }
+  }
+
 
   // draw hud stuff
   if (shouldDrawHud()) {

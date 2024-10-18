@@ -20,12 +20,16 @@ enum MOB_DO_DAMAGE_HIT_FLAGS
   MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER_THORNS = 8,
 };
 
+struct MobPVar;
+struct MobStateUpdateEventArgs;
+
+void mapOnMobUpdate(Moby* moby);
+void mapOnMobKilled(Moby* moby, int killedByPlayerId, int weaponId);
 struct GuberMoby* mapGetGuber(Moby* moby);
 void mapHandleEvent(Moby* moby, GuberEvent* event);
 void mapInstallMobyFunctions(MobyFunctions* mobyFunctions);
 
 int mobAmIOwner(Moby* moby);
-int mobIsFrozen(Moby* moby);
 void mobResetSoundTrigger(Moby* moby);
 void mobSpawnCorn(Moby* moby, int bangle);
 int mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire, int jointId, int reactToThorns, int isAoE);

@@ -37,6 +37,8 @@ struct TargetCache
   int DelayNextCheckTicks;
 };
 
+typedef u8 PathGraphEdge[2];
+
 struct PathGraph
 {
   int NumNodes;
@@ -44,12 +46,12 @@ struct PathGraph
 	int MaxPathNodeCount;
 	VECTOR* Nodes;
 	u8* Cornering;
-	u8** Edges;
+	PathGraphEdge* Edges;
 	u8* EdgesRequired;
 	u8* EdgesPathFit;
 	u8* EdgesJumpSpeed;
 	u8* EdgesJumpAt;
-	u8** Paths;
+	u8* Paths;
   struct TargetCache TargetsCache[TARGETS_CACHE_COUNT];
   int LastTargetUpdatedIdx;
 };

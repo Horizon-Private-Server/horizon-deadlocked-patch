@@ -1,6 +1,8 @@
 #ifndef RAIDS_MOB_ZOMBIE_H
 #define RAIDS_MOB_ZOMBIE_H
 
+#include "game.h"
+
 #define ZOMBIE_BASE_REACTION_TICKS						(0.25 * TPS)
 #define ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS			(2 * TPS)
 #define ZOMBIE_BASE_EXPLODE_RADIUS						(5)
@@ -121,5 +123,7 @@ enum ZombieSubskeletonJoints
   ZOMBIE_SUBSKELETON_JOINT_LEFT_CHEST = 11,
   ZOMBIE_SUBSKELETON_JOINT_RIGHT_CHEST = 12,
 };
+
+int zombieCreate(struct MobCreateArgs* args);
 
 #endif // RAIDS_MOB_ZOMBIE_H

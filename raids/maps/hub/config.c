@@ -34,6 +34,9 @@ struct MobSpawnParams mobSpawnParams[] = {
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
+      .AutoAggroMaxRange = 5.0,
+      .VisionRange = 25.0,
+      .PeripheryRangeTheta = 135.0 * 0.5 * MATH_DEG2RAD,
 			.ReactionTickCount = ZOMBIE_BASE_REACTION_TICKS,
 			.AttackCooldownTickCount = ZOMBIE_BASE_ATTACK_COOLDOWN_TICKS,
 		}

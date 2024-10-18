@@ -10,6 +10,7 @@
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../include/pathfind.h"
+#include "../include/spawner.h"
 #include "../include/maputils.h"
 #include "../include/shared.h"
 
@@ -58,9 +59,10 @@ struct MobVTable ZombieVTable = {
 };
 
 //--------------------------------------------------------------------------
-int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
+int zombieCreate(struct MobCreateArgs* args)
 {
-	struct MobSpawnEventArgs args;
+  VECTOR position = {0,0,1,0};
+	struct MobSpawnEventArgs spawnArgs;
   
 	// create guber object
 	GuberEvent * guberEvent = 0;
@@ -68,17 +70,25 @@ int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1);
+      MapConfig.PopulateSpawnArgsFunc(&spawnArgs, args->Config, args->SpawnParamsIdx, args->SpawnFromUID == -1, args->DifficultyMult);
     }
 
 		u8 random = (u8)rand(100);
+    int parentUid = -1;
+    if (args->Parent)
+      parentUid = guberGetUID(args->Parent);
 
-    position[2] += 1; // spawn slightly above point
+
+    // spawn slightly above point
+    vector_add(position, position, args->Position);
+    
 		guberEventWrite(guberEvent, position, 12);
-		guberEventWrite(guberEvent, &yaw, 4);
-		guberEventWrite(guberEvent, &spawnFromUID, 4);
+		guberEventWrite(guberEvent, &args->Yaw, 4);
+		guberEventWrite(guberEvent, &args->SpawnFromUID, 4);
+		guberEventWrite(guberEvent, &parentUid, 4);
+		guberEventWrite(guberEvent, &args->Userdata, 4);
 		guberEventWrite(guberEvent, &random, 1);
-		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
+		guberEventWrite(guberEvent, &spawnArgs, sizeof(struct MobSpawnEventArgs));
 	}
 	else
 	{
@@ -95,8 +105,6 @@ void zombiePreUpdate(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  if (mobIsFrozen(moby))
-    return;
 
   // decrement path target pos ticker
   decTimerU8(&pvars->MobVars.MoveVars.PathTicks);
@@ -126,7 +134,7 @@ void zombiePostUpdate(Moby* moby)
     animSpeed = 0.5 * (1 - powf(moby->AnimSeqT / 20, 2));
   }
 
-	if (mobIsFrozen(moby) || (moby->DrawDist == 0 && pvars->MobVars.Action == ZOMBIE_ACTION_WALK)) {
+	if ((moby->DrawDist == 0 && pvars->MobVars.Action == ZOMBIE_ACTION_WALK)) {
 		moby->AnimSpeed = 0;
 	} else {
 		moby->AnimSpeed = animSpeed;
@@ -197,7 +205,7 @@ void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 	moby->PrimaryColor = ZOMBIE_PRIMARY_COLOR;
   
 	// limit corn spawning to prevent freezing/framelag
-	if (MapConfig.State && MapConfig.State->MobStats.TotalAlive < 30) {
+	if (MapConfig.State && MapConfig.State->MobStats.TotalAlive < 30 && killedByPlayerId >= 0) {
 		mobSpawnCorn(moby, ZOMBIE_BANGLE_LARM | ZOMBIE_BANGLE_RARM | ZOMBIE_BANGLE_LLEG | ZOMBIE_BANGLE_RLEG | ZOMBIE_BANGLE_RFOOT | ZOMBIE_BANGLE_HIPS);
 	}
 }
@@ -288,19 +296,33 @@ Moby* zombieGetNextTarget(Moby* moby)
 	Player ** players = playerGetAll();
 	int i;
 	VECTOR delta;
+  VECTOR forward;
 	Moby * currentTarget = pvars->MobVars.Target;
 	Player * closestPlayer = NULL;
 	float closestPlayerDist = 100000;
+
+  vector_fromyaw(forward, moby->Rotation[2]);
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = *players;
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
 			float dist = vector_length(delta);
-
+      Moby* pTargetMoby = playerGetTargetMoby(p);
+      int isCurrentTarget = pTargetMoby == currentTarget;
+      
+      // determine angle from mob forward to player
+      float theta = acosf(vector_innerproduct(forward, delta));
 			if (dist < 300) {
+
+        // skip if not in sight or aggro zone, unless already targeted
+        if (!isCurrentTarget) {
+          if (dist > pvars->MobVars.Config.AutoAggroMaxRange && (dist > pvars->MobVars.Config.VisionRange || fabsf(theta) > pvars->MobVars.Config.PeripheryRangeTheta)) continue;
+          if (moby->PParent && moby->PParent->OClass == SPAWNER_OCLASS && !spawnerOnChildConsiderTarget(moby->PParent, moby, pvars->MobVars.Userdata, pTargetMoby)) continue;
+        }
+
 				// favor existing target
-				if (playerGetTargetMoby(p) == currentTarget)
+				if (isCurrentTarget)
 					dist *= (1.0 / ZOMBIE_TARGET_KEEP_CURRENT_FACTOR);
 				
 				// pick closest target

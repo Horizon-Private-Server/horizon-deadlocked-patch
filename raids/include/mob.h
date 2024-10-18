@@ -90,6 +90,9 @@ struct MobConfig {
 	float AttackRadius;
 	float HitRadius;
   float CollRadius;
+  float AutoAggroMaxRange;
+  float VisionRange;
+  float PeripheryRangeTheta;
 	u16 Bangles;
 	u16 Xp;
 	u8 ReactionTickCount;
@@ -163,6 +166,7 @@ struct MobVars {
 	float Health;
 	float ClosestDist;
 	float LastSpeed;
+  u32 Userdata;
 	Moby * Target;
 	int LastHitBy;
 	u16 LastHitByOClass;
@@ -310,6 +314,18 @@ struct MobSpawnEventArgs
 	u8 AttackCooldownTickCount;
 };
 
+struct MobCreateArgs
+{
+  int SpawnParamsIdx;
+  Moby* Parent;
+  u32 Userdata;
+  VECTOR Position;
+  float Yaw;
+  int SpawnFromUID;
+  float DifficultyMult;
+  struct MobConfig *Config;
+};
+
 struct MobUnreliableBaseMsgArgs
 {
   int MsgId;
@@ -326,7 +342,8 @@ int mobOnUnreliableMsgRemote(void* connection, void* data);
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);
 int mobHandleEvent(Moby* moby, GuberEvent* event);
-int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
+int mobCreate(struct MobCreateArgs* args);
+void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, float difficultyMult);
 void mobInitialize(void);
 void mobTick(void);
 
