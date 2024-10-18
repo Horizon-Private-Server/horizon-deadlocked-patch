@@ -2,12 +2,8 @@
  * FILENAME :		main.c
  * 
  * DESCRIPTION :
- * 		SURVIVAL.
+ * 		RAIDS.
  * 
- * NOTES :
- * 		Each offset is determined per app id.
- * 		This is to ensure compatibility between versions of Deadlocked/Gladiator.
- * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
 
@@ -47,10 +43,10 @@ int BoltCounts[GAME_MAX_LOCALS] = {};
 int Initialized = 0;
 int FirstTimeInitialized = 0;
 
-struct SurvivalState State;
-struct SurvivalMapConfig* mapConfig = (struct SurvivalMapConfig*)0x01EF0010;
+struct RaidsState State;
+struct RaidsMapConfig* mapConfig = (struct RaidsMapConfig*)0x01EF0010;
 
-struct SurvivalSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
+struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
 
 PatchConfig_t* playerConfig = NULL;
@@ -171,8 +167,8 @@ void uiShowLowerPopup(int localPlayerIdx, int msgStringId)
 //--------------------------------------------------------------------------
 void popSnack(void)
 {
-  memmove(&snackItems[0], &snackItems[1], sizeof(struct SurvivalSnackItem) * (SNACK_ITEM_MAX_COUNT-1));
-  memset(&snackItems[SNACK_ITEM_MAX_COUNT-1], 0, sizeof(struct SurvivalSnackItem));
+  memmove(&snackItems[0], &snackItems[1], sizeof(struct RaidsSnackItem) * (SNACK_ITEM_MAX_COUNT-1));
+  memset(&snackItems[SNACK_ITEM_MAX_COUNT-1], 0, sizeof(struct RaidsSnackItem));
 
   if (snackItemsCount)
     --snackItemsCount;
@@ -487,7 +483,7 @@ void processPlayer(int pIndex) {
 	char strBuf[32];
 	Player** players = playerGetAll();
 	Player* player = players[pIndex];
-	struct SurvivalPlayer * playerData = &State.PlayerStates[pIndex];
+	struct RaidsPlayer * playerData = &State.PlayerStates[pIndex];
   GameSettings* gs = gameGetSettings();
 
 	if (!player || !player->PlayerMoby)
@@ -826,7 +822,7 @@ void initialize(PatchStateContainer_t* gameState)
   // when players desync, their net time falls behind everyone else's
   // causing events that they receive to be delayed for long periods of time
   // leading to even more desyncing issues
-  // since survival can cause a lot of frame lag, especially for players on emu/dzo
+  // since raids can cause a lot of frame lag, especially for players on emu/dzo
   // this fix is required to ensure that important mob guber events trigger on everyone's screen
   POKE_U32(0x00611518, 0x24040000);
 
@@ -840,17 +836,19 @@ void initialize(PatchStateContainer_t* gameState)
 
   // clear if magic not valid
   if (mapConfig->Magic != MAP_CONFIG_MAGIC) {
-    memset(mapConfig, 0, sizeof(struct SurvivalMapConfig));
+    memset(mapConfig, 0, sizeof(struct RaidsMapConfig));
     mapConfig->Magic = MAP_CONFIG_MAGIC;
   }
 
   // write map config
   mapConfig->State = &State;
+  //mapConfig->OnGetGuberFunc = &getGuber;
+  //mapConfig->OnGuberEventFunc = &handleEvent;
 
 	// Hook custom net events
 
 	// set game over string
-	//strncpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
+	//strncpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
 
 	// disable v2s and packs
 	cheatsApplyNoV2s();
@@ -903,7 +901,7 @@ void initialize(PatchStateContainer_t* gameState)
     State.PlayerStates[i].RevivingPlayerId = -1;
 
 #if PAYDAY
-		State.PlayerStates[i].State.CurrentTokens = 1000;
+		//State.PlayerStates[i].State.CurrentTokens = 1000;
 #endif
 
 		if (p) {
@@ -951,7 +949,7 @@ void initialize(PatchStateContainer_t* gameState)
 	State.MobStats.MobsDrawnLast = 0;
 	State.MobStats.MobsDrawGameTime = 0;
   State.MobStats.TotalSpawned = 0;
-	State.Difficulty = mapConfig->BakedConfig->Difficulty;
+	State.Difficulty = mapConfig->BakedConfig ? mapConfig->BakedConfig->Difficulty : 1;
   
 	if (!FirstTimeInitialized) {
     State.InitializedTime = gameGetTime();
@@ -984,8 +982,8 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// stats
 	if (gameState->UpdateCustomGameStats)
 	{
-    gameState->CustomGameStatsSize = sizeof(struct SurvivalGameData);
-		struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats.Payload;
+    gameState->CustomGameStatsSize = sizeof(struct RaidsGameData);
+		struct RaidsGameData* sGameData = (struct RaidsGameData*)gameState->CustomGameStats.Payload;
 		sGameData->Version = 1;
 
     // set per player stats
@@ -1030,7 +1028,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	}
 
   // get local player data
-  struct SurvivalPlayer* localPlayerData = &State.PlayerStates[localPlayer->PlayerId];
+  struct RaidsPlayer* localPlayerData = &State.PlayerStates[localPlayer->PlayerId];
 
 #if LOG_STATS
 	static int statsTicker = 0;
@@ -1227,7 +1225,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		if (pid < 0 || name[0] == 0)
 			continue;
 
-		struct SurvivalPlayerState* pState = &State.PlayerStates[pid].State;
+		struct RaidsPlayerState* pState = &State.PlayerStates[pid].State;
 
 		// set kills
 		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", pState->Kills);

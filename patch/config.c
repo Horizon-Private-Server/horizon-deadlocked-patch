@@ -426,17 +426,18 @@ MenuElem_OrderedListData_t dataCustomModes = {
   .count = CUSTOM_MODE_COUNT,
   .items = {
     { CUSTOM_MODE_NONE, "None" },
+    { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
     //{ CUSTOM_MODE_BENCHMARK, "Benchmark" },
     { CUSTOM_MODE_GRIDIRON, "DreadBall" },
     { CUSTOM_MODE_GUN_GAME, "Gun Game" },
     { CUSTOM_MODE_HNS, "Hide and Seek" },
     { CUSTOM_MODE_INFECTED, "Infected" },
     { CUSTOM_MODE_PAYLOAD, "Payload" },
+    { CUSTOM_MODE_RAIDS, "Raids" },
     { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
-    { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
-    { CUSTOM_MODE_TRAINING, "Training" },
-    { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
     { CUSTOM_MODE_TAG, "Tag" },
+    { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
+    { CUSTOM_MODE_TRAINING, "Training" },
     { CUSTOM_MODE_SURVIVAL, "Zombie Survival" },
 #if DEV
     { CUSTOM_MODE_ANIM_EXTRACTOR, "Anim Extractor" },
@@ -457,6 +458,7 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_TRAINING] NULL,
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
   [CUSTOM_MODE_TAG] NULL,
+  [CUSTOM_MODE_RAIDS] "Raids",
   //[CUSTOM_MODE_BENCHMARK] NULL,
   [CUSTOM_MODE_GRIDIRON] NULL,
 #if DEV
@@ -1069,6 +1071,24 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
     //   *value = 0;
     //   return 0;
     // }
+    case CUSTOM_MODE_RAIDS:
+    {
+      // accept if selected map is survival
+      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_RAIDS)
+        return 1;
+
+      // force first survival map
+      for (i = 0; i < customMapDefCount; ++i) {
+        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_RAIDS) {
+          *value = i+1;
+          return 0;
+        }
+      }
+
+      // reset
+      *value = 0;
+      return 0;
+    }
     case CUSTOM_MODE_SURVIVAL:
     {
 #if DEBUG
@@ -1188,6 +1208,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listDa
       //case CUSTOM_MODE_INFINITE_CLIMBER:
       case CUSTOM_MODE_1000_KILLS:
       case CUSTOM_MODE_SURVIVAL:
+      case CUSTOM_MODE_RAIDS:
       case CUSTOM_MODE_PAYLOAD:
       case CUSTOM_MODE_HNS:
       case CUSTOM_MODE_TEAM_DEFENDER:

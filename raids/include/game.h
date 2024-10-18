@@ -1,10 +1,10 @@
-#ifndef SURVIVAL_GAME_H
-#define SURVIVAL_GAME_H
+#ifndef RAIDS_GAME_H
+#define RAIDS_GAME_H
 
 #include <tamtypes.h>
-#include "messageid.h"
 #include <libdl/player.h>
 #include <libdl/math3d.h>
+#include "messageid.h"
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
@@ -241,17 +241,25 @@ enum StackableItemId
   STACKABLE_ITEM_COUNT
 };
 
+struct MobConfig;
+struct MobSpawnEventArgs;
+
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
+typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig);
+typedef int (*OnGuberEvent_func)(Moby* moby, GuberEvent* event);
+typedef struct GuberMoby* (*OnGetGuber_func)(Moby* moby);
+
+typedef int (*CreateMob_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config);
 typedef int (*FrameTick_func)(void);
 
-typedef struct SurvivalBakedConfig
+typedef struct RaidsBakedConfig
 {
 	float Difficulty;
   float SpawnDistanceFactor;
   int BoltRankMultiplier;
-} SurvivalBakedConfig_t;
+} RaidsBakedConfig_t;
 
-struct SurvivalPlayerState
+struct RaidsPlayerState
 {
 	u64 TotalBolts;
 	u32 XP;
@@ -261,12 +269,12 @@ struct SurvivalPlayerState
   int Level;
 };
 
-struct SurvivalPlayer
+struct RaidsPlayer
 {
 	float MinSqrDistFromMob;
 	float MaxSqrDistFromMob;
   float LastHealth;
-	struct SurvivalPlayerState State;
+	struct RaidsPlayerState State;
 	int TimeOfDoublePoints;
 	int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
@@ -285,7 +293,7 @@ struct SurvivalPlayer
 	char HealthBarStrBuf[8];
 };
 
-struct SurvivalMobStats
+struct RaidsMobStats
 {
 	int MobsDrawnCurrent;
 	int MobsDrawnLast;
@@ -298,17 +306,17 @@ struct SurvivalMobStats
   u8 NumAlive[MAX_MOB_SPAWN_PARAMS];
 };
 
-struct SurvivalState
+struct RaidsState
 {
 	int InitializedTime;
   int MapBaseComplexity;
-  struct SurvivalMobStats MobStats;
-	struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
+  struct RaidsMobStats MobStats;
+	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
   char ClientReady[GAME_MAX_PLAYERS];
 	int RoundInitialized;
 	Moby* Vendor;
 	Moby* BigAl;
-	struct SurvivalPlayer* LocalPlayerState;
+	struct RaidsPlayer* LocalPlayerState;
 	int GameOver;
 	int WinningTeam;
 	int ActivePlayerCount;
@@ -317,15 +325,27 @@ struct SurvivalState
 	char NumTeams;
 };
 
-struct SurvivalMapConfig
+struct RaidsMapConfig
 {
   u32 Magic;
   int ClientsReady;
-  struct SurvivalState* State;
-  struct SurvivalBakedConfig* BakedConfig;
+  struct RaidsState* State;
+  struct RaidsBakedConfig* BakedConfig;
+  struct MobSpawnParams* MobSpawnParams;
+  int MobSpawnParamsCount;
+
+  // mode
+  PushSnack_func PushSnackFunc;
+  PopulateSpawnArgs_func PopulateSpawnArgsFunc;
+  OnGuberEvent_func OnGuberEventFunc;
+  OnGetGuber_func OnGetGuberFunc;
+
+  // map
+  CreateMob_func CreateMobFunc;
+  FrameTick_func OnFrameTickFunc;
 };
 
-struct SurvivalGameData
+struct RaidsGameData
 {
 	u32 Version;
 	u64 Points[GAME_MAX_PLAYERS];
@@ -333,7 +353,7 @@ struct SurvivalGameData
 	int Deaths[GAME_MAX_PLAYERS];
 };
 
-struct SurvivalSnackItem
+struct RaidsSnackItem
 {
   int TicksAlive;
   char DisplayForLocalPlayerIdx;
@@ -343,4 +363,4 @@ struct SurvivalSnackItem
 struct GuberMoby* getGuber(Moby* moby);
 int handleEvent(Moby* moby, GuberEvent* event);
 
-#endif // SURVIVAL_GAME_H
+#endif // RAIDS_GAME_H

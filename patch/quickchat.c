@@ -287,6 +287,7 @@ void quickChatRun(void)
   }
   if (!gameConfig.grQuickChat) return;
   if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return;
+  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS) return;
   if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) return;
   if (gameGetSettings()->GameRules == GAMERULE_CQ) return;
   if (isConfigMenuActive) return;

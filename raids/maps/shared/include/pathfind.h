@@ -1,5 +1,5 @@
-#ifndef SURVIVAL_PATHFIND_H
-#define SURVIVAL_PATHFIND_H
+#ifndef RAIDS_PATHFIND_H
+#define RAIDS_PATHFIND_H
 
 #include <tamtypes.h>
 
@@ -27,23 +27,42 @@
 #include "game.h"
 #include "mob.h"
 
-extern struct SurvivalMapConfig MapConfig;
+#define PATHGRAPH_MAX_NUM_NODES             (100)
+#define TARGETS_CACHE_COUNT                 (16)
 
-extern const int MOB_PATHFINDING_NODES_COUNT;
-extern const int MOB_PATHFINDING_EDGES_COUNT;
-extern VECTOR MOB_PATHFINDING_NODES[];
-extern u8 MOB_PATHFINDING_NODES_CORNERING[];
-extern u8 MOB_PATHFINDING_EDGES[][2];
-extern u8 MOB_PATHFINDING_EDGES_PATHFIT[];
-extern u8 MOB_PATHFINDING_EDGES_REQUIRED[];
-extern u8 MOB_PATHFINDING_EDGES_JUMPPADSPEED[];
-extern u8 MOB_PATHFINDING_EDGES_JUMPPADAT[];
-extern const int MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH;
-extern u8 MOB_PATHFINDING_PATHS[];
+struct TargetCache
+{
+  Moby* Target;
+  int ClosestNodeIdx;
+  int DelayNextCheckTicks;
+};
 
-int pathShouldJump(Moby* moby);
-float pathGetJumpSpeed(Moby* moby);
-void pathGetTargetPos(VECTOR output, Moby* moby);
-void pathSetPath(Moby* moby, int fromNodeIdx, int toNodeIdx, int currentOnPath, int hasReachedStart, int hasReachedEnd);
+struct PathGraph
+{
+  int NumNodes;
+	int NumEdges;
+	int MaxPathNodeCount;
+	VECTOR* Nodes;
+	u8* Cornering;
+	u8** Edges;
+	u8* EdgesRequired;
+	u8* EdgesPathFit;
+	u8* EdgesJumpSpeed;
+	u8* EdgesJumpAt;
+	u8** Paths;
+  struct TargetCache TargetsCache[TARGETS_CACHE_COUNT];
+  int LastTargetUpdatedIdx;
+};
 
-#endif // SURVIVAL_PATHFIND_H
+extern struct RaidsMapConfig MapConfig;
+extern struct PathGraph Paths[];
+extern const int PathsCount;
+
+void pathTick(struct PathGraph* path);
+int pathShouldJump(struct PathGraph* path, Moby* moby);
+float pathGetJumpSpeed(struct PathGraph* path, Moby* moby);
+void pathGetTargetPos(struct PathGraph* path, VECTOR output, Moby* moby);
+void pathSetPath(struct PathGraph* path, Moby* moby, int fromNodeIdx, int toNodeIdx, int currentOnPath, int hasReachedStart, int hasReachedEnd);
+struct PathGraph* pathGetMobyPathGraph(Moby* moby);
+
+#endif // RAIDS_PATHFIND_H

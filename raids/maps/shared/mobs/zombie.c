@@ -57,12 +57,8 @@ struct MobVTable ZombieVTable = {
   .ShouldForceStateUpdateOnAction = &zombieShouldForceStateUpdateOnAction,
 };
 
-extern u32 MobPrimaryColors[];
-extern u32 MobSecondaryColors[];
-extern u32 MobLODColors[];
-
 //--------------------------------------------------------------------------
-int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
+int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
   
@@ -72,7 +68,7 @@ int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1, spawnFlags);
+      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1);
     }
 
 		u8 random = (u8)rand(100);
@@ -81,7 +77,6 @@ int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUI
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &yaw, 4);
 		guberEventWrite(guberEvent, &spawnFromUID, 4);
-		guberEventWrite(guberEvent, &spawnFlags, 4);
 		guberEventWrite(guberEvent, &random, 1);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
 	}
@@ -145,7 +140,7 @@ void zombiePostDraw(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
+  u32 color = ZOMBIE_LOD_COLOR | (moby->Opacity << 24);
   mobPostDrawQuad(moby, 127, color, 1);
 }
 
@@ -175,8 +170,8 @@ void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
   moby->Scale = 0.256339;
 
   // colors by mob type
-	moby->GlowRGBA = MobSecondaryColors[pvars->MobVars.SpawnParamsIdx];
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->GlowRGBA = ZOMBIE_GLOW_COLOR;
+	moby->PrimaryColor = ZOMBIE_PRIMARY_COLOR;
 
   // targeting
 	pvars->TargetVars.targetHeight = 1;
@@ -185,11 +180,6 @@ void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
 #if MOB_DAMAGETYPES
   pvars->TargetVars.damageTypes = MOB_DAMAGETYPES;
 #endif
-
-  // russion doll
-  if (pvars->MobVars.SpawnFlags & MOB_SPAWN_FLAG_RUSSIAN_DOLL) {
-    mobSetAction(moby, ZOMBIE_ACTION_BIG_FLINCH);
-  }
 
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
@@ -204,7 +194,7 @@ void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
 	// set colors before death so that the corn has the correct color
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->PrimaryColor = ZOMBIE_PRIMARY_COLOR;
   
 	// limit corn spawning to prevent freezing/framelag
 	if (MapConfig.State && MapConfig.State->MobStats.TotalAlive < 30) {
@@ -221,8 +211,6 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 
 	int canFlinch = pvars->MobVars.Action != ZOMBIE_ACTION_FLINCH 
             && pvars->MobVars.Action != ZOMBIE_ACTION_BIG_FLINCH
-            && pvars->MobVars.Action != ZOMBIE_ACTION_TIME_BOMB 
-            && pvars->MobVars.Action != ZOMBIE_ACTION_TIME_BOMB_EXPLODE
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
 #if ALWAYS_FLINCH
@@ -234,13 +222,7 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 
 	// destroy
 	if (newHp <= 0) {
-		if (pvars->MobVars.Action == ZOMBIE_ACTION_TIME_BOMB && moby->AnimSeqId == ZOMBIE_ANIM_CROUCH && moby->AnimSeqT > 3) {
-			// explode
-			//zombieForceLocalAction(moby, ZOMBIE_ACTION_TIME_BOMB_EXPLODE);
-			zombieForceLocalAction(moby, ZOMBIE_ACTION_DIE);
-		} else {
-			zombieForceLocalAction(moby, ZOMBIE_ACTION_DIE);
-		}
+    zombieForceLocalAction(moby, ZOMBIE_ACTION_DIE);
 
     pvars->MobVars.LastHitBy = e->SourceUID;
     pvars->MobVars.LastHitByOClass = e->SourceOClass;
@@ -383,7 +365,7 @@ int zombieGetPreferredAction(Moby* moby, int * delayTicks)
 		if (distSqr <= attackRadiusSqr) {
 			if (zombieCanAttack(pvars)) {
         if (delayTicks) *delayTicks = pvars->MobVars.Config.ReactionTickCount;
-				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? ZOMBIE_ACTION_ATTACK : ZOMBIE_ACTION_TIME_BOMB;
+				return ZOMBIE_ACTION_ATTACK;
       }
 			return ZOMBIE_ACTION_WALK;
 		} else {
@@ -402,20 +384,21 @@ void zombieRenderPath(Moby* moby)
   int i;
 
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  struct PathGraph* pathGraph = pathGetMobyPathGraph(moby);
   u8* path = (u8*)pvars->MobVars.MoveVars.CurrentPath;
   int pathLen = pvars->MobVars.MoveVars.PathEdgeCount;
   int pathIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
 
 
   for (i = 0; i < pathLen; ++i) {
-    u8* edge = MOB_PATHFINDING_EDGES[path[i]];
-    if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[1]], &x, &y)) {
+    u8* edge = pathGraph->Edges[path[i]];
+    if (gfxWorldSpaceToScreenSpace(pathGraph->Nodes[edge[1]], &x, &y)) {
       gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, i == pathIdx ? "o" : "-", -1, 4);
     }
   }
 
   VECTOR t;
-  pathGetTargetPos(t, moby);
+  pathGetTargetPos(pathGraph, t, moby);
   if (gfxWorldSpaceToScreenSpace(t, &x, &y)) {
     gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
   }
@@ -426,6 +409,7 @@ void zombieRenderPath(Moby* moby)
 void zombieDoAction(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  struct PathGraph* path = pathGetMobyPathGraph(moby);
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t, t2;
   float difficulty = 1;
@@ -478,7 +462,7 @@ void zombieDoAction(Moby* moby)
         // move
         if (!isInAirFromFlinching) {
           if (target) {
-            pathGetTargetPos(t, moby);
+            pathGetTargetPos(path, t, moby);
             mobTurnTowards(moby, t, turnSpeed);
             mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
           } else {
@@ -526,7 +510,7 @@ void zombieDoAction(Moby* moby)
           float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
 
           // determine next position
-          pathGetTargetPos(t, moby);
+          pathGetTargetPos(path, t, moby);
           //vector_copy(t, target->Position);
           vector_subtract(t, t, moby->Position);
           float dist = vector_length(t);
@@ -563,43 +547,6 @@ void zombieDoAction(Moby* moby)
       mobStand(moby);
       break;
     }
-		case ZOMBIE_ACTION_TIME_BOMB_EXPLODE:
-    {
-      
-      break;
-    }
-		case ZOMBIE_ACTION_TIME_BOMB:
-		{
-			mobTransAnim(moby, ZOMBIE_ANIM_CROUCH, 0);
-
-			if (pvars->MobVars.TimeBombTicks == 0) {
-				moby->Opacity = 0x80;
-				pvars->MobVars.OpacityFlickerDirection = 0;
-				mobSetAction(moby, ZOMBIE_ACTION_TIME_BOMB_EXPLODE);
-			} else {
-
-				// cycle opacity from 1.0 to 2.0
-				int newOpacity = (u8)moby->Opacity + pvars->MobVars.OpacityFlickerDirection;
-				if (newOpacity <= 0x80) {
-					pvars->MobVars.OpacityFlickerDirection *= -1.25;
-					newOpacity = 0x80;
-				}
-				else if (newOpacity >= 0xFF) {
-					pvars->MobVars.OpacityFlickerDirection *= -1.25;
-					newOpacity = 0xFF;
-				}
-			
-				// limit cycle rate
-				if (pvars->MobVars.OpacityFlickerDirection < -0x40)
-					pvars->MobVars.OpacityFlickerDirection = -0x40;
-				if (pvars->MobVars.OpacityFlickerDirection > 0x40)
-					pvars->MobVars.OpacityFlickerDirection = 0x40;
-				
-				moby->Opacity = (u8)newOpacity;
-        mobStand(moby);
-			}
-			break;
-		}
 		case ZOMBIE_ACTION_ATTACK:
 		{
       int attack1AnimId = ZOMBIE_ANIM_SLAP;
@@ -620,19 +567,19 @@ void zombieDoAction(Moby* moby)
       }
 
 			// attribute damage
-			switch (pvars->MobVars.Config.MobAttribute)
-			{
-				case MOB_ATTRIBUTE_FREEZE:
-				{
-					damageFlags |= 0x00800000;
-					break;
-				}
-				case MOB_ATTRIBUTE_ACID:
-				{
-					damageFlags |= 0x00000080;
-					break;
-				}
-			}
+			// switch (pvars->MobVars.Config.MobAttribute)
+			// {
+			// 	case MOB_ATTRIBUTE_FREEZE:
+			// 	{
+			// 		damageFlags |= 0x00800000;
+			// 		break;
+			// 	}
+			// 	case MOB_ATTRIBUTE_ACID:
+			// 	{
+			// 		damageFlags |= 0x00000080;
+			// 		break;
+			// 	}
+			// }
 
 			if (swingAttackReady && damageFlags) {
 				zombieDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);
@@ -699,47 +646,6 @@ void zombieForceLocalAction(Moby* moby, int action)
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
 			break;
 		}
-    case ZOMBIE_ACTION_TIME_BOMB_EXPLODE:
-    {
-			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
-
-      u32 damageFlags = 0x00008801;
-      u32 color = 0x403064FF;
-
-			// attribute damage
-      switch (pvars->MobVars.Config.MobAttribute)
-      {
-        case MOB_ATTRIBUTE_FREEZE:
-        {
-          color = 0x40FF6430;
-          damageFlags |= 0x00800000;
-          break;
-        }
-        case MOB_ATTRIBUTE_ACID:
-        {
-          color = 0x4064FF30;
-          damageFlags |= 0x00000080;
-          break;
-        }
-      }
-  
-  
-      mobyPlaySoundByClass(0, 0, mobySpawnExplosion(
-        vector_read(moby->Position), 0, 0, 0, 0, 16, 0, 16, 0, 1, 0, 0, 0, 0,
-        0, 0, color, color, color, color, color, color, color, color, color,
-        0, 0, 0, 0, ZOMBIE_EXPLODE_HIT_RADIUS / 2.5, 0, 0, 0
-      ), MOBY_ID_ARBITER_ROCKET0);
-      mobDoDamage(moby, ZOMBIE_EXPLODE_HIT_RADIUS, pvars->MobVars.Config.Damage, damageFlags, 1, ZOMBIE_SUBSKELETON_JOINT_HIPS, 1, 1);
-      pvars->MobVars.Destroy = 1;
-      pvars->MobVars.LastHitBy = -1;
-      break;
-    }
-		case ZOMBIE_ACTION_TIME_BOMB:
-		{
-			pvars->MobVars.OpacityFlickerDirection = 4;
-			pvars->MobVars.TimeBombTicks = ZOMBIE_TIMEBOMB_TICKS;
-			break;
-		}
 		case ZOMBIE_ACTION_FLINCH:
 		case ZOMBIE_ACTION_BIG_FLINCH:
 		{
@@ -780,7 +686,7 @@ short zombieGetArmor(Moby* moby)
 int zombieIsAttacking(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	return pvars->MobVars.Action == ZOMBIE_ACTION_TIME_BOMB || pvars->MobVars.Action == ZOMBIE_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == ZOMBIE_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
+	return pvars->MobVars.Action == ZOMBIE_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
 }
 
 //--------------------------------------------------------------------------

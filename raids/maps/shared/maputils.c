@@ -34,8 +34,7 @@
 #include "../../include/game.h"
 
 extern char LocalPlayerStrBuffer[2][64];
-extern struct SurvivalMapConfig MapConfig;
-
+extern struct RaidsMapConfig MapConfig;
 
 /* 
  * paid sound def
@@ -93,56 +92,6 @@ void playPaidSound(Player* player)
 {
   if (!player) return;
   soundPlay(&PaidSoundDef, 0, player->PlayerMoby, 0, 0x400);
-}
-
-//--------------------------------------------------------------------------
-int tryPlayerInteract(Moby* moby, Player* player, char* message, char* lowerMessage, int boltCost, int tokenCost, int actionCooldown, float sqrDistance, int btns)
-{
-  static int shown[GAME_MAX_LOCALS] = {0,0};
-  VECTOR delta;
-  if (!player || !player->PlayerMoby || !player->IsLocal || !isInGame())
-    return 0;
-
-  struct SurvivalPlayer* playerData = NULL;
-  int localPlayerIndex = player->LocalPlayerIndex;
-  int pIndex = player->PlayerId;
-
-  if (MapConfig.State) {
-    playerData = &MapConfig.State->PlayerStates[pIndex];
-  }
-  
-  vector_subtract(delta, player->PlayerPosition, moby->Position);
-  if (vector_sqrmag(delta) < sqrDistance) {
-
-    // draw help popup
-    snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), message);
-    uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-    shown[localPlayerIndex] = gameGetTime();
-
-    // handle pad input
-    if (padGetAnyButtonDown(localPlayerIndex, btns) > 0 && (!playerData || (playerData->State.Bolts >= boltCost && playerData->State.CurrentTokens >= tokenCost))) {
-      if (playerData) {
-        //playerData->State.Bolts -= boltCost;
-        //playerData->State.CurrentTokens -= tokenCost;
-        playerData->ActionCooldownTicks = actionCooldown;
-        playerData->MessageCooldownTicks = 5;
-      }
-
-      return 1;
-    }
-    
-    // draw lower message
-    if (lowerMessage) {
-      char* a = uiMsgString(0x2415);
-      strncpy(a, lowerMessage, 0x40);
-      uiShowLowerPopup(0, 0x2415);
-    }
-  } else if (shown[localPlayerIndex] && gameGetTime() > shown[localPlayerIndex]) {
-    hudHidePopup();
-    shown[localPlayerIndex] = 0;
-  }
-
-  return 0;
 }
 
 //--------------------------------------------------------------------------
@@ -311,27 +260,6 @@ Moby* playerGetTargetMoby(Player* player)
 }
 
 //--------------------------------------------------------------------------
-int playerHasBlessing(int playerId, int blessing)
-{
-  if (!MapConfig.State) return 0;
-
-  int i;
-  for (i = 0; i < PLAYER_MAX_BLESSINGS; ++i) {
-    if (MapConfig.State->PlayerStates[playerId].State.ItemBlessings[i] == blessing) return 1;
-  }
-
-  return 0;
-}
-
-//--------------------------------------------------------------------------
-int playerGetStackableCount(int playerId, int stackable)
-{
-  if (!MapConfig.State) return 0;
-
-  return MapConfig.State->PlayerStates[playerId].State.ItemStackable[stackable];
-}
-
-//--------------------------------------------------------------------------
 void draw3DMarker(VECTOR position, float scale, u32 color, char* str)
 {
   int x,y;
@@ -399,21 +327,4 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
       break;
     }
   }
-}
-
-//--------------------------------------------------------------------------
-int bakedSpawnGetFirst(int bakedSpawnType, VECTOR outPos, VECTOR outRot) {
-  if (!MapConfig.BakedConfig) return 0;
-
-  int i;
-  for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
-    if (MapConfig.BakedConfig->BakedSpawnPoints[i].Type == bakedSpawnType) {
-
-      memcpy(outPos, MapConfig.BakedConfig->BakedSpawnPoints[i].Position, 12);
-      memcpy(outRot, MapConfig.BakedConfig->BakedSpawnPoints[i].Rotation, 12);
-      return 1;
-    }
-  }
-
-  return 0;
 }

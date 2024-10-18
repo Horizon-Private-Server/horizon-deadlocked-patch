@@ -9,7 +9,7 @@
 #include <libdl/random.h>
 #include <libdl/graphics.h>
 
-extern struct SurvivalState State;
+extern struct RaidsState State;
 
 /* 
  * upgrade sound def

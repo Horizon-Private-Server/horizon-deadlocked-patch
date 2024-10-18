@@ -2479,7 +2479,7 @@ void onHeroUpdate(void)
   // after hero update
   // gadget events
   GameSettings* gs = gameGetSettings();
-  if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL && gs && gs->GameRules != GAMERULE_CQ) {
+  if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL && gameConfig.customModeId != CUSTOM_MODE_RAIDS && gs && gs->GameRules != GAMERULE_CQ) {
     runPlayerGadgetEventHandlers();
   }
 }
@@ -4217,7 +4217,7 @@ int hookCheckHostStartGame(void* a0)
 
     // if survival
     // verify we have the latest maps
-    if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+    if ((gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS) && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
       readLocalGlobalVersion();
       if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
         showNeedLatestMapsPopup = 1;
@@ -4282,7 +4282,7 @@ void runCheckGameMapInstalled(void)
         showNoMapPopup = 1;
         netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
       }
-      else if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+      else if ((gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS) && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
         readLocalGlobalVersion();
         if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
           gameSetClientState(i, 0);

@@ -1,7 +1,7 @@
 
 
-#ifndef SURVIVAL_MAP_SHARED_H
-#define SURVIVAL_MAP_SHARED_H
+#ifndef RAIDS_MAP_SHARED_H
+#define RAIDS_MAP_SHARED_H
 
 #include <tamtypes.h>
 #include <libdl/moby.h>
@@ -19,6 +19,10 @@ enum MOB_DO_DAMAGE_HIT_FLAGS
   MOB_DO_DAMAGE_HIT_FLAG_HIT_MOB = 4,
   MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER_THORNS = 8,
 };
+
+struct GuberMoby* mapGetGuber(Moby* moby);
+void mapHandleEvent(Moby* moby, GuberEvent* event);
+void mapInstallMobyFunctions(MobyFunctions* mobyFunctions);
 
 int mobAmIOwner(Moby* moby);
 int mobIsFrozen(Moby* moby);
@@ -46,4 +50,4 @@ void mobPreUpdate(Moby* moby);
 int mobIsProjectileComing(Moby* moby);
 
 
-#endif // SURVIVAL_MAP_SHARED_H
+#endif // RAIDS_MAP_SHARED_H

@@ -1,7 +1,7 @@
 
 
-#ifndef SURVIVAL_UTILS_H
-#define SURVIVAL_UTILS_H
+#ifndef RAIDS_UTILS_H
+#define RAIDS_UTILS_H
 
 #define SEQ_DIFF_U8(a, b) (((b - a + 128*3) % (128*2)) - 128)
 
@@ -50,4 +50,4 @@ int localPlayerHasInput(void);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 
-#endif // SURVIVAL_UTILS_H
+#endif // RAIDS_UTILS_H

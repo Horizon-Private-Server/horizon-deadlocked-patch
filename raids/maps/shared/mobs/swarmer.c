@@ -38,7 +38,6 @@ int swarmerCanAttack(struct MobPVar* pvars);
 int swarmerGetSideFlipLeftOrRight(struct MobPVar* pvars);
 int swarmerIsFlinching(Moby* moby);
 float swarmerGetDodgeProbability(Moby* moby);
-void swarmerSpawnRussianDolls(Moby* moby);
 
 struct MobVTable SwarmerVTable = {
   .PreUpdate = &swarmerPreUpdate,
@@ -61,12 +60,8 @@ struct MobVTable SwarmerVTable = {
   .ShouldForceStateUpdateOnAction = &swarmerShouldForceStateUpdateOnAction,
 };
 
-extern u32 MobPrimaryColors[];
-extern u32 MobSecondaryColors[];
-extern u32 MobLODColors[];
-
 //--------------------------------------------------------------------------
-int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
+int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
   
@@ -76,7 +71,7 @@ int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
-      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1, spawnFlags);
+      MapConfig.PopulateSpawnArgsFunc(&args, config, spawnParamsIdx, spawnFromUID == -1);
     }
 
 		u8 random = (u8)rand(100);
@@ -85,7 +80,6 @@ int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 		guberEventWrite(guberEvent, position, 12);
 		guberEventWrite(guberEvent, &yaw, 4);
 		guberEventWrite(guberEvent, &spawnFromUID, 4);
-		guberEventWrite(guberEvent, &spawnFlags, 4);
 		guberEventWrite(guberEvent, &random, 1);
 		guberEventWrite(guberEvent, &args, sizeof(struct MobSpawnEventArgs));
 	}
@@ -158,7 +152,7 @@ void swarmerPostDraw(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
+  u32 color = SWARMER_LOD_COLOR | (moby->Opacity << 24);
   mobPostDrawQuad(moby, 127, color, 0);
 }
 
@@ -189,8 +183,8 @@ void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
   moby->Scale = 0.256339 * scale;
 
   // colors by mob type
-	moby->GlowRGBA = MobSecondaryColors[pvars->MobVars.SpawnParamsIdx];
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->GlowRGBA = SWARMER_GLOW_COLOR;
+	moby->PrimaryColor = SWARMER_PRIMARY_COLOR;
 
   // targeting
 	pvars->TargetVars.targetHeight = 1 + (scale * 0.25);
@@ -199,11 +193,6 @@ void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
 #if MOB_DAMAGETYPES
   pvars->TargetVars.damageTypes = MOB_DAMAGETYPES;
 #endif
-
-  // russion doll
-  if (pvars->MobVars.SpawnFlags & MOB_SPAWN_FLAG_RUSSIAN_DOLL) {
-    mobSetAction(moby, SWARMER_ACTION_BIG_FLINCH);
-  }
 
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
@@ -218,7 +207,7 @@ void swarmerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
 	// set colors before death so that the corn has the correct color
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->PrimaryColor = SWARMER_PRIMARY_COLOR;
 }
 
 //--------------------------------------------------------------------------
@@ -230,8 +219,6 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 
 	int canFlinch = pvars->MobVars.Action != SWARMER_ACTION_FLINCH 
             && pvars->MobVars.Action != SWARMER_ACTION_BIG_FLINCH
-            && pvars->MobVars.Action != SWARMER_ACTION_TIME_BOMB 
-            && pvars->MobVars.Action != SWARMER_ACTION_TIME_BOMB_EXPLODE
             && pvars->MobVars.FlinchCooldownTicks == 0;
 
 #if ALWAYS_FLINCH
@@ -396,7 +383,7 @@ int swarmerGetPreferredAction(Moby* moby, int * delayTicks)
 		if (distSqr <= attackRadiusSqr) {
 			if (swarmerCanAttack(pvars)) {
         if (delayTicks) *delayTicks = pvars->MobVars.Config.ReactionTickCount;
-				return pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_EXPLODE ? SWARMER_ACTION_ATTACK : SWARMER_ACTION_TIME_BOMB;
+				return SWARMER_ACTION_ATTACK;
       }
 			return SWARMER_ACTION_WALK;
 		} else {
@@ -415,25 +402,26 @@ void swarmerRenderPath(Moby* moby)
   int i;
 
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  struct PathGraph* pathGraph = pathGetMobyPathGraph(moby);
   u8* path = (u8*)pvars->MobVars.MoveVars.CurrentPath;
   int pathLen = pvars->MobVars.MoveVars.PathEdgeCount;
   int pathIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
 
   if (pathLen > 0) {
-    u8* edge = MOB_PATHFINDING_EDGES[path[0]];
-    if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[0]], &x, &y)) {
+    u8* edge = pathGraph->Edges[path[0]];
+    if (gfxWorldSpaceToScreenSpace(pathGraph->Nodes[edge[0]], &x, &y)) {
       gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, i == pathIdx ? "o" : "-", -1, 4);
     }
   }
   for (i = 0; i < pathLen; ++i) {
-    u8* edge = MOB_PATHFINDING_EDGES[path[i]];
-    if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[1]], &x, &y)) {
+    u8* edge = pathGraph->Edges[path[i]];
+    if (gfxWorldSpaceToScreenSpace(pathGraph->Nodes[edge[1]], &x, &y)) {
       gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, i == pathIdx ? "o" : "-", -1, 4);
     }
   }
 
   VECTOR t;
-  pathGetTargetPos(t, moby);
+  pathGetTargetPos(pathGraph, t, moby);
   if (gfxWorldSpaceToScreenSpace(t, &x, &y)) {
     gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
   }
@@ -444,6 +432,7 @@ void swarmerRenderPath(Moby* moby)
 void swarmerDoAction(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  struct PathGraph* path = pathGetMobyPathGraph(moby);
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t, t2;
   float difficulty = 1;
@@ -496,7 +485,7 @@ void swarmerDoAction(Moby* moby)
         // move
         if (!isInAirFromFlinching) {
           if (target) {
-            pathGetTargetPos(t, moby);
+            pathGetTargetPos(path, t, moby);
             mobTurnTowards(moby, t, turnSpeed);
             mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
           } else {
@@ -543,7 +532,7 @@ void swarmerDoAction(Moby* moby)
         float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
 
         // determine next position
-        pathGetTargetPos(t, moby);
+        pathGetTargetPos(path, t, moby);
         //vector_copy(t, target->Position);
         vector_subtract(t, t, moby->Position);
         float dist = vector_length(t);
@@ -626,11 +615,6 @@ void swarmerDoAction(Moby* moby)
       mobTransAnimLerp(moby, SWARMER_ANIM_FLINCH_BACKFLIP_AND_STAND, 5, 0);
       if (moby->AnimSeqId == SWARMER_ANIM_FLINCH_BACKFLIP_AND_STAND && moby->AnimSeqT > 25) {
         pvars->MobVars.Destroy = 1;
-
-        // spawn children
-        if (mobAmIOwner(moby) && pvars->MobVars.Config.MobAttribute == MOB_ATTRIBUTE_RUSSIAN_DOLL) {
-          swarmerSpawnRussianDolls(moby);
-        }
       }
 
       //mobStand(moby);
@@ -658,21 +642,6 @@ void swarmerDoAction(Moby* moby)
           mobStand(moby);
         }
       }
-
-			// attribute damage
-			switch (pvars->MobVars.Config.MobAttribute)
-			{
-				case MOB_ATTRIBUTE_FREEZE:
-				{
-					damageFlags |= 0x00800000;
-					break;
-				}
-				case MOB_ATTRIBUTE_ACID:
-				{
-					damageFlags |= 0x00000080;
-					break;
-				}
-			}
 
 			if (swingAttackReady && damageFlags) {
 				swarmerDoDamage(moby, pvars->MobVars.Config.HitRadius, pvars->MobVars.Config.Damage, damageFlags, 0);
@@ -772,7 +741,7 @@ short swarmerGetArmor(Moby* moby)
 int swarmerIsAttacking(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	return pvars->MobVars.Action == SWARMER_ACTION_TIME_BOMB || pvars->MobVars.Action == SWARMER_ACTION_TIME_BOMB_EXPLODE || (pvars->MobVars.Action == SWARMER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped);
+	return pvars->MobVars.Action == SWARMER_ACTION_ATTACK && !pvars->MobVars.AnimationLooped;
 }
 
 //--------------------------------------------------------------------------
@@ -823,43 +792,9 @@ int swarmerIsFlinching(Moby* moby)
 //--------------------------------------------------------------------------
 float swarmerGetDodgeProbability(Moby* moby)
 {
-  int roundNo = 0;
-  if (MapConfig.State) roundNo = MapConfig.State->RoundNumber;
+  //int roundNo = 0;
+  //if (MapConfig.State) roundNo = MapConfig.State->RoundNumber;
 
-  float factor = clamp(powf(roundNo / 100.0, 2), 0, 1);
+  float factor = clamp(powf(25.0 / 100.0, 2), 0, 1);
   return lerpf(0.03, 0.25, factor);
-}
-
-//--------------------------------------------------------------------------
-void swarmerSpawnRussianDolls(Moby* moby)
-{
-  VECTOR position, from, to;
-  VECTOR hitOffset = {0,0,2,0};
-  int count = randRangeInt(1, 5);
-  const float radius = 5;
-  if (russianDollSpawnParamIdxsCount <= 0) return;
-
-  // default to spawn on moby
-  vector_copy(position, moby->Position);
-
-  // attempt to find a spot near moby that they can spawn on
-  int i;
-  for (i = 0; i < count; ++i)
-  {
-    int spawnIdx = russianDollSpawnParamIdxs[randRangeInt(0, russianDollSpawnParamIdxsCount - 1)];
-    struct MobSpawnParams* spawnParams = &MapConfig.DefaultSpawnParams[spawnIdx];
-    if (spawnIdx < 0 || spawnIdx >= MAX_MOB_SPAWN_PARAMS) continue;
-
-    // don't go over max mobys alive
-    if (MapConfig.State) {
-      if (MapConfig.State->MobStats.TotalAlive >= MAX_MOBS_ALIVE) return;
-      if (spawnParams->MaxSpawnedAtOnce > 0 && MapConfig.State->MobStats.NumAlive[spawnIdx] >= spawnParams->MaxSpawnedAtOnce) continue;
-    }
-
-    // spawn
-    if (MapConfig.ModeCreateMobFunc)
-      MapConfig.ModeCreateMobFunc(spawnIdx, position, moby->Rotation[2], -1, MOB_SPAWN_FLAG_RUSSIAN_DOLL, &spawnParams->Config);
-    else
-      MapConfig.OnMobCreateFunc(spawnIdx, position, moby->Rotation[2], -1, MOB_SPAWN_FLAG_RUSSIAN_DOLL, &spawnParams->Config);
-  }
 }

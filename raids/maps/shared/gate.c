@@ -34,7 +34,7 @@
 #include "../../include/gate.h"
 #include "../../include/game.h"
 
-extern struct SurvivalMapConfig MapConfig;
+extern struct RaidsMapConfig MapConfig;
 extern VECTOR GateLocations[];
 
 Moby* GateMobies[GATE_MAX_COUNT] = {};

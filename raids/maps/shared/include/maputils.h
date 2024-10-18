@@ -1,7 +1,7 @@
 
 
-#ifndef SURVIVAL_MAP_UTILS_H
-#define SURVIVAL_MAP_UTILS_H
+#ifndef RAIDS_MAP_UTILS_H
+#define RAIDS_MAP_UTILS_H
 
 #include <tamtypes.h>
 #include <libdl/moby.h>
@@ -12,12 +12,11 @@
 #include "game.h"
 
 
-extern struct SurvivalMapConfig MapConfig;
+extern struct RaidsMapConfig MapConfig;
 
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
 void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, float damageRadius);
 void playPaidSound(Player* player);
-int tryPlayerInteract(Moby* moby, Player* player, char* message, char* lowerMessage, int boltCost, int tokenCost, int actionCooldown, float sqrDistance, int btns);
 GuberEvent* guberCreateEvent(Moby* moby, u32 eventType);
 
 struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);
@@ -38,8 +37,6 @@ int isInDrawDist(Moby* moby);
 int mobyIsMob(Moby* moby);
 Player* mobyGetPlayer(Moby* moby);
 Moby* playerGetTargetMoby(Player* player);
-int playerHasBlessing(int playerId, int blessing);
-int playerGetStackableCount(int playerId, int stackable);
 
 void draw3DMarker(VECTOR position, float scale, u32 color, char* str);
 
@@ -47,6 +44,4 @@ void playDialog(short dialogId, int force);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 
-int bakedSpawnGetFirst(int bakedSpawnType, VECTOR outPos, VECTOR outRot);
-
-#endif // SURVIVAL_MAP_UTILS_H
+#endif // RAIDS_MAP_UTILS_H

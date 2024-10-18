@@ -22,7 +22,6 @@
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
 #include "../../../include/utils.h"
-#include "../include/gate.h"
 #include "../include/maputils.h"
 #include "../include/shared.h"
 #include "../include/pathfind.h"
@@ -30,12 +29,6 @@
 #include "module.h"
 
 void mobForceIntoMapBounds(Moby* moby);
-
-#if GATE
-void gateSetCollision(int collActive);
-#endif
-
-extern int aaa;
 
 #if MOB_ZOMBIE
 #include "zombie.c"
@@ -81,16 +74,6 @@ int mobAmIOwner(Moby* moby)
   if (!mobyIsMob(moby)) return 0;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	return gameGetMyClientId() == pvars->MobVars.Owner;
-}
-
-//--------------------------------------------------------------------------
-int mobIsFrozen(Moby* moby)
-{
-  if (!moby || !moby->PVar || !MapConfig.State)
-    return 0;
-
-	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  return MapConfig.State->Freeze && pvars->MobVars.Config.MobAttribute != MOB_ATTRIBUTE_FREEZE && pvars->MobVars.Health > 0;
 }
 
 //--------------------------------------------------------------------------
@@ -764,10 +747,11 @@ void mobMove(Moby* moby)
   // tell mob we want to jump
   // but check that we're moving towards the next node/target first before jumping
   VECTOR targetPos, mobyToTargetDelta;
-  pathGetTargetPos(targetPos, moby);
+  struct PathGraph* path = pathGetMobyPathGraph(moby);
+  pathGetTargetPos(path, targetPos, moby);
   vector_subtract(mobyToTargetDelta, targetPos, moby->Position);
-  if (vector_innerproduct(pvars->MobVars.MoveVars.Velocity, mobyToTargetDelta) > 0.5 && pathShouldJump(moby)) {
-    pvars->MobVars.MoveVars.QueueJumpSpeed = pathGetJumpSpeed(moby);
+  if (vector_innerproduct(pvars->MobVars.MoveVars.Velocity, mobyToTargetDelta) > 0.5 && pathShouldJump(path, moby)) {
+    pvars->MobVars.MoveVars.QueueJumpSpeed = pathGetJumpSpeed(path, moby);
   }
 
   mobForceIntoMapBounds(moby);
@@ -1051,13 +1035,13 @@ void mobOnSpawned(Moby* moby)
 void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   // update pathfinding state
-  pathSetPath(moby, e->PathStartNodeIdx, e->PathEndNodeIdx, e->PathCurrentEdgeIdx, e->PathHasReachedStart, e->PathHasReachedEnd);
+  pathSetPath(pathGetMobyPathGraph(moby), moby, e->PathStartNodeIdx, e->PathEndNodeIdx, e->PathCurrentEdgeIdx, e->PathHasReachedStart, e->PathHasReachedEnd);
 }
 
 //--------------------------------------------------------------------------
 void mobInit(void)
 {
-  MapConfig.OnMobSpawnedFunc = &mobOnSpawned;
+  //MapConfig.OnMobSpawnedFunc = &mobOnSpawned;
 }
 
 //--------------------------------------------------------------------------
