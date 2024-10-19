@@ -186,20 +186,14 @@ void gateUpdate(Moby* moby)
   else
     moby->CollActive = -1;
 
-  // update moby to fit from position to target
+  // update moby rotation/scale
   moby->Scale = pvars->Height * 0.02083333395;
-  vector_normalize(moby->M1_03, moby->M1_03);
-  vector_scale(moby->M1_03, moby->M1_03, pvars->Length / pvars->Height);
+  moby->ModeBits &= ~MOBY_MODE_BIT_LOCK_ROTATION;
   mobyUpdateTransform(moby);
+  moby->ModeBits |= MOBY_MODE_BIT_LOCK_ROTATION;
 
-#if DEBUG1
-  if (padGetButton(0, PAD_UP) > 0) {
-    mobySetState(moby, GATE_STATE_ACTIVATED, -1);
-  } else if (padGetButton(0, PAD_DOWN) > 0) {
-    mobySetState(moby, GATE_STATE_DEACTIVATED, -1);
-    gatePlayOpenSound(moby);
-  }
-#endif
+  // scale length
+  vector_scale(moby->M1_03, moby->M1_03, pvars->Length / pvars->Height);
 
   // force BSphere radius to something larger so that entire collision registers
   moby->BSphere[3] = 10000 * pvars->Length;
