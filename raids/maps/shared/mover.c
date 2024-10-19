@@ -90,9 +90,10 @@ void moverInitSpline(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void moverMoveSpline(Moby* moby, VECTOR outPosDelta)
+void moverMoveSpline(Moby* moby, VECTOR outPosDelta, VECTOR outRotDelta)
 {
   VECTOR dt;
+  VECTOR up = {0,0,1,0};
   int i;
   struct MoverPVar* pvars = (struct MoverPVar*)moby->PVar;
   float t = moverGetT(moby);
@@ -122,6 +123,8 @@ void moverMoveSpline(Moby* moby, VECTOR outPosDelta)
   if (pvars->SplineLoop == MOVER_MOTION_NONE && iter > 0) {
     if (dir > 0) { // stop at cap node (or start node, 0,0,0 rel)
       vector_subtract(outPosDelta, spline->Points[spline->Count - 1], spline->Points[0]);
+      vector_subtract(dt, spline->Points[spline->Count - 1], spline->Points[spline->Count - 2]);
+      vector_fromforwardup(outRotDelta, dt, up);
     }
 
     if (gameAmIHost()) {
@@ -140,6 +143,7 @@ void moverMoveSpline(Moby* moby, VECTOR outPosDelta)
     vector_subtract(dt, spline->Points[idx+dir], spline->Points[idx]);
     float seglen = vector_length(dt);
     if (seglen > dist) {
+      vector_fromforwardup(outRotDelta, dt, up);
       vector_scale(dt, dt, dist / seglen);
       vector_add(dt, dt, spline->Points[idx]);
       vector_subtract(outPosDelta, dt, spline->Points[0]);
@@ -155,12 +159,13 @@ void moverMove(Moby* moby, VECTOR outPosDelta, VECTOR outRotDelta)
 {
   int i;
   Player** players = playerGetAll();
-  VECTOR velocity, acceleration, delta, splineDelta={0,0,0,0}, tvec;
+  VECTOR velocity, acceleration, delta, tvec;
+  VECTOR splinePosDelta={0,0,0,0}, splineRotDelta={0,0,0,0};
   struct MoverPVar* pvars = (struct MoverPVar*)moby->PVar;
 
   // spline
   if (pvars->SplineIdx >= 0) {
-    moverMoveSpline(moby, splineDelta);
+    moverMoveSpline(moby, splinePosDelta, splineRotDelta);
   }
 
   float t = moverGetT(moby);
@@ -180,7 +185,7 @@ void moverMove(Moby* moby, VECTOR outPosDelta, VECTOR outRotDelta)
   vector_scale(tvec, tvec, 0.5);
   vector_multiply(acceleration, pvars->Acceleration, tvec);
   vector_add(delta, velocity, acceleration);
-  vector_add(delta, delta, splineDelta);
+  vector_add(delta, delta, splinePosDelta);
   vector_copy(outPosDelta, delta);
 
   // r
@@ -190,6 +195,7 @@ void moverMove(Moby* moby, VECTOR outPosDelta, VECTOR outRotDelta)
   vector_scale(tvec, tvec, 0.5);
   vector_multiply(acceleration, pvars->AngularAcceleration, tvec);
   vector_add(delta, velocity, acceleration);
+  vector_add(delta, delta, splineRotDelta);
   vector_clampeuler(delta, delta);
   vector_copy(outRotDelta, delta);
 }
@@ -232,8 +238,8 @@ void moverApplyMoby(Moby* moby, Moby* target, VECTOR posDelta, VECTOR rotDelta)
     vector_apply(pos, pos, w2l);
     
     matrix_unit(l2w);
-    matrix_rotate_x(l2w, l2w, rotation[1]);
-    matrix_rotate_y(l2w, l2w, rotation[0]);
+    matrix_rotate_x(l2w, l2w, rotation[0]);
+    matrix_rotate_y(l2w, l2w, rotation[1]);
     matrix_rotate_z(l2w, l2w, rotation[2]);
     vector_apply(pos, pos, l2w);
     vector_add(pos, pos, position);

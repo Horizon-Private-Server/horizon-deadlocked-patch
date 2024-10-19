@@ -63,6 +63,7 @@ struct MoverPVar
   // spline
   int SplineIdx;
   char SplineInitSnapTo;
+  char SplineAlign;
   float SplineSpeed;
   enum MoverSplineLoopType SplineLoop;
 
