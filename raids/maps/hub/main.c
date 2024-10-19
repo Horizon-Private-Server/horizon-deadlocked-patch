@@ -29,6 +29,7 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
+#include "gate.h"
 #include "game.h"
 #include "spawner.h"
 #include "mover.h"
@@ -107,12 +108,14 @@ void mapReturnPlayersToMap(void)
 //--------------------------------------------------------------------------
 void onBeforeUpdateHeroes(void)
 {
+  gateSetCollision(1);
   ((void (*)())0x005ce1d8)();
 }
 
 //--------------------------------------------------------------------------
 void onBeforeUpdateHeroes2(u32 a0)
 {
+  gateSetCollision(1);
   ((void (*)(u32))0x0059b320)(a0);
 }
 
@@ -130,6 +133,7 @@ void initialize(void)
   spawnerInit();
   moverInit();
   controllerInit();
+  gateInit();
   MapConfig.OnMobCreateFunc = &createMob;
   MapConfig.OnMobUpdateFunc = &mapOnMobUpdate;
   MapConfig.OnMobKilledFunc = &mapOnMobKilled;
@@ -174,6 +178,7 @@ int main(void)
     spawnerStart();
     moverStart();
     controllerStart();
+    gateStart();
   }
 
   mobTick();

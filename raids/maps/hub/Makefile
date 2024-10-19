@@ -1,10 +1,10 @@
 EE_LIBS = -ldl
 EE_OBJS = main.o config.o path.o
-EE_OBJS += ../shared/map.o ../shared/spawner.o ../shared/mover.o ../shared/controller.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
+EE_OBJS += ../shared/map.o ../shared/gate.o ../shared/spawner.o ../shared/mover.o ../shared/controller.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
 EE_ELF = hub.elf
 EE_BIN = hub.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
-EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_SWARMER -fno-builtin -nostdlib -nostartfiles -L.
+EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_SWARMER -DGATE -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
 BUILD_CONFIG := DEBUG

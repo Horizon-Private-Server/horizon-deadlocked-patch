@@ -10,6 +10,7 @@
 #include <libdl/stdio.h>
 #include "../../include/spawner.h"
 #include "../../include/mover.h"
+#include "../../include/gate.h"
 #include "../../include/controller.h"
 #include "../../include/mob.h"
 #include "../../include/game.h"
@@ -52,6 +53,9 @@ struct GuberMoby* mapGetGuber(Moby* moby)
     case SPAWNER_OCLASS: return spawnerGetGuber(moby);
     case MOVER_OCLASS: return moverGetGuber(moby);
     case CONTROLLER_OCLASS: return controllerGetGuber(moby);
+#if GATE
+    case GATE_OCLASS: return gateGetGuber(moby);
+#endif
     default:
     {
       // pass up to mode
@@ -88,6 +92,9 @@ void mapHandleEvent(Moby* moby, GuberEvent* event)
       case SPAWNER_OCLASS: spawnerHandleEvent(moby, event); break;
       case MOVER_OCLASS: moverHandleEvent(moby, event); break;
       case CONTROLLER_OCLASS: controllerHandleEvent(moby, event); break;
+#if GATE
+    case GATE_OCLASS: gateHandleEvent(moby, event); break;
+#endif
       default:
 			{
         // pass up to mode

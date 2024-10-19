@@ -34,6 +34,7 @@
 #include "include/maputils.h"
 #include "include/shared.h"
 #include "../../include/spawner.h"
+#include "../../include/gate.h"
 #include "../../include/mover.h"
 #include "../../include/controller.h"
 #include "../../include/mob.h"
@@ -180,6 +181,9 @@ void controllerControlMobyState(Moby* moby, struct ControllerTarget* target)
     case SPAWNER_OCLASS: if (gameAmIHost()) { spawnerBroadcastNewState(targetMoby, state); }; break;
     case MOVER_OCLASS: if (gameAmIHost()) { moverBroadcastNewState(targetMoby, state); } break;
     case CONTROLLER_OCLASS: if (gameAmIHost()) { controllerBroadcastNewState(targetMoby, state); } break;
+#if GATE
+    case GATE_OCLASS: if (gameAmIHost()) { gateBroadcastNewState(targetMoby, state); } break;
+#endif
     default: mobySetState(targetMoby, state, -1);
   }
 }
