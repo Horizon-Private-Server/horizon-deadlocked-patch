@@ -9,6 +9,8 @@
 #include <libdl/moby.h>
 #include <libdl/stdio.h>
 #include "../../include/spawner.h"
+#include "../../include/mover.h"
+#include "../../include/controller.h"
 #include "../../include/mob.h"
 #include "../../include/game.h"
 #include "maputils.h"
@@ -48,6 +50,8 @@ struct GuberMoby* mapGetGuber(Moby* moby)
   switch (moby->OClass)
   {
     case SPAWNER_OCLASS: return spawnerGetGuber(moby);
+    case MOVER_OCLASS: return moverGetGuber(moby);
+    case CONTROLLER_OCLASS: return controllerGetGuber(moby);
     default:
     {
       // pass up to mode
@@ -82,6 +86,8 @@ void mapHandleEvent(Moby* moby, GuberEvent* event)
     switch (moby->OClass)
     {
       case SPAWNER_OCLASS: spawnerHandleEvent(moby, event); break;
+      case MOVER_OCLASS: moverHandleEvent(moby, event); break;
+      case CONTROLLER_OCLASS: controllerHandleEvent(moby, event); break;
       default:
 			{
         // pass up to mode

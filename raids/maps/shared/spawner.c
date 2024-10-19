@@ -39,6 +39,8 @@
 
 extern struct RaidsMapConfig MapConfig;
 
+int spawnerInitialized = 0;
+
 //--------------------------------------------------------------------------
 int spawnerIsValidCuboidSpawnIdx(Moby* moby, int index)
 {
@@ -179,19 +181,21 @@ void spawnerUpdateTriggers(Moby* moby)
       // check if player is inside the cuboid
       int isInside = spawnPointIsPointInside(triggerCuboid, p->PlayerPosition, NULL);
       int activate = !pvars->TriggerCuboids[i].Invert;
+      int bit = 1 << j;
+      int exitLoop = 0;
 
       switch (interactType)
       {
         case SPAWNER_CUBOID_INTERACT_ON_ENTER:
         {
-          if (isInside && !pvars->State.LastInsideTriggers[i]) {
+          if (isInside && (pvars->State.LastInsideTriggers[i] & bit) == 0) {
             pvars->State.TriggersActivated = activate;
           }
           break;
         }
         case SPAWNER_CUBOID_INTERACT_ON_EXIT:
         {
-          if (!isInside && pvars->State.LastInsideTriggers[i]) {
+          if (!isInside && (pvars->State.LastInsideTriggers[i] & bit)) {
             pvars->State.TriggersActivated = activate;
           }
           break;
@@ -200,6 +204,7 @@ void spawnerUpdateTriggers(Moby* moby)
         {
           if (isInside) {
             pvars->State.TriggersActivated = activate;
+            exitLoop = 1;
           } else {
             pvars->State.TriggersActivated = !activate;
           }
@@ -209,6 +214,7 @@ void spawnerUpdateTriggers(Moby* moby)
         {
           if (!isInside) {
             pvars->State.TriggersActivated = activate;
+            exitLoop = 1;
           } else {
             pvars->State.TriggersActivated = !activate;
           }
@@ -216,7 +222,8 @@ void spawnerUpdateTriggers(Moby* moby)
         }
       }
       
-      pvars->State.LastInsideTriggers[i] = isInside;
+      pvars->State.LastInsideTriggers[i] = (pvars->State.LastInsideTriggers[i] & ~bit) | (isInside << j);
+      if (exitLoop) break;
     }
   }
 
@@ -252,6 +259,15 @@ void spawnerUpdate(Moby* moby)
 {
   int i;
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  // initialize by sending first state
+  if (!pvars->Init) {
+    if (gameAmIHost() && spawnerInitialized) {
+      spawnerBroadcastNewState(moby, pvars->DefaultState);
+    }
+    
+    return;
+  }
 
   for (i = 0; i < SPAWNER_MAX_MOB_TYPES; ++i) {
     decTimerU32(&pvars->State.Cooldown[i]);
@@ -412,14 +428,11 @@ void spawnerOnGuberCreated(Moby* moby)
   int i;
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
 
-  // mark initialized
-  pvars->Init = 1;
-
-  // set update
   moby->PUpdate = &spawnerUpdate;
-
-  // don't render
   moby->ModeBits = MOBY_MODE_BIT_HIDDEN | MOBY_MODE_BIT_NO_POST_UPDATE;
+
+  memset(&pvars->State, 0, sizeof(pvars->State));
+  pvars->Init = 0;
 
   // 
   struct Guber* guber = guberGetObjectByMoby(moby);
@@ -444,37 +457,6 @@ void spawnerOnGuberCreated(Moby* moby)
       DPRINTF(" [%d].MaxCanSpawnOrUnlimited=%d\n", i, pvars->SpawnableMobParam[i].MaxCanSpawnOrUnlimited);
     }
   #endif
-
-  // set default state
-  memset(&pvars->State, 0, sizeof(pvars->State));
-  mobySetState(moby, pvars->DefaultState, -1);  
-}
-
-//--------------------------------------------------------------------------
-int spawnerHandleEvent_Spawned(Moby* moby, GuberEvent* event)
-{
-	int i;
-  int spawnFromMobyIdx;
-  
-  DPRINTF("spawner spawned: %08X\n", (u32)moby);
-  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
-  if (!pvars)
-    return 0;
-  
-	// read event
-	guberEventRead(event, &spawnFromMobyIdx, 4);
-
-  // copy pvars from source moby
-  Moby* spawnFromMoby = mobyListGetStart() + spawnFromMobyIdx;
-  vector_copy(moby->Position, spawnFromMoby->Position);
-  memcpy(moby->M0_03, spawnFromMoby->M0_03, 0x40);
-  moby->Scale = spawnFromMoby->Scale;
-  memcpy(pvars, spawnFromMoby->PVar, OFFSET_OF(struct SpawnerPVar, State));
-  if (!mobyIsDestroyed(spawnFromMoby))
-    mobyDestroy(spawnFromMoby);
-
-  spawnerOnGuberCreated(moby);
-  return 0;
 }
 
 //--------------------------------------------------------------------------
@@ -517,6 +499,7 @@ int spawnerHandleEvent_SetState(Moby* moby, GuberEvent* event)
     }
   }
 
+  pvars->Init = 1;
   mobySetState(moby, state, -1);
   return 0;
 }
@@ -541,7 +524,6 @@ int spawnerHandleEvent(Moby* moby, GuberEvent* event)
 
 		switch (upgradeEvent)
 		{
-			case SPAWNER_EVENT_SPAWN: { return spawnerHandleEvent_Spawned(moby, event); }
       case SPAWNER_EVENT_SET_STATE: { return spawnerHandleEvent_SetState(moby, event); }
 			default:
 			{
@@ -555,46 +537,9 @@ int spawnerHandleEvent(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-int spawnerCreate(int fromMobyIdx)
-{
-	// create guber object
-	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(SPAWNER_OCLASS, sizeof(struct SpawnerPVar), &guberEvent, NULL);
-	if (guberEvent)
-	{
-		guberEventWrite(guberEvent, &fromMobyIdx, 4);
-	}
-	else
-	{
-		DPRINTF("failed to guberevent spawner\n");
-	}
-  
-  return guberEvent != NULL;
-}
-
-//--------------------------------------------------------------------------
 void spawnerStart(void)
 {
-
-  // find all existing spawners
-  // respawn with net
-  Moby* moby = mobyListGetStart();
-	while ((moby = mobyFindNextByOClass(moby, SPAWNER_OCLASS)))
-	{
-		if (!mobyIsDestroyed(moby) && moby->PVar) {
-      struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
-      if (!pvars->Init) {
-        DPRINTF("found spawner %08X\n", moby);
-
-        struct GuberMoby* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
-        if (guber) {
-          spawnerOnGuberCreated(moby);
-        }
-      }
-    }
-
-		++moby;
-	}
+  spawnerInitialized = 1;
 }
 
 //--------------------------------------------------------------------------
@@ -611,4 +556,19 @@ void spawnerInit(void)
     DPRINTF("SPAWNER oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
+  
+  // create gubers for spawners
+  Moby* moby = mobyListGetStart();
+	while ((moby = mobyFindNextByOClass(moby, SPAWNER_OCLASS)))
+	{
+		if (!mobyIsDestroyed(moby) && moby->PVar) {
+      struct GuberMoby* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
+      DPRINTF("found spawner %08X %08X\n", moby, guber);
+      if (guber) {
+        spawnerOnGuberCreated(moby);
+      }
+    }
+
+		++moby;
+	}
 }

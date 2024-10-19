@@ -31,6 +31,7 @@
 #include "messageid.h"
 #include "game.h"
 #include "spawner.h"
+#include "mover.h"
 #include "mob.h"
 #include "shared.h"
 #include "pathfind.h"
@@ -127,6 +128,8 @@ void initialize(void)
   mobInit();
   configInit();
   spawnerInit();
+  moverInit();
+  controllerInit();
   MapConfig.OnMobCreateFunc = &createMob;
   MapConfig.OnMobUpdateFunc = &mapOnMobUpdate;
   MapConfig.OnMobKilledFunc = &mapOnMobKilled;
@@ -169,6 +172,8 @@ int main(void)
   if (MapConfig.ClientsReady || !netGetDmeServerConnection())
   {
     spawnerStart();
+    moverStart();
+    controllerStart();
   }
 
   mobTick();

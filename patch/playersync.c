@@ -310,6 +310,8 @@ void playerSyncHandlePlayerState(Player* player)
 
   struct tNW_Player* netPlayer = player->pNetPlayer;
   if (netPlayer) {
+    netPlayer->padMessageElems[padIdx].msg.pad_data[2] = stateCurrent->PadBits & 0xFF;
+    netPlayer->padMessageElems[padIdx].msg.pad_data[3] = stateCurrent->PadBits >> 8;
     netPlayer->padMessageElems[padIdx].msg.pad_data[4] = 0x7F;
     netPlayer->padMessageElems[padIdx].msg.pad_data[5] = 0x7F;
     netPlayer->padMessageElems[padIdx].msg.pad_data[6] = stateCurrent->MoveX;

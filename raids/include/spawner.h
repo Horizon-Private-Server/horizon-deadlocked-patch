@@ -52,7 +52,7 @@ struct SpawnerRuntimeState
   u32 NumKilled[SPAWNER_MAX_MOB_TYPES];
   u32 Cooldown[SPAWNER_MAX_MOB_TYPES];
   int TriggersActivated;
-  int LastInsideTriggers[SPAWNER_MAX_TRIGGER_CUBOIDS];
+  short LastInsideTriggers[SPAWNER_MAX_TRIGGER_CUBOIDS];
 };
 
 struct SpawnerTriggerCuboid
@@ -76,6 +76,7 @@ struct SpawnerPVar
   struct SpawnerRuntimeState State;
 };
 
+void spawnerBroadcastNewState(Moby* moby, enum SpawnerState state);
 void spawnerOnChildMobUpdate(Moby* moby, Moby* childMoby, u32 userdata);
 void spawnerOnChildMobKilled(Moby* moby, Moby* childMoby, u32 userdata, int killedByPlayerId, int weaponId);
 int spawnerOnChildConsiderTarget(Moby* moby, Moby* childMoby, u32 userdata, Moby* target);

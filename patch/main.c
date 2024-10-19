@@ -3375,7 +3375,7 @@ void runClientReadyMessager(void)
 {
   GameSettings* gs = gameGetSettings();
 
-  if (!gs)
+  if (isInMenus())
   {
     patchStateContainer.AllClientsReady = 0;
     patchStateContainer.ClientsReadyMask = 0;
