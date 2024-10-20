@@ -21,6 +21,7 @@ enum ControllerState {
 	CONTROLLER_STATE_DEACTIVATED,
 	CONTROLLER_STATE_IDLE,
 	CONTROLLER_STATE_ACTIVATED,
+	CONTROLLER_STATE_COMPLETED = 127,
 };
 
 enum ControllerConditionType {
@@ -28,6 +29,8 @@ enum ControllerConditionType {
   CONTROLLER_CONDITION_TYPE_MOBY_STATE,
   CONTROLLER_CONDITION_TYPE_CUBOID,
   CONTROLLER_CONDITION_TYPE_PLAYER_BUTTON,
+  CONTROLLER_CONDITION_TYPE_DELAY,
+  CONTROLLER_CONDITION_TYPE_XOR,
 };
 
 enum ControllerMobyStateInteractType {
@@ -49,29 +52,47 @@ enum ControllerTargetUpdateType {
   CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE,
   CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ANIMATION,
   CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ENABLED,
+  CONTROLLER_TARGET_UPDATE_TYPE_MOVE_CUBOID,
+  CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE,
 };
 
 struct ControllerRuntimeState
 {
-  int TriggersActivated;
+  char TriggersActivated;
+  int Iterations;
+  int DelayStartTime[CONTROLLER_MAX_CONDITIONS];
 };
 
 struct ControllerCondition
 {
   enum ControllerConditionType ConditionType;
-
-  // trigger if moby state
   Moby* Moby;
-  short MobyStateInteractType;
-  short MobyState;
 
-  // trigger if cuboid
-  int CuboidIdx;
-  short CuboidInteractType;
-  short CuboidAllPlayers;
-
-  // trigger if player button
-  int PlayerButtonMask;
+  union {
+    
+    // trigger if moby state
+    struct {
+      short StateInteractType;
+      short State;
+    } MobyState;
+    
+    // trigger if cuboid
+    struct {
+      int CuboidIdx;
+      short InteractType;
+      short AllPlayers;
+    } Cuboid;
+    
+    // trigger if player button
+    struct {
+      int PadMask;
+    } PlayerButtons;
+    
+    // trigger if delay
+    struct {
+      int Milliseconds;
+    } Delay;
+  };
 };
 
 struct ControllerTarget
@@ -81,6 +102,8 @@ struct ControllerTarget
   char AnimId;
   char Enabled;
   char TargetUpdateType;
+  int CuboidDestIdx;
+  int CuboidSrcIdx;
 };
 
 struct ControllerPVar
@@ -88,7 +111,8 @@ struct ControllerPVar
   int Init;
   enum ControllerState DefaultState;
   struct ControllerTarget Targets[CONTROLLER_MAX_TARGETS];
-  int TriggerIfAllTrue;
+  char TriggerIfAllTrue;
+  short Repeat;
   struct ControllerCondition Conditions[CONTROLLER_MAX_CONDITIONS];
   struct ControllerRuntimeState State;
 };

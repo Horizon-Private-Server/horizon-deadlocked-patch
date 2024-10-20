@@ -473,6 +473,7 @@ int spawnerHandleEvent_SetState(Moby* moby, GuberEvent* event)
 
   switch (state)
   {
+    case SPAWNER_STATE_COMPLETED:
     case SPAWNER_STATE_DEACTIVATED:
     {
       // reset runtime stats when deactivating
@@ -489,12 +490,6 @@ int spawnerHandleEvent_SetState(Moby* moby, GuberEvent* event)
     }
     case SPAWNER_STATE_ACTIVATED:
     {
-      break;
-    }
-    case SPAWNER_STATE_COMPLETED:
-    {
-      // reset runtime stats when completed
-      memset(&pvars->State, 0, sizeof(pvars->State));
       break;
     }
   }

@@ -31,6 +31,7 @@
 #include "messageid.h"
 #include "gate.h"
 #include "game.h"
+#include "messager.h"
 #include "spawner.h"
 #include "mover.h"
 #include "mob.h"
@@ -106,6 +107,12 @@ void mapReturnPlayersToMap(void)
 }
 
 //--------------------------------------------------------------------------
+void mapOnFrameTick(void)
+{
+  messagerFrameUpdate();
+}
+
+//--------------------------------------------------------------------------
 void onBeforeUpdateHeroes(void)
 {
   gateSetCollision(1);
@@ -134,9 +141,11 @@ void initialize(void)
   moverInit();
   controllerInit();
   gateInit();
+  messagerInit();
   MapConfig.OnMobCreateFunc = &createMob;
   MapConfig.OnMobUpdateFunc = &mapOnMobUpdate;
   MapConfig.OnMobKilledFunc = &mapOnMobKilled;
+  MapConfig.OnFrameTickFunc = &mapOnFrameTick;
 
   // only have gate collision on when processing players
   HOOK_JAL(0x003bd854, &onBeforeUpdateHeroes);
