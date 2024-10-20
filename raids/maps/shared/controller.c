@@ -45,6 +45,14 @@ extern struct RaidsMapConfig MapConfig;
 int controllerInitialized = 0;
 
 //--------------------------------------------------------------------------
+int controllerMobyIsNPC(Moby* moby)
+{
+  // npc either is a mob
+  // or configured by the NPC controller with the 0x80 trigger set
+  return moby && (mobyIsMob(moby) || (moby->Triggers & 0x80));
+}
+
+//--------------------------------------------------------------------------
 int controllerAnyTriggerActivated(Moby* moby)
 {
   struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
@@ -80,32 +88,80 @@ int controllerIsMobyStateConditionTrue(Moby* moby, int conditionIdx)
 //--------------------------------------------------------------------------
 int controllerIsCuboidConditionTrue(Moby* moby, int conditionIdx, char validPlayers[GAME_MAX_PLAYERS])
 {
+  int j;
   struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
   struct ControllerCondition* condition = &pvars->Conditions[conditionIdx];
   Player** players = playerGetAll();
-  int j;
   int cuboidIdx = condition->Cuboid.CuboidIdx;
-  int succeeded = 0, count = 0;
-
   SpawnPoint* triggerCuboid = spawnPointGet(cuboidIdx);
-  for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
-    Player* p = players[j];
-    if (!p || !p->SkinMoby || !playerIsConnected(p)) continue;
+  int pSucceeded = 0, pCount = 0;
+  int npcSucceeded = 0, npcCount = 0;
 
-    // check if player is inside the cuboid
-    int isInside = spawnPointIsPointInside(triggerCuboid, p->PlayerPosition, NULL);
-    if (isInside != condition->Cuboid.InteractType && validPlayers[j]) {
-      ++succeeded;
-    } else {
-      validPlayers[j] = 0;
+  // no trigger by
+  if (!condition->Cuboid.TriggerBy) return 0;
+
+  // check for players
+  if (condition->Cuboid.TriggerBy & CONTROLLER_CUBOID_TRIGGER_BY_CHECK_PLAYER) {
+    for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
+      Player* p = players[j];
+      if (!p || !p->SkinMoby || !playerIsConnected(p)) continue;
+
+      // check if player is inside the cuboid
+      int isInside = spawnPointIsPointInside(triggerCuboid, p->PlayerPosition, NULL);
+      if (isInside != condition->Cuboid.InteractType && validPlayers[j]) {
+        ++pSucceeded;
+      } else {
+        validPlayers[j] = 0;
+      }
+
+      ++pCount;
     }
-
-    ++count;
   }
 
-  return (succeeded > 0 && condition->Cuboid.PlayerInteractType == CONTROLLER_CUBOID_PLAYER_ANY)
-      || (succeeded > 0 && succeeded == count && condition->Cuboid.PlayerInteractType == CONTROLLER_CUBOID_PLAYER_ALL)
-      || (succeeded == 0 && count > 0 && condition->Cuboid.PlayerInteractType == CONTROLLER_CUBOID_PLAYER_NONE);
+  // check for npcs
+  if (condition->Cuboid.TriggerBy & CONTROLLER_CUBOID_TRIGGER_BY_CHECK_NPC) {
+    Moby* npcMoby = mobyListGetStart();
+    Moby* mEnd = mobyListGetEnd();
+    while (npcMoby < mEnd) {
+      if (!mobyIsDestroyed(npcMoby) && controllerMobyIsNPC(npcMoby)) {
+          
+        // check if moby is inside the cuboid
+        int isInside = spawnPointIsPointInside(triggerCuboid, npcMoby->Position, NULL);
+        if (isInside != condition->Cuboid.InteractType) {
+          ++npcSucceeded;
+        }
+
+        ++npcCount;
+      }
+
+      ++npcMoby;
+    }
+  }
+
+  int hasAnyPlayer = pSucceeded > 0 && pCount > 0;
+  int hasAllPlayers = pSucceeded > 0 && pSucceeded == pCount;
+  int hasNoPlayers = pSucceeded == 0 && pCount > 0;
+  int hasAnyNpc = npcSucceeded > 0 && npcCount > 0;
+  int hasAllNpcs = npcSucceeded > 0 && npcSucceeded == npcCount;
+  int hasNoNpcs = npcSucceeded == 0 && npcCount > 0;
+  int succeeded = 0, count = 0;
+
+  for (j = 0; j < 8; ++j) {
+    int bit = 1 << j;
+    if ((condition->Cuboid.TriggerBy & bit)) {
+      switch (bit) {
+        case CONTROLLER_CUBOID_TRIGGER_BY_ANY_PLAYER: succeeded += hasAnyPlayer; break;
+        case CONTROLLER_CUBOID_TRIGGER_BY_ALL_PLAYERS: succeeded += hasAllPlayers; break;
+        case CONTROLLER_CUBOID_TRIGGER_BY_NO_PLAYERS: succeeded += hasNoPlayers; break;
+        case CONTROLLER_CUBOID_TRIGGER_BY_ANY_NPC: succeeded += hasAnyNpc; break;
+        case CONTROLLER_CUBOID_TRIGGER_BY_ALL_NPCS: succeeded += hasAllNpcs; break;
+        case CONTROLLER_CUBOID_TRIGGER_BY_NO_NPCS: succeeded += hasNoNpcs; break;
+      }
+      ++count;
+    }
+  }
+
+  return succeeded > 0 && (!condition->Cuboid.TriggerByAll || succeeded == count);
 }
 
 //--------------------------------------------------------------------------
