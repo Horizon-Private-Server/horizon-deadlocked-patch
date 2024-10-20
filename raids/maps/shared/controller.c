@@ -301,6 +301,31 @@ int controllerIterate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void controllerOnStateChanged(Moby* moby)
+{
+  struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
+
+  switch (moby->State)
+  {
+    case CONTROLLER_STATE_DEACTIVATED:
+    case CONTROLLER_STATE_COMPLETED:
+    {
+      // reset runtime stats when deactivating
+      memset(&pvars->State, 0, sizeof(pvars->State));
+      break;
+    }
+    case CONTROLLER_STATE_IDLE:
+    {
+      break;
+    }
+    case CONTROLLER_STATE_ACTIVATED:
+    {
+      break;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
 void controllerBroadcastNewState(Moby* moby, enum ControllerState state)
 {
 	// create event
@@ -337,6 +362,12 @@ void controllerUpdate(Moby* moby)
     return;
   }
 
+  // detect when state was changed
+  if ((moby->Triggers & 1) == 0) {
+    controllerOnStateChanged(moby);
+    moby->Triggers |= 1;
+  }
+
   if (!gameAmIHost()) return;
   if (moby->State == CONTROLLER_STATE_DEACTIVATED) return;
   if (moby->State == CONTROLLER_STATE_COMPLETED) return;
@@ -371,6 +402,8 @@ void controllerUpdate(Moby* moby)
   if (controllerIterate(moby)) {
     controllerBroadcastIterate(moby);
   }
+
+  memset(pvars->State.DelayStartTime, 0, sizeof(pvars->State.DelayStartTime));
 }
 
 //--------------------------------------------------------------------------
@@ -433,26 +466,6 @@ int controllerHandleEvent_SetState(Moby* moby, GuberEvent* event)
   
 	// read event
 	guberEventRead(event, &state, 4);
-
-  switch (state)
-  {
-    case CONTROLLER_STATE_DEACTIVATED:
-    case CONTROLLER_STATE_COMPLETED:
-    {
-      // reset runtime stats when deactivating
-      memset(&pvars->State, 0, sizeof(pvars->State));
-      break;
-    }
-    case CONTROLLER_STATE_IDLE:
-    {
-      break;
-    }
-    case CONTROLLER_STATE_ACTIVATED:
-    {
-      break;
-    }
-  }
-
   pvars->Init = 1;
   mobySetState(moby, state, -1);
   return 0;

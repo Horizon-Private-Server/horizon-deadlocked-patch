@@ -317,7 +317,7 @@ Moby* swarmerGetNextTarget(Moby* moby)
 
   vector_fromyaw(forward, moby->Rotation[2]);
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player * p = *players;
+		Player * p = players[i];
 		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
 			vector_subtract(delta, p->PlayerPosition, moby->Position);
       float dist = vector_length(delta);
@@ -345,8 +345,6 @@ Moby* swarmerGetNextTarget(Moby* moby)
 				}
 			}
 		}
-
-		++players;
 	}
 
 	if (closestPlayer)
@@ -387,12 +385,6 @@ int swarmerGetPreferredAction(Moby* moby, int * delayTicks)
   // jump if we've hit a jump point on the path
   if (pvars->MobVars.MoveVars.QueueJumpSpeed) {
     return SWARMER_ACTION_JUMP;
-  }
-
-  // reset target
-  if (pvars->MobVars.Target && pvars->MobVars.TargetOutOfSightCheckTicks > pvars->MobVars.Config.OutOfSightDeAggroTickCount) {
-    pvars->MobVars.Target = NULL;
-    return SWARMER_ACTION_IDLE;
   }
 
 	// prevent action changing too quickly
@@ -579,7 +571,7 @@ void swarmerDoAction(Moby* moby)
     {
       if (!isInAirFromFlinching) {
         pathGetTargetPos(path, t, moby);
-        mobMoveTowards(moby, t, 0.5, turnSpeed, acceleration, 0);
+        mobMoveTowards(moby, t, 1, turnSpeed, acceleration, 0);
       }
 
 			// 
@@ -835,8 +827,12 @@ int swarmerCanNonOwnerTransitionToAction(Moby* moby, int action)
 //--------------------------------------------------------------------------
 int swarmerShouldForceStateUpdateOnAction(Moby* moby, int action)
 {
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
   // only send state updates at regular intervals, unless dying
+  // or if we're entering/leaving the roaming state
   if (action == SWARMER_ACTION_DIE) return 1;
+  if (pvars->MobVars.Action == SWARMER_ACTION_ROAM || action == SWARMER_ACTION_ROAM) return 1;
 
   return 0;
 }

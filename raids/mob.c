@@ -474,8 +474,9 @@ void mobSetAction(Moby* moby, int action)
 	// }
 
   // mark dirty if owner and mob wants state update
-  if (mobAmIOwner(moby) && pvars->VTable && pvars->VTable->ShouldForceStateUpdateOnAction && pvars->VTable->ShouldForceStateUpdateOnAction(moby, action))
+  if (mobAmIOwner(moby) && pvars->VTable && pvars->VTable->ShouldForceStateUpdateOnAction && pvars->VTable->ShouldForceStateUpdateOnAction(moby, action)) {
     pvars->MobVars.Dirty = 1;
+  }
   
   pvars->MobVars.LastActionId = pvars->MobVars.ActionId++;
   pvars->MobVars.LastAction = pvars->MobVars.Action;
@@ -679,7 +680,12 @@ void mobUpdate(Moby* moby)
 				pvars->MobVars.NextAction = -1;
 			}
 		}
-		
+      
+    // reset target
+    if (isOwner && pvars->MobVars.Target && pvars->MobVars.Config.OutOfSightDeAggroTickCount > 0 && pvars->MobVars.TargetOutOfSightCheckTicks > pvars->MobVars.Config.OutOfSightDeAggroTickCount) {
+      mobSetTarget(moby, NULL);
+    }
+
 		// 
 		if (nextCheckActionDelayTicks == 0 && pvars->VTable && pvars->VTable->GetPreferredAction) {
       int delayTicks = 0;
@@ -1217,6 +1223,8 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
     if (targetMoby != pvars->MobVars.Target) {
       pvars->MobVars.Target = targetMoby;
     }
+  } else {
+    pvars->MobVars.Target = NULL;
   }
 
 #if FIXEDTARGET

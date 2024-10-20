@@ -245,6 +245,36 @@ int spawnerCanSpawn(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void spawnerOnStateChanged(Moby* moby)
+{
+  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
+
+  switch (moby->State)
+  {
+    case SPAWNER_STATE_COMPLETED:
+    case SPAWNER_STATE_DEACTIVATED:
+    {
+      // reset runtime stats when deactivating
+      memset(&pvars->State, 0, sizeof(pvars->State));
+      break;
+    }
+    case SPAWNER_STATE_IDLE:
+    {
+      // when idling, set NumSpawned to NumKilled
+      // so that when we start up again NumSpawned accurately represents the # of mobs killed, and # left to go
+      //pvars->State.NumTotalSpawned = pvars->State.NumTotalKilled;
+      //memcpy(pvars->State.NumSpawned, pvars->State.NumKilled, sizeof(pvars->State.NumSpawned));
+      break;
+    }
+    case SPAWNER_STATE_ACTIVATED:
+    {
+      break;
+    }
+  }
+
+}
+
+//--------------------------------------------------------------------------
 void spawnerBroadcastNewState(Moby* moby, enum SpawnerState state)
 {
 	// create event
@@ -267,6 +297,12 @@ void spawnerUpdate(Moby* moby)
     }
     
     return;
+  }
+
+  // detect when state was changed
+  if ((moby->Triggers & 1) == 0) {
+    spawnerOnStateChanged(moby);
+    moby->Triggers |= 1;
   }
 
   for (i = 0; i < SPAWNER_MAX_MOB_TYPES; ++i) {
@@ -470,30 +506,6 @@ int spawnerHandleEvent_SetState(Moby* moby, GuberEvent* event)
   
 	// read event
 	guberEventRead(event, &state, 4);
-
-  switch (state)
-  {
-    case SPAWNER_STATE_COMPLETED:
-    case SPAWNER_STATE_DEACTIVATED:
-    {
-      // reset runtime stats when deactivating
-      memset(&pvars->State, 0, sizeof(pvars->State));
-      break;
-    }
-    case SPAWNER_STATE_IDLE:
-    {
-      // when idling, set NumSpawned to NumKilled
-      // so that when we start up again NumSpawned accurately represents the # of mobs killed, and # left to go
-      //pvars->State.NumTotalSpawned = pvars->State.NumTotalKilled;
-      //memcpy(pvars->State.NumSpawned, pvars->State.NumKilled, sizeof(pvars->State.NumSpawned));
-      break;
-    }
-    case SPAWNER_STATE_ACTIVATED:
-    {
-      break;
-    }
-  }
-
   pvars->Init = 1;
   mobySetState(moby, state, -1);
   return 0;

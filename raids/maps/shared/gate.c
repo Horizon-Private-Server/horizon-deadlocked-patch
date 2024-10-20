@@ -149,6 +149,24 @@ void gatePlayOpenSound(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void gateOnStateChanged(Moby* moby)
+{
+  if (moby->State == GATE_STATE_DEACTIVATED) {
+    gatePlayOpenSound(moby);
+  }
+}
+
+//--------------------------------------------------------------------------
+void gateBroadcastNewState(Moby* moby, enum GateState state)
+{
+	// create event
+	GuberEvent * guberEvent = guberCreateEvent(moby, GATE_EVENT_SET_STATE);
+  if (guberEvent) {
+    guberEventWrite(guberEvent, &state, 4);
+  }
+}
+
+//--------------------------------------------------------------------------
 void gateUpdate(Moby* moby)
 {
   VECTOR delta;
@@ -166,6 +184,12 @@ void gateUpdate(Moby* moby)
     }
     
     return;
+  }
+
+  // detect when state was changed
+  if ((moby->Triggers & 1) == 0) {
+    gateOnStateChanged(moby);
+    moby->Triggers |= 1;
   }
 
 	// draw gate
@@ -200,16 +224,6 @@ void gateUpdate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void gateBroadcastNewState(Moby* moby, enum GateState state)
-{
-	// create event
-	GuberEvent * guberEvent = guberCreateEvent(moby, GATE_EVENT_SET_STATE);
-  if (guberEvent) {
-    guberEventWrite(guberEvent, &state, 4);
-  }
-}
-
-//--------------------------------------------------------------------------
 int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 {
   DPRINTF("gate spawned: %08X\n", (u32)moby);
@@ -239,10 +253,6 @@ int gateHandleEvent_SetState(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &state, 4);
   mobySetState(moby, state, -1);
   
-  if (state == GATE_STATE_DEACTIVATED) {
-    gatePlayOpenSound(moby);
-  }
-
   struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
   pvars->Init = 1;
   return 0;

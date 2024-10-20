@@ -105,10 +105,23 @@ void messagerDrawScreenSpaceMessage(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void messagerOnStateChanged(Moby* moby)
+{
+  struct MessagerPVar* pvars = (struct MessagerPVar*)moby->PVar;
+  pvars->State.TimeActivated = -1;
+}
+
+//--------------------------------------------------------------------------
 void messagerUpdate(Moby* moby)
 {
   int i;
   struct MessagerPVar* pvars = (struct MessagerPVar*)moby->PVar;
+
+  // detect when state was changed
+  if ((moby->Triggers & 1) == 0) {
+    messagerOnStateChanged(moby);
+    moby->Triggers |= 1;
+  }
 
   if (moby->State == MESSAGER_STATE_DEACTIVATED) { pvars->State.TimeActivated = -1; return; }
   if (moby->State == MESSAGER_STATE_COMPLETE) { pvars->State.TimeActivated = -1; return; }
@@ -136,8 +149,9 @@ void messagerUpdate(Moby* moby)
     }
   }
 
-  if (t >= pvars->RuntimeSeconds) {
-    mobySetState(moby, MESSAGER_STATE_COMPLETE, -1);
+  // complete
+  if (msg->RuntimeSeconds > 0 && t >= msg->RuntimeSeconds) {
+    mobySetState(moby, msg->MoveTo > 0 ? msg->MoveTo : MESSAGER_STATE_COMPLETE, -1);
     return;
   }
 }

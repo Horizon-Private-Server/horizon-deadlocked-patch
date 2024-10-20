@@ -32,7 +32,9 @@ struct MessagerRuntimeState
 
 struct MessagerMessage
 {
-  int Length;
+  short Length;
+  u8 RuntimeSeconds;
+  char MoveTo;
   char* Message;
 };
 

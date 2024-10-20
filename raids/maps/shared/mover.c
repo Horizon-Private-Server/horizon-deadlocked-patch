@@ -282,6 +282,20 @@ void moverApplyCuboid(Moby* moby, SpawnPoint* target, VECTOR posDelta, VECTOR ro
 }
 
 //--------------------------------------------------------------------------
+void moverOnStateChanged(Moby* moby)
+{
+  struct MoverPVar* pvars = (struct MoverPVar*)moby->PVar;
+  
+  if (moby->State == MOVER_STATE_ACTIVATED) {
+    //pvars->State.TimeStarted = time;
+    moverInitSpline(moby);
+  } else {
+    memset(&pvars->State, 0, sizeof(pvars->State));
+    pvars->State.TimeStarted = -1;
+  }
+}
+
+//--------------------------------------------------------------------------
 void moverBroadcastNewState(Moby* moby, enum MoverState state)
 {
   int time = gameGetTime();
@@ -308,6 +322,12 @@ void moverUpdate(Moby* moby)
     }
     
     return;
+  }
+
+  // detect when state was changed
+  if ((moby->Triggers & 1) == 0) {
+    moverOnStateChanged(moby);
+    moby->Triggers |= 1;
   }
 
   if (moby->State != MOVER_STATE_ACTIVATED) {
@@ -397,13 +417,10 @@ int moverHandleEvent_SetState(Moby* moby, GuberEvent* event)
 
   struct MoverPVar* pvars = (struct MoverPVar*)moby->PVar;
   pvars->Init = 1;
-  if (state == MOVER_STATE_ACTIVATED) {
+  if (moby->State == MOVER_STATE_ACTIVATED) {
     pvars->State.TimeStarted = time;
-    moverInitSpline(moby);
-  } else {
-    memset(&pvars->State, 0, sizeof(pvars->State));
-    pvars->State.TimeStarted = -1;
   }
+
   return 0;
 }
 
