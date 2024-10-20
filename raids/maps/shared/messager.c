@@ -111,7 +111,7 @@ void messagerUpdate(Moby* moby)
   struct MessagerPVar* pvars = (struct MessagerPVar*)moby->PVar;
 
   if (moby->State == MESSAGER_STATE_DEACTIVATED) { pvars->State.TimeActivated = -1; return; }
-  if (moby->State == MESSAGER_STATE_COMPLETE) { return; }
+  if (moby->State == MESSAGER_STATE_COMPLETE) { pvars->State.TimeActivated = -1; return; }
   if (pvars->State.TimeActivated <= 0) pvars->State.TimeActivated = gameGetTime();
   
   // get current msg

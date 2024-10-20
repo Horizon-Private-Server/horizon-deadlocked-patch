@@ -19,6 +19,7 @@ enum MoverEventType {
 enum MoverState {
 	MOVER_STATE_DEACTIVATED,
 	MOVER_STATE_ACTIVATED,
+	MOVER_STATE_COMPLETED = 127,
 };
 
 enum MoverSplineLoopType {

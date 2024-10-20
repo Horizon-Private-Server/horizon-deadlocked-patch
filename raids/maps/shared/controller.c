@@ -103,8 +103,9 @@ int controllerIsCuboidConditionTrue(Moby* moby, int conditionIdx, char validPlay
     ++count;
   }
 
-  return (succeeded > 0 && condition->Cuboid.AllPlayers == 0)
-      || (succeeded > 0 && succeeded == count && condition->Cuboid.AllPlayers);
+  return (succeeded > 0 && condition->Cuboid.PlayerInteractType == CONTROLLER_CUBOID_PLAYER_ANY)
+      || (succeeded > 0 && succeeded == count && condition->Cuboid.PlayerInteractType == CONTROLLER_CUBOID_PLAYER_ALL)
+      || (succeeded == 0 && count > 0 && condition->Cuboid.PlayerInteractType == CONTROLLER_CUBOID_PLAYER_NONE);
 }
 
 //--------------------------------------------------------------------------
@@ -142,7 +143,7 @@ int controllerIsDelayConditionTrue(Moby* moby, int conditionIdx)
   if (startTime <= 0) pvars->State.DelayStartTime[conditionIdx] = startTime = gameGetTime();
 
   if (condition->Delay.Milliseconds < (gameGetTime() - startTime)) {
-    pvars->State.DelayStartTime[conditionIdx] = startTime = gameGetTime();
+    //pvars->State.DelayStartTime[conditionIdx] = startTime = gameGetTime();
     return 1;
   }
 
@@ -188,22 +189,22 @@ void controllerUpdateTriggers(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void controllerControlMobyState(Moby* moby, struct ControllerTarget* target)
+int controllerControlMobyState(Moby* moby, struct ControllerTarget* target)
 {
   int state = target->State;
   Moby* targetMoby = target->Moby;
-  if (!targetMoby) return;
+  if (!targetMoby) return 0;
 
   if (target->TargetUpdateType == CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE)
     state += targetMoby->State;
 
   // only when state changes
-  if (targetMoby->State == state) return;
+  if (targetMoby->State == state) return 0;
 
   // negative is destroyed
   if (state < 0) {
     guberMobyDestroy(targetMoby);
-    return;
+    return 1;
   }
 
   DPRINTF("controller set %08X state %d=>%d\n", targetMoby, targetMoby->State, state);
@@ -216,50 +217,87 @@ void controllerControlMobyState(Moby* moby, struct ControllerTarget* target)
 #if GATE
     case GATE_OCLASS: if (gameAmIHost()) { gateBroadcastNewState(targetMoby, state); } break;
 #endif
-    default: mobySetState(targetMoby, state, -1);
+    default: mobySetState(targetMoby, state, -1); break;
   }
+
+  return 1;
 }
 
 //--------------------------------------------------------------------------
-void controllerControlMobyAnimation(Moby* moby, struct ControllerTarget* target)
+int controllerControlMobyAnimation(Moby* moby, struct ControllerTarget* target)
 {
   int animId = target->AnimId;
   Moby* targetMoby = target->Moby;
-  if (!targetMoby || !targetMoby->PClass) return;
+  if (!targetMoby || !targetMoby->PClass) return 0;
 
   // bad anim id
   int seqCount = *(char*)(targetMoby->PClass + 0x0C);
-  if (animId >= seqCount) return;
+  if (animId >= seqCount) return 0;
+  if (targetMoby->AnimSeqId == animId) return 0;
 
   DPRINTF("set anim %08X => %d\n", targetMoby, animId);
   mobyAnimTransition(targetMoby, animId, 0, 0);
+  return 1;
 }
 
 //--------------------------------------------------------------------------
-void controllerControlMobyEnabled(Moby* moby, struct ControllerTarget* target)
+int controllerControlMobyEnabled(Moby* moby, struct ControllerTarget* target)
 {
   Moby* targetMoby = target->Moby;
-  if (!targetMoby || !targetMoby->PClass) return;
+  if (!targetMoby || !targetMoby->PClass) return 0;
   
   if (target->Enabled) {
+    if (targetMoby->CollActive == 0 && (targetMoby->ModeBits & MOBY_MODE_BIT_DISABLED) == 0) return 0;
     targetMoby->CollActive = 0;
     targetMoby->ModeBits &= ~MOBY_MODE_BIT_DISABLED;
   } else {
+    if (targetMoby->CollActive && (targetMoby->ModeBits & MOBY_MODE_BIT_DISABLED)) return 0;
     targetMoby->CollActive = -1;
     targetMoby->ModeBits |= MOBY_MODE_BIT_DISABLED;
   }
+
+  return 1;
 }
 
 //--------------------------------------------------------------------------
-void controllerControlCuboidMove(Moby* moby, struct ControllerTarget* target)
+int controllerControlCuboidMove(Moby* moby, struct ControllerTarget* target)
 {
   int srcIdx = target->CuboidSrcIdx;
   int dstIdx = target->CuboidDestIdx;
-  if (srcIdx < 0 || dstIdx < 0) return;
+  if (srcIdx < 0 || dstIdx < 0) return 0;
   
   SpawnPoint* src = spawnPointGet(srcIdx);
   SpawnPoint* dst = spawnPointGet(dstIdx);
+  if (memcmp(src, dst, sizeof(SpawnPoint)) == 0) return 0;
+
   memcpy(dst, src, sizeof(SpawnPoint));
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int controllerIterate(Moby* moby)
+{
+  int i;
+  struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
+  int changed = 0;
+
+  for (i = 0; i < CONTROLLER_MAX_TARGETS; ++i) {
+
+    // clear destroyed moby
+    Moby* target = pvars->Targets[i].Moby;
+    if (target && mobyIsDestroyed(target)) { pvars->Targets[i].Moby = NULL; }
+
+    switch (pvars->Targets[i].TargetUpdateType) {
+      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE: changed += controllerControlMobyState(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE: changed += controllerControlMobyState(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ANIMATION: changed += controllerControlMobyAnimation(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ENABLED: changed += controllerControlMobyEnabled(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_MOVE_CUBOID: changed += controllerControlCuboidMove(moby, &pvars->Targets[i]); break;
+    }
+  }
+  
+  pvars->State.Iterations++;
+  return changed;
 }
 
 //--------------------------------------------------------------------------
@@ -269,6 +307,18 @@ void controllerBroadcastNewState(Moby* moby, enum ControllerState state)
 	GuberEvent * guberEvent = guberCreateEvent(moby, CONTROLLER_EVENT_SET_STATE);
   if (guberEvent) {
     guberEventWrite(guberEvent, &state, 4);
+  }
+}
+
+//--------------------------------------------------------------------------
+void controllerBroadcastIterate(Moby* moby)
+{
+  struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
+
+	// create event
+	GuberEvent * guberEvent = guberCreateEvent(moby, CONTROLLER_EVENT_ITERATE);
+  if (guberEvent) {
+    guberEventWrite(guberEvent, &pvars->State.Iterations, 4);
   }
 }
 
@@ -287,53 +337,39 @@ void controllerUpdate(Moby* moby)
     return;
   }
 
+  if (!gameAmIHost()) return;
   if (moby->State == CONTROLLER_STATE_DEACTIVATED) return;
   if (moby->State == CONTROLLER_STATE_COMPLETED) return;
 
-  if (gameAmIHost()) {
+  // update triggers
+  controllerUpdateTriggers(moby);
 
-    // update triggers
-    controllerUpdateTriggers(moby);
+  // check if we've reached the iteration count
+  if (pvars->Repeat > 0 && pvars->State.Iterations >= pvars->Repeat) {
+    DPRINTF("controller %08X complete\n", moby);
+    controllerBroadcastNewState(moby, CONTROLLER_STATE_COMPLETED);
+    return;
+  }
 
-    // check if we've reached the iteration count
-    if (pvars->Repeat > 0 && pvars->State.Iterations >= pvars->Repeat) {
-      DPRINTF("controller %08X complete\n", moby);
-      controllerBroadcastNewState(moby, CONTROLLER_STATE_COMPLETED);
-      return;
-    }
-
-    // check if we should exit idle
-    if (moby->State == CONTROLLER_STATE_IDLE && controllerAnyTriggerActivated(moby)) {
-      DPRINTF("controller %08X exit idle\n", moby);
-      controllerBroadcastNewState(moby, CONTROLLER_STATE_ACTIVATED);
-    } else if (moby->State == CONTROLLER_STATE_ACTIVATED && !controllerAnyTriggerActivated(moby)) {
-      DPRINTF("controller %08X idle\n", moby);
-      controllerBroadcastNewState(moby, CONTROLLER_STATE_IDLE);
-      return;
-    } else if (moby->State != CONTROLLER_STATE_ACTIVATED) {
-      return;
-    }
+  // check if we should exit idle
+  if (moby->State == CONTROLLER_STATE_IDLE && controllerAnyTriggerActivated(moby)) {
+    DPRINTF("controller %08X exit idle\n", moby);
+    controllerBroadcastNewState(moby, CONTROLLER_STATE_ACTIVATED);
+  } else if (moby->State == CONTROLLER_STATE_ACTIVATED && !controllerAnyTriggerActivated(moby)) {
+    DPRINTF("controller %08X idle\n", moby);
+    controllerBroadcastNewState(moby, CONTROLLER_STATE_IDLE);
+    return;
   } else if (moby->State != CONTROLLER_STATE_ACTIVATED) {
     return;
   }
 
-  // control
-  for (i = 0; i < CONTROLLER_MAX_TARGETS; ++i) {
-    Moby* target = pvars->Targets[i].Moby;
-    if (mobyIsDestroyed(target)) { pvars->Targets[i].Moby = NULL; continue; }
-
-    switch (pvars->Targets[i].TargetUpdateType) {
-      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE: controllerControlMobyState(moby, &pvars->Targets[i]); break;
-      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE: controllerControlMobyState(moby, &pvars->Targets[i]); break;
-      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ANIMATION: controllerControlMobyAnimation(moby, &pvars->Targets[i]); break;
-      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ENABLED: controllerControlMobyEnabled(moby, &pvars->Targets[i]); break;
-      case CONTROLLER_TARGET_UPDATE_TYPE_MOVE_CUBOID: controllerControlCuboidMove(moby, &pvars->Targets[i]); break;
-    }
-  }
-  
-  pvars->State.Iterations++;
-  if (!gameAmIHost()) {
-    mobySetState(moby, CONTROLLER_STATE_IDLE, -1);
+  // each iteration is broadcasted to everyone
+  // but only if the iteration changed any target(s)
+  // otherwise we assume the same would be true on other clients and skip broadcasting
+  // this guarantees sync (for the most part)
+  // at the cost of network bandwidth if configured to run every tick
+  if (controllerIterate(moby)) {
+    controllerBroadcastIterate(moby);
   }
 }
 
@@ -423,6 +459,24 @@ int controllerHandleEvent_SetState(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
+int controllerHandleEvent_Iterate(Moby* moby, GuberEvent* event)
+{
+  if (!moby || !moby->PVar)
+    return 0;
+
+  struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
+  
+	// iterate
+  if (!gameAmIHost()) {
+    controllerIterate(moby);
+  }
+
+	guberEventRead(event, &pvars->State.Iterations, 4);
+  DPRINTF("controller iterate %d\n", pvars->State.Iterations);
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 struct GuberMoby* controllerGetGuber(Moby* moby)
 {
 	if (moby->OClass == CONTROLLER_OCLASS && moby->PVar)
@@ -443,6 +497,7 @@ int controllerHandleEvent(Moby* moby, GuberEvent* event)
 		switch (upgradeEvent)
 		{
       case CONTROLLER_EVENT_SET_STATE: { return controllerHandleEvent_SetState(moby, event); }
+      case CONTROLLER_EVENT_ITERATE: { return controllerHandleEvent_Iterate(moby, event); }
 			default:
 			{
 				DPRINTF("unhandle controller event %d\n", upgradeEvent);

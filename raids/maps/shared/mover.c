@@ -128,7 +128,7 @@ void moverMoveSpline(Moby* moby, VECTOR outPosDelta, VECTOR outRotDelta)
     }
 
     if (gameAmIHost()) {
-      moverBroadcastNewState(moby, MOVER_STATE_DEACTIVATED);
+      moverBroadcastNewState(moby, MOVER_STATE_COMPLETED);
     }
     return;
   } else if (pvars->SplineLoop == MOVER_MOTION_PING_PONG) {
@@ -166,6 +166,11 @@ void moverMove(Moby* moby, VECTOR outPosDelta, VECTOR outRotDelta)
   // spline
   if (pvars->SplineIdx >= 0) {
     moverMoveSpline(moby, splinePosDelta, splineRotDelta);
+  }
+
+  // don't rotate if not align
+  if (!pvars->SplineAlign) {
+    vector_write(splineRotDelta, 0);
   }
 
   float t = moverGetT(moby);
@@ -313,7 +318,7 @@ void moverUpdate(Moby* moby)
   float t = moverGetT(moby);
   if (pvars->RuntimeSeconds > 0 && t > pvars->RuntimeSeconds) {
     if (gameAmIHost()) {
-      moverBroadcastNewState(moby, MOVER_STATE_DEACTIVATED);
+      moverBroadcastNewState(moby, MOVER_STATE_COMPLETED);
     }
     return;
   }

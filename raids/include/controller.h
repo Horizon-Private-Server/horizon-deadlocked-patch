@@ -15,6 +15,7 @@
 enum ControllerEventType {
 	CONTROLLER_EVENT_SPAWN,
   CONTROLLER_EVENT_SET_STATE,
+  CONTROLLER_EVENT_ITERATE
 };
 
 enum ControllerState {
@@ -45,6 +46,12 @@ enum ControllerMobyStateInteractType {
 enum ControllerCuboidInteractType {
 	CONTROLLER_CUBOID_INTERACT_WHEN_INSIDE,
 	CONTROLLER_CUBOID_INTERACT_WHEN_OUTSIDE,
+};
+
+enum ControllerCuboidPlayerInteractType {
+	CONTROLLER_CUBOID_PLAYER_ANY,
+	CONTROLLER_CUBOID_PLAYER_ALL,
+	CONTROLLER_CUBOID_PLAYER_NONE,
 };
 
 enum ControllerTargetUpdateType {
@@ -80,7 +87,7 @@ struct ControllerCondition
     struct {
       int CuboidIdx;
       short InteractType;
-      short AllPlayers;
+      short PlayerInteractType;
     } Cuboid;
     
     // trigger if player button
