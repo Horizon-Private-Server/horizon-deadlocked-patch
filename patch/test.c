@@ -1307,26 +1307,72 @@ void runCubicLineDraw(void)
 
 void runSceneSwitcher(void)
 {
+  int i;
+
   if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
 
-    int mapId = 48;
+    // find map def
+    for (i = 0; i < customMapDefCount; ++i) {
+      if (strncmp(customMapDefs[i].Filename, "bakisi isles", sizeof(customMapDefs[i].Name)) == 0) {
+        break;
+      }
+    }
+
+    if (i >= customMapDefCount) return;
+
+    int mapId = customMapDefs[i].BaseMapId;
+
 
     //POKE_U32(0x0021de80, 4);
     POKE_U32(0x0021e6a4, 6);
     POKE_U32(0x005A90F4, 0x24020001);
     //POKE_U32(0x00220250, 1);
 
-    strncpy(MapLoaderState.MapName, "Orxon", sizeof(MapLoaderState.MapName));
-    strncpy(MapLoaderState.MapFileName, "survival v2 mf", sizeof(MapLoaderState.MapFileName));
+    strncpy(MapLoaderState.MapName, customMapDefs[i].Name, sizeof(MapLoaderState.MapName));
+    strncpy(MapLoaderState.MapFileName, customMapDefs[i].Filename, sizeof(MapLoaderState.MapFileName));
     MapLoaderState.Enabled = 1;
     MapLoaderState.CheckState = 0;
     MapLoaderState.MapId = mapId;
     MapLoaderState.LoadingFd = -1;
     MapLoaderState.LoadingFileSize = -1;
 
+    void** binPtrs = (void**)0x001dfbf0;
+    void** texPtrs = (void**)0x001dfc18;
+    void* buffer = *(void**)0x00240D78;
+    GameSettings* gs = gameGetSettings();
+  
+    // read onlinewad
+    void* onlineWadBuffer = *(u32*)0x0021dd90 - 0x7D0000;
+    int sectorOffset = *(u32*)0x001ce410 + *(u32*)0x001ce40c;
+    int sectorCount = *(u32*)0x001ce414;
+    ((void (*)(int))0x001634a8)(1); // fs::sync(1)
+    ((void (*)(int loadType, void* dest, int sectorOffset, int sectorCount, int t0, void* loadCompleteCallback, void* loadCompleteArgs))0x00163808)
+      (0, onlineWadBuffer, sectorOffset, sectorCount, 0, 0, 0); // fs::load()
+
+    // load player skins
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      if (gs->PlayerClients[i] < 0) continue;
+      int armorIdx = gs->PlayerSkins[i];
+      if (armorIdx <= 0) continue;
+
+      // parse armor table
+      void* armorDef = onlineWadBuffer + 0x250 + (0x28 * armorIdx);
+      void* armorMobyPtr = onlineWadBuffer + *(u32*)(armorDef + 0x4);
+      void* armorTexPtr = onlineWadBuffer + *(u32*)(armorDef + 0xc);
+
+      // decompress moby data
+      int len = ((int (*)(void* src, void* dst))0x004f5140)(armorMobyPtr, buffer);
+      binPtrs[i] = buffer;
+      buffer += (len + 0x3F) & 0xFFFFFFC0;
+
+      // decompress tex data
+      len = ((int (*)(void* src, void* dst))0x004f5140)(armorTexPtr, buffer);
+      texPtrs[i] = buffer;
+      buffer += (len + 0x3F) & 0xFFFFFFC0;
+    }
+
     ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
-    
-    DPRINTF("load %d\n", mapId);
+    DPRINTF("load %d %s\n", mapId, customMapDefs[i].Filename);
   }
 }
 
