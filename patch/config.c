@@ -1073,11 +1073,11 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
     // }
     case CUSTOM_MODE_RAIDS:
     {
-      // accept if selected map is survival
+      // accept if selected map is raids
       if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_RAIDS)
         return 1;
 
-      // force first survival map
+      // force first raids map
       for (i = 0; i < customMapDefCount; ++i) {
         if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_RAIDS) {
           *value = i+1;

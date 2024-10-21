@@ -41,8 +41,6 @@
 #include "../../include/mob.h"
 #include "../../include/game.h"
 
-extern struct RaidsMapConfig MapConfig;
-
 int messagerDrawQueueCount = 0;
 Moby* messagerDrawQueueMobys[MESSAGER_MAX_DRAW_QUEUE] = {};
 gfxDrawFuncDef messagerDrawQueueCallbacks[MESSAGER_MAX_DRAW_QUEUE] = {};

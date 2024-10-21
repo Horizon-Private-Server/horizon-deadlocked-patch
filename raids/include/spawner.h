@@ -10,9 +10,9 @@
 
 #define SPAWNER_OCLASS                        (0x4001)
 #define SPAWNER_MAX_SPAWN_CUBOIDS             (4)
-#define SPAWNER_MAX_TRIGGER_CUBOIDS           (4)
 #define SPAWNER_MAX_HABITABLE_CUBOIDS         (4)
 #define SPAWNER_MAX_AGGRO_CUBOIDS             (4)
+#define SPAWNER_MAX_ROAMABLE_CUBOIDS          (4)
 #define SPAWNER_MAX_MOB_TYPES                 (8)
 
 enum SpawnerEventType {
@@ -22,16 +22,9 @@ enum SpawnerEventType {
 
 enum SpawnerState {
 	SPAWNER_STATE_DEACTIVATED,
-	SPAWNER_STATE_IDLE,
+	SPAWNER_STATE_PAUSED,
 	SPAWNER_STATE_ACTIVATED,
 	SPAWNER_STATE_COMPLETED = 127,
-};
-
-enum SpawnerCuboidInteractType {
-	SPAWNER_CUBOID_INTERACT_WHEN_INSIDE,
-	SPAWNER_CUBOID_INTERACT_WHEN_OUTSIDE,
-	SPAWNER_CUBOID_INTERACT_ON_ENTER,
-	SPAWNER_CUBOID_INTERACT_ON_EXIT,
 };
 
 struct SpawnerMobParams
@@ -51,25 +44,16 @@ struct SpawnerRuntimeState
   u32 NumSpawned[SPAWNER_MAX_MOB_TYPES];
   u32 NumKilled[SPAWNER_MAX_MOB_TYPES];
   u32 Cooldown[SPAWNER_MAX_MOB_TYPES];
-  int TriggersActivated;
-  short LastInsideTriggers[SPAWNER_MAX_TRIGGER_CUBOIDS];
-};
-
-struct SpawnerTriggerCuboid
-{
-  int CuboidIdx;
-  short InteractType;
-  short Invert;
 };
 
 struct SpawnerPVar
 {
   int Init;
   enum SpawnerState DefaultState;
-  struct SpawnerTriggerCuboid TriggerCuboids[SPAWNER_MAX_TRIGGER_CUBOIDS];
   int SpawnCuboidIds[SPAWNER_MAX_SPAWN_CUBOIDS];
   int HabitableCuboidIds[SPAWNER_MAX_HABITABLE_CUBOIDS];
   int AggroCuboidIds[SPAWNER_MAX_AGGRO_CUBOIDS];
+  int RoamableCuboidIds[SPAWNER_MAX_ROAMABLE_CUBOIDS];
   int PathGraphIdx;
   int NumMobsToSpawn;
   struct SpawnerMobParams SpawnableMobParam[SPAWNER_MAX_MOB_TYPES];

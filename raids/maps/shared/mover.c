@@ -38,8 +38,6 @@
 #include "../../include/mob.h"
 #include "../../include/game.h"
 
-extern struct RaidsMapConfig MapConfig;
-
 int moverInitialized = 0;
 
 //--------------------------------------------------------------------------

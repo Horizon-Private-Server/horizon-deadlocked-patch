@@ -35,8 +35,6 @@
 #include "../../include/gate.h"
 #include "../../include/game.h"
 
-extern struct RaidsMapConfig MapConfig;
-
 int gateInitialized = 0;
 Moby* gateMobies[GATE_MAX_COUNT] = {};
 void * gateCollisionData = NULL;

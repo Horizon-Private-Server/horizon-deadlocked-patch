@@ -6,7 +6,6 @@
 extern struct RaidsMapConfig MapConfig;
 
 // NOTE
-// These must be ordered from least probable to most probable
 // SHOULD NEVER EXCEED MAX_MOB_SPAWN_PARAMS
 struct MobSpawnParams mobSpawnParams[] = {
 	// normal zombie

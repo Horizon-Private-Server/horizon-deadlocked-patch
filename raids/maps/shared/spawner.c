@@ -37,8 +37,6 @@
 #include "../../include/mob.h"
 #include "../../include/game.h"
 
-extern struct RaidsMapConfig MapConfig;
-
 int spawnerInitialized = 0;
 
 //--------------------------------------------------------------------------
@@ -154,83 +152,6 @@ int spawnerIsCompleted(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int spawnerAnyTriggerActivated(Moby* moby)
-{
-  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
-  
-  return pvars->State.TriggersActivated;
-}
-
-//--------------------------------------------------------------------------
-void spawnerUpdateTriggers(Moby* moby)
-{
-  struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
-  int i,j;
-  Player** players = playerGetAll();
-
-  for (i = 0; i < SPAWNER_MAX_TRIGGER_CUBOIDS; ++i) {
-    int cuboidIdx = pvars->TriggerCuboids[i].CuboidIdx;
-    enum SpawnerCuboidInteractType interactType = pvars->TriggerCuboids[i].InteractType;
-    if (cuboidIdx < 0) continue;
-
-    SpawnPoint* triggerCuboid = spawnPointGet(cuboidIdx);
-    for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
-      Player* p = players[j];
-      if (!p || !p->SkinMoby || !playerIsConnected(p)) continue;
-
-      // check if player is inside the cuboid
-      int isInside = spawnPointIsPointInside(triggerCuboid, p->PlayerPosition, NULL);
-      int activate = !pvars->TriggerCuboids[i].Invert;
-      int bit = 1 << j;
-      int exitLoop = 0;
-
-      switch (interactType)
-      {
-        case SPAWNER_CUBOID_INTERACT_ON_ENTER:
-        {
-          if (isInside && (pvars->State.LastInsideTriggers[i] & bit) == 0) {
-            pvars->State.TriggersActivated = activate;
-          }
-          break;
-        }
-        case SPAWNER_CUBOID_INTERACT_ON_EXIT:
-        {
-          if (!isInside && (pvars->State.LastInsideTriggers[i] & bit)) {
-            pvars->State.TriggersActivated = activate;
-          }
-          break;
-        }
-        case SPAWNER_CUBOID_INTERACT_WHEN_INSIDE:
-        {
-          if (isInside) {
-            pvars->State.TriggersActivated = activate;
-            exitLoop = 1;
-          } else {
-            pvars->State.TriggersActivated = !activate;
-          }
-          break;
-        }
-        case SPAWNER_CUBOID_INTERACT_WHEN_OUTSIDE:
-        {
-          if (!isInside) {
-            pvars->State.TriggersActivated = activate;
-            exitLoop = 1;
-          } else {
-            pvars->State.TriggersActivated = !activate;
-          }
-          break;
-        }
-      }
-      
-      pvars->State.LastInsideTriggers[i] = (pvars->State.LastInsideTriggers[i] & ~bit) | (isInside << j);
-      if (exitLoop) break;
-    }
-  }
-
-  return 0;
-}
-
-//--------------------------------------------------------------------------
 int spawnerCanSpawn(Moby* moby)
 {
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
@@ -256,14 +177,6 @@ void spawnerOnStateChanged(Moby* moby)
     {
       // reset runtime stats when deactivating
       memset(&pvars->State, 0, sizeof(pvars->State));
-      break;
-    }
-    case SPAWNER_STATE_IDLE:
-    {
-      // when idling, set NumSpawned to NumKilled
-      // so that when we start up again NumSpawned accurately represents the # of mobs killed, and # left to go
-      //pvars->State.NumTotalSpawned = pvars->State.NumTotalKilled;
-      //memcpy(pvars->State.NumSpawned, pvars->State.NumKilled, sizeof(pvars->State.NumSpawned));
       break;
     }
     case SPAWNER_STATE_ACTIVATED:
@@ -293,7 +206,7 @@ void spawnerUpdate(Moby* moby)
   // initialize by sending first state
   if (!pvars->Init) {
     if (gameAmIHost() && spawnerInitialized) {
-      spawnerBroadcastNewState(moby, pvars->DefaultState);
+      spawnerBroadcastNewState(moby, pvars->DefaultState ? SPAWNER_STATE_ACTIVATED : SPAWNER_STATE_DEACTIVATED);
     }
     
     return;
@@ -311,16 +224,6 @@ void spawnerUpdate(Moby* moby)
 
   if (!gameAmIHost()) return;
 
-  // update triggers
-  spawnerUpdateTriggers(moby);
-
-  // check if we should exit idle
-  if (moby->State == SPAWNER_STATE_IDLE && spawnerAnyTriggerActivated(moby)) {
-    DPRINTF("spawner %08X exit idle\n", moby);
-    spawnerBroadcastNewState(moby, SPAWNER_STATE_ACTIVATED);
-    return;
-  }
-
   // check if completed
   if (moby->State != SPAWNER_STATE_COMPLETED && spawnerIsCompleted(moby)) {
     DPRINTF("spawner %08X completed\n", moby);
@@ -329,13 +232,6 @@ void spawnerUpdate(Moby* moby)
   }
 
   if (moby->State != SPAWNER_STATE_ACTIVATED) return;
-
-  // check if we should go into idle mode
-  if (!spawnerAnyTriggerActivated(moby)) {
-    DPRINTF("spawner %08X idle\n", moby);
-    spawnerBroadcastNewState(moby, SPAWNER_STATE_IDLE);
-    return;
-  }
 
   // spawn
   if (spawnerCanSpawn(moby)) {
@@ -369,7 +265,7 @@ void spawnerOnChildMobUpdate(Moby* moby, Moby* childMoby, u32 userdata)
   }
 
   // if spawner is idled and we're not inside a habitable cuboid, despawn
-  if (moby->State == SPAWNER_STATE_IDLE && notInside) {
+  if (moby->State != SPAWNER_STATE_ACTIVATED && notInside) {
     if (!childPVars->MobVars.Destroyed) {
       childPVars->MobVars.Destroy = 2;
     }
@@ -396,7 +292,7 @@ void spawnerOnChildMobKilled(Moby* moby, Moby* childMoby, u32 userdata, int kill
 {
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
 
-  // if spawner is activated, save kill
+  // log kill
   if (killedByPlayerId >= 0) {
     pvars->State.NumTotalKilled++;
     pvars->State.NumKilled[userdata]++;
@@ -439,23 +335,40 @@ int spawnerOnChildConsiderRoamTarget(Moby* moby, Moby* childMoby, u32 userdata, 
   int i;
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
 
-  // check if target is in a habitable cuboids
-  // if no habitable cuboids are defined, then return 1
-  int inside = 1;
-  for (i = 0; i < SPAWNER_MAX_HABITABLE_CUBOIDS; ++i) {
-    int cuboidIdx = pvars->HabitableCuboidIds[i];
+  // check if target is in a roam cuboids
+  // if no roam cuboids are defined, then check habitable cuboids
+  int hasRoamCuboid = 0;
+  for (i = 0; i < SPAWNER_MAX_ROAMABLE_CUBOIDS; ++i) {
+    int cuboidIdx = pvars->RoamableCuboidIds[i];
     if (cuboidIdx < 0) continue;
 
     SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
     if (spawnPointIsPointInside(cuboid, targetPosition, NULL)) {
-      inside = 1;
-      break;
+      return 1;
     }
 
-    inside = 0;
+    hasRoamCuboid = 1;
   }
 
-  return inside;
+  // check if target is in a habitable cuboids
+  // if no habitable cuboids are defined, then return 1
+  int hasHabitableCuboid = 0;
+  if (!hasRoamCuboid) {
+    for (i = 0; i < SPAWNER_MAX_HABITABLE_CUBOIDS; ++i) {
+      int cuboidIdx = pvars->HabitableCuboidIds[i];
+      if (cuboidIdx < 0) continue;
+
+      SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
+      if (spawnPointIsPointInside(cuboid, targetPosition, NULL)) {
+        return 1;
+      }
+
+      hasHabitableCuboid = 1;
+    }
+  }
+
+  // allow any if no roam/habitable cuboids defined
+  return !hasRoamCuboid && !hasHabitableCuboid;
 }
 
 //--------------------------------------------------------------------------

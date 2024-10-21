@@ -83,12 +83,12 @@ int playerSyncCmdDelta(int fromCmdId, int toCmdId)
 int playerSyncGetSendRate(void)
 {
   // in survival the mobs already bloat the network, and player syncing is less important, so we can reduce the send rate a lot
-  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return 10;
-  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS) return 10;
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return 5;
+  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS) return 5;
 
   // in larger lobbies we want to reduce network bandwidth by reducing send rate
   GameSettings* gs = gameGetSettings();
-  if (gs && gs->PlayerCountAtStart > 8) return 5;
+  if (gs && gs->PlayerCountAtStart > 8) return 4;
   if (gs && gs->PlayerCountAtStart > 6) return 3;
   if (gs && gs->PlayerCountAtStart > 4) return 1;
 
