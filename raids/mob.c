@@ -221,14 +221,14 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 
     // crit
     if (pDamager->IsLocal) {
-      int critCount = 0; //State.PlayerStates[pDamager->PlayerId].State.Upgrades[UPGRADE_CRIT];
-      float critProbability = critCount * PLAYER_UPGRADE_CRIT_FACTOR;
+      float critProbability = 0;
+      RaidsInventoryWeapon_t* weapon = inventoryGetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
+      if (weapon) critProbability = weapon->CritChance / 255.0;
+
       float r = randRange(0, 1);
       if (r < critProbability) {
         amount *= 3;
         damageFlags |= 0x20000000;
-        //mobyPlaySoundByClass(4, 0, moby, 0x10A9);
-        //mobyPlaySoundByClass(0, 0, moby, MOBY_ID_WRENCH);
       }
     }
 	}
@@ -735,7 +735,7 @@ void mobUpdate(Moby* moby)
     if (damage > 0) {
       Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
       if (damager) {
-        damage *= 1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * 0); //State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
+        damage *= 1 + (PLAYER_SKILLPOINT_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Skills[RAIDS_SKILLS_DAMAGE]);
 
         // deal extra damage after being hit
         if (damager->timers.postHitInvinc > 0) {
@@ -997,6 +997,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	char killedByPlayerId, weaponId;
 	int i;
 	Player** players = playerGetAll();
+  Player* localPlayer = playerGetFromSlot(0);
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	if (!pvars || pvars->MobVars.Destroyed)
 		return 0;
@@ -1013,52 +1014,22 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	int xp = pvars->MobVars.Config.Xp;
 
 	if (killedByPlayerId >= 0) {
-      
-  Player * killedByPlayer = players[(int)killedByPlayerId];
-  struct RaidsPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
-  GameData * gameData = gameGetData();
+        
+    Player * killedByPlayer = players[(int)killedByPlayerId];
+    struct RaidsPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
+    GameData * gameData = gameGetData();
+    int killedByLocal = killedByPlayer && killedByPlayer->IsLocal;
 
-#if SHARED_BOLTS
-  if (killedByPlayer) {
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      Player* p = players[i];
-      if (p && !playerIsDead(p)) {
-        int multiplier = State.PlayerStates[i].IsDoublePoints ? 2 : 1;
-        State.PlayerStates[i].State.Bolts += bolts * multiplier;
-        State.PlayerStates[i].State.TotalBolts += bolts * multiplier;
-      }
+    // receive bolts & xp
+    if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
+      inventoryAddBolts(bolts);
+      inventoryAddXP(xp);
     }
-  }
-#else
-  int multiplier = State.PlayerStates[(int)killedByPlayerId].IsDoublePoints ? 2 : 1;
-  State.PlayerStates[(int)killedByPlayerId].State.Bolts += bolts * multiplier;
-  State.PlayerStates[(int)killedByPlayerId].State.TotalBolts += bolts * multiplier;
-#endif
-
-  #if SHARED_XP
-    int sharedXp = 1;
-  #else
-    int sharedXp = mapConfig && mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].Config.SharedXp;
-  #endif
-
-    if (sharedXp) {
-      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        Player* p = players[i];
-        if (p && !playerIsDead(p) && i != killedByPlayerId) {
-          playerRewardXp(i, 0, xp);
-        }
-      }
-    }
-
-    // give xp
-    playerRewardXp(killedByPlayerId, weaponId, xp);
 
 		// handle weapon jackpot
-		if (weaponId > 1 && killedByPlayer) {
+		if (weaponId > 1 && killedByLocal) {
 			int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
-
-			pState->State.Bolts += jackpotCount * JACKPOT_BOLTS;
-			pState->State.TotalBolts += jackpotCount * JACKPOT_BOLTS;
+      inventoryAddBolts(jackpotCount * JACKPOT_BOLTS);
 		}
 
 		// handle stats

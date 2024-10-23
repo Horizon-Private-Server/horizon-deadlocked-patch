@@ -148,7 +148,7 @@ void mobReactToThorns(Moby* moby, float damage, int byPlayerId)
   if (!player || !player->SkinMoby) return;
 
   // take percentage of damage dealt
-  damage *= ITEM_BLESSING_THORN_DAMAGE_FACTOR;
+  //damage *= ITEM_BLESSING_THORN_DAMAGE_FACTOR;
 
   // get angle
   vector_subtract(delta, moby->Position, player->PlayerPosition);

@@ -123,14 +123,18 @@ u32 decTimerU32(u32* timeValue)
 }
 
 //--------------------------------------------------------------------------
-u32 getXpForNextLevel(int counter)
+int getLevelFromXp(u64 xp)
 {
-  //return 200 + (counter * 20 * powf(1.001, counter));
+  int level = -(LEVELUP_XP_LINEAR_RATE/2) + (int)(((double (*)(double))0x00136168)((double)(xp + (LEVELUP_XP_LINEAR_RATE/2)*(LEVELUP_XP_LINEAR_RATE/2))));
+  if (level < 0) return 0;
+  return level;
+}
 
-  // clamp after first 50 tokens
-  if (counter > 50) return 3000;
-
-  return (u32)(250 * powf(1.05, counter));
+//--------------------------------------------------------------------------
+u64 getXpForLevel(int level)
+{
+  if (level <= 0) return 0;
+  return (level * level) + LEVELUP_XP_LINEAR_RATE*level;
 }
 
 //--------------------------------------------------------------------------

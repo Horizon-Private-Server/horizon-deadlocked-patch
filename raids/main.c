@@ -36,11 +36,11 @@
 #include "config.h"
 #include "common.h"
 #include "include/game.h"
+#include "include/inventory.h"
 #include "include/mob.h"
 #include "include/utils.h"
 
 char LocalPlayerStrBuffer[2][64];
-int BoltCounts[GAME_MAX_LOCALS] = {};
 int Initialized = 0;
 int FirstTimeInitialized = 0;
 
@@ -56,8 +56,6 @@ u8 mobPlaySoundCooldownTicks[MAX_MOB_SPAWN_PARAMS][MOBS_PLAY_SOUND_COOLDOWN_MAX_
 
 int playerStates[GAME_MAX_PLAYERS] = {};
 int playerStateTimers[GAME_MAX_PLAYERS] = {};
-
-void _getLocalBolts(void);
 
 //--------------------------------------------------------------------------
 void setPlayerEXP(int localPlayerIndex, float expPercent)
@@ -325,19 +323,18 @@ char * customGetGadgetVersionName(int localPlayerIndex, int weaponId, int showWe
 {
 	Player* p = playerGetFromSlot(localPlayerIndex);
 	char* buf = (char*)(0x2F9D78 + localPlayerIndex*0x40);
-	short* gadgetDef = ((short* (*)(int, int))0x00627f48)(weaponId, 0);
+  struct GadgetDef* gadgetDef = weaponGetDef(weaponId, 0);
 	int level = 0;
-	int strIdOffset = capitalize ? 3 : 4;
+  int msgId = capitalize ? gadgetDef->uppercaseTag : gadgetDef->quickSelectTag;
 	if (p && p->GadgetBox) {
 		level = p->GadgetBox->Gadgets[weaponId].Level;
 	}
 
 	if (level >= 9)
-		strIdOffset = capitalize ? 12 : 10;
+    msgId = capitalize ? gadgetDef->upgUCTag : gadgetDef->upgQSTag;
 
-	char* str = uiMsgString(gadgetDef[strIdOffset]);
-
-	if (level < 9 && level >= minLevel) {
+	char* str = uiMsgString(msgId);
+	if (level >= minLevel) {
 		snprintf(buf, 0x40, "%s V%d", str, level+1);
 		return buf;
 	} else {
@@ -440,18 +437,6 @@ void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
 }
 
 //--------------------------------------------------------------------------
-void playerRewardXp(int playerId, int weaponId, int xp)
-{
-  Player* player = playerGetAll()[playerId];
-  if (!player || !player->PlayerMoby) return;
-
-	struct RaidsPlayer* pState = &State.PlayerStates[playerId];
-
-  // give xp
-  pState->State.XP += xp;
-}
-
-//--------------------------------------------------------------------------
 void playerOnPushedIntoWall(Player* player)
 {
   if (!player || !player->SkinMoby || !player->PlayerMoby) return;
@@ -522,6 +507,12 @@ void processPlayer(int pIndex) {
   else playerData->TicksSinceHealthChanged += 1;
   playerData->LastHealth = player->Health;
 
+  // player speed
+	player->Speed = 1 + (PLAYER_SKILLPOINT_SPEED_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_SPEED]);
+
+	// set max health
+	player->MaxHealth = 50 + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_HEALTH]);
+
   // update state timers
   if (playerStates[pIndex] != player->PlayerState)
     playerStateTimers[pIndex] = 0;
@@ -536,10 +527,14 @@ void processPlayer(int pIndex) {
 		heldWeapon = player->WeaponHeldId;
 
 	  // set max xp
-		u32 xp = playerData->State.XP;
-		u32 nextXp = getXpForNextLevel(playerData->State.Level);
+		u64 xp = inventoryGetXP();
+    int level = getLevelFromXp(xp);
+		u64 lastXp = getXpForLevel(level);
+		u64 nextXp = getXpForLevel(level + 1);
+    float xpPerc = (xp - lastXp) / (double)(nextXp - lastXp);
+    //DPRINTF("lvl:%d perc:%f %lld=>%lld\n", level, xpPerc, lastXp, nextXp);
+		setPlayerEXP(localPlayerIndex, xpPerc);
     if (playerGetNumLocals() > 1) setPlayerWeaponsMenu(localPlayerIndex);
-		setPlayerEXP(localPlayerIndex, xp / (float)nextXp);
 
 		// decrement flail ammo while spinning flail
 		GameOptions* gameOptions = gameGetOptions();
@@ -791,10 +786,6 @@ void initialize(PatchStateContainer_t* gameState)
   // always accept remote time
   POKE_U32(0x01eabd60, 0);
 
-  // Fix locals using same bolt count
-  HOOK_J(0x00557C00, &_getLocalBolts);
-  POKE_U32(0x00557C04, 0);
-
   // fix emp
   //POKE_U32(0x0042075C, 0x2C42010B);
   //POKE_U32(0x00420610, 0x24050001);
@@ -882,11 +873,12 @@ void initialize(PatchStateContainer_t* gameState)
   setPlayerEXP(0, 0);
   setPlayerEXP(1, 0);
 
-	// set bolts to 0
-  memset(BoltCounts, 0, sizeof(BoltCounts));
-
   // prevent player from doing anything
   padDisableInput();
+
+  // component init
+  bubbleInit();
+  inventoryInit();
 
   memset(playerStates, 0, sizeof(playerStates));
   memset(playerStateTimers, 0, sizeof(playerStateTimers));
@@ -913,7 +905,6 @@ void initialize(PatchStateContainer_t* gameState)
   // re-enable input
   padEnableInput();
 
-  bubbleInit();
   memset(snackItems, 0, sizeof(snackItems));
 
 	// initialize player states
@@ -939,18 +930,6 @@ void initialize(PatchStateContainer_t* gameState)
 				State.NumTeams++;
 				hasTeam[p->Team] = 1;
 			}
-
-#if PAYDAY
-      p->GadgetBox->ModBasic[0] = 64;
-      p->GadgetBox->ModBasic[1] = 64;
-      p->GadgetBox->ModBasic[2] = 64;
-      p->GadgetBox->ModBasic[3] = 64;
-      p->GadgetBox->ModBasic[4] = 64;
-      p->GadgetBox->ModBasic[5] = 64;
-      p->GadgetBox->ModBasic[6] = 64;
-      p->GadgetBox->ModBasic[7] = 64;
-      State.PlayerStates[i].State.Bolts = 10000000;
-#endif
 
 			++State.ActivePlayerCount;
 		}
@@ -1083,13 +1062,15 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
-	// ticks
-	mobTick();
-  bubbleTick();
-
+  // map frame tick
   if (mapConfig && mapConfig->OnFrameTickFunc)
     mapConfig->OnFrameTickFunc();
   
+	// ticks
+	mobTick();
+  bubbleTick();
+  inventoryTick();
+
   // tick down mob sound cooldown
   int j;
   for (i = 0; i < MAX_MOB_SPAWN_PARAMS; ++i) {
@@ -1116,14 +1097,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 	if (!State.GameOver)
 	{
-    // update bolt counter
-		for (i = 0; i < GAME_MAX_LOCALS; ++i)
-		{
-      Player* lp = playerGetFromSlot(i);
-      if (!lp) continue;
-
-      BoltCounts[i] = State.PlayerStates[lp->PlayerId].State.Bolts;
-		}
+    POKE_U32(0x00171b40, inventoryGetBolts());
 
 		// 
 		State.ActivePlayerCount = 0;
@@ -1269,7 +1243,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 10);
 
 		// set bolts
-		sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%ld", pState->TotalBolts);
+		//sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%ld", pState->TotalBolts);
 	}
 }
 
@@ -1288,6 +1262,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 			}
 		}
 
+    bubbleDeinit();
 		Initialized = 2;
 	}
 
@@ -1332,6 +1307,9 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	// point get resurrect point to ours
 	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
 	*(u32*)0x005e2d44 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
+
+  // reset bolts
+  POKE_U32(0x00171b40, 0);
 }
 
 //--------------------------------------------------------------------------

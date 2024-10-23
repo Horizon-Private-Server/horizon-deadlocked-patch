@@ -141,7 +141,7 @@ int controllerIsCuboidConditionTrue(Moby* moby, int conditionIdx, char validPlay
   int hasNoPlayers = pSucceeded == 0 && pCount > 0;
   int hasAnyNpc = npcSucceeded > 0 && npcCount > 0;
   int hasAllNpcs = npcSucceeded > 0 && npcSucceeded == npcCount;
-  int hasNoNpcs = npcSucceeded == 0 && npcCount > 0;
+  int hasNoNpcs = npcSucceeded == 0; // && npcCount > 0;
   int succeeded = 0, count = 0;
 
   for (j = 0; j < 8; ++j) {

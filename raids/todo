@@ -6,4 +6,9 @@ Level loader
 ++Display if rules for pvar overlay
 ++String date type (w/ variable size) for pvar overlay
 ++Add time delay condition to controller
-Add mob roam zone
+++Add mob roam zone
+
+hook up area mod to sniper beam, arb AoE
+hook up speed to viper shot speed, b6 speed, mine move speed, flail v10 quake speed?
+hook up wrench to inventory overrides
+add filter tabs to inventory menu

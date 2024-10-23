@@ -5,6 +5,7 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 #include "messageid.h"
+#include "inventory.h"
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
@@ -30,20 +31,6 @@
 #define MAX_MOBS_ALIVE											  (60)
 #define MAX_MOBS_ALIVE_BUFFER									(10)
 #define MAX_MOBS_ALIVE_REAL									  (MAX_MOBS_ALIVE - MAX_MOBS_ALIVE_BUFFER)
-
-#define ROUND_MESSAGE_DURATION_MS							(TIME_SECOND * 2)
-#define ROUND_START_DELAY_MS									(TIME_SECOND * 1)
-
-#if QUICK_SPAWN
-#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 0)
-#else
-#define ROUND_TRANSITION_DELAY_MS							(TIME_SECOND * 45)
-#endif
-
-#define ROUND_BASE_BOLT_BONUS									(100)
-#define ROUND_MAX_BOLT_BONUS									(10000)
-
-#define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
 #define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(100)
 #define MOB_MOVE_SKIP_TICKS                   (4)
@@ -86,15 +73,7 @@
 #define JACKPOT_BOLTS													(50)
 #define XP_ALPHAMOD_XP												(10)
 
-#define DROP_COOLDOWN_TICKS_MIN								(TPS * 10)
-#define DROP_COOLDOWN_TICKS_MAX								(TPS * 60)
-#define DROP_DURATION													(30 * TIME_SECOND)
-#define DOUBLE_POINTS_DURATION								(20 * TIME_SECOND)
-#define DOUBLE_XP_DURATION								    (20 * TIME_SECOND)
-#define FREEZE_DROP_DURATION									(10 * TIME_SECOND)
-#define MOB_HAS_DROP_PROBABILITY						  (0.01)
-#define MOB_HAS_DROP_PROBABILITY_LUCKY			  (0.05)
-#define DROP_MAX_SPAWNED											(4)
+#define LEVELUP_XP_LINEAR_RATE                (250)
 
 #define PLAYER_BASE_REVIVE_TICKS					    (60 * TPS)
 #define PLAYER_MIN_REVIVE_TICKS					      (10 * TPS)
@@ -105,7 +84,6 @@
 #define PLAYER_KNOCKBACK_BASE_POWER						(3.0)
 #define PLAYER_KNOCKBACK_BASE_TICKS						(10)
 #define PLAYER_COLL_RADIUS          					(0.5)
-#define PLAYER_MAX_BLESSINGS                  (4)
 
 #define BIG_AL_MAX_DIST												(5)
 #define WEAPON_VENDOR_MAX_DIST								(3)
@@ -113,40 +91,9 @@
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
-#define PRESTIGE_MACHINE_MAX_DIST							(5)
-#define PRESTIGE_MACHINE_BASE_COST            (100000)
-#define PRESTIGE_MACHINE_COST_PER_LEVEL       (100000)
-#define WEAPON_PRESTIGE_MAX                   (5)
-
-#define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.08)
-#define PLAYER_UPGRADE_SPEED_FACTOR           (0.03)
-#define PLAYER_UPGRADE_HEALTH_FACTOR          (5)
-#define PLAYER_UPGRADE_MEDIC_FACTOR           (0.05)
-#define PLAYER_UPGRADE_VENDOR_FACTOR          (0.02)
-#define PLAYER_UPGRADE_CRIT_FACTOR            (0.01)
-
-#define BAKED_SPAWNPOINT_COUNT							  (32)
-
-#define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
-#define ITEM_INFAMMO_DURATION                 (30*TIME_SECOND)
-#define ITEM_QUAD_DURATION_TPS                (1*60*TPS)
-#define ITEM_SHIELD_DURATION_TPS              (1*60*TPS)
-#define ITEM_EMP_HEALTH_EFFECT_RADIUS         (15)
-#define ITEM_HEALTHTORNADO_DURATION           (10*TIME_SECOND)
-#define ITEM_HEALTHTORNADO_PERIOD_TICKS       (TPS * 0.25)
-#define ITEM_HEALTHTORNADO_HEAL_PERCENT       (0.05)
-
-#define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 0.2)
-#define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 5)
-#define ITEM_BLESSING_THORN_DAMAGE_FACTOR     (0.2)
-#define ITEM_BLESSING_MULTI_JUMP_COUNT        (5)
-
-#define ITEM_STACKABLE_HOVERBOOTS_DUR_TPS     (2 * TPS)
-#define ITEM_STACKABLE_HOVERBOOTS_SPEED_BUF   (0.1)
-#define ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_FAC (0.75)
-#define ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_RAMP (0.5)
-#define ITEM_STACKABLE_ALPHA_MOD_AMT          (2)
-#define ITEM_STACKABLE_VAMPIRE_HEALTH_AMT     (3)
+#define PLAYER_SKILLPOINT_DAMAGE_FACTOR       (0.08)
+#define PLAYER_SKILLPOINT_SPEED_FACTOR        (0.03)
+#define PLAYER_SKILLPOINT_HEALTH_FACTOR       (5)
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
@@ -158,7 +105,6 @@
 #define MAX_MOB_COMPLEXITY_MIN                (1000)
 #define MOB_COMPLEXITY_LOD_FACTOR             (500)
 #define MOB_MAX_FLINCH_PROBABILITY            (0.25)
-#define MOB_FORCED_BLIP_COOLDOWN_TICKS        (TPS * 5)
 
 #define SWARMER_RENDER_COST                   (40)
 #define ZOMBIE_RENDER_COST                    (85)
@@ -188,59 +134,6 @@ enum GameNetMessage
   CUSTOM_MSG_SET_ROUND_50_TIME,
 };
 
-enum BakedSpawnpointType
-{
-	BAKED_SPAWNPOINT_NONE = 0,
-	BAKED_SPAWNPOINT_UPGRADE = 1,
-	BAKED_SPAWNPOINT_PLAYER_START = 2,
-	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
-	BAKED_SPAWNPOINT_DEMON_BELL = 4,
-	BAKED_SPAWNPOINT_STACK_BOX = 5,
-};
-
-enum MobStatId
-{
-  MOB_STAT_NONE               = 0,
-  MOB_STAT_ZOMBIE             = 1,
-  MOB_STAT_ZOMBIE_FREEZE      = 2,
-  MOB_STAT_ZOMBIE_ACID        = 3,
-  MOB_STAT_ZOMBIE_GHOST       = 4,
-  MOB_STAT_ZOMBIE_EXPLODE     = 5,
-  MOB_STAT_TREMOR             = 6,
-  MOB_STAT_EXECUTIONER        = 7,
-  MOB_STAT_SWARMER            = 8,
-  MOB_STAT_REACTOR            = 9,
-  MOB_STAT_REAPER             = 10,
-  MOB_STAT_COUNT
-};
-
-enum BlessingItemId
-{
-  BLESSING_ITEM_NONE           = 0,
-  BLESSING_ITEM_MULTI_JUMP     = 1,
-  BLESSING_ITEM_LUCK           = 2,
-  BLESSING_ITEM_BULL           = 3,
-  BLESSING_ITEM_ELEM_IMMUNITY  = 4,
-  BLESSING_ITEM_HEALTH_REGEN   = 5,
-  BLESSING_ITEM_AMMO_REGEN     = 6,
-  BLESSING_ITEM_THORNS         = 7,
-  BLESSING_ITEM_COUNT
-};
-
-enum StackableItemId
-{
-  STACKABLE_ITEM_LOW_HEALTH_DMG_BUF     = 0, // stack dmg buf
-  STACKABLE_ITEM_EXTRA_JUMP             = 1, // stack +1 jump
-  STACKABLE_ITEM_EXTRA_SHOT             = 2, // stack +1 shot (dmg mult)
-  STACKABLE_ITEM_HOVERBOOTS             = 3, // stack movement speed
-  STACKABLE_ITEM_ALPHA_MOD_SPEED        = 4, // stack +2 speed mod
-  STACKABLE_ITEM_ALPHA_MOD_IMPACT       = 5, // stack +2 impact mod
-  STACKABLE_ITEM_ALPHA_MOD_AREA         = 6, // stack +2 area mod
-  STACKABLE_ITEM_ALPHA_MOD_AMMO         = 7, // stack +2 ammo mod
-  STACKABLE_ITEM_VAMPIRE                = 8, // stack +X health gain
-  STACKABLE_ITEM_COUNT
-};
-
 struct MobConfig;
 struct MobSpawnEventArgs;
 struct MobCreateArgs;
@@ -266,12 +159,10 @@ typedef struct RaidsBakedConfig
 
 struct RaidsPlayerState
 {
-	u64 TotalBolts;
-	u32 XP;
-	int Bolts;
+  u64 Experience;
 	int Kills;
 	int Deaths;
-  int Level;
+  u16 Skills[RAIDS_SKILLS_COUNT];
 };
 
 struct RaidsPlayer
@@ -280,6 +171,7 @@ struct RaidsPlayer
 	float MaxSqrDistFromMob;
   float LastHealth;
 	struct RaidsPlayerState State;
+  RaidsPlayerEquippedInventory_t Inventory;
 	int TimeOfDoublePoints;
 	int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
@@ -318,7 +210,7 @@ struct RaidsState
   struct RaidsMobStats MobStats;
 	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
   char ClientReady[GAME_MAX_PLAYERS];
-	int RoundInitialized;
+	int InventoryOpen;
 	Moby* Vendor;
 	Moby* BigAl;
 	struct RaidsPlayer* LocalPlayerState;
@@ -360,6 +252,11 @@ struct RaidsGameData
 	u64 Points[GAME_MAX_PLAYERS];
 	int Kills[GAME_MAX_PLAYERS];
 	int Deaths[GAME_MAX_PLAYERS];
+};
+
+struct RaidsGetBankRequest
+{
+  u32 DestAddress;
 };
 
 struct RaidsSnackItem

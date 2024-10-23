@@ -283,6 +283,26 @@ enum CustomMessageId
     CUSTOM_MSG_ID_REQUEST_ANNOUNCEMENT_IMAGE = 50,
 
     /*
+     * 
+     */
+    CUSTOM_MSG_ID_GET_RAIDS_BANK_REQUEST = 51,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_REQUEST = 52,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST = 53,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_RESPONSE = 54,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,

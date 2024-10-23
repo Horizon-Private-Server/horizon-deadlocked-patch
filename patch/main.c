@@ -5683,6 +5683,9 @@ int main (void)
 	// 
 	patchStateContainer.UpdateGameState = runSendGameUpdate();
 
+	// Process game modules
+	processGameModules();
+
 	// config update
 	onConfigUpdate();
 
@@ -5933,9 +5936,6 @@ int main (void)
   } else {
     resetFreecam();
   }
-
-	// Process game modules
-	processGameModules();
 
 	//
 	if (patchStateContainer.UpdateGameState) {

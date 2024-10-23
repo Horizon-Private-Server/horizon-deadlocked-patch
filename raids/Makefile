@@ -1,7 +1,7 @@
 
 EE_ELF = raids-11184.elf
 EE_BIN = raids-11184.bin
-EE_OBJS = main.o utils.o config.o bubble.o mob.o ../common/common.o
+EE_OBJS = main.o utils.o config.o bubble.o mob.o inventory.o ../common/common.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
