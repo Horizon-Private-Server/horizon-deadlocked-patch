@@ -9,20 +9,7 @@
 #include <libdl/math3d.h>
 
 #define INVENTORY_BANK_MAX_WEAPONS                 (64)
-
-#define INVENTORY_DRAW_CENTER_X                     (SCREEN_WIDTH / 2.0)
-#define INVENTORY_DRAW_CENTER_Y                     (SCREEN_HEIGHT / 2.0)
-#define INVENTORY_DRAW_FULL_W                       (SCREEN_WIDTH - 100)
-#define INVENTORY_DRAW_FULL_H                       (SCREEN_HEIGHT - 170)
-#define INVENTORY_DRAW_FRAME_BORDER_W               (2)
-
-#define INVENTORY_DRAW_WEAPONS_DIM                  (8)
-#define INVENTORY_DRAW_WEAPONS_M                    (4)
-#define INVENTORY_DRAW_WEAPONS_W                    (INVENTORY_DRAW_FULL_W / 2.0)
-#define INVENTORY_DRAW_WEAPONS_H                    (INVENTORY_DRAW_WEAPONS_W)
-
-#define INVENTORY_DRAW_INFO_W                       (INVENTORY_DRAW_FULL_W - (INVENTORY_DRAW_WEAPONS_W))
-#define INVENTORY_DRAW_INFO_H                       (INVENTORY_DRAW_INFO_W)
+#define INVENTORY_BANK_UPDATE_WEAPONS_SIZE         (16)
 
 enum RaidsGadgetPaintSpecialMask
 {
@@ -49,11 +36,6 @@ enum RaidsSkills
   RAIDS_SKILLS_COUNT
 };
 
-typedef struct InventoryDrawState
-{
-  int SelectedIdx;
-} InventoryDrawState_t;
-
 typedef struct RaidsInventoryWeapon
 {
   int Damage; // damage
@@ -65,6 +47,7 @@ typedef struct RaidsInventoryWeapon
   u8 Quality; // determines rarity + values on probability curve
   u8 CritChance; // 0-255 (0-100%) chance crit
   u8 OmegaMod;
+  char Notify;
   u8 AlphaModCounts[ALPHA_MOD_COUNT-1];
 } RaidsInventoryWeapon_t;
 
@@ -96,12 +79,32 @@ typedef struct RaidsPlayerEquippedInventory
   RaidsInventoryWeapon_t Weapons[WEAPON_SLOT_COUNT-1];
 } RaidsPlayerEquippedInventory_t;
 
+struct RaidsGetBankRequest
+{
+  u32 DestAddress;
+};
+
+struct RaidsUpdateBankInventoryRequest
+{
+  int Index;
+  int Count;
+  RaidsInventoryWeapon_t Weapons[INVENTORY_BANK_UPDATE_WEAPONS_SIZE];
+  char EquippedWeaponIdxs[WEAPON_SLOT_COUNT-1];
+};
+
 u32 inventoryGetBolts(void);
 u32 inventoryAddBolts(u32 amount);
 u64 inventoryGetXP(void);
 u64 inventoryAddXP(u64 amount);
 
-RaidsPlayerBank_t* inventoryGetLocalWeaponBank(void);
+void inventoryRequestFromServer(void);
+void inventorySendToServer(void);
+
+RaidsPlayerBank_t* inventoryGetLocalBank(void);
+RaidsInventoryWeapon_t* inventoryGetLocalWeaponFromBank(int index);
+void inventoryEquipLocalWeaponAtIndex(int weaponIdx);
+void inventorySellLocalWeaponAtIndex(int weaponIdx);
+RaidsInventoryWeapon_t* inventoryGetLocalEquippedWeapon(int gadgetId);
 RaidsPlayerEquippedInventory_t* inventoryGetEquippedFromGadgetBox(GadgetBox* gbox);
 RaidsInventoryWeapon_t* inventoryGetEquippedWeaponFromGadgetBox(GadgetBox* gbox, int gadgetId);
 enum RaidsWeaponRarity inventoryGetRarityFromQuality(u8 quality);

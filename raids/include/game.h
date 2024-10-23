@@ -254,11 +254,6 @@ struct RaidsGameData
 	int Deaths[GAME_MAX_PLAYERS];
 };
 
-struct RaidsGetBankRequest
-{
-  u32 DestAddress;
-};
-
 struct RaidsSnackItem
 {
   int TicksAlive;

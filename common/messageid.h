@@ -290,7 +290,7 @@ enum CustomMessageId
     /*
      * 
      */
-    CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_REQUEST = 52,
+    CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_INVENTORY_REQUEST = 52,
 
     /*
      * 

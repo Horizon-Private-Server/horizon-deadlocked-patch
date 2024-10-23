@@ -123,6 +123,12 @@ u32 decTimerU32(u32* timeValue)
 }
 
 //--------------------------------------------------------------------------
+u32 getPriceForWeapon(int proficiency, int quality)
+{
+  return ((proficiency+2) * 10000) + (quality * (50000/255));
+}
+
+//--------------------------------------------------------------------------
 int getLevelFromXp(u64 xp)
 {
   int level = -(LEVELUP_XP_LINEAR_RATE/2) + (int)(((double (*)(double))0x00136168)((double)(xp + (LEVELUP_XP_LINEAR_RATE/2)*(LEVELUP_XP_LINEAR_RATE/2))));

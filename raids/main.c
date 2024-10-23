@@ -37,6 +37,7 @@
 #include "common.h"
 #include "include/game.h"
 #include "include/inventory.h"
+#include "include/inventorymenu.h"
 #include "include/mob.h"
 #include "include/utils.h"
 
@@ -879,6 +880,7 @@ void initialize(PatchStateContainer_t* gameState)
   // component init
   bubbleInit();
   inventoryInit();
+  inventoryMenuInit();
 
   memset(playerStates, 0, sizeof(playerStates));
   memset(playerStateTimers, 0, sizeof(playerStateTimers));
@@ -1062,6 +1064,9 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
+  RaidsPlayerBank_t* localBank = inventoryGetLocalBank();
+  int refreshInventoryFlag = localBank->RefreshLocalInventory;
+
   // map frame tick
   if (mapConfig && mapConfig->OnFrameTickFunc)
     mapConfig->OnFrameTickFunc();
@@ -1070,6 +1075,11 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	mobTick();
   bubbleTick();
   inventoryTick();
+  inventoryMenuTick();
+
+  // reset inventory refresh flag
+  if (refreshInventoryFlag)
+    localBank->RefreshLocalInventory = 0;
 
   // tick down mob sound cooldown
   int j;
@@ -1165,11 +1175,11 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 
 #if !DEBUG
-	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 #endif
 
 	// no vehicles
