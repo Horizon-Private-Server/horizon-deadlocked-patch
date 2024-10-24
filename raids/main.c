@@ -36,8 +36,8 @@
 #include "config.h"
 #include "common.h"
 #include "include/game.h"
+#include "include/bank.h"
 #include "include/inventory.h"
-#include "include/inventorymenu.h"
 #include "include/mob.h"
 #include "include/utils.h"
 
@@ -528,7 +528,7 @@ void processPlayer(int pIndex) {
 		heldWeapon = player->WeaponHeldId;
 
 	  // set max xp
-		u64 xp = inventoryGetXP();
+		u64 xp = bankGetXP();
     int level = getLevelFromXp(xp);
 		u64 lastXp = getXpForLevel(level);
 		u64 nextXp = getXpForLevel(level + 1);
@@ -879,8 +879,8 @@ void initialize(PatchStateContainer_t* gameState)
 
   // component init
   bubbleInit();
+  bankInit();
   inventoryInit();
-  inventoryMenuInit();
 
   memset(playerStates, 0, sizeof(playerStates));
   memset(playerStateTimers, 0, sizeof(playerStateTimers));
@@ -1003,6 +1003,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
+  static int hasBank = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
 	Player ** players = playerGetAll();
@@ -1064,22 +1065,36 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
-  RaidsPlayerBank_t* localBank = inventoryGetLocalBank();
-  int refreshInventoryFlag = localBank->RefreshLocalInventory;
+  // get bank on first load
+  // send bank when game ends
+  if (!gameHasEnded()) {
+    if (!hasBank) {
+      bankRequestInventoryFromServer();
+      bankRequestAccountFromServer();
+      hasBank = 1;
+    }
+  } else if (hasBank) {
+    bankSendAccountToServer();
+    //bankSendInventoryToServer();
+    hasBank = 0;
+  }
+
+  RaidsPlayerBank_t* localBank = bankGetLocalBank();
+  int refreshInventoryFlag = localBank->Inventory.RefreshLocalInventory;
 
   // map frame tick
   if (mapConfig && mapConfig->OnFrameTickFunc)
     mapConfig->OnFrameTickFunc();
   
-	// ticks
-	mobTick();
+  // ticks
+  mobTick();
   bubbleTick();
+  bankTick();
   inventoryTick();
-  inventoryMenuTick();
 
   // reset inventory refresh flag
   if (refreshInventoryFlag)
-    localBank->RefreshLocalInventory = 0;
+    localBank->Inventory.RefreshLocalInventory = 0;
 
   // tick down mob sound cooldown
   int j;
@@ -1105,52 +1120,52 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   //State.PlayerStates[0].State.Upgrades[UPGRADE_SPEED] = 30;
 #endif
 
-	if (!State.GameOver)
-	{
-    POKE_U32(0x00171b40, inventoryGetBolts());
+  POKE_U32(0x00171b40, bankGetBolts());
 
-		// 
-		State.ActivePlayerCount = 0;
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-			if (players[i])
-				State.ActivePlayerCount++;
+  if (!State.GameOver)
+  {
+    // 
+    State.ActivePlayerCount = 0;
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      if (players[i])
+        State.ActivePlayerCount++;
 
-			processPlayer(i);
-		}
+      processPlayer(i);
+    }
     drawSnack();
 
-		// replace normal scoreboard with bolt counter
-		forcePlayerHUD();
+    // replace normal scoreboard with bolt counter
+    forcePlayerHUD();
 
-		// handle party dead
-		if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
-		{
-			int isAnyPlayerAlive = 0;
+    // handle party dead
+    if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
+    {
+      int isAnyPlayerAlive = 0;
 
-			// determine number of players alive
-			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
-					isAnyPlayerAlive = 1;
-				}
-			}
+      // determine number of players alive
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+        if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
+          isAnyPlayerAlive = 1;
+        }
+      }
 
-			// if everyone has died, restart at checkpoint
-			if (!isAnyPlayerAlive)
-			{
-				//State.GameOver = 1;
-				//gameSetWinner(10, 1);
-			}
-		}
-	}
-	else
-	{
-		// end game
-		if (State.GameOver == 1)
-		{
-			gameEnd(4);
-			State.GameOver = 2;
-		}
-	}
+      // if everyone has died, restart at checkpoint
+      if (!isAnyPlayerAlive)
+      {
+        //State.GameOver = 1;
+        //gameSetWinner(10, 1);
+      }
+    }
+  }
+  else
+  {
+    // end game
+    if (State.GameOver == 1)
+    {
+      gameEnd(4);
+      State.GameOver = 2;
+    }
+  }
 
 	// last
 	dlPostUpdate();

@@ -222,7 +222,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
     // crit
     if (pDamager->IsLocal) {
       float critProbability = 0;
-      RaidsInventoryWeapon_t* weapon = inventoryGetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
+      RaidsInventoryWeapon_t* weapon = bankGetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
       if (weapon) critProbability = weapon->CritChance / 255.0;
 
       float r = randRange(0, 1);
@@ -1022,14 +1022,14 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
     // receive bolts & xp
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
-      inventoryAddBolts(bolts);
-      inventoryAddXP(xp);
+      bankAddBolts(bolts);
+      bankAddXP(xp);
     }
 
 		// handle weapon jackpot
 		if (weaponId > 1 && killedByLocal) {
 			int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
-      inventoryAddBolts(jackpotCount * JACKPOT_BOLTS);
+      bankAddBolts(jackpotCount * JACKPOT_BOLTS);
 		}
 
 		// handle stats

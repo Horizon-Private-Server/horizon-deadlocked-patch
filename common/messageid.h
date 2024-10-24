@@ -285,7 +285,7 @@ enum CustomMessageId
     /*
      * 
      */
-    CUSTOM_MSG_ID_GET_RAIDS_BANK_REQUEST = 51,
+    CUSTOM_MSG_ID_GET_RAIDS_BANK_INVENTORY_REQUEST = 51,
 
     /*
      * 
@@ -295,7 +295,17 @@ enum CustomMessageId
     /*
      * 
      */
-    CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST = 53,
+    CUSTOM_MSG_ID_GET_RAIDS_BANK_ACCOUNT_REQUEST = 53,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_ACCOUNT_REQUEST = 54,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST = 55,
 
     /*
      * 

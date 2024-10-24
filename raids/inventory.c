@@ -13,434 +13,574 @@
 #include <libdl/graphics.h>
 #include "include/utils.h"
 #include "include/game.h"
+#include "include/bank.h"
 #include "include/inventory.h"
 #include "include/bubble.h"
 #include "config.h"
 #include "common.h"
 
 extern struct RaidsState State;
+extern u32 bankPaintColors[];
+char inventoryFilterMapping[BANK_MAX_WEAPONS];
+char inventoryTabCounts[INVENTORY_TAB_COUNT];
+char inventoryTabHasNew[INVENTORY_TAB_COUNT];
 
-// send as binary payload from server
-RaidsPlayerBank_t inventoryLocalBank __attribute__((section(".config"))) = {};
-
-u32 inventoryPaintColors[] = {
-  0x00FFFFFF,         // white
-  0x00FF6000,         // blue
-  0x000000FF,         // red
-  0x0006FF00,         // green
-  0x00008AFF,         // orange
-  0x0000EAFF,         // yellow
-  0x00FF00E4,         // purple
-  0x00F0FF00,         // aqua
-  0x00C674FF,         // pink
-  0x0000FF9C,         // olive
-  0x006000FF,         // maroon
+InventoryDrawState_t inventoryDrawState = {
+  .SelectedIdx = 0,
+  .FilterIdx = 0
 };
 
-char inventoryLevelUpBuf[32];
+int aaa = 0;
+
+char* inventoryRarityNames[] = {
+  "Uncommon",
+  "Common",
+  "Rare",
+  "Legendary"
+};
+
+char* inventoryPaintNames[] = {
+  "None",
+  "Blue",
+  "Red",
+  "Green",
+  "Orange",
+  "Yellow",
+  "Purple",
+  "Aqua",
+  "Pink",
+  "Olive",
+  "Maroon",
+};
+
+char* inventoryPaintSpecialNames[] = {
+  "None",
+  "Glow",
+  "Ghost",
+  "Glow Ghost"
+};
+
+char* inventoryOmegaNames[] = {
+  "None",
+  "Napalm",
+  "Time Bomb",
+  "Freeze",
+  "Mini Bomb",
+  "Morph",
+  "Brainwash",
+  "Acid",
+  "Shock"
+};
+
+char inventoryAlphaModSpriteIds[] = {
+  [ALPHA_MOD_SPEED] 52,
+  [ALPHA_MOD_AMMO] 38,
+  [ALPHA_MOD_AIMING] 37,
+  [ALPHA_MOD_IMPACT] 44,
+  [ALPHA_MOD_AREA] 39,
+  [ALPHA_MOD_XP] 41,
+  [ALPHA_MOD_JACKPOT] 46,
+  [ALPHA_MOD_NANOLEECH] 48,
+};
+
+char inventoryWeaponSpriteIds[] = {
+  [WEAPON_SLOT_WRENCH] 99,
+  [WEAPON_SLOT_VIPERS] 24,
+  [WEAPON_SLOT_MAGMA_CANNON] 28,
+  [WEAPON_SLOT_ARBITER] 27,
+  [WEAPON_SLOT_FUSION_RIFLE] 29,
+  [WEAPON_SLOT_MINE_LAUNCHER] 25,
+  [WEAPON_SLOT_B6] 21,
+  [WEAPON_SLOT_OMNI_SHIELD] 22,
+  [WEAPON_SLOT_FLAIL] 23,
+};
+
+char inventoryWeaponSpriteDims[] = {
+  [WEAPON_SLOT_WRENCH] 32,
+  [WEAPON_SLOT_VIPERS] 64,
+  [WEAPON_SLOT_MAGMA_CANNON] 64,
+  [WEAPON_SLOT_ARBITER] 32,
+  [WEAPON_SLOT_FUSION_RIFLE] 64,
+  [WEAPON_SLOT_MINE_LAUNCHER] 32,
+  [WEAPON_SLOT_B6] 32,
+  [WEAPON_SLOT_OMNI_SHIELD] 32,
+  [WEAPON_SLOT_FLAIL] 32,
+};
+
+char inventorySkillSpriteIds[] = {
+  [RAIDS_SKILLS_HEALTH] 15,
+  [RAIDS_SKILLS_DAMAGE] 9,
+  [RAIDS_SKILLS_SPEED] 52,
+  [RAIDS_SKILLS_UNUSED] 0
+};
 
 //--------------------------------------------------------------------------
-u32 inventoryGetBolts(void) { return inventoryLocalBank.Account.Bolts; }
-u32 inventoryAddBolts(u32 amount) { return inventoryLocalBank.Account.Bolts += amount; }
-u64 inventoryGetXP(void) { return inventoryLocalBank.Account.Experience; }
-u64 inventoryAddXP(u64 amount)
+void inventoryOpen(void)
 {
-  u64 xp = inventoryLocalBank.Account.Experience;
-
-  int level = getLevelFromXp(xp);
-  int nextLevel = getLevelFromXp(xp + amount);
-  if (nextLevel > level) {
-    inventoryLocalBank.Account.SkillPoints += 1;
-
-    snprintf(inventoryLevelUpBuf, sizeof(inventoryLevelUpBuf), "You have reached level %d", nextLevel + 1);
-    uiShowPopup(0, inventoryLevelUpBuf);
-  }
-
-  return inventoryLocalBank.Account.Experience += amount;
+  if (gameHasEnded()) return;
+  if (State.InventoryOpen) return;
+  State.InventoryOpen = 1;
+  bankRequestInventoryFromServer();
+  inventorySetFilter(inventoryDrawState.FilterIdx);
+  padDisableInput();
 }
 
 //--------------------------------------------------------------------------
-void inventoryRequestFromServer(void)
+void inventoryClose(void)
 {
-  void* connection = netGetLobbyServerConnection();
-  if (!connection) return;
-
-  struct RaidsGetBankRequest msg = { .DestAddress = &inventoryLocalBank };
-  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GET_RAIDS_BANK_REQUEST, sizeof(msg), &msg);
+  if (!State.InventoryOpen) return;
+  State.InventoryOpen = 0;
+  padEnableInput();
+  bankSendInventoryToServer();
 }
 
 //--------------------------------------------------------------------------
-void inventorySendToServer(void)
+u32 inventoryDrawGetCompareColor(int compare)
 {
-  struct RaidsUpdateBankInventoryRequest msg = {  };
+  if (compare < 0) return 0x800000FF; // red
+  if (compare == 0) return 0x80FFFFFF; // white
+  return 0x8000FFFF; // yellow
+}
 
-  RaidsPlayerBank_t* localBank = inventoryGetLocalBank();
+//--------------------------------------------------------------------------
+void inventorySetFilter(int filter)
+{
+  int i;
+  RaidsPlayerBank_t* localBank = bankGetLocalBank();
+
+  // reset (no filter)
+  for (i = 0; i < BANK_MAX_WEAPONS; ++i)
+    inventoryFilterMapping[i] = i;
+ 
   if (!localBank) return;
-  void* connection = netGetLobbyServerConnection();
-  if (!connection) return;
+  
+  // filter by gadget
+  int filterGadgetId = weaponSlotToId(filter);
+  int idx = 0;
+  memset(inventoryFilterMapping, -1, sizeof(inventoryFilterMapping));
+  memset(inventoryTabCounts, 0, sizeof(inventoryTabCounts));
+  memset(inventoryTabHasNew, 0, sizeof(inventoryTabHasNew));
+  for (i = 0; i < BANK_MAX_WEAPONS; ++i) {
+    // count
+    int weaponGadgetId = localBank->Inventory.Weapons[i].GadgetId;
+    int slotId = weaponIdToSlot(weaponGadgetId);
+    if (weaponGadgetId) {
+      inventoryTabCounts[0]++; // total
+      if (slotId) inventoryTabCounts[slotId]++;
+      if (localBank->Inventory.Weapons[i].Notify) inventoryTabHasNew[slotId] = 1;
+    }
 
+    // add to mapping if matches filter
+    if (!filter || weaponGadgetId == filterGadgetId) {
+      inventoryFilterMapping[idx++] = i;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+void inventoryDrawAccountInfo(InventoryDrawState_t* drawState)
+{
+  RaidsPlayerBank_t* localBank = bankGetLocalBank();
+  u32 bgColor = 0x70101010; // dark gray
+  u32 countTextColor = 0x8000FFFF; // yellow
+  u32 equippedColor = 0x80000080; // red
+  u32 compareLessColor = 0x800000FF; // red
+  u32 compareMoreColor = 0x8000FFFF; // yellow
+  u32 textColor = 0x80FFFFFF; // white
+  u32 countBgTextColor = 0x80000000; // black
+  u32 spriteColor = 0x80808080; // gray
+  u32 v10Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_BLUE, 0);
+  u32 v99Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_PURPLE, 0);
+  float fw = INVENTORY_DRAW_INFO_W;
+  float fh = INVENTORY_DRAW_INFO_H;
+  float offX = 5;
+  float offY = -fh/2 + 5;
+  char strBuf[64];
+
+  // draw box
+  //gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw, fh, bgColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  // stats
+  snprintf(strBuf, sizeof(strBuf), "Bolts: %'d", localBank->Account.Bolts);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  offY += 12;
+  snprintf(strBuf, sizeof(strBuf), "Level: %d", getLevelFromXp(localBank->Account.Experience) + 1);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  offY += 12;
+  snprintf(strBuf, sizeof(strBuf), "Skill Points: %d", localBank->Account.SkillPoints);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  offY += 12;
+
+  // weapon proficiency
+  gfxSetupGifPaging(0);
   int i;
-  for (i = 0; i < INVENTORY_BANK_MAX_WEAPONS; i += INVENTORY_BANK_UPDATE_WEAPONS_SIZE) {
-    msg.Index = i;
-    msg.Count = (INVENTORY_BANK_MAX_WEAPONS - i);
-    if (msg.Count > INVENTORY_BANK_UPDATE_WEAPONS_SIZE) msg.Count = INVENTORY_BANK_UPDATE_WEAPONS_SIZE;
-
-    memcpy(msg.EquippedWeaponIdxs, localBank->Inventory.EquippedWeaponIdxs, sizeof(msg.EquippedWeaponIdxs));
-    memcpy(msg.Weapons, &localBank->Inventory.Weapons[i], sizeof(RaidsInventoryWeapon_t)*msg.Count);
-    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_INVENTORY_REQUEST, sizeof(msg), &msg);
+  for (i = 1; i < WEAPON_SLOT_COUNT; ++i) {
+    int iconSpriteId = inventoryWeaponSpriteIds[i];
+    int iconSpriteDim = inventoryWeaponSpriteDims[i];
+    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 16, 16, iconSpriteDim, iconSpriteDim, iconSpriteId, spriteColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    snprintf(strBuf, sizeof(strBuf), "V%d", localBank->Account.Proficiency[i-1] + 1);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 0, offY + 10, 0.6, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    offX += 25;
   }
+  offY += 22;
+  
+  // skills
+  offX = 5;
+  for (i = 0; i < RAIDS_SKILLS_UNUSED; ++i) {
+    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 16, 16, 32, 32, inventorySkillSpriteIds[i], spriteColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    snprintf(strBuf, sizeof(strBuf), "%d", localBank->Account.Skills[i]);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 0, offY + 10, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    offX += 25;
+  }
+  offY += 18;
+  gfxDoGifPaging();
 }
 
 //--------------------------------------------------------------------------
-RaidsPlayerBank_t* inventoryGetLocalBank(void)
+void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
 {
-  return &inventoryLocalBank;
-}
+  u32 bgColor = 0x70101010; // dark gray
+  u32 countTextColor = 0x8000FFFF; // yellow
+  u32 equippedColor = 0x80000080; // red
+  u32 compareLessColor = 0x800000FF; // red
+  u32 compareMoreColor = 0x8000FFFF; // yellow
+  u32 textColor = 0x80FFFFFF; // white
+  u32 countBgTextColor = 0x80000000; // black
+  u32 spriteColor = 0x80808080; // gray
+  u32 v10Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_BLUE, 0);
+  u32 v99Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_PURPLE, 0);
+  float fw = INVENTORY_DRAW_INFO_W;
+  float fh = INVENTORY_DRAW_INFO_H;
+  float offX = fw/2;
+  float offY = 0;
+  char strBuf[64];
 
-//--------------------------------------------------------------------------
-int inventoryGetEquipSlotFromGadgetId(int gadgetId)
-{
-  return weaponIdToSlot(gadgetId) - 1;
-}
+  // draw box
+  gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw, fh, bgColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
-//--------------------------------------------------------------------------
-enum RaidsWeaponRarity inventoryGetRarityFromQuality(u8 quality)
-{
-  if (quality < 64) return RAIDS_WEAPON_RARITY_COMMON;
-  if (quality < 128) return RAIDS_WEAPON_RARITY_UNCOMMON;
-  if (quality < 196) return RAIDS_WEAPON_RARITY_RARE;
-  return RAIDS_WEAPON_RARITY_LEGENDARY;
-}
+  RaidsInventoryWeapon_t* selectedWeapon = bankGetLocalWeaponFromBank(inventoryFilterMapping[drawState->SelectedIdx]);
+  if (!selectedWeapon) return;
+  RaidsInventoryWeapon_t* equippedWeapon = bankGetLocalEquippedWeapon(selectedWeapon->GadgetId);
+  int hasComparison = equippedWeapon && equippedWeapon != selectedWeapon;
+  RaidsInventoryWeapon_t* baseWeapon = hasComparison ? equippedWeapon : selectedWeapon;
 
-//--------------------------------------------------------------------------
-RaidsPlayerEquippedInventory_t* inventoryGetEquippedFromGadgetBox(GadgetBox* gbox)
-{
-  if (!gbox) return NULL;
-  if (gbox->Initialized <= 0) return NULL;
+  // name
+  offX = 5;
+  offY = -10;
+  struct GadgetDef* gadgetDef = weaponGetDef(selectedWeapon->GadgetId, 0);
+  snprintf(strBuf, sizeof(strBuf), "%s V%d", uiMsgString(gadgetDef->quickSelectTag), selectedWeapon->Proficiency + 1);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.9, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  offY += 20;
 
-  return &State.PlayerStates[(int)gbox->Initialized - 1].Inventory;
-}
+  // stats
+  snprintf(strBuf, sizeof(strBuf), "Damage: %d", baseWeapon->Damage);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  if (hasComparison) {
+    float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+    snprintf(strBuf, sizeof(strBuf), "> %d", selectedWeapon->Damage);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedWeapon->Damage - baseWeapon->Damage), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  }
+  offY += 12;
+  snprintf(strBuf, sizeof(strBuf), "Speed: %.2f", baseWeapon->Speed);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  if (hasComparison) {
+    float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+    snprintf(strBuf, sizeof(strBuf), "> %.2f", selectedWeapon->Speed);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor((selectedWeapon->Speed - baseWeapon->Speed)*100), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  }
+  offY += 12;
+  snprintf(strBuf, sizeof(strBuf), "Critical Hit: %.f%%", (baseWeapon->CritChance / 255.0) * 100);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  if (hasComparison) {
+    float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+    snprintf(strBuf, sizeof(strBuf), "> %.f%%", (selectedWeapon->CritChance / 255.0) * 100);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedWeapon->CritChance - baseWeapon->CritChance), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  }
+  offY += 12;
+  // int baseRarity = inventoryGetRarityFromQuality(baseWeapon->Quality);
+  // snprintf(strBuf, sizeof(strBuf), "Rarity: %s", inventoryRarityNames[baseRarity]);
+  // gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  // if (hasComparison) {
+  //   float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+  //   int selRarity = inventoryGetRarityFromQuality(selectedWeapon->Quality);
+  //   snprintf(strBuf, sizeof(strBuf), "=> %s", inventoryRarityNames[selRarity]);
+  //   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selRarity - baseRarity), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  // }
+  // offY += 12;
+  snprintf(strBuf, sizeof(strBuf), "Paint: %s", inventoryPaintNames[baseWeapon->Paint]);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  if (hasComparison) {
+    float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryPaintNames[selectedWeapon->Paint]);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  }
+  offY += 12;
+  snprintf(strBuf, sizeof(strBuf), "Special: %s", inventoryPaintSpecialNames[baseWeapon->PaintSpecialMask]);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  if (hasComparison) {
+    float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryPaintSpecialNames[selectedWeapon->PaintSpecialMask]);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  }
+  offY += 12;
+  snprintf(strBuf, sizeof(strBuf), "Omega: %s", inventoryOmegaNames[baseWeapon->OmegaMod]);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  if (hasComparison) {
+    float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryOmegaNames[selectedWeapon->OmegaMod]);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  }
+  offY += 12;
 
-//--------------------------------------------------------------------------
-RaidsInventoryWeapon_t* inventoryGetEquippedWeaponFromGadgetBox(GadgetBox* gbox, int gadgetId)
-{
-  RaidsPlayerEquippedInventory_t* inventory = inventoryGetEquippedFromGadgetBox(gbox);
-  if (!inventory) return NULL;
-  if (gadgetId <= 0) return NULL;
-
-  int idx = weaponIdToSlot(gadgetId)-1;
-  if (idx < 0 || idx >= COUNT_OF(inventory->Weapons)) return NULL;
-  if (inventory->Weapons[idx].GadgetId != gadgetId) return NULL;
-
-  return &inventory->Weapons[idx];
-}
-
-//--------------------------------------------------------------------------
-RaidsInventoryWeapon_t* inventoryGetLocalEquippedWeapon(int gadgetId)
-{
-  int slotId = inventoryGetEquipSlotFromGadgetId(gadgetId);
-  if (slotId < 0) return NULL;
-
-  int equipIdx = inventoryLocalBank.Inventory.EquippedWeaponIdxs[slotId];
-  if (equipIdx < 0) return NULL;
-  RaidsInventoryWeapon_t* weapon = &inventoryLocalBank.Inventory.Weapons[equipIdx];
-
-  if (weapon->GadgetId != gadgetId) return NULL;
-  return weapon;
-}
-
-//--------------------------------------------------------------------------
-RaidsInventoryWeapon_t* inventoryGetLocalWeaponFromBank(int index)
-{
-  if (index < 0) return NULL;
-  if (index >= INVENTORY_BANK_MAX_WEAPONS) return NULL;
-
-  RaidsInventoryWeapon_t* weapon = &inventoryLocalBank.Inventory.Weapons[index];
-  if (!weapon->GadgetId) return NULL;
-
-  return weapon;
-}
-
-//--------------------------------------------------------------------------
-int inventoryGetAlphaModCount(GadgetBox* gadgetBox, int gadgetId, int alphaModId)
-{
-  if (!gadgetBox || !gadgetBox->Initialized) return 0;
-  if (alphaModId > 8) return 0;
-  if (alphaModId <= 0) return 0;
-
-  RaidsInventoryWeapon_t* inventoryWeapon = inventoryGetEquippedWeaponFromGadgetBox(gadgetBox, gadgetId);
-  if (!inventoryWeapon) return 0;
-
-  return inventoryWeapon->AlphaModCounts[alphaModId-1];
-}
-
-//--------------------------------------------------------------------------
-float inventoryGetArbiterSpeed(Player* player)
-{
-  RaidsInventoryWeapon_t* inventoryWeapon = inventoryGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_ARBITER);
-  if (!inventoryWeapon) return 0;
-
-  return inventoryWeapon->Speed;
-}
-
-//--------------------------------------------------------------------------
-float inventoryGetGadgetDamage(GadgetBox* gbox, int gadgetId, int damageType, int multiplier)
-{
-  RaidsInventoryWeapon_t* inventoryWeapon = inventoryGetEquippedWeaponFromGadgetBox(gbox, gadgetId);
-  if (inventoryWeapon) return inventoryWeapon->Damage * multiplier;
-
-  int level = gbox->Gadgets[gadgetId].Level;
-  return ((float (*)(int gadgetId, int level, int damageType, int multiplier))0x00627520)(gadgetId, level, damageType, multiplier);
-}
-
-//--------------------------------------------------------------------------
-int inventoryTryAddGadgetToQuickSelect(Player* player, int gadgetId)
-{
+  // alpha mods
+  gfxSetupGifPaging(0);
   int i;
-
-  if (!player || !player->IsLocal) return -1;
-
-  int freeSlot = -1;
-  for (i = 0; i < 3; ++i) {
-    int gId = playerGetLocalEquipslot(player->LocalPlayerIndex, i);
-    if (gId == gadgetId) return i;
-    if (gId == 0 && freeSlot < 0) freeSlot = i;
+  for (i = 1; i < ALPHA_MOD_COUNT; ++i) {
+    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 16, 16, 32, 32, inventoryAlphaModSpriteIds[i], spriteColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    snprintf(strBuf, sizeof(strBuf), "%d", baseWeapon->AlphaModCounts[i-1]);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 0, offY + 10, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    if (hasComparison) {
+      float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+      snprintf(strBuf, sizeof(strBuf), ">%d", selectedWeapon->AlphaModCounts[i-1]);
+      gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 2 + strW, offY + 11, 0.6, inventoryDrawGetCompareColor(selectedWeapon->AlphaModCounts[i-1] - baseWeapon->AlphaModCounts[i-1]), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    }
+    
+    offX += 25;
   }
+  gfxDoGifPaging();
 
-  if (freeSlot >= 0) {
-    playerSetLocalEquipslot(player->LocalPlayerIndex, freeSlot, gadgetId);
-    if (freeSlot == 0) playerEquipWeapon(player, gadgetId);
-  }
-
-  return freeSlot;
 }
 
 //--------------------------------------------------------------------------
-void inventoryApplyGadgetMoby(Player* player, RaidsInventoryWeapon_t* item, Moby* moby)
+void inventoryDrawWeapon(InventoryDrawState_t* drawState, int row, int col, RaidsInventoryWeapon_t* weapon)
 {
-  u32 glowAlpha = 0xFF000000;
-  float glowOpacity = 0.5;
-  if (!moby) return;
+  RaidsPlayerBank_t* localBank = bankGetLocalBank();
+  u32 bgColor = 0x70101010; // dark gray
+  u32 selectedColor = 0x40008080; // yellow
+  u32 equippedColor = 0x40000080; // red
+  u32 v10Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_BLUE, 0);
+  u32 v99Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_PURPLE, 0);
+  float fw = (INVENTORY_DRAW_WEAPONS_W / INVENTORY_DRAW_WEAPONS_DIM);
+  float fh = (INVENTORY_DRAW_WEAPONS_H / INVENTORY_DRAW_WEAPONS_DIM);
+  float w = fw - INVENTORY_DRAW_WEAPONS_M*2.0;
+  float h = fh - INVENTORY_DRAW_WEAPONS_M*2.0;
+  float offX = -(INVENTORY_DRAW_FULL_W/2.0) + fw/2 + col*fw;
+  float offY = -(INVENTORY_DRAW_WEAPONS_H/2.0) + fh/2 + row*fh ;
+  int idx = row*8 + col;
+  int isSelected = idx == drawState->SelectedIdx;
 
-  if (item->Paint) {
-    moby->PrimaryColor = inventoryPaintColors[item->Paint];
-  } else {
-    moby->PrimaryColor = player->PlayerMoby->PrimaryColor;
-    glowOpacity = 1;
+  // draw bg on first item
+  if (col == 0 && row == 0) {
+    gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -(INVENTORY_DRAW_WEAPONS_W/2.0), 0, INVENTORY_DRAW_WEAPONS_W, INVENTORY_DRAW_WEAPONS_H, 0x60101010, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
   }
 
-  if (item->PaintSpecialMask & RAIDS_GADGET_PAINTSPECIAL_ADDITIVE) {
-    moby->Opacity = 0x50;
-    moby->ModeBits |= MOBY_MODE_BIT_DRAW_TRANSPARENT_WEIRD;
-    glowAlpha = 0x80000000;
-    glowOpacity *= 0.5;
-  } else {
-    moby->Opacity = 0x80;
-    moby->ModeBits &= ~MOBY_MODE_BIT_DRAW_TRANSPARENT_WEIRD;
+  // draw box
+  if (isSelected) {
+    gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw, fh, selectedColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  }
+
+  // no weapon info
+  if (!weapon) return;
+
+  // seen
+  if (isSelected && weapon->Notify) {
+    weapon->Notify = 0;
+    inventorySetFilter(drawState->FilterIdx);
   }
   
-  if (item->PaintSpecialMask & RAIDS_GADGET_PAINTSPECIAL_GLOW) {
-    moby->PrimaryColor = colorLerp(0, moby->PrimaryColor, glowOpacity) | glowAlpha;
-    moby->Lights = 0;
-    //moby->ModeBits2 |= 8;
-  } else {
-    moby->Lights = player->PlayerMoby->Lights;
-    //moby->ModeBits2 &= ~8;
+  // draw equipped
+  int isEquipped = inventoryFilterMapping[idx] == localBank->Inventory.EquippedWeaponIdxs[bankGetEquipSlotFromGadgetId(weapon->GadgetId)];
+  if (isEquipped) {
+    gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw, fh, equippedColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
   }
+
+  int slotId = weaponIdToSlot(weapon->GadgetId);
+  int iconSpriteId = inventoryWeaponSpriteIds[slotId];
+  int iconSpriteDim = inventoryWeaponSpriteDims[slotId];
+  
+  // draw icon
+  u32 iconColor = colorLerp(0x80808080, v10Color, (weapon->Proficiency+1)/10.0);
+  if (weapon->Proficiency > 9)
+    iconColor = colorLerp(v10Color, v99Color, (weapon->Proficiency-9) / 90.0);
+  gfxSetupGifPaging(0);
+  gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX-1, offY-1, w+2, h+2, iconSpriteDim, iconSpriteDim, iconSpriteId, 0x80000000, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, w, h, iconSpriteDim, iconSpriteDim, iconSpriteId, iconColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  // draw equipped
+  if (isEquipped) {
+    //gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX-w/2, offY-h/2, 12, 12, 32, 32, 80, equippedColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  }
+
+  // draw notify
+  if (weapon->Notify) {
+    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX+w/2+1, offY-h/2-1, 8, 8, 32, 32, INVENTORY_NOTIFY_SPRITE_ID, INVENTORY_NOTIFY_COLOR, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  }
+
+  // draw paint
+  if (weapon->Paint || weapon->PaintSpecialMask) {
+    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX-w/2+1, offY+h/2-1, 8, 8, 32, 32, 80 + (weapon->PaintSpecialMask>0?1:0), bankPaintColors[weapon->Paint] | 0x80000000, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  }
+
+  // draw omega
+  if (weapon->OmegaMod) {
+    u32 omegaColor = ((u32 (*)(int))0x00541fd0)(weapon->OmegaMod);
+    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX+w/2-2, offY+h/2-2, 12, 12, 32, 32, 79, omegaColor | 0x80000000, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  }
+
+  gfxDoGifPaging();
 }
 
 //--------------------------------------------------------------------------
-void inventoryRemoveGadget(Player* player, int gadgetId)
+void inventoryDraw(void)
 {
-  player->GadgetBox->Gadgets[gadgetId].Level = -1;
+  u32 bgColor = 0x60000000;
+  u32 borderColor = 0x80000020;
+  u32 textColor = 0x80FFFFFF;
+  float borderSizeH = INVENTORY_DRAW_FRAME_BORDER_W * SCREEN_RATIO_INV;
+  float borderSizeV = INVENTORY_DRAW_FRAME_BORDER_W;
+  int i,j;
+  char strBuf[128];
 
-  if (player->IsLocal) {
-    if (playerGetLocalEquipslot(player->LocalPlayerIndex, 0) == gadgetId) {
-      playerSetLocalEquipslot(player->LocalPlayerIndex, 0, playerGetLocalEquipslot(player->LocalPlayerIndex, 1));
-      playerSetLocalEquipslot(player->LocalPlayerIndex, 1, playerGetLocalEquipslot(player->LocalPlayerIndex, 2));
-      playerSetLocalEquipslot(player->LocalPlayerIndex, 2, 0);
-    } else if (playerGetLocalEquipslot(player->LocalPlayerIndex, 1) == gadgetId) {
-      playerSetLocalEquipslot(player->LocalPlayerIndex, 1, playerGetLocalEquipslot(player->LocalPlayerIndex, 2));
-      playerSetLocalEquipslot(player->LocalPlayerIndex, 2, 0);
-    } else if (playerGetLocalEquipslot(player->LocalPlayerIndex, 2) == gadgetId) {
-      playerSetLocalEquipslot(player->LocalPlayerIndex, 2, 0);
+  GameSettings* gs = gameGetSettings();
+  Player* localPlayer = playerGetFromSlot(0);
+  RaidsPlayerBank_t* localBank = bankGetLocalBank();
+  RaidsInventoryWeapon_t* selectedWeapon = bankGetLocalWeaponFromBank(inventoryFilterMapping[inventoryDrawState.SelectedIdx]);
+  RaidsInventoryWeapon_t* equippedWeapon = NULL;
+  int canEquip = 0;
+  int canSell = 0;
+  u32 sellPrice = 0;
+  if (selectedWeapon) {
+    RaidsInventoryWeapon_t* equippedWeapon = bankGetLocalEquippedWeapon(selectedWeapon->GadgetId);
+    canEquip = selectedWeapon && selectedWeapon->GadgetId && equippedWeapon != selectedWeapon; // already equipped
+    canSell = selectedWeapon && selectedWeapon->GadgetId && equippedWeapon != selectedWeapon; // can't sell equipped
+    sellPrice = getPriceForWeapon(selectedWeapon->Proficiency, selectedWeapon->Quality);
+  }
+
+  // reset filter when inventory changes while menu is open
+  if (localBank->Inventory.RefreshLocalInventory) {
+    inventorySetFilter(inventoryDrawState.FilterIdx);
+  }
+
+  // draw frame
+  gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, 0, 0, INVENTORY_DRAW_FULL_W, INVENTORY_DRAW_FULL_H, bgColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  // draw title text
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, INVENTORY_DRAW_INFO_W/2, -INVENTORY_DRAW_FULL_H/2 + 2, 1.1, textColor, gs->PlayerNames[localPlayer->PlayerId], -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+  
+  // draw tabs
+  gfxSetupGifPaging(0);
+  for (i = 0; i < INVENTORY_TAB_COUNT; ++i) {
+    int isTabSelected = inventoryDrawState.FilterIdx == i;
+    float tabW = (INVENTORY_DRAW_WEAPONS_W / INVENTORY_TAB_COUNT);
+    float tabH = tabW-2;
+    float tabD = tabW - INVENTORY_TAB_SPRITE_PADDING;
+    float offX = (tabW * i);
+    int spriteId = inventoryWeaponSpriteIds[i];
+    int spriteDim = inventoryWeaponSpriteDims[i];
+    gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -(INVENTORY_DRAW_FULL_W/2) + offX, -(INVENTORY_DRAW_FULL_H/2), tabW, tabH, isTabSelected ? 0x40004040 : 0x40101010, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -(INVENTORY_DRAW_FULL_W/2) + offX + (INVENTORY_TAB_SPRITE_PADDING/2), -(INVENTORY_DRAW_FULL_H/2)+2, tabD, tabD, spriteDim, spriteDim, spriteId, isTabSelected ? 0x80FFFFFF : 0x80808080, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    if (inventoryTabHasNew[i]) {
+      gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -(INVENTORY_DRAW_FULL_W/2) + offX + tabW, -(INVENTORY_DRAW_FULL_H/2), 8, 8, 32, 32, INVENTORY_NOTIFY_SPRITE_ID, INVENTORY_NOTIFY_COLOR, TEXT_ALIGN_TOPRIGHT, COMMON_DZO_DRAW_NORMAL);
+    }
+    snprintf(strBuf, sizeof(strBuf), "%d", inventoryTabCounts[i]);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -(INVENTORY_DRAW_FULL_W/2) + offX + tabW, -(INVENTORY_DRAW_FULL_H/2)+2+tabD, 0.6, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMRIGHT, COMMON_DZO_DRAW_NORMAL);
+  }
+  gfxDoGifPaging();
+
+  // draw grid
+  for (i = 0; i < INVENTORY_DRAW_WEAPONS_DIM; ++i) {
+    for (j = 0; j < INVENTORY_DRAW_WEAPONS_DIM; ++j) {
+      int idx = (i*INVENTORY_DRAW_WEAPONS_DIM)+j;
+      int remappedIdx = inventoryFilterMapping[idx];
+      RaidsInventoryWeapon_t* weapon = bankGetLocalWeaponFromBank(remappedIdx);
+      inventoryDrawWeapon(&inventoryDrawState, i, j, weapon);
     }
   }
-}
 
-//--------------------------------------------------------------------------
-void inventoryApplyItem(Player* player, RaidsInventoryWeapon_t* item)
-{
-  int gadgetId = item->GadgetId;
-  GadgetBox* gbox = player->GadgetBox;
+  inventoryDrawWeaponInfo(&inventoryDrawState);
+  inventoryDrawAccountInfo(&inventoryDrawState);
 
-  // give
-  if (gbox->Gadgets[gadgetId].Level < 0) {
-    playerGiveWeapon(gbox, gadgetId, 0, 1);
-    inventoryTryAddGadgetToQuickSelect(player, gadgetId);
+  // draw footer text
+  char sellPriceStrBuf[32];
+  strcpy(strBuf, "\x14 \x15 FILTER    ");
+  if (canEquip) strcat(strBuf, "\x11 EQUIP    ");
+  if (canSell) { snprintf(sellPriceStrBuf, sizeof(sellPriceStrBuf), "\x0A%'d\x08 \x13 SELL    ", sellPrice); strcat(strBuf, sellPriceStrBuf); }
+  strcat(strBuf, "\x12 CLOSE");
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -INVENTORY_DRAW_FULL_W/2 + 5, INVENTORY_DRAW_FULL_H/2 - 5, 0.8, textColor, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+  
+  // draw frame borders
+  gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, INVENTORY_DRAW_FULL_W/2, 0, borderSizeH, INVENTORY_DRAW_FULL_H + borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -INVENTORY_DRAW_FULL_W/2, 0, borderSizeH, INVENTORY_DRAW_FULL_H + borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, 0, INVENTORY_DRAW_FULL_H/2, INVENTORY_DRAW_FULL_W + borderSizeH, borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, 0, -INVENTORY_DRAW_FULL_H/2, INVENTORY_DRAW_FULL_W + borderSizeH, borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  // handle input
+  int selIdx = inventoryDrawState.SelectedIdx;
+  int selMod = selIdx % INVENTORY_DRAW_WEAPONS_DIM;
+  if (padGetButtonDown(0, PAD_LEFT) > 0) {                              // NAV LEFT
+    int row = (selIdx-1)%INVENTORY_DRAW_WEAPONS_DIM;
+    if (row < 0 || row > (selIdx%INVENTORY_DRAW_WEAPONS_DIM)) selIdx += INVENTORY_DRAW_WEAPONS_DIM-1;
+    else selIdx--;
+  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {                      // NAV RIGHT
+    int row = (selIdx+1)%INVENTORY_DRAW_WEAPONS_DIM;
+    if (row < (selIdx%INVENTORY_DRAW_WEAPONS_DIM)) selIdx -= INVENTORY_DRAW_WEAPONS_DIM-1;
+    else selIdx++;
+  } else if (padGetButtonDown(0, PAD_DOWN) > 0) {                       // NAV DOWN
+    selIdx = (selIdx+INVENTORY_DRAW_WEAPONS_DIM) % BANK_MAX_WEAPONS;
+  } else if (padGetButtonDown(0, PAD_UP) > 0) {                         // NAV UP
+    selIdx = (selIdx-INVENTORY_DRAW_WEAPONS_DIM) % BANK_MAX_WEAPONS;
+    if (selIdx < 0) selIdx += BANK_MAX_WEAPONS;
+  } else if (padGetButtonDown(0, PAD_L1) > 0) {                         // TAB LEFT
+    inventoryDrawState.FilterIdx--;
+    if (inventoryDrawState.FilterIdx < 0) inventoryDrawState.FilterIdx = INVENTORY_TAB_COUNT - 1;
+    inventorySetFilter(inventoryDrawState.FilterIdx);
+  } else if (padGetButtonDown(0, PAD_R1) > 0) {                         // TAB RIGHT
+    inventoryDrawState.FilterIdx = (inventoryDrawState.FilterIdx + 1) % INVENTORY_TAB_COUNT;
+    inventorySetFilter(inventoryDrawState.FilterIdx);
+  } else if (canEquip && padGetButtonDown(0, PAD_CIRCLE) > 0) {         // EQUIP
+    bankEquipLocalWeaponAtIndex(inventoryFilterMapping[selIdx]);
+  } else if (canSell && padGetButtonDown(0, PAD_SQUARE) > 0) {          // SELL
+    bankSellLocalWeaponAtIndex(inventoryFilterMapping[selIdx]);
   }
-  gbox->Gadgets[gadgetId].Level = item->Proficiency;
-
-  // configure mobys
-  if (player->Gadgets[0].id == gadgetId) {
-    inventoryApplyGadgetMoby(player, item, player->Gadgets[0].pMoby);
-    inventoryApplyGadgetMoby(player, item, player->Gadgets[0].pMoby2);
-  }
-
-  gbox->Gadgets[gadgetId].OmegaMod = item->OmegaMod;
-}
-
-//--------------------------------------------------------------------------
-void inventoryUpdateLocalState(Player * player)
-{
-  if (!player || !player->PlayerMoby || !player->pNetPlayer || !player->IsLocal) return;
-  if (!playerIsConnected(player)) return;
-
-  int playerId = player->PlayerId;
-  RaidsPlayerBank_t* localBank = inventoryGetLocalBank();
-
-  // save skill points
-  memcpy(State.PlayerStates[playerId].State.Skills, localBank->Account.Skills, sizeof(State.PlayerStates[playerId].State.Skills));
-
-  // save to equipped
-  int i;
-  for (i = 0; i < WEAPON_SLOT_OMNI_SHIELD; ++i) {
-    int equippedIdx = localBank->Inventory.EquippedWeaponIdxs[i];
-    if (equippedIdx < 0) {
-      memset(&State.PlayerStates[playerId].Inventory.Weapons[i], 0, sizeof(RaidsInventoryWeapon_t));
-    } else {
-      memcpy(&State.PlayerStates[playerId].Inventory.Weapons[i], &localBank->Inventory.Weapons[equippedIdx], sizeof(RaidsInventoryWeapon_t));
-    }
-  }
-}
-
-//--------------------------------------------------------------------------
-void inventorySellLocalWeaponAtIndex(int weaponIdx)
-{
-  RaidsPlayerBank_t* localBank = inventoryGetLocalBank();
-  if (!localBank) return;
-
-  if (weaponIdx < 0 || weaponIdx >= INVENTORY_BANK_MAX_WEAPONS) return;
-  RaidsInventoryWeapon_t* weapon = &localBank->Inventory.Weapons[weaponIdx];
-  if (!weapon || !weapon->GadgetId) return;
-
-  int equipSlot = inventoryGetEquipSlotFromGadgetId(weapon->GadgetId);
-  int isEquipped = localBank->Inventory.EquippedWeaponIdxs[equipSlot] == weaponIdx;
-  localBank->Account.Bolts += getPriceForWeapon(weapon->Proficiency, weapon->Quality);
-  memset(weapon, 0, sizeof(RaidsInventoryWeapon_t));
-  if (isEquipped) localBank->Inventory.EquippedWeaponIdxs[equipSlot] = -1;
-  localBank->RefreshLocalInventory = 1;
-}
-
-//--------------------------------------------------------------------------
-void inventoryEquipLocalWeaponAtIndex(int weaponIdx)
-{
-  RaidsPlayerBank_t* localBank = inventoryGetLocalBank();
-  if (!localBank) return;
-
-  if (weaponIdx < 0 || weaponIdx >= INVENTORY_BANK_MAX_WEAPONS) return;
-  RaidsInventoryWeapon_t* weapon = &localBank->Inventory.Weapons[weaponIdx];
-  if (!weapon || !weapon->GadgetId) return;
-
-  localBank->Inventory.EquippedWeaponIdxs[inventoryGetEquipSlotFromGadgetId(weapon->GadgetId)] = weaponIdx;
-  localBank->RefreshLocalInventory = 1;
-}
-
-//--------------------------------------------------------------------------
-void inventoryTickPlayer(Player * player)
-{
-  if (!player || !player->PlayerMoby || !player->pNetPlayer) return;
-  if (!playerIsConnected(player)) return;
-
-  RaidsPlayerBank_t* localBank = inventoryGetLocalBank();
-  GadgetBox* gbox = player->GadgetBox;
-  if (!gbox) return;
-
-  // apply items
-  int i;
-  for (i = 0; i < WEAPON_SLOT_OMNI_SHIELD; ++i) {
-    int gadgetId = weaponSlotToId(i+1);
-    RaidsInventoryWeapon_t* weapon = inventoryGetEquippedWeaponFromGadgetBox(gbox, gadgetId);
-    if (weapon) {
-      inventoryApplyItem(player, weapon);
-    } else if (gbox->Gadgets[gadgetId].Level >= 0)  {
-      inventoryRemoveGadget(player, gadgetId);
-    }
-  }
+  inventoryDrawState.SelectedIdx = selIdx;
+  
+  //gfxSetupGifPaging(0);
+  //gfxHelperDrawSprite(60, SCREEN_HEIGHT - 60, 0, 0, 100, 100, 64, 64, aaa, 0x80808080, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  //gfxDoGifPaging();
 }
 
 //--------------------------------------------------------------------------
 void inventoryTick(void)
 {
-  static int hasBank = 0;
   int i;
 
+  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+    --aaa;
+    DPRINTF("%d\n", aaa);
+  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+    ++aaa;
+    DPRINTF("%d\n", aaa);
+  }
+
   // check if we need to request our bank
-  if (!isInGame()) {
-    hasBank = 0;
+  if (gameHasEnded()) {
+    inventoryClose();
     return;
-  } else if (!hasBank) {
-    inventoryRequestFromServer();
-    hasBank = 1;
   }
-
-  // handle new inventory change
-  if (inventoryLocalBank.RefreshLocalInventory) {
-    for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-      inventoryUpdateLocalState(playerGetFromSlot(i));
+  
+  // draw
+  if (!State.InventoryOpen && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_L3) > 0) {
+    inventoryOpen();
+  } else if (State.InventoryOpen) {
+    inventoryDraw();
+    if (gameIsAnyStartMenuOpen() || padGetButtonDown(0, PAD_TRIANGLE) > 0) {
+      inventoryClose();
     }
-  }
-
-  // process players
-  Player** players = playerGetAll();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    inventoryTickPlayer(players[i]);
   }
 }
 
 //--------------------------------------------------------------------------
 void inventoryInit(void)
 {
-  int i;
-  static int initialized = 0;
 
-  if (!initialized) {
-
-    // hooks
-    POKE_U32(0x005DDF98, 0); // disable player ambient color affecting child mobys
-    POKE_U8(0x00171b66, 1); // challenge mode
-    HOOK_J_OP(0x00627600, &inventoryGetGadgetDamage, 0);
-    HOOK_JAL(0x003F29AC, &inventoryGetArbiterSpeed);
-    POKE_U32(0x003F2984, 0x0240202D);
-    HOOK_J(0x006299A8, &inventoryGetAlphaModCount);
-    //HOOK_J_OP(0x00626d98, &inventoryGetGadgetMaxLevel, 0);
-    //HOOK_J_OP(0x00626fb8, &inventoryGetGadgetMaxAmmo, 0);
-    //HOOK_JAL_OP(0x0060f780, &inventoryGetGadgetRefireRate, 0x0200282D);
-
-    // clear inventory
-    Player** players = playerGetAll();
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (players[i] && players[i]->GadgetBox) {
-        playerStripWeapons(players[i]);
-        playerGiveWeapon(players[i]->GadgetBox, 17, 0, 0); // give cboots
-        players[i]->GadgetBox->Initialized = i+1;
-      }
-    }
-
-#if DEBUG1
-    GadgetBox* gbox = playerGetFromSlot(0)->GadgetBox;
-    playerGiveWeapon(gbox, WEAPON_ID_VIPERS, 97, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_MAGMA_CANNON, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_ARBITER, 98, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_B6, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_MINE_LAUNCHER, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_FUSION_RIFLE, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_OMNI_SHIELD, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_FLAIL, 9, 1);
-#endif
-
-    initialized = 1;
-  }
-
-  inventoryTick();
 }

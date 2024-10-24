@@ -5,7 +5,7 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 #include "messageid.h"
-#include "inventory.h"
+#include "bank.h"
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
