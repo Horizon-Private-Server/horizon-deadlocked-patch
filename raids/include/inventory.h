@@ -13,7 +13,8 @@
 #define INVENTORY_TAB_SPRITE_PADDING                (8)
 
 #define INVENTORY_NOTIFY_SPRITE_ID                  (88) // star
-#define INVENTORY_NOTIFY_COLOR                      (0x80FF4000)
+#define INVENTORY_NOTIFY_NEW_COLOR                  (0x80FF4000)
+#define INVENTORY_NOTIFY_FAV_COLOR                  (0x8000FFFF)
 
 #define INVENTORY_DRAW_CENTER_X                     (SCREEN_WIDTH / 2.0)
 #define INVENTORY_DRAW_CENTER_Y                     (SCREEN_HEIGHT / 2.0)
@@ -33,6 +34,7 @@ typedef struct InventoryDrawState
 {
   int SelectedIdx;
   int FilterIdx;
+  int ShowSellDialog;
 } InventoryDrawState_t;
 
 void inventoryOpen(void);

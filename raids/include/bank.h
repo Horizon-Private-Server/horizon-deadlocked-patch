@@ -27,6 +27,13 @@ enum RaidsWeaponRarity
   RAIDS_WEAPON_RARITY_COUNT,
 };
 
+enum RaidsInventoryWeaponNotify
+{
+  RAIDS_WEAPON_NOTIFY_NONE = 0,
+  RAIDS_WEAPON_NOTIFY_NEW,
+  RAIDS_WEAPON_NOTIFY_FAV,
+};
+
 enum RaidsSkills
 {
   RAIDS_SKILLS_HEALTH = 0,
@@ -82,6 +89,8 @@ typedef struct RaidsPlayerEquippedInventory
 struct RaidsGetBankRequest
 {
   u32 DestAddress;
+  u32 DestHasFlagAddress;
+  u32 DestTimeFlagAddress;
 };
 
 struct RaidsUpdateBankInventoryRequest
@@ -91,6 +100,11 @@ struct RaidsUpdateBankInventoryRequest
   RaidsInventoryWeapon_t Weapons[BANK_UPDATE_WEAPONS_SIZE];
   char EquippedWeaponIdxs[WEAPON_SLOT_COUNT-1];
 };
+
+int bankGetHasInventory(void);
+int bankHasPendingInventoryRequest(void);
+int bankGetHasAccount(void);
+int bankHasPendingAccountRequest(void);
 
 u32 bankGetBolts(void);
 u32 bankAddBolts(u32 amount);

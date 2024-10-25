@@ -45,26 +45,36 @@ u32 bankPaintColors[] = {
   0x006000FF,         // maroon
 };
 
+int bankHasInventory = 0;
+int bankHasAccount = 0;
+long bankLastInventoryRequestTime = 0;
+long bankLastAccountRequestTime = 0;
 char bankLevelUpBuf[32];
 
 //--------------------------------------------------------------------------
-u32 bankGetBolts(void) { return bankLocalBank.Account.Bolts; }
-u32 bankAddBolts(u32 amount) { return bankLocalBank.Account.Bolts += amount; }
-u64 bankGetXP(void) { return bankLocalBank.Account.Experience; }
-u64 bankAddXP(u64 amount)
+int bankGetHasInventory(void)
 {
-  u64 xp = bankLocalBank.Account.Experience;
+  return bankHasInventory;
+}
 
-  int level = getLevelFromXp(xp);
-  int nextLevel = getLevelFromXp(xp + amount);
-  if (nextLevel > level) {
-    bankLocalBank.Account.SkillPoints += 1;
+//--------------------------------------------------------------------------
+int bankHasPendingInventoryRequest(void)
+{
+  long dtMs = (timerGetSystemTime() - bankLastInventoryRequestTime) / SYSTEM_TIME_TICKS_PER_MS;
+  return bankLastInventoryRequestTime && dtMs < (2*TIME_SECOND);
+}
 
-    snprintf(bankLevelUpBuf, sizeof(bankLevelUpBuf), "You have reached level %d", nextLevel + 1);
-    uiShowPopup(0, bankLevelUpBuf);
-  }
+//--------------------------------------------------------------------------
+int bankGetHasAccount(void)
+{
+  return bankHasAccount;
+}
 
-  return bankLocalBank.Account.Experience += amount;
+//--------------------------------------------------------------------------
+int bankHasPendingAccountRequest(void)
+{
+  long dtMs = (timerGetSystemTime() - bankLastAccountRequestTime) / SYSTEM_TIME_TICKS_PER_MS;
+  return bankLastAccountRequestTime && dtMs < (2*TIME_SECOND);
 }
 
 //--------------------------------------------------------------------------
@@ -73,7 +83,13 @@ void bankRequestInventoryFromServer(void)
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
 
-  struct RaidsGetBankRequest msg = { .DestAddress = (u32)&bankLocalBank.Inventory };
+  bankLastInventoryRequestTime = timerGetSystemTime();
+  bankHasInventory = 0;
+  struct RaidsGetBankRequest msg = {
+    .DestAddress = (u32)&bankLocalBank.Inventory,
+    .DestHasFlagAddress = (u32)&bankHasInventory,
+    .DestTimeFlagAddress = (u32)&bankLastInventoryRequestTime
+  };
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GET_RAIDS_BANK_INVENTORY_REQUEST, sizeof(msg), &msg);
   DPRINTF("request inventory\n");
 }
@@ -87,6 +103,7 @@ void bankSendInventoryToServer(void)
   if (!localBank) return;
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
+  if (!bankHasInventory) return;
 
   int i;
   for (i = 0; i < BANK_MAX_WEAPONS; i += BANK_UPDATE_WEAPONS_SIZE) {
@@ -107,7 +124,13 @@ void bankRequestAccountFromServer(void)
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
 
-  struct RaidsGetBankRequest msg = { .DestAddress = (u32)&bankLocalBank.Account };
+  bankLastAccountRequestTime = timerGetSystemTime();
+  bankHasAccount = 0;
+  struct RaidsGetBankRequest msg = {
+    .DestAddress = (u32)&bankLocalBank.Account,
+    .DestHasFlagAddress = (u32)&bankHasAccount,
+    .DestTimeFlagAddress = (u32)&bankLastAccountRequestTime
+  };
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GET_RAIDS_BANK_ACCOUNT_REQUEST, sizeof(msg), &msg);
   DPRINTF("request account\n");
 }
@@ -119,9 +142,30 @@ void bankSendAccountToServer(void)
   if (!localBank) return;
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
+  if (!bankHasAccount) return;
   
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_ACCOUNT_REQUEST, sizeof(localBank->Account), &localBank->Account);
   DPRINTF("sent account\n");
+}
+
+//--------------------------------------------------------------------------
+u32 bankGetBolts(void) { return bankLocalBank.Account.Bolts; }
+u32 bankAddBolts(u32 amount) { return bankLocalBank.Account.Bolts += amount; }
+u64 bankGetXP(void) { return bankLocalBank.Account.Experience; }
+u64 bankAddXP(u64 amount)
+{
+  u64 xp = bankLocalBank.Account.Experience;
+
+  int level = getLevelFromXp(xp);
+  int nextLevel = getLevelFromXp(xp + amount);
+  if (nextLevel > level) {
+    bankLocalBank.Account.SkillPoints += 1;
+
+    snprintf(bankLevelUpBuf, sizeof(bankLevelUpBuf), "You have reached level %d", nextLevel + 1);
+    uiShowPopup(0, bankLevelUpBuf);
+  }
+
+  return bankLocalBank.Account.Experience += amount;
 }
 
 //--------------------------------------------------------------------------

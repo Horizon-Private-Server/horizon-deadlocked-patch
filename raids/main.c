@@ -333,7 +333,7 @@ char * customGetGadgetVersionName(int localPlayerIndex, int weaponId, int showWe
     msgId = capitalize ? gadgetDef->upgUCTag : gadgetDef->upgQSTag;
 
 	char* str = uiMsgString(msgId);
-	if (level >= minLevel) {
+	if (0 && level >= minLevel) {
 		snprintf(buf, 0x40, "%s V%d", str, level+1);
 		return buf;
 	} else {
@@ -1001,12 +1001,12 @@ void updateGameState(PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-  static int hasBank = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
 	Player ** players = playerGetAll();
 	int i;
 	int gameTime = gameGetTime();
+  static int sendBankAtEnd = 1;
 
 	// first
 	dlPreUpdate();
@@ -1064,15 +1064,16 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // get bank on first load
   // send bank when game ends
   if (!gameHasEnded()) {
-    if (!hasBank) {
-      bankRequestInventoryFromServer();
+    if (!bankGetHasAccount() && !bankHasPendingAccountRequest()) {
       bankRequestAccountFromServer();
-      hasBank = 1;
     }
-  } else if (hasBank) {
+    if (!bankGetHasInventory() && !bankHasPendingInventoryRequest()) {
+      bankRequestInventoryFromServer();
+    }
+  } else if (bankGetHasAccount() && sendBankAtEnd) {
     bankSendAccountToServer();
+    sendBankAtEnd = 0;
     //bankSendInventoryToServer();
-    hasBank = 0;
   }
 
   RaidsPlayerBank_t* localBank = bankGetLocalBank();

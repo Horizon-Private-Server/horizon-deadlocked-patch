@@ -224,6 +224,7 @@ struct RaidsState
 	int ActivePlayerCount;
 	int IsHost;
 	float Difficulty;
+  int DifficultyStars;
 	char NumTeams;
 };
 
