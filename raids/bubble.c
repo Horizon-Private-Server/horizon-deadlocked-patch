@@ -84,7 +84,6 @@ void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, 
 void bubbleTick(void)
 {
   int i;
-  int x,y;
   char buf[32];
   float scale;
   VECTOR dt;

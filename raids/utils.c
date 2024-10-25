@@ -344,5 +344,12 @@ int mobyIsMob(Moby* moby)
     || moby->OClass == SWARMER_MOBY_OCLASS
     || moby->OClass == REACTOR_MOBY_OCLASS
     || moby->OClass == REAPER_MOBY_OCLASS
+    || moby->OClass == NPC_MOBY_OCLASS
     ;
+}
+
+//--------------------------------------------------------------------------
+int mobyIsNpc(Moby* moby)
+{
+  return moby && moby->OClass == NPC_MOBY_OCLASS;
 }

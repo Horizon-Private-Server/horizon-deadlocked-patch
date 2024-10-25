@@ -150,7 +150,6 @@ void zombiePostDraw(Moby* moby)
   if (!moby || !moby->PVar)
     return;
     
-  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   u32 color = ZOMBIE_LOD_COLOR | (moby->Opacity << 24);
   mobPostDrawQuad(moby, 127, color, 1);
 }
@@ -177,6 +176,7 @@ void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
   // targeting
 	pvars->TargetVars.targetHeight = 1;
   pvars->MobVars.BlipType = 4;
+  pvars->MobVars.BlipTeam = TEAM_RED;
   
 #if MOB_DAMAGETYPES
   pvars->TargetVars.damageTypes = MOB_DAMAGETYPES;
@@ -184,7 +184,7 @@ void zombieOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, cha
 
   // default move step
   pvars->MobVars.MoveVars.MoveStep = MOB_MOVE_SKIP_TICKS;
-  vector_copy(pvars->MobVars.TargetPosition, moby->Position);
+  vector_copy(pvars->MobVars.MoveVars.TargetPosition, moby->Position);
 }
 
 //--------------------------------------------------------------------------
@@ -193,8 +193,6 @@ void zombieOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   if (!moby || !moby->PVar)
     return;
     
-  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-
 	// set colors before death so that the corn has the correct color
 	moby->PrimaryColor = ZOMBIE_PRIMARY_COLOR;
   
@@ -263,12 +261,12 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e)
     }
 
     // auto aggro
-    if (!pvars->MobVars.Target) {
+    if (!pvars->MobVars.MoveVars.Target) {
       Player* target = (Player*)guberGetObjectByUID(e->SourceUID);
       if (target) {
         Moby* targetMoby = playerGetTargetMoby(target);
         if (targetMoby) {
-          pvars->MobVars.Target = targetMoby;
+          pvars->MobVars.MoveVars.Target = targetMoby;
           pvars->MobVars.Dirty = 1;
         }
       }
@@ -303,7 +301,7 @@ Moby* zombieGetNextTarget(Moby* moby)
 	int i;
 	VECTOR delta;
   VECTOR forward;
-	Moby * currentTarget = pvars->MobVars.Target;
+	Moby * currentTarget = pvars->MobVars.MoveVars.Target;
 	Player * closestPlayer = NULL;
 	float closestPlayerDist = 100000;
 
@@ -402,7 +400,7 @@ int zombieGetPreferredAction(Moby* moby, int * delayTicks)
   if (zombieIsRoaming(pvars)) {
 
     // check how close we are to target
-    vector_subtract(t, pvars->MobVars.TargetPosition, moby->Position);
+    vector_subtract(t, pvars->MobVars.MoveVars.TargetPosition, moby->Position);
     float dist = vector_length(t);
     
     // idle if near target or randomly
@@ -420,14 +418,14 @@ int zombieGetPreferredAction(Moby* moby, int * delayTicks)
 }
 
 //--------------------------------------------------------------------------
-#if DEBUGPATH
+#if DEBUGPATH || 1
 void zombieRenderPath(Moby* moby)
 {
   int x,y;
   int i;
 
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  struct PathGraph* pathGraph = pathGetMobyPathGraph(moby);
+  struct PathGraph* pathGraph = pathGetMobyPathGraph(moby, &pvars->MobVars.MoveVars);
   u8* path = (u8*)pvars->MobVars.MoveVars.CurrentPath;
   int pathLen = pvars->MobVars.MoveVars.PathEdgeCount;
   int pathIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
@@ -441,7 +439,8 @@ void zombieRenderPath(Moby* moby)
   }
 
   VECTOR t;
-  pathGetTargetPos(pathGraph, t, moby);
+  if (pathGetTargetPos(pathGraph, t, moby, &pvars->MobVars.MoveVars) && mobAmIOwner(moby))
+    pvars->MobVars.Dirty = 1; // new path, sync with other clients
   if (gfxWorldSpaceToScreenSpace(t, &x, &y)) {
     gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
   }
@@ -452,10 +451,11 @@ void zombieRenderPath(Moby* moby)
 void zombieDoAction(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  struct PathGraph* path = pathGetMobyPathGraph(moby);
-	Moby* target = pvars->MobVars.Target;
-	VECTOR t, t2;
+  struct PathGraph* path = pathGetMobyPathGraph(moby, &pvars->MobVars.MoveVars);
+	Moby* target = pvars->MobVars.MoveVars.Target;
+	VECTOR t;
   float difficulty = 1;
+  float speed = pvars->MobVars.Config.Speed;
   float turnSpeed = pvars->MobVars.MoveVars.Grounded ? ZOMBIE_TURN_RADIANS_PER_SEC : ZOMBIE_TURN_AIR_RADIANS_PER_SEC;
   float acceleration = pvars->MobVars.MoveVars.Grounded ? ZOMBIE_MOVE_ACCELERATION : ZOMBIE_MOVE_AIR_ACCELERATION;
   int isInAirFromFlinching = !pvars->MobVars.MoveVars.Grounded 
@@ -509,13 +509,10 @@ void zombieDoAction(Moby* moby)
 			{
         // move
         if (!isInAirFromFlinching) {
-          if (target) {
-            pathGetTargetPos(path, t, moby);
-            mobTurnTowards(moby, t, turnSpeed);
-            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
-          } else {
-            mobStand(moby);
-          }
+          if (pathGetTargetPos(path, t, moby, &pvars->MobVars.MoveVars) && mobAmIOwner(moby))
+            pvars->MobVars.Dirty = 1; // new path, sync with other clients
+          mobTurnTowards(moby, t, turnSpeed);
+          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
         }
 
         // handle jumping
@@ -533,7 +530,7 @@ void zombieDoAction(Moby* moby)
           // use delta height between target as base of jump speed
           // with min speed
           float jumpSpeed = pvars->MobVars.MoveVars.QueueJumpSpeed;
-          if (jumpSpeed <= 0 && target) {
+          if (jumpSpeed <= 0) {
             jumpSpeed = 8; //clamp(0 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->MobVars.MoveVars.WallSlope) * 1, 3, 15);
           }
 
@@ -553,8 +550,9 @@ void zombieDoAction(Moby* moby)
     case ZOMBIE_ACTION_ROAM:
     {
       if (!isInAirFromFlinching) {
-        pathGetTargetPos(path, t, moby);
-        mobMoveTowards(moby, t, 0.5, turnSpeed, acceleration, 0);
+        if (pathGetTargetPos(path, t, moby, &pvars->MobVars.MoveVars) && mobAmIOwner(moby))
+          pvars->MobVars.Dirty = 1; // new path, sync with other clients
+        mobMoveTowards(moby, t, speed * 0.5, turnSpeed, acceleration, 0);
       }
 
 			// 
@@ -571,17 +569,15 @@ void zombieDoAction(Moby* moby)
     }
     case ZOMBIE_ACTION_WALK:
 		{
-      if (!isInAirFromFlinching) {
-        if (target) {
-          float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+      float dir = 0;
+      if (target) {
+        dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+      }
 
-          // determine next position
-          pathGetTargetPos(path, t, moby);
-          mobMoveTowards(moby, t, 1, turnSpeed, acceleration, dir);
-        } else {
-          // stand
-          mobStand(moby);
-        }
+      if (!isInAirFromFlinching) {
+        if (pathGetTargetPos(path, t, moby, &pvars->MobVars.MoveVars) && mobAmIOwner(moby))
+          pvars->MobVars.Dirty = 1; // new path, sync with other clients
+        mobMoveTowards(moby, t, speed * 0.5, turnSpeed, acceleration, dir);
       }
 
 			// 
@@ -672,7 +668,7 @@ void zombieForceLocalAction(Moby* moby, int action)
 		}
     case ZOMBIE_ACTION_ROAM:
     {
-      struct PathGraph* path = pathGetMobyPathGraph(moby);
+      struct PathGraph* path = pathGetMobyPathGraph(moby, &pvars->MobVars.MoveVars);
       if (path && path->NumNodes > 0 && mobAmIOwner(moby)) {
 
         int r = rand(path->NumNodes);
@@ -687,8 +683,8 @@ void zombieForceLocalAction(Moby* moby, int action)
           }
         }
 
-        vector_copy(pvars->MobVars.TargetPosition, path->Nodes[r]);
-        pvars->MobVars.TargetPosition[3] = 0;
+        vector_copy(pvars->MobVars.MoveVars.TargetPosition, path->Nodes[r]);
+        pvars->MobVars.MoveVars.TargetPosition[3] = 0;
       }
       break;
     }

@@ -1,8 +1,6 @@
 #include <libdl/math3d.h>
 #include "pathfind.h"
 
-extern struct PathGraph;
-
 VECTOR MOB0_PATHFINDING_NODES[] = {
 	{ 229.03, 392.91, 126.7187, 1 },
 	{ 240.1, 414.7, 126.7187, 1 },
@@ -240,7 +238,7 @@ struct PathGraph Paths[] = {
     .EdgesPathFit = MOB0_PATHFINDING_EDGES_PATHFIT,
     .EdgesJumpSpeed = MOB0_PATHFINDING_EDGES_JUMPPADSPEED,
     .EdgesJumpAt = MOB0_PATHFINDING_EDGES_JUMPPADAT,
-    .Paths = MOB0_PATHFINDING_PATHS,
+    .Paths = (u8 *)MOB0_PATHFINDING_PATHS,
     .LastTargetUpdatedIdx = -1
   },
 };

@@ -31,8 +31,10 @@
 #include "messageid.h"
 #include "gate.h"
 #include "game.h"
+#include "npc.h"
 #include "messager.h"
 #include "spawner.h"
+#include "controller.h"
 #include "mover.h"
 #include "mob.h"
 #include "shared.h"
@@ -42,6 +44,8 @@
 void mobInit(void);
 void mobTick(void);
 void configInit(void);
+void spVendorInit(void);
+void spVendorTick(void);
 
 char LocalPlayerStrBuffer[2][64];
 
@@ -89,11 +93,28 @@ int createMob(struct MobCreateArgs* args)
 }
 
 //--------------------------------------------------------------------------
+void mapGiveAmmo(void)
+{
+  // if any weapon ran out of ammo, return back to max
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* player = playerGetFromSlot(i);
+    if (!player || !player->GadgetBox) continue;
+
+    int j;
+    for (j = WEAPON_SLOT_VIPERS; j < WEAPON_SLOT_COUNT; ++j) {
+      int gadgetId = weaponSlotToId(j);
+      if (player->GadgetBox->Gadgets[gadgetId].Level >= 0 && player->GadgetBox->Gadgets[gadgetId].Ammo <= 0) {
+        player->GadgetBox->Gadgets[gadgetId].Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, gadgetId);
+      }
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
 void mapReturnPlayersToMap(void)
 {
   int i;
-  VECTOR p;
-
   for (i = 0; i < GAME_MAX_LOCALS; ++i) {
     Player* player = playerGetFromSlot(i);
     if (!player || !player->SkinMoby) continue;
@@ -137,10 +158,12 @@ void initialize(void)
 
   mobInit();
   configInit();
+  spVendorInit();
   spawnerInit();
   moverInit();
   controllerInit();
   gateInit();
+  npcInit();
   messagerInit();
   MapConfig.OnMobCreateFunc = &createMob;
   MapConfig.OnMobUpdateFunc = &mapOnMobUpdate;
@@ -188,11 +211,14 @@ int main(void)
     moverStart();
     controllerStart();
     gateStart();
+    npcStart();
   }
 
   mobTick();
+  spVendorTick();
   for (i = 0; i < PathsCount; ++i) pathTick(&Paths[i]);
   mapReturnPlayersToMap();
+  mapGiveAmmo();
 
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;

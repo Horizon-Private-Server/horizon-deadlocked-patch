@@ -39,6 +39,7 @@
 #include "include/bank.h"
 #include "include/inventory.h"
 #include "include/mob.h"
+#include "include/bubble.h"
 #include "include/utils.h"
 
 char LocalPlayerStrBuffer[2][64];
@@ -99,7 +100,7 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
 //--------------------------------------------------------------------------
 void setPlayerWeaponsMenu(int localPlayerIndex)
 {
-  static int has[GAME_MAX_LOCALS] = {0,0,0,0};
+  static int has[GAME_MAX_LOCALS] = {0,0};
 	Player* player = playerGetFromSlot(localPlayerIndex);
 	if (!player || !player->PlayerMoby)
 		return;
@@ -115,8 +116,8 @@ void setPlayerWeaponsMenu(int localPlayerIndex)
     0x00222C48,
   };
 
-  int isOpen = hudCanvasGetObject(canvas, hudPanelGetElement((void*)addrs[0], 0));
-  if (!isOpen) {
+  struct HUDObject* hudObject = hudCanvasGetObject(canvas, hudPanelGetElement((void*)addrs[0], 0));
+  if (!hudObject) {
     has[localPlayerIndex] = 0;
     return;
   } else if (has[localPlayerIndex]) {
@@ -217,7 +218,7 @@ void drawSnack(void)
 }
 
 //--------------------------------------------------------------------------
-struct GuberMoby* getGuber(Moby* moby)
+struct Guber* getGuber(Moby* moby)
 {
   if (!moby) return NULL;
 
@@ -259,9 +260,6 @@ void openWeaponsMenu(int localPlayerIndex)
 //--------------------------------------------------------------------------
 void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
 {
-	int i;
-  VECTOR t;
-
   // pass to base if we don't have a player start
   playerGetSpawnpoint(player, outPos, outRot, firstRes);
 }
@@ -430,7 +428,6 @@ void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
     if (damager) min += 0.05 * playerGetWeaponAlphaModCount(damager->GadgetBox, WEAPON_ID_MAGMA_CANNON, ALPHA_MOD_AREA);
 
     float falloff = minf(1, maxf(min, minf(1, 1 - (dist / 32))));
-    float origDmg = in->DamageHp;
     in->DamageHp *= falloff;
   }
 
@@ -481,23 +478,19 @@ int playerIsSmashingFlail(Player* player)
 
 //--------------------------------------------------------------------------
 void processPlayer(int pIndex) {
-	VECTOR t;
-	int i = 0, localPlayerIndex, heldWeapon, hasMessage = 0;
+	int localPlayerIndex, heldWeapon, hasMessage = 0;
 	char strBuf[32];
 	Player** players = playerGetAll();
 	Player* player = players[pIndex];
 	struct RaidsPlayer * playerData = &State.PlayerStates[pIndex];
-  GameSettings* gs = gameGetSettings();
 
 	if (!player || !player->PlayerMoby)
 		return;
 
-	int isDeadState = playerIsDead(player) || player->Health == 0;
 	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
 	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
 	int reviveCooldownTicks = decTimerU16(&playerData->ReviveCooldownTicks);
 	if (playerData->IsDead && reviveCooldownTicks > 0 && playerGetNumLocals() == 1) {
-    int x,y;
     VECTOR pos = {0,0,1,0};
     vector_add(pos, player->PlayerPosition, pos);
     gfxHelperDrawText_WS(pos, 0.75, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
@@ -685,9 +678,11 @@ int onMobyPlayDesiredSound(int sound, int a1, Moby* moby)
   // catch mobs
   if (mobyIsMob(moby)) {
     int midx = ((struct MobPVar*)moby->PVar)->MobVars.SpawnParamsIdx;
-    int sidx = sound % MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS;
-    if (mobPlaySoundCooldownTicks[midx][sidx]) return -1;
-    mobPlaySoundCooldownTicks[midx][sidx] = MOBS_PLAY_SOUND_COOLDOWN;
+    if (midx >= 0) {
+      int sidx = sound % MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS;
+      if (mobPlaySoundCooldownTicks[midx][sidx]) return -1;
+      mobPlaySoundCooldownTicks[midx][sidx] = MOBS_PLAY_SOUND_COOLDOWN;
+    }
   }
 
   // pass to mobyPlaySound
@@ -855,7 +850,10 @@ void initialize(PatchStateContainer_t* gameState)
   // write map config
   mapConfig->State = &State;
   mapConfig->PushSnackFunc = &pushSnack;
+  mapConfig->GetBankFunc = &bankGetLocalBank;
+  mapConfig->SendBankAccountToServerFunc = &bankSendAccountToServer;
   mapConfig->PopulateSpawnArgsFunc = &mobPopulateSpawnArgsFromConfig;
+  mapConfig->RegisterNpcFunc = &mobRegisterNpc;
   mapConfig->OnGetGuberFunc = &getGuber;
   mapConfig->OnGuberEventFunc = &handleEvent;
   mapConfig->TryCreateMobFunc = &mobCreate;
@@ -967,7 +965,7 @@ void initialize(PatchStateContainer_t* gameState)
 //--------------------------------------------------------------------------
 void updateGameState(PatchStateContainer_t * gameState)
 {
-	int i,j;
+	int i;
 
 	// game state update
 	if (gameState->UpdateGameState)
@@ -1007,9 +1005,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
 	Player ** players = playerGetAll();
-	Player* localPlayer = playerGetFromSlot(0);
 	int i;
-	char buffer[64];
 	int gameTime = gameGetTime();
 
 	// first
@@ -1034,7 +1030,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	}
 
   // get local player data
-  struct RaidsPlayer* localPlayerData = &State.PlayerStates[localPlayer->PlayerId];
+  //struct RaidsPlayer* localPlayerData = &State.PlayerStates[localPlayer->PlayerId];
 
 #if LOG_STATS
 	static int statsTicker = 0;

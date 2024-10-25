@@ -124,19 +124,22 @@ struct MobMoveVars {
   VECTOR AddVelocity;
   VECTOR LastJumpPosition;
   VECTOR SumPositionDelta;
+  VECTOR TargetPosition;
   VECTOR LastTargetPos;
   Moby* HitWallMoby;
+  Moby* Target;
   float SumSpeedOver;
   float WallSlope;
   float PathEdgeAlpha;
   float LastPathEdgeAlphaForJump;
+  float CollRadius;
 	u16 StuckCounter;
   char Grounded;
   char HitWall;
   char IsStuck;
   char MoveStep;
   char LastMoveStep;
-  u8 PathGraphIdx;
+  char PathGraphIdx;
   u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
@@ -160,7 +163,6 @@ struct MobVars {
 	struct Knockback Knockback;
   struct MobMoveVars MoveVars;
   int SpawnParamsIdx;
-  VECTOR TargetPosition;
 	int Action;
 	int NextAction;
 	int LastAction;
@@ -168,7 +170,6 @@ struct MobVars {
 	float ClosestDist;
 	float LastSpeed;
   u32 Userdata;
-	Moby * Target;
 	int LastHitBy;
 	u16 LastHitByOClass;
 	u16 NextCheckActionDelayTicks;
@@ -197,6 +198,7 @@ struct MobVars {
 	char Random;
 	char DynamicRandom;
   char BlipType;
+  char BlipTeam;
 };
 
 // warning: multiple differing types with the same name, only one recovered
@@ -259,6 +261,8 @@ struct MobPVar {
 	struct MobVars MobVars;
   struct MobVTable* VTable;
   int TicksSinceLastStateUpdate;
+  int HasRemotePosDelta;
+  VECTOR LastRemotePosDelta;
 };
 
 struct MobDamageEventArgs
@@ -345,6 +349,7 @@ void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float 
 void mobNuke(int killedByPlayerId);
 int mobHandleEvent(Moby* moby, GuberEvent* event);
 int mobCreate(struct MobCreateArgs* args);
+void mobRegisterNpc(Moby* moby);
 void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, float difficultyMult);
 void mobInitialize(void);
 void mobTick(void);

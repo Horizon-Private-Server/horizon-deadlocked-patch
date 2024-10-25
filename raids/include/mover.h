@@ -79,7 +79,7 @@ struct MoverPVar
 };
 
 void moverBroadcastNewState(Moby* moby, enum MoverState state);
-struct GuberMoby* moverGetGuber(Moby* moby);
+struct Guber* moverGetGuber(Moby* moby);
 int moverHandleEvent(Moby* moby, GuberEvent* event);
 void moverStart(void);
 void moverInit(void);

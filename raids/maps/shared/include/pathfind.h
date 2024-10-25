@@ -61,10 +61,10 @@ extern struct PathGraph Paths[];
 extern const int PathsCount;
 
 void pathTick(struct PathGraph* path);
-int pathShouldJump(struct PathGraph* path, Moby* moby);
-float pathGetJumpSpeed(struct PathGraph* path, Moby* moby);
-void pathGetTargetPos(struct PathGraph* path, VECTOR output, Moby* moby);
-void pathSetPath(struct PathGraph* path, Moby* moby, int fromNodeIdx, int toNodeIdx, int currentOnPath, int hasReachedStart, int hasReachedEnd);
-struct PathGraph* pathGetMobyPathGraph(Moby* moby);
+int pathShouldJump(struct PathGraph* path, Moby* moby, struct MobMoveVars* moveVars);
+float pathGetJumpSpeed(struct PathGraph* path, Moby* moby, struct MobMoveVars* moveVars);
+int pathGetTargetPos(struct PathGraph* path, VECTOR output, Moby* moby, struct MobMoveVars* moveVars);
+void pathSetPath(struct PathGraph* path, Moby* moby, struct MobMoveVars* moveVars, int fromNodeIdx, int toNodeIdx, int currentOnPath, int hasReachedStart, int hasReachedEnd);
+struct PathGraph* pathGetMobyPathGraph(Moby* moby, struct MobMoveVars* moveVars);
 
 #endif // RAIDS_PATHFIND_H

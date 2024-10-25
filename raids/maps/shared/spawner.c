@@ -40,15 +40,17 @@
 int spawnerInitialized = 0;
 
 //--------------------------------------------------------------------------
-int spawnerIsValidCuboidSpawnIdx(Moby* moby, int index)
+int spawnerIsValidCuboidSpawnIdx(void* userdata, int index)
 {
+  Moby* moby = (Moby*)userdata;
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
   return pvars->SpawnCuboidIds[index] >= 0;
 }
 
 //--------------------------------------------------------------------------
-int spawnerIsValidMobSpawnIdx(Moby* moby, int index)
+int spawnerIsValidMobSpawnIdx(void* userdata, int index)
 {
+  Moby* moby = (Moby*)userdata;
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
   return pvars->SpawnableMobParam[index].MobParamIdx >= 0 && pvars->SpawnableMobParam[index].Probability > 0;
 }
@@ -58,7 +60,6 @@ int spawnerGetRandomSpawnPoint(Moby* moby, int mobParamsIdx, VECTOR outPos, floa
 {
   VECTOR pos = {0,0,3,0};
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
-  int i;
 
   int selSpawnIdx = selectRandomIndex(SPAWNER_MAX_SPAWN_CUBOIDS, moby, spawnerIsValidCuboidSpawnIdx);
   if (selSpawnIdx < 0) return 0;
@@ -114,8 +115,7 @@ int spawnerSpawnRandom(Moby* moby)
 {
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
 
-  int i;
-  int spawnerMobIdx = selectRandomIndex(SPAWNER_MAX_MOB_TYPES, moby, spawnerIsValidMobSpawnIdx);
+  int spawnerMobIdx = selectRandomIndex(SPAWNER_MAX_MOB_TYPES, moby, &spawnerIsValidMobSpawnIdx);
   if (spawnerMobIdx < 0) return 0;
   
   struct SpawnerMobParams* mobParams = &pvars->SpawnableMobParam[spawnerMobIdx];
@@ -226,7 +226,7 @@ void spawnerUpdate(Moby* moby)
 
   // check if completed
   if (moby->State != SPAWNER_STATE_COMPLETED && spawnerIsCompleted(moby)) {
-    DPRINTF("spawner %08X completed\n", moby);
+    DPRINTF("spawner %08X completed\n", (u32)moby);
     spawnerBroadcastNewState(moby, SPAWNER_STATE_COMPLETED);
     return;
   }
@@ -374,7 +374,6 @@ int spawnerOnChildConsiderRoamTarget(Moby* moby, Moby* childMoby, u32 userdata, 
 //--------------------------------------------------------------------------
 void spawnerOnGuberCreated(Moby* moby)
 {
-  int i;
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
 
   moby->PUpdate = &spawnerUpdate;
@@ -425,10 +424,10 @@ int spawnerHandleEvent_SetState(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-struct GuberMoby* spawnerGetGuber(Moby* moby)
+struct Guber* spawnerGetGuber(Moby* moby)
 {
 	if (moby->OClass == SPAWNER_OCLASS && moby->PVar)
-		return moby->GuberMoby;
+		return moby->Guber;
 	
 	return 0;
 }
@@ -473,7 +472,7 @@ void spawnerInit(void)
   MobyFunctions* mobyFunctionsPtr = mobyGetFunctions(temp);
   if (mobyFunctionsPtr) {
     mapInstallMobyFunctions(mobyFunctionsPtr);
-    DPRINTF("SPAWNER oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
+    DPRINTF("SPAWNER oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, (u32)mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
   
@@ -482,8 +481,8 @@ void spawnerInit(void)
 	while ((moby = mobyFindNextByOClass(moby, SPAWNER_OCLASS)))
 	{
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
-      struct GuberMoby* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
-      DPRINTF("found spawner %08X %08X\n", moby, guber);
+      struct Guber* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
+      DPRINTF("found spawner %08X %08X\n", (u32)moby, (u32)guber);
       if (guber) {
         spawnerOnGuberCreated(moby);
       }
@@ -491,4 +490,6 @@ void spawnerInit(void)
 
 		++moby;
 	}
+
+  DPRINTF("spawner pvar size %d\n", sizeof(struct SpawnerPVar));
 }

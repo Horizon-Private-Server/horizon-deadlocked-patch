@@ -25,7 +25,7 @@ struct MobStateUpdateEventArgs;
 
 void mapOnMobUpdate(Moby* moby);
 void mapOnMobKilled(Moby* moby, int killedByPlayerId, int weaponId);
-struct GuberMoby* mapGetGuber(Moby* moby);
+struct Guber* mapGetGuber(Moby* moby);
 void mapHandleEvent(Moby* moby, GuberEvent* event);
 void mapInstallMobyFunctions(MobyFunctions* mobyFunctions);
 
@@ -41,7 +41,7 @@ void mobTransAnim(Moby* moby, int animId, float startOff);
 int mobHasVelocity(struct MobPVar* pvars);
 void mobGetKnockbackVelocity(Moby* moby, VECTOR out);
 void mobStand(Moby* moby);
-int mobResetMoveStep(Moby* moby);
+void mobResetMoveStep(Moby* moby);
 int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to);
 void mobMove(Moby* moby);
 void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed);

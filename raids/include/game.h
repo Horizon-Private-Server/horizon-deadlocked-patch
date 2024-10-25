@@ -17,6 +17,8 @@
 #define SWARMER_MOBY_OCLASS							      (0x2695)
 #define REAPER_MOBY_OCLASS							      (0x2570)
 #define REACTOR_MOBY_OCLASS							      (0x20BE)
+#define NPC_MOBY_OCLASS                       (0x4006)
+
 
 #define STATUE_MOBY_OCLASS                    (0x2402)
 #define BIGAL_MOBY_OCLASS                     (0x2124)
@@ -139,16 +141,19 @@ struct MobSpawnEventArgs;
 struct MobCreateArgs;
 
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
+typedef RaidsPlayerBank_t* (*GetBank_func)(void);
+typedef void (*SendBankAccountToServer_func)(void);
 typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, float difficultyMult);
+typedef void (*RegisterNpc_func)(Moby* moby);
 typedef int (*OnGuberEvent_func)(Moby* moby, GuberEvent* event);
-typedef struct GuberMoby* (*OnGetGuber_func)(Moby* moby);
+typedef struct Guber* (*OnGetGuber_func)(Moby* moby);
 typedef int (*TryCreateMob_func)(struct MobCreateArgs* args);
 
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
 typedef int (*MapOnMobCreate_func)(struct MobCreateArgs* args);
-typedef int (*MapOnMobUpdate_func)(Moby* moby);
-typedef int (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int weaponId);
-typedef int (*FrameTick_func)(void);
+typedef void (*MapOnMobUpdate_func)(Moby* moby);
+typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int weaponId);
+typedef void (*FrameTick_func)(void);
 
 typedef struct RaidsBakedConfig
 {
@@ -233,7 +238,10 @@ struct RaidsMapConfig
 
   // mode
   PushSnack_func PushSnackFunc;
+  GetBank_func GetBankFunc;
+  SendBankAccountToServer_func SendBankAccountToServerFunc;
   PopulateSpawnArgs_func PopulateSpawnArgsFunc;
+  RegisterNpc_func RegisterNpcFunc;
   OnGuberEvent_func OnGuberEventFunc;
   OnGetGuber_func OnGetGuberFunc;
   TryCreateMob_func TryCreateMobFunc;
@@ -261,7 +269,7 @@ struct RaidsSnackItem
   char Str[64];
 };
 
-struct GuberMoby* getGuber(Moby* moby);
+struct Guber* getGuber(Moby* moby);
 int handleEvent(Moby* moby, GuberEvent* event);
 
 #endif // RAIDS_GAME_H

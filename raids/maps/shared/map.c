@@ -8,6 +8,7 @@
 
 #include <libdl/moby.h>
 #include <libdl/stdio.h>
+#include <libdl/game.h>
 #include "../../include/spawner.h"
 #include "../../include/mover.h"
 #include "../../include/gate.h"
@@ -44,9 +45,9 @@ void mapOnMobKilled(Moby* moby, int killedByPlayerId, int weaponId)
 }
 
 //--------------------------------------------------------------------------
-struct GuberMoby* mapGetGuber(Moby* moby)
+struct Guber* mapGetGuber(Moby* moby)
 {
-  if (mobyIsMob(moby)) return moby->GuberMoby;
+  if (mobyIsMob(moby)) return (Guber*)moby->GuberMoby;
 
   switch (moby->OClass)
   {
@@ -60,8 +61,8 @@ struct GuberMoby* mapGetGuber(Moby* moby)
     {
       // pass up to mode
       if (MapConfig.OnGetGuberFunc) {
-        struct GuberMoby* guberMoby = MapConfig.OnGetGuberFunc(moby);
-        if (guberMoby) return guberMoby;
+        struct Guber* guber = MapConfig.OnGetGuberFunc(moby);
+        if (guber) return guber;
       }
 
       // pass to overwritten game func
@@ -71,8 +72,8 @@ struct GuberMoby* mapGetGuber(Moby* moby)
       }
 
       // unhandled
-      DPRINTF("unhandled get guber for moby %04X at %08X\n", moby->OClass, moby);
-      return  NULL;
+      DPRINTF("unhandled get guber for moby %04X at %08X\n", moby->OClass, (u32)moby);
+      return NULL;
     }
   }
 	
@@ -109,7 +110,7 @@ void mapHandleEvent(Moby* moby, GuberEvent* event)
         }
 
         // unhandled
-        DPRINTF("unhandled guber event %d for moby %04X at %08X\n", event->NetEvent.EventID, moby->OClass, moby);
+        DPRINTF("unhandled guber event %d for moby %04X at %08X\n", event->NetEvent.EventID, moby->OClass, (u32)moby);
 				break;
 			}
     }

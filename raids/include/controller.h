@@ -32,15 +32,16 @@ enum ControllerConditionType {
   CONTROLLER_CONDITION_TYPE_PLAYER_BUTTON,
   CONTROLLER_CONDITION_TYPE_DELAY,
   CONTROLLER_CONDITION_TYPE_XOR,
+  CONTROLLER_CONDITION_TYPE_NPC_TARGET,
 };
 
 enum ControllerMobyStateInteractType {
-	CONTROLLER_CUBOID_INTERACT_EQUAL,
-	CONTROLLER_CUBOID_INTERACT_NOTEQUAL,
-	CONTROLLER_CUBOID_INTERACT_LESS,
-	CONTROLLER_CUBOID_INTERACT_LEQUAL,
-	CONTROLLER_CUBOID_INTERACT_GREATER,
-	CONTROLLER_CUBOID_INTERACT_GEQUAL,
+	CONTROLLER_MOBY_INTERACT_EQUAL,
+	CONTROLLER_MOBY_INTERACT_NOTEQUAL,
+	CONTROLLER_MOBY_INTERACT_LESS,
+	CONTROLLER_MOBY_INTERACT_LEQUAL,
+	CONTROLLER_MOBY_INTERACT_GREATER,
+	CONTROLLER_MOBY_INTERACT_GEQUAL,
 };
 
 enum ControllerCuboidInteractType {
@@ -61,11 +62,6 @@ enum ControllerCuboidTriggerBy {
 	CONTROLLER_CUBOID_TRIGGER_BY_CHECK_NPC = CONTROLLER_CUBOID_TRIGGER_BY_ANY_NPC | CONTROLLER_CUBOID_TRIGGER_BY_ALL_NPCS | CONTROLLER_CUBOID_TRIGGER_BY_NO_NPCS,
 };
 
-enum ControllerCuboidMobyInteractType {
-  CONTROLLER_CUBOID_MOBY_SKIP,
-	CONTROLLER_CUBOID_MOBY_MOB,
-};
-
 enum ControllerTargetUpdateType {
   CONTROLLER_TARGET_UPDATE_TYPE_NONE,
   CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE,
@@ -73,6 +69,8 @@ enum ControllerTargetUpdateType {
   CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ENABLED,
   CONTROLLER_TARGET_UPDATE_TYPE_MOVE_CUBOID,
   CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE,
+  CONTROLLER_TARGET_UPDATE_TYPE_NPC_CONTROLLER_TARGET,
+  CONTROLLER_TARGET_UPDATE_TYPE_NPC_CONTROLLER_TARGET_TO_TRIGGERED,
 };
 
 struct ControllerRuntimeState
@@ -80,6 +78,7 @@ struct ControllerRuntimeState
   char TriggersActivated;
   int Iterations;
   int DelayStartTime[CONTROLLER_MAX_CONDITIONS];
+  Moby* TriggeredByMoby;
 };
 
 struct ControllerCondition
@@ -112,18 +111,44 @@ struct ControllerCondition
     struct {
       int Milliseconds;
     } Delay;
+
+    // trigger if npc target
+    struct {
+      int CuboidIdx;
+      short InteractType;
+    } NPCTarget;
   };
 };
 
 struct ControllerTarget
 {
-  Moby* Moby;
-  char State;
-  char AnimId;
-  char Enabled;
-  char TargetUpdateType;
-  int CuboidDestIdx;
-  int CuboidSrcIdx;
+  int TargetUpdateType;
+  union {
+    // mobys
+    struct {
+      Moby* Moby;
+      union {
+        struct {
+          int State;
+        };
+        struct {
+          int AnimId;
+        };
+        struct {
+          int Enabled;
+        };
+        struct {
+          Moby* NPCTargetMoby;
+        };
+      };
+    } Moby;
+
+    // cuboids
+    struct {
+      int DestIdx;
+      int SrcIdx;
+    } Cuboid;
+  };
 };
 
 struct ControllerPVar
@@ -138,7 +163,7 @@ struct ControllerPVar
 };
 
 void controllerBroadcastNewState(Moby* moby, enum ControllerState state);
-struct GuberMoby* controllerGetGuber(Moby* moby);
+struct Guber* controllerGetGuber(Moby* moby);
 int controllerHandleEvent(Moby* moby, GuberEvent* event);
 void controllerStart(void);
 void controllerInit(void);

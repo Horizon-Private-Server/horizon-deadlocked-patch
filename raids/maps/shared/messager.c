@@ -179,7 +179,7 @@ void messagerInit(void)
 	{
     struct MessagerPVar* pvars = (struct MessagerPVar*)moby->PVar;
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
-      DPRINTF("found messager %08X\n", moby);
+      DPRINTF("found messager %08X\n", (u32)moby);
       moby->PUpdate = &messagerUpdate;
       moby->ModeBits = MOBY_MODE_BIT_HIDDEN | MOBY_MODE_BIT_NO_POST_UPDATE;
 
@@ -196,4 +196,6 @@ void messagerInit(void)
 
 		++moby;
 	}
+
+  DPRINTF("messager pvar size %d\n", sizeof(struct MessagerPVar));
 }

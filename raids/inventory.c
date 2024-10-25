@@ -20,6 +20,7 @@
 #include "common.h"
 
 extern struct RaidsState State;
+extern u32 bankRarityColors[];
 extern u32 bankPaintColors[];
 char inventoryFilterMapping[BANK_MAX_WEAPONS];
 char inventoryTabCounts[INVENTORY_TAB_COUNT];
@@ -143,6 +144,16 @@ u32 inventoryDrawGetCompareColor(int compare)
 }
 
 //--------------------------------------------------------------------------
+int inventoryGetRarityFromQuality(u8 quality)
+{
+  if (quality < 64) return RAIDS_WEAPON_RARITY_COMMON;
+  if (quality < 128) return RAIDS_WEAPON_RARITY_UNCOMMON;
+  if (quality < 196) return RAIDS_WEAPON_RARITY_RARE;
+
+  return RAIDS_WEAPON_RARITY_LEGENDARY;
+}
+
+//--------------------------------------------------------------------------
 void inventorySetFilter(int filter)
 {
   int i;
@@ -181,20 +192,11 @@ void inventorySetFilter(int filter)
 void inventoryDrawAccountInfo(InventoryDrawState_t* drawState)
 {
   RaidsPlayerBank_t* localBank = bankGetLocalBank();
-  u32 bgColor = 0x70101010; // dark gray
-  u32 countTextColor = 0x8000FFFF; // yellow
-  u32 equippedColor = 0x80000080; // red
-  u32 compareLessColor = 0x800000FF; // red
-  u32 compareMoreColor = 0x8000FFFF; // yellow
   u32 textColor = 0x80FFFFFF; // white
-  u32 countBgTextColor = 0x80000000; // black
   u32 spriteColor = 0x80808080; // gray
-  u32 v10Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_BLUE, 0);
-  u32 v99Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_PURPLE, 0);
-  float fw = INVENTORY_DRAW_INFO_W;
   float fh = INVENTORY_DRAW_INFO_H;
   float offX = 5;
-  float offY = -fh/2 + 5;
+  float offY = -fh/2 + 3;
   char strBuf[64];
 
   // draw box
@@ -218,7 +220,7 @@ void inventoryDrawAccountInfo(InventoryDrawState_t* drawState)
     int iconSpriteId = inventoryWeaponSpriteIds[i];
     int iconSpriteDim = inventoryWeaponSpriteDims[i];
     gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 16, 16, iconSpriteDim, iconSpriteDim, iconSpriteId, spriteColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-    snprintf(strBuf, sizeof(strBuf), "V%d", localBank->Account.Proficiency[i-1] + 1);
+    snprintf(strBuf, sizeof(strBuf), "P%d", localBank->Account.Proficiency[i-1] + 1);
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 0, offY + 10, 0.6, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     offX += 25;
   }
@@ -240,15 +242,8 @@ void inventoryDrawAccountInfo(InventoryDrawState_t* drawState)
 void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
 {
   u32 bgColor = 0x70101010; // dark gray
-  u32 countTextColor = 0x8000FFFF; // yellow
-  u32 equippedColor = 0x80000080; // red
-  u32 compareLessColor = 0x800000FF; // red
-  u32 compareMoreColor = 0x8000FFFF; // yellow
   u32 textColor = 0x80FFFFFF; // white
-  u32 countBgTextColor = 0x80000000; // black
   u32 spriteColor = 0x80808080; // gray
-  u32 v10Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_BLUE, 0);
-  u32 v99Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_PURPLE, 0);
   float fw = INVENTORY_DRAW_INFO_W;
   float fh = INVENTORY_DRAW_INFO_H;
   float offX = fw/2;
@@ -266,13 +261,14 @@ void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
 
   // name
   offX = 5;
-  offY = -10;
+  offY = -19;
   struct GadgetDef* gadgetDef = weaponGetDef(selectedWeapon->GadgetId, 0);
-  snprintf(strBuf, sizeof(strBuf), "%s V%d", uiMsgString(gadgetDef->quickSelectTag), selectedWeapon->Proficiency + 1);
-  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.9, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-  offY += 20;
+  snprintf(strBuf, sizeof(strBuf), "%s", uiMsgString(gadgetDef->quickSelectTag));
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.95, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  offY += 17;
 
   // stats
+  offX = 10;
   snprintf(strBuf, sizeof(strBuf), "Damage: %d", baseWeapon->Damage);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
@@ -297,16 +293,16 @@ void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedWeapon->CritChance - baseWeapon->CritChance), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
-  // int baseRarity = inventoryGetRarityFromQuality(baseWeapon->Quality);
-  // snprintf(strBuf, sizeof(strBuf), "Rarity: %s", inventoryRarityNames[baseRarity]);
-  // gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-  // if (hasComparison) {
-  //   float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-  //   int selRarity = inventoryGetRarityFromQuality(selectedWeapon->Quality);
-  //   snprintf(strBuf, sizeof(strBuf), "=> %s", inventoryRarityNames[selRarity]);
-  //   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selRarity - baseRarity), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-  // }
-  // offY += 12;
+  int baseRarity = inventoryGetRarityFromQuality(baseWeapon->Quality);
+  snprintf(strBuf, sizeof(strBuf), "Rarity: %s", inventoryRarityNames[baseRarity]);
+  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  if (hasComparison) {
+    float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+    int selRarity = inventoryGetRarityFromQuality(selectedWeapon->Quality);
+    snprintf(strBuf, sizeof(strBuf), "=> %s", inventoryRarityNames[selRarity]);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selRarity - baseRarity), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  }
+  offY += 12;
   snprintf(strBuf, sizeof(strBuf), "Paint: %s", inventoryPaintNames[baseWeapon->Paint]);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
@@ -335,6 +331,7 @@ void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
   // alpha mods
   gfxSetupGifPaging(0);
   int i;
+  offX = 5;
   for (i = 1; i < ALPHA_MOD_COUNT; ++i) {
     gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 16, 16, 32, 32, inventoryAlphaModSpriteIds[i], spriteColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     snprintf(strBuf, sizeof(strBuf), "%d", baseWeapon->AlphaModCounts[i-1]);
@@ -355,11 +352,8 @@ void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
 void inventoryDrawWeapon(InventoryDrawState_t* drawState, int row, int col, RaidsInventoryWeapon_t* weapon)
 {
   RaidsPlayerBank_t* localBank = bankGetLocalBank();
-  u32 bgColor = 0x70101010; // dark gray
   u32 selectedColor = 0x40008080; // yellow
   u32 equippedColor = 0x40000080; // red
-  u32 v10Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_BLUE, 0);
-  u32 v99Color = ((u32 (*)(int, int))0x00541ef8)(TEAM_PURPLE, 0);
   float fw = (INVENTORY_DRAW_WEAPONS_W / INVENTORY_DRAW_WEAPONS_DIM);
   float fh = (INVENTORY_DRAW_WEAPONS_H / INVENTORY_DRAW_WEAPONS_DIM);
   float w = fw - INVENTORY_DRAW_WEAPONS_M*2.0;
@@ -399,9 +393,7 @@ void inventoryDrawWeapon(InventoryDrawState_t* drawState, int row, int col, Raid
   int iconSpriteDim = inventoryWeaponSpriteDims[slotId];
   
   // draw icon
-  u32 iconColor = colorLerp(0x80808080, v10Color, (weapon->Proficiency+1)/10.0);
-  if (weapon->Proficiency > 9)
-    iconColor = colorLerp(v10Color, v99Color, (weapon->Proficiency-9) / 90.0);
+  u32 iconColor = bankRarityColors[bankGetRarityFromQuality(weapon->Quality)];
   gfxSetupGifPaging(0);
   gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX-1, offY-1, w+2, h+2, iconSpriteDim, iconSpriteDim, iconSpriteId, 0x80000000, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
   gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, w, h, iconSpriteDim, iconSpriteDim, iconSpriteId, iconColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
@@ -450,7 +442,7 @@ void inventoryDraw(void)
   int canSell = 0;
   u32 sellPrice = 0;
   if (selectedWeapon) {
-    RaidsInventoryWeapon_t* equippedWeapon = bankGetLocalEquippedWeapon(selectedWeapon->GadgetId);
+    equippedWeapon = bankGetLocalEquippedWeapon(selectedWeapon->GadgetId);
     canEquip = selectedWeapon && selectedWeapon->GadgetId && equippedWeapon != selectedWeapon; // already equipped
     canSell = selectedWeapon && selectedWeapon->GadgetId && equippedWeapon != selectedWeapon; // can't sell equipped
     sellPrice = getPriceForWeapon(selectedWeapon->Proficiency, selectedWeapon->Quality);
@@ -516,7 +508,6 @@ void inventoryDraw(void)
 
   // handle input
   int selIdx = inventoryDrawState.SelectedIdx;
-  int selMod = selIdx % INVENTORY_DRAW_WEAPONS_DIM;
   if (padGetButtonDown(0, PAD_LEFT) > 0) {                              // NAV LEFT
     int row = (selIdx-1)%INVENTORY_DRAW_WEAPONS_DIM;
     if (row < 0 || row > (selIdx%INVENTORY_DRAW_WEAPONS_DIM)) selIdx += INVENTORY_DRAW_WEAPONS_DIM-1;
@@ -552,8 +543,6 @@ void inventoryDraw(void)
 //--------------------------------------------------------------------------
 void inventoryTick(void)
 {
-  int i;
-
   if (padGetButtonDown(0, PAD_LEFT) > 0) {
     --aaa;
     DPRINTF("%d\n", aaa);

@@ -167,9 +167,6 @@ void gateBroadcastNewState(Moby* moby, enum GateState state)
 //--------------------------------------------------------------------------
 void gateUpdate(Moby* moby)
 {
-  VECTOR delta;
-  char buf[32];
-  int i;
   if (!moby || !moby->PVar)
     return;
     
@@ -243,7 +240,7 @@ int gateHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int gateHandleEvent_SetState(Moby* moby, GuberEvent* event)
 {
-  int state, time;
+  int state;
   if (!moby || !moby->PVar)
     return 0;
 
@@ -259,9 +256,7 @@ int gateHandleEvent_SetState(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 void gateOnGuberCreated(Moby* moby)
 {
-  int i;
   struct GatePVar* pvars = (struct GatePVar*)moby->PVar;
-  VECTOR fromToDelta;
 
 	moby->PUpdate = &gateUpdate;
   moby->ModeBits = MOBY_MODE_BIT_LOCK_ROTATION | MOBY_MODE_BIT_HIDDEN | MOBY_MODE_BIT_NO_POST_UPDATE;
@@ -277,10 +272,10 @@ void gateOnGuberCreated(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-struct GuberMoby* gateGetGuber(Moby* moby)
+struct Guber* gateGetGuber(Moby* moby)
 {
 	if (moby->OClass == GATE_OCLASS && moby->PVar)
-		return moby->GuberMoby;
+		return (Guber*)moby->GuberMoby;
 	
 	return 0;
 }
@@ -347,7 +342,7 @@ void gateInit(void)
   MobyFunctions* mobyFunctionsPtr = mobyGetFunctions(temp);
   if (mobyFunctionsPtr) {
     mapInstallMobyFunctions(mobyFunctionsPtr);
-    DPRINTF("GATE oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
+    DPRINTF("GATE oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, (u32)mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
 
@@ -356,8 +351,8 @@ void gateInit(void)
 	while ((moby = mobyFindNextByOClass(moby, GATE_OCLASS)))
 	{
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
-      struct GuberMoby* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
-      DPRINTF("found gate %08X %08X\n", moby, guber);
+      struct Guber* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
+      DPRINTF("found gate %08X %08X\n", (u32)moby, (u32)guber);
       if (guber) {
         gateOnGuberCreated(moby);
       }

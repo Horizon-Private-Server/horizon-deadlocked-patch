@@ -27,6 +27,7 @@
 #include <libdl/patch.h>
 #include <libdl/collision.h>
 #include <libdl/ui.h>
+#include <libdl/random.h>
 #include <libdl/graphics.h>
 #include <libdl/color.h>
 #include <libdl/utils.h>
@@ -73,8 +74,6 @@ Moby * spawnExplosion(VECTOR position, float size, u32 color)
 void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, float damageRadius)
 {
 	MobyColDamageIn in;
-  float damageRadiusSqr = damageRadius * damageRadius;
-  Moby* hitMoby;
 
   vector_write(in.Momentum, 0);
   in.Damager = moby;
@@ -85,7 +84,7 @@ void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, fl
   in.Flags = 1;
   in.DamageHp = damage;
 
-  CollMobysSphere_Fix(position, 1, moby, &in, damageRadius);
+  CollMobysSphere_Fix(position, COLLISION_FLAG_IGNORE_STATIC, moby, &in, damageRadius);
 }
 
 //--------------------------------------------------------------------------
@@ -231,7 +230,25 @@ int mobyIsMob(Moby* moby)
     || moby->OClass == SWARMER_MOBY_OCLASS
     || moby->OClass == REACTOR_MOBY_OCLASS
     || moby->OClass == REAPER_MOBY_OCLASS
+    || moby->OClass == NPC_MOBY_OCLASS
     ;
+}
+
+//--------------------------------------------------------------------------
+int mobyIsNpc(Moby* moby)
+{
+  return moby && moby->OClass == NPC_MOBY_OCLASS;
+}
+
+//--------------------------------------------------------------------------
+Moby* mobyGetFromIdxOrNull(int mobyIdx)
+{
+  if (mobyIdx < 0) return NULL;
+
+  Moby* moby = mobyListGetStart() + mobyIdx;
+  if (mobyIsDestroyed(moby)) return NULL;
+
+  return moby;
 }
 
 //--------------------------------------------------------------------------

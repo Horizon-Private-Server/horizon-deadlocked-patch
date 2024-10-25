@@ -155,8 +155,6 @@ void moverMoveSpline(Moby* moby, VECTOR outPosDelta, VECTOR outRotDelta)
 //--------------------------------------------------------------------------
 void moverMove(Moby* moby, VECTOR outPosDelta, VECTOR outRotDelta)
 {
-  int i;
-  Player** players = playerGetAll();
   VECTOR velocity, acceleration, delta, tvec;
   VECTOR splinePosDelta={0,0,0,0}, splineRotDelta={0,0,0,0};
   struct MoverPVar* pvars = (struct MoverPVar*)moby->PVar;
@@ -261,7 +259,6 @@ void moverApplyMoby(Moby* moby, Moby* target, VECTOR posDelta, VECTOR rotDelta)
 //--------------------------------------------------------------------------
 void moverApplyCuboid(Moby* moby, SpawnPoint* target, VECTOR posDelta, VECTOR rotDelta)
 {
-  int i;
   VECTOR position, rotation;
   struct MoverPVar* pvars = (struct MoverPVar*)moby->PVar;
   if (!target) return;
@@ -396,7 +393,7 @@ void moverOnGuberCreated(Moby* moby)
       continue;
     }
 
-    DPRINTF("mover %08X found target %d %08X\n", moby, i, targetMoby);
+    DPRINTF("mover %08X found target %d %08X\n", (u32)moby, i, (u32)targetMoby);
     pvars->MobyTargets[i] = targetMoby;
   }
 }
@@ -423,10 +420,10 @@ int moverHandleEvent_SetState(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-struct GuberMoby* moverGetGuber(Moby* moby)
+struct Guber* moverGetGuber(Moby* moby)
 {
 	if (moby->OClass == MOVER_OCLASS && moby->PVar)
-		return moby->GuberMoby;
+		return moby->Guber;
 	
 	return 0;
 }
@@ -471,7 +468,7 @@ void moverInit(void)
   MobyFunctions* mobyFunctionsPtr = mobyGetFunctions(temp);
   if (mobyFunctionsPtr) {
     mapInstallMobyFunctions(mobyFunctionsPtr);
-    DPRINTF("MOVER oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
+    DPRINTF("MOVER oClass:%04X mClass:%02X func:%08X getGuber:%08X handleEvent:%08X\n", temp->OClass, temp->MClass, (u32)mobyFunctionsPtr, *(u32*)(mobyFunctionsPtr + 0x04), *(u32*)(mobyFunctionsPtr + 0x14));
   }
   mobyDestroy(temp);
 
@@ -480,8 +477,8 @@ void moverInit(void)
 	while ((moby = mobyFindNextByOClass(moby, MOVER_OCLASS)))
 	{
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
-      struct GuberMoby* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
-      DPRINTF("found mover %08X %08X\n", moby, guber);
+      struct Guber* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
+      DPRINTF("found mover %08X %08X\n", (u32)moby, (u32)guber);
       if (guber) {
         moverOnGuberCreated(moby);
       }
@@ -489,4 +486,6 @@ void moverInit(void)
 
 		++moby;
 	}
+
+  DPRINTF("mover pvar size %d\n", sizeof(struct MoverPVar));
 }

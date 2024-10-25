@@ -11,4 +11,21 @@ Level loader
 hook up area mod to sniper beam, arb AoE
 hook up speed to viper shot speed, b6 speed, mine move speed, flail v10 quake speed?
 hook up wrench to inventory overrides
-add filter tabs to inventory menu
+++add filter tabs to inventory menu
+
+++remove V## from weapons
+++replace V in player proficiency w/ P
+++Add rarity (uncommon,common,rare,legendary)
+Tie 'V10' to legendary
+Tie weapon icon color to rarity
+Add cost to travel to planet, configurable in Forge per difficulty
+Add Spawner mob difficulty min/max (spawn only >= 1star and <= 3star)
+Add favoriting to inventory
+Add X-Room w/ spawner
+Trading bolts
+Label "You don't have the proficiency to wield this weapon"
+Add difficulty (star) condition to controller
+No respawn/revive mechanic
+Add controller target to respawn dead players
+Add difficulty filter to controller targets
+Add health +/-/*/div/set target to controller

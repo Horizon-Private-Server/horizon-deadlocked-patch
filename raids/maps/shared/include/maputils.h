@@ -38,6 +38,8 @@ void uiShowLowerPopup(int localPlayerIdx, int msgStringId);
 int isInDrawDist(Moby* moby);
 
 int mobyIsMob(Moby* moby);
+int mobyIsNpc(Moby* moby);
+Moby* mobyGetFromIdxOrNull(int mobyIdx);
 Player* mobyGetPlayer(Moby* moby);
 Moby* playerGetTargetMoby(Player* player);
 

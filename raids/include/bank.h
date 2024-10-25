@@ -106,6 +106,7 @@ RaidsPlayerBank_t* bankGetLocalBank(void);
 RaidsInventoryWeapon_t* bankGetLocalWeaponFromBank(int index);
 void bankEquipLocalWeaponAtIndex(int weaponIdx);
 void bankSellLocalWeaponAtIndex(int weaponIdx);
+int bankGetEquipSlotFromGadgetId(int gadgetId);
 RaidsInventoryWeapon_t* bankGetLocalEquippedWeapon(int gadgetId);
 RaidsPlayerEquippedInventory_t* bankGetEquippedFromGadgetBox(GadgetBox* gbox);
 RaidsInventoryWeapon_t* bankGetEquippedWeaponFromGadgetBox(GadgetBox* gbox, int gadgetId);

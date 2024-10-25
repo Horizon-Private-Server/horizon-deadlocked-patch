@@ -7,6 +7,7 @@
 #include <libdl/moby.h>
 #include <libdl/sound.h>
 #include <libdl/random.h>
+#include <libdl/hud.h>
 #include <libdl/utils.h>
 #include <libdl/net.h>
 #include <libdl/ui.h>
@@ -22,6 +23,13 @@ extern struct RaidsState State;
 
 // send as binary payload from server
 RaidsPlayerBank_t bankLocalBank __attribute__((section(".config"))) = {};
+
+u32 bankRarityColors[] = {
+  [RAIDS_WEAPON_RARITY_COMMON] 0x80D0D0D0,
+  [RAIDS_WEAPON_RARITY_UNCOMMON] 0x80000000,
+  [RAIDS_WEAPON_RARITY_RARE] 0x80000000,
+  [RAIDS_WEAPON_RARITY_LEGENDARY] 0x80000000,
+};
 
 u32 bankPaintColors[] = {
   0x00FFFFFF,         // white
@@ -65,7 +73,7 @@ void bankRequestInventoryFromServer(void)
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
 
-  struct RaidsGetBankRequest msg = { .DestAddress = &bankLocalBank.Inventory };
+  struct RaidsGetBankRequest msg = { .DestAddress = (u32)&bankLocalBank.Inventory };
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GET_RAIDS_BANK_INVENTORY_REQUEST, sizeof(msg), &msg);
   DPRINTF("request inventory\n");
 }
@@ -99,7 +107,7 @@ void bankRequestAccountFromServer(void)
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
 
-  struct RaidsGetBankRequest msg = { .DestAddress = &bankLocalBank.Account };
+  struct RaidsGetBankRequest msg = { .DestAddress = (u32)&bankLocalBank.Account };
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GET_RAIDS_BANK_ACCOUNT_REQUEST, sizeof(msg), &msg);
   DPRINTF("request account\n");
 }
@@ -184,6 +192,15 @@ RaidsInventoryWeapon_t* bankGetLocalWeaponFromBank(int index)
   if (!weapon->GadgetId) return NULL;
 
   return weapon;
+}
+
+//--------------------------------------------------------------------------
+u32 bankGetGadgetColor(int localPlayerIndex, int gadgetId)
+{
+  RaidsInventoryWeapon_t* bankWeapon = bankGetLocalEquippedWeapon(gadgetId);
+  if (bankWeapon) return bankRarityColors[bankGetRarityFromQuality(bankWeapon->Quality)];
+
+  return 0x80D0D0D0;
 }
 
 //--------------------------------------------------------------------------
@@ -304,7 +321,7 @@ void bankApplyItem(Player* player, RaidsInventoryWeapon_t* item)
     playerGiveWeapon(gbox, gadgetId, 0, 1);
     bankTryAddGadgetToQuickSelect(player, gadgetId);
   }
-  gbox->Gadgets[gadgetId].Level = item->Proficiency;
+  gbox->Gadgets[gadgetId].Level = bankGetRarityFromQuality(item->Quality) == RAIDS_WEAPON_RARITY_LEGENDARY ? 9 : 0; //item->Proficiency;
 
   // configure mobys
   if (player->Gadgets[0].id == gadgetId) {
@@ -377,7 +394,6 @@ void bankTickPlayer(Player * player)
   if (!player || !player->PlayerMoby || !player->pNetPlayer) return;
   if (!playerIsConnected(player)) return;
 
-  RaidsPlayerBank_t* localBank = bankGetLocalBank();
   GadgetBox* gbox = player->GadgetBox;
   if (!gbox) return;
 
@@ -425,12 +441,17 @@ void bankInit(void)
     POKE_U32(0x005DDF98, 0); // disable player ambient color affecting child mobys
     POKE_U8(0x00171b66, 1); // challenge mode
     HOOK_J_OP(0x00627600, &bankGetGadgetDamage, 0);
+    HOOK_J_OP(0x00542078, &bankGetGadgetColor, 0);
     HOOK_JAL(0x003F29AC, &bankGetArbiterSpeed);
     POKE_U32(0x003F2984, 0x0240202D);
     HOOK_J(0x006299A8, &bankGetAlphaModCount);
     //HOOK_J_OP(0x00626d98, &bankGetGadgetMaxLevel, 0);
     //HOOK_J_OP(0x00626fb8, &bankGetGadgetMaxAmmo, 0);
     //HOOK_JAL_OP(0x0060f780, &bankGetGadgetRefireRate, 0x0200282D);
+
+    bankRarityColors[RAIDS_WEAPON_RARITY_UNCOMMON] = hudGetTeamColor(TEAM_GREEN, 0);
+    bankRarityColors[RAIDS_WEAPON_RARITY_RARE] = hudGetTeamColor(TEAM_BLUE, 0);
+    bankRarityColors[RAIDS_WEAPON_RARITY_LEGENDARY] = hudGetTeamColor(TEAM_PURPLE, 0);
 
     // clear inventory
     Player** players = playerGetAll();

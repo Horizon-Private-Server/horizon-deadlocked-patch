@@ -24,6 +24,7 @@
 #include "../../../include/utils.h"
 #include "../include/maputils.h"
 #include "../include/shared.h"
+#include "../include/gate.h"
 #include "../include/pathfind.h"
 #include "messageid.h"
 #include "module.h"
@@ -137,7 +138,6 @@ void mobReactToThorns(Moby* moby, float damage, int byPlayerId)
   if (byPlayerId < 0) return;
   if (!mobAmIOwner(moby)) return;
 
-	int i;
   VECTOR delta;
   struct MobDamageEventArgs args;
 	Player** players = playerGetAll();
@@ -178,7 +178,7 @@ int mobMobyProcessHitFlags(Moby* moby, Moby* hitMoby, float damage, int reactToT
 
   Player* player = guberMobyGetPlayerDamager(hitMoby);
   if (player) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_PLAYER;
-  if (hitMoby == pvars->MobVars.Target) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET;
+  if (hitMoby == pvars->MobVars.MoveVars.Target) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_TARGET;
   if (mobyIsMob(hitMoby)) result |= MOB_DO_DAMAGE_HIT_FLAG_HIT_MOB;
   
   // if (player && player->timers.postHitInvinc == 0 && playerHasBlessing(player->PlayerId, BLESSING_ITEM_THORNS)) {
@@ -242,7 +242,6 @@ int mobDoSweepDamage(Moby* moby, VECTOR from, VECTOR to, float step, float radiu
 {
 	VECTOR p, delta;
   Player** players = playerGetAll();
-  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   int i;
   int result = 0;
   float t = 0;
@@ -293,7 +292,6 @@ int mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int fri
 	VECTOR p, delta;
 	MATRIX jointMtx;
   Player** players = playerGetAll();
-  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   int i;
   int result = 0;
   float sqrRadius = radius * radius;
@@ -335,7 +333,6 @@ int mobDoDamage(Moby* moby, float radius, float amount, int damageFlags, int fri
 //--------------------------------------------------------------------------
 void mobSetAction(Moby* moby, int action)
 {
-	struct MobActionUpdateEventArgs args;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
 	// don't set if already action
@@ -343,6 +340,7 @@ void mobSetAction(Moby* moby, int action)
 		return;
 
   // we send this unreliably now
+  // struct MobActionUpdateEventArgs args;
 	// GuberEvent* event = mobCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
 	// if (event) {
 	// 	args.Action = action;
@@ -443,7 +441,7 @@ void mobStand(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int mobResetMoveStep(Moby* moby)
+void mobResetMoveStep(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
@@ -560,23 +558,22 @@ void mobMove(Moby* moby)
   VECTOR nextPos;
   VECTOR temp;
   VECTOR groundCheckFrom, groundCheckTo;
-  VECTOR up = {0,0,1,0};
   int isMovingDown = 0;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   int isOwner = mobAmIOwner(moby);
   int moveStep = pvars->MobVars.MoveVars.LastMoveStep;
 
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
-  u8 ungroundedTicks = decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
+  decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
   u8 moveSkipTicks = decTimerU8(&pvars->MobVars.MoveVars.MoveSkipTicks);
   u8 slowTicks = decTimerU8(&pvars->MobVars.SlowTicks);
 
 #if DEBUGMOVE
-  if (pvars->MobVars.Target) {
+  if (pvars->MobVars.MoveVars.Target) {
     VECTOR from, to, delta;
-    vector_subtract(delta, pvars->MobVars.Target->Position, moby->Position);
+    vector_subtract(delta, pvars->MobVars.MoveVars.Target->Position, moby->Position);
     vector_add(from, moby->Position, up);
-    vector_add(to, pvars->MobVars.Target->Position, up);
+    vector_add(to, pvars->MobVars.MoveVars.Target->Position, up);
     if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
       vector_copy(MoveTargetLineOfSightHit, CollLine_Fix_GetHitPosition());
     } else {
@@ -749,11 +746,12 @@ void mobMove(Moby* moby)
   // tell mob we want to jump
   // but check that we're moving towards the next node/target first before jumping
   VECTOR targetPos, mobyToTargetDelta;
-  struct PathGraph* path = pathGetMobyPathGraph(moby);
-  pathGetTargetPos(path, targetPos, moby);
+  struct PathGraph* path = pathGetMobyPathGraph(moby, &pvars->MobVars.MoveVars);
+  if (pathGetTargetPos(path, targetPos, moby, &pvars->MobVars.MoveVars) && isOwner)
+    pvars->MobVars.Dirty = 1; // new path, sync with clients
   vector_subtract(mobyToTargetDelta, targetPos, moby->Position);
-  if (vector_innerproduct(pvars->MobVars.MoveVars.Velocity, mobyToTargetDelta) > 0.5 && pathShouldJump(path, moby)) {
-    pvars->MobVars.MoveVars.QueueJumpSpeed = pathGetJumpSpeed(path, moby);
+  if (vector_innerproduct(pvars->MobVars.MoveVars.Velocity, mobyToTargetDelta) > 0.5 && pathShouldJump(path, moby, &pvars->MobVars.MoveVars)) {
+    pvars->MobVars.MoveVars.QueueJumpSpeed = pathGetJumpSpeed(path, moby, &pvars->MobVars.MoveVars);
   }
 
   mobForceIntoMapBounds(moby);
@@ -767,14 +765,11 @@ void mobTurnTowards(Moby* moby, VECTOR towards, float turnSpeed)
   if (!moby || !moby->PVar)
     return;
 
-	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  //float turnSpeed = pvars->MobVars.MoveVars.Grounded ? ZOMBIE_TURN_RADIANS_PER_SEC : ZOMBIE_TURN_AIR_RADIANS_PER_SEC;
-  float radians = turnSpeed * pvars->MobVars.Config.Speed * MATH_DT;
-
   vector_subtract(delta, towards, moby->Position);
   float targetYaw = atan2f(delta[1], delta[0]);
   float yawDelta = clampAngle(targetYaw - moby->Rotation[2]);
 
+  float radians = turnSpeed * MATH_DT;
   moby->Rotation[2] = clampAngle(moby->Rotation[2] + clamp(yawDelta, -radians, radians));
 }
 
@@ -802,6 +797,7 @@ void mobTurnTowardsPredictive(Moby* moby, Moby* target, float turnSpeed, float p
 void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed, float acceleration)
 {
   VECTOR targetVelocity;
+  VECTOR hVelocity;
   VECTOR fromToTarget;
   VECTOR next, nextToTarget;
   VECTOR temp;
@@ -811,8 +807,6 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   if (!pvars)
     return;
 
-  float collRadius = pvars->MobVars.Config.CollRadius + 0.5;
-  
   // target velocity from rotation
   vector_fromyaw(targetVelocity, moby->Rotation[2]);
 
@@ -825,21 +819,26 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
   vector_add(velocity, velocity, temp);
   
   // stop when at target
-  if (pvars->MobVars.Target && targetSpeed > 0) {
-    vector_subtract(fromToTarget, pvars->MobVars.Target->Position, from);
-    float distToTarget = vector_length(fromToTarget);
+  if (pvars->MobVars.MoveVars.Target && targetSpeed > 0) {
+    vector_subtract(fromToTarget, pvars->MobVars.MoveVars.Target->Position, from);
     vector_add(next, from, velocity);
-    vector_subtract(nextToTarget, pvars->MobVars.Target->Position, next);
+    vector_subtract(nextToTarget, pvars->MobVars.MoveVars.Target->Position, next);
     float distNextToTarget = vector_length(nextToTarget);
     
-    float min = collRadius + PLAYER_COLL_RADIUS;
-    float max = min + (targetSpeed * 0.2);
+    float min = pvars->MobVars.Config.CollRadius + PLAYER_COLL_RADIUS;
+    float max = min + PLAYER_COLL_RADIUS; //(pvars->MobVars.Config.AttackRadius + PLAYER_COLL_RADIUS) + (targetSpeed * 0.2);
 
     // if too close to target, stop
-    if (distNextToTarget < min) { // && vector_innerproduct_unscaled(fromToTarget, velocity) > 0) {
-      vector_normalize(velocity, velocity);
-      vector_scale(velocity, velocity, maxf(distNextToTarget - min, 0));
+    if (max > min && distNextToTarget < max && distNextToTarget > min) {
+      float amt = (distNextToTarget - min) / (max - min);
+      //vector_normalize(velocity, velocity);
+      vector_projectonhorizontal(hVelocity, velocity);
+      vector_scale(hVelocity, hVelocity, sqrtf(maxf(amt, 0)));
+      vector_projectonvertical(velocity, velocity);
+      vector_add(velocity, velocity, hVelocity);
       return;
+    } else if (distNextToTarget < min) {
+      vector_projectonvertical(velocity, velocity);
     }
   }
 
@@ -853,8 +852,6 @@ void mobGetVelocityToTarget(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to,
 void mobGetVelocityToTargetSimple(Moby* moby, VECTOR velocity, VECTOR from, VECTOR to, float speed, float acceleration)
 {
   VECTOR targetVelocity;
-  VECTOR fromToTarget;
-  VECTOR next, nextToTarget;
   VECTOR temp;
   float targetSpeed = speed * MATH_DT;
 
@@ -862,8 +859,6 @@ void mobGetVelocityToTargetSimple(Moby* moby, VECTOR velocity, VECTOR from, VECT
   if (!pvars)
     return;
 
-  float collRadius = pvars->MobVars.Config.CollRadius + 0.5;
-  
   // target velocity from rotation
   vector_subtract(targetVelocity, to, from);
   vector_normalize(targetVelocity, targetVelocity);
@@ -907,7 +902,7 @@ void mobMoveTowards(Moby* moby, VECTOR targetPosition, float speed, float turnSp
   vector_add(t, moby->Position, t);
 
   mobTurnTowards(moby, t, turnSpeed);
-  mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed * speed, acceleration);
+  mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, speed, acceleration);
 }
 
 //--------------------------------------------------------------------------
@@ -963,7 +958,6 @@ void mobPostDrawQuad(Moby* moby, int texId, u32 color, int jointId)
 //--------------------------------------------------------------------------
 void mobPostDrawDebug(Moby* moby)
 {
-  MATRIX jointMtx;
 #if PRINT_JOINTS
   int i = 0;
   char buf[32];
@@ -999,7 +993,7 @@ void mobPostDrawDebug(Moby* moby)
 void mobUpdateTargetOutOfSight(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	Moby* target = pvars->MobVars.Target;
+	Moby* target = pvars->MobVars.MoveVars.Target;
 	VECTOR t, t2;
   VECTOR up = {0,0,1,0};
   
@@ -1099,7 +1093,8 @@ void mobOnSpawned(Moby* moby)
 void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e)
 {
   // update pathfinding state
-  pathSetPath(pathGetMobyPathGraph(moby), moby, e->PathStartNodeIdx, e->PathEndNodeIdx, e->PathCurrentEdgeIdx, e->PathHasReachedStart, e->PathHasReachedEnd);
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  pathSetPath(pathGetMobyPathGraph(moby, &pvars->MobVars.MoveVars), moby, &pvars->MobVars.MoveVars, e->PathStartNodeIdx, e->PathEndNodeIdx, e->PathCurrentEdgeIdx, e->PathHasReachedStart, e->PathHasReachedEnd);
 }
 
 //--------------------------------------------------------------------------
