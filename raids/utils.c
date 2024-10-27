@@ -353,3 +353,15 @@ int mobyIsNpc(Moby* moby)
 {
   return moby && moby->OClass == NPC_MOBY_OCLASS;
 }
+
+//--------------------------------------------------------------------------
+int hasPendingWorldHop(void)
+{
+  return State.PendingWorldHopMapDef && State.PendingWorldHopAtTime > 0;
+}
+
+//--------------------------------------------------------------------------
+int isOnHubWorld(void)
+{
+  return State.OnHubWorld;
+}

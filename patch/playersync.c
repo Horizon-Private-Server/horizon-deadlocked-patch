@@ -621,11 +621,16 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  gameConfig.grNewPlayerSync = 1;
+  //gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;
   
+  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS) {
+    //gameConfig.grNewPlayerSync = 0;
+    //return;
+  }
+
   // allocate buffer
   if (PLAYER_SYNC_DATAS_PTR == 0) {
     PLAYER_SYNC_DATAS_PTR = malloc(sizeof(PlayerSyncPlayerData_t) * GAME_MAX_PLAYERS);

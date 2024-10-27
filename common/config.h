@@ -14,8 +14,15 @@
 #define PATCH_POINTERS_QUICKCHAT  (*(u8*)(0x000CFFC0 + 11))
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
+struct CustomMapDef;
+
 typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void * data);
 typedef void (*SetSpectateFunc_t)(int localPlayerIndex, int spectatePlayerOrDisable);
+typedef int (*GetCustomMapDefCountFunc_t)(void);
+typedef struct CustomMapDef* (*GetCustomMapDefFunc_t)(int index);
+typedef int (*ReadCustomMapExtraDataFunc_t)(char* mapFilename, void* buffer, int bufferSize, int customModeId);
+typedef void (*RefreshCustomMapDefsFunc_t)(void);
+typedef void (*HopToCustomMapFunc_t)(struct CustomMapDef* def);
 
 typedef struct PatchConfig
 {
@@ -130,6 +137,11 @@ typedef struct PatchInterop
   char Month;
   SetSpectateFunc_t SetSpectate;
   char* MapLoaderFilename;
+  GetCustomMapDefCountFunc_t GetCustomMapDefCount;
+  GetCustomMapDefFunc_t GetCustomMapDef;
+  ReadCustomMapExtraDataFunc_t ReadCustomMapExtraData;
+  RefreshCustomMapDefsFunc_t RefreshCustomMapDefs;
+  HopToCustomMapFunc_t HopToCustomMap;
 } PatchInterop_t;
 
 typedef struct DzoInteropFunctions
@@ -144,6 +156,7 @@ typedef struct CustomMapDef
   short ShrubMinRenderDistance;
   char BaseMapId;
   char ForcedCustomModeId;
+  char HideFromMapList;
   char Name[32];
   char Filename[64];
 } CustomMapDef_t;

@@ -8,6 +8,7 @@
 #include <libdl/pad.h>
 #include <libdl/gamesettings.h>
 #include <libdl/game.h>
+#include <libdl/player.h>
 #include <libdl/utils.h>
 #include "include/config.h"
 #include "rpc.h"
@@ -148,6 +149,93 @@ char * getMapPathPrefix(void)
 {
   if (useHost) return HOST_PATH_PREFIX;
   return MASS_PATH_PREFIX;
+}
+
+//------------------------------------------------------------------------------
+int getCustomMapDefCount(void)
+{
+  return customMapDefCount;
+}
+
+//------------------------------------------------------------------------------
+CustomMapDef_t* getCustomMapDef(int index)
+{
+  if (index < 0 || index >= customMapDefCount) return NULL;
+
+  return &customMapDefs[index];
+}
+
+//------------------------------------------------------------------------------
+void mapHopTo(CustomMapDef_t* def)
+{
+  int mapId = def->BaseMapId;
+
+  //POKE_U32(0x0021de80, 4);
+  POKE_U32(0x0021e6a4, 6);
+  POKE_U32(0x005A90F4, 0x24020001);
+  POKE_U32(0x005ab1e8, 0);
+
+  strncpy(MapLoaderState.MapName, def->Name, sizeof(MapLoaderState.MapName));
+  strncpy(MapLoaderState.MapFileName, def->Filename, sizeof(MapLoaderState.MapFileName));
+  MapLoaderState.Enabled = 1;
+  MapLoaderState.CheckState = 0;
+  MapLoaderState.MapId = mapId;
+  MapLoaderState.LoadingFd = -1;
+  MapLoaderState.LoadingFileSize = -1;
+
+  void** binPtrs = (void**)0x001dfbf0;
+  void** texPtrs = (void**)0x001dfc18;
+  void* buffer = *(void**)0x00240D78;
+  GameSettings* gs = gameGetSettings();
+
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    if (gs->PlayerStates[i] > 0) gs->PlayerStates[i] = 7;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* p = playerGetAll()[i];
+    if (!p || !p->pNetPlayer) continue;
+
+    p->pNetPlayer->bCallbackCalled = 0;
+  }
+
+  // read onlinewad
+  void* onlineWadBuffer = *(u32*)0x0021dd90 - 0x7D0000;
+  POKE_U32(0x002209c0, (u32)onlineWadBuffer);
+  int sectorOffset = *(u32*)0x001ce410 + *(u32*)0x001ce40c;
+  int sectorCount = *(u32*)0x001ce414;
+  ((void (*)(int))0x001634a8)(1); // fs::sync(1)
+  ((void (*)(int loadType, void* dest, int sectorOffset, int sectorCount, int t0, void* loadCompleteCallback, void* loadCompleteArgs))0x00163808)
+    (0, onlineWadBuffer, sectorOffset, sectorCount, 0, 0, 0); // fs::load()
+
+  // load player skins
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    int clientId = gs->PlayerClients[i];
+    if (clientId < 0) continue;
+    int armorIdx = gs->PlayerSkins[i];
+    if (armorIdx < 0) continue;
+
+    int isLocal = clientId == gameGetMyClientId();
+    if (armorIdx == 0 && isLocal) continue;
+
+    // parse armor table
+    void* armorDef = onlineWadBuffer + 0x250 + (isLocal ? 0 : 0x14) + (0x28 * armorIdx);
+    void* armorMobyPtr = onlineWadBuffer + *(u32*)(armorDef + 0x4);
+    void* armorTexPtr = onlineWadBuffer + *(u32*)(armorDef + 0xc);
+
+    // decompress moby data
+    int len = ((int (*)(void* src, void* dst))0x004f5140)(armorMobyPtr, buffer);
+    binPtrs[i] = buffer;
+    buffer += (len + 0x3F) & 0xFFFFFFC0;
+
+    // decompress tex data
+    len = ((int (*)(void* src, void* dst))0x004f5140)(armorTexPtr, buffer);
+    texPtrs[i] = buffer;
+    buffer += (len + 0x3F) & 0xFFFFFFC0;
+  }
+
+  ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
+  DPRINTF("load %d %s\n", mapId, def->Filename);
 }
 
 //------------------------------------------------------------------------------
@@ -852,6 +940,7 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
   customMapDefs[insertAtIdx].Version = versionFileDef.Version;
   customMapDefs[insertAtIdx].BaseMapId = versionFileDef.BaseMapId;
   customMapDefs[insertAtIdx].ForcedCustomModeId = versionFileDef.ForcedCustomModeId;
+  customMapDefs[insertAtIdx].HideFromMapList = versionFileDef.HideFromMapList;
   customMapDefs[insertAtIdx].CustomModeExtraDataMask = extraDataModeMask;
   customMapDefs[insertAtIdx].ShrubMinRenderDistance = versionFileDef.ShrubMinRenderDistance;
   strncpy(customMapDefs[insertAtIdx].Filename, filenameWithoutExtension, sizeof(customMapDefs[insertAtIdx].Filename));
@@ -1598,14 +1687,13 @@ void runMapLoader(void)
 }
 
 //------------------------------------------------------------------------------
-int mapReadCustomMapExtraData(void* dst, int len)
+int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int customModeId)
 {
   //
-  int currentCustomModeId = gameConfig.customModeId;
-  if (MapLoaderState.MapFileName[0] && currentCustomModeId > 0) {
+  if (mapFilename && mapFilename[0] && customModeId > 0) {
     char buffer[1024];
     char filepath[256];
-    snprintf(filepath, sizeof(filepath), fVersion, getMapPathPrefix(), MapLoaderState.MapFileName);
+    snprintf(filepath, sizeof(filepath), fVersion, getMapPathPrefix(), mapFilename);
 
     int read = readFile(filepath, buffer, 0, sizeof(buffer));
     if (read < sizeof(CustomMapVersionFileDef_t))
@@ -1617,10 +1705,10 @@ int mapReadCustomMapExtraData(void* dst, int len)
     int i;
     for (i = 0; i < customMapVersion.ExtraDataCount; ++i) {
       short modeId = *(short*)((u32)buffer + 0x30 + 8*i);
-      if (modeId == currentCustomModeId) {
+      if (modeId == customModeId) {
         short extraDataLen = *(short*)((u32)buffer + 0x32 + 8*i);
         int extraDataOffset = *(int*)((u32)buffer + 0x34 + 8*i);
-        int readLen = (extraDataLen < len) ? extraDataLen : len;
+        int readLen = (extraDataLen < dstLen) ? extraDataLen : dstLen;
 
         // check if we already read data
         if ((extraDataOffset+extraDataLen) < sizeof(buffer)) {
@@ -1630,10 +1718,16 @@ int mapReadCustomMapExtraData(void* dst, int len)
         }
 
         DPRINTF("read %d bytes for extra data\n", read);
-        return 1;
+        return readLen;
       }
     }
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+int mapReadCurrentCustomMapExtraData(void* dst, int len)
+{
+  return mapReadCustomMapExtraData(MapLoaderState.MapFileName, dst, len, gameConfig.customModeId);
 }

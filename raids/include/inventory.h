@@ -34,7 +34,8 @@ typedef struct InventoryDrawState
 {
   int SelectedIdx;
   int FilterIdx;
-  int ShowSellDialog;
+  char ShowSellDialog;
+  char ShowHopToHubDialog;
 } InventoryDrawState_t;
 
 void inventoryOpen(void);

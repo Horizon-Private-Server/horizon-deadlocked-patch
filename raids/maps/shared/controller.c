@@ -306,6 +306,7 @@ int controllerControlMobyState(Moby* moby, struct ControllerTarget* target)
 #if GATE
     case GATE_OCLASS: if (gameAmIHost()) { gateBroadcastNewState(targetMoby, state); } break;
 #endif
+    case MOBY_ID_BOLT_CRANK_MP: if (targetMoby->PVar && targetMoby->State == 5) { POKE_U32(targetMoby->PVar, 0); } mobySetState(targetMoby, state, -1); break;
     default: mobySetState(targetMoby, state, -1); break;
   }
 
@@ -397,6 +398,96 @@ int controllerControlNPCTargetTriggered(Moby* moby, struct ControllerTarget* tar
 }
 
 //--------------------------------------------------------------------------
+int controllerControlGivePlayerAmmo(Moby* moby, struct ControllerTarget* target)
+{
+  if (!target->GivePlayer.PlayerMask) return 0;
+
+  Player** players = playerGetAll();
+  int i;
+  int count = 0;
+  int acceptsHost = (target->RespawnPlayer.PlayerMask & CONTROLLER_PLAYER_MASK_HOST) && gameAmIHost();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->PlayerMoby || !player->GadgetBox) continue;
+
+    int bit = 1 << i;
+    if ((target->RespawnPlayer.PlayerMask & bit) != 0 || (acceptsHost && player->IsLocal)) {
+      if (target->GivePlayer.LivingOnly && playerIsDead(player)) continue;
+      
+      int j;
+      for (j = 1; j < WEAPON_SLOT_COUNT; ++j) {
+        int gadgetId = weaponSlotToId(j);
+        int maxAmmo = playerGetWeaponMaxAmmo(player->GadgetBox, gadgetId);
+        int newAmmo = player->GadgetBox->Gadgets[gadgetId].Ammo;
+
+        if (target->GivePlayer.Amount == 0) newAmmo = maxAmmo;
+        else newAmmo += target->GivePlayer.Amount;
+        if (newAmmo < 0) newAmmo = 0;
+        else if (newAmmo > maxAmmo) newAmmo = maxAmmo;
+        
+        player->GadgetBox->Gadgets[gadgetId].Ammo = newAmmo;
+      }
+      count++;
+    }
+  }
+
+  return count;
+}
+
+//--------------------------------------------------------------------------
+int controllerControlGivePlayerHealth(Moby* moby, struct ControllerTarget* target)
+{
+  if (!target->GivePlayer.PlayerMask) return 0;
+
+  Player** players = playerGetAll();
+  int i;
+  int count = 0;
+  int acceptsHost = (target->RespawnPlayer.PlayerMask & CONTROLLER_PLAYER_MASK_HOST) && gameAmIHost();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->PlayerMoby) continue;
+
+    int bit = 1 << i;
+    if ((target->RespawnPlayer.PlayerMask & bit) != 0 || (acceptsHost && player->IsLocal)) {
+      if (target->GivePlayer.LivingOnly && playerIsDead(player)) continue;
+      
+      if (target->GivePlayer.Amount > 0 && playerIsDead(player)) playerRespawn(player);
+      if (target->GivePlayer.Amount == 0) playerSetHealth(player, player->MaxHealth);
+      else playerSetHealth(player, clamp(player->Health + target->GivePlayer.Amount, 0, player->MaxHealth));
+      
+      count++;
+    }
+  }
+  
+  return count;
+}
+
+//--------------------------------------------------------------------------
+int controllerControlRespawnPlayer(Moby* moby, struct ControllerTarget* target)
+{
+  if (!target->RespawnPlayer.PlayerMask) return 0;
+
+  Player** players = playerGetAll();
+  int i;
+  int count = 0;
+  int acceptsHost = (target->RespawnPlayer.PlayerMask & CONTROLLER_PLAYER_MASK_HOST) && gameAmIHost();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->PlayerMoby) continue;
+
+    int bit = 1 << i;
+    if ((target->RespawnPlayer.PlayerMask & bit) != 0 || (acceptsHost && player->IsLocal)) {
+      if (target->RespawnPlayer.DeadOnly && !playerIsDead(player)) continue;
+      
+      playerRespawn(player);
+      count++;
+    }
+  }
+  
+  return count;
+}
+
+//--------------------------------------------------------------------------
 int controllerIterate(Moby* moby)
 {
   int i;
@@ -412,6 +503,9 @@ int controllerIterate(Moby* moby)
       case CONTROLLER_TARGET_UPDATE_TYPE_MOVE_CUBOID: changed += controllerControlCuboidMove(moby, &pvars->Targets[i]); break;
       case CONTROLLER_TARGET_UPDATE_TYPE_NPC_CONTROLLER_TARGET: changed += controllerControlNPCTarget(moby, &pvars->Targets[i]); break;
       case CONTROLLER_TARGET_UPDATE_TYPE_NPC_CONTROLLER_TARGET_TO_TRIGGERED: changed += controllerControlNPCTargetTriggered(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_AMMO: changed += controllerControlGivePlayerAmmo(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_HEALTH: changed += controllerControlGivePlayerHealth(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_RESPAWN: changed += controllerControlRespawnPlayer(moby, &pvars->Targets[i]); break;
     }
   }
   

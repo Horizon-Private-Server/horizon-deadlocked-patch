@@ -117,23 +117,28 @@
 
 enum GameNetMessage
 {
-	CUSTOM_MSG_ROUND_COMPLETE = CUSTOM_MSG_ID_GAME_MODE_START,
-	CUSTOM_MSG_ROUND_START,
-	CUSTOM_MSG_UPDATE_SPAWN_VARS,
-	CUSTOM_MSG_WEAPON_UPGRADE,
-	CUSTOM_MSG_REVIVE_PLAYER,
-	CUSTOM_MSG_PLAYER_DIED,
-	CUSTOM_MSG_PLAYER_SET_WEAPON_MODS,
-	CUSTOM_MSG_PLAYER_SET_STATS,
-	CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS,
-	CUSTOM_MSG_PLAYER_SET_DOUBLE_XP,
-	CUSTOM_MSG_PLAYER_SET_FREEZE,
-  CUSTOM_MSG_PLAYER_USE_ITEM,
-  CUSTOM_MSG_MOB_UNRELIABLE_MSG,
-	CUSTOM_MSG_WEAPON_PRESTIGE,
-	CUSTOM_MSG_INTERACT_BANK_BOX,
-  CUSTOM_MSG_WITHDRAWN_BANK_BOX,
-  CUSTOM_MSG_SET_ROUND_50_TIME,
+	CUSTOM_MSG_MOB_UNRELIABLE_MSG = CUSTOM_MSG_ID_GAME_MODE_START,
+  CUSTOM_MSG_BEGIN_WORLD_HOP,
+  CUSTOM_MSG_WORLD_HOP_MISSING_MAP,
+  CUSTOM_MSG_SET_PLAYER_EQUIPPED_INVENTORY,
+  CUSTOM_MSG_SET_PLAYER_ACCOUNT,
+};
+
+enum RaidsCustomMenus
+{
+  RAIDS_CUSTOM_MENU_NONE = 0,
+  RAIDS_CUSTOM_MENU_INVENTORY,
+  RAIDS_CUSTOM_MENU_LEVELSELECT,
+};
+
+enum RaidsDifficultys
+{
+  RAIDS_DIFFICULTY_1STAR = 0,
+  RAIDS_DIFFICULTY_2STAR,
+  RAIDS_DIFFICULTY_3STAR,
+  RAIDS_DIFFICULTY_4STAR,
+  RAIDS_DIFFICULTY_5STAR,
+  RAIDS_DIFFICULTY_COUNT
 };
 
 struct MobConfig;
@@ -142,6 +147,7 @@ struct MobCreateArgs;
 
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
 typedef RaidsPlayerBank_t* (*GetBank_func)(void);
+typedef void (*BeginWorldHop_func)(char* mapFilename, int difficulty, int cost, int delayMs);
 typedef void (*SendBankAccountToServer_func)(void);
 typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, float difficultyMult);
 typedef void (*RegisterNpc_func)(Moby* moby);
@@ -177,14 +183,7 @@ struct RaidsPlayer
   float LastHealth;
 	struct RaidsPlayerState State;
   RaidsPlayerEquippedInventory_t Inventory;
-	int TimeOfDoublePoints;
-	int TimeOfDoubleXP;
-  int InvisibilityCloakStopTime;
-  int HealthTornadoStopTime;
-  int HealthTornadoActivateTicks;
   int TicksSinceHealthChanged;
-  int RevivingPlayerId;
-	u16 ReviveCooldownTicks;
   u16 RevivingPlayerTicks;
 	u8 ActionCooldownTicks;
 	u8 MessageCooldownTicks;
@@ -192,6 +191,7 @@ struct RaidsPlayer
 	char IsDead;
 	char IsDoublePoints;
 	char IsDoubleXP;
+  char LastEquipslots[3];
 	char HealthBarStrBuf[8];
 };
 
@@ -215,7 +215,8 @@ struct RaidsState
   struct RaidsMobStats MobStats;
 	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
   char ClientReady[GAME_MAX_PLAYERS];
-	int InventoryOpen;
+	int MenuOpen;
+  int OnHubWorld;
 	Moby* Vendor;
 	Moby* BigAl;
 	struct RaidsPlayer* LocalPlayerState;
@@ -225,6 +226,8 @@ struct RaidsState
 	int IsHost;
 	float Difficulty;
   int DifficultyStars;
+  int PendingWorldHopAtTime;
+  CustomMapDef_t* PendingWorldHopMapDef;
 	char NumTeams;
 };
 
@@ -240,6 +243,7 @@ struct RaidsMapConfig
   // mode
   PushSnack_func PushSnackFunc;
   GetBank_func GetBankFunc;
+  BeginWorldHop_func BeginWorldHopFunc;
   SendBankAccountToServer_func SendBankAccountToServerFunc;
   PopulateSpawnArgs_func PopulateSpawnArgsFunc;
   RegisterNpc_func RegisterNpcFunc;
@@ -253,6 +257,13 @@ struct RaidsMapConfig
   MapOnMobUpdate_func OnMobUpdateFunc;
   MapOnMobKilled_func OnMobKilledFunc;
   FrameTick_func OnFrameTickFunc;
+};
+
+struct RaidsCustomMapExtraData
+{
+  int Cost[5];
+  char Author[32];
+  char Description[256];
 };
 
 struct RaidsGameData

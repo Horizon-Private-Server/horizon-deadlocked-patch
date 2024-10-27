@@ -2,7 +2,7 @@
  * FILENAME :		main.c
  * 
  * DESCRIPTION :
- * 		Custom map logic for Raids Hub.
+ * 		Custom map logic for Raids Sarathos.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -32,7 +32,6 @@
 #include "gate.h"
 #include "game.h"
 #include "npc.h"
-#include "levelselect.h"
 #include "messager.h"
 #include "spawner.h"
 #include "controller.h"
@@ -40,13 +39,11 @@
 #include "mob.h"
 #include "shared.h"
 #include "pathfind.h"
-#include "hub.h"
+#include "sarathos.h"
 
 void mobInit(void);
 void mobTick(void);
 void configInit(void);
-void spVendorInit(void);
-void spVendorTick(void);
 
 char LocalPlayerStrBuffer[2][64];
 
@@ -68,64 +65,6 @@ void mobForceIntoMapBounds(Moby* moby)
 int mapPathCanBeSkippedForTarget(struct PathGraph* path, Moby* moby)
 {
   return 1;
-}
-
-//--------------------------------------------------------------------------
-int createMob(struct MobCreateArgs* args)
-{
-  switch (args->SpawnParamsIdx)
-  {
-    case MOB_SPAWN_PARAM_NORMAL:
-    {
-      return zombieCreate(args);
-    }
-    case MOB_SPAWN_PARAM_SWARMER:
-    {
-      return swarmerCreate(args);
-    }
-    default:
-    {
-      DPRINTF("unhandled create spawnParamsIdx %d\n", args->SpawnParamsIdx);
-      break;
-    }
-  }
-
-  return 0;
-}
-
-//--------------------------------------------------------------------------
-void mapGiveAmmo(void)
-{
-  // if any weapon ran out of ammo, return back to max
-  int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* player = playerGetFromSlot(i);
-    if (!player || !player->GadgetBox) continue;
-
-    int j;
-    for (j = WEAPON_SLOT_VIPERS; j < WEAPON_SLOT_COUNT; ++j) {
-      int gadgetId = weaponSlotToId(j);
-      if (player->GadgetBox->Gadgets[gadgetId].Level >= 0 && player->GadgetBox->Gadgets[gadgetId].Ammo <= 0) {
-        player->GadgetBox->Gadgets[gadgetId].Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, gadgetId);
-      }
-    }
-  }
-}
-
-//--------------------------------------------------------------------------
-void mapReturnPlayersToMap(void)
-{
-  int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* player = playerGetFromSlot(i);
-    if (!player || !player->SkinMoby) continue;
-
-    // if we're under the map, then tp back up to spawn
-    if (player->PlayerPosition[2] < gameGetDeathHeight()) {
-      playerRespawn(player);
-      playerSetHealth(player, player->MaxHealth);
-    }
-  }
 }
 
 //--------------------------------------------------------------------------
@@ -155,12 +94,34 @@ void mapRespawnPlayersOnStart(void)
 }
 
 //--------------------------------------------------------------------------
+int createMob(struct MobCreateArgs* args)
+{
+  switch (args->SpawnParamsIdx)
+  {
+    case MOB_SPAWN_PARAM_NORMAL:
+    {
+      return zombieCreate(args);
+    }
+    case MOB_SPAWN_PARAM_SWARMER:
+    {
+      return swarmerCreate(args);
+    }
+    default:
+    {
+      DPRINTF("unhandled create spawnParamsIdx %d\n", args->SpawnParamsIdx);
+      break;
+    }
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 void mapOnFrameTick(void)
 {
   dlPreUpdate();
 
   messagerFrameUpdate();
-  levelselectFrameTick();
 
   dlPostUpdate();
 }
@@ -188,10 +149,8 @@ void initialize(void)
 
   MapConfig.Magic = MAP_CONFIG_MAGIC;
 
-  levelselectInit();
   mobInit();
   configInit();
-  spVendorInit();
   spawnerInit();
   moverInit();
   controllerInit();
@@ -247,16 +206,12 @@ int main(void)
   }
 
   mobTick();
-  spVendorTick();
   for (i = 0; i < PathsCount; ++i) pathTick(&Paths[i]);
-  mapReturnPlayersToMap();
-  mapGiveAmmo();
 
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;
-    MapConfig.State->OnHubWorld = 1;
   }
-  
+
 #if DEBUG1
   dlPreUpdate();
   Player* localPlayer = playerGetFromSlot(0);

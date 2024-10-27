@@ -1055,6 +1055,10 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
   char gm = gameConfig.customModeId;
   char v = *value;
 
+  // hidden
+  if (v && customMapDefs[v-1].HideFromMapList == 1)
+    return 0;
+
   switch (gm)
   {
     // case CUSTOM_MODE_BENCHMARK:
@@ -1079,7 +1083,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
 
       // force first raids map
       for (i = 0; i < customMapDefCount; ++i) {
-        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_RAIDS) {
+        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_RAIDS && customMapDefs[i].HideFromMapList != 1) {
           *value = i+1;
           return 0;
         }

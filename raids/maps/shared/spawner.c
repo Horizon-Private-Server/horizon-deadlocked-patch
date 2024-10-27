@@ -248,6 +248,14 @@ void spawnerOnChildMobUpdate(Moby* moby, Moby* childMoby, u32 userdata)
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
   int i;
 
+  // destroy if spawner has completed
+  if (moby->State == SPAWNER_STATE_COMPLETED) {
+    if (!childPVars->MobVars.Destroyed) {
+      childPVars->MobVars.Destroy = 2;
+    }
+    return;
+  }
+
   // check if mob has left habitable cuboids
   // if no habitable cuboids are defined, then this will do nothing
   int notInside = 0;
@@ -279,6 +287,8 @@ void spawnerOnChildMobUpdate(Moby* moby, Moby* childMoby, u32 userdata)
     if (!childPVars->VTable->OnRespawn || childPVars->VTable->OnRespawn(childMoby)) {
       if (spawnerSpawn(moby, userdata, guberGetUID(childMoby))) {
         childPVars->MobVars.Destroyed = 2;
+        pvars->State.NumTotalSpawned--;
+        pvars->State.NumSpawned[userdata]--;
       }
     }
 
@@ -302,6 +312,7 @@ void spawnerOnChildMobKilled(Moby* moby, Moby* childMoby, u32 userdata, int kill
   pvars->State.NumSpawned[userdata]--;
 
   DPRINTF("MOB%d: spawned:%d killed:%d\n", userdata, pvars->State.NumSpawned[userdata], pvars->State.NumKilled[userdata]);
+  //DPRINTF("SPAWNER %d/%d\n", pvars->State.NumTotalKilled, pvars->NumMobsToSpawn);
 }
 
 //--------------------------------------------------------------------------

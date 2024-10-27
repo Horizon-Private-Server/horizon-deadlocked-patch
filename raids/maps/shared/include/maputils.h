@@ -51,4 +51,7 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
 
 int selectRandomIndex(int count, void* userdata, CanSelectIndex_func canSelectIndexFunc);
 
+int hasPendingWorldHop(void);
+int isOnHubWorld(void);
+
 #endif // RAIDS_MAP_UTILS_H

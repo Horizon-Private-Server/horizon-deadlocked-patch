@@ -18,7 +18,7 @@ hook up wrench to inventory overrides
 ++Add rarity (uncommon,common,rare,legendary)
 ++Tie 'V10' to legendary
 ++Tie weapon icon color to rarity
-Add cost to travel to planet, configurable in Forge per difficulty
+++Add cost to travel to planet, configurable in Forge per difficulty
 Add Spawner mob difficulty min/max (spawn only >= 1star and <= 3star)
 ++Add favoriting to inventory
 Add X-Room w/ spawner
@@ -29,3 +29,15 @@ No respawn/revive mechanic
 Add controller target to respawn dead players
 Add difficulty filter to controller targets
 Add health +/-/*/div/set target to controller
+
+Add reload planet option
+Add log toggles to specific mobys in Forge
+++Save and reapply equipped gadget ids on load
+++Kill all child mobs when spawner completes
+++Fix skin colors reseting on hop
+++Fix gates not syncing
+++Fix cosmetics/gadget overrides not syncing
+++Fix custom waiting for players not working on hop
+++Fix skillpoints not applying until inventory is opened
+++Fix NPS breaking player pos on hop
+Add version number to raids mode + maps, filter by version

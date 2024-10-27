@@ -101,6 +101,18 @@ struct RaidsUpdateBankInventoryRequest
   char EquippedWeaponIdxs[WEAPON_SLOT_COUNT-1];
 };
 
+struct RaidsBankSetPlayerEquippedInventoryMsg
+{
+  int ClientId;
+  RaidsPlayerEquippedInventory_t EquippedInventory;
+};
+
+struct RaidsBankSetPlayerAccountMsg
+{
+  int ClientId;
+  RaidsPlayerAccount_t Account;
+};
+
 int bankGetHasInventory(void);
 int bankHasPendingInventoryRequest(void);
 int bankGetHasAccount(void);
@@ -108,6 +120,7 @@ int bankHasPendingAccountRequest(void);
 
 u32 bankGetBolts(void);
 u32 bankAddBolts(u32 amount);
+u32 bankSubtractBolts(u32 amount);
 u64 bankGetXP(void);
 u64 bankAddXP(u64 amount);
 

@@ -3009,7 +3009,7 @@ void initialize(PatchStateContainer_t* gameState)
   if (mapConfig->Magic != MAP_CONFIG_MAGIC) {
     memset(mapConfig, 0, sizeof(struct SurvivalMapConfig));
     mapConfig->Magic = MAP_CONFIG_MAGIC;
-    printf("clear\n");
+    DPRINTF("clear\n");
   }
 
   // write map config

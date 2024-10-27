@@ -140,6 +140,51 @@ void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char* st
 }
 
 //------------------------------------------------------------------------------
+void gfxHelperDrawTextWindow(float anchorX, float anchorY, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char* str, int length, enum TextAlign alignment, enum FontWindowFlags flags, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
+{
+  float fx = anchorX + offsetX;
+  float fy = anchorY + offsetY;
+  helperAlign(&fx, &fy, width, height, alignment);
+
+  struct FontWindow fontWindow = {
+    .windowLeft = fx,
+    .windowRight = fx + width,
+    .windowTop = fy,
+    .windowBottom = fy + height,
+    .textX = fx + textOffsetX,
+    .textY = fy + textOffsetY,
+    .maxWidth = width,
+    .maxHeight = height,
+    .lineSpacing = 16 * scale,
+    .flags = flags,
+    .shadowOffsetX = 1,
+    .shadowOffsetY = 1
+  };
+
+  // pass to dzo
+  if (0 && dzoDrawType > 0 && PATCH_DZO_INTEROP_FUNCS && isInGame()) {
+    CustomDzoCommandDrawTextWindow_t textCmd;
+    textCmd.X = OFFSET_TO_DZO_X(offsetX);
+    textCmd.Y = OFFSET_TO_DZO_Y(offsetY);
+    textCmd.TextX = OFFSET_TO_DZO_X(textOffsetX);
+    textCmd.TextY = OFFSET_TO_DZO_Y(textOffsetY);
+    textCmd.Scale = scale;
+    textCmd.Alignment = alignment;
+    textCmd.Flags = flags;
+    textCmd.Color = color;
+    textCmd.AnchorX = anchorX / SCREEN_WIDTH;
+    textCmd.AnchorY = anchorY / SCREEN_HEIGHT;
+    strncpy(textCmd.Text, str, (length >= 0 && length < 256) ? length : 256);
+    //PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_DRAW_TEXT_WINDOW, sizeof(textCmd), &textCmd);
+  }
+
+  // draw
+  if (dzoDrawType != COMMON_DZO_DRAW_ONLY) {
+    gfxScreenSpaceTextWindow(&fontWindow, scale, scale, color, str, length, 0x80000000);
+  }
+}
+
+//------------------------------------------------------------------------------
 void gfxHelperDrawSprite(float anchorX, float anchorY, float offsetX, float offsetY, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
 {
   // pass to dzo

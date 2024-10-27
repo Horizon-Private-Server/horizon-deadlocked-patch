@@ -36,8 +36,10 @@
 #include "config.h"
 #include "common.h"
 #include "include/game.h"
+#include "include/hop.h"
 #include "include/bank.h"
 #include "include/inventory.h"
+#include "include/levelselect.h"
 #include "include/mob.h"
 #include "include/bubble.h"
 #include "include/utils.h"
@@ -389,7 +391,6 @@ void respawnDeadPlayers(void) {
 		}
 		
 		State.PlayerStates[i].IsDead = 0;
-		State.PlayerStates[i].ReviveCooldownTicks = 0;
     //memset(State.PlayerStates[i].State.WeaponPrestige, 0, sizeof(State.PlayerStates[i].State.WeaponPrestige));
 	}
 }
@@ -479,7 +480,6 @@ int playerIsSmashingFlail(Player* player)
 //--------------------------------------------------------------------------
 void processPlayer(int pIndex) {
 	int localPlayerIndex, heldWeapon, hasMessage = 0;
-	char strBuf[32];
 	Player** players = playerGetAll();
 	Player* player = players[pIndex];
 	struct RaidsPlayer * playerData = &State.PlayerStates[pIndex];
@@ -489,13 +489,7 @@ void processPlayer(int pIndex) {
 
 	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
 	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
-	int reviveCooldownTicks = decTimerU16(&playerData->ReviveCooldownTicks);
-	if (playerData->IsDead && reviveCooldownTicks > 0 && playerGetNumLocals() == 1) {
-    VECTOR pos = {0,0,1,0};
-    vector_add(pos, player->PlayerPosition, pos);
-    gfxHelperDrawText_WS(pos, 0.75, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
-	}
-
+  
   // last hit
   if (player->Health != playerData->LastHealth) playerData->TicksSinceHealthChanged = 0;
   else playerData->TicksSinceHealthChanged += 1;
@@ -743,6 +737,9 @@ void initialize(PatchStateContainer_t* gameState)
   // disable holoshields from disappearing
   //*(u16*)0x00401478 = 2;
 
+  // disable jump pad effect
+  POKE_U32(0x0042608C, 0);
+
   // disable team based holoshield toggling
   // enables players to shoot through eachothers shields
   POKE_U32(0x005A3830, 0x2402FFFF);
@@ -772,6 +769,9 @@ void initialize(PatchStateContainer_t* gameState)
 
 	// Fix v10 arb overlapping shots
 	*(u32*)0x003F2E70 = 0x24020000;
+
+  // fix bolt crank moby (1A27) resetting itself on capture
+  POKE_U32(0x003D74C0, 0);
 
   // hook when MobyPlayDesiredSound plays a sound for a moby
   // lets us reduce the # of mob sounds
@@ -851,6 +851,7 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->State = &State;
   mapConfig->PushSnackFunc = &pushSnack;
   mapConfig->GetBankFunc = &bankGetLocalBank;
+  mapConfig->BeginWorldHopFunc = &hopBegin;
   mapConfig->SendBankAccountToServerFunc = &bankSendAccountToServer;
   mapConfig->PopulateSpawnArgsFunc = &mobPopulateSpawnArgsFromConfig;
   mapConfig->RegisterNpcFunc = &mobRegisterNpc;
@@ -879,6 +880,7 @@ void initialize(PatchStateContainer_t* gameState)
   bubbleInit();
   bankInit();
   inventoryInit();
+  hopInit();
 
   memset(playerStates, 0, sizeof(playerStates));
   memset(playerStateTimers, 0, sizeof(playerStateTimers));
@@ -913,7 +915,6 @@ void initialize(PatchStateContainer_t* gameState)
 	State.ActivePlayerCount = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
-    State.PlayerStates[i].RevivingPlayerId = -1;
 
 #if PAYDAY
 		//State.PlayerStates[i].State.CurrentTokens = 1000;
@@ -1070,10 +1071,10 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     if (!bankGetHasInventory() && !bankHasPendingInventoryRequest()) {
       bankRequestInventoryFromServer();
     }
-  } else if (bankGetHasAccount() && sendBankAtEnd) {
-    bankSendAccountToServer();
-    sendBankAtEnd = 0;
+  } else if (sendBankAtEnd) {
+    if (bankGetHasAccount()) bankSendAccountToServer();
     //bankSendInventoryToServer();
+    sendBankAtEnd = 0;
   }
 
   RaidsPlayerBank_t* localBank = bankGetLocalBank();
@@ -1088,6 +1089,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   bubbleTick();
   bankTick();
   inventoryTick();
+  hopTick();
 
   // reset inventory refresh flag
   if (refreshInventoryFlag)
@@ -1110,11 +1112,9 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 
 #if DEBUG
-  if (padGetButton(0, PAD_CROSS)) {
+  if (padGetButton(0, PAD_L1 | PAD_CROSS)) {
     *(float*)0x00347BD8 = 0.125;
   }
-
-  //State.PlayerStates[0].State.Upgrades[UPGRADE_SPEED] = 30;
 #endif
 
   POKE_U32(0x00171b40, bankGetBolts());
@@ -1323,6 +1323,7 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // reset initialized on load
   // enables level hopping
   Initialized = 0;
+  State.OnHubWorld = 0;
 
 	setLobbyGameOptions(gameState->GameConfig);
   

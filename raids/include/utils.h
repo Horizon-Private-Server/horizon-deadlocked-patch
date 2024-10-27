@@ -53,4 +53,7 @@ int localPlayerHasInput(void);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 
+int hasPendingWorldHop(void);
+int isOnHubWorld(void);
+
 #endif // RAIDS_UTILS_H

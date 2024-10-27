@@ -12,6 +12,7 @@
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
 #include "include/utils.h"
+#include "include/hop.h"
 #include "include/game.h"
 #include "include/bank.h"
 #include "include/inventory.h"
@@ -31,8 +32,6 @@ InventoryDrawState_t inventoryDrawState = {
   .FilterIdx = 0,
   .ShowSellDialog = 0,
 };
-
-int aaa = 0;
 
 char* inventoryRarityNames[] = {
   "Uncommon",
@@ -120,8 +119,9 @@ char inventorySkillSpriteIds[] = {
 void inventoryOpen(void)
 {
   if (gameHasEnded()) return;
-  if (State.InventoryOpen) return;
-  State.InventoryOpen = 1;
+  if (State.MenuOpen != RAIDS_CUSTOM_MENU_NONE) return;
+
+  State.MenuOpen = RAIDS_CUSTOM_MENU_INVENTORY;
   bankRequestInventoryFromServer();
   inventorySetFilter(inventoryDrawState.FilterIdx);
   padDisableInput();
@@ -130,8 +130,9 @@ void inventoryOpen(void)
 //--------------------------------------------------------------------------
 void inventoryClose(void)
 {
-  if (!State.InventoryOpen) return;
-  State.InventoryOpen = 0;
+  if (State.MenuOpen != RAIDS_CUSTOM_MENU_INVENTORY) return;
+  
+  State.MenuOpen = RAIDS_CUSTOM_MENU_NONE;
   padEnableInput();
   bankSendInventoryToServer();
 }
@@ -142,16 +143,6 @@ u32 inventoryDrawGetCompareColor(int compare)
   if (compare < 0) return 0x800000FF; // red
   if (compare == 0) return 0x80FFFFFF; // white
   return 0x8000FFFF; // yellow
-}
-
-//--------------------------------------------------------------------------
-int inventoryGetRarityFromQuality(u8 quality)
-{
-  if (quality < 64) return RAIDS_WEAPON_RARITY_COMMON;
-  if (quality < 128) return RAIDS_WEAPON_RARITY_UNCOMMON;
-  if (quality < 196) return RAIDS_WEAPON_RARITY_RARE;
-
-  return RAIDS_WEAPON_RARITY_LEGENDARY;
 }
 
 //--------------------------------------------------------------------------
@@ -190,48 +181,47 @@ void inventorySetFilter(int filter)
 }
 
 //--------------------------------------------------------------------------
-void inventoryDrawSellDialog(InventoryDrawState_t* drawState)
+int inventoryDrawDialog(InventoryDrawState_t* drawState, char* titleStr, char* bodyStr)
 {
-  RaidsInventoryWeapon_t* weapon = bankGetLocalWeaponFromBank(inventoryFilterMapping[drawState->SelectedIdx]);
-  float fw = 200;
-  float fh = 60;
   float offX = -(INVENTORY_DRAW_WEAPONS_W/2.0);
   float offY = 0;
   u32 textColor = 0x80FFFFFF; // white
-  char sellStrBuf[64];
-  char priceStrBuf[64];
-  char* buttonStr = "\x10 Sell        \x12 Cancel";
-
-  // invalid
-  if (!weapon) {
-    drawState->ShowSellDialog = 0;
-    return;
-  }
-
-  u32 sellPrice = getPriceForWeapon(weapon->Proficiency, weapon->Quality);
-  int rarity = bankGetRarityFromQuality(weapon->Quality);
-  struct GadgetDef* gadgetDef = weaponGetDef(weapon->GadgetId, 0);
+  char* buttonStr = "\x10 CONFIRM        \x12 CANCEL";
 
   // determine width of dialog
-  snprintf(sellStrBuf, sizeof(sellStrBuf), "Sell %s?", uiMsgString(rarity == RAIDS_WEAPON_RARITY_LEGENDARY ? gadgetDef->upgQSTag : gadgetDef->quickSelectTag));
-  fw = maxf(gfxGetFontWidth(sellStrBuf, -1, 0.9), gfxGetFontWidth(buttonStr, -1, 0.9)) + 10;
+  float fw = gfxGetFontWidth(buttonStr, -1, 0.9);
+  float fh = 20;
+  if (titleStr) { fw = maxf(fw, gfxGetFontWidth(titleStr, -1, 0.9)); fh += 20; }
+  if (bodyStr) { fw = maxf(fw, gfxGetFontWidth(bodyStr, -1, 0.9)); fh += 20; }
 
   // draw frame
   gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw, fh, 0x80101030, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
   // draw title text
   offY = -fh/2.0;
-  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.9, textColor, sellStrBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
-  offY += 20;
+  if (titleStr) {
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.9, textColor, titleStr, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+    offY += 20;
+  }
   
   // draw price
-  snprintf(priceStrBuf, sizeof(priceStrBuf), "\x0A+%d", sellPrice);
-  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.9, textColor, priceStrBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
-  offY += 20;
+  if (bodyStr) {
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.9, textColor, bodyStr, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+    offY += 20;
+  }
   
   // footer buttons
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.9, textColor, buttonStr, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
   offY += 20;
+
+  // input
+  if (padGetButtonDown(0, PAD_CROSS) > 0) {
+    return 1;
+  } else if (padGetButtonDown(0, PAD_TRIANGLE) > 0) {
+    return 0;
+  }
+
+  return -1;
 }
 
 //--------------------------------------------------------------------------
@@ -363,12 +353,12 @@ void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedWeapon->CritChance - baseWeapon->CritChance), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
-  int baseRarity = inventoryGetRarityFromQuality(baseWeapon->Quality);
+  int baseRarity = bankGetRarityFromQuality(baseWeapon->Quality);
   snprintf(strBuf, sizeof(strBuf), "Rarity: %s", inventoryRarityNames[baseRarity]);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
     float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-    int selRarity = inventoryGetRarityFromQuality(selectedWeapon->Quality);
+    int selRarity = bankGetRarityFromQuality(selectedWeapon->Quality);
     snprintf(strBuf, sizeof(strBuf), "=> %s", inventoryRarityNames[selRarity]);
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selRarity - baseRarity), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
@@ -568,10 +558,10 @@ void inventoryDrawFooter(InventoryDrawState_t* drawState)
     if (selectedTooStrong) { snprintf(sellPriceStrBuf, sizeof(sellPriceStrBuf), "MUST BE P%d TO EQUIP    ", selectedWeapon->Proficiency+1); strcat(strBuf, sellPriceStrBuf); }
     if (selectedWeapon) strcat(strBuf, "\x11 FAV    ");
     if (canSell) { strcat(strBuf, "\x13 SELL    "); }
+    if (!isOnHubWorld() && !selectedTooStrong && gameAmIHost()) { strcat(strBuf, "\x1E TO HUB    "); } // too much text so only show when enough room
   }
   strcat(strBuf, "\x12 CLOSE");
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -INVENTORY_DRAW_FULL_W/2 + 5, INVENTORY_DRAW_FULL_H/2 - 5, 0.8, textColor, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
-  
 }
 
 //--------------------------------------------------------------------------
@@ -599,6 +589,10 @@ void inventoryDraw(void)
     canEquip = !selectedTooStrong && selectedWeapon->GadgetId && equippedWeapon != selectedWeapon; // already equipped
     canSell = selectedWeapon->GadgetId && equippedWeapon != selectedWeapon && selectedWeapon->Notify != RAIDS_WEAPON_NOTIFY_FAV; // can't sell equipped
   }
+
+#if DEBUG
+  canEquip = selectedWeapon != NULL && equippedWeapon != selectedWeapon;
+#endif
 
   // bad state
   if ((!isLoadingInventory && !bankGetHasInventory()) || (!isLoadingAccount && !bankGetHasAccount())) {
@@ -634,19 +628,46 @@ void inventoryDraw(void)
 
   // draw sell dialog
   if (inventoryDrawState.ShowSellDialog) {
-    inventoryDrawSellDialog(&inventoryDrawState);
+        
+    // invalid
+    if (!selectedWeapon) {
+      inventoryDrawState.ShowSellDialog = 0;
+      return;
+    }
 
-    if (padGetButtonDown(0, PAD_CROSS) > 0) {
+    u32 sellPrice = getPriceForWeapon(selectedWeapon->Proficiency, selectedWeapon->Quality);
+    int rarity = bankGetRarityFromQuality(selectedWeapon->Quality);
+    struct GadgetDef* gadgetDef = weaponGetDef(selectedWeapon->GadgetId, 0);
+    char sellStrBuf[64];
+    char sellPriceBuf[64];
+    snprintf(sellStrBuf, sizeof(sellStrBuf), "Sell %s?", uiMsgString(rarity == RAIDS_WEAPON_RARITY_LEGENDARY ? gadgetDef->upgQSTag : gadgetDef->quickSelectTag));
+    snprintf(sellPriceBuf, sizeof(sellPriceBuf), "\x0A%'d", sellPrice);
+    int selResult = inventoryDrawDialog(&inventoryDrawState, sellStrBuf, sellPriceBuf);
+
+    if (selResult == 1) {
       bankSellLocalWeaponAtIndex(inventoryFilterMapping[inventoryDrawState.SelectedIdx]);
       inventoryDrawState.ShowSellDialog = 0;
-    } else if (padGetButtonDown(0, PAD_TRIANGLE) > 0) {
+    } else if (selResult == 0) {
       inventoryDrawState.ShowSellDialog = 0;
     }
     return;
   }
 
+  // draw return to hub
+  if (inventoryDrawState.ShowHopToHubDialog) {
+    int selResult = inventoryDrawDialog(&inventoryDrawState, "Exit to Hub?", NULL);
+    if (selResult == 1) {
+      hopBegin("raids_hub", 0, 0, TIME_SECOND * 5);
+      inventoryDrawState.ShowHopToHubDialog = 0;
+      inventoryClose();
+    } else if (selResult == 0) {
+      inventoryDrawState.ShowHopToHubDialog = 0;
+    }
+    return;
+  }
+
   // handle close input
-  if (gameIsAnyStartMenuOpen() || padGetButtonDown(0, PAD_TRIANGLE) > 0) {
+  if (State.MenuOpen == RAIDS_CUSTOM_MENU_INVENTORY && (gameIsAnyStartMenuOpen() || padGetButtonDown(0, PAD_TRIANGLE) > 0)) {
     inventoryClose();
   }
 
@@ -680,6 +701,8 @@ void inventoryDraw(void)
     } else if (selectedWeapon && padGetButtonDown(0, PAD_CIRCLE) > 0) {   // FAVORITE
       if (selectedWeapon->Notify == RAIDS_WEAPON_NOTIFY_FAV) selectedWeapon->Notify = RAIDS_WEAPON_NOTIFY_NONE;
       else selectedWeapon->Notify = RAIDS_WEAPON_NOTIFY_FAV;
+    } else if (!isOnHubWorld() && PATCH_INTEROP && PATCH_INTEROP->HopToCustomMap && gameAmIHost() && padGetButtonDown(0, PAD_SELECT) > 0) {   // TO HUB
+      inventoryDrawState.ShowHopToHubDialog = 1;
     }
     inventoryDrawState.SelectedIdx = selIdx;
   }
@@ -692,14 +715,6 @@ void inventoryDraw(void)
 //--------------------------------------------------------------------------
 void inventoryTick(void)
 {
-  if (padGetButtonDown(0, PAD_LEFT) > 0) {
-    --aaa;
-    DPRINTF("%d\n", aaa);
-  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-    ++aaa;
-    DPRINTF("%d\n", aaa);
-  }
-
   // check if we need to request our bank
   if (gameHasEnded()) {
     inventoryClose();
@@ -707,9 +722,9 @@ void inventoryTick(void)
   }
   
   // draw
-  if (!State.InventoryOpen && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_L3) > 0) {
+  if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_L3) > 0) {
     inventoryOpen();
-  } else if (State.InventoryOpen) {
+  } else if (State.MenuOpen == RAIDS_CUSTOM_MENU_INVENTORY) {
     inventoryDraw();
   }
 }

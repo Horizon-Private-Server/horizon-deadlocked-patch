@@ -1,7 +1,7 @@
 
 EE_ELF = raids-11184.elf
 EE_BIN = raids-11184.bin
-EE_OBJS = main.o utils.o config.o bubble.o mob.o bank.o inventory.o ../common/common.o
+EE_OBJS = main.o utils.o config.o bubble.o mob.o bank.o inventory.o hop.o ../common/common.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
@@ -31,12 +31,10 @@ BUILD_CONFIG := DEBUG
 ifeq ($(BUILD_CONFIG),DEBUG)
 EE_DEFS := -DDEBUG -DMOB_CORN
 #EE_DEFS += -DDEBUG_PERKS
-EE_DEFS += -DSHARED_BOLTS -DSHARED_XP
 #EE_DEFS += -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643
-EE_DEFS += -DDISABLE_SPAWNING
 #EE_DEFS += -DDEBUG_SOUNDS
 #EE_DEFS += -DMOB_INVINCIBLE
-EE_DEFS += -DMOB_NO_DAMAGE
+#EE_DEFS += -DMOB_NO_DAMAGE
 #EE_DEFS += -DMOB_NO_MOVE
 #EE_DEFS += -DPAYDAY
 #EE_DEFS += -DBENCHMARK
@@ -51,20 +49,24 @@ EE_DEFS := -DRELEASE -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLAS
 #EE_DEFS += -DTRAILER
 endif
 
-.PHONY: all maps hub
+.PHONY: all maps hub sarathos
 
 all: mode maps clean
 
 mode: $(EE_BIN) copy
-
-maps: hub
+ 
+maps: hub sarathos
 
 hub: 
 	cd maps/hub && $(MAKE)
 
+sarathos: 
+	cd maps/sarathos && $(MAKE)
+
 clean: 
 	rm -f *.irx *.o
-	cd maps/hub && $(MAKE) clean
+	cd $(CURDIR)/maps/hub && $(MAKE) clean
+	cd $(CURDIR)/maps/sarathos && $(MAKE) clean
  
 include $(CURDIR)/../Makefile.pref
 include $(CURDIR)/../Makefile.eeglobal

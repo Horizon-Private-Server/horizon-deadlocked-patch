@@ -349,6 +349,7 @@ enum CustomDzoCommandId
   CUSTOM_DZO_CMD_ID_DRAW_WS_TEXT = 11,
   CUSTOM_DZO_CMD_ID_DRAW_WS_BOX = 12,
   CUSTOM_DZO_CMD_ID_DRAW_WS_SPRITE = 13,
+  CUSTOM_DZO_CMD_ID_DRAW_TEXT_WINDOW = 14,
 };
 
 typedef struct SetMapOverrideResponse
@@ -560,6 +561,21 @@ typedef struct CustomDzoCommandDrawText
   int Alignment;
   char Text[64];
 } CustomDzoCommandDrawText_t;
+
+typedef struct CustomDzoCommandDrawTextWindow
+{
+  float AnchorX;
+  float AnchorY;
+  float X;
+  float Y;
+  float TextX;
+  float TextY;
+  float Scale;
+  u32 Color;
+  char Alignment;
+  char Flags;
+  char Text[256];
+} CustomDzoCommandDrawTextWindow_t;
 
 typedef struct CustomDzoCommandDrawBox
 {

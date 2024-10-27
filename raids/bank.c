@@ -52,6 +52,77 @@ long bankLastAccountRequestTime = 0;
 char bankLevelUpBuf[32];
 
 //--------------------------------------------------------------------------
+int bankOnSetPlayerEquippedInventoryRemote(void * connection, void * data)
+{
+  struct RaidsBankSetPlayerEquippedInventoryMsg msg;
+  memcpy(&msg, data, sizeof(msg));
+
+  GameSettings* gs = gameGetSettings();
+  if (!gs) return sizeof(msg);
+
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (!gs->PlayerClients[i] == msg.ClientId) continue;
+
+    memcpy(&State.PlayerStates[i].Inventory, &msg.EquippedInventory, sizeof(State.PlayerStates[i].Inventory));
+  }
+
+  return sizeof(msg);
+}
+
+//--------------------------------------------------------------------------
+int bankOnSetPlayerAccountRemote(void * connection, void * data)
+{
+  struct RaidsBankSetPlayerAccountMsg msg;
+  memcpy(&msg, data, sizeof(msg));
+
+  GameSettings* gs = gameGetSettings();
+  if (!gs) return sizeof(msg);
+
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (!gs->PlayerClients[i] == msg.ClientId) continue;
+
+    memcpy(State.PlayerStates[i].State.Skills, msg.Account.Skills, sizeof(State.PlayerStates[i].State.Skills));
+  }
+
+  return sizeof(msg);
+}
+
+//--------------------------------------------------------------------------
+void bankBroadcastEquippedInventory(void)
+{
+  Player* player = playerGetFromSlot(0);
+  if (!player) return;
+
+  int playerId = player->PlayerId;
+
+  // broadcast
+  void* connection = netGetDmeServerConnection();
+  if (connection) {
+    struct RaidsBankSetPlayerEquippedInventoryMsg msg = {
+      .ClientId = gameGetMyClientId()
+    };
+    memcpy(&msg.EquippedInventory, &State.PlayerStates[playerId].Inventory, sizeof(msg.EquippedInventory));
+    netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_SET_PLAYER_EQUIPPED_INVENTORY, sizeof(msg), &msg);
+  }
+}
+
+//--------------------------------------------------------------------------
+void bankBroadcastAccount(void)
+{
+  // broadcast
+  void* connection = netGetDmeServerConnection();
+  if (connection) {
+    struct RaidsBankSetPlayerAccountMsg msg = {
+      .ClientId = gameGetMyClientId()
+    };
+    memcpy(&msg.Account, &bankLocalBank.Account, sizeof(msg.Account));
+    netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_SET_PLAYER_ACCOUNT, sizeof(msg), &msg);
+  }
+}
+
+//--------------------------------------------------------------------------
 int bankGetHasInventory(void)
 {
   return bankHasInventory;
@@ -151,6 +222,14 @@ void bankSendAccountToServer(void)
 //--------------------------------------------------------------------------
 u32 bankGetBolts(void) { return bankLocalBank.Account.Bolts; }
 u32 bankAddBolts(u32 amount) { return bankLocalBank.Account.Bolts += amount; }
+u32 bankSubtractBolts(u32 amount)
+{
+  if (amount >= bankLocalBank.Account.Bolts) bankLocalBank.Account.Bolts = 0;
+  else bankLocalBank.Account.Bolts -= amount;
+
+  return amount;
+}
+
 u64 bankGetXP(void) { return bankLocalBank.Account.Experience; }
 u64 bankAddXP(u64 amount)
 {
@@ -398,6 +477,11 @@ void bankUpdateLocalState(Player * player)
       memcpy(&State.PlayerStates[playerId].Inventory.Weapons[i], &localBank->Inventory.Weapons[equippedIdx], sizeof(RaidsInventoryWeapon_t));
     }
   }
+
+  if (player->LocalPlayerIndex == 0) {
+    bankBroadcastEquippedInventory();
+    bankBroadcastAccount();
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -441,6 +525,13 @@ void bankTickPlayer(Player * player)
   GadgetBox* gbox = player->GadgetBox;
   if (!gbox) return;
 
+  // default equipslots
+  if (player->IsLocal && !playerGetLocalEquipslot(player->LocalPlayerIndex, 0) && State.PlayerStates[player->PlayerId].LastEquipslots[0]) {
+    playerSetLocalEquipslot(player->LocalPlayerIndex, 0, State.PlayerStates[player->PlayerId].LastEquipslots[0]);
+    playerSetLocalEquipslot(player->LocalPlayerIndex, 1, State.PlayerStates[player->PlayerId].LastEquipslots[1]);
+    playerSetLocalEquipslot(player->LocalPlayerIndex, 2, State.PlayerStates[player->PlayerId].LastEquipslots[2]);
+  }
+
   // apply items
   int i;
   for (i = 0; i < WEAPON_SLOT_OMNI_SHIELD; ++i) {
@@ -477,50 +568,47 @@ void bankTick(void)
 void bankInit(void)
 {
   int i;
-  static int initialized = 0;
 
-  if (!initialized) {
+  netInstallCustomMsgHandler(CUSTOM_MSG_SET_PLAYER_EQUIPPED_INVENTORY, &bankOnSetPlayerEquippedInventoryRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_SET_PLAYER_ACCOUNT, &bankOnSetPlayerAccountRemote);
 
-    // hooks
-    POKE_U32(0x005DDF98, 0); // disable player ambient color affecting child mobys
-    POKE_U8(0x00171b66, 1); // challenge mode
-    HOOK_J_OP(0x00627600, &bankGetGadgetDamage, 0);
-    HOOK_J_OP(0x00542078, &bankGetGadgetColor, 0);
-    HOOK_JAL(0x003F29AC, &bankGetArbiterSpeed);
-    POKE_U32(0x003F2984, 0x0240202D);
-    HOOK_J(0x006299A8, &bankGetAlphaModCount);
-    //HOOK_J_OP(0x00626d98, &bankGetGadgetMaxLevel, 0);
-    //HOOK_J_OP(0x00626fb8, &bankGetGadgetMaxAmmo, 0);
-    //HOOK_JAL_OP(0x0060f780, &bankGetGadgetRefireRate, 0x0200282D);
+  // hooks
+  POKE_U32(0x005DDF98, 0); // disable player ambient color affecting child mobys
+  POKE_U8(0x00171b66, 1); // challenge mode
+  HOOK_J_OP(0x00627600, &bankGetGadgetDamage, 0);
+  HOOK_J_OP(0x00542078, &bankGetGadgetColor, 0);
+  HOOK_JAL(0x003F29AC, &bankGetArbiterSpeed);
+  POKE_U32(0x003F2984, 0x0240202D);
+  HOOK_J(0x006299A8, &bankGetAlphaModCount);
+  //HOOK_J_OP(0x00626d98, &bankGetGadgetMaxLevel, 0);
+  //HOOK_J_OP(0x00626fb8, &bankGetGadgetMaxAmmo, 0);
+  //HOOK_JAL_OP(0x0060f780, &bankGetGadgetRefireRate, 0x0200282D);
 
-    bankRarityColors[RAIDS_WEAPON_RARITY_UNCOMMON] = hudGetTeamColor(TEAM_GREEN, 0);
-    bankRarityColors[RAIDS_WEAPON_RARITY_RARE] = hudGetTeamColor(TEAM_BLUE, 0);
-    bankRarityColors[RAIDS_WEAPON_RARITY_LEGENDARY] = hudGetTeamColor(TEAM_PURPLE, 0);
+  bankRarityColors[RAIDS_WEAPON_RARITY_UNCOMMON] = hudGetTeamColor(TEAM_GREEN, 0);
+  bankRarityColors[RAIDS_WEAPON_RARITY_RARE] = hudGetTeamColor(TEAM_BLUE, 0);
+  bankRarityColors[RAIDS_WEAPON_RARITY_LEGENDARY] = hudGetTeamColor(TEAM_PURPLE, 0);
 
-    // clear inventory
-    Player** players = playerGetAll();
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (players[i] && players[i]->GadgetBox) {
-        playerStripWeapons(players[i]);
-        playerGiveWeapon(players[i]->GadgetBox, 17, 0, 0); // give cboots
-        players[i]->GadgetBox->Initialized = i+1;
-      }
+  // clear inventory
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (players[i] && players[i]->GadgetBox) {
+      playerStripWeapons(players[i]);
+      playerGiveWeapon(players[i]->GadgetBox, 17, 0, 0); // give cboots
+      players[i]->GadgetBox->Initialized = i+1;
     }
+  }
 
 #if DEBUG1
-    GadgetBox* gbox = playerGetFromSlot(0)->GadgetBox;
-    playerGiveWeapon(gbox, WEAPON_ID_VIPERS, 97, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_MAGMA_CANNON, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_ARBITER, 98, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_B6, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_MINE_LAUNCHER, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_FUSION_RIFLE, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_OMNI_SHIELD, 9, 1);
-    playerGiveWeapon(gbox, WEAPON_ID_FLAIL, 9, 1);
+  GadgetBox* gbox = playerGetFromSlot(0)->GadgetBox;
+  playerGiveWeapon(gbox, WEAPON_ID_VIPERS, 97, 1);
+  playerGiveWeapon(gbox, WEAPON_ID_MAGMA_CANNON, 9, 1);
+  playerGiveWeapon(gbox, WEAPON_ID_ARBITER, 98, 1);
+  playerGiveWeapon(gbox, WEAPON_ID_B6, 9, 1);
+  playerGiveWeapon(gbox, WEAPON_ID_MINE_LAUNCHER, 9, 1);
+  playerGiveWeapon(gbox, WEAPON_ID_FUSION_RIFLE, 9, 1);
+  playerGiveWeapon(gbox, WEAPON_ID_OMNI_SHIELD, 9, 1);
+  playerGiveWeapon(gbox, WEAPON_ID_FLAIL, 9, 1);
 #endif
-
-    initialized = 1;
-  }
 
   bankTick();
 }

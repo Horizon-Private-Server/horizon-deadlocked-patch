@@ -11,6 +11,7 @@
 #define CONTROLLER_OCLASS                         (0x4003)
 #define CONTROLLER_MAX_CONDITIONS                 (8)
 #define CONTROLLER_MAX_TARGETS                    (8)
+#define CONTROLLER_PLAYER_MASK_HOST               (1 << 10)
 
 enum ControllerEventType {
 	CONTROLLER_EVENT_SPAWN,
@@ -71,6 +72,9 @@ enum ControllerTargetUpdateType {
   CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE,
   CONTROLLER_TARGET_UPDATE_TYPE_NPC_CONTROLLER_TARGET,
   CONTROLLER_TARGET_UPDATE_TYPE_NPC_CONTROLLER_TARGET_TO_TRIGGERED,
+  CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_AMMO,
+  CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_HEALTH,
+  CONTROLLER_TARGET_UPDATE_TYPE_RESPAWN,
 };
 
 struct ControllerRuntimeState
@@ -148,6 +152,21 @@ struct ControllerTarget
       int DestIdx;
       int SrcIdx;
     } Cuboid;
+    
+    // give player
+    struct {
+      int PlayerMask;
+      char TriggeredOnly;
+      char LivingOnly;
+      short Amount;
+    } GivePlayer;
+    
+    // respawn player
+    struct {
+      int PlayerMask;
+      char TriggeredOnly;
+      char DeadOnly;
+    } RespawnPlayer;
   };
 };
 

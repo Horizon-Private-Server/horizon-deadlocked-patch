@@ -369,3 +369,15 @@ int selectRandomIndex(int count, void* userdata, CanSelectIndex_func canSelectIn
 
   return idx;
 }
+
+//--------------------------------------------------------------------------
+int hasPendingWorldHop(void)
+{
+  return MapConfig.State && MapConfig.State->PendingWorldHopMapDef && MapConfig.State->PendingWorldHopAtTime > 0;
+}
+
+//--------------------------------------------------------------------------
+int isOnHubWorld(void)
+{
+  return MapConfig.State && MapConfig.State->OnHubWorld;
+}

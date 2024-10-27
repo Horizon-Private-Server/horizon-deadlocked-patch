@@ -16,6 +16,7 @@
 #include <libdl/utils.h>
 #include "messageid.h"
 #include "config.h"
+#include "common.h"
 #include "include/config.h"
 
 extern int isUnloading;
@@ -1420,7 +1421,11 @@ void runTestLogic(void)
     //runB6HitVisualizer();
     //runLocalPlayerChargeboot();
     //runSendMonitor();
-    runSceneSwitcher();
+    //runSceneSwitcher();
+
+    if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+      mapHopTo(&customMapDefs[0]);
+    }
 
     // if (padGetButtonDown(0, PAD_DOWN) > 0) {
     //   Player* p = playerGetFromSlot(0);

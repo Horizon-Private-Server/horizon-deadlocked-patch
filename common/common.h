@@ -67,6 +67,30 @@ void gfxHelperDrawText(float x, float y, float offsetX, float offsetY, float sca
 void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char* str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
 
 /*
+ * NAME :    gfxHelperDrawTextWindow
+ * 
+ * DESCRIPTION :
+ *       Draws text on the screen constrained to a window.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ *      x:              Screen X position (0-SCREEN_WIDTH).
+ *      y:              Screen Y position (0-SCREEN_HEIGHT).
+ *      scale:          Text scale.
+ *      color:          color of box.
+ *      str:            String to draw. Max 64 characters for DZO.
+ *      length:         Number of characters to draw. -1 to draw full length of string.
+ *      alignment:      Text alignment.
+ *      dzoDraw:        Whether to draw on the DZO client.
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
+ */
+void gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char* str, int length, enum TextAlign alignment, enum FontWindowFlags flags, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+
+/*
  * NAME :    gfxHelperDrawSprite
  * 
  * DESCRIPTION :

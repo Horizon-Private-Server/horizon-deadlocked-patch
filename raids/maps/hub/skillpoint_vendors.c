@@ -69,6 +69,7 @@ void spVendorTick(void)
 
   RaidsPlayerBank_t* bank = MapConfig.GetBankFunc();
   if (!bank || !bank->Account.SkillPoints) return;
+  if (MapConfig.State && MapConfig.State->MenuOpen) return;
 
   Player* localPlayer = playerGetFromSlot(0);
   if (!localPlayer) return;
@@ -83,7 +84,9 @@ void spVendorTick(void)
       if (padGetButtonDown(0, PAD_CIRCLE) > 0) {
         bank->Account.SkillPoints--;
         bank->Account.Skills[skillIdx]++;
+        bank->Inventory.RefreshLocalInventory = 1;
         hudHidePopup();
+        if (MapConfig.SendBankAccountToServerFunc) MapConfig.SendBankAccountToServerFunc();
         if (MapConfig.PushSnackFunc) {
           snprintf(buf, sizeof(buf), spVendorSkillGotMessages[skillIdx], bank->Account.Skills[skillIdx]);
           MapConfig.PushSnackFunc(buf, 1, 0);

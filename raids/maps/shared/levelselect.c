@@ -1,0 +1,270 @@
+#include <string.h>
+#include <libdl/stdio.h>
+#include <libdl/game.h>
+#include <libdl/collision.h>
+#include <libdl/stdlib.h>
+#include <libdl/color.h>
+#include <libdl/moby.h>
+#include <libdl/sound.h>
+#include <libdl/pad.h>
+#include <libdl/random.h>
+#include <libdl/utils.h>
+#include <libdl/net.h>
+#include <libdl/ui.h>
+#include <libdl/graphics.h>
+#include "../../include/levelselect.h"
+#include "../../include/game.h"
+#include "maputils.h"
+#include "config.h"
+#include "common.h"
+
+extern struct RaidsState State;
+
+int aaa = 0;
+
+LevelselectDrawState_t levelselectDrawState = {
+  .SelectedIdx = 0,
+  .SelectedDifficulty = 0
+};
+
+//--------------------------------------------------------------------------
+void levelselectOpen(void)
+{
+  if (gameHasEnded()) return;
+  if (!MapConfig.State) return;
+  if (!PATCH_INTEROP) return;
+  if (MapConfig.State->MenuOpen != RAIDS_CUSTOM_MENU_NONE) return;
+
+  MapConfig.State->MenuOpen = RAIDS_CUSTOM_MENU_LEVELSELECT;
+  padDisableInput();
+}
+
+//--------------------------------------------------------------------------
+void levelselectClose(void)
+{
+  if (!MapConfig.State) return;
+  if (MapConfig.State->MenuOpen != RAIDS_CUSTOM_MENU_LEVELSELECT) return;
+
+  MapConfig.State->MenuOpen = RAIDS_CUSTOM_MENU_NONE;
+  padEnableInput();
+}
+
+//--------------------------------------------------------------------------
+void levelselectGo(LevelselectDrawState_t* drawState)
+{
+  if (hasPendingWorldHop()) return;
+  if (!gameAmIHost()) return;
+  if (!drawState) return;
+  if (!MapConfig.GetBankFunc) return;
+  if (!drawState->SelectedMapFilename[0]) return;
+
+  RaidsPlayerBank_t* localBank = MapConfig.GetBankFunc();
+  int cost = drawState->SelectedMapExtraData.Cost[drawState->SelectedDifficulty];
+  if (cost > localBank->Account.Bolts) return;
+
+  // hop
+  MapConfig.BeginWorldHopFunc(drawState->SelectedMapFilename, drawState->SelectedDifficulty, cost, 5 * TIME_SECOND);
+  levelselectClose();
+}
+
+//--------------------------------------------------------------------------
+void levelselectDrawSpinner(LevelselectDrawState_t* drawState, float x, float y)
+{
+  gfxSetupGifPaging(0);
+
+  x -= 16; // middle align (16*(3-1))/2
+  float t = (int)(4*fastmodf(gameGetTime() / 1000.0, 1.0));
+  int i = 0;
+  while (i < t) {
+    gfxHelperDrawSprite(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, x, y, 16, 16, 64, 64, 80, 0x80FFFFFF, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    ++i;
+    x += 16;
+  }
+  
+  gfxDoGifPaging();
+}
+
+//--------------------------------------------------------------------------
+void levelselectDrawFooter(LevelselectDrawState_t* drawState)
+{
+  u32 textColor = 0x80FFFFFF;
+  char strBuf[128];
+
+  // draw footer text
+  strBuf[0] = 0;
+  strcat(strBuf, "\x13 REFRESH    ");
+  strcat(strBuf, "\x1A \x1B STARS    ");
+  strcat(strBuf, "\x12 CLOSE");
+  gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, -LEVELSELECT_DRAW_FULL_W/2 + 5, LEVELSELECT_DRAW_FULL_H/2 - 5, 0.8, textColor, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+}
+
+//--------------------------------------------------------------------------
+void levelselectDraw(void)
+{
+  u32 bgColor = 0x60000000;
+  u32 selectColor = 0x60008080;
+  u32 borderColor = 0x80000020;
+  u32 textColor = 0x80FFFFFF;
+  u32 starActiveColor = 0x80008080;
+  u32 starInactiveColor = 0x80101010;
+  float xOff = -LEVELSELECT_DRAW_FULL_W/2.0 + 5;
+  float yOff = -LEVELSELECT_DRAW_FULL_H/2.0;
+  float borderSizeH = LEVELSELECT_DRAW_FRAME_BORDER_W * SCREEN_RATIO_INV;
+  float borderSizeV = LEVELSELECT_DRAW_FRAME_BORDER_W;
+  int i;
+  int totalMapDefCount = 0;
+  int raidsMapDefCount = 0;
+  char strBuf[128];
+
+  // draw frame
+  gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, 0, LEVELSELECT_DRAW_FULL_W, LEVELSELECT_DRAW_FULL_H, bgColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  // draw title text
+  gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, yOff, 1.3, textColor, "Planet Select", -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+  yOff += LEVELSELECT_TITLE_H;
+
+  // draw map list
+  if (PATCH_INTEROP->GetCustomMapDefCount && PATCH_INTEROP->GetCustomMapDef) {
+    if (PATCH_INTEROP->GetCustomMapDefCount) totalMapDefCount = PATCH_INTEROP->GetCustomMapDefCount();
+
+    i = 0;
+    if (levelselectDrawState.SelectedIdx > LEVELSELECT_MAPLIST_ITEM_COUNT)
+      i = levelselectDrawState.SelectedIdx - LEVELSELECT_MAPLIST_ITEM_COUNT;
+
+    for (; i < totalMapDefCount; ++i) {
+      CustomMapDef_t* def = PATCH_INTEROP->GetCustomMapDef(i);
+      if (!def) continue;
+      if (def->HideFromMapList == 1) continue;
+      if (def->ForcedCustomModeId != CUSTOM_MODE_RAIDS) continue;
+      if (!(def->CustomModeExtraDataMask & (1<<CUSTOM_MODE_RAIDS))) continue;
+      if (strncmp(def->Filename, "raids_hub", 10) == 0) continue;
+
+      // draw selection line
+      if (raidsMapDefCount == levelselectDrawState.SelectedIdx) {
+        if (strncmp(def->Filename, levelselectDrawState.SelectedMapFilename, sizeof(levelselectDrawState.SelectedMapFilename)) != 0) {
+          strncpy(levelselectDrawState.SelectedMapFilename, def->Filename, sizeof(levelselectDrawState.SelectedMapFilename));
+          PATCH_INTEROP->ReadCustomMapExtraData(def->Filename, &levelselectDrawState.SelectedMapExtraData, sizeof(levelselectDrawState.SelectedMapExtraData), CUSTOM_MODE_RAIDS);
+        }
+        gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, xOff-5, yOff, LEVELSELECT_MAPLIST_W, LEVELSELECT_MAPLIST_ITEM_H, selectColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      }
+
+      // draw map name
+      gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, xOff, yOff + LEVELSELECT_MAPLIST_ITEM_H/2.0, 0.8, textColor, def->Name, -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
+      yOff += LEVELSELECT_MAPLIST_ITEM_H;
+      ++raidsMapDefCount;
+    }
+  }
+
+  // draw selected planet
+  xOff = 5;
+  yOff = -LEVELSELECT_DRAW_FULL_H/2.0 + LEVELSELECT_TITLE_H;
+  if (raidsMapDefCount > 0 && levelselectDrawState.SelectedMapFilename[0]) {
+
+    // text bgs
+    gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, yOff, LEVELSELECT_MAPINFO_W, 14, 0x70000040, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, yOff+14, LEVELSELECT_MAPINFO_W, LEVELSELECT_MAPDESC_H, 0x60101010, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, yOff+14+LEVELSELECT_MAPDESC_H, LEVELSELECT_MAPINFO_W, 25, 0x30404040, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+
+    // author
+    snprintf(strBuf, sizeof(strBuf), "Author: %s", levelselectDrawState.SelectedMapExtraData.Author);
+    gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, xOff, yOff, 0.8, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    yOff += 14;
+
+    // description
+    gfxHelperDrawTextWindow(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, yOff, LEVELSELECT_MAPINFO_W, LEVELSELECT_MAPDESC_H, 5, 5, 0.7, textColor, levelselectDrawState.SelectedMapExtraData.Description, -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NORMAL);
+    yOff += LEVELSELECT_MAPDESC_H;
+
+    // star select
+    gfxSetupGifPaging(0);
+    xOff = (LEVELSELECT_MAPINFO_W/2.0) - ((RAIDS_DIFFICULTY_COUNT/2)*LEVELSELECT_STAR_W);
+    for (i = 0; i < RAIDS_DIFFICULTY_COUNT; ++i) {
+      gfxHelperDrawSprite(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, xOff, yOff + 12, 24, 24, 32, 32, LEVELSELECT_STAR_SPRITE_ID, i <= levelselectDrawState.SelectedDifficulty ? starActiveColor : starInactiveColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+      xOff += LEVELSELECT_STAR_W;
+    }
+    gfxDoGifPaging();
+    yOff += LEVELSELECT_STAR_H;
+    xOff = 5;
+
+    // interact text
+    if (MapConfig.GetBankFunc) {
+      RaidsPlayerBank_t* localBank = MapConfig.GetBankFunc();
+      char selectChar = gameAmIHost() ? '\x10' : '\x08';
+      int cost = levelselectDrawState.SelectedMapExtraData.Cost[levelselectDrawState.SelectedDifficulty];
+      int canAfford = cost <= localBank->Account.Bolts;
+      if (cost > 0) snprintf(strBuf, sizeof(strBuf), "%c VISIT %c%'d", canAfford ? selectChar : '\x0E', canAfford ? '\x0A' : '\x0E', cost);
+      else snprintf(strBuf, sizeof(strBuf), "%c VISIT\x0A FREE", selectChar);
+      gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, LEVELSELECT_MAPINFO_W/2.0, yOff, 0.8, textColor, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+    }
+  }
+
+  // draw footer
+  levelselectDrawFooter(&levelselectDrawState);
+
+  // draw frame borders
+  gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, LEVELSELECT_DRAW_FULL_W/2, 0, borderSizeH, LEVELSELECT_DRAW_FULL_H + borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, -LEVELSELECT_DRAW_FULL_W/2, 0, borderSizeH, LEVELSELECT_DRAW_FULL_H + borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, LEVELSELECT_DRAW_FULL_H/2, LEVELSELECT_DRAW_FULL_W + borderSizeH, borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, -LEVELSELECT_DRAW_FULL_H/2, LEVELSELECT_DRAW_FULL_W + borderSizeH, borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  // handle close input
+  if (MapConfig.State && MapConfig.State->MenuOpen == RAIDS_CUSTOM_MENU_LEVELSELECT && (gameIsAnyStartMenuOpen() || padGetButtonDown(0, PAD_TRIANGLE) > 0)) {
+    levelselectClose();
+  }
+
+  // clamp selected index
+  if (levelselectDrawState.SelectedIdx >= raidsMapDefCount) {
+    levelselectDrawState.SelectedIdx = raidsMapDefCount - 1;
+  }
+
+  // handle input
+  if (padGetButtonDown(0, PAD_LEFT) > 0) {                                                      // NAV LEFT
+    levelselectDrawState.SelectedDifficulty = (levelselectDrawState.SelectedDifficulty-1) % RAIDS_DIFFICULTY_COUNT;
+    if (levelselectDrawState.SelectedDifficulty < 0) levelselectDrawState.SelectedDifficulty = RAIDS_DIFFICULTY_COUNT - 1;
+  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {                                              // NAV RIGHT
+    levelselectDrawState.SelectedDifficulty = (levelselectDrawState.SelectedDifficulty+1) % RAIDS_DIFFICULTY_COUNT;
+  } else if (raidsMapDefCount > 0 && padGetButtonDown(0, PAD_DOWN) > 0) {                       // NAV DOWN
+    levelselectDrawState.SelectedIdx = (levelselectDrawState.SelectedIdx+1) % raidsMapDefCount;
+  } else if (raidsMapDefCount > 0 && padGetButtonDown(0, PAD_UP) > 0) {                         // NAV UP
+    levelselectDrawState.SelectedIdx = (levelselectDrawState.SelectedIdx-1) % raidsMapDefCount;
+    if (levelselectDrawState.SelectedIdx < 0) levelselectDrawState.SelectedIdx = raidsMapDefCount - 1;
+  } else if (PATCH_INTEROP && PATCH_INTEROP->RefreshCustomMapDefs && padGetButtonDown(0, PAD_SQUARE) > 0) {   // REFRESH
+    PATCH_INTEROP->RefreshCustomMapDefs();
+  } else if (gameAmIHost() && padGetButtonDown(0, PAD_CROSS) > 0) {                                                            // TRAVEL
+    levelselectGo(&levelselectDrawState);
+  }
+  
+  //gfxSetupGifPaging(0);
+  //gfxHelperDrawSprite(60, SCREEN_HEIGHT - 60, 0, 0, 100, 100, 64, 64, aaa, 0x80808080, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  //gfxDoGifPaging();
+}
+
+//--------------------------------------------------------------------------
+void levelselectFrameTick(void)
+{
+  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+    --aaa;
+    DPRINTF("%d\n", aaa);
+  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+    ++aaa;
+    DPRINTF("%d\n", aaa);
+  }
+
+  // check if we need to request our bank
+  if (gameHasEnded()) {
+    levelselectClose();
+    return;
+  }
+  
+  // draw
+  if (MapConfig.State && MapConfig.State->MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_R3) > 0) {
+    levelselectOpen();
+  } else if (MapConfig.State && MapConfig.State->MenuOpen == RAIDS_CUSTOM_MENU_LEVELSELECT) {
+    levelselectDraw();
+  }
+}
+
+//--------------------------------------------------------------------------
+void levelselectInit(void)
+{
+  
+}

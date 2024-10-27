@@ -111,7 +111,12 @@
 void processSpectate(void);
 void spectateSetSpectate(int localPlayerIndex, int playerToSpectateOrDisable);
 void runMapLoader(void);
-int mapReadCustomMapExtraData(void* dst, int len);
+int getCustomMapDefCount(void);
+CustomMapDef_t* getCustomMapDef(int index);
+void refreshCustomMapList(void);
+void mapHopTo(CustomMapDef_t* def);
+int mapReadCurrentCustomMapExtraData(void* dst, int len);
+int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int customModeId);
 void onMapLoaderOnlineMenu(void);
 void onConfigOnlineMenu(void);
 void onConfigGameMenu(void);
@@ -356,14 +361,19 @@ PatchInterop_t interopData = {
   .Client = CLIENT_TYPE_NORMAL,
   .Month = 0,
   .SetSpectate = spectateSetSpectate,
-  .MapLoaderFilename = (char*)MapLoaderState.MapFileName
+  .MapLoaderFilename = (char*)MapLoaderState.MapFileName,
+  .GetCustomMapDefCount = getCustomMapDefCount,
+  .GetCustomMapDef = getCustomMapDef,
+  .ReadCustomMapExtraData = mapReadCustomMapExtraData,
+  .RefreshCustomMapDefs = refreshCustomMapList,
+  .HopToCustomMap = mapHopTo
 };
 
 // 
 PatchStateContainer_t patchStateContainer = {
   .Config = &config,
   .GameConfig = &gameConfig,
-  .ReadExtraDataFunc = mapReadCustomMapExtraData
+  .ReadExtraDataFunc = mapReadCurrentCustomMapExtraData
 };
 
 /*
@@ -3373,16 +3383,23 @@ void sendClientReady(void)
  */
 void runClientReadyMessager(void)
 {
+  static int cleared = 0;
   GameSettings* gs = gameGetSettings();
 
-  if (isInMenus())
+  if (isSceneLoading() && !cleared)
   {
     patchStateContainer.AllClientsReady = 0;
     patchStateContainer.ClientsReadyMask = 0;
+    cleared = 1;
   }
   else if (isInGame())
   {
     sendClientReady();
+    cleared = 0;
+  }
+  else if (isInMenus())
+  {
+    cleared = 0;
   }
 }
 
@@ -3707,6 +3724,18 @@ void runPlayerPositionSmooth(void)
 {
   static VECTOR smoothVelocity[GAME_MAX_PLAYERS];
   static int applySmoothVelocityForFrames[GAME_MAX_PLAYERS];
+  static int initialized = 0;
+
+  return;
+
+  if (!isInGame()) {
+    initialized = 0;
+    return;
+  } else if (!initialized) {
+    memset(smoothVelocity, 0, sizeof(smoothVelocity));
+    memset(applySmoothVelocityForFrames, 0, sizeof(applySmoothVelocityForFrames));
+    initialized = 1;
+  }
 
   Player ** players = playerGetAll();
 	int i;

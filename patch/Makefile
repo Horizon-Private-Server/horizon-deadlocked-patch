@@ -1,5 +1,5 @@
 
-all: base comp
+all: base
 
 comp:
 	$(MAKE) -f Makefile.comp
