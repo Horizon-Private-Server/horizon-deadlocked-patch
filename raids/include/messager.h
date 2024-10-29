@@ -41,16 +41,17 @@ struct MessagerMessage
 struct MessagerPVar
 {
   char Init;
+  char DefaultState;
+  char Log;
   char DefaultMessageIdx;
-  short TargetPlayersMask;
-  enum MessagerState DefaultState;
   char DisplayType;
   char Alignment;
+  short TargetPlayersMask;
+  short PosX;
+  short PosY;
   int RuntimeSeconds;
   u32 Color;
   float Scale;
-  short PosX;
-  short PosY;
   struct MessagerRuntimeState State;
   int MessageCount;
   struct MessagerMessage Messages[0];

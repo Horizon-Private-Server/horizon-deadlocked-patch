@@ -38,6 +38,8 @@
 #include "../../include/mob.h"
 #include "../../include/game.h"
 
+#define DLOG(moby, format, ...) if (((struct MoverPVar*)moby->PVar)->Log) { DPRINTF(format, ##__VA_ARGS__); }
+
 int moverInitialized = 0;
 
 //--------------------------------------------------------------------------
@@ -393,7 +395,7 @@ void moverOnGuberCreated(Moby* moby)
       continue;
     }
 
-    DPRINTF("mover %08X found target %d %08X\n", (u32)moby, i, (u32)targetMoby);
+    DLOG(moby, "mover %08X found target %d %08X\n", (u32)moby, i, (u32)targetMoby);
     pvars->MobyTargets[i] = targetMoby;
   }
 }
@@ -442,7 +444,7 @@ int moverHandleEvent(Moby* moby, GuberEvent* event)
       case MOVER_EVENT_SET_STATE: { return moverHandleEvent_SetState(moby, event); }
 			default:
 			{
-				DPRINTF("unhandle mover event %d\n", upgradeEvent);
+				DLOG(moby, "unhandle mover event %d\n", upgradeEvent);
 				break;
 			}
 		}
@@ -478,7 +480,7 @@ void moverInit(void)
 	{
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
       struct Guber* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
-      DPRINTF("found mover %08X %08X\n", (u32)moby, (u32)guber);
+      DLOG(moby, "found mover %08X %08X\n", (u32)moby, (u32)guber);
       if (guber) {
         moverOnGuberCreated(moby);
       }

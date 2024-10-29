@@ -70,7 +70,8 @@ struct NpcParameters
   struct NpcAnimDef Unused2Anim;
   struct NpcAnimDef Unused3Anim;
 
-  enum NpcState DefaultState;
+  char DefaultState;
+  char Log;
   Moby* NpcMoby;
   Moby* TargetMoby;
   int AttachedCuboidIdx;

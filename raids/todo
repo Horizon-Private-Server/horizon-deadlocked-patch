@@ -1,7 +1,7 @@
 ++Checkpoints
 NPC controller
 ++Messages / Dialogue?
-Level loader
+++Level loader
 ++Repeater (in controller, inc counter, N times)
 ++Display if rules for pvar overlay
 ++String date type (w/ variable size) for pvar overlay
@@ -19,19 +19,19 @@ hook up wrench to inventory overrides
 ++Tie 'V10' to legendary
 ++Tie weapon icon color to rarity
 ++Add cost to travel to planet, configurable in Forge per difficulty
-Add Spawner mob difficulty min/max (spawn only >= 1star and <= 3star)
+++Add Spawner mob difficulty min/max (spawn only >= 1star and <= 3star)
 ++Add favoriting to inventory
 Add X-Room w/ spawner
 Trading bolts
 ++Label "You don't have the proficiency to wield this weapon"
-Add difficulty (star) condition to controller
-No respawn/revive mechanic
-Add controller target to respawn dead players
-Add difficulty filter to controller targets
-Add health +/-/*/div/set target to controller
+++Add difficulty (star) condition to controller
+++No respawn/revive mechanic
+++Add controller target to respawn dead players
+++Add difficulty filter to controller targets
++-Add health +/-/*/div/set target to controller
 
-Add reload planet option
-Add log toggles to specific mobys in Forge
+++Add reload planet option
+++Add log toggles to specific mobys in Forge
 ++Save and reapply equipped gadget ids on load
 ++Kill all child mobs when spawner completes
 ++Fix skin colors reseting on hop
@@ -41,3 +41,9 @@ Add log toggles to specific mobys in Forge
 ++Fix skillpoints not applying until inventory is opened
 ++Fix NPS breaking player pos on hop
 Add version number to raids mode + maps, filter by version
+++Add ammo drops
+Add priority to nearby spawners (or configurable in forge?)
+
+Hookup nanoleech
+Hookup omega mods to mobs (acid, freeze, napalm, mini bomb, shock)
+Hookup loot drops

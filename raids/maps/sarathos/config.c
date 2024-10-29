@@ -78,9 +78,6 @@ struct MobSpawnParams mobSpawnParams[] = {
 
 //--------------------------------------------------------------------------
 RaidsBakedConfig_t bakedConfig = {
-  .Difficulty = 1.0,
-  .SpawnDistanceFactor = 1.0,
-  .BoltRankMultiplier = 1
 };
 
 //--------------------------------------------------------------------------

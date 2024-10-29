@@ -129,7 +129,7 @@ void mobGetKnockbackVelocity(Moby* moby, VECTOR out)
   vector_normalize(out, out);
   vector_scale(out, out, power * MATH_DT);
 
-  DPRINTF("knockback %d %d => %f %f\n", pvars->MobVars.Knockback.Ticks, pvars->MobVars.Knockback.Power, power, slerpFactor);
+  //DPRINTF("knockback %d %d => %f %f\n", pvars->MobVars.Knockback.Ticks, pvars->MobVars.Knockback.Power, power, slerpFactor);
 }
 
 //--------------------------------------------------------------------------

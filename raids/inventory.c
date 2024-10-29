@@ -558,7 +558,6 @@ void inventoryDrawFooter(InventoryDrawState_t* drawState)
     if (selectedTooStrong) { snprintf(sellPriceStrBuf, sizeof(sellPriceStrBuf), "MUST BE P%d TO EQUIP    ", selectedWeapon->Proficiency+1); strcat(strBuf, sellPriceStrBuf); }
     if (selectedWeapon) strcat(strBuf, "\x11 FAV    ");
     if (canSell) { strcat(strBuf, "\x13 SELL    "); }
-    if (!isOnHubWorld() && !selectedTooStrong && gameAmIHost()) { strcat(strBuf, "\x1E TO HUB    "); } // too much text so only show when enough room
   }
   strcat(strBuf, "\x12 CLOSE");
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -INVENTORY_DRAW_FULL_W/2 + 5, INVENTORY_DRAW_FULL_H/2 - 5, 0.8, textColor, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
@@ -653,19 +652,6 @@ void inventoryDraw(void)
     return;
   }
 
-  // draw return to hub
-  if (inventoryDrawState.ShowHopToHubDialog) {
-    int selResult = inventoryDrawDialog(&inventoryDrawState, "Exit to Hub?", NULL);
-    if (selResult == 1) {
-      hopBegin("raids_hub", 0, 0, TIME_SECOND * 5);
-      inventoryDrawState.ShowHopToHubDialog = 0;
-      inventoryClose();
-    } else if (selResult == 0) {
-      inventoryDrawState.ShowHopToHubDialog = 0;
-    }
-    return;
-  }
-
   // handle close input
   if (State.MenuOpen == RAIDS_CUSTOM_MENU_INVENTORY && (gameIsAnyStartMenuOpen() || padGetButtonDown(0, PAD_TRIANGLE) > 0)) {
     inventoryClose();
@@ -701,8 +687,6 @@ void inventoryDraw(void)
     } else if (selectedWeapon && padGetButtonDown(0, PAD_CIRCLE) > 0) {   // FAVORITE
       if (selectedWeapon->Notify == RAIDS_WEAPON_NOTIFY_FAV) selectedWeapon->Notify = RAIDS_WEAPON_NOTIFY_NONE;
       else selectedWeapon->Notify = RAIDS_WEAPON_NOTIFY_FAV;
-    } else if (!isOnHubWorld() && PATCH_INTEROP && PATCH_INTEROP->HopToCustomMap && gameAmIHost() && padGetButtonDown(0, PAD_SELECT) > 0) {   // TO HUB
-      inventoryDrawState.ShowHopToHubDialog = 1;
     }
     inventoryDrawState.SelectedIdx = selIdx;
   }

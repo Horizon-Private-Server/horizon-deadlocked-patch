@@ -9,6 +9,8 @@
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
+#define RAIDS_HUB_MAPFILENAME                 ("raids_hub")
+
 #define TPS																		(60)
 
 #define ZOMBIE_MOBY_OCLASS										(0x20F6)
@@ -62,6 +64,7 @@
 #define MOB_BASE_HEALTH										    (30)
 #define MOB_BASE_HEALTH_SCALE                 (0.05*1)
 
+#define MAX_MOB_AMMO_DROPS                    (10)
 #define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
 #define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
 #define MOB_SPECIAL_MUTATION_REL_COST			    (1.0)
@@ -115,6 +118,8 @@
 #define REACTOR_RENDER_COST                   (300)
 #define EXECUTIONER_RENDER_COST               (300)
 
+#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.05)
+
 enum GameNetMessage
 {
 	CUSTOM_MSG_MOB_UNRELIABLE_MSG = CUSTOM_MSG_ID_GAME_MODE_START,
@@ -163,9 +168,6 @@ typedef void (*FrameTick_func)(void);
 
 typedef struct RaidsBakedConfig
 {
-	float Difficulty;
-  float SpawnDistanceFactor;
-  int BoltRankMultiplier;
 } RaidsBakedConfig_t;
 
 struct RaidsPlayerState
@@ -214,7 +216,7 @@ struct RaidsState
   int MapBaseComplexity;
   struct RaidsMobStats MobStats;
 	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
-  char ClientReady[GAME_MAX_PLAYERS];
+  int ClientsReady;
 	int MenuOpen;
   int OnHubWorld;
 	Moby* Vendor;
@@ -223,8 +225,10 @@ struct RaidsState
 	int GameOver;
 	int WinningTeam;
 	int ActivePlayerCount;
+	int AlivePlayerCount;
 	int IsHost;
 	float Difficulty;
+  float AmmoDropChance;
   int DifficultyStars;
   int PendingWorldHopAtTime;
   CustomMapDef_t* PendingWorldHopMapDef;

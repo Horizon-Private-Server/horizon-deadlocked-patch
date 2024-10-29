@@ -41,6 +41,8 @@
 #include "../../include/mob.h"
 #include "../../include/game.h"
 
+#define DLOG(moby, format, ...) if (((struct MessagerPVar*)moby->PVar)->Log) { DPRINTF(format, ##__VA_ARGS__); }
+
 int messagerDrawQueueCount = 0;
 Moby* messagerDrawQueueMobys[MESSAGER_MAX_DRAW_QUEUE] = {};
 gfxDrawFuncDef messagerDrawQueueCallbacks[MESSAGER_MAX_DRAW_QUEUE] = {};
@@ -179,7 +181,7 @@ void messagerInit(void)
 	{
     struct MessagerPVar* pvars = (struct MessagerPVar*)moby->PVar;
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
-      DPRINTF("found messager %08X\n", (u32)moby);
+      DLOG(moby, "found messager %08X\n", (u32)moby);
       moby->PUpdate = &messagerUpdate;
       moby->ModeBits = MOBY_MODE_BIT_HIDDEN | MOBY_MODE_BIT_NO_POST_UPDATE;
 

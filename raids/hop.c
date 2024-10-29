@@ -18,6 +18,7 @@
 #include "common.h"
 
 extern struct RaidsState State;
+extern int Initialized;
 
 void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
 
@@ -156,6 +157,10 @@ void hopDo(void)
     State.PlayerStates[i].LastEquipslots[1] = playerGetLocalEquipslot(i, 1);
     State.PlayerStates[i].LastEquipslots[2] = playerGetLocalEquipslot(i, 2);
   }
+
+  // reset init
+  State.ClientsReady = 0;
+  Initialized = 0;
 
   // hop
   CustomMapDef_t* def = State.PendingWorldHopMapDef;

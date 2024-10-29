@@ -60,6 +60,13 @@ u8 mobPlaySoundCooldownTicks[MAX_MOB_SPAWN_PARAMS][MOBS_PLAY_SOUND_COOLDOWN_MAX_
 
 int playerStates[GAME_MAX_PLAYERS] = {};
 int playerStateTimers[GAME_MAX_PLAYERS] = {};
+float Difficulties[RAIDS_DIFFICULTY_COUNT] = {
+  [RAIDS_DIFFICULTY_1STAR] 1.0,
+  [RAIDS_DIFFICULTY_2STAR] 30.0,
+  [RAIDS_DIFFICULTY_3STAR] 150.0,
+  [RAIDS_DIFFICULTY_4STAR] 400.0,
+  [RAIDS_DIFFICULTY_5STAR] 1000.0,
+};
 
 //--------------------------------------------------------------------------
 void setPlayerEXP(int localPlayerIndex, float expPercent)
@@ -737,6 +744,9 @@ void initialize(PatchStateContainer_t* gameState)
   // disable holoshields from disappearing
   //*(u16*)0x00401478 = 2;
 
+  // disable ammo drop despawn
+  //POKE_U32(0x004FE814, 0);
+
   // disable jump pad effect
   POKE_U32(0x0042608C, 0);
 
@@ -877,10 +887,12 @@ void initialize(PatchStateContainer_t* gameState)
   padDisableInput();
 
   // component init
+  mobInitialize();
   bubbleInit();
   bankInit();
   inventoryInit();
   hopInit();
+  levelselectInit();
 
   memset(playerStates, 0, sizeof(playerStates));
   memset(playerStateTimers, 0, sizeof(playerStateTimers));
@@ -902,6 +914,7 @@ void initialize(PatchStateContainer_t* gameState)
   hudHidePopup();
 
   //
+  State.ClientsReady = 1;
   mapConfig->ClientsReady = 1;
 
   // re-enable input
@@ -912,6 +925,7 @@ void initialize(PatchStateContainer_t* gameState)
 	// initialize player states
 	State.LocalPlayerState = NULL;
 	State.NumTeams = 0;
+	State.AlivePlayerCount = -1;
 	State.ActivePlayerCount = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
@@ -949,11 +963,11 @@ void initialize(PatchStateContainer_t* gameState)
 	}
 
 	// initialize state
+  State.AmmoDropChance = GAME_DEFAULT_AMMO_DROP_CHANCE;
 	State.MobStats.MobsDrawnCurrent = 0;
 	State.MobStats.MobsDrawnLast = 0;
 	State.MobStats.MobsDrawGameTime = 0;
   State.MobStats.TotalSpawned = 0;
-	State.Difficulty = mapConfig->BakedConfig ? mapConfig->BakedConfig->Difficulty : 1;
   
 	if (!FirstTimeInitialized) {
     State.InitializedTime = gameGetTime();
@@ -1021,14 +1035,14 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 	// Determine if host
 	State.IsHost = gameAmIHost();
-
-  // 
+	State.Difficulty = Difficulties[State.DifficultyStars];
   playerConfig = gameState->Config;
 
 	if (!Initialized) {
 		initialize(gameState);
 		return;
 	}
+
 
   // get local player data
   //struct RaidsPlayer* localPlayerData = &State.PlayerStates[localPlayer->PlayerId];
@@ -1090,6 +1104,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   bankTick();
   inventoryTick();
   hopTick();
+  levelselectFrameTick();
 
   // reset inventory refresh flag
   if (refreshInventoryFlag)
@@ -1114,6 +1129,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 #if DEBUG
   if (padGetButton(0, PAD_L1 | PAD_CROSS)) {
     *(float*)0x00347BD8 = 0.125;
+  } else if (padGetButtonDown(0, PAD_UP | PAD_L1) > 0) {
+    
   }
 #endif
 
@@ -1140,9 +1157,11 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       int isAnyPlayerAlive = 0;
 
       // determine number of players alive
+      State.AlivePlayerCount = 0;
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
         if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
           isAnyPlayerAlive = 1;
+          State.AlivePlayerCount++;
         }
       }
 
@@ -1189,6 +1208,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 
 #if !DEBUG
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
@@ -1323,7 +1343,9 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // reset initialized on load
   // enables level hopping
   Initialized = 0;
+  if (mapConfig) mapConfig->ClientsReady = 0;
   State.OnHubWorld = 0;
+  State.ClientsReady = 0;
 
 	setLobbyGameOptions(gameState->GameConfig);
   

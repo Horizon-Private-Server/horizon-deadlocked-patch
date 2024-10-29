@@ -37,6 +37,8 @@
 #include "../../include/mob.h"
 #include "../../include/game.h"
 
+#define DLOG(moby, format, ...) if (((struct SpawnerPVar*)moby->PVar)->Log) { DPRINTF(format, ##__VA_ARGS__); }
+
 int spawnerInitialized = 0;
 
 //--------------------------------------------------------------------------
@@ -126,6 +128,9 @@ int spawnerSpawnRandom(Moby* moby)
     return 0;
 
   if (MapConfig.State && mobParams->MaxCanAliveAtOnce > 0 && mobParams->MaxCanAliveAtOnce <= MapConfig.State->MobStats.NumAlive[mobParams->MobParamIdx])
+    return 0;
+
+  if (MapConfig.State && (mobParams->StarsMask & (1 << MapConfig.State->DifficultyStars)) == 0)
     return 0;
 
   if (pvars->State.Cooldown[spawnerMobIdx] > 0)
@@ -226,7 +231,7 @@ void spawnerUpdate(Moby* moby)
 
   // check if completed
   if (moby->State != SPAWNER_STATE_COMPLETED && spawnerIsCompleted(moby)) {
-    DPRINTF("spawner %08X completed\n", (u32)moby);
+    DLOG(moby, "spawner %08X completed\n", (u32)moby);
     spawnerBroadcastNewState(moby, SPAWNER_STATE_COMPLETED);
     return;
   }
@@ -311,8 +316,8 @@ void spawnerOnChildMobKilled(Moby* moby, Moby* childMoby, u32 userdata, int kill
   pvars->State.NumTotalSpawned--;
   pvars->State.NumSpawned[userdata]--;
 
-  DPRINTF("MOB%d: spawned:%d killed:%d\n", userdata, pvars->State.NumSpawned[userdata], pvars->State.NumKilled[userdata]);
-  //DPRINTF("SPAWNER %d/%d\n", pvars->State.NumTotalKilled, pvars->NumMobsToSpawn);
+  DLOG(moby, "MOB%d: spawned:%d killed:%d\n", userdata, pvars->State.NumSpawned[userdata], pvars->State.NumKilled[userdata]);
+  //DLOG(moby, "SPAWNER %d/%d\n", pvars->State.NumTotalKilled, pvars->NumMobsToSpawn);
 }
 
 //--------------------------------------------------------------------------
@@ -399,21 +404,21 @@ void spawnerOnGuberCreated(Moby* moby)
 
   // print pvars
   #if PRINT_SPAWNER_PVARS
-    DPRINTF("NumMobsToSpawn=%d\n", pvars->NumMobsToSpawn);
-    DPRINTF("PathGraphIdx=%d\n", pvars->PathGraphIdx);
-    DPRINTF("TriggerCuboids\n");
+    DLOG(moby, "NumMobsToSpawn=%d\n", pvars->NumMobsToSpawn);
+    DLOG(moby, "PathGraphIdx=%d\n", pvars->PathGraphIdx);
+    DLOG(moby, "TriggerCuboids\n");
     for (i = 0; i < SPAWNER_MAX_TRIGGER_CUBOIDS; ++i) {
-      DPRINTF(" [%d].CuboidIdx=%d\n", i, pvars->TriggerCuboids[i].CuboidIdx);
-      DPRINTF(" [%d].InteractType=%d\n", i, pvars->TriggerCuboids[i].InteractType);
+      DLOG(moby, " [%d].CuboidIdx=%d\n", i, pvars->TriggerCuboids[i].CuboidIdx);
+      DLOG(moby, " [%d].InteractType=%d\n", i, pvars->TriggerCuboids[i].InteractType);
     }
-    DPRINTF("SpawnCuboidIds\n");
-    for (i = 0; i < SPAWNER_MAX_SPAWN_CUBOIDS; ++i) { DPRINTF(" [%d]=%d\n", i, pvars->SpawnCuboidIds[i]); }
-    DPRINTF("SpawnableMobParam\n");
+    DLOG(moby, "SpawnCuboidIds\n");
+    for (i = 0; i < SPAWNER_MAX_SPAWN_CUBOIDS; ++i) { DLOG(moby, " [%d]=%d\n", i, pvars->SpawnCuboidIds[i]); }
+    DLOG(moby, "SpawnableMobParam\n");
     for (i = 0; i < SPAWNER_MAX_MOB_TYPES; ++i) {
-      DPRINTF(" [%d].MobParamIdx=%d\n", i, pvars->SpawnableMobParam[i].MobParamIdx);
-      DPRINTF(" [%d].Probability=%f\n", i, pvars->SpawnableMobParam[i].Probability);
-      DPRINTF(" [%d].DifficultyMultiplier=%f\n", i, pvars->SpawnableMobParam[i].DifficultyMultiplier);
-      DPRINTF(" [%d].MaxCanSpawnOrUnlimited=%d\n", i, pvars->SpawnableMobParam[i].MaxCanSpawnOrUnlimited);
+      DLOG(moby, " [%d].MobParamIdx=%d\n", i, pvars->SpawnableMobParam[i].MobParamIdx);
+      DLOG(moby, " [%d].Probability=%f\n", i, pvars->SpawnableMobParam[i].Probability);
+      DLOG(moby, " [%d].DifficultyMultiplier=%f\n", i, pvars->SpawnableMobParam[i].DifficultyMultiplier);
+      DLOG(moby, " [%d].MaxCanSpawnOrUnlimited=%d\n", i, pvars->SpawnableMobParam[i].MaxCanSpawnOrUnlimited);
     }
   #endif
 }
@@ -457,7 +462,7 @@ int spawnerHandleEvent(Moby* moby, GuberEvent* event)
       case SPAWNER_EVENT_SET_STATE: { return spawnerHandleEvent_SetState(moby, event); }
 			default:
 			{
-				DPRINTF("unhandle spawner event %d\n", upgradeEvent);
+				DLOG(moby, "unhandle spawner event %d\n", upgradeEvent);
 				break;
 			}
 		}
@@ -493,7 +498,7 @@ void spawnerInit(void)
 	{
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
       struct Guber* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
-      DPRINTF("found spawner %08X %08X\n", (u32)moby, (u32)guber);
+      DLOG(moby, "found spawner %08X %08X\n", (u32)moby, (u32)guber);
       if (guber) {
         spawnerOnGuberCreated(moby);
       }

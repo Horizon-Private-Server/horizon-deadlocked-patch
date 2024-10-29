@@ -12,15 +12,14 @@
 #include <libdl/net.h>
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
-#include "../../include/levelselect.h"
-#include "../../include/game.h"
-#include "maputils.h"
+#include "include/levelselect.h"
+#include "include/hop.h"
+#include "include/game.h"
+#include "include/utils.h"
 #include "config.h"
 #include "common.h"
 
 extern struct RaidsState State;
-
-int aaa = 0;
 
 LevelselectDrawState_t levelselectDrawState = {
   .SelectedIdx = 0,
@@ -31,21 +30,19 @@ LevelselectDrawState_t levelselectDrawState = {
 void levelselectOpen(void)
 {
   if (gameHasEnded()) return;
-  if (!MapConfig.State) return;
   if (!PATCH_INTEROP) return;
-  if (MapConfig.State->MenuOpen != RAIDS_CUSTOM_MENU_NONE) return;
+  if (State.MenuOpen != RAIDS_CUSTOM_MENU_NONE) return;
 
-  MapConfig.State->MenuOpen = RAIDS_CUSTOM_MENU_LEVELSELECT;
+  State.MenuOpen = RAIDS_CUSTOM_MENU_LEVELSELECT;
   padDisableInput();
 }
 
 //--------------------------------------------------------------------------
 void levelselectClose(void)
 {
-  if (!MapConfig.State) return;
-  if (MapConfig.State->MenuOpen != RAIDS_CUSTOM_MENU_LEVELSELECT) return;
+  if (State.MenuOpen != RAIDS_CUSTOM_MENU_LEVELSELECT) return;
 
-  MapConfig.State->MenuOpen = RAIDS_CUSTOM_MENU_NONE;
+  State.MenuOpen = RAIDS_CUSTOM_MENU_NONE;
   padEnableInput();
 }
 
@@ -55,15 +52,14 @@ void levelselectGo(LevelselectDrawState_t* drawState)
   if (hasPendingWorldHop()) return;
   if (!gameAmIHost()) return;
   if (!drawState) return;
-  if (!MapConfig.GetBankFunc) return;
   if (!drawState->SelectedMapFilename[0]) return;
 
-  RaidsPlayerBank_t* localBank = MapConfig.GetBankFunc();
+  RaidsPlayerBank_t* localBank = bankGetLocalBank();
   int cost = drawState->SelectedMapExtraData.Cost[drawState->SelectedDifficulty];
   if (cost > localBank->Account.Bolts) return;
 
   // hop
-  MapConfig.BeginWorldHopFunc(drawState->SelectedMapFilename, drawState->SelectedDifficulty, cost, 5 * TIME_SECOND);
+  hopBegin(drawState->SelectedMapFilename, drawState->SelectedDifficulty, cost, 5 * TIME_SECOND);
   levelselectClose();
 }
 
@@ -92,6 +88,7 @@ void levelselectDrawFooter(LevelselectDrawState_t* drawState)
 
   // draw footer text
   strBuf[0] = 0;
+  if (!State.OnHubWorld) strcat(strBuf, "\x11 RETURN TO HUB    ");
   strcat(strBuf, "\x13 REFRESH    ");
   strcat(strBuf, "\x1A \x1B STARS    ");
   strcat(strBuf, "\x12 CLOSE");
@@ -137,7 +134,7 @@ void levelselectDraw(void)
       if (def->HideFromMapList == 1) continue;
       if (def->ForcedCustomModeId != CUSTOM_MODE_RAIDS) continue;
       if (!(def->CustomModeExtraDataMask & (1<<CUSTOM_MODE_RAIDS))) continue;
-      if (strncmp(def->Filename, "raids_hub", 10) == 0) continue;
+      if (strncmp(def->Filename, RAIDS_HUB_MAPFILENAME, 10) == 0) continue;
 
       // draw selection line
       if (raidsMapDefCount == levelselectDrawState.SelectedIdx) {
@@ -186,15 +183,13 @@ void levelselectDraw(void)
     xOff = 5;
 
     // interact text
-    if (MapConfig.GetBankFunc) {
-      RaidsPlayerBank_t* localBank = MapConfig.GetBankFunc();
-      char selectChar = gameAmIHost() ? '\x10' : '\x08';
-      int cost = levelselectDrawState.SelectedMapExtraData.Cost[levelselectDrawState.SelectedDifficulty];
-      int canAfford = cost <= localBank->Account.Bolts;
-      if (cost > 0) snprintf(strBuf, sizeof(strBuf), "%c VISIT %c%'d", canAfford ? selectChar : '\x0E', canAfford ? '\x0A' : '\x0E', cost);
-      else snprintf(strBuf, sizeof(strBuf), "%c VISIT\x0A FREE", selectChar);
-      gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, LEVELSELECT_MAPINFO_W/2.0, yOff, 0.8, textColor, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
-    }
+    RaidsPlayerBank_t* localBank = bankGetLocalBank();
+    char selectChar = gameAmIHost() ? '\x10' : '\x08';
+    int cost = levelselectDrawState.SelectedMapExtraData.Cost[levelselectDrawState.SelectedDifficulty];
+    int canAfford = cost <= localBank->Account.Bolts;
+    if (cost > 0) snprintf(strBuf, sizeof(strBuf), "%c VISIT %c%'d", canAfford ? selectChar : '\x0E', canAfford ? '\x0A' : '\x0E', cost);
+    else snprintf(strBuf, sizeof(strBuf), "%c VISIT\x0A FREE", selectChar);
+    gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, LEVELSELECT_MAPINFO_W/2.0, yOff, 0.8, textColor, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
   }
 
   // draw footer
@@ -207,7 +202,7 @@ void levelselectDraw(void)
   gfxHelperDrawBox(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, 0, -LEVELSELECT_DRAW_FULL_H/2, LEVELSELECT_DRAW_FULL_W + borderSizeH, borderSizeV, borderColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
   // handle close input
-  if (MapConfig.State && MapConfig.State->MenuOpen == RAIDS_CUSTOM_MENU_LEVELSELECT && (gameIsAnyStartMenuOpen() || padGetButtonDown(0, PAD_TRIANGLE) > 0)) {
+  if (State.MenuOpen == RAIDS_CUSTOM_MENU_LEVELSELECT && (gameIsAnyStartMenuOpen() || padGetButtonDown(0, PAD_TRIANGLE) > 0)) {
     levelselectClose();
   }
 
@@ -229,36 +224,31 @@ void levelselectDraw(void)
     if (levelselectDrawState.SelectedIdx < 0) levelselectDrawState.SelectedIdx = raidsMapDefCount - 1;
   } else if (PATCH_INTEROP && PATCH_INTEROP->RefreshCustomMapDefs && padGetButtonDown(0, PAD_SQUARE) > 0) {   // REFRESH
     PATCH_INTEROP->RefreshCustomMapDefs();
-  } else if (gameAmIHost() && padGetButtonDown(0, PAD_CROSS) > 0) {                                                            // TRAVEL
+  } else if (gameAmIHost() && padGetButtonDown(0, PAD_CIRCLE) > 0) {                            // TO HUB
+    hopBegin(RAIDS_HUB_MAPFILENAME, 0, 0, 5 * TIME_SECOND);
+    levelselectClose();
+  } else if (gameAmIHost() && padGetButtonDown(0, PAD_CROSS) > 0) {                             // TRAVEL
     levelselectGo(&levelselectDrawState);
   }
-  
-  //gfxSetupGifPaging(0);
-  //gfxHelperDrawSprite(60, SCREEN_HEIGHT - 60, 0, 0, 100, 100, 64, 64, aaa, 0x80808080, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
-  //gfxDoGifPaging();
 }
 
 //--------------------------------------------------------------------------
 void levelselectFrameTick(void)
 {
-  if (padGetButtonDown(0, PAD_LEFT) > 0) {
-    --aaa;
-    DPRINTF("%d\n", aaa);
-  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-    ++aaa;
-    DPRINTF("%d\n", aaa);
-  }
-
-  // check if we need to request our bank
-  if (gameHasEnded()) {
+  if (gameHasEnded() || !isInGame() || gameIsAnyStartMenuOpen()) {
     levelselectClose();
     return;
   }
+
+  int canOpen = State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_R3) > 0;
+  if (canOpen) {
+    levelselectOpen();
+  } else if (!State.OnHubWorld && State.ClientsReady && State.AlivePlayerCount == 0 && State.ActivePlayerCount && !hasPendingWorldHop()) {
+    levelselectOpen();
+  }
   
   // draw
-  if (MapConfig.State && MapConfig.State->MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_R3) > 0) {
-    levelselectOpen();
-  } else if (MapConfig.State && MapConfig.State->MenuOpen == RAIDS_CUSTOM_MENU_LEVELSELECT) {
+  if (State.MenuOpen == RAIDS_CUSTOM_MENU_LEVELSELECT) {
     levelselectDraw();
   }
 }

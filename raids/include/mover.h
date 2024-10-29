@@ -51,7 +51,8 @@ struct MoverPVar
   
   // general
   int Init;
-  enum MoverState DefaultState;
+  char DefaultState;
+  char Log;
 
   // linear motion
   float Speed;

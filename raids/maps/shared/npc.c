@@ -26,6 +26,8 @@
 #include "../include/maputils.h"
 #include "../include/shared.h"
 
+#define DLOG(moby, format, ...) if (npcGetPVars(moby)->Parameters.Log) { DPRINTF(format, ##__VA_ARGS__); }
+
 void npcPreUpdate(Moby* moby);
 void npcPostUpdate(Moby* moby);
 void npcPostDraw(Moby* moby);
@@ -466,7 +468,7 @@ void npcDoAction(Moby* moby)
             jumpSpeed = pvars->Parameters.JumpSpeed; //clamp(0 + (target->Position[2] - moby->Position[2]) * fabsf(pvars->Mob.MobVars.MoveVars.WallSlope) * 1, 3, 15);
           }
 
-          //DPRINTF("jump %f\n", jumpSpeed);
+          //DLOG(moby, "jump %f\n", jumpSpeed);
           pvars->Mob.MobVars.MoveVars.Velocity[2] = jumpSpeed * MATH_DT;
           pvars->Mob.MobVars.MoveVars.Grounded = 0;
           pvars->Mob.MobVars.MoveVars.QueueJumpSpeed = 0;
@@ -666,9 +668,9 @@ void npcOnGuberCreated(Moby* moby)
   pvars->Parameters.NpcMoby = mobyGetFromIdxOrNull((int)pvars->Parameters.NpcMoby);
   pvars->Parameters.TargetMoby = mobyGetFromIdxOrNull((int)pvars->Parameters.TargetMoby);
   pvars->Parameters.AttachedMoby = mobyGetFromIdxOrNull((int)pvars->Parameters.AttachedMoby);
-  DPRINTF("npc %08X found npc moby %08X\n", (u32)moby, (u32)pvars->Parameters.NpcMoby);
-  DPRINTF("npc %08X found target moby %08X\n", (u32)moby, (u32)pvars->Parameters.TargetMoby);
-  DPRINTF("npc %08X found attached moby %08X\n", (u32)moby, (u32)pvars->Parameters.AttachedMoby);
+  DLOG(moby, "npc %08X found npc moby %08X\n", (u32)moby, (u32)pvars->Parameters.NpcMoby);
+  DLOG(moby, "npc %08X found target moby %08X\n", (u32)moby, (u32)pvars->Parameters.TargetMoby);
+  DLOG(moby, "npc %08X found attached moby %08X\n", (u32)moby, (u32)pvars->Parameters.AttachedMoby);
 
   // no npc moby, destroy
   if (!pvars->Parameters.NpcMoby) {
@@ -727,7 +729,7 @@ void npcInit(void)
 	{
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
       struct Guber* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
-      DPRINTF("found npc %08X %08X\n", (u32)moby, (u32)guber);
+      DLOG(moby, "found npc %08X %08X\n", (u32)moby, (u32)guber);
       if (guber) {
         npcOnGuberCreated(moby);
       }

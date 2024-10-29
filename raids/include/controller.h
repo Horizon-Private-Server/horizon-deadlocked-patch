@@ -34,6 +34,7 @@ enum ControllerConditionType {
   CONTROLLER_CONDITION_TYPE_DELAY,
   CONTROLLER_CONDITION_TYPE_XOR,
   CONTROLLER_CONDITION_TYPE_NPC_TARGET,
+  CONTROLLER_CONDITION_TYPE_DIFFICULTY,
 };
 
 enum ControllerMobyStateInteractType {
@@ -121,12 +122,18 @@ struct ControllerCondition
       int CuboidIdx;
       short InteractType;
     } NPCTarget;
+
+    // trigger if difficulty
+    struct {
+      int Mask;
+    } Difficulty;
   };
 };
 
 struct ControllerTarget
 {
-  int TargetUpdateType;
+  char TargetUpdateType;
+  char DifficultyMask;
   union {
     // mobys
     struct {
@@ -173,7 +180,8 @@ struct ControllerTarget
 struct ControllerPVar
 {
   int Init;
-  enum ControllerState DefaultState;
+  char DefaultState;
+  char Log;
   struct ControllerTarget Targets[CONTROLLER_MAX_TARGETS];
   char TriggerIfAllTrue;
   short Repeat;

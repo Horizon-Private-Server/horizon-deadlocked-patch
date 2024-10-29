@@ -17,6 +17,8 @@
 int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
 Moby* mobLastInList = 0;
+Moby* mobAmmoDropMobyList[MAX_MOB_AMMO_DROPS];
+int mobAmmoDropMobyListRollingIndex = 0;
 
 extern struct RaidsMapConfig* mapConfig;
 extern PatchConfig_t* playerConfig;
@@ -93,6 +95,53 @@ void mobStatsOnMobDestroyed(Moby* moby)
   if (spIdx >= 0 && spIdx < mapConfig->MobSpawnParamsCount) {
     State.MobStats.NumAlive[spIdx]--;
     State.MobStats.TotalAlive--;
+  }
+}
+
+//--------------------------------------------------------------------------
+void mobSpawnAmmoDrop(Moby* moby) {
+
+  // find free slot
+  int i;
+  for (i = 0; i < MAX_MOB_AMMO_DROPS; ++i) {
+    if (!mobAmmoDropMobyList[i] || mobyIsDestroyed(mobAmmoDropMobyList[i]) || mobAmmoDropMobyList[i]->OClass != MOBY_ID_AMMO) break;
+  }
+
+  // use rolling index
+  if (i >= MAX_MOB_AMMO_DROPS) {
+    i = mobAmmoDropMobyListRollingIndex;
+  }
+
+  // destroy old ammo drop
+  if (mobAmmoDropMobyList[i] && mobAmmoDropMobyList[i]->OClass == MOBY_ID_AMMO) {
+    mobyDestroy(mobAmmoDropMobyList[i]);
+  }
+
+  mobAmmoDropMobyListRollingIndex = (i + 1) % MAX_MOB_AMMO_DROPS;
+  Moby* ammoMoby = mobAmmoDropMobyList[i] = mobySpawn(MOBY_ID_AMMO, 0x100);
+  if (ammoMoby) {
+    DPRINTF("spawn ammo %08X\n", (u32)ammoMoby);
+
+    // snap to ground
+    VECTOR from = {0,0,1,0};
+    VECTOR to = {0,0,-10,0};
+    vector_copy(ammoMoby->Position, moby->Position);
+    vector_add(from, moby->Position, from);
+    vector_add(to, moby->Position, to);
+    if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
+      vector_copy(ammoMoby->Position, CollLine_Fix_GetHitPosition());
+    }
+
+    // update draw
+    ammoMoby->Bangles |= 1;
+    ammoMoby->DrawDist = 255;
+    ammoMoby->UpdateDist = 255;
+    
+    // configure it to be pickup-able
+    if (ammoMoby->PVar) {
+      *(float*)(ammoMoby->PVar + 0x2C) = 2; // radius?
+      *(char*)(ammoMoby->PVar + 0x5C) = 1; // state
+    }
   }
 }
 
@@ -869,8 +918,6 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &random, 1);
 	guberEventRead(event, &args, sizeof(struct MobSpawnEventArgs));
 
-  DPRINTF("spawn mob %08X parentuid:%08X\n", (u32)moby, parentUID);
-
 	// set position and rotation
 	vector_copy(moby->Position, p);
 	moby->Rotation[2] = yaw / 32.0;
@@ -1030,6 +1077,11 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
       bankAddBolts(bolts);
       bankAddXP(xp);
+    }
+
+    // spawn ammo change
+    if (killedByLocal && randRange(0, 1) < State.AmmoDropChance) {
+      mobSpawnAmmoDrop(moby);
     }
 
 		// handle weapon jackpot
@@ -1430,7 +1482,7 @@ void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct Mob
   if (config->MaxHealth > 0 && health > config->MaxHealth)
     health = config->MaxHealth;
   
-  //printf("3 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
+  // printf("3 %d damage:%f speed:%f health:%f base:%d diff:%f\n", spawnParamsIdx, damage, speed, health, isBaseConfig, difficulty);
 
   output->SpawnParamsIdx = spawnParamsIdx;
   output->Bolts = (config->Bolts + randRangeInt(-50, 50)); // * BOLT_TAX[(int)gs->PlayerCount];
@@ -1461,17 +1513,14 @@ int mobCreate(struct MobCreateArgs* args)
 //--------------------------------------------------------------------------
 void mobInitialize(void)
 {
-	// set vtable callbacks
-	*(u32*)0x003A0A84 = (u32)&getGuber;
-	*(u32*)0x003A0A94 = (u32)&handleEvent;
-
-	// collision hit type
-	//*(u32*)0x004bd1f0 = 0x08000000 | ((u32)&colHotspot / 4);
-	//*(u32*)0x004bd1f4 = 0x00402021;
-
-	// 
   memset(MobComplexityValueByOClass, 0, sizeof(MobComplexityValueByOClass));
 	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
+  memset(mobAmmoDropMobyList, 0, sizeof(mobAmmoDropMobyList));
+  mobFirstInList = NULL;
+  mobLastInList = NULL;
+  mobInMobMove = 0;
+  AllMobsSortedFreeSpots = MAX_MOBS_ALIVE;
+  mobAmmoDropMobyListRollingIndex = 0;
 }
 
 //--------------------------------------------------------------------------

@@ -32,7 +32,6 @@
 #include "gate.h"
 #include "game.h"
 #include "npc.h"
-#include "levelselect.h"
 #include "messager.h"
 #include "spawner.h"
 #include "controller.h"
@@ -160,7 +159,6 @@ void mapOnFrameTick(void)
   dlPreUpdate();
 
   messagerFrameUpdate();
-  levelselectFrameTick();
 
   dlPostUpdate();
 }
@@ -188,7 +186,6 @@ void initialize(void)
 
   MapConfig.Magic = MAP_CONFIG_MAGIC;
 
-  levelselectInit();
   mobInit();
   configInit();
   spVendorInit();

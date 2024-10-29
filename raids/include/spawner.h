@@ -35,6 +35,7 @@ struct SpawnerMobParams
   int MaxCanSpawnOrUnlimited;
   int MaxCanAliveAtOnce;
   int CooldownTicks;
+  char StarsMask;
 };
 
 struct SpawnerRuntimeState
@@ -49,7 +50,8 @@ struct SpawnerRuntimeState
 struct SpawnerPVar
 {
   int Init;
-  enum SpawnerState DefaultState;
+  char DefaultState;
+  char Log;
   int SpawnCuboidIds[SPAWNER_MAX_SPAWN_CUBOIDS];
   int HabitableCuboidIds[SPAWNER_MAX_HABITABLE_CUBOIDS];
   int AggroCuboidIds[SPAWNER_MAX_AGGRO_CUBOIDS];

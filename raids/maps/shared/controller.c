@@ -41,6 +41,8 @@
 #include "../../include/mob.h"
 #include "../../include/game.h"
 
+#define DLOG(moby, format, ...) if (((struct ControllerPVar*)moby->PVar)->Log) { DPRINTF(format, ##__VA_ARGS__); }
+
 int controllerInitialized = 0;
 
 //--------------------------------------------------------------------------
@@ -236,6 +238,15 @@ int controllerIsNpcTargetConditionTrue(Moby* moby, int conditionIdx)
 }
 
 //--------------------------------------------------------------------------
+int controllerDifficultyConditionTrue(Moby* moby, int conditionIdx)
+{
+  struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
+  struct ControllerCondition* condition = &pvars->Conditions[conditionIdx];
+
+  return MapConfig.State && (condition->Difficulty.Mask & (1 << MapConfig.State->DifficultyStars)) != 0;
+}
+
+//--------------------------------------------------------------------------
 void controllerUpdateTriggers(Moby* moby)
 {
   struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
@@ -253,6 +264,7 @@ void controllerUpdateTriggers(Moby* moby)
       case CONTROLLER_CONDITION_TYPE_DELAY: count += 1; succeeded += controllerIsDelayConditionTrue(moby, i); break;
       case CONTROLLER_CONDITION_TYPE_XOR: count += 1; succeeded += controllerIsXORConditionTrue(moby, i); break;
       case CONTROLLER_CONDITION_TYPE_NPC_TARGET: count += 1; succeeded += controllerIsNpcTargetConditionTrue(moby, i); break;
+      case CONTROLLER_CONDITION_TYPE_DIFFICULTY: count += 1; succeeded += controllerDifficultyConditionTrue(moby, i); break;
       default: break;
     }
 
@@ -296,7 +308,7 @@ int controllerControlMobyState(Moby* moby, struct ControllerTarget* target)
     return 1;
   }
 
-  DPRINTF("controller set %08X state %d=>%d\n", (u32)targetMoby, targetMoby->State, state);
+  DLOG(moby, "controller set %08X state %d=>%d\n", (u32)targetMoby, targetMoby->State, state);
 
   // handle special cases
   switch (targetMoby->OClass) {
@@ -325,7 +337,7 @@ int controllerControlMobyAnimation(Moby* moby, struct ControllerTarget* target)
   if (animId >= seqCount) return 0;
   if (targetMoby->AnimSeqId == animId) return 0;
 
-  DPRINTF("set anim %08X => %d\n", (u32)targetMoby, animId);
+  DLOG(moby, "set anim %08X => %d\n", (u32)targetMoby, animId);
   mobyAnimTransition(targetMoby, animId, 0, 0);
   return 1;
 }
@@ -374,7 +386,7 @@ int controllerControlNPCTarget(Moby* moby, struct ControllerTarget* target)
   struct NpcPVar* npcPvars = npcGetPVars(npcMoby);
   if (npcPvars && npcPvars->Parameters.TargetMoby != npcTargetMoby) {
     npcPvars->Parameters.TargetMoby = npcTargetMoby;
-    DPRINTF("set npc target %08X => %08X\n", (u32)npcMoby, (u32)npcTargetMoby);
+    DLOG(moby, "set npc target %08X => %08X\n", (u32)npcMoby, (u32)npcTargetMoby);
     return 1;
   }
   return 0;
@@ -391,7 +403,7 @@ int controllerControlNPCTargetTriggered(Moby* moby, struct ControllerTarget* tar
   struct NpcPVar* npcPvars = npcGetPVars(npcMoby);
   if (npcPvars && npcPvars->Parameters.TargetMoby != npcTargetMoby) {
     npcPvars->Parameters.TargetMoby = npcTargetMoby;
-    DPRINTF("set npc target %08X => %08X\n", (u32)npcMoby, (u32)npcTargetMoby);
+    DLOG(moby, "set npc target %08X => %08X\n", (u32)npcMoby, (u32)npcTargetMoby);
     return 1;
   }
   return 0;
@@ -495,6 +507,8 @@ int controllerIterate(Moby* moby)
   int changed = 0;
 
   for (i = 0; i < CONTROLLER_MAX_TARGETS; ++i) {
+    if (MapConfig.State && (pvars->Targets[i].DifficultyMask & (1 << MapConfig.State->DifficultyStars)) == 0) continue;
+
     switch (pvars->Targets[i].TargetUpdateType) {
       case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE: changed += controllerControlMobyState(moby, &pvars->Targets[i]); break;
       case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE: changed += controllerControlMobyState(moby, &pvars->Targets[i]); break;
@@ -559,7 +573,7 @@ void controllerBroadcastIterate(Moby* moby)
   if (guberEvent) {
     guberEventWrite(guberEvent, &pvars->State.Iterations, 4);
     guberEventWrite(guberEvent, &triggeredByUid, 4);
-    DPRINTF("broadcast iterate triggeredby:%08X %08X\n", (u32)triggeredByUid, (u32)pvars->State.TriggeredByMoby);
+    DLOG(moby, "broadcast iterate triggeredby:%08X %08X\n", (u32)triggeredByUid, (u32)pvars->State.TriggeredByMoby);
   }
 }
 
@@ -592,17 +606,17 @@ void controllerUpdate(Moby* moby)
 
   // check if we've reached the iteration count
   if (pvars->Repeat > 0 && pvars->State.Iterations >= pvars->Repeat) {
-    DPRINTF("controller %08X complete\n", (u32)moby);
+    DLOG(moby, "controller %08X complete\n", (u32)moby);
     controllerBroadcastNewState(moby, CONTROLLER_STATE_COMPLETED);
     return;
   }
 
   // check if we should exit idle
   if (moby->State == CONTROLLER_STATE_IDLE && controllerAnyTriggerActivated(moby)) {
-    DPRINTF("controller %08X exit idle\n", (u32)moby);
+    DLOG(moby, "controller %08X exit idle\n", (u32)moby);
     controllerBroadcastNewState(moby, CONTROLLER_STATE_ACTIVATED);
   } else if (moby->State == CONTROLLER_STATE_ACTIVATED && !controllerAnyTriggerActivated(moby)) {
-    DPRINTF("controller %08X idle\n", (u32)moby);
+    DLOG(moby, "controller %08X idle\n", (u32)moby);
     controllerBroadcastNewState(moby, CONTROLLER_STATE_IDLE);
     return;
   } else if (moby->State != CONTROLLER_STATE_ACTIVATED) {
@@ -635,14 +649,14 @@ void controllerOnGuberCreated(Moby* moby)
   
   // update pvars target references
   for (i = 0; i < CONTROLLER_MAX_TARGETS; ++i) {
-    DPRINTF("controller TargetUpdateType %d\n", pvars->Targets[i].TargetUpdateType);
+    DLOG(moby, "controller TargetUpdateType %d\n", pvars->Targets[i].TargetUpdateType);
     switch (pvars->Targets[i].TargetUpdateType)
     {
       case CONTROLLER_TARGET_UPDATE_TYPE_NPC_CONTROLLER_TARGET:
       case CONTROLLER_TARGET_UPDATE_TYPE_NPC_CONTROLLER_TARGET_TO_TRIGGERED:
       {
         pvars->Targets[i].Moby.NPCTargetMoby = mobyGetFromIdxOrNull((int)pvars->Targets[i].Moby.NPCTargetMoby);
-        DPRINTF("controller %08X found npc target %d %08X\n", (u32)moby, i, (u32)pvars->Targets[i].Moby.NPCTargetMoby);
+        DLOG(moby, "controller %08X found npc target %d %08X\n", (u32)moby, i, (u32)pvars->Targets[i].Moby.NPCTargetMoby);
       }
       case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE:
       case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ANIMATION:
@@ -650,7 +664,7 @@ void controllerOnGuberCreated(Moby* moby)
       case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE:
       {
         pvars->Targets[i].Moby.Moby = mobyGetFromIdxOrNull((int)pvars->Targets[i].Moby.Moby);
-        DPRINTF("controller %08X found moby target %d %08X\n", (u32)moby, i, (u32)pvars->Targets[i].Moby.Moby);
+        DLOG(moby, "controller %08X found moby target %d %08X\n", (u32)moby, i, (u32)pvars->Targets[i].Moby.Moby);
         break;
       }
       default: break;
@@ -659,7 +673,7 @@ void controllerOnGuberCreated(Moby* moby)
 
   for (i = 0; i < CONTROLLER_MAX_CONDITIONS; ++i) {
     pvars->Conditions[i].Moby = mobyGetFromIdxOrNull((int)pvars->Conditions[i].Moby);
-    DPRINTF("controller %08X found condition moby %d %08X\n", (u32)moby, i, (u32)pvars->Conditions[i].Moby);
+    DLOG(moby, "controller %08X found condition moby %d %08X\n", (u32)moby, i, (u32)pvars->Conditions[i].Moby);
   }
 }
 
@@ -703,7 +717,7 @@ int controllerHandleEvent_Iterate(Moby* moby, GuberEvent* event)
     controllerIterate(moby);
   }
 
-  DPRINTF("controller iterate %d triggeredby:%08X %08X %08X\n", pvars->State.Iterations, triggeredByUid, (u32)triggeredByGuber, (u32)pvars->State.TriggeredByMoby);
+  DLOG(moby, "controller iterate %d triggeredby:%08X %08X %08X\n", pvars->State.Iterations, triggeredByUid, (u32)triggeredByGuber, (u32)pvars->State.TriggeredByMoby);
   return 0;
 }
 
@@ -731,7 +745,7 @@ int controllerHandleEvent(Moby* moby, GuberEvent* event)
       case CONTROLLER_EVENT_ITERATE: { return controllerHandleEvent_Iterate(moby, event); }
 			default:
 			{
-				DPRINTF("unhandle controller event %d\n", upgradeEvent);
+				DLOG(moby, "unhandle controller event %d\n", upgradeEvent);
 				break;
 			}
 		}
@@ -767,7 +781,7 @@ void controllerInit(void)
 	{
 		if (!mobyIsDestroyed(moby) && moby->PVar) {
       struct Guber* guber = guberGetOrCreateObjectByMoby(moby, -1, 1);
-      DPRINTF("found controller %08X %08X\n", (u32)moby, (u32)guber);
+      DLOG(moby, "found controller %08X %08X\n", (u32)moby, (u32)guber);
       if (guber) {
         controllerOnGuberCreated(moby);
       }
