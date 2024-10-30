@@ -37,7 +37,7 @@
 #define MAX_MOBS_ALIVE_REAL									  (MAX_MOBS_ALIVE - MAX_MOBS_ALIVE_BUFFER)
 
 #define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(100)
-#define MOB_MOVE_SKIP_TICKS                   (4)
+#define MOB_MOVE_SKIP_TICKS                   (6)
 #define MOB_MAX_STUCK_COUNTER_FOR_NEW_PATH    (5)
 
 #define MOB_SHORT_FREEZE_DURATION_TICKS       (60)
@@ -75,8 +75,21 @@
 #define MOB_BASE_BOLTS											  (220)
 #endif
 
+#define MOB_POSTFX_ACID_COLOR                 (0x00008000)
+#define MOB_POSTFX_FREEZE_COLOR               (0x00808000)
+#define MOB_POSTFX_FACTOR                     (0.75)
+#define MOB_POSTFX_ACID_DUR_TICKS             (TPS * 5)
+#define MOB_POSTFX_ACID_FREQ_TICKS            ((int)(TPS * 0.5))
+#define MOB_POSTFX_ACID_DMG_PERC              (0.05)
+#define MOB_POSTFX_FREEZE_DUR_TICKS           (TPS * 5)
+#define MOB_POSTFX_FREEZE_FACTOR              (0.5)
+#define MOB_POSTFX_NAPALM_DMG_PERC            (0.05)
+#define MOB_POSTFX_MINIBOMB_DMG_PERC          (0.15)
+
 #define JACKPOT_BOLTS													(50)
 #define XP_ALPHAMOD_XP												(10)
+#define NANOLEECH_HEALTH											(5)
+#define NANOLEECH_CHANCE											(0.01)
 
 #define LEVELUP_XP_LINEAR_RATE                (250)
 

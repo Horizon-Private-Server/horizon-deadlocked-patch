@@ -128,8 +128,18 @@ void swarmerPostUpdate(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
+  // apply omega mod FX to color
+  if (pvars->MobVars.AcidEffectActiveTicks > 0) {
+    moby->PrimaryColor = colorLerp(SWARMER_PRIMARY_COLOR, MOB_POSTFX_ACID_COLOR, MOB_POSTFX_FACTOR);
+  } else if (pvars->MobVars.FreezeEffectActiveTicks > 0) {
+    moby->PrimaryColor = colorLerp(SWARMER_PRIMARY_COLOR, MOB_POSTFX_FREEZE_COLOR, MOB_POSTFX_FACTOR);
+  } else {
+    moby->PrimaryColor = SWARMER_PRIMARY_COLOR;
+  }
+
   // adjust animSpeed by speed and by animation
 	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED) * (SWARMER_BASE_COLL_RADIUS / pvars->MobVars.Config.CollRadius);
+  if (pvars->MobVars.FreezeEffectActiveTicks > 0) animSpeed *= MOB_POSTFX_FREEZE_FACTOR;
   if (moby->AnimSeqId == SWARMER_ANIM_JUMP) {
     animSpeed = 0.9 * (1 - powf(moby->AnimSeqT / 35, 2));
     if (pvars->MobVars.MoveVars.Grounded) {
@@ -230,8 +240,6 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	// destroy
 	if (newHp <= 0) {
     swarmerForceLocalAction(moby, SWARMER_ACTION_DIE);
-    pvars->MobVars.LastHitBy = e->SourceUID;
-    pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}
 
 	// knockback

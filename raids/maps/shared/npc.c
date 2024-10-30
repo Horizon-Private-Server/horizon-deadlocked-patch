@@ -248,8 +248,6 @@ void npcOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	// destroy
 	if (newHp <= 0) {
     npcForceLocalAction(moby, NPC_ACTION_DIE);
-    pvars->Mob.MobVars.LastHitBy = e->SourceUID;
-    pvars->Mob.MobVars.LastHitByOClass = e->SourceOClass;
 	}
 
 	// knockback

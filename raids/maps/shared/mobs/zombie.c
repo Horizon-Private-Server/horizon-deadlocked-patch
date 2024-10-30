@@ -126,8 +126,18 @@ void zombiePostUpdate(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
+  // apply omega mod FX to color
+  if (pvars->MobVars.AcidEffectActiveTicks > 0) {
+    moby->PrimaryColor = colorLerp(ZOMBIE_PRIMARY_COLOR, MOB_POSTFX_ACID_COLOR, MOB_POSTFX_FACTOR);
+  } else if (pvars->MobVars.FreezeEffectActiveTicks > 0) {
+    moby->PrimaryColor = colorLerp(ZOMBIE_PRIMARY_COLOR, MOB_POSTFX_FREEZE_COLOR, MOB_POSTFX_FACTOR);
+  } else {
+    moby->PrimaryColor = ZOMBIE_PRIMARY_COLOR;
+  }
+
   // adjust animSpeed by speed and by animation
-	float animSpeed = 0.9 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
+	float animSpeed = 0.7 * (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
+  if (pvars->MobVars.FreezeEffectActiveTicks > 0) animSpeed *= MOB_POSTFX_FREEZE_FACTOR;
   if (moby->AnimSeqId == ZOMBIE_ANIM_JUMP) {
     animSpeed = 0.9 * (1 - powf(moby->AnimSeqT / 35, 2));
     if (pvars->MobVars.MoveVars.Grounded) {
@@ -223,9 +233,6 @@ void zombieOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	// destroy
 	if (newHp <= 0) {
     zombieForceLocalAction(moby, ZOMBIE_ACTION_DIE);
-
-    pvars->MobVars.LastHitBy = e->SourceUID;
-    pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}
 
 	// knockback

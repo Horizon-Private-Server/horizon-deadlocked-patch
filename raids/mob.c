@@ -668,6 +668,8 @@ void mobUpdate(Moby* moby)
 	decTimerU16(&pvars->MobVars.FlinchCooldownTicks);
 	u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
 	decTimerU8(&pvars->MobVars.Knockback.Ticks);
+  u16 acidEffectActiveTicks = decTimerU16(&pvars->MobVars.AcidEffectActiveTicks);
+  decTimerU16(&pvars->MobVars.FreezeEffectActiveTicks);
   pvars->TicksSinceLastStateUpdate += 1;
   
 	// validate owner
@@ -823,6 +825,22 @@ void mobUpdate(Moby* moby)
     moby->CollDamage = -1;
   }
 
+  // acid damage
+  if (isOwner && acidEffectActiveTicks > 0 && (acidEffectActiveTicks % MOB_POSTFX_ACID_FREQ_TICKS) == 0) {
+    struct Guber* lastHitByGuber = guberGetObjectByUID(pvars->MobVars.LastAcidBy);
+    Moby* lastHitByMoby = lastHitByGuber ? lastHitByGuber->VTable->GetMoby(lastHitByGuber) : NULL;
+    struct MobyColDamageIn damageIn = {
+      .DamageFlags = 0x00081801,
+      .DamageHp = pvars->MobVars.LastAcidByDamage * MOB_POSTFX_ACID_DMG_PERC,
+      .DamageStrength = 1,
+      .DamageClass = 0,
+      .DamageIndex = lastHitByMoby ? lastHitByMoby->OClass : 0,
+      .Flags = 1,
+      .Damager = lastHitByMoby
+    };
+    mobyCollDamageDirect(moby, &damageIn);
+  }
+
 	// handle death stuff
 	if (isOwner) {
 
@@ -932,7 +950,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   }
 
 	// 
-	moby->ModeBits |= MOBY_MODE_BIT_CAN_BE_AUTO_TARGETED | MOBY_MODE_BIT_HAS_SPECIAL_VARS | MOBY_MODE_BIT_HAS_GLOW;
+	moby->ModeBits |= MOBY_MODE_BIT_CAN_BE_DAMAGED | MOBY_MODE_BIT_CAN_BE_AUTO_TARGETED | MOBY_MODE_BIT_HAS_SPECIAL_VARS | MOBY_MODE_BIT_HAS_GLOW;
 	moby->Opacity = 0x80;
 	moby->CollActive = 1;
   moby->UpdateDist = -1;
@@ -989,6 +1007,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->TargetVars.hitPoints = pvars->MobVars.Health;
 	pvars->TargetVars.team = 10;
 	pvars->TargetVars.targetHeight = 1;
+  //pvars->TargetVars.damageTypes = 0x40; // shock
 
 	// 
 	Guber* guber = guberGetObjectByMoby(moby);
@@ -1079,8 +1098,10 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
       bankAddXP(xp);
     }
 
-    // spawn ammo change
-    if (killedByLocal && randRange(0, 1) < State.AmmoDropChance) {
+    // spawn ammo chance
+    // originally wanted to do this only if the killer was the local player
+    // but to encourage cooperative play, it makes sense for it to randomly drop regardless
+    if (killedByPlayer && randRange(0, 1) < State.AmmoDropChance) {
       mobSpawnAmmoDrop(moby);
     }
 
@@ -1088,6 +1109,17 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		if (weaponId > 1 && killedByLocal) {
 			int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
       bankAddBolts(jackpotCount * JACKPOT_BOLTS);
+		}
+
+		// handle weapon nanoleech
+		if (weaponId > 1 && killedByLocal && !playerIsDead(killedByPlayer) && randRange(0,1) < NANOLEECH_CHANCE) {
+			int nanoleechCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_NANOLEECH);
+      float nanoleechAmount = nanoleechCount * NANOLEECH_HEALTH;
+      float newHealth = clamp(killedByPlayer->Health + nanoleechAmount, 0, killedByPlayer->MaxHealth);
+      if (nanoleechCount && newHealth != killedByPlayer->Health) {
+        playerSetHealth(killedByPlayer, newHealth);
+        mobyPlaySoundByClass(1, 0, killedByPlayer->PlayerMoby, MOBY_ID_HEALTH_BOX_MULT);
+      }
 		}
 
 		// handle stats
@@ -1157,12 +1189,27 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	pvars->TargetVars.hitPoints = newHp;
 #endif
 
+  // handle omega mod
+  if ((args.DamageFlags & 0x80)) {
+    // acid
+    pvars->MobVars.AcidEffectActiveTicks = MOB_POSTFX_ACID_DUR_TICKS;
+    pvars->MobVars.LastAcidBy = args.SourceUID;
+    pvars->MobVars.LastAcidByDamage = damage;
+  } else if ((args.DamageFlags & 0x800000)) {
+    // freeze
+    pvars->MobVars.FreezeEffectActiveTicks = MOB_POSTFX_FREEZE_DUR_TICKS;
+  }
+
 	// get damager
 	Player* damager = playerGetFromUID(args.SourceUID);
   if (appliedDamage > 0) { // && damager && damager->IsLocal) {
+
+    // save last hit by
+    pvars->MobVars.LastHitBy = args.SourceUID;
+    pvars->MobVars.LastHitByOClass = args.SourceOClass;
+
     VECTOR mobCenter = {0,0,pvars->TargetVars.targetHeight,0};
     vector_add(mobCenter, mobCenter, moby->Position);
-
     int isLocal = 0;
     if (damager) isLocal = damager->IsLocal;
     bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, (args.DamageFlags & 0x20000000) ? 1 : 0);
@@ -1440,6 +1487,13 @@ void mobRegisterNpc(Moby* moby)
 	// initialize react vars
 	pvars->ReactVars.acidDamage = 1.0;
 	pvars->ReactVars.shieldDamageReduction = 1.0;
+	pvars->ReactVars.minorReactPercentage = 0.1;
+	pvars->ReactVars.majorReactPercentage = 0.75;
+	pvars->ReactVars.bounceDamp = 0.3;
+	pvars->ReactVars.deathType = 6;
+	pvars->ReactVars.deathSound = -1;
+	pvars->ReactVars.deathSound2 = -1;
+	pvars->ReactVars.effectPrimMask = -1;
 
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnSpawn)

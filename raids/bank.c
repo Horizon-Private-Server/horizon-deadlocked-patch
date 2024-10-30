@@ -349,6 +349,72 @@ float bankGetArbiterSpeed(Player* player)
 }
 
 //--------------------------------------------------------------------------
+float bankGetArbiterNapalmDamage(Player* player)
+{
+  RaidsInventoryWeapon_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_ARBITER);
+  if (!bankWeapon) return 0;
+
+  return bankWeapon->Damage * MOB_POSTFX_NAPALM_DMG_PERC;
+}
+
+float bankGetArbiterMinibombDamage(Player* player)
+{
+  RaidsInventoryWeapon_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_ARBITER);
+  if (!bankWeapon) return 0;
+
+  return bankWeapon->Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
+}
+
+//--------------------------------------------------------------------------
+float bankGetMineLauncherNapalmDamage(Player* player)
+{
+  RaidsInventoryWeapon_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_MINE_LAUNCHER);
+  if (!bankWeapon) return 0;
+
+  return bankWeapon->Damage * MOB_POSTFX_NAPALM_DMG_PERC;
+}
+
+//--------------------------------------------------------------------------
+float bankGetMineLauncherMinibombDamage(Player* player)
+{
+  RaidsInventoryWeapon_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_MINE_LAUNCHER);
+  if (!bankWeapon) return 0;
+
+  return bankWeapon->Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
+}
+
+//--------------------------------------------------------------------------
+float bankGetB6NapalmDamage(Player* player)
+{
+  RaidsInventoryWeapon_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_B6);
+  if (!bankWeapon) return 0;
+
+  return bankWeapon->Damage * MOB_POSTFX_NAPALM_DMG_PERC;
+}
+
+//--------------------------------------------------------------------------
+float bankGetB6MinibombDamage(Player* player)
+{
+  RaidsInventoryWeapon_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_B6);
+  if (!bankWeapon) return 0;
+
+  return bankWeapon->Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
+}
+
+//--------------------------------------------------------------------------
+void bankSpawnMinibombs(Moby* pParent, int count, VECTOR rootVel, float randSpeed, float damage, int damageFlags, int lifeTimeMin, int lifeTimeMax, int weaponSource)
+{
+  if (pParent) {
+    Player* parent = guberMobyGetPlayerDamager(pParent);
+    if (parent && !parent->IsLocal) {
+      count = 1;
+    }
+  }
+
+  mobySpawnMinibombs(pParent, count, rootVel, randSpeed, damage, damageFlags, lifeTimeMin, lifeTimeMax, weaponSource);
+}
+
+//--------------------------------------------------------------------------
 float bankGetGadgetDamage(GadgetBox* gbox, int gadgetId, int damageType, int multiplier)
 {
   RaidsInventoryWeapon_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(gbox, gadgetId);
@@ -580,6 +646,26 @@ void bankInit(void)
   HOOK_JAL(0x003F29AC, &bankGetArbiterSpeed);
   POKE_U32(0x003F2984, 0x0240202D);
   HOOK_J(0x006299A8, &bankGetAlphaModCount);
+
+  HOOK_JAL_OP(0x003C9AD0, &bankGetMineLauncherNapalmDamage, 0x0280202D);
+  POKE_U32(0x003C9AD8, 0x7A440010); POKE_U32(0x003C9ADC, 0x46000306);
+  HOOK_JAL_OP(0x003C99BC, &bankGetMineLauncherMinibombDamage, 0x0280202D);
+  POKE_U32(0x003C99C4, 0);
+
+  HOOK_JAL_OP(0x003F6F5C, &bankGetB6NapalmDamage, 0x8E640090);
+  POKE_U32(0x003F6F64, 0x7A840010); POKE_U32(0x003F6F68, 0x46000306);
+  HOOK_JAL_OP(0x003F6DDC, &bankGetB6MinibombDamage, 0x8E640090);
+  POKE_U32(0x003F6DE4, 0);
+
+  HOOK_JAL_OP(0x003F55D4, &bankGetArbiterNapalmDamage, 0x8E2400A8);
+  POKE_U32(0x003F55DC, 0x7A440010); POKE_U32(0x003F55E0, 0x46000306);
+  HOOK_JAL_OP(0x003F56B4, &bankGetArbiterMinibombDamage, 0x8E2400A8);
+  POKE_U32(0x003F56BC, 0);
+
+  HOOK_JAL(0x003C9A44, &bankSpawnMinibombs);
+  HOOK_JAL(0x003F573C, &bankSpawnMinibombs);
+  HOOK_JAL(0x003F6E70, &bankSpawnMinibombs);
+
   //HOOK_J_OP(0x00626d98, &bankGetGadgetMaxLevel, 0);
   //HOOK_J_OP(0x00626fb8, &bankGetGadgetMaxAmmo, 0);
   //HOOK_JAL_OP(0x0060f780, &bankGetGadgetRefireRate, 0x0200282D);

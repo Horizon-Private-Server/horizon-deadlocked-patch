@@ -811,7 +811,7 @@ void initialize(PatchStateContainer_t* gameState)
   }
 
 	// Change bangelize weapons call to ours
-	*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
+	//*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
 
 	// Enable weapon version and v10 name variant in places that display weapon name
 	*(u32*)0x00541850 = 0x08000000 | ((u32)&customGetGadgetVersionName >> 2);
@@ -935,6 +935,9 @@ void initialize(PatchStateContainer_t* gameState)
 #endif
 
 		if (p) {
+
+      // set max health
+      p->Health = p->MaxHealth = 50 + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[i].State.Skills[RAIDS_SKILLS_HEALTH]);
 
 			// is local
 			State.PlayerStates[i].IsLocal = p->IsLocal;
@@ -1060,7 +1063,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 #if DEBUG_SOUNDS
   {
     static int aaa = 0;
-    const int mobyClass = 0x2751;
+    const int mobyClass = MOBY_ID_HEALTH_BOX_MULT;
+    Player* localPlayer = playerGetFromSlot(0);
 		if (padGetButtonDown(0, PAD_RIGHT) > 0) {
 			aaa += 1;
 			printf("%d\n", aaa);

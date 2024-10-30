@@ -122,7 +122,6 @@ struct MobMoveVars {
   VECTOR NextPosition;
   VECTOR Velocity;
   VECTOR AddVelocity;
-  VECTOR LastJumpPosition;
   VECTOR SumPositionDelta;
   VECTOR TargetPosition;
   VECTOR LastTargetPos;
@@ -140,7 +139,6 @@ struct MobMoveVars {
   char MoveStep;
   char LastMoveStep;
   char PathGraphIdx;
-  u8 UngroundedTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
   u8 MoveSkipTicks;
@@ -168,8 +166,9 @@ struct MobVars {
 	int LastAction;
 	float Health;
 	float ClosestDist;
-	float LastSpeed;
   u32 Userdata;
+	int LastAcidBy;
+  float LastAcidByDamage;
 	int LastHitBy;
 	u16 LastHitByOClass;
 	u16 NextCheckActionDelayTicks;
@@ -179,10 +178,11 @@ struct MobVars {
 	u16 ScoutCooldownTicks;
 	u16 FlinchCooldownTicks;
 	u16 AutoDirtyCooldownTicks;
-	u16 MovingTicks;
 	u16 CurrentActionForTicks;
 	u16 TimeLastGroundedTicks;
 	u16 TimeTargetOutOfSightTicks;
+	u16 AcidEffectActiveTicks;
+  u16 FreezeEffectActiveTicks;
   u8 TargetOutOfSightCheckTicks;
 	u8 ActionId;
 	u8 LastActionId;

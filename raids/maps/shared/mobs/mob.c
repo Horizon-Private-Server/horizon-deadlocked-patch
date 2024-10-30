@@ -564,7 +564,6 @@ void mobMove(Moby* moby)
   int moveStep = pvars->MobVars.MoveVars.LastMoveStep;
 
   u8 stuckCheckTicks = decTimerU8(&pvars->MobVars.MoveVars.StuckCheckTicks);
-  decTimerU8(&pvars->MobVars.MoveVars.UngroundedTicks);
   u8 moveSkipTicks = decTimerU8(&pvars->MobVars.MoveVars.MoveSkipTicks);
   u8 slowTicks = decTimerU8(&pvars->MobVars.SlowTicks);
 
@@ -587,7 +586,7 @@ void mobMove(Moby* moby)
   // reset move step
   moveStep = pvars->MobVars.MoveVars.MoveStep;
   if (!isOwner && !moby->Drawn)
-    moveStep += 2;
+    moveStep += 3;
 
 #if GATE
     gateSetCollision(0);
@@ -619,7 +618,8 @@ void mobMove(Moby* moby)
       vector_add(pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.Velocity, pvars->MobVars.MoveVars.AddVelocity);
 
       // compute simulated velocity by multiplying velocity by number of ticks to simulate
-      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, (float)moveStep);
+      float freezeFactor = pvars->MobVars.FreezeEffectActiveTicks > 0 ? MOB_POSTFX_FREEZE_FACTOR : 1;
+      vector_scale(targetVelocity, pvars->MobVars.MoveVars.Velocity, (float)moveStep * freezeFactor);
 
       // slow speed in short freeze
       if (slowTicks > 0) {
@@ -1022,6 +1022,9 @@ void mobPreUpdate(Moby* moby)
 {
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   decTimerU8(&pvars->MobVars.TargetOutOfSightCheckTicks);
+
+  // update react vars
+  ((void (*)(Moby*))0x0051b860)(moby);
 
   mobUpdateTargetOutOfSight(moby);
   

@@ -129,6 +129,10 @@ void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs)
   void* connection = netGetDmeServerConnection();
   if (!connection) return;
 
+#if DEBUG
+  cost = 0;
+#endif
+
   if (hopPrepare(mapFilename, difficulty, cost, gameGetTime() + delayMs)) {
 
     // broadcast
