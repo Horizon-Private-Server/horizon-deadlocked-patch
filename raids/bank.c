@@ -402,6 +402,20 @@ float bankGetB6MinibombDamage(Player* player)
 }
 
 //--------------------------------------------------------------------------
+float bankGetSniperBeamHitAngle(u128 a0, u128 a1, u128 a2, void* a3)
+{
+  float r = ((float (*)(u128,u128,u128,void*))0x003fbb10)(a0, a1, a2, a3);
+
+  // increase area of beam per area mod
+  Player* player = *(Player**)(*(void**)(a3 + 0x40) + 0x64);
+  if (player && player->GadgetBox) {
+    r /= (1 + bankGetAlphaModCount(player->GadgetBox, WEAPON_ID_FUSION_RIFLE, ALPHA_MOD_AREA));
+  }
+
+  return r;
+}
+
+//--------------------------------------------------------------------------
 void bankSpawnMinibombs(Moby* pParent, int count, VECTOR rootVel, float randSpeed, float damage, int damageFlags, int lifeTimeMin, int lifeTimeMax, int weaponSource)
 {
   if (pParent) {
@@ -643,7 +657,7 @@ void bankInit(void)
   POKE_U8(0x00171b66, 1); // challenge mode
   HOOK_J_OP(0x00627600, &bankGetGadgetDamage, 0);
   HOOK_J_OP(0x00542078, &bankGetGadgetColor, 0);
-  HOOK_JAL(0x003F29AC, &bankGetArbiterSpeed);
+  //HOOK_JAL(0x003F29AC, &bankGetArbiterSpeed);
   POKE_U32(0x003F2984, 0x0240202D);
   HOOK_J(0x006299A8, &bankGetAlphaModCount);
 
@@ -665,6 +679,15 @@ void bankInit(void)
   HOOK_JAL(0x003C9A44, &bankSpawnMinibombs);
   HOOK_JAL(0x003F573C, &bankSpawnMinibombs);
   HOOK_JAL(0x003F6E70, &bankSpawnMinibombs);
+
+  // sniper shot radius
+  POKE_U32(0x003FBC84, 0x3C024200);
+  HOOK_JAL(0x003FBD3C, &bankGetSniperBeamHitAngle);
+  HOOK_JAL(0x003FBDB8, &bankGetSniperBeamHitAngle);
+
+  // fix arbiter explosion radius
+  POKE_U32(0x003F595C, 0);
+  POKE_U32(0x003F5760, 0x00028040);
 
   //HOOK_J_OP(0x00626d98, &bankGetGadgetMaxLevel, 0);
   //HOOK_J_OP(0x00626fb8, &bankGetGadgetMaxAmmo, 0);

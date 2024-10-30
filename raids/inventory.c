@@ -337,14 +337,14 @@ void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedWeapon->Damage - baseWeapon->Damage), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
-  snprintf(strBuf, sizeof(strBuf), "Speed: %.2f", baseWeapon->Speed);
-  gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-  if (hasComparison) {
-    float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-    snprintf(strBuf, sizeof(strBuf), "> %.2f", selectedWeapon->Speed);
-    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor((selectedWeapon->Speed - baseWeapon->Speed)*100), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-  }
-  offY += 12;
+  // snprintf(strBuf, sizeof(strBuf), "Speed: %.2f", baseWeapon->Speed);
+  // gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  // if (hasComparison) {
+  //   float strW = gfxGetFontWidth(strBuf, -1, 0.7);
+  //   snprintf(strBuf, sizeof(strBuf), "> %.2f", selectedWeapon->Speed);
+  //   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor((selectedWeapon->Speed - baseWeapon->Speed)*100), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  // }
+  // offY += 12;
   snprintf(strBuf, sizeof(strBuf), "Critical Hit: %.f%%", (baseWeapon->CritChance / 255.0) * 100);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
@@ -387,6 +387,7 @@ void inventoryDrawWeaponInfo(InventoryDrawState_t* drawState)
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
+  offY += 12; // since Speed is hidden
 
   // alpha mods
   gfxSetupGifPaging(0);
