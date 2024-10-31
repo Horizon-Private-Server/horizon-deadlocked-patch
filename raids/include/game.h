@@ -133,7 +133,7 @@
 #define REACTOR_RENDER_COST                   (300)
 #define EXECUTIONER_RENDER_COST               (300)
 
-#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.05)
+#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.1)
 #define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.005)
 
 enum GameNetMessage

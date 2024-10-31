@@ -5864,7 +5864,7 @@ int main (void)
 			{
 				// copy over last game config as host
 				memcpy(&gameConfig, &gameConfigHostBackup, sizeof(PatchGameConfig_t));
-        patchStateContainer.SelectedCustomMapChanged = selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
+        patchStateContainer.SelectedCustomMapChanged = isInMenus() && selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
         patchStateContainer.SelectedCustomMapId = selectedMapIdHostBackup;
 
 				// send

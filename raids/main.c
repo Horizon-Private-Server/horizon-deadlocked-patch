@@ -778,6 +778,9 @@ void initialize(PatchStateContainer_t* gameState)
   *(u32*)0x003FFDE8 = 0x1000000D;
   POKE_U32(0x003FFD98, 0x120000DD); // fix holo crash when owner leaves
 
+  // double ammo pickup amount
+  POKE_F32(0x003978C0, 0.3);
+
 	// Disables end game draw dialog
 	*(u32*)0x0061fe84 = 0;
 

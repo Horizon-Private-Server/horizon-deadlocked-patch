@@ -1078,12 +1078,12 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
     case CUSTOM_MODE_RAIDS:
     {
       // accept if selected map is raids
-      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_RAIDS)
+      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[v-1].Filename, "raids_hub", sizeof(customMapDefs[v-1].Filename)) == 0)
         return 1;
 
-      // force first raids map
+      // force raids hub map
       for (i = 0; i < customMapDefCount; ++i) {
-        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_RAIDS && customMapDefs[i].HideFromMapList != 1) {
+        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[i].Filename, "raids_hub", sizeof(customMapDefs[i].Filename)) == 0) {
           *value = i+1;
           return 0;
         }
@@ -2593,6 +2593,36 @@ void onConfigInitialize(void)
 }
 
 //------------------------------------------------------------------------------
+void configSendGameConfig(void)
+{
+#if COMP
+  // disable changing game config in COMP mode
+  return;
+#else
+  DPRINTF("sending map %d=>%d %s=>%s\n", selectedMapIdHostBackup, patchStateContainer.SelectedCustomMapId, customMapDefs[selectedMapIdHostBackup-1].Filename, customMapDefs[patchStateContainer.SelectedCustomMapId-1].Filename);
+
+  // detect when new map selected
+  patchStateContainer.SelectedCustomMapChanged = isInMenus() && selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
+
+  // backup
+  memcpy(&gameConfigHostBackup, &gameConfig, sizeof(PatchGameConfig_t));
+  selectedMapIdHostBackup = patchStateContainer.SelectedCustomMapId;
+
+  // send
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (lobbyConnection) {
+    ClientSetGameConfig_t msg;
+
+    memset(&msg, 0, sizeof(msg));
+    if (patchStateContainer.SelectedCustomMapId > 0)
+      memcpy(&msg.CustomMap, &customMapDefs[patchStateContainer.SelectedCustomMapId-1], sizeof(msg.CustomMap));
+    memcpy(&msg.GameConfig, &gameConfig, sizeof(msg.GameConfig));
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(ClientSetGameConfig_t), &msg);
+  }
+#endif
+}
+
+//------------------------------------------------------------------------------
 void configTrySendGameConfig(void)
 {
 #if COMP
@@ -2619,24 +2649,7 @@ void configTrySendGameConfig(void)
       }
     }
 
-    // detect when new map selected
-    patchStateContainer.SelectedCustomMapChanged = selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
-
-    // backup
-    memcpy(&gameConfigHostBackup, &gameConfig, sizeof(PatchGameConfig_t));
-    selectedMapIdHostBackup = patchStateContainer.SelectedCustomMapId;
-
-    // send
-    void * lobbyConnection = netGetLobbyServerConnection();
-    if (lobbyConnection) {
-      ClientSetGameConfig_t msg;
-
-      memset(&msg, 0, sizeof(msg));
-      if (patchStateContainer.SelectedCustomMapId > 0)
-        memcpy(&msg.CustomMap, &customMapDefs[patchStateContainer.SelectedCustomMapId-1], sizeof(msg.CustomMap));
-      memcpy(&msg.GameConfig, &gameConfig, sizeof(msg.GameConfig));
-      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(ClientSetGameConfig_t), &msg);
-    }
+    configSendGameConfig();
   }
 #endif
 

@@ -234,8 +234,21 @@ void mapHopTo(CustomMapDef_t* def)
     buffer += (len + 0x3F) & 0xFFFFFFC0;
   }
 
+  // load
   ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
   DPRINTF("load %d %s\n", mapId, def->Filename);
+
+  // pass up to server
+  if (gameAmIHost()) {
+    for (i = 0; i < customMapDefCount; ++i) {
+      if (strncmp(customMapDefs[i].Filename, def->Filename, sizeof(def->Filename)) == 0) {
+        patchStateContainer.SelectedCustomMapId = i+1;
+        configSendGameConfig();
+        patchStateContainer.SelectedCustomMapChanged = 0; // disable redownload mode payload
+        break;
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -310,7 +323,7 @@ int onSetMapOverride(void * connection, void * data)
 		}
 	}
 
-  patchStateContainer.SelectedCustomMapChanged = lastSelectedCustomMapId != patchStateContainer.SelectedCustomMapId;
+  patchStateContainer.SelectedCustomMapChanged = isInMenus() && lastSelectedCustomMapId != patchStateContainer.SelectedCustomMapId;
 	return sizeof(MapOverrideMessage);
 }
 

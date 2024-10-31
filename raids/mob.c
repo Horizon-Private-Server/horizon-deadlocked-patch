@@ -100,7 +100,19 @@ void mobStatsOnMobDestroyed(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void mobSpawnAmmoDrop(Moby* moby) {
+void ammoPickupUpdate(Moby* moby)
+{
+  // configure it to be pickup-able
+  if (moby->PVar) {
+    *(char*)(moby->PVar + 0x5C) = 1; // state
+  }
+
+  ((void (*)(Moby*))0x003ac050)(moby);
+}
+
+//--------------------------------------------------------------------------
+void mobSpawnAmmoDrop(Moby* moby)
+{
 
   // find free slot
   int i;
@@ -137,6 +149,7 @@ void mobSpawnAmmoDrop(Moby* moby) {
     ammoMoby->Bangles |= 1;
     ammoMoby->DrawDist = 255;
     ammoMoby->UpdateDist = 255;
+    ammoMoby->PUpdate = ammoPickupUpdate;
     
     // configure it to be pickup-able
     if (ammoMoby->PVar) {
@@ -1093,9 +1106,16 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     GameData * gameData = gameGetData();
     int killedByLocal = killedByPlayer && killedByPlayer->IsLocal;
 
+    // factor XP mods
+    if (killedByLocal) {
+      int xpModCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
+      xp += xpModCount * XP_ALPHAMOD_XP;
+    }
+
     // receive bolts & xp
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
       bankAddBolts(bolts);
+      bankAddXP(killedByLocal ? xp : (xp >> 2));
     }
 
     // weapon XP only if this client killed the mob
@@ -1122,13 +1142,15 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		}
 
 		// handle weapon nanoleech
-		if (weaponId > 1 && killedByLocal && !playerIsDead(killedByPlayer) && randRange(0,1) < NANOLEECH_CHANCE) {
+		if (weaponId > 1 && killedByLocal && !playerIsDead(killedByPlayer)) {
 			int nanoleechCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_NANOLEECH);
-      float nanoleechAmount = nanoleechCount * NANOLEECH_HEALTH;
-      float newHealth = clamp(killedByPlayer->Health + nanoleechAmount, 0, killedByPlayer->MaxHealth);
-      if (nanoleechCount && newHealth != killedByPlayer->Health) {
-        playerSetHealth(killedByPlayer, newHealth);
-        mobyPlaySoundByClass(1, 0, killedByPlayer->PlayerMoby, MOBY_ID_HEALTH_BOX_MULT);
+      if (randRange(0,1) < (NANOLEECH_CHANCE*nanoleechCount)) {
+        float nanoleechAmount = NANOLEECH_HEALTH;
+        float newHealth = clamp(killedByPlayer->Health + nanoleechAmount, 0, killedByPlayer->MaxHealth);
+        if (nanoleechCount && newHealth != killedByPlayer->Health) {
+          playerSetHealth(killedByPlayer, newHealth);
+          mobyPlaySoundByClass(1, 0, killedByPlayer->PlayerMoby, MOBY_ID_HEALTH_BOX_MULT);
+        }
       }
 		}
 
