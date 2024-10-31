@@ -76,12 +76,14 @@ enum ControllerTargetUpdateType {
   CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_AMMO,
   CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_HEALTH,
   CONTROLLER_TARGET_UPDATE_TYPE_RESPAWN,
+  CONTROLLER_TARGET_UPDATE_TYPE_COMPLETE_MISSION,
 };
 
 struct ControllerRuntimeState
 {
   char TriggersActivated;
   int Iterations;
+  int RemoteIterationTime;
   int DelayStartTime[CONTROLLER_MAX_CONDITIONS];
   Moby* TriggeredByMoby;
 };

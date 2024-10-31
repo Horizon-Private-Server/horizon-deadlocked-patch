@@ -49,7 +49,7 @@ int bankHasInventory = 0;
 int bankHasAccount = 0;
 long bankLastInventoryRequestTime = 0;
 long bankLastAccountRequestTime = 0;
-char bankLevelUpBuf[32];
+char bankLevelUpBuf[64];
 
 //--------------------------------------------------------------------------
 int bankOnSetPlayerEquippedInventoryRemote(void * connection, void * data)
@@ -230,9 +230,12 @@ u32 bankSubtractBolts(u32 amount)
   return amount;
 }
 
+//--------------------------------------------------------------------------
 u64 bankGetXP(void) { return bankLocalBank.Account.Experience; }
 u64 bankAddXP(u64 amount)
 {
+
+  // add xp
   u64 xp = bankLocalBank.Account.Experience;
 
   int level = getLevelFromXp(xp);
@@ -242,9 +245,32 @@ u64 bankAddXP(u64 amount)
 
     snprintf(bankLevelUpBuf, sizeof(bankLevelUpBuf), "You have reached level %d", nextLevel + 1);
     uiShowPopup(0, bankLevelUpBuf);
+    bankSendAccountToServer(); // send to server
   }
 
   return bankLocalBank.Account.Experience += amount;
+}
+
+//--------------------------------------------------------------------------
+u64 bankGetWeaponXP(int gadgetId) { return bankLocalBank.Account.WeaponXp[bankGetEquipSlotFromGadgetId(gadgetId)]; }
+u64 bankAddWeaponXP(u64 amount, int gadgetId)
+{
+  int slot = bankGetEquipSlotFromGadgetId(gadgetId);
+  if (slot < 0) return 0;
+
+  // add xp
+  u64 xp = bankLocalBank.Account.WeaponXp[slot];
+
+  int level = getProficiencyFromXp(xp);
+  int nextLevel = getProficiencyFromXp(xp + amount);
+  if (nextLevel > level) {
+    struct GadgetDef* gadgetDef = weaponGetDef(gadgetId, 0);
+    snprintf(bankLevelUpBuf, sizeof(bankLevelUpBuf), "You have reached %s P%d", uiMsgString(gadgetDef->quickSelectTag), nextLevel + 1);
+    uiShowPopup(0, bankLevelUpBuf);
+    bankSendAccountToServer(); // send to server
+  }
+
+  return bankLocalBank.Account.WeaponXp[slot] += amount;
 }
 
 //--------------------------------------------------------------------------
@@ -289,6 +315,26 @@ RaidsInventoryWeapon_t* bankGetEquippedWeaponFromGadgetBox(GadgetBox* gbox, int 
   if (inventory->Weapons[idx].GadgetId != gadgetId) return NULL;
 
   return &inventory->Weapons[idx];
+}
+
+//--------------------------------------------------------------------------
+float bankGetWeaponProficiencyFromGadgetBox(GadgetBox* gbox, int gadgetId)
+{
+  RaidsPlayerBank_t* localBank = bankGetLocalBank();
+  
+  int slot = bankGetEquipSlotFromGadgetId(gadgetId);
+  if (slot < 0) return 0;
+
+  u64 xp = localBank->Account.WeaponXp[slot];
+  int prof = getProficiencyFromXp(xp);
+  if (prof == 98) return 1; // maxed
+
+  u64 lastXp = getXpForProficiency(prof);
+  u64 nextXp = getXpForProficiency(prof + 1);
+  if (xp < lastXp) xp = lastXp;
+  float xpPerc = (float)((xp - lastXp) / (double)(nextXp - lastXp));
+  //DPRINTF("lvl:%d perc:%f %ld=>%ld xp:%ld\n", prof, xpPerc, lastXp, nextXp, xp);
+  return xpPerc;
 }
 
 //--------------------------------------------------------------------------
@@ -524,7 +570,7 @@ void bankApplyItem(Player* player, RaidsInventoryWeapon_t* item)
     playerGiveWeapon(gbox, gadgetId, 0, 1);
     bankTryAddGadgetToQuickSelect(player, gadgetId);
   }
-  gbox->Gadgets[gadgetId].Level = bankGetRarityFromQuality(item->Quality) == RAIDS_WEAPON_RARITY_LEGENDARY ? 9 : 0; //item->Proficiency;
+  gbox->Gadgets[gadgetId].Level = bankGetRarityFromQuality(item->Quality) == RAIDS_WEAPON_RARITY_LEGENDARY ? 9 : 0;
 
   // configure mobys
   if (player->Gadgets[0].id == gadgetId) {
@@ -658,7 +704,7 @@ void bankInit(void)
   HOOK_J_OP(0x00627600, &bankGetGadgetDamage, 0);
   HOOK_J_OP(0x00542078, &bankGetGadgetColor, 0);
   //HOOK_JAL(0x003F29AC, &bankGetArbiterSpeed);
-  POKE_U32(0x003F2984, 0x0240202D);
+  //POKE_U32(0x003F2984, 0x0240202D);
   HOOK_J(0x006299A8, &bankGetAlphaModCount);
 
   HOOK_JAL_OP(0x003C9AD0, &bankGetMineLauncherNapalmDamage, 0x0280202D);
@@ -688,6 +734,10 @@ void bankInit(void)
   // fix arbiter explosion radius
   POKE_U32(0x003F595C, 0);
   POKE_U32(0x003F5760, 0x00028040);
+
+  // hook HudAmmo XP bar
+  POKE_U32(0x00552CD8, 0x10000013);
+  HOOK_JAL(0x00552D28, &bankGetWeaponProficiencyFromGadgetBox);
 
   //HOOK_J_OP(0x00626d98, &bankGetGadgetMaxLevel, 0);
   //HOOK_J_OP(0x00626fb8, &bankGetGadgetMaxAmmo, 0);

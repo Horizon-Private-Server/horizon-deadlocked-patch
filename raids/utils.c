@@ -125,22 +125,43 @@ u32 decTimerU32(u32* timeValue)
 //--------------------------------------------------------------------------
 u32 getPriceForWeapon(int proficiency, int quality)
 {
-  return ((proficiency+2) * 10000) + (quality * (50000/255));
+  int rarity = bankGetRarityFromQuality(quality);
+  return (proficiency * 100) + powf(1000, (2*rarity) / 3.0) + (quality * (1000/255.0));
+}
+
+//--------------------------------------------------------------------------
+int getProficiencyFromXp(u64 xp)
+{
+  if (xp < LEVELUP_XP_CONSTANT) return 0;
+
+  double proficiency = (-(LEVELUP_XP_LINEAR_RATE/2) + sqrt((double)((xp-LEVELUP_XP_CONSTANT) + (LEVELUP_XP_LINEAR_RATE/2)*(LEVELUP_XP_LINEAR_RATE/2)))) / LEVELUP_XP_QUADRATIC_RATE;
+  if (proficiency < 0) return 0;
+  if (proficiency > 98) return 98;
+  return (int)proficiency;
+}
+
+//--------------------------------------------------------------------------
+u64 getXpForProficiency(int proficiency)
+{
+  if (proficiency <= 0) return LEVELUP_XP_CONSTANT;
+  return (u64)((double)powf(proficiency * LEVELUP_XP_QUADRATIC_RATE, 2) + LEVELUP_XP_LINEAR_RATE*proficiency + LEVELUP_XP_CONSTANT);
 }
 
 //--------------------------------------------------------------------------
 int getLevelFromXp(u64 xp)
 {
-  int level = -(LEVELUP_XP_LINEAR_RATE/2) + (int)(((double (*)(double))0x00136168)((double)(xp + (LEVELUP_XP_LINEAR_RATE/2)*(LEVELUP_XP_LINEAR_RATE/2))));
+  if (xp < LEVELUP_XP_CONSTANT) return 0;
+
+  double level = (-(LEVELUP_XP_LINEAR_RATE/2) + sqrt((double)((xp-LEVELUP_XP_CONSTANT) + (LEVELUP_XP_LINEAR_RATE/2)*(LEVELUP_XP_LINEAR_RATE/2)))) / LEVELUP_XP_QUADRATIC_RATE;
   if (level < 0) return 0;
-  return level;
+  return (int)level;
 }
 
 //--------------------------------------------------------------------------
 u64 getXpForLevel(int level)
 {
-  if (level <= 0) return 0;
-  return (level * level) + LEVELUP_XP_LINEAR_RATE*level;
+  if (level <= 0) return LEVELUP_XP_CONSTANT;
+  return (u64)((double)powf(level * LEVELUP_XP_QUADRATIC_RATE, 2) + LEVELUP_XP_LINEAR_RATE*level + LEVELUP_XP_CONSTANT);
 }
 
 //--------------------------------------------------------------------------

@@ -38,6 +38,7 @@
 #include "include/game.h"
 #include "include/hop.h"
 #include "include/bank.h"
+#include "include/loot.h"
 #include "include/inventory.h"
 #include "include/levelselect.h"
 #include "include/mob.h"
@@ -224,6 +225,22 @@ void drawSnack(void)
   // remove when dead
   if (snackItems[0].TicksAlive <= 0)
     popSnack();
+}
+
+//--------------------------------------------------------------------------
+void drawMissionCompleteMessage(void)
+{
+  float x = SCREEN_WIDTH * 0.5, y = SCREEN_HEIGHT * 0.3;
+  char strBuf[64];
+
+  snprintf(strBuf, sizeof(strBuf), "%s", State.CurrentMapDef->Name);
+  gfxHelperDrawText(x, y, 0, 0, 1.5, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  int time = State.MissionCompleteTime - State.MissionStartTime;
+  snprintf(strBuf, sizeof(strBuf), "Completed in %02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
+  gfxHelperDrawText(x, y, 0, 30, 1.0, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  uiShowHelpPopup(0, "Use R3 to open the Planet Select menu.", 100);
 }
 
 //--------------------------------------------------------------------------
@@ -526,8 +543,9 @@ void processPlayer(int pIndex) {
     int level = getLevelFromXp(xp);
 		u64 lastXp = getXpForLevel(level);
 		u64 nextXp = getXpForLevel(level + 1);
-    float xpPerc = (xp - lastXp) / (double)(nextXp - lastXp);
-    //DPRINTF("lvl:%d perc:%f %lld=>%lld\n", level, xpPerc, lastXp, nextXp);
+    if (xp < lastXp) xp = lastXp;
+    float xpPerc = (float)((xp - lastXp) / (double)(nextXp - lastXp));
+    //DPRINTF("lvl:%d perc:%f %ld=>%ld xp:%ld\n", level, xpPerc, lastXp, nextXp, xp);
 		setPlayerEXP(localPlayerIndex, xpPerc);
     if (playerGetNumLocals() > 1) setPlayerWeaponsMenu(localPlayerIndex);
 
@@ -891,6 +909,7 @@ void initialize(PatchStateContainer_t* gameState)
   bubbleInit();
   bankInit();
   inventoryInit();
+  lootInit();
   hopInit();
   levelselectInit();
 
@@ -916,6 +935,7 @@ void initialize(PatchStateContainer_t* gameState)
   //
   State.ClientsReady = 1;
   mapConfig->ClientsReady = 1;
+  if (State.MissionStartTime <= 0) State.MissionStartTime = gameGetTime();
 
   // re-enable input
   padEnableInput();
@@ -923,6 +943,7 @@ void initialize(PatchStateContainer_t* gameState)
   memset(snackItems, 0, sizeof(snackItems));
 
 	// initialize player states
+  State.Difficulty = Difficulties[State.DifficultyStars];
 	State.LocalPlayerState = NULL;
 	State.NumTeams = 0;
 	State.AlivePlayerCount = -1;
@@ -1038,7 +1059,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 	// Determine if host
 	State.IsHost = gameAmIHost();
-	State.Difficulty = Difficulties[State.DifficultyStars];
   playerConfig = gameState->Config;
 
 	if (!Initialized) {
@@ -1107,6 +1127,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   bubbleTick();
   bankTick();
   inventoryTick();
+  lootTick();
   hopTick();
   levelselectFrameTick();
 
@@ -1134,7 +1155,13 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   if (padGetButton(0, PAD_L1 | PAD_CROSS)) {
     *(float*)0x00347BD8 = 0.125;
   } else if (padGetButtonDown(0, PAD_UP | PAD_L1) > 0) {
-    
+    // static int aaa = 0;
+    // Moby* lootSpawn(VECTOR position, int gadgetId, int rarity);
+    // VECTOR p = {2,2,1,0};
+    // vector_add(p, p, playerGetFromSlot(0)->PlayerPosition);
+    // //lootSpawn(p, WEAPON_ID_MAGMA_CANNON, aaa);
+    // lootRequestFromMissionComplete(p);
+    // aaa = (aaa + 1) % RAIDS_WEAPON_RARITY_COUNT;
   }
 #endif
 
@@ -1142,6 +1169,14 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
   if (!State.GameOver)
   {
+    forcePlayerHUD();
+    drawSnack();
+
+    // draw mission complete message
+    if (State.MissionComplete && (gameGetTime() - State.MissionCompleteTime) < (10*TIME_SECOND)) {
+      drawMissionCompleteMessage();
+    }
+
     // 
     State.ActivePlayerCount = 0;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -1150,30 +1185,16 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
       processPlayer(i);
     }
-    drawSnack();
-
-    // replace normal scoreboard with bolt counter
-    forcePlayerHUD();
-
-    // handle party dead
+    
+    // count num alive
     if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
     {
-      int isAnyPlayerAlive = 0;
-
       // determine number of players alive
       State.AlivePlayerCount = 0;
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
         if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
-          isAnyPlayerAlive = 1;
           State.AlivePlayerCount++;
         }
-      }
-
-      // if everyone has died, restart at checkpoint
-      if (!isAnyPlayerAlive)
-      {
-        //State.GameOver = 1;
-        //gameSetWinner(10, 1);
       }
     }
   }

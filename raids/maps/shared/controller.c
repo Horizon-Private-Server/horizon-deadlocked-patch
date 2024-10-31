@@ -500,6 +500,19 @@ int controllerControlRespawnPlayer(Moby* moby, struct ControllerTarget* target)
 }
 
 //--------------------------------------------------------------------------
+int controllerControlCompleteMission(Moby* moby, struct ControllerTarget* target)
+{
+  struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
+  if (!MapConfig.State) return 0;
+  if (MapConfig.State->MissionComplete) return 0;
+  
+  MapConfig.State->MissionComplete = 1;
+  MapConfig.State->MissionCompleteTime = gameAmIHost() ? gameGetTime() : pvars->State.RemoteIterationTime;
+  DLOG(moby, "mission end\n");
+  return 1;
+}
+
+//--------------------------------------------------------------------------
 int controllerIterate(Moby* moby)
 {
   int i;
@@ -520,6 +533,7 @@ int controllerIterate(Moby* moby)
       case CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_AMMO: changed += controllerControlGivePlayerAmmo(moby, &pvars->Targets[i]); break;
       case CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_HEALTH: changed += controllerControlGivePlayerHealth(moby, &pvars->Targets[i]); break;
       case CONTROLLER_TARGET_UPDATE_TYPE_RESPAWN: changed += controllerControlRespawnPlayer(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_COMPLETE_MISSION: changed += controllerControlCompleteMission(moby, &pvars->Targets[i]); break;
     }
   }
   
@@ -567,12 +581,14 @@ void controllerBroadcastIterate(Moby* moby)
 {
   struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
   u32 triggeredByUid = guberGetUID(pvars->State.TriggeredByMoby);
+  int time = gameGetTime();
 
 	// create event
 	GuberEvent * guberEvent = guberCreateEvent(moby, CONTROLLER_EVENT_ITERATE);
   if (guberEvent) {
     guberEventWrite(guberEvent, &pvars->State.Iterations, 4);
     guberEventWrite(guberEvent, &triggeredByUid, 4);
+    guberEventWrite(guberEvent, &time, 4);
     DLOG(moby, "broadcast iterate triggeredby:%08X %08X\n", (u32)triggeredByUid, (u32)pvars->State.TriggeredByMoby);
   }
 }
@@ -700,10 +716,12 @@ int controllerHandleEvent_Iterate(Moby* moby, GuberEvent* event)
     return 0;
 
   u32 triggeredByUid;
+  int time;
   struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
   
 	guberEventRead(event, &pvars->State.Iterations, 4);
 	guberEventRead(event, &triggeredByUid, 4);
+	guberEventRead(event, &time, 4);
   
   Guber* triggeredByGuber = guberGetObjectByUID(triggeredByUid);
   if (triggeredByGuber && triggeredByGuber->VTable && triggeredByGuber->VTable->GetMoby) {
@@ -714,6 +732,7 @@ int controllerHandleEvent_Iterate(Moby* moby, GuberEvent* event)
   
 	// iterate
   if (!gameAmIHost()) {
+    pvars->State.RemoteIterationTime = time;
     controllerIterate(moby);
   }
 

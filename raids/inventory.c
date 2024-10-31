@@ -34,8 +34,8 @@ InventoryDrawState_t inventoryDrawState = {
 };
 
 char* inventoryRarityNames[] = {
-  "Uncommon",
   "Common",
+  "Uncommon",
   "Rare",
   "Legendary"
 };
@@ -279,7 +279,7 @@ void inventoryDrawAccountInfo(InventoryDrawState_t* drawState)
     int iconSpriteId = inventoryWeaponSpriteIds[i];
     int iconSpriteDim = inventoryWeaponSpriteDims[i];
     gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 16, 16, iconSpriteDim, iconSpriteDim, iconSpriteId, spriteColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-    snprintf(strBuf, sizeof(strBuf), "P%d", localBank->Account.Proficiency[i-1] + 1);
+    snprintf(strBuf, sizeof(strBuf), "P%d", getProficiencyFromXp(localBank->Account.WeaponXp[i-1]) + 1);
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 0, offY + 10, 0.6, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     offX += 25;
   }
@@ -543,8 +543,9 @@ void inventoryDrawFooter(InventoryDrawState_t* drawState)
   RaidsInventoryWeapon_t* selectedWeapon = bankGetLocalWeaponFromBank(inventoryFilterMapping[inventoryDrawState.SelectedIdx]);
   RaidsInventoryWeapon_t* equippedWeapon = NULL;
   if (selectedWeapon) {
+    int accountProf = getProficiencyFromXp(localBank->Account.WeaponXp[bankGetEquipSlotFromGadgetId(selectedWeapon->GadgetId)]);
     equippedWeapon = bankGetLocalEquippedWeapon(selectedWeapon->GadgetId);
-    selectedTooStrong = selectedWeapon->GadgetId && selectedWeapon->Proficiency > localBank->Account.Proficiency[bankGetEquipSlotFromGadgetId(selectedWeapon->GadgetId)];
+    selectedTooStrong = selectedWeapon->GadgetId && selectedWeapon->Proficiency > accountProf;
     canEquip = !selectedTooStrong && selectedWeapon->GadgetId && equippedWeapon != selectedWeapon; // already equipped
     canSell = selectedWeapon->GadgetId && equippedWeapon != selectedWeapon && selectedWeapon->Notify != RAIDS_WEAPON_NOTIFY_FAV; // can't sell equipped
     sellPrice = getPriceForWeapon(selectedWeapon->Proficiency, selectedWeapon->Quality);
@@ -584,8 +585,9 @@ void inventoryDraw(void)
   int selectedTooStrong = 0;
   int canSell = 0;
   if (selectedWeapon) {
+    int accountProf = getProficiencyFromXp(localBank->Account.WeaponXp[bankGetEquipSlotFromGadgetId(selectedWeapon->GadgetId)]);
     equippedWeapon = bankGetLocalEquippedWeapon(selectedWeapon->GadgetId);
-    selectedTooStrong = selectedWeapon->GadgetId && selectedWeapon->Proficiency > localBank->Account.Proficiency[bankGetEquipSlotFromGadgetId(selectedWeapon->GadgetId)];
+    selectedTooStrong = selectedWeapon->GadgetId && selectedWeapon->Proficiency > accountProf;
     canEquip = !selectedTooStrong && selectedWeapon->GadgetId && equippedWeapon != selectedWeapon; // already equipped
     canSell = selectedWeapon->GadgetId && equippedWeapon != selectedWeapon && selectedWeapon->Notify != RAIDS_WEAPON_NOTIFY_FAV; // can't sell equipped
   }

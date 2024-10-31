@@ -163,11 +163,15 @@ void hopDo(void)
   }
 
   // reset init
+  if (State.MissionComplete || State.OnHubWorld) State.MissionStartTime = 0;
+  State.MissionComplete = 0;
+  State.MissionCompleteTime = 0;
   State.ClientsReady = 0;
   Initialized = 0;
 
   // hop
   CustomMapDef_t* def = State.PendingWorldHopMapDef;
+  State.CurrentMapDef = def;
   State.PendingWorldHopMapDef = NULL;
   State.PendingWorldHopAtTime = 0;
   PATCH_INTEROP->HopToCustomMap(def);

@@ -91,7 +91,9 @@
 #define NANOLEECH_HEALTH											(5)
 #define NANOLEECH_CHANCE											(0.01)
 
-#define LEVELUP_XP_LINEAR_RATE                (250)
+#define LEVELUP_XP_QUADRATIC_RATE             (10)
+#define LEVELUP_XP_LINEAR_RATE                (0)
+#define LEVELUP_XP_CONSTANT                   (0)
 
 #define PLAYER_BASE_REVIVE_TICKS					    (60 * TPS)
 #define PLAYER_MIN_REVIVE_TICKS					      (10 * TPS)
@@ -132,6 +134,7 @@
 #define EXECUTIONER_RENDER_COST               (300)
 
 #define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.05)
+#define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.005)
 
 enum GameNetMessage
 {
@@ -236,6 +239,9 @@ struct RaidsState
 	Moby* BigAl;
 	struct RaidsPlayer* LocalPlayerState;
 	int GameOver;
+  int MissionComplete;
+  int MissionStartTime;
+  int MissionCompleteTime;
 	int WinningTeam;
 	int ActivePlayerCount;
 	int AlivePlayerCount;
@@ -245,6 +251,7 @@ struct RaidsState
   int DifficultyStars;
   int PendingWorldHopAtTime;
   CustomMapDef_t* PendingWorldHopMapDef;
+  CustomMapDef_t* CurrentMapDef;
 	char NumTeams;
 };
 

@@ -310,7 +310,7 @@ enum CustomMessageId
     /*
      * 
      */
-    CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_RESPONSE = 54,
+    CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_RESPONSE = 56,
 
     /*
      * Start of custom message ids reserved for custom game modes.

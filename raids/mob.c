@@ -13,6 +13,7 @@
 #include <libdl/random.h>
 #include <libdl/radar.h>
 #include <libdl/color.h>
+#include "include/loot.h"
 
 int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
@@ -1095,7 +1096,11 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     // receive bolts & xp
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
       bankAddBolts(bolts);
-      bankAddXP(xp);
+    }
+
+    // weapon XP only if this client killed the mob
+    if (weaponId > 0 && killedByLocal) {
+      bankAddWeaponXP(xp, weaponId);
     }
 
     // spawn ammo chance
@@ -1103,6 +1108,11 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     // but to encourage cooperative play, it makes sense for it to randomly drop regardless
     if (killedByPlayer && randRange(0, 1) < State.AmmoDropChance) {
       mobSpawnAmmoDrop(moby);
+    }
+
+    // spawn loot chance
+    if (killedByLocal && randRange(0, 1) < GAME_DEFAULT_LOOT_DROP_CHANCE) {
+      lootRequestFromMob(moby, weaponId);
     }
 
 		// handle weapon jackpot
