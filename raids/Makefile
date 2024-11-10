@@ -49,24 +49,14 @@ EE_DEFS := -DRELEASE -DMOB_CORN
 #EE_DEFS += -DTRAILER
 endif
 
-.PHONY: all maps hub sarathos
+.PHONY: all
 
-all: mode maps clean
+all: mode clean
 
 mode: $(EE_BIN) copy
  
-maps: hub sarathos
-
-hub: 
-	cd maps/hub && $(MAKE)
-
-sarathos: 
-	cd maps/sarathos && $(MAKE)
-
 clean: 
 	rm -f *.irx *.o
-	cd $(CURDIR)/maps/hub && $(MAKE) clean
-	cd $(CURDIR)/maps/sarathos && $(MAKE) clean
  
 include $(CURDIR)/../Makefile.pref
 include $(CURDIR)/../Makefile.eeglobal
