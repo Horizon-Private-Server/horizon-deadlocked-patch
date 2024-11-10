@@ -54,5 +54,7 @@ void mobOnStateUpdate(Moby* moby, struct MobStateUpdateEventArgs* e);
 void mobPreUpdate(Moby* moby);
 int mobIsProjectileComing(Moby* moby);
 
+void mobInit(void);
+void mobTick(void);
 
 #endif // RAIDS_MAP_SHARED_H

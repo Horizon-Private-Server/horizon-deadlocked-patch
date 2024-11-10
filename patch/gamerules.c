@@ -230,7 +230,7 @@ struct CompactCTFSpawnReplacement
 };
 
 struct CompactCTFSpawnReplacement BetterFlagRules[] = {
-  {
+  /*{
     .MapId = MAP_ID_CATACROM,
     .Flags = {
       { 0,0,0 }, // BLUE
@@ -244,7 +244,7 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
     }
-  },
+  },*/
   {
     .MapId = MAP_ID_SARATHOS,
     .Flags = {
@@ -260,7 +260,7 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
     }
   },
-  {
+  /*{
     .MapId = MAP_ID_SHAAR,
     .Flags = {
       { 0,0,0 }, // BLUE
@@ -274,7 +274,7 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 452.02, 649.29, 515.47, 0.133 }, { 459.69, 603.02, 515.55, -0.481 }, { 449.62, 672.57, 515.47, -0.456 }, // GREEN
       { 636.13, 650.44, 515.47, 3.047 }, { 629.32, 602.55, 515.55, -2.624 }, { 633.95, 672.63, 515.47, -2.575 }, // ORANGE
     }
-  },
+  },*/
   {
     .MapId = MAP_ID_TORVAL,
     .Flags = {
@@ -290,7 +290,7 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
     }
   },
-  {
+  /*{
     .MapId = MAP_ID_MARAXUS,
     .Flags = {
       { 0,0,0 }, // BLUE
@@ -304,7 +304,7 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
     }
-  },
+  },*/
   {
     .MapId = MAP_ID_GS,
     .Flags = {

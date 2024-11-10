@@ -355,9 +355,17 @@ PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 PatchGameConfig_t gameConfig;
 PatchGameConfig_t gameConfigHostBackup;
 int selectedMapIdHostBackup;
+
+PatchStateContainer_t patchStateContainer = {
+  .Config = &config,
+  .GameConfig = &gameConfig,
+  .ReadExtraDataFunc = mapReadCurrentCustomMapExtraData
+};
+
 PatchInterop_t interopData = {
   .Config = &config,
   .GameConfig = &gameConfig,
+  .PatchStateContainer = &patchStateContainer,
   .Client = CLIENT_TYPE_NORMAL,
   .Month = 0,
   .SetSpectate = spectateSetSpectate,
@@ -367,13 +375,6 @@ PatchInterop_t interopData = {
   .ReadCustomMapExtraData = mapReadCustomMapExtraData,
   .RefreshCustomMapDefs = refreshCustomMapList,
   .HopToCustomMap = mapHopTo
-};
-
-// 
-PatchStateContainer_t patchStateContainer = {
-  .Config = &config,
-  .GameConfig = &gameConfig,
-  .ReadExtraDataFunc = mapReadCurrentCustomMapExtraData
 };
 
 /*

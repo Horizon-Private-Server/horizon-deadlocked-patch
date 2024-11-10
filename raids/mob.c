@@ -983,25 +983,26 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   // copy spawn params to config
   pvars->MobVars.SpawnParamsIdx = args.SpawnParamsIdx;
   struct MobSpawnParams* params = &mapConfig->MobSpawnParams[args.SpawnParamsIdx];
-  memcpy(&pvars->MobVars.Config, &params->Config, sizeof(struct MobConfig));
+  //memcpy(&pvars->MobVars.Config, &params->Config, sizeof(struct MobConfig));
 
 	// initialize mob vars
 	pvars->MobVars.Config.Bolts = args.Bolts;
-#if PAYDAY
-	pvars->MobVars.Config.Bolts = 100000;
-#endif
 	pvars->MobVars.Config.Xp = args.Xp;
-	pvars->MobVars.Config.MaxHealth = (float)args.StartHealth;
-	pvars->MobVars.Config.Health = (float)args.StartHealth;
 	pvars->MobVars.Config.Bangles = args.Bangles;
+	pvars->MobVars.Config.Scale = params->Scale;
 	pvars->MobVars.Config.Damage = (float)args.Damage;
+	pvars->MobVars.Config.Health = (float)args.StartHealth;
+	pvars->MobVars.Config.Speed = (float)args.SpeedEighths / 8.0;
 	pvars->MobVars.Config.AttackRadius = (float)args.AttackRadiusEighths / 8.0;
 	pvars->MobVars.Config.HitRadius = (float)args.HitRadiusEighths / 8.0;
 	pvars->MobVars.Config.CollRadius = (float)args.CollRadiusEighths / 8.0;
-	pvars->MobVars.Config.Speed = (float)args.SpeedEighths / 8.0;
+	pvars->MobVars.Config.OutOfSightDeAggroTickCount = params->Config.OutOfSightDeAggroTickCount;
 	pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount;
 	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
-	pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
+	pvars->MobVars.Config.AutoAggroMaxRange = params->Config.AutoAggroMaxRange;
+	pvars->MobVars.Config.VisionRange = params->Config.VisionRange;
+	pvars->MobVars.Config.PeripheryRangeTheta = params->Config.PeripheryRangeTheta;
+	pvars->MobVars.Health = pvars->MobVars.Config.Health;
 	pvars->MobVars.Order = -1;
 	pvars->MobVars.TimeLastGroundedTicks = 0;
 	pvars->MobVars.Random = random;
@@ -1013,6 +1014,10 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 #if MOB_NO_DAMAGE
 	pvars->MobVars.Config.Damage = 0;
 #endif
+#if PAYDAY
+	pvars->MobVars.Config.Bolts = 100000;
+#endif
+
 	//pvars->MobVars.Config.Health = pvars->MobVars.Health = 1;
 
   pvars->MobVars.MoveVars.CollRadius = pvars->MobVars.Config.CollRadius;
@@ -1491,7 +1496,7 @@ void mobRegisterNpc(Moby* moby)
   pvars->MobVars.SpawnParamsIdx = -1;
 
 	// initialize mob vars
-  pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
+  pvars->MobVars.Health = pvars->MobVars.Config.Health;
 	pvars->MobVars.Order = -1;
 	pvars->MobVars.TimeLastGroundedTicks = 0;
   vector_copy(pvars->MobVars.MoveVars.NextPosition, moby->Position);

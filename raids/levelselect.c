@@ -146,7 +146,8 @@ void levelselectDraw(void)
       }
 
       // draw map name
-      gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, xOff, yOff + LEVELSELECT_MAPLIST_ITEM_H/2.0, 0.8, textColor, def->Name, -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
+      snprintf(strBuf, sizeof(strBuf), "%s (V%d)", def->Name, def->Version);
+      gfxHelperDrawText(LEVELSELECT_DRAW_CENTER_X, LEVELSELECT_DRAW_CENTER_Y, xOff, yOff + LEVELSELECT_MAPLIST_ITEM_H/2.0, 0.8, textColor, strBuf, -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
       yOff += LEVELSELECT_MAPLIST_ITEM_H;
       ++raidsMapDefCount;
     }
@@ -240,7 +241,7 @@ void levelselectFrameTick(void)
     return;
   }
 
-  int canOpen = State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_R3) > 0;
+  int canOpen = State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && PATCH_POINTERS_PATCHMENU == 0 && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_UP) > 0;
   if (canOpen) {
     levelselectOpen();
   } else if (!State.OnHubWorld && State.ClientsReady && State.AlivePlayerCount == 0 && State.ActivePlayerCount && !hasPendingWorldHop()) {

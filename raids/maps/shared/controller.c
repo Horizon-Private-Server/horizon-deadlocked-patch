@@ -34,6 +34,7 @@
 #include "include/maputils.h"
 #include "include/shared.h"
 #include "../../include/spawner.h"
+#include "../../include/checkpoint.h"
 #include "../../include/gate.h"
 #include "../../include/mover.h"
 #include "../../include/controller.h"
@@ -247,6 +248,22 @@ int controllerDifficultyConditionTrue(Moby* moby, int conditionIdx)
 }
 
 //--------------------------------------------------------------------------
+int controllerCheckpointConditionTrue(Moby* moby, int conditionIdx)
+{
+  struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
+  struct ControllerCondition* condition = &pvars->Conditions[conditionIdx];
+  
+  // invalid moby
+  Moby* target = condition->Moby;
+  if (!target || mobyIsDestroyed(target) || target->OClass != CHECKPOINT_OCLASS) {
+    condition->Moby = NULL;
+    return 0;
+  }
+
+  return target->State == condition->Checkpoint.IsActive;
+}
+
+//--------------------------------------------------------------------------
 void controllerUpdateTriggers(Moby* moby)
 {
   struct ControllerPVar* pvars = (struct ControllerPVar*)moby->PVar;
@@ -265,6 +282,7 @@ void controllerUpdateTriggers(Moby* moby)
       case CONTROLLER_CONDITION_TYPE_XOR: count += 1; succeeded += controllerIsXORConditionTrue(moby, i); break;
       case CONTROLLER_CONDITION_TYPE_NPC_TARGET: count += 1; succeeded += controllerIsNpcTargetConditionTrue(moby, i); break;
       case CONTROLLER_CONDITION_TYPE_DIFFICULTY: count += 1; succeeded += controllerDifficultyConditionTrue(moby, i); break;
+      case CONTROLLER_CONDITION_TYPE_CHECKPOINT: count += 1; succeeded += controllerCheckpointConditionTrue(moby, i); break;
       default: break;
     }
 
@@ -285,7 +303,8 @@ void controllerUpdateTriggers(Moby* moby)
   }
 
   // update activate
-  pvars->State.TriggersActivated = (succeeded > 0 && pvars->TriggerIfAllTrue == 0)
+  pvars->State.TriggersActivated = (succeeded == 0 && count == 0)
+                                || (succeeded > 0 && pvars->TriggerIfAllTrue == 0)
                                 || (succeeded > 0 && succeeded == count && pvars->TriggerIfAllTrue == 1);
 }
 
@@ -359,6 +378,15 @@ int controllerControlMobyEnabled(Moby* moby, struct ControllerTarget* target)
   }
 
   return 1;
+}
+
+//--------------------------------------------------------------------------
+int controllerControlMobySetCheckpoint(Moby* moby, struct ControllerTarget* target)
+{
+  Moby* targetMoby = target->Moby.Moby;
+  if (!targetMoby || mobyIsDestroyed(targetMoby) || targetMoby->OClass != CHECKPOINT_OCLASS) return 0;
+  
+  return checkpointSetActive(targetMoby);
 }
 
 //--------------------------------------------------------------------------
@@ -534,6 +562,7 @@ int controllerIterate(Moby* moby)
       case CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_HEALTH: changed += controllerControlGivePlayerHealth(moby, &pvars->Targets[i]); break;
       case CONTROLLER_TARGET_UPDATE_TYPE_RESPAWN: changed += controllerControlRespawnPlayer(moby, &pvars->Targets[i]); break;
       case CONTROLLER_TARGET_UPDATE_TYPE_COMPLETE_MISSION: changed += controllerControlCompleteMission(moby, &pvars->Targets[i]); break;
+      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_SET_CHECKPOINT: changed += controllerControlMobySetCheckpoint(moby, &pvars->Targets[i]); break;
     }
   }
   
@@ -678,6 +707,7 @@ void controllerOnGuberCreated(Moby* moby)
       case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ANIMATION:
       case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_ENABLED:
       case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_STATE_ADDITIVE:
+      case CONTROLLER_TARGET_UPDATE_TYPE_MOBY_SET_CHECKPOINT:
       {
         pvars->Targets[i].Moby.Moby = mobyGetFromIdxOrNull((int)pvars->Targets[i].Moby.Moby);
         DLOG(moby, "controller %08X found moby target %d %08X\n", (u32)moby, i, (u32)pvars->Targets[i].Moby.Moby);

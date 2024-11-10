@@ -29,6 +29,7 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
+#include "maputils.h"
 #include "gate.h"
 #include "game.h"
 #include "npc.h"
@@ -50,11 +51,9 @@ void spVendorTick(void);
 char LocalPlayerStrBuffer[2][64];
 
 // set by mode
-extern RaidsBakedConfig_t bakedConfig;
 struct RaidsMapConfig MapConfig __attribute__((section(".config"))) = {
   .Magic = MAP_CONFIG_MAGIC,
 	.State = NULL,
-  .BakedConfig = &bakedConfig,
 };
 
 //--------------------------------------------------------------------------
@@ -72,43 +71,17 @@ int mapPathCanBeSkippedForTarget(struct PathGraph* path, Moby* moby)
 //--------------------------------------------------------------------------
 int createMob(struct MobCreateArgs* args)
 {
-  switch (args->SpawnParamsIdx)
-  {
-    case MOB_SPAWN_PARAM_NORMAL:
-    {
-      return zombieCreate(args);
-    }
-    case MOB_SPAWN_PARAM_SWARMER:
-    {
-      return swarmerCreate(args);
-    }
-    default:
-    {
-      DPRINTF("unhandled create spawnParamsIdx %d\n", args->SpawnParamsIdx);
-      break;
-    }
+  if (args->SpawnParamsIdx < 0 || args->SpawnParamsIdx >= MapConfig.MobSpawnParamsCount) {
+    DPRINTF("unhandled create spawnParamsIdx %d\n", args->SpawnParamsIdx);
+    return 0;
   }
 
+  struct MobSpawnParams* spawnParams = &MapConfig.MobSpawnParams[args->SpawnParamsIdx];
+  if (spawnParams->MobCreate)
+    return spawnParams->MobCreate(args);
+
+  DPRINTF("unhandled create spawnParamsIdx %d\n", args->SpawnParamsIdx);
   return 0;
-}
-
-//--------------------------------------------------------------------------
-void mapGiveAmmo(void)
-{
-  // if any weapon ran out of ammo, return back to max
-  int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* player = playerGetFromSlot(i);
-    if (!player || !player->GadgetBox) continue;
-
-    int j;
-    for (j = WEAPON_SLOT_VIPERS; j < WEAPON_SLOT_COUNT; ++j) {
-      int gadgetId = weaponSlotToId(j);
-      if (player->GadgetBox->Gadgets[gadgetId].Level >= 0 && player->GadgetBox->Gadgets[gadgetId].Ammo <= 0) {
-        player->GadgetBox->Gadgets[gadgetId].Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, gadgetId);
-      }
-    }
-  }
 }
 
 //--------------------------------------------------------------------------
@@ -125,32 +98,6 @@ void mapReturnPlayersToMap(void)
       playerSetHealth(player, player->MaxHealth);
     }
   }
-}
-
-//--------------------------------------------------------------------------
-void mapRespawnPlayersOnStart(void)
-{
-  static int init = 0;
-
-  if (init) return;
-
-  // respawn all players
-  Player** players = playerGetAll();
-  int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!player || !player->PlayerMoby || !player->pNetPlayer) continue;
-    
-    // respawn player
-    playerGetSpawnpoint(player, player->PlayerPosition, player->PlayerRotation, 1);
-    vector_copy(player->PlayerMoby->Position, player->PlayerPosition);
-    if (!player->IsLocal) {
-      memset((void*)((u32)player->pNetPlayer + 0x38), 0, 0xAD0 - 0x38);
-      player->pNetPlayer->lastActiveSeqNum = -1;
-    }
-  }
-
-  init = 1;
 }
 
 //--------------------------------------------------------------------------
@@ -206,6 +153,7 @@ void initialize(void)
   HOOK_JAL(0x0051f648, &onBeforeUpdateHeroes2);
   //HOOK_J(0x0051f78c, &onAfterUpdateHeroes2);
 
+  respawnAllPlayers();
   initialized = 1;
 }
 
@@ -233,7 +181,6 @@ int main(void)
   initialize();
 
   //
-  mapRespawnPlayersOnStart();
   if (MapConfig.ClientsReady || !netGetDmeServerConnection())
   {
     spawnerStart();
@@ -247,7 +194,7 @@ int main(void)
   spVendorTick();
   for (i = 0; i < PathsCount; ++i) pathTick(&Paths[i]);
   mapReturnPlayersToMap();
-  mapGiveAmmo();
+  replenishAmmo();
 
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;

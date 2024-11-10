@@ -645,7 +645,6 @@ void npcOnGuberCreated(Moby* moby)
   pvars->Mob.MobVars.Config.Damage = 0;
   pvars->Mob.MobVars.Config.Speed = pvars->Parameters.Speed;
   pvars->Mob.MobVars.Config.Health = pvars->Parameters.Health;
-  pvars->Mob.MobVars.Config.MaxHealth = pvars->Parameters.Health;
   pvars->Mob.MobVars.Config.AttackRadius = pvars->Parameters.InteractRange;
   pvars->Mob.MobVars.Config.HitRadius = 1;
   pvars->Mob.MobVars.Config.CollRadius = pvars->Parameters.CollRadius;

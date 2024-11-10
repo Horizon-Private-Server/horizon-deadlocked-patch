@@ -253,6 +253,11 @@ void spawnerOnChildMobUpdate(Moby* moby, Moby* childMoby, u32 userdata)
   struct SpawnerPVar* pvars = (struct SpawnerPVar*)moby->PVar;
   int i;
 
+  // force path graph
+  if (pvars->PathGraphIdx >= 0) {
+    childPVars->MobVars.MoveVars.PathGraphIdx = pvars->PathGraphIdx;
+  }
+
   // destroy if spawner has completed
   if (moby->State == SPAWNER_STATE_COMPLETED) {
     if (!childPVars->MobVars.Destroyed) {

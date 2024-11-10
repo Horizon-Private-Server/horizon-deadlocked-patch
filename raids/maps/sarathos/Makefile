@@ -1,14 +1,14 @@
 EE_LIBS = -ldl
 EE_OBJS = main.o config.o path.o
 EE_OBJS += ../../../common/common.o
-EE_OBJS += ../shared/map.o ../shared/gate.o ../shared/spawner.o ../shared/messager.o ../shared/mover.o ../shared/controller.o ../shared/npc.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
+EE_OBJS += ../shared/map.o ../shared/gate.o ../shared/spawner.o ../shared/messager.o ../shared/checkpoint.o ../shared/mover.o ../shared/controller.o ../shared/npc.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
 EE_ELF = sarathos.elf
 EE_BIN = sarathos.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
 EE_LDFLAGS := -Werror -DMOB_ZOMBIE -DMOB_SWARMER -DGATE -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := RELEASE
+BUILD_CONFIG := DEBUG
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.

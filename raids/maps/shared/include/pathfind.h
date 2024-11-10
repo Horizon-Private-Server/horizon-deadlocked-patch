@@ -22,7 +22,6 @@
 #include <libdl/color.h>
 #include <libdl/utils.h>
 
-#include "module.h"
 #include "messageid.h"
 #include "game.h"
 #include "mob.h"

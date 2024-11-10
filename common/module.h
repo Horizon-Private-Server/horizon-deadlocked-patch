@@ -91,20 +91,6 @@ typedef enum GameModuleContext
  */
 typedef void (*ModuleStart)(struct GameModule * module, struct PatchStateContainer * patchStateContainer, enum GameModuleContext context);
 
-/*
- * NAME :		ReadExtraData_f
- * 
- * DESCRIPTION :
- * 			Function that reads the custom map extra data from the usb drive for the current game mode.
- *      Returns 1 on success, 0 on failure.
- * 
- * NOTES :
- * 
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-typedef int (*ReadExtraData_f)(void* dst, int len);
-
 
 /*
  * NAME :		GameModule
@@ -147,42 +133,6 @@ typedef struct GameModule
 
 } GameModule;
 
-
-typedef struct UpdateGameStateRequest {
-	char TeamsEnabled;
-  char PADDING;
-  short Version;
-	int RoundNumber;
-	int TeamScores[GAME_MAX_PLAYERS];
-	char ClientIds[GAME_MAX_PLAYERS];
-	char Teams[GAME_MAX_PLAYERS];
-} UpdateGameStateRequest_t;
-
-typedef struct CustomGameModeStats
-{
-  u8 Payload[1024 * 6];
-} __attribute__((aligned(16))) CustomGameModeStats_t;
-
-typedef struct PatchStateContainer
-{
-  PatchConfig_t* Config;
-  PatchGameConfig_t* GameConfig;
-  int UpdateGameState;
-  UpdateGameStateRequest_t GameStateUpdate;
-  int UpdateCustomGameStats;
-  CustomGameModeStats_t CustomGameStats;
-  GameSettings GameSettingsAtStart;
-  int CustomGameStatsSize;
-  int ClientsReadyMask;
-  int AllClientsReady;
-  int VoteToEndPassed;
-  int HalfTimeState;
-  int OverTimeState;
-  SetNameOverridesMessage_t LobbyNameOverrides;
-  int SelectedCustomMapId;
-  int SelectedCustomMapChanged;
-  ReadExtraData_f ReadExtraDataFunc;
-} PatchStateContainer_t;
 
 
 #endif // _MODULE_H_

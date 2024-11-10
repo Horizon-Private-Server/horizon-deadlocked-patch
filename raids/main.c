@@ -240,7 +240,7 @@ void drawMissionCompleteMessage(void)
   snprintf(strBuf, sizeof(strBuf), "Completed in %02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
   gfxHelperDrawText(x, y, 0, 30, 1.0, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
-  uiShowHelpPopup(0, "Use R3 to open the Planet Select menu.", 100);
+  uiShowHelpPopup(0, "Use Up to open the Planet Select menu.", 100);
 }
 
 //--------------------------------------------------------------------------

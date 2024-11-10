@@ -735,7 +735,7 @@ void zombieForceLocalAction(Moby* moby, int action)
 short zombieGetArmor(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	float t = pvars->MobVars.Health / pvars->MobVars.Config.MaxHealth;
+	float t = pvars->MobVars.Health / pvars->MobVars.Config.Health;
   int bangles = pvars->MobVars.Config.Bangles;
 
   if (t < 0.3)

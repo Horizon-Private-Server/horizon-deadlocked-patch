@@ -537,12 +537,6 @@ typedef struct ScavengerHuntSettingsResponse
   float SpawnFactor;
 } ScavengerHuntSettingsResponse_t;
 
-typedef struct SetNameOverridesMessage
-{
-  int AccountIds[10];
-  char Names[10][16];
-} SetNameOverridesMessage_t;
-
 typedef struct ServerDateTimeMessage
 {
   u16 Year;

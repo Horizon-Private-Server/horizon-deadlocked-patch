@@ -9,13 +9,10 @@ extern struct RaidsMapConfig MapConfig;
 // SHOULD NEVER EXCEED MAX_MOB_SPAWN_PARAMS
 struct MobSpawnParams mobSpawnParams[] = {
 	// normal zombie
-	[MOB_SPAWN_PARAM_NORMAL]
 	{
+    .MobCreate = &zombieCreate,
 		.RenderCost = ZOMBIE_RENDER_COST,
-    .MaxSpawnedAtOnce = 0,
-    .SpecialRoundOnly = 0,
-		.CooldownTicks = 0,
-    .CooldownOffsetPerRoundFactor = 0,
+    .Scale = 1,
 		.Name = "Zombie",
 		.Config = {
 			.Xp = 15,
@@ -42,13 +39,9 @@ struct MobSpawnParams mobSpawnParams[] = {
 		}
 	},
   // swarmer
-  [MOB_SPAWN_PARAM_SWARMER]
 	{
+    .MobCreate = &swarmerCreate,
 		.RenderCost = SWARMER_RENDER_COST,
-    .MaxSpawnedAtOnce = 0,
-    .SpecialRoundOnly = 0,
-		.CooldownTicks = 0,
-    .CooldownOffsetPerRoundFactor = 0,
 		.Name = "Swarmer",
 		.Config = {
 			.Xp = 5,
@@ -74,10 +67,6 @@ struct MobSpawnParams mobSpawnParams[] = {
 			.AttackCooldownTickCount = SWARMER_BASE_ATTACK_COOLDOWN_TICKS,
 		}
   }
-};
-
-//--------------------------------------------------------------------------
-RaidsBakedConfig_t bakedConfig = {
 };
 
 //--------------------------------------------------------------------------

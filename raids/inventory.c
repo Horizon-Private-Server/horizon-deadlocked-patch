@@ -709,7 +709,7 @@ void inventoryTick(void)
   }
   
   // draw
-  if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_L3) > 0) {
+  if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && PATCH_POINTERS_PATCHMENU == 0 && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_LEFT) > 0) {
     inventoryOpen();
   } else if (State.MenuOpen == RAIDS_CUSTOM_MENU_INVENTORY) {
     inventoryDraw();

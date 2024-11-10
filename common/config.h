@@ -24,6 +24,12 @@ typedef int (*ReadCustomMapExtraDataFunc_t)(char* mapFilename, void* buffer, int
 typedef void (*RefreshCustomMapDefsFunc_t)(void);
 typedef void (*HopToCustomMapFunc_t)(struct CustomMapDef* def);
 
+/*
+ * 			Function that reads the custom map extra data from the usb drive for the current game mode.
+ *      Returns 1 on success, 0 on failure.
+ */
+typedef int (*ReadExtraData_f)(void* dst, int len);
+
 typedef struct PatchConfig
 {
   char framelimiter;
@@ -73,6 +79,27 @@ enum PayloadContestMode
 	PAYLOAD_CONTEST_SLOW,
 	PAYLOAD_CONTEST_STOP
 };
+
+typedef struct UpdateGameStateRequest {
+	char TeamsEnabled;
+  char PADDING;
+  short Version;
+	int RoundNumber;
+	int TeamScores[GAME_MAX_PLAYERS];
+	char ClientIds[GAME_MAX_PLAYERS];
+	char Teams[GAME_MAX_PLAYERS];
+} UpdateGameStateRequest_t;
+
+typedef struct CustomGameModeStats
+{
+  u8 Payload[1024 * 6];
+} __attribute__((aligned(16))) CustomGameModeStats_t;
+
+typedef struct SetNameOverridesMessage
+{
+  int AccountIds[10];
+  char Names[10][16];
+} SetNameOverridesMessage_t;
 
 typedef struct PayloadConfig
 {
@@ -129,6 +156,27 @@ typedef struct PatchGameConfig
   HNSConfig_t hnsConfig;
 } PatchGameConfig_t;
 
+typedef struct PatchStateContainer
+{
+  PatchConfig_t* Config;
+  PatchGameConfig_t* GameConfig;
+  int UpdateGameState;
+  UpdateGameStateRequest_t GameStateUpdate;
+  int UpdateCustomGameStats;
+  CustomGameModeStats_t CustomGameStats;
+  GameSettings GameSettingsAtStart;
+  int CustomGameStatsSize;
+  int ClientsReadyMask;
+  int AllClientsReady;
+  int VoteToEndPassed;
+  int HalfTimeState;
+  int OverTimeState;
+  SetNameOverridesMessage_t LobbyNameOverrides;
+  int SelectedCustomMapId;
+  int SelectedCustomMapChanged;
+  ReadExtraData_f ReadExtraDataFunc;
+} PatchStateContainer_t;
+
 typedef struct PatchInterop
 {
   PatchConfig_t* Config;
@@ -142,6 +190,7 @@ typedef struct PatchInterop
   ReadCustomMapExtraDataFunc_t ReadCustomMapExtraData;
   RefreshCustomMapDefsFunc_t RefreshCustomMapDefs;
   HopToCustomMapFunc_t HopToCustomMap;
+  PatchStateContainer_t* PatchStateContainer;
 } PatchInterop_t;
 
 typedef struct DzoInteropFunctions

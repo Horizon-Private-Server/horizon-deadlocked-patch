@@ -35,6 +35,7 @@ enum ControllerConditionType {
   CONTROLLER_CONDITION_TYPE_XOR,
   CONTROLLER_CONDITION_TYPE_NPC_TARGET,
   CONTROLLER_CONDITION_TYPE_DIFFICULTY,
+  CONTROLLER_CONDITION_TYPE_CHECKPOINT,
 };
 
 enum ControllerMobyStateInteractType {
@@ -77,6 +78,7 @@ enum ControllerTargetUpdateType {
   CONTROLLER_TARGET_UPDATE_TYPE_GIVE_PLAYER_HEALTH,
   CONTROLLER_TARGET_UPDATE_TYPE_RESPAWN,
   CONTROLLER_TARGET_UPDATE_TYPE_COMPLETE_MISSION,
+  CONTROLLER_TARGET_UPDATE_TYPE_MOBY_SET_CHECKPOINT,
 };
 
 struct ControllerRuntimeState
@@ -129,6 +131,11 @@ struct ControllerCondition
     struct {
       int Mask;
     } Difficulty;
+
+    // trigger if checkpoint
+    struct {
+      char IsActive;
+    } Checkpoint;
   };
 };
 

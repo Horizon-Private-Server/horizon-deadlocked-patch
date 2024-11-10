@@ -182,10 +182,6 @@ typedef void (*MapOnMobUpdate_func)(Moby* moby);
 typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int weaponId);
 typedef void (*FrameTick_func)(void);
 
-typedef struct RaidsBakedConfig
-{
-} RaidsBakedConfig_t;
-
 struct RaidsPlayerState
 {
   u64 Experience;
@@ -260,7 +256,6 @@ struct RaidsMapConfig
   u32 Magic;
   int ClientsReady;
   struct RaidsState* State;
-  struct RaidsBakedConfig* BakedConfig;
   struct MobSpawnParams* MobSpawnParams;
   int MobSpawnParamsCount;
 

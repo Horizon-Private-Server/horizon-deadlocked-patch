@@ -78,36 +78,65 @@ struct MobVTable {
 
 struct MobConfig {
 	int Bolts;
+
 	float Damage;
 	float MaxDamage;
   float DamageScale;
+
 	float Speed;
 	float MaxSpeed;
   float SpeedScale;
+
 	float Health;
 	float MaxHealth;
   float HealthScale;
+
 	float AttackRadius;
 	float HitRadius;
   float CollRadius;
+
   float AutoAggroMaxRange;
   float VisionRange;
   float PeripheryRangeTheta;
+
 	u16 Bangles;
 	u16 Xp;
+
+  u16 OutOfSightDeAggroTickCount;
+	u8 ReactionTickCount;
+	u8 AttackCooldownTickCount;
+};
+
+struct MobSpawnedConfig {
+	int Bolts;
+
+	float Scale;
+	float Damage;
+	float Speed;
+	float Health;
+
+	float AttackRadius;
+	float HitRadius;
+  float CollRadius;
+
+  float AutoAggroMaxRange;
+  float VisionRange;
+  float PeripheryRangeTheta;
+
+	u16 Bangles;
+	u16 Xp;
+
   u16 OutOfSightDeAggroTickCount;
 	u8 ReactionTickCount;
 	u8 AttackCooldownTickCount;
 };
 
 struct MobSpawnParams {
+  MapOnMobCreate_func MobCreate;
   int RenderCost;
-  int MaxSpawnedAtOnce;
-	int CooldownTicks;
-  float CooldownOffsetPerRoundFactor; // 0 is unchanged, -1 is -1 tick per round, +1 is +1 tick per round
+  float Scale;
 	char Name[32];
 	struct MobConfig Config;
-  char SpecialRoundOnly;
 };
 
 struct Knockback {
@@ -157,7 +186,7 @@ struct MobMoveVars {
 };
 
 struct MobVars {
-	struct MobConfig Config;
+	struct MobSpawnedConfig Config;
 	struct Knockback Knockback;
   struct MobMoveVars MoveVars;
   int SpawnParamsIdx;

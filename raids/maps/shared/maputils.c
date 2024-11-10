@@ -381,3 +381,42 @@ int isOnHubWorld(void)
 {
   return MapConfig.State && MapConfig.State->OnHubWorld;
 }
+
+//--------------------------------------------------------------------------
+void replenishAmmo(void)
+{
+  // if any weapon ran out of ammo, return back to max
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* player = playerGetFromSlot(i);
+    if (!player || !player->GadgetBox) continue;
+
+    int j;
+    for (j = WEAPON_SLOT_VIPERS; j < WEAPON_SLOT_COUNT; ++j) {
+      int gadgetId = weaponSlotToId(j);
+      if (player->GadgetBox->Gadgets[gadgetId].Level >= 0 && player->GadgetBox->Gadgets[gadgetId].Ammo <= 0) {
+        player->GadgetBox->Gadgets[gadgetId].Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, gadgetId);
+      }
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+void respawnAllPlayers(void)
+{
+  // respawn all players
+  Player** players = playerGetAll();
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->PlayerMoby || !player->pNetPlayer) continue;
+    
+    // respawn player
+    playerGetSpawnpoint(player, player->PlayerPosition, player->PlayerRotation, 1);
+    vector_copy(player->PlayerMoby->Position, player->PlayerPosition);
+    if (!player->IsLocal) {
+      memset((void*)((u32)player->pNetPlayer + 0x38), 0, 0xAD0 - 0x38);
+      player->pNetPlayer->lastActiveSeqNum = -1;
+    }
+  }
+}
