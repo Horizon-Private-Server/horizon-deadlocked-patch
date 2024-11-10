@@ -869,7 +869,7 @@ void mobUpdate(Moby* moby)
     }
 
     // auto destruct after 15 seconds of being stuck
-    else if (pvars->MobVars.MoveVars.StuckCounter > 5) {
+    else if (pvars->MobVars.MoveVars.StuckCounter > 15) {
       pvars->MobVars.Respawn = 1;
     }
     
@@ -969,7 +969,6 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	moby->CollActive = 1;
   moby->UpdateDist = -1;
 
-
 	// update pvars
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 	memset(pvars, 0, sizeof(struct MobPVar));
@@ -983,7 +982,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   // copy spawn params to config
   pvars->MobVars.SpawnParamsIdx = args.SpawnParamsIdx;
   struct MobSpawnParams* params = &mapConfig->MobSpawnParams[args.SpawnParamsIdx];
-  //memcpy(&pvars->MobVars.Config, &params->Config, sizeof(struct MobConfig));
+  pvars->VTable = params->MobVTable;
 
 	// initialize mob vars
 	pvars->MobVars.Config.Bolts = args.Bolts;

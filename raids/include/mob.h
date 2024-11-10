@@ -133,9 +133,10 @@ struct MobSpawnedConfig {
 
 struct MobSpawnParams {
   MapOnMobCreate_func MobCreate;
+  struct MobVTable* MobVTable;
   int RenderCost;
   float Scale;
-	char Name[32];
+  int OClass;
 	struct MobConfig Config;
 };
 
@@ -168,6 +169,7 @@ struct MobMoveVars {
   char MoveStep;
   char LastMoveStep;
   char PathGraphIdx;
+  u8 WasStuckTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
   u8 MoveSkipTicks;

@@ -1,4 +1,5 @@
 #include "include/utils.h"
+#include "include/mob.h"
 #include "include/game.h"
 #include <string.h>
 #include <libdl/stdio.h>
@@ -10,6 +11,7 @@
 #include <libdl/graphics.h>
 
 extern struct RaidsState State;
+extern struct RaidsMapConfig* mapConfig;
 
 /* 
  * upgrade sound def
@@ -359,14 +361,17 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
 //--------------------------------------------------------------------------
 int mobyIsMob(Moby* moby)
 {
-  return moby->OClass == ZOMBIE_MOBY_OCLASS
-    || moby->OClass == EXECUTIONER_MOBY_OCLASS
-    || moby->OClass == TREMOR_MOBY_OCLASS
-    || moby->OClass == SWARMER_MOBY_OCLASS
-    || moby->OClass == REACTOR_MOBY_OCLASS
-    || moby->OClass == REAPER_MOBY_OCLASS
-    || moby->OClass == NPC_MOBY_OCLASS
-    ;
+  if (!moby) return 0;
+  
+  int i;
+  if (mapConfig) {
+    for (i = 0; i < mapConfig->MobSpawnParamsCount; ++i) {
+      if (mapConfig->MobSpawnParams[i].OClass == moby->OClass)
+        return 1;
+    }
+  }
+
+  return moby->OClass == NPC_MOBY_OCLASS;
 }
 
 //--------------------------------------------------------------------------

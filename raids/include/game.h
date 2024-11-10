@@ -21,7 +21,6 @@
 #define REACTOR_MOBY_OCLASS							      (0x20BE)
 #define NPC_MOBY_OCLASS                       (0x4006)
 
-
 #define STATUE_MOBY_OCLASS                    (0x2402)
 #define BIGAL_MOBY_OCLASS                     (0x2124)
 
