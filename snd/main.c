@@ -1856,6 +1856,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
   gameConfig->grCqDisableTurrets = 0;
   gameConfig->grCqDisableUpgrades = 0;
   gameConfig->grCqPersistentCapture = 0;
+  gameConfig->grRespawnOverride = 0;
 
 	// set to conquest homenodes
 	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)cqOptions, sizeof(cqOptions)/sizeof(char));

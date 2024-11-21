@@ -42,7 +42,7 @@ void initialize(PatchStateContainer_t* gameState);
 void updateGameState(PatchStateContainer_t * gameState);
 void gameTick(void);
 void frameTick(void);
-void setLobbyGameOptions(void);
+void setLobbyGameOptions(PatchGameConfig_t * gameConfig);
 void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
 
 //--------------------------------------------------------------------------
@@ -101,7 +101,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	{
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameState->GameConfig);
 			break;
 		}
 	}
@@ -110,7 +110,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-  setLobbyGameOptions();
+  setLobbyGameOptions(gameState->GameConfig);
 }
 
 //--------------------------------------------------------------------------

@@ -726,7 +726,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames, "Disables in game nametags." },
   { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync, "Replaces the Insomniac player sync netcode with a better custom Horizon implementation. Reduces player teleporting, rubberbanding, and jittery movement. Known on rare occasions to freeze PS2s." },
   { "Quick Chat", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grQuickChat, "Enables in game quick chat with the D-Pad." },
-  { "Respawn Override", listActionHandler, menuStateHandler_SettingStateHandler, &dataRespawnOverride, "Overrides Create Game screen Respawn Time to the configured value (in seconds)." },
+  { "Respawn Override", listActionHandler, menuStateAlwaysEnabledHandler, &dataRespawnOverride, "Overrides Create Game screen Respawn Time to the configured value (in seconds)." },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s, "Configures V2 weapon upgrades to be disabled, on (default), or always on (spawn with v2 weapons)." },
   { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire, "Earn health for each kill." },
   { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks, "Toggle in game weapon packs." },

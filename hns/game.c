@@ -383,7 +383,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 }
 
 //--------------------------------------------------------------------------
-void setLobbyGameOptions(void)
+void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
   static int set = 0;
 
@@ -420,7 +420,7 @@ void setLobbyGameOptions(void)
   if (gameOptions->GameFlags.MultiplayerGameFlags.Timelimit == 0)
     gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 10;
 
-  DPRINTF("set lobby teams\n");
+  gameConfig->grRespawnOverride = 0;
 
   if (gameAmIHost()) {
 

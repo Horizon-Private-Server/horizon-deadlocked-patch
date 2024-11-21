@@ -797,7 +797,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	return;
 }
 
-void setLobbyGameOptions(void)
+void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
 	// deathmatch options
 	static char options[] = { 
@@ -828,6 +828,8 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = -1;
+
+  gameConfig->grRespawnOverride = 0;
 }
 
 /*
@@ -870,7 +872,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameState->GameConfig);
 			break;
 		}
 	}
@@ -893,7 +895,7 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
  */
 void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-	setLobbyGameOptions();
+	setLobbyGameOptions(gameState->GameConfig);
 }
 
 //--------------------------------------------------------------------------

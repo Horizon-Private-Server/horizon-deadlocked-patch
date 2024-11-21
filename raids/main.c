@@ -1238,10 +1238,6 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 
-#if !DEBUG
-	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
-#endif
-
 	// no vehicles
 	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
@@ -1274,6 +1270,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grCqPersistentCapture = 0;
     gameConfig->grCqDisableTurrets = 0;
     gameConfig->grCqDisableUpgrades = 0;
+    gameConfig->grRespawnOverride = 0;
   }
 
 	// force everyone to same team as host
