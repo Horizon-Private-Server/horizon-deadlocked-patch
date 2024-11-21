@@ -54,6 +54,7 @@ typedef struct PatchConfig
   char enableInGameScoreboard;
   char enableNPSLagComp;
   char enableFastLoad;
+  char deadzone;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
@@ -144,6 +145,8 @@ typedef struct PatchGameConfig
   char grNewPlayerSync;
   char grQuickChat;
   char grNoFusionADS;
+  char grRespawnOverride;
+  char grFogOfWarRadar;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;

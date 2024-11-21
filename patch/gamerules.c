@@ -260,6 +260,21 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
     }
   },
+  {
+    .MapId = MAP_ID_SHAAR,
+    .Flags = {
+      { 0,0,0 }, // BLUE
+      { 0,0,0 }, // RED
+      { 459.81, 623.16, 515.54 }, // GREEN
+      { 629.86, 623.02, 515.55 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 532.33, 568.525, 509.842, -2.206 }, { 0,0,0,0 }, { 0,0,0,0 }, // BLUE
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // RED
+      { 452.02, 649.29, 515.47, 0.133 }, { 459.69, 603.02, 515.55, -0.481 }, { 449.62, 672.57, 515.47, -0.456 }, // GREEN
+      { 636.13, 650.44, 515.47, 3.047 }, { 629.32, 602.55, 515.55, -2.624 }, { 633.95, 672.63, 515.47, -2.575 }, // ORANGE
+    }
+  },
   /*{
     .MapId = MAP_ID_SHAAR,
     .Flags = {
@@ -275,6 +290,21 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 636.13, 650.44, 515.47, 3.047 }, { 629.32, 602.55, 515.55, -2.624 }, { 633.95, 672.63, 515.47, -2.575 }, // ORANGE
     }
   },*/
+  {
+    .MapId = MAP_ID_VALIX,
+    .Flags = {
+      { 0,0,0 }, // BLUE
+      { 0,0,0 }, // RED
+      { 0,0,0 }, // GREEN
+      { 0,0,0 }, // ORANGE
+    },
+    .PointsAndYaw = {
+      { 330.245, 413.115, 330.326, 1.039 }, { 0,0,0,0 }, { 0,0,0,0 }, // BLUE
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // RED
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
+      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
+    }
+  },
   {
     .MapId = MAP_ID_TORVAL,
     .Flags = {
@@ -1221,6 +1251,18 @@ void addFlagRef(GameplayMobyDef_t** flags, GameplayMobyDef_t* flag, int team) {
 	flags[team] = flag;
 }
 
+int teamHasPlayer(int team) {
+  GameSettings* gs = gameGetSettings();
+  if (!gs) return 0;
+
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (gs->PlayerTeams[i] == team) return 1;
+  }
+
+  return 0;
+}
+
 /*
  * NAME :		onGameplayLoadBetterFlags
  * 
@@ -1297,6 +1339,8 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
         flags[i]->PosZ = rule->Flags[i][2];
         DPRINTF("better flags update flag %d\n", i);
       }
+
+      if (!teamHasPlayer(i)) continue;
       
       // set spawn points
       for (j = 0; j < 3; ++j) {
@@ -1874,6 +1918,13 @@ void grGameStart(void)
   if (gameConfig.grNoFusionADS && isInGame()) {
     POKE_U16(0x00528320, 0x000F);
     POKE_U16(0x00528326, 0);
+  }
+
+  if (gameConfig.grRespawnOverride && isInGame()) {
+    GameOptions* go = gameGetOptions();
+    if (go) {
+      go->GameFlags.MultiplayerGameFlags.RespawnTime = gameConfig.grRespawnOverride - 1;
+    }
   }
 
 #if TWEAKERS

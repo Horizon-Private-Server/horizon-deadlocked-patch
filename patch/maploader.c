@@ -199,6 +199,13 @@ void mapHopTo(CustomMapDef_t* def)
     p->pNetPlayer->bCallbackCalled = 0;
   }
 
+  // trick dzo into recognizing we're loading a new scene
+  POKE_U32(0x0021E1EC, 0); // isInGame = 0
+  POKE_U32(0x0022026C, def->BaseMapId); // isSceneLoading = baseMapId
+  ((void (*)(void))0x001270C0)();
+  POKE_U32(0x0021E1EC, 1); // isInGame = 0
+  POKE_U32(0x0022026C, 1); // isSceneLoading = baseMapId
+
   // read onlinewad
   void* onlineWadBuffer = *(u32*)0x0021dd90 - 0x7D0000;
   POKE_U32(0x002209c0, (u32)onlineWadBuffer);

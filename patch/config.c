@@ -19,7 +19,6 @@
 #define LINE_HEIGHT_3_2     (0.075)
 #define DEFAULT_GAMEMODE    (0)
 #define CHARACTER_TWEAKER_RANGE (10)
-#define DZO_MAX_CMAPS       (10)
 
 // config
 extern PatchConfig_t config;
@@ -230,6 +229,19 @@ MenuElem_ListData_t dataFixedCycleOrder = {
   }
 };
 
+// deadzone
+MenuElem_ListData_t dataDeadzone = {
+  .value = &config.deadzone,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "37.5% (Default)",
+    "25%",
+    "12.5%",
+    "6.25%"
+  }
+};
+
 // general tab menu items
 MenuElem_t menuElementsGeneral[] = {
 #ifdef DEBUG
@@ -246,6 +258,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements, "Enables Dallas commentary in all games." },
   { "Camera Pulling", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableAimAssist, "Toggles code that pulls the camera towards nearby targets when aiming." },
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake, "Toggles the camera shake caused by nearby explosions." },
+  { "Deadzone", listActionHandler, menuStateAlwaysEnabledHandler, &dataDeadzone, "Joystick deadzones." },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay, "Moves hacker ray into the quickselect menu (secondary select)." },
   { "Fast USB Load (EMU/DZO Only)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFastLoad, "Speeds up loading of custom maps for EMU and DZO clients." },
   { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
@@ -639,6 +652,26 @@ MenuElem_ListData_t dataV2s = {
   }
 };
 
+// respawn override list item
+MenuElem_ListData_t dataRespawnOverride = {
+  .value = &gameConfig.grRespawnOverride,
+  .stateHandler = NULL,
+  .count = 11,
+  .items = {
+    "Off",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+  }
+};
+
 // presets list item
 MenuElem_ListData_t dataGameConfigPreset = {
   .value = &preset,
@@ -685,6 +718,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades, "Disables conquest node upgrades." },
   { "Damage Cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer, "Disables the brief hit invincibility after taking damage." },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit, "Forces sniper shots that hit to register on every client. Can result in shots that appear to phase through walls." },
+  //{ "Fog of War Radar", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFogOfWarRadar, "When radar is Short, enemies will appear on your radar when teammates are near them." },
   // { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
   { "Fusion Scoping", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionScoping },
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars, "Draws a healthbar above each player's nametag." },
@@ -692,6 +726,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames, "Disables in game nametags." },
   { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync, "Replaces the Insomniac player sync netcode with a better custom Horizon implementation. Reduces player teleporting, rubberbanding, and jittery movement. Known on rare occasions to freeze PS2s." },
   { "Quick Chat", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grQuickChat, "Enables in game quick chat with the D-Pad." },
+  { "Respawn Override", listActionHandler, menuStateHandler_SettingStateHandler, &dataRespawnOverride, "Overrides Create Game screen Respawn Time to the configured value (in seconds)." },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s, "Configures V2 weapon upgrades to be disabled, on (default), or always on (spawn with v2 weapons)." },
   { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire, "Earn health for each kill." },
   { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks, "Toggle in game weapon packs." },

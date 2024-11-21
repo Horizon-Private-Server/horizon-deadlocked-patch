@@ -44,7 +44,7 @@ enum QuickChatIds
   QUICK_CHAT_PUSHING,
   QUICK_CHAT_DEFENDING,
   QUICK_CHAT_IN_POSITION,
-  QUICK_CHAT_HAVE_V2,
+  QUICK_CHAT_NEED_HEALTH,
   // COMMANDS
   QUICK_CHAT_GET_THE_FLAG,
   QUICK_CHAT_PUSH_UP,
@@ -76,7 +76,7 @@ char* CHAT_SHORTNAMES[QUICK_CHAT_COUNT] = {
   "push",
   "def",
   "pos",
-  "v2",
+  "health",
   "flag",
   "push",
   "back",
@@ -95,7 +95,7 @@ char* CHAT_MESSAGES[QUICK_CHAT_COUNT] = {
   "pushing!",
   "defending!",
   "in position!",
-  "v2 acquired!",
+  "need health!",
   "get the flag!",
   "push up!",
   "stay back!",
@@ -146,7 +146,7 @@ char * quickChatGetMsgString(int fragMsgId)
     case QUICK_CHAT_PUSHING: return "pushing!";
     case QUICK_CHAT_DEFENDING: return "defending!";
     case QUICK_CHAT_IN_POSITION: return "in position!";
-    case QUICK_CHAT_HAVE_V2: return "v2 acquired!";
+    case QUICK_CHAT_NEED_HEALTH: return "need health!";
     case QUICK_CHAT_GET_THE_FLAG: return "get the flag!";
     case QUICK_CHAT_PUSH_UP: return "push up!";
     case QUICK_CHAT_STAY_BACK: return "stay back!";
@@ -281,6 +281,7 @@ void quickChatRun(void)
       memset(quickChatMenu, 0, sizeof(quickChatMenu));
       memset(ticksMenuOpen, 0, sizeof(ticksMenuOpen));
       memset(QuickChats, 0, sizeof(QuickChats));
+      QuickChatCount = 0;
       init = 0;
     }
     return;

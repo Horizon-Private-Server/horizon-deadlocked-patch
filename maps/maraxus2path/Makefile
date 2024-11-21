@@ -1,0 +1,35 @@
+EE_OBJS = main.o
+EE_ELF = maraxus2path.elf
+EE_BIN = maraxus2path.bin
+EE_LIBS = -ldl
+EE_INCS := -I../../common
+EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L.
+
+# set to DEBUG or RELEASE
+BUILD_CONFIG := RELEASE
+
+# build flags
+# 	DEBUG									Enables debug strings and additional misc debug logic.
+
+ifeq ($(BUILD_CONFIG),DEBUG)
+EE_DEFS := -DDEBUG
+else ifeq ($(BUILD_CONFIG),RELEASE)
+EE_DEFS := 
+endif
+
+all: $(EE_BIN) clean
+	mkdir -p $(CURDIR)/bin
+	cp $(CURDIR)/static/*.* $(CURDIR)/bin/
+
+	# payload and definition
+	cp $(CURDIR)/$(EE_BIN) $(CURDIR)/bin/code.0008.bin
+	bin2codedef $(CURDIR)/bin/code.0008.bin 0062F028 $(CURDIR)/bin/code.0008.def 004A7D98
+	cp $(CURDIR)/bin/* /out/Maraxus2Path/Code/rc4-NTSC/
+
+
+clean:
+	rm -f *.irx *.o
+
+include $(CURDIR)/../../Makefile.pref
+include $(CURDIR)/../../Makefile.eeglobal
+include ${CURDIR}/../../Makefile.rules
