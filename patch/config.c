@@ -88,6 +88,7 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
 void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
+void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
@@ -147,6 +148,7 @@ void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 void navMenu(TabElem_t* tab, int direction, int loop);
 void navTab(int direction);
+void tabInput(TabElem_t* tab);
 
 int mapsGetInstallationResult(void);
 int mapsPromptEnableCustomMaps(void);
@@ -258,7 +260,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements, "Enables Dallas commentary in all games." },
   { "Camera Pulling", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableAimAssist, "Toggles code that pulls the camera towards nearby targets when aiming." },
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake, "Toggles the camera shake caused by nearby explosions." },
-  { "Deadzone", listActionHandler, menuStateAlwaysEnabledHandler, &dataDeadzone, "Joystick deadzones." },
+  // { "Deadzone", listActionHandler, menuStateAlwaysEnabledHandler, &dataDeadzone, "Joystick deadzones." },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay, "Moves hacker ray into the quickselect menu (secondary select)." },
   { "Fast USB Load (EMU/DZO Only)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFastLoad, "Speeds up loading of custom maps for EMU and DZO clients." },
   { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
@@ -426,6 +428,7 @@ MenuElem_ListData_t dataCustomMaps = {
   .value = &patchStateContainer.SelectedCustomMapId,
   .stateHandler = menuStateHandler_SelectedMapOverride,
   .count = 1,
+  .rows = 10,
   .items = {
     "None",
     [MAX_CUSTOM_MAP_DEFINITIONS+1] NULL
@@ -689,7 +692,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
 
   // { "Game Settings", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
+  // { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
   { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes, "Change to one of the Horizon Custom Gamemodes." },
   { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset, "Select one of the preconfigured game rule presets or manually set the custom game rules below." },
 
@@ -754,6 +757,11 @@ MenuElem_t menuElementsGameSettingsHelp[] = {
   { "the custom game settings.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
 };
 
+// game settings tab menu items
+MenuElem_t menuElementsGameSettingsCustomMaps[] = {
+  { "Map override", listVerticalActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
+};
+
 #if MAPEDITOR
 
 extern int mapEditorState;
@@ -786,6 +794,7 @@ TabElem_t tabElements[] = {
 #endif
   { "Game Settings", tabGameSettingsStateHandler, menuElementsGameSettings, sizeof(menuElementsGameSettings)/sizeof(MenuElem_t) },
   { "Game Settings", tabGameSettingsHelpStateHandler, menuElementsGameSettingsHelp, sizeof(menuElementsGameSettingsHelp)/sizeof(MenuElem_t) },
+  { "Custom Maps", tabGameSettingsStateHandler, menuElementsGameSettingsCustomMaps, sizeof(menuElementsGameSettingsCustomMaps)/sizeof(MenuElem_t) },
 #if MAPEDITOR
   { "Map Editor", tabDefaultStateHandler, menuElementsMapEditor, sizeof(menuElementsMapEditor)/sizeof(MenuElem_t) },
 #endif
@@ -1617,6 +1626,34 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
 }
 
 //------------------------------------------------------------------------------
+void drawListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, int drawIdx, int itemIdx, RECT* rect)
+{
+  RECT r;
+  memcpy(&r, rect, sizeof(r));
+  float yOff = drawIdx * LINE_HEIGHT;
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  int isSelectedIdx = (int)*listData->value == itemIdx;
+  float x,y;
+  float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
+  u32 color = colorLerp(colorText, 0, lerp);
+
+  // draw name
+  if (drawIdx == 0) {
+    x = (r.TopLeft[0] * SCREEN_WIDTH) + 5;
+    y = ((r.TopLeft[1] + r.BottomLeft[1]) * 0.5 * SCREEN_HEIGHT) + 5;
+    gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
+  }
+
+  // draw value
+  x = (r.TopRight[0] * SCREEN_WIDTH) - 5;
+  y = ((r.TopLeft[1] + yOff) * SCREEN_HEIGHT) + 5;
+  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT);
+}
+
+//------------------------------------------------------------------------------
 void drawOrderedListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_OrderedListData_t * listData, RECT* rect)
 {
   // get element state
@@ -1705,6 +1742,48 @@ void drawLabelMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
 }
 
 //------------------------------------------------------------------------------
+void listVerticalInput(TabElem_t* tab)
+{
+  int i;
+  if (!tab)
+    return;
+
+  MenuElem_t *currentElement = &tab->elements[tab->selectedMenuItemIdx];
+  int state = getMenuElementState(tab, currentElement);
+
+  // nav page down
+  if (padGetButtonUp(0, PAD_RIGHT) > 0)
+  {
+    for (i = 0; i < 5; ++i)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
+  }
+  // nav up
+  else if (padGetButtonUp(0, PAD_LEFT) > 0)
+  {
+    for (i = 0; i < 5; ++i)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
+  }
+  // nav select secondary
+  else if (padGetButtonDown(0, PAD_SQUARE) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT_SECONDARY, NULL);
+  }
+  // nav inc
+  else if (padGetButtonUp(0, PAD_DOWN) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
+  }
+  // nav dec
+  else if (padGetButtonUp(0, PAD_UP) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
+  }
+}
+
+//------------------------------------------------------------------------------
 void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
 {
   // get element state
@@ -1733,6 +1812,16 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     case ACTIONTYPE_DRAW:
     {
       drawButtonMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1770,6 +1859,16 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     case ACTIONTYPE_DRAW:
     {
       drawLabelMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1827,10 +1926,20 @@ void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
       drawRangeMenuElement(tab, element, rangeData, (RECT*)actionArg);
       break;
     }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
     case ACTIONTYPE_VALIDATE:
     {
       if (rangeData->stateHandler != NULL)
         rangeData->stateHandler(rangeData, rangeData->value);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1900,10 +2009,20 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
       drawListMenuElement(tab, element, listData, (RECT*)actionArg);
       break;
     }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
     case ACTIONTYPE_VALIDATE:
     {
       if (listData->stateHandler != NULL)
         listData->stateHandler(listData, listData->value);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1989,10 +2108,126 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
       drawOrderedListMenuElement(tab, element, listData, (RECT*)actionArg);
       break;
     }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
     case ACTIONTYPE_VALIDATE:
     {
       if (listData->stateHandler != NULL)
         listData->stateHandler(listData, listData->value);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
+      break;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+{
+  MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
+  int itemCount = listData->count;
+  int itemsToDraw = (&tab->elements[tab->selectedMenuItemIdx] == element) ? (listData->rows ? listData->rows : 5) : 1;
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  // do nothing if hidden
+  if ((state & ELEMENT_VISIBLE) == 0)
+    return;
+
+  switch (actionType)
+  {
+    case ACTIONTYPE_INCREMENT:
+    case ACTIONTYPE_SELECT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char newValue = *listData->value;
+
+      do
+      {
+        newValue += 1;
+        if (newValue >= itemCount)
+          newValue = 0;
+        char tValue = newValue;
+        if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
+          break;
+      } while (newValue != *listData->value);
+
+      *listData->value = newValue;
+      break;
+    }
+    case ACTIONTYPE_DECREMENT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char newValue = *listData->value;
+
+      do
+      {
+        newValue -= 1;
+        if (newValue < 0)
+          newValue = itemCount - 1;
+        char tValue = newValue;
+        if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
+          break;
+      } while (newValue != *listData->value);
+
+      *listData->value = newValue;
+      break;
+    }
+    case ACTIONTYPE_SELECT_SECONDARY:
+    {
+      *listData->value = 0;
+      break;
+    }
+    case ACTIONTYPE_GETHEIGHT:
+    {
+      *(float*)actionArg = LINE_HEIGHT * itemsToDraw;
+      break;
+    }
+    case ACTIONTYPE_DRAW:
+    {
+      int i;
+      int itemCount = listData->count;
+
+      // draw items
+      for (i = 0; i < itemsToDraw; ++i) {
+        int idx = ((i + *listData->value - (itemsToDraw/2)) % itemCount);
+        if (idx < 0) idx += itemCount;
+        drawListVerticalMenuElement(tab, element, listData, i, idx, (RECT*)actionArg);
+      }
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      RECT r;
+      memcpy(&r, (RECT*)actionArg, sizeof(r));
+      float y = r.TopLeft[1] + (itemsToDraw / 2) * LINE_HEIGHT;
+
+      r.TopLeft[1] = y;
+      r.TopRight[1] = y;
+      r.BottomLeft[1] = y + LINE_HEIGHT;
+      r.BottomRight[1] = y + LINE_HEIGHT;
+
+      gfxScreenSpaceQuad(&r, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_VALIDATE:
+    {
+      if (listData->stateHandler != NULL)
+        listData->stateHandler(listData, listData->value);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      listVerticalInput(tab);
       break;
     }
   }
@@ -2043,6 +2278,16 @@ void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int action
       drawToggleInvertedMenuElement(tab, element, (RECT*)actionArg);
       break;
     }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
+      break;
+    }
   }
 }
 
@@ -2077,6 +2322,16 @@ void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     case ACTIONTYPE_DRAW:
     {
       drawToggleMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -2142,6 +2397,63 @@ void drawFrame(void)
   }
 }
 
+//------------------------------------------------------------------------------
+void tabInput(TabElem_t* tab)
+{
+  int i;
+  if (!tab)
+    return;
+
+  MenuElem_t *currentElement = &tab->elements[tab->selectedMenuItemIdx];
+  int state = getMenuElementState(tab, currentElement);
+
+  // nav down
+  if (padGetButtonUp(0, PAD_DOWN) > 0)
+  {
+    navMenu(tab, 1, 0);
+  }
+  // nav page down
+  if (padGetButtonUp(0, PAD_R2) > 0)
+  {
+    for (i = 0; i < 10; ++i)
+      navMenu(tab, 1, 0);
+  }
+  // nav up
+  else if (padGetButtonUp(0, PAD_UP) > 0)
+  {
+    navMenu(tab, -1, 0);
+  }
+  // nav up
+  else if (padGetButtonUp(0, PAD_L2) > 0)
+  {
+    for (i = 0; i < 10; ++i)
+      navMenu(tab, -1, 0);
+  }
+  // nav select
+  else if (padGetButtonDown(0, PAD_CROSS) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT, NULL);
+  }
+  // nav select secondary
+  else if (padGetButtonDown(0, PAD_SQUARE) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT_SECONDARY, NULL);
+  }
+  // nav inc
+  else if (padGetButtonUp(0, PAD_RIGHT) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
+  }
+  // nav dec
+  else if (padGetButtonUp(0, PAD_LEFT) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
+  }
+}
 
 //------------------------------------------------------------------------------
 void drawTab(TabElem_t* tab)
@@ -2187,10 +2499,12 @@ void drawTab(TabElem_t* tab)
     drawRect.BottomRight[1] = drawRect.TopRight[1] + itemHeight;
 
     // draw selection
-    if (i == tab->selectedMenuItem) {
+    if (i == tab->selectedMenuItemIdx) {
       state = getMenuElementState(tab, currentElement);
       if (state & ELEMENT_SELECTABLE) {
-        gfxScreenSpaceQuad(&drawRect, colorSelected, colorSelected, colorSelected, colorSelected);
+        currentElement->handler(tab, currentElement, ACTIONTYPE_DRAW_HIGHLIGHT, &drawRect);
+
+        // draw help text
         if (currentElement->help && strlen(currentElement->help) > 0) {
 
           if (i != helpLastItemIdx) {
@@ -2245,68 +2559,24 @@ void drawTab(TabElem_t* tab)
   }
 
   // 
-  if (tab->selectedMenuItem >= menuElementRenderEnd)
+  if (tab->selectedMenuItemIdx >= menuElementRenderEnd)
     ++tab->menuOffset;
-  if (tab->selectedMenuItem < tab->menuOffset)
-    tab->menuOffset = tab->selectedMenuItem;
+  if (tab->selectedMenuItemIdx < tab->menuOffset)
+    tab->menuOffset = tab->selectedMenuItemIdx;
 
   // get selected element
-  if (tab->selectedMenuItem >= menuElementsCount)
+  if (tab->selectedMenuItemIdx >= menuElementsCount)
     return;
 
-  currentElement = &menuElements[tab->selectedMenuItem];
+  currentElement = &menuElements[tab->selectedMenuItemIdx];
   state = getMenuElementState(tab, currentElement);
 
   // find next selectable item if hidden or not selectable
   if ((state & ELEMENT_VISIBLE) == 0 || (state & ELEMENT_SELECTABLE) == 0)
     navMenu(tab, 1, 1);
 
-  // nav down
-  if (padGetButtonUp(0, PAD_DOWN) > 0)
-  {
-    navMenu(tab, 1, 0);
-  }
-  // nav page down
-  if (padGetButtonUp(0, PAD_R2) > 0)
-  {
-    for (i = 0; i < 10; ++i)
-      navMenu(tab, 1, 0);
-  }
-  // nav up
-  else if (padGetButtonUp(0, PAD_UP) > 0)
-  {
-    navMenu(tab, -1, 0);
-  }
-  // nav up
-  else if (padGetButtonUp(0, PAD_L2) > 0)
-  {
-    for (i = 0; i < 10; ++i)
-      navMenu(tab, -1, 0);
-  }
-  // nav select
-  else if (padGetButtonDown(0, PAD_CROSS) > 0)
-  {
-    if (state & ELEMENT_EDITABLE)
-      currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT, NULL);
-  }
-  // nav select secondary
-  else if (padGetButtonDown(0, PAD_SQUARE) > 0)
-  {
-    if (state & ELEMENT_EDITABLE)
-      currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT_SECONDARY, NULL);
-  }
-  // nav inc
-  else if (padGetButtonUp(0, PAD_RIGHT) > 0)
-  {
-    if (state & ELEMENT_EDITABLE)
-      currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
-  }
-  // nav dec
-  else if (padGetButtonUp(0, PAD_LEFT) > 0)
-  {
-    if (state & ELEMENT_EDITABLE)
-      currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
-  }
+  if (currentElement)
+    currentElement->handler(tab, currentElement, ACTIONTYPE_INPUT, NULL);
 }
 
 //------------------------------------------------------------------------------
@@ -2452,30 +2722,30 @@ void onConfigUpdate(void)
 //------------------------------------------------------------------------------
 void navMenu(TabElem_t* tab, int direction, int loop)
 {
-  int newElement = tab->selectedMenuItem + direction;
+  int newElement = tab->selectedMenuItemIdx + direction;
   MenuElem_t *elem = NULL;
   int state = 0;
 
   // handle case where tab has no items
   if (tab->elementsCount == 0)
   {
-    tab->selectedMenuItem = 0;
+    tab->selectedMenuItemIdx = 0;
     tab->menuOffset = 0;
     return;
   }
 
-  while (newElement != tab->selectedMenuItem)
+  while (newElement != tab->selectedMenuItemIdx)
   {
     if (newElement >= tab->elementsCount)
     {
-      if (loop && tab->selectedMenuItem != 0)
+      if (loop && tab->selectedMenuItemIdx != 0)
         newElement = 0;
       else
         break;
     }
     else if (newElement < 0)
     {
-      if (loop && tab->selectedMenuItem != (tab->elementsCount - 1))
+      if (loop && tab->selectedMenuItemIdx != (tab->elementsCount - 1))
         newElement = tab->elementsCount - 1;
       else
         break;
@@ -2493,7 +2763,7 @@ void navMenu(TabElem_t* tab, int direction, int loop)
     }
 
     // set new tab
-    tab->selectedMenuItem = newElement;
+    tab->selectedMenuItemIdx = newElement;
     break;
   }
 }

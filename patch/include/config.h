@@ -29,7 +29,9 @@ enum ActionType
   ACTIONTYPE_SELECT_SECONDARY,
   ACTIONTYPE_INCREMENT,
   ACTIONTYPE_DECREMENT,
-  ACTIONTYPE_VALIDATE
+  ACTIONTYPE_VALIDATE,
+  ACTIONTYPE_DRAW_HIGHLIGHT,
+  ACTIONTYPE_INPUT
 };
 
 enum ElementState
@@ -74,6 +76,7 @@ typedef struct MenuElem_ListData
   char * value;
   MenuElementListStateHandler stateHandler;
   int count;
+  int rows;
   char * items[];
 } MenuElem_ListData_t;
 
@@ -106,7 +109,7 @@ typedef struct TabElem
   TabStateHandler stateHandler;
   MenuElem_t * elements;
   int elementsCount;
-  int selectedMenuItem;
+  int selectedMenuItemIdx;
   int menuOffset;
 } TabElem_t;
 

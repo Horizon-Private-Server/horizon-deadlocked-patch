@@ -1,6 +1,7 @@
 #include <libdl/stdio.h>
 #include <libdl/stdlib.h>
 #include <libdl/net.h>
+#include <libdl/time.h>
 #include <libdl/mc.h>
 #include <libdl/string.h>
 #include <libdl/ui.h>
@@ -982,6 +983,7 @@ void refreshCustomMapList(void)
   char buffer[256];
   int versionExtLen = strlen(versionExt);
   int actionStateAtStart = actionState;
+  long timeLastUI = timerGetSystemTime();
   iox_dirent_t dirent;
   io_dirent_t* iomanDirent = (io_dirent_t*)&dirent;
   
@@ -1021,7 +1023,13 @@ void refreshCustomMapList(void)
   actionState = ACTION_REFRESHING_MAPLIST;
   do 
   {
-    uiRunCallbacks();
+    // update UI every 100 ms (speedup)
+    int time = timerGetSystemTime();
+    int timeDtMs = (time - timeLastUI) / SYSTEM_TIME_TICKS_PER_MS;
+    if (timeDtMs > 100) {
+      timeLastUI = time;
+      uiRunCallbacks();
+    }
 
     // handle case where irx modules 
     if (actionState != ACTION_REFRESHING_MAPLIST) {

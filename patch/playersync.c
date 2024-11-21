@@ -257,7 +257,7 @@ void playerSyncHandlePlayerState(Player* player)
   vector_copy(player->RemoteHero.receivedSyncRot, player->PlayerRotation);
 
   // lerp camera rotation
-  player->CamRot[1] = lerpfAngle(player->CamRot[1], -stateCurrent->CameraPitch, tCam);
+  player->CamRot[1] = lerpfAngle(player->CamRot[1], stateCurrent->CameraPitch, tCam);
   player->CamRot[2] = lerpfAngle(player->CamRot[2], stateCurrent->CameraYaw, tCam);
 
   // lerp camera position
@@ -269,18 +269,18 @@ void playerSyncHandlePlayerState(Player* player)
 
   // lerp camera rotations
   player->CameraYaw.Value = player->CamRot[2];
-  player->CameraPitch.Value = -player->CamRot[1];
+  player->CameraPitch.Value = player->CamRot[1];
 
   // compute matrix
   matrix_unit(m);
-  matrix_rotate_y(m, m, player->CamRot[1]);
+  matrix_rotate_y(m, m, -player->CamRot[1]);
   matrix_rotate_z(m, m, player->CamRot[2]);
   vector_copy(player->CameraForward, &m[0]);
   vector_copy(player->CameraDir, player->CameraForward);
 
   // compute inv matrix
   matrix_unit(mInv);
-  matrix_rotate_y(mInv, mInv, clampAngle(player->CamRot[1] + MATH_PI));
+  matrix_rotate_y(mInv, mInv, clampAngle(-player->CamRot[1] + MATH_PI));
   matrix_rotate_z(mInv, mInv, clampAngle(player->CamRot[2] + MATH_PI));
   memcpy(player->CamUMtx, mInv, sizeof(VECTOR)*3);
 
@@ -621,7 +621,7 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  //gameConfig.grNewPlayerSync = 1;
+  gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;
