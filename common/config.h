@@ -147,6 +147,7 @@ typedef struct PatchGameConfig
   char grNoFusionADS;
   char grRespawnOverride;
   char grFogOfWarRadar;
+  char grRadarShortDistance;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;

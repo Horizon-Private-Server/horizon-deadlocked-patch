@@ -4339,8 +4339,10 @@ void runCheckGameMapInstalled(void)
         gameSetClientState(i, 0);
         showNoMapPopup = 1;
         netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
-      }
-      else if ((gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS) && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+      } else if ((gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS) && !patchStateContainer.SelectedCustomMapId) {
+        gameSetClientState(i, 0);
+        showNoMapPopup = 1;
+      } else if ((gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS) && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
         readLocalGlobalVersion();
         if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
           gameSetClientState(i, 0);
@@ -5594,6 +5596,15 @@ int main (void)
 #if LEVELHOP
   {
     if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0 && patchStateContainer.SelectedCustomMapId > 0) {
+      mapHopTo(&customMapDefs[patchStateContainer.SelectedCustomMapId - 1]);
+    }
+  }
+  {
+    if (padGetButtonDown(0, PAD_L1 | PAD_LEFT) > 0 && patchStateContainer.SelectedCustomMapId > 0) {
+      GameSettings* gs = gameGetSettings();
+      if (gs) {
+        gs->PlayerSkins[0] = (gs->PlayerSkins[0] + 1) % 22;
+      }
       mapHopTo(&customMapDefs[patchStateContainer.SelectedCustomMapId - 1]);
     }
   }

@@ -20,6 +20,8 @@
 #include <libdl/cheats.h>
 #include <libdl/stdio.h>
 #include <libdl/pad.h>
+#include <libdl/radar.h>
+#include <libdl/hud.h>
 #include <libdl/dl.h>
 #include <libdl/sha1.h>
 #include <libdl/spawnpoint.h>
@@ -1142,6 +1144,106 @@ void cqDisableUpgradesLogic(void) {
 }
 
 /*
+ * NAME :		radarSetShortDistance
+ * 
+ * DESCRIPTION :
+ * 			Sets the short radar's min (squared) distance.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void radarSetShortDistance(void)
+{
+  float baseDist = 20.0;
+  float mult = 1 + gameConfig.grRadarShortDistance;
+  volatile float finalDist = (mult * baseDist) * (mult * baseDist);
+  volatile u16* finalDistPtr = (u16*)&finalDist + 1;
+
+  POKE_U16(0x0055627c, *finalDistPtr);
+}
+
+int radarIsBlipNearPlayerOnTeam(RadarBlip* blip, int team)
+{
+  int i;
+  Player** players = playerGetAll();
+  VECTOR blipPos = { blip->X, blip->Y, 0, 0 };
+  VECTOR dt;
+  float maxDist = 20 * (1 + gameConfig.grRadarShortDistance);
+  float maxDistSqr = maxDist * maxDist;
+
+  // blip on same team
+  if (blip->Team == team)
+    return 1;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    
+    // filter out bad players
+    if (!player || !player->pNetPlayer || !playerIsConnected(player))
+      continue;
+
+    // check if player is on team
+    if (player->Team != team)
+      continue;
+
+    // ignore players that are dead
+    if (playerIsDead(player))
+      continue;
+
+    // check distance
+    vector_subtract(dt, player->PlayerPosition, blipPos);
+    dt[2] = 0;
+
+    if (vector_sqrmag(dt) < maxDistSqr)
+      return 1;
+  }
+
+  return 0;
+}
+
+/*
+ * NAME :		radarUpdateBlipHook
+ * 
+ * DESCRIPTION :
+ * 			Handles the Fog of War radar effect.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+long radarUpdateBlipHook(int blipIdx, int a1)
+{
+  GameOptions* go = gameGetOptions();
+  RadarBlip* blip = radarGetBlips() + blipIdx;
+  int radarMode = go->GameFlags.MultiplayerGameFlags.RadarBlips;
+  Player* localPlayer = playerGetFromSlot(hudGetCurrentCanvas());
+
+  // turn radar always on for this blip if Fog of War and near a teammate
+  if (localPlayer && gameConfig.grFogOfWarRadar && radarIsBlipNearPlayerOnTeam(blip, localPlayer->Team)) {
+    go->GameFlags.MultiplayerGameFlags.RadarBlips = 1;
+  }
+
+  // call base
+  long v0 = ((long (*)(int, int))0x005560b8)(blipIdx, a1);
+
+  // revert
+  if (gameConfig.grFogOfWarRadar) {
+    go->GameFlags.MultiplayerGameFlags.RadarBlips = radarMode;
+  }
+
+  return v0;
+}
+
+/*
  * NAME :		betterHillsLogic
  * 
  * DESCRIPTION :
@@ -1914,6 +2016,12 @@ void grGameStart(void)
 
   if (gameConfig.grCqDisableUpgrades)
     cqDisableUpgradesLogic();
+
+  if (gameConfig.grFogOfWarRadar)
+    HOOK_JAL(0x00556010, &radarUpdateBlipHook);
+  
+  if (gameConfig.grRadarShortDistance)
+    radarSetShortDistance();
 
   if (gameConfig.grNoFusionADS && isInGame()) {
     POKE_U16(0x00528320, 0x000F);

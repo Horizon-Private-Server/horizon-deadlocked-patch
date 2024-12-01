@@ -596,6 +596,19 @@ MenuElem_ListData_t dataWeather = {
   }
 };
 
+// radar short list item
+MenuElem_ListData_t dataRadarShortDistance = {
+  .value = &gameConfig.grRadarShortDistance,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "1x",
+    "2x",
+    "3x",
+    "4x"
+  }
+};
+
 // fusion reticule allow/disable list item
 MenuElem_ListData_t dataFusionReticule = {
   .value = &gameConfig.grNoSniperHelpers,
@@ -721,7 +734,6 @@ MenuElem_t menuElementsGameSettings[] = {
   { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades, "Disables conquest node upgrades." },
   { "Damage Cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer, "Disables the brief hit invincibility after taking damage." },
   { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit, "Forces sniper shots that hit to register on every client. Can result in shots that appear to phase through walls." },
-  //{ "Fog of War Radar", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFogOfWarRadar, "When radar is Short, enemies will appear on your radar when teammates are near them." },
   // { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
   { "Fusion Scoping", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionScoping },
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars, "Draws a healthbar above each player's nametag." },
@@ -729,6 +741,8 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames, "Disables in game nametags." },
   { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync, "Replaces the Insomniac player sync netcode with a better custom Horizon implementation. Reduces player teleporting, rubberbanding, and jittery movement. Known on rare occasions to freeze PS2s." },
   { "Quick Chat", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grQuickChat, "Enables in game quick chat with the D-Pad." },
+  { "Radar Short Distance", listActionHandler, menuStateAlwaysEnabledHandler, &dataRadarShortDistance, "When radar is Short, multiplies the distance that enemies will appear on the radar." },
+  { "Radar Short Shared", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFogOfWarRadar, "When radar is Short, enemies will appear on your radar when teammates are near them." },
   { "Respawn Override", listActionHandler, menuStateAlwaysEnabledHandler, &dataRespawnOverride, "Overrides Create Game screen Respawn Time to the configured value (in seconds)." },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s, "Configures V2 weapon upgrades to be disabled, on (default), or always on (spawn with v2 weapons)." },
   { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire, "Earn health for each kill." },
@@ -1199,7 +1213,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
     default:
     {
 #if DEBUG
-      return 1;
+      //return 1;
 #endif
 
       // hide maps with gamemode override
@@ -2127,6 +2141,24 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
   }
 }
 
+int listFindNextValidValue(MenuElem_ListData_t* listData, int currentValue, int direction)
+{
+  char newValue = currentValue;
+
+  do
+  {
+    newValue += direction;
+    if (newValue < 0) newValue += listData->count;
+    if (newValue >= listData->count) newValue = 0;
+
+    char tValue = newValue;
+    if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
+      break;
+  } while (newValue != currentValue);
+
+  return newValue;
+}
+
 //------------------------------------------------------------------------------
 void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
 {
@@ -2196,12 +2228,25 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
     {
       int i;
       int itemCount = listData->count;
+      int halfToDraw = itemsToDraw / 2;
+      int roll = 0;
+      int lastIdx = *listData->value;
 
-      // draw items
-      for (i = 0; i < itemsToDraw; ++i) {
-        int idx = ((i + *listData->value - (itemsToDraw/2)) % itemCount);
-        if (idx < 0) idx += itemCount;
-        drawListVerticalMenuElement(tab, element, listData, i, idx, (RECT*)actionArg);
+      // draw items up
+      for (i = 0; i < halfToDraw; ++i) {
+        lastIdx = listFindNextValidValue(listData, lastIdx, -1);
+        drawListVerticalMenuElement(tab, element, listData, halfToDraw - i - 1, lastIdx, (RECT*)actionArg);
+      }
+      
+      // draw selected item
+      lastIdx = *listData->value;
+      drawListVerticalMenuElement(tab, element, listData, halfToDraw, lastIdx, (RECT*)actionArg);
+      ++i;
+
+      // draw items down
+      for (; i < itemsToDraw; ++i) {
+        lastIdx = listFindNextValidValue(listData, lastIdx, 1);
+        drawListVerticalMenuElement(tab, element, listData, i, lastIdx, (RECT*)actionArg);
       }
       break;
     }
@@ -2985,7 +3030,7 @@ void configMenuDisable(void)
         gameConfig.grNoNames = 0;
         gameConfig.grV2s = 0;
         gameConfig.grVampire = 0;
-
+        gameConfig.grFogOfWarRadar = 1;
         gameConfig.grBetterFlags = 1;
         gameConfig.grBetterHills = 1;
         gameConfig.grFusionShotsAlwaysHit = 1;
@@ -3008,6 +3053,7 @@ void configMenuDisable(void)
         gameConfig.grNoNames = 0;
         gameConfig.grV2s = 2;
         gameConfig.grVampire = 3;
+        gameConfig.grFogOfWarRadar = 0;
 
         gameConfig.grNewPlayerSync = 1;
         gameConfig.grFusionShotsAlwaysHit = 1;
