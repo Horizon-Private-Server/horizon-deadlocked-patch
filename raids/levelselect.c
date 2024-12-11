@@ -54,9 +54,13 @@ void levelselectGo(LevelselectDrawState_t* drawState)
   if (!drawState) return;
   if (!drawState->SelectedMapFilename[0]) return;
 
+#if !DEBUG
   RaidsPlayerBank_t* localBank = bankGetLocalBank();
   int cost = drawState->SelectedMapExtraData.Cost[drawState->SelectedDifficulty];
   if (cost > localBank->Account.Bolts) return;
+#else
+  int cost = 0;
+#endif
 
   // hop
   hopBegin(drawState->SelectedMapFilename, drawState->SelectedDifficulty, cost, 5 * TIME_SECOND);

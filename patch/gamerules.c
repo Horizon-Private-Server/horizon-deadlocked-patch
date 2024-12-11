@@ -322,7 +322,7 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
     }
   },
-  /*{
+  {
     .MapId = MAP_ID_MARAXUS,
     .Flags = {
       { 0,0,0 }, // BLUE
@@ -331,12 +331,12 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 0,0,0 }, // ORANGE
     },
     .PointsAndYaw = {
-      { 390.54, 690.91, 106.20, 0.579 }, { 456.98, 685.85, 102.48, 2.230 }, { 468.25, 737.51, 102.85, 1.195 }, // BLUE
-      { 598.47, 702.71, 102.43, 2.543 }, { 606.76, 651.03, 102.71, 2.427 }, { 548.79, 725.33, 103.87, 1.910 }, // RED
+      { 433.97, 746.63, 103.00, 0.12 }, { 0,0,0,0 }, { 469.47, 738.819, 102.785, 2.279 }, // BLUE
+      { 0,0,0,0 }, { 0,0,0,0 }, { 524.65, 704.33, 99.99, 1.57 }, // RED
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
       { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
     }
-  },*/
+  },
   {
     .MapId = MAP_ID_GS,
     .Flags = {
@@ -1926,6 +1926,9 @@ void grGameStart(void)
 {
 	int i = 0;
 	GameSettings * gameSettings = gameGetSettings();
+
+  // respawn anywhere
+  //POKE_U32(0x0034a06c, 0x00000099);
 
 	// Initialize
 	if (GameRulesInitialized != 1)

@@ -138,6 +138,9 @@ struct MobSpawnParams {
   float Scale;
   int OClass;
 	struct MobConfig Config;
+  char BlipType;
+  char BlipTeam;
+  char TeamPalette;
 };
 
 struct Knockback {
@@ -196,7 +199,8 @@ struct MobVars {
 	int NextAction;
 	int LastAction;
 	float Health;
-	float ClosestDist;
+	float ClosestDistToLocal;
+	float ClosestDistToPlayer;
   u32 Userdata;
 	int LastAcidBy;
   float LastAcidByDamage;
@@ -230,6 +234,7 @@ struct MobVars {
 	char DynamicRandom;
   char BlipType;
   char BlipTeam;
+  char Behavior;
 };
 
 // warning: multiple differing types with the same name, only one recovered
@@ -342,9 +347,9 @@ struct MobSpawnEventArgs
 	u16 Bangles;
 	u16 SpeedEighths;
 	u16 Damage;
+	u16 AttackRadiusEighths;
   u8 SpawnParamsIdx;
 	u8 Xp;
-	u8 AttackRadiusEighths;
 	u8 HitRadiusEighths;
   u8 CollRadiusEighths;
 	u8 ReactionTickCount;
@@ -361,6 +366,7 @@ struct MobCreateArgs
   int SpawnFromUID;
   float DifficultyMult;
   struct MobConfig *Config;
+  char Behavior;
 };
 
 struct MobUnreliableBaseMsgArgs

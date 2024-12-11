@@ -58,9 +58,8 @@ void mobStatsOnNewMobCreated(int spawnParamIdx, int spawnFromUID)
   if (spawnFromUID == -1 && spawnParamIdx >= 0 && spawnParamIdx < mapConfig->MobSpawnParamsCount) {
     State.MobStats.NumAlive[spawnParamIdx]++;
     State.MobStats.NumSpawnedThisRound[spawnParamIdx]++;
-    //State.MobStats.TotalAlive++;
+    State.MobStats.TotalAlive++;
     State.MobStats.TotalSpawned++;
-    State.MobStats.TotalSpawnedThisRound++;
   }
 }
 
@@ -80,7 +79,6 @@ void mobStatsOnNewMobSpawned(Moby* moby, int spawnFromUID, int fromThisClient)
     State.MobStats.NumSpawnedThisRound[spIdx]++;
     State.MobStats.TotalAlive++;
     State.MobStats.TotalSpawned++;
-    State.MobStats.TotalSpawnedThisRound++;
   }
 }
 
@@ -647,7 +645,7 @@ void mobUpdate(Moby* moby)
 	// handle radar
 	if (pvars->MobVars.BlipType >= 0 && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
 	{
-		if (gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips == 1 || pvars->MobVars.ClosestDist < (20 * 20))
+		if (gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips == 1 || pvars->MobVars.ClosestDistToLocal < (20 * 20))
 		{
 			int blipId = radarGetBlipIndex(moby);
 			if (blipId >= 0)
@@ -755,7 +753,7 @@ void mobUpdate(Moby* moby)
 		}
       
     // reset target
-    if (isOwner && pvars->MobVars.MoveVars.Target && pvars->MobVars.Config.OutOfSightDeAggroTickCount > 0 && pvars->MobVars.TargetOutOfSightCheckTicks > pvars->MobVars.Config.OutOfSightDeAggroTickCount) {
+    if (isOwner && pvars->MobVars.MoveVars.Target && pvars->MobVars.Config.OutOfSightDeAggroTickCount > 0 && pvars->MobVars.TimeTargetOutOfSightTicks > pvars->MobVars.Config.OutOfSightDeAggroTickCount) {
       mobSetTarget(moby, NULL);
     }
 
@@ -936,6 +934,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	int parentUID;
 	u32 userdata;
 	char random;
+  char behavior;
 	struct MobSpawnEventArgs args;
 
   // 
@@ -948,6 +947,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &parentUID, 4);
 	guberEventRead(event, &userdata, 4);
 	guberEventRead(event, &random, 1);
+	guberEventRead(event, &behavior, 1);
 	guberEventRead(event, &args, sizeof(struct MobSpawnEventArgs));
 
 	// set position and rotation
@@ -1006,6 +1006,9 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.TimeLastGroundedTicks = 0;
 	pvars->MobVars.Random = random;
   pvars->MobVars.DynamicRandom = random;
+  pvars->MobVars.Behavior = behavior;
+  pvars->MobVars.BlipType = params->BlipType;
+  pvars->MobVars.BlipTeam = params->BlipTeam;
   vector_copy(pvars->MobVars.MoveVars.NextPosition, p);
 #if MOB_NO_MOVE
 	pvars->MobVars.Config.Speed = 0.001;
@@ -1049,6 +1052,10 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 		if (gm && gm->Moby && gm->Moby->PVar && !mobyIsDestroyed(gm->Moby) && mobyIsMob(gm->Moby)) {
 			struct MobPVar* spawnFromPVars = (struct MobPVar*)gm->Moby->PVar;
 			if (spawnFromPVars->MobVars.Destroyed != 1) {
+        // pass to mob destroy
+        if (pvars->VTable && pvars->VTable->OnDestroy)
+          pvars->VTable->OnDestroy(moby, -1, -1);
+
 				guberMobyDestroy(gm->Moby);
 			}
 		}
@@ -1077,7 +1084,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
     pvars->VTable->OnSpawn(moby, p, yaw, spawnFromUID, random, &args);
 	
 #if LOG_STATS2
-	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.MobStats.TotalAlive, State.MobStats.TotalSpawnedThisRound);
+	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.MobStats.TotalAlive, State.MobStats.TotalSpawned);
 #endif
 	return 0;
 }
@@ -1536,7 +1543,7 @@ void mobRegisterNpc(Moby* moby)
     pvars->VTable->OnSpawn(moby, moby->Position, moby->Rotation[2], -1, rand(256), NULL);
 	
 #if LOG_STATS2
-	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.MobStats.TotalAlive, State.MobStats.TotalSpawnedThisRound);
+	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.MobStats.TotalAlive, State.MobStats.TotalSpawned);
 #endif
 }
 
@@ -1553,7 +1560,7 @@ void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct Mob
   float difficulty = State.Difficulty * difficultyMult;
 
   // scale config by round
-  if (isBaseConfig) {
+  if (isBaseConfig || 1) {
     //printf("1 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
     //damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
     //speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
@@ -1580,7 +1587,7 @@ void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct Mob
   output->StartHealth = health;
   output->Bangles = (u16)config->Bangles;
   output->Damage = (u16)damage;
-  output->AttackRadiusEighths = (u8)(config->AttackRadius * 8);
+  output->AttackRadiusEighths = (u16)(config->AttackRadius * 8);
   output->HitRadiusEighths = (u8)(config->HitRadius * 8);
   output->CollRadiusEighths = (u8)(config->CollRadius * 8);
   output->SpeedEighths = (u16)(speed * 8);
@@ -1693,8 +1700,7 @@ void mobTick(void)
 {
 	int i, j;
 	VECTOR t;
-	Player* locals[] = { playerGetFromSlot(0), playerGetFromSlot(1) };
-	int localsCount = playerGetNumLocals();
+  Player** players = playerGetAll();
 
 	if (mobFirstInList && (mobyIsDestroyed(mobFirstInList) || !mobyIsMob(mobFirstInList)))
 		mobFirstInList = NULL;
@@ -1702,8 +1708,8 @@ void mobTick(void)
 		mobLastInList = NULL;
 
   // reset
-  State.MobStats.TotalAlive = 0;
-  memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
+  //State.MobStats.TotalAlive = 0;
+  //memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
   mobComplexitySum = 0;
   mobOrderedDrawUpToIndex = MAX_MOBS_ALIVE;
   int maxComplexity = getMaxComplexity();
@@ -1728,9 +1734,10 @@ void mobTick(void)
 		if (m) {
 			struct MobPVar* pvars = (struct MobPVar*)m->PVar;
 
-      State.MobStats.TotalAlive++;
-      if (mapConfig && pvars->MobVars.SpawnParamsIdx >= 0 && pvars->MobVars.SpawnParamsIdx < mapConfig->MobSpawnParamsCount)
-        State.MobStats.NumAlive[pvars->MobVars.SpawnParamsIdx]++;
+      //State.MobStats.TotalAlive++;
+      //if (mapConfig && pvars->MobVars.SpawnParamsIdx >= 0 && pvars->MobVars.SpawnParamsIdx < mapConfig->MobSpawnParamsCount) {
+      //  State.MobStats.NumAlive[pvars->MobVars.SpawnParamsIdx]++;
+      //}
 
       int complexity = mobyGetComplexity(m);
       mobComplexitySum += complexity;
@@ -1766,14 +1773,19 @@ void mobTick(void)
 #endif
 
 			// find closest dist to local
-			pvars->MobVars.ClosestDist = 10000000;
-			for (j = 0; j < localsCount; ++j) {
-				Player * p = locals[j];
-				vector_subtract(t, m->Position, p->CameraPos);
+			pvars->MobVars.ClosestDistToLocal = 10000000;
+			pvars->MobVars.ClosestDistToPlayer = 10000000;
+      for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
+        Player* p = players[j];
+        if (!playerIsValid(p)) continue;
+
+        vector_subtract(t, m->Position, p->CameraPos);
 				float dist = vector_sqrmag(t);
-				if (dist < pvars->MobVars.ClosestDist)
-					pvars->MobVars.ClosestDist = dist;
-			}
+				if (p->IsLocal && dist < pvars->MobVars.ClosestDistToLocal)
+					pvars->MobVars.ClosestDistToLocal = dist;
+				if (dist < pvars->MobVars.ClosestDistToPlayer)
+					pvars->MobVars.ClosestDistToPlayer = dist;
+      }
 
 			// if closer than last, swap
 			if (i > 0) {
@@ -1786,7 +1798,7 @@ void mobTick(void)
 					swap = 1;
 				} else {
 					struct MobPVar* lPvars = (struct MobPVar*)last->PVar;
-					if (lPvars && pvars->MobVars.ClosestDist < lPvars->MobVars.ClosestDist) {
+					if (lPvars && pvars->MobVars.ClosestDistToLocal < lPvars->MobVars.ClosestDistToLocal) {
 						swap = 1;
 						lPvars->MobVars.Order = i;
 					}

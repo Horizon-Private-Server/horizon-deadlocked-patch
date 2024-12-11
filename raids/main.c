@@ -50,7 +50,7 @@ int Initialized = 0;
 int FirstTimeInitialized = 0;
 
 struct RaidsState State;
-struct RaidsMapConfig* mapConfig = (struct RaidsMapConfig*)0x01EF0010;
+struct RaidsMapConfig* mapConfig = (struct RaidsMapConfig*)(0x01EF0000 + 0x10);
 
 struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
@@ -749,12 +749,22 @@ void initialize(PatchStateContainer_t* gameState)
     memset(&State, 0, sizeof(State));
   }
 
+  // clear if magic not valid
+  if (mapConfig->Magic != MAP_CONFIG_MAGIC) {
+    memset(mapConfig, 0, sizeof(struct RaidsMapConfig));
+    return;
+    //mapConfig->Magic = MAP_CONFIG_MAGIC;
+  }
+
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
 	*(u32*)0x00620F54 = 0;	// time end (1)
 	*(u32*)0x00621568 = 0;	// kills reached (2)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
   *(u32*)0x006210D8 = 0;	// all enemies leave (9)
+
+  // force ammo drops to local player 0 (need to fix for splitscreen)
+  POKE_U32(0x003AC280, 0x0000202D);
 
   // spawn area mod explosion on each ricochet of the v10 vipers
   //HOOK_JAL(0x003C283C, &onV10VipersHitSurface);
@@ -872,12 +882,6 @@ void initialize(PatchStateContainer_t* gameState)
   // hook net messages
 	netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
 
-  // clear if magic not valid
-  if (mapConfig->Magic != MAP_CONFIG_MAGIC) {
-    memset(mapConfig, 0, sizeof(struct RaidsMapConfig));
-    mapConfig->Magic = MAP_CONFIG_MAGIC;
-  }
-
   // write map config
   mapConfig->State = &State;
   mapConfig->PushSnackFunc = &pushSnack;
@@ -994,6 +998,10 @@ void initialize(PatchStateContainer_t* gameState)
 	State.MobStats.MobsDrawnCurrent = 0;
 	State.MobStats.MobsDrawnLast = 0;
 	State.MobStats.MobsDrawGameTime = 0;
+  memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
+  memset(State.MobStats.NumSpawnedThisRound, 0, sizeof(State.MobStats.NumSpawnedThisRound));
+  State.MobStats.TotalAlive = 0;
+  State.MobStats.TotalSpawning = 0;
   State.MobStats.TotalSpawned = 0;
   
 	if (!FirstTimeInitialized) {
@@ -1073,16 +1081,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // get local player data
   //struct RaidsPlayer* localPlayerData = &State.PlayerStates[localPlayer->PlayerId];
 
-#if LOG_STATS
-	static int statsTicker = 0;
-	if (statsTicker <= 0) {
-		DPRINTF("liveMobCount:%d totalSpawnedThisRound:%d roundNumber:%d roundSpawnTicker:%d\n", State.MobStats.TotalAlive, State.MobStats.TotalSpawnedThisRound, State.RoundNumber, State.RoundSpawnTicker);
-		statsTicker = 60 * 15;
-	} else {
-		--statsTicker;
-	}
-#endif
-
 #if DEBUG_SOUNDS
   {
     static int aaa = 0;
@@ -1125,6 +1123,47 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   if (mapConfig && mapConfig->OnFrameTickFunc)
     mapConfig->OnFrameTickFunc();
   
+  if (!State.GameOver)
+  {
+    forcePlayerHUD();
+    drawSnack();
+
+    // draw mission complete message
+    if (State.MissionComplete && !gameIsAnyStartMenuOpen()) { // && (gameGetTime() - State.MissionCompleteTime) < (10*TIME_SECOND)) {
+      drawMissionCompleteMessage();
+    }
+
+    // 
+    State.ActivePlayerCount = 0;
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      if (players[i])
+        State.ActivePlayerCount++;
+
+      processPlayer(i);
+    }
+    
+    // count num alive
+    if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
+    {
+      // determine number of players alive
+      State.AlivePlayerCount = 0;
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+        if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
+          State.AlivePlayerCount++;
+        }
+      }
+    }
+  }
+  else
+  {
+    // end game
+    if (State.GameOver == 1)
+    {
+      gameEnd(4);
+      State.GameOver = 2;
+    }
+  }
+
   // ticks
   mobTick();
   bubbleTick();
@@ -1169,47 +1208,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 #endif
 
   POKE_U32(0x00171b40, bankGetBolts());
-
-  if (!State.GameOver)
-  {
-    forcePlayerHUD();
-    drawSnack();
-
-    // draw mission complete message
-    if (State.MissionComplete && (gameGetTime() - State.MissionCompleteTime) < (10*TIME_SECOND)) {
-      drawMissionCompleteMessage();
-    }
-
-    // 
-    State.ActivePlayerCount = 0;
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (players[i])
-        State.ActivePlayerCount++;
-
-      processPlayer(i);
-    }
-    
-    // count num alive
-    if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
-    {
-      // determine number of players alive
-      State.AlivePlayerCount = 0;
-      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
-          State.AlivePlayerCount++;
-        }
-      }
-    }
-  }
-  else
-  {
-    // end game
-    if (State.GameOver == 1)
-    {
-      gameEnd(4);
-      State.GameOver = 2;
-    }
-  }
 
 	// last
 	dlPostUpdate();
