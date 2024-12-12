@@ -137,6 +137,7 @@ void bankEquipLocalWeaponAtIndex(int weaponIdx);
 void bankSellLocalWeaponAtIndex(int weaponIdx);
 int bankGetEquipSlotFromGadgetId(int gadgetId);
 RaidsInventoryWeapon_t* bankGetLocalEquippedWeapon(int gadgetId);
+int bankGetPlayerIdxFromGadgetBox(GadgetBox* gbox);
 RaidsPlayerEquippedInventory_t* bankGetEquippedFromGadgetBox(GadgetBox* gbox);
 RaidsInventoryWeapon_t* bankGetEquippedWeaponFromGadgetBox(GadgetBox* gbox, int gadgetId);
 enum RaidsWeaponRarity bankGetRarityFromQuality(u8 quality);

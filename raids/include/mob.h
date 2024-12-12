@@ -381,6 +381,7 @@ struct MobUnreliableMsgStateUpdateArgs
   struct MobStateUpdateEventArgs StateUpdate;
 };
 
+int ammoPickupTargetGetGadgetMaxAmmo(GadgetBox* gbox, int gadgetId);
 int mobOnUnreliableMsgRemote(void* connection, void* data);
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius);
 void mobNuke(int killedByPlayerId);

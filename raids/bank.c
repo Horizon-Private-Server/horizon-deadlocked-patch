@@ -62,7 +62,7 @@ int bankOnSetPlayerEquippedInventoryRemote(void * connection, void * data)
 
   int i;
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    if (!gs->PlayerClients[i] == msg.ClientId) continue;
+    if (gs->PlayerClients[i] != msg.ClientId) continue;
 
     memcpy(&State.PlayerStates[i].Inventory, &msg.EquippedInventory, sizeof(State.PlayerStates[i].Inventory));
   }
@@ -81,7 +81,7 @@ int bankOnSetPlayerAccountRemote(void * connection, void * data)
 
   int i;
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    if (!gs->PlayerClients[i] == msg.ClientId) continue;
+    if (gs->PlayerClients[i] != msg.ClientId) continue;
 
     memcpy(State.PlayerStates[i].State.Skills, msg.Account.Skills, sizeof(State.PlayerStates[i].State.Skills));
   }
@@ -292,6 +292,14 @@ enum RaidsWeaponRarity bankGetRarityFromQuality(u8 quality)
   if (quality < 128) return RAIDS_WEAPON_RARITY_UNCOMMON;
   if (quality < 196) return RAIDS_WEAPON_RARITY_RARE;
   return RAIDS_WEAPON_RARITY_LEGENDARY;
+}
+
+//--------------------------------------------------------------------------
+int bankGetPlayerIdxFromGadgetBox(GadgetBox* gbox)
+{
+  if (!gbox) return NULL;
+  
+  return gbox->Initialized - 1;
 }
 
 //--------------------------------------------------------------------------

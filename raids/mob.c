@@ -98,6 +98,19 @@ void mobStatsOnMobDestroyed(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+int ammoPickupTargetGetGadgetMaxAmmo(GadgetBox* gbox, int gadgetId)
+{
+  int playerIdx = bankGetPlayerIdxFromGadgetBox(gbox);
+  if (playerIdx < 0) return 0;
+
+  Player* player = playerGetAll()[playerIdx];
+  if (!playerIsValid(player)) return 0;
+  if (!player->IsLocal) return 0; // local only
+
+  return playerGetWeaponMaxAmmo(gbox, gadgetId);
+}
+
+//--------------------------------------------------------------------------
 void ammoPickupUpdate(Moby* moby)
 {
   // configure it to be pickup-able

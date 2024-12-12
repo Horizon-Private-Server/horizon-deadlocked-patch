@@ -763,8 +763,12 @@ void initialize(PatchStateContainer_t* gameState)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
   *(u32*)0x006210D8 = 0;	// all enemies leave (9)
 
-  // force ammo drops to local player 0 (need to fix for splitscreen)
-  POKE_U32(0x003AC280, 0x0000202D);
+  // force ammo drops to local players only
+  POKE_U32(0x003ACC24, 0x8E351A9C);
+  HOOK_JAL(0x003aca8c, &ammoPickupTargetGetGadgetMaxAmmo);
+  
+  // double ammo pickup amount
+  POKE_F32(0x003978C0, 0.3);
 
   // spawn area mod explosion on each ricochet of the v10 vipers
   //HOOK_JAL(0x003C283C, &onV10VipersHitSurface);
@@ -788,8 +792,6 @@ void initialize(PatchStateContainer_t* gameState)
   *(u32*)0x003FFDE8 = 0x1000000D;
   POKE_U32(0x003FFD98, 0x120000DD); // fix holo crash when owner leaves
 
-  // double ammo pickup amount
-  POKE_F32(0x003978C0, 0.3);
 
 	// Disables end game draw dialog
 	*(u32*)0x0061fe84 = 0;
