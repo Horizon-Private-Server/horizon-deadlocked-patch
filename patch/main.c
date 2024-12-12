@@ -3277,7 +3277,7 @@ void runVoteToEndLogic(void)
 
     // draw
     int secondsLeft = (voteToEndState.TimeoutTime - gameTime) / TIME_SECOND;
-    char* buttonCombo = "(\x18+\x19) ";
+    char* buttonCombo = "(L3+R3) ";
     snprintf(buf, sizeof(buf), "%sVote to End (%d/%d)    %d...", haveVoted ? "" : buttonCombo, voteToEndState.Count, votesNeeded, secondsLeft);
     gfxScreenSpaceText(12, SCREEN_HEIGHT - 18, 1, 1, 0x80000000, buf, -1, 0);
     gfxScreenSpaceText(10, SCREEN_HEIGHT - 20, 1, 1, 0x80FFFFFF, buf, -1, 0);
