@@ -24,7 +24,7 @@ struct RaidsGenerateLootDropRequest
 struct RaidsGenerateLootDropResponse
 {
   VECTOR Position;
-  RaidsInventoryWeapon_t Drop;
+  RaidsInventoryItem_t Drop;
 };
 
 void lootRequestFromMob(Moby* mob, int gadgetId);

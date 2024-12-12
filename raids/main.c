@@ -108,70 +108,6 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
 }
 
 //--------------------------------------------------------------------------
-void setPlayerWeaponsMenu(int localPlayerIndex)
-{
-  static int has[GAME_MAX_LOCALS] = {0,0};
-	Player* player = playerGetFromSlot(localPlayerIndex);
-	if (!player || !player->PlayerMoby)
-		return;
-
-  u32 startCanvas = hudGetCurrentCanvas();
-	u32 canvasId = localPlayerIndex; //hudGetCurrentCanvas() + localPlayerIndex;
-	void* canvas = hudGetCanvas(canvasId);
-	if (!canvas)
-		return;
-
-  int addrs[] = {
-    0x00222C40,
-    0x00222C48,
-  };
-
-  struct HUDObject* hudObject = hudCanvasGetObject(canvas, hudPanelGetElement((void*)addrs[0], 0));
-  if (!hudObject) {
-    has[localPlayerIndex] = 0;
-    return;
-  } else if (has[localPlayerIndex]) {
-    return;
-  }
-
-  hudSetCurrentCanvas(canvasId);
-
-  int i,j;
-  for (j = 0; j < 2; ++j) {
-    int addr = addrs[j];
-      
-    for (i = -1; i < 256; ++i) {
-      u32 id = hudPanelGetElement((void*)addr, i);
-      struct HUDFrameObject* frame = (struct HUDFrameObject*)hudCanvasGetObject(canvas, id);
-
-      if (frame) {
-        
-        float sx,sy,px,py;
-        hudElementGetScale(id, &sx, &sy);
-        hudElementGetPosition(id, &px, &py);
-
-        // squish vertically
-        sy *= 0.5;
-        py *= 0.5;
-        if (j == 1) {
-          if (i == 0) {
-            sy *= 2;
-          }
-
-          py += 0.11;
-        }
-
-        hudElementSetScale(id, sx, sy);
-        hudElementSetPosition(id, px, py);
-      }
-    }
-  }
-
-  hudSetCurrentCanvas(startCanvas);
-  has[localPlayerIndex] = 1;
-}
-
-//--------------------------------------------------------------------------
 void uiShowLowerPopup(int localPlayerIdx, int msgStringId)
 {
 	((void (*)(int, int, int))0x0054ea30)(localPlayerIdx, msgStringId, 0);
@@ -291,58 +227,6 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 }
 
 //--------------------------------------------------------------------------
-void customBangelizeWeapons(Moby* weaponMoby, int weaponId, int weaponLevel)
-{
-	switch (weaponId)
-	{
-		case WEAPON_ID_VIPERS:
-		{
-			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? 0 : 1;
-			break;
-		}
-		case WEAPON_ID_MAGMA_CANNON:
-		{
-			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 4 : 3) : 0x31;
-			break;
-		}
-		case WEAPON_ID_ARBITER:
-		{
-			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 3 : 1) : 0xC;
-			break;
-		}
-		case WEAPON_ID_FUSION_RIFLE:
-		{
-			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 2 : 1) : 6;
-			break;
-		}
-		case WEAPON_ID_MINE_LAUNCHER:
-		{
-			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 0xC : 0) : 0xF;
-			break;
-		}
-		case WEAPON_ID_B6:
-		{
-			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 6 : 4) : 7;
-			break;
-		}
-		case WEAPON_ID_OMNI_SHIELD:
-		{
-			weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 0xC : 1) : 0xF;
-			break;
-		}
-		case WEAPON_ID_FLAIL:
-		{
-			if (weaponMoby->PVar) {
-				weaponMoby = *(Moby**)((u32)weaponMoby->PVar + 0x33C);
-				if (weaponMoby)
-					weaponMoby->Bangles = weaponLevel < VENDOR_MAX_WEAPON_LEVEL ? (weaponLevel ? 3 : 1) : 0x1F;
-			}
-			break;
-		}
-	}
-}
-
-//--------------------------------------------------------------------------
 // TODO: Move this into the code segment, overwriting GuiMain_GetGadgetVersionName at (0x00541850)
 char * customGetGadgetVersionName(int localPlayerIndex, int weaponId, int showWeaponLevel, int capitalize, int minLevel)
 {
@@ -417,28 +301,6 @@ void respawnDeadPlayers(void) {
 		State.PlayerStates[i].IsDead = 0;
     //memset(State.PlayerStates[i].State.WeaponPrestige, 0, sizeof(State.PlayerStates[i].State.WeaponPrestige));
 	}
-}
-
-//--------------------------------------------------------------------------
-void setPlayerQuadCooldownTimer(Player * player) {
-	player->timers.damageMuliplierTimer = 1200;
-  player->DamageMultiplier = 4;
-}
-
-//--------------------------------------------------------------------------
-void setPlayerShieldCooldownTimer(void) {
-	
-  Player* player = NULL;
-
-	// pointer to player is in $s1
-	asm volatile (
-    ".set noreorder;"
-		"move %0, $s1"
-		: : "r" (player)
-	);
-
-  player->timers.armorLevelTimer = 1800;
-  POKE_U32((u32)player + 0x2FB4, 3);
 }
 
 //--------------------------------------------------------------------------
@@ -547,7 +409,6 @@ void processPlayer(int pIndex) {
     float xpPerc = (float)((xp - lastXp) / (double)(nextXp - lastXp));
     //DPRINTF("lvl:%d perc:%f %ld=>%ld xp:%ld\n", level, xpPerc, lastXp, nextXp, xp);
 		setPlayerEXP(localPlayerIndex, xpPerc);
-    if (playerGetNumLocals() > 1) setPlayerWeaponsMenu(localPlayerIndex);
 
 		// decrement flail ammo while spinning flail
 		GameOptions* gameOptions = gameGetOptions();
@@ -617,67 +478,6 @@ void forcePlayerHUD(void)
 }
 
 //--------------------------------------------------------------------------
-void randomizeWeaponPickups(void)
-{
-	int i,j;
-	GameOptions* gameOptions = gameGetOptions();
-	char wepCounts[9];
-	char wepEnabled[17];
-	int pickupCount = 0;
-	int pickupOptionCount = 0;
-	memset(wepEnabled, 0, sizeof(wepEnabled));
-	memset(wepCounts, 0, sizeof(wepCounts));
-
-	if (gameOptions->WeaponFlags.DualVipers) { wepEnabled[2] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.MagmaCannon) { wepEnabled[3] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.Arbiter) { wepEnabled[4] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.FusionRifle) { wepEnabled[5] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.MineLauncher) { wepEnabled[6] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.B6) { wepEnabled[7] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.Holoshield) { wepEnabled[16] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.Flail) { wepEnabled[12] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.Chargeboots && gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots == 0) { wepEnabled[13] = 1; pickupOptionCount++; }
-
-	if (pickupOptionCount > 0) {
-		Moby* moby = mobyListGetStart();
-		Moby* mEnd = mobyListGetEnd();
-
-		while (moby < mEnd) {
-			if (moby->OClass == MOBY_ID_WEAPON_PICKUP && moby->PVar) {
-				
-				int target = pickupCount / pickupOptionCount;
-				int gadgetId = 1;
-				if (target < 2) {
-					do { j = rand(pickupOptionCount); } while (wepCounts[j] != target);
-
-					++wepCounts[j];
-
-					i = -1;
-					do
-					{
-						++i;
-						if (wepEnabled[i])
-							--j;
-					} while (j >= 0);
-
-					gadgetId = i;
-				}
-
-				// set pickup
-#if LOG_STATS2
-				DPRINTF("setting pickup at %08X to %d\n", (u32)moby, gadgetId);
-#endif
-				((void (*)(Moby*, int))0x0043A370)(moby, gadgetId);
-
-				++pickupCount;
-			}
-
-			++moby;
-		}
-	}
-}
-
-//--------------------------------------------------------------------------
 int whoKilledMeHook(Player* player, Moby* moby, int b)
 {
   if (!moby)
@@ -709,30 +509,6 @@ int onMobyPlayDesiredSound(int sound, int a1, Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-Moby* FindMobyOrSpawnBox(int oclass, int defaultToSpawnpointId)
-{
-	// find
-	Moby* m = mobyFindNextByOClass(mobyListGetStart(), oclass);
-	
-	// if can't find moby then just spawn a beta box at a spawn point
-	if (!m) {
-		SpawnPoint* sp = spawnPointGet(defaultToSpawnpointId);
-
-		//
-		m = mobySpawn(MOBY_ID_BETA_BOX, 0);
-		vector_copy(m->Position, &sp->M0[12]);
-
-#if DEBUG
-		printf("could not find oclass %04X... spawned box (%08X) at ", oclass, (u32)m);
-		vector_print(&sp->M0[12]);
-		printf("\n");
-#endif
-	}
-
-	return m;
-}
-
-//--------------------------------------------------------------------------
 void initialize(PatchStateContainer_t* gameState)
 {
 	static int startDelay = TPS * 0.2;
@@ -740,7 +516,7 @@ void initialize(PatchStateContainer_t* gameState)
   static int firstTime = 1;
 	char hasTeam[10] = {0,0,0,0,0,0,0,0,0,0};
 	Player** players = playerGetAll();
-	int i, j;
+	int i;
 
   if (firstTime) {
     firstTime = 0;
@@ -766,7 +542,7 @@ void initialize(PatchStateContainer_t* gameState)
   // force ammo drops to local players only
   POKE_U32(0x003ACC24, 0x8E351A9C);
   HOOK_JAL(0x003aca8c, &ammoPickupTargetGetGadgetMaxAmmo);
-  
+
   // double ammo pickup amount
   POKE_F32(0x003978C0, 0.3);
 
@@ -791,7 +567,6 @@ void initialize(PatchStateContainer_t* gameState)
   *(u32*)0x00401194 = 0;
   *(u32*)0x003FFDE8 = 0x1000000D;
   POKE_U32(0x003FFD98, 0x120000DD); // fix holo crash when owner leaves
-
 
 	// Disables end game draw dialog
 	*(u32*)0x0061fe84 = 0;
@@ -859,12 +634,6 @@ void initialize(PatchStateContainer_t* gameState)
   POKE_U32(0x005e419c, 0);
   HOOK_JAL(0x005e41bc, &playerOnPushedIntoWall);
 
-  // patch quad/shield cooldown timer
-  HOOK_JAL(0x004468D8, &setPlayerQuadCooldownTimer);
-  POKE_U32(0x004468E4, 0);
-	HOOK_JAL(0x00446948, &setPlayerShieldCooldownTimer);
-  POKE_U32(0x00446954, 0);
-
   // disable guber event delay until createTime+relDispatchTime reached
   // when players desync, their net time falls behind everyone else's
   // causing events that they receive to be delayed for long periods of time
@@ -895,8 +664,6 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->OnGetGuberFunc = &getGuber;
   mapConfig->OnGuberEventFunc = &handleEvent;
   mapConfig->TryCreateMobFunc = &mobCreate;
-
-	// Hook custom net events
 
 	// set game over string
 	//strncpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
@@ -981,18 +748,6 @@ void initialize(PatchStateContainer_t* gameState)
 
 			++State.ActivePlayerCount;
 		}
-	}
-
-	// initialize weapon data
-	WeaponDefsData* gunDefs = weaponGetGunLevelDefs();
-	for (i = 0; i < 7; ++i) {
-		for (j = 0; j < 10; ++j) {
-			gunDefs[i].Entries[j].MpLevelUpExperience = VENDOR_MAX_WEAPON_LEVEL;
-		}
-	}
-	WeaponDefsData* flailDefs = weaponGetFlailLevelDefs();
-	for (j = 0; j < 10; ++j) {
-		flailDefs->Entries[j].MpLevelUpExperience = VENDOR_MAX_WEAPON_LEVEL;
 	}
 
 	// initialize state

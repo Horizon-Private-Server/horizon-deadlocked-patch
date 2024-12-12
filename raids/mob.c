@@ -296,8 +296,8 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
     // crit
     if (pDamager->IsLocal) {
       float critProbability = 0;
-      RaidsInventoryWeapon_t* weapon = bankGetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
-      if (weapon) critProbability = weapon->CritChance / 255.0;
+      RaidsInventoryItem_t* item = bankGetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
+      if (item) critProbability = item->CritChance / 255.0;
 
       float r = randRange(0, 1);
       if (r < critProbability) {

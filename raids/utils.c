@@ -125,10 +125,17 @@ u32 decTimerU32(u32* timeValue)
 }
 
 //--------------------------------------------------------------------------
-u32 getPriceForWeapon(int proficiency, int quality)
+u32 getPriceForItem(RaidsInventoryItem_t* item)
 {
-  int rarity = bankGetRarityFromQuality(quality);
-  return (proficiency * 100) + powf(1000, (2*rarity) / 3.0) + (quality * (1000/255.0));
+  if (!item) return 0;
+
+  if (bankItemIsBadge(item)) {
+    int rarity = bankGetRarityFromQuality(item->Quality);
+    return 1000 + powf(1000, (2*rarity) / 3.0) + (item->Quality * (1000/255.0));
+  } else {
+    int rarity = bankGetRarityFromQuality(item->Quality);
+    return (item->Proficiency * 100) + powf(1000, (2*rarity) / 3.0) + (item->Quality * (1000/255.0));
+  }
 }
 
 //--------------------------------------------------------------------------

@@ -22,11 +22,12 @@
 extern struct RaidsState State;
 extern struct RaidsMapConfig* mapConfig;
 
-u32 lootRarityColors[RAIDS_WEAPON_RARITY_COUNT] = {
-  [RAIDS_WEAPON_RARITY_COMMON] 0x80808080,
-  [RAIDS_WEAPON_RARITY_UNCOMMON] 0x80007000,
-  [RAIDS_WEAPON_RARITY_RARE] 0x80C01800,
-  [RAIDS_WEAPON_RARITY_LEGENDARY] 0x80F010F0,
+u32 lootRarityColors[RAIDS_ITEM_RARITY_COUNT] = {
+  [RAIDS_ITEM_RARITY_COMMON] 0x80808080,
+  [RAIDS_ITEM_RARITY_UNCOMMON] 0x80007000,
+  [RAIDS_ITEM_RARITY_RARE] 0x80C01800,
+  [RAIDS_ITEM_RARITY_LEGENDARY] 0x80F010F0,
+  [RAIDS_ITEM_RARITY_MYTHIC] 0x801010F0,
 };
 
 void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
@@ -38,11 +39,15 @@ void lootUpdate(Moby* moby)
   // check if ready to destroy / auto give
   if (moby->State == 2 && moby->StateTimer > 5) {
     int gadgetId = *(int*)(moby->PVar + 0x50);
-    int rarity = *(int*)(moby->PVar + 0x54);
+    int rarity = *(char*)(moby->PVar + 0x54);
+    int quality = *(char*)(moby->PVar + 0x55);
+    int proficiency = *(char*)(moby->PVar + 0x56);
     if (gadgetId) {
-      struct GadgetDef* gadgetDef = weaponGetDef(gadgetId, 0);
-      char rarityCode[] = { '\x08', '\x0A', '\x09', '\x0B' };
-      snprintf(buf, sizeof(buf), "Got %c%s", rarityCode[rarity], uiMsgString(rarity == RAIDS_WEAPON_RARITY_LEGENDARY ? gadgetDef->upgQSTag : gadgetDef->quickSelectTag));
+      char rarityCode[] = { '\x08', '\x0A', '\x09', '\x0B', '\x0E' };
+      char itemName[64];
+      RaidsInventoryItem_t item = { .GadgetId = gadgetId, .Quality = quality, .Proficiency = proficiency };
+      bankGetItemName(&item, itemName, sizeof(itemName));
+      snprintf(buf, sizeof(buf), "Got %c%s", rarityCode[rarity], itemName);
       pushSnack(buf, 60, 0);
     }
 
@@ -59,9 +64,10 @@ void lootUpdate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-Moby* lootSpawn(VECTOR position, int gadgetId, int rarity)
+Moby* lootSpawn(VECTOR position, int gadgetId, int quality, int proficiency)
 {
   int pickupId = 3;
+  int rarity = bankGetRarityFromQuality(quality);
 
   switch (gadgetId)
   {
@@ -73,6 +79,7 @@ Moby* lootSpawn(VECTOR position, int gadgetId, int rarity)
     case WEAPON_ID_B6: pickupId = 7; break;
     case WEAPON_ID_FLAIL: pickupId = 12; break;
     case WEAPON_ID_OMNI_SHIELD: pickupId = 16; break;
+    case BANK_BADGE_GADGET_ID: pickupId = 1; break;
   }
 
   Moby* moby = mobySpawn(0x243E, 0x50 + 0x20);
@@ -85,7 +92,9 @@ Moby* lootSpawn(VECTOR position, int gadgetId, int rarity)
   *(int*)(moby->PVar + 0x08) = 0x0001FFFF;
   *(int*)(moby->PVar + 0x0C) = 0x1E;
   *(int*)(moby->PVar + 0x50) = gadgetId;
-  *(int*)(moby->PVar + 0x54) = rarity;
+  *(char*)(moby->PVar + 0x54) = rarity;
+  *(char*)(moby->PVar + 0x55) = quality;
+  *(char*)(moby->PVar + 0x56) = proficiency;
   *(int*)(moby->PVar + 0x58) = gameGetTime();
   *(int*)(moby->PVar + 0x60) = colorLerp(0x80000000, lootRarityColors[rarity], 0.8);
   *(int*)(moby->PVar + 0x64) = colorLerp(0x80000000, lootRarityColors[rarity], 0.7);
@@ -100,7 +109,7 @@ int lootOnGenerateLootResponse(void* connection, void* data)
   struct RaidsGenerateLootDropResponse msg;
   memcpy(&msg, data, sizeof(msg));
 
-  lootSpawn(msg.Position, msg.Drop.GadgetId, bankGetRarityFromQuality(msg.Drop.Quality));
+  lootSpawn(msg.Position, msg.Drop.GadgetId, msg.Drop.Quality, msg.Drop.Proficiency);
 
   DPRINTF("got loot gen response\n");
   return sizeof(msg);

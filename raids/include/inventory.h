@@ -10,6 +10,7 @@
 #include "bank.h"
 
 #define INVENTORY_TAB_COUNT                         (WEAPON_SLOT_COUNT)
+#define INVENTORY_TAB_BADGES                        (0)
 #define INVENTORY_TAB_SPRITE_PADDING                (8)
 
 #define INVENTORY_NOTIFY_SPRITE_ID                  (88) // star
