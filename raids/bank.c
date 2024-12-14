@@ -59,7 +59,7 @@ char* bankBadgeNames[] = {
   [RAIDS_BADGE_TYPE_BERSERKER] "Berserker %s",
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Flinch Resistance %s",
   [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "Explosive Wrench %s",
-  [RAIDS_BADGE_TYPE_EXTRALIFE] "Extra Life",
+  [RAIDS_BADGE_TYPE_EXTRALIFE] "Second Chance",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
 
