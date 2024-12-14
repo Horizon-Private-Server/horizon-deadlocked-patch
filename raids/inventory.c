@@ -120,27 +120,21 @@ char inventoryWeaponSpriteDims[] = {
 char inventoryBadgeSpriteIds[] = {
   [RAIDS_BADGE_TYPE_HEALTH_REGEN] 111,
   [RAIDS_BADGE_TYPE_AMMO_REGEN] 112,
-  [RAIDS_BADGE_TYPE_EXTRA_JUMP] 113,
-  [RAIDS_BADGE_TYPE_SHARPSHOOTER] 114,
-  [RAIDS_BADGE_TYPE_BERSERKER] 115,
-  [RAIDS_BADGE_TYPE_DAMAGE_COOLDOWN] 116,
-  [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] 117,
-  [RAIDS_BADGE_TYPE_INFINITE_CHARGEBOOT] 118,
-  [RAIDS_BADGE_TYPE_HOVERBOOTS] 119,
-  [RAIDS_BADGE_TYPE_EXTRALIFE] 120,
+  [RAIDS_BADGE_TYPE_SHARPSHOOTER] 113,
+  [RAIDS_BADGE_TYPE_BERSERKER] 114,
+  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] 115,
+  [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] 116,
+  [RAIDS_BADGE_TYPE_EXTRALIFE] 117,
   [RAIDS_BADGE_TYPE_COUNT] 0,
 };
 
 char inventoryBadgeSpriteDims[] = {
   [RAIDS_BADGE_TYPE_HEALTH_REGEN] 32,
   [RAIDS_BADGE_TYPE_AMMO_REGEN] 32,
-  [RAIDS_BADGE_TYPE_EXTRA_JUMP] 32,
   [RAIDS_BADGE_TYPE_SHARPSHOOTER] 32,
   [RAIDS_BADGE_TYPE_BERSERKER] 32,
-  [RAIDS_BADGE_TYPE_DAMAGE_COOLDOWN] 32,
+  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] 32,
   [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] 32,
-  [RAIDS_BADGE_TYPE_INFINITE_CHARGEBOOT] 32,
-  [RAIDS_BADGE_TYPE_HOVERBOOTS] 32,
   [RAIDS_BADGE_TYPE_EXTRALIFE] 32,
   [RAIDS_BADGE_TYPE_COUNT] 0,
 };
@@ -155,13 +149,10 @@ char inventorySkillSpriteIds[] = {
 char* inventoryBadgeDescriptions[] = {
   [RAIDS_BADGE_TYPE_HEALTH_REGEN] "Slowly regenerate health.",
   [RAIDS_BADGE_TYPE_AMMO_REGEN] "Slowly regenerate ammunition.",
-  [RAIDS_BADGE_TYPE_EXTRA_JUMP] "Each level increases the number of extra jumps.",
-  [RAIDS_BADGE_TYPE_SHARPSHOOTER] "Increase critical hit chance when target is on crosshairs.",
-  [RAIDS_BADGE_TYPE_BERSERKER] "Chance to reduce damage taken when on a killing streak.",
-  [RAIDS_BADGE_TYPE_DAMAGE_COOLDOWN] "Increase flinch cooldown time.",
+  [RAIDS_BADGE_TYPE_SHARPSHOOTER] "Increase critical hit chance.",
+  [RAIDS_BADGE_TYPE_BERSERKER] "Reduce damage taken from melee attacks. Weak to ranged attacks.",
+  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Increase flinch cooldown time.",
   [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "Give your wrench that extra little oomph.",
-  [RAIDS_BADGE_TYPE_INFINITE_CHARGEBOOT] "Supercharge your chargeboots.",
-  [RAIDS_BADGE_TYPE_HOVERBOOTS] "Hover after walking off ledges.",
   [RAIDS_BADGE_TYPE_EXTRALIFE] "Have one extra life per mission.",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
@@ -385,7 +376,7 @@ void inventoryDrawInventoryInfo(InventoryDrawState_t* drawState)
 
     // description
     offX = 10;
-    gfxHelperDrawTextWindow(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw - 10, 100, 5, 5, 0.7, textColor, inventoryBadgeDescriptions[selectedItem->Proficiency], -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawTextWindow(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw - 10, 100, 5, 5, 0.7, textColor, inventoryBadgeDescriptions[selectedItem->BadgeType], -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NORMAL);
     return;
   }
 
@@ -522,6 +513,10 @@ void inventoryDrawItem(InventoryDrawState_t* drawState, int row, int col, RaidsI
   int slotId = weaponIdToSlot(item->GadgetId);
   int iconSpriteId = inventoryWeaponSpriteIds[slotId];
   int iconSpriteDim = inventoryWeaponSpriteDims[slotId];
+  if (slotId == 0) {
+    iconSpriteId = inventoryBadgeSpriteIds[item->BadgeType];
+    iconSpriteDim = inventoryBadgeSpriteDims[item->BadgeType];
+  }
   
   // draw icon
   u32 iconColor = bankRarityColors[bankGetRarityFromQuality(item->Quality)];

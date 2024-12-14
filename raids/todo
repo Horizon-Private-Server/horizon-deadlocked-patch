@@ -50,24 +50,24 @@ Add priority to nearby spawners (or configurable in forge?)
 
 ++Weapon leveling
 
-Auto despawn loot
+++Auto despawn loot
 Increase XP/Bolts on higher difficulties
 Add difficulty stars to helga players online listing
 Add time on current mission to helga
-Add vendor moby to buy ammo
+++Add vendor moby to buy ammo
 consider making ammo amods more likely w/ rarity?
-Add holdable items (perks) that randomly drop as loot
+++Add holdable items (perks) that randomly drop as loot
 
 ++Respawn all players should TP drowned to start/checkpoint
 ++Ammo drops should only pickup by locals
 ++Quick select is desynced
 
-Add map code for badge effects
+++Add map code for badge effects
 Add store (hub only)
-Add account level max (99)
+++Add account level max (99)
 Add account level prestige (get mythic badge)
 Add weapon proficiency prestige (get mythic weapon)
 Add ability to create POI (star blips) in forge
-Readjust mob speed/damage/behaviors
+Re-adjust mob speed/damage/behaviors
 Add raids mode and map version check (prevent loading map unless version matches)
-Add hacker orb (SP)
+++Add hacker orb (SP)

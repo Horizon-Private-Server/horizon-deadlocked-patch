@@ -248,7 +248,7 @@ void levelselectFrameTick(void)
   int canOpen = State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && PATCH_POINTERS_PATCHMENU == 0 && !gameIsAnyStartMenuOpen() && padGetButtonDown(0, PAD_UP) > 0;
   if (canOpen) {
     levelselectOpen();
-  } else if (!State.OnHubWorld && State.ClientsReady && State.AlivePlayerCount == 0 && State.ActivePlayerCount && !hasPendingWorldHop()) {
+  } else if (!State.OnHubWorld && State.ClientsReady && State.TicksWithNoLivingPlayers > 30 && State.ActivePlayerCount && !hasPendingWorldHop()) {
     levelselectOpen();
   }
   

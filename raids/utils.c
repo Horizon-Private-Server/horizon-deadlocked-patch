@@ -139,38 +139,84 @@ u32 getPriceForItem(RaidsInventoryItem_t* item)
 }
 
 //--------------------------------------------------------------------------
-int getProficiencyFromXp(u64 xp)
-{
-  if (xp < LEVELUP_XP_CONSTANT) return 0;
-
-  double proficiency = (-(LEVELUP_XP_LINEAR_RATE/2) + sqrt((double)((xp-LEVELUP_XP_CONSTANT) + (LEVELUP_XP_LINEAR_RATE/2)*(LEVELUP_XP_LINEAR_RATE/2)))) / LEVELUP_XP_QUADRATIC_RATE;
-  if (proficiency < 0) return 0;
-  if (proficiency > 98) return 98;
-  return (int)proficiency;
-}
-
-//--------------------------------------------------------------------------
-u64 getXpForProficiency(int proficiency)
-{
-  if (proficiency <= 0) return LEVELUP_XP_CONSTANT;
-  return (u64)((double)powf(proficiency * LEVELUP_XP_QUADRATIC_RATE, 2) + LEVELUP_XP_LINEAR_RATE*proficiency + LEVELUP_XP_CONSTANT);
-}
-
-//--------------------------------------------------------------------------
 int getLevelFromXp(u64 xp)
 {
-  if (xp < LEVELUP_XP_CONSTANT) return 0;
+  if (xp < 0) return 0;
 
-  double level = (-(LEVELUP_XP_LINEAR_RATE/2) + sqrt((double)((xp-LEVELUP_XP_CONSTANT) + (LEVELUP_XP_LINEAR_RATE/2)*(LEVELUP_XP_LINEAR_RATE/2)))) / LEVELUP_XP_QUADRATIC_RATE;
+  // (500 (2/3)^(1/3))/(sqrt(3) sqrt(27 x^2 + 500000000) - 9 x)^(1/3) - (sqrt(3) sqrt(27 x^2 + 500000000) - 9 x)^(1/3)/(2^(1/3) 3^(2/3))
+  // Constants
+  const double c1 = 0.87358046;                 // (2/3)^(1/3)
+  const double c2 = 1.25992104;                 // 2^(1/3)
+  const double c3 = 2.08008382;                 // 3^(2/3)
+  const double sqrt3 = 1.73205080;              // sqrt(3)
+
+  // Calculate the inner term
+  double inner = sqrt3 * sqrt((double)27.0 * xp * xp + 500000000.0) - (double)9.0 * xp;
+  
+  // Compute the two terms
+  double term1 = (double)500.0 * c1 / pow(inner, (double)1.0 / (double)3.0);
+  double term2 = pow(inner, (double)1.0 / (double)3.0) / (c2 * c3);
+
+  // Final result
+  double level = term1 - term2;
+  
   if (level < 0) return 0;
+  if (level > LEVELUP_MAX_LEVEL) return LEVELUP_MAX_LEVEL;
   return (int)level;
 }
 
 //--------------------------------------------------------------------------
 u64 getXpForLevel(int level)
 {
-  if (level <= 0) return LEVELUP_XP_CONSTANT;
-  return (u64)((double)powf(level * LEVELUP_XP_QUADRATIC_RATE, 2) + LEVELUP_XP_LINEAR_RATE*level + LEVELUP_XP_CONSTANT);
+  if (level > LEVELUP_MAX_LEVEL) level = LEVELUP_MAX_LEVEL;
+  if (level <= 0) return 0;
+  return (u64)((double)powf(1*level, 3) + 500*level);
+}
+
+//--------------------------------------------------------------------------
+int getProficiencyFromXp(u64 xp)
+{
+  return getLevelFromXp(xp);
+}
+
+//--------------------------------------------------------------------------
+u64 getXpForProficiency(int proficiency)
+{
+  return getXpForLevel(proficiency);
+}
+
+//--------------------------------------------------------------------------
+long getAmmoRefillCost(Player* player)
+{
+  if (!player || !player->GadgetBox) return -1;
+    
+  float ammoRefillCostPerShot[WEAPON_SLOT_COUNT] = {
+    [WEAPON_SLOT_VIPERS] 5,
+    [WEAPON_SLOT_MAGMA_CANNON] 20,
+    [WEAPON_SLOT_ARBITER] 100,
+    [WEAPON_SLOT_FUSION_RIFLE] 100,
+    [WEAPON_SLOT_MINE_LAUNCHER] 100,
+    [WEAPON_SLOT_B6] 100,
+    [WEAPON_SLOT_OMNI_SHIELD] 100,
+    [WEAPON_SLOT_FLAIL] 50,
+  };
+
+  int j;
+  u32 cost = 0;
+  int needsAmmo = 0;
+  for (j = WEAPON_SLOT_VIPERS; j < WEAPON_SLOT_COUNT; ++j) {
+    int gadgetId = weaponSlotToId(j);
+    int maxAmmo = playerGetWeaponMaxAmmo(player->GadgetBox, gadgetId);
+    int ammo = player->GadgetBox->Gadgets[gadgetId].Ammo;
+    if (player->GadgetBox->Gadgets[gadgetId].Level >= 0 && ammo < maxAmmo) {
+      needsAmmo = 1;
+      cost += (u32)(ammoRefillCostPerShot[j] * (maxAmmo - ammo) * State.AmmoRefillCostMultiplier);
+    }
+  }
+
+  if (!needsAmmo) return -1;
+
+  return cost;
 }
 
 //--------------------------------------------------------------------------
@@ -226,60 +272,6 @@ int charArrayContains(char* list, int count, char value)
 			return 1;
 
 	return 0;
-}
-
-//--------------------------------------------------------------------------
-void vectorProjectOnVertical(VECTOR output, VECTOR input0)
-{
-    asm __volatile__ (
-#if __GNUC__ > 3
-    "lqc2   $vf1, 0x00(%1)  \n"
-    "vmove.xy   $vf1, $vf0   \n"
-    "sqc2   $vf1, 0x00(%0)  \n"
-#else
-    "lqc2		vf1, 0x00(%1)	\n"
-    "vmove.xy  vf1, vf0    \n"
-    "sqc2		vf1, 0x00(%0)	\n"
-#endif
-    : : "r" (output), "r" (input0)
-  );
-}
-
-//--------------------------------------------------------------------------
-void vectorProjectOnHorizontal(VECTOR output, VECTOR input0)
-{
-    asm __volatile__ (
-#if __GNUC__ > 3
-    "lqc2   $vf1, 0x00(%1)  \n"
-    "vmove.z   $vf1, $vf0   \n"
-    "sqc2   $vf1, 0x00(%0)  \n"
-#else
-    "lqc2		vf1, 0x00(%1)	\n"
-    "vmove.z  vf1, vf0    \n"
-    "sqc2		vf1, 0x00(%0)	\n"
-#endif
-    : : "r" (output), "r" (input0)
-  );
-}
-
-//--------------------------------------------------------------------------
-float getSignedSlope(VECTOR forward, VECTOR normal)
-{
-  VECTOR up, hForward;
-
-  vectorProjectOnHorizontal(hForward, forward);
-  vector_normalize(hForward, hForward);
-  vector_outerproduct(up, hForward, normal);
-  float slope = atan2f(vector_length(up), vector_innerproduct(hForward, normal)) - MATH_PI/2;
-
-  /*if (fabsf(slope) > 40*MATH_DEG2RAD) {
-    DPRINTF("getSignedSlope:\n\tup:%.2f,%.2f,%.2f\n\thF:%.2f,%.2f,%.2f\n\tn:%.2f,%.2f,%.2f\n\tslope:%f\n"
-      , up[0], up[1], up[2]
-      , hForward[0], hForward[1], hForward[2]
-      , normal[0], normal[1], normal[2]
-      , slope * MATH_RAD2DEG);
-  }*/
-  return slope;
 }
 
 //--------------------------------------------------------------------------

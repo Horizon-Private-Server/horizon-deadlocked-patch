@@ -38,6 +38,7 @@ int getProficiencyFromXp(u64 xp);
 u64 getXpForProficiency(int level);
 int getLevelFromXp(u64 xp);
 u64 getXpForLevel(int level);
+long getAmmoRefillCost(Player* player);
 void drawDreadTokenIcon(float x, float y, float scale);
 struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);
 void destroyParticle(struct PartInstance* particle);
@@ -47,7 +48,6 @@ int charArrayContains(char* list, int count, char value);
 
 void vectorProjectOnVertical(VECTOR output, VECTOR input0);
 void vectorProjectOnHorizontal(VECTOR output, VECTOR input0);
-float getSignedSlope(VECTOR forward, VECTOR normal);
 
 int mobyIsMob(Moby* moby);
 int mobyIsNpc(Moby* moby);

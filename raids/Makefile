@@ -8,15 +8,13 @@ EE_INCS := -I../common
 EE_LDFLAGS := -Werror -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := DEBUG
+BUILD_CONFIG := RELEASE
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
 #		DISABLE_SPAWNING			Disables round/spawn logic.
 #		MOB_NO_MOVE						All mobs have 0 speed
 #		MOB_NO_DAMAGE					All mobs have 0 damage
-#		VENDOR_OCLASS					Configures which moby class to look for when finding the map's vendor.
-#														Useful for testing on maps without a vendor.
 #		AUTOSTART							Enables logic to start each round when the previous round ends.
 #														When this is disabled, the host must manually start the round.
 #		MOB_CORN							Enables spawning mob limbs (corn) on death.
@@ -31,7 +29,7 @@ BUILD_CONFIG := DEBUG
 ifeq ($(BUILD_CONFIG),DEBUG)
 EE_DEFS := -DDEBUG -DMOB_CORN
 #EE_DEFS += -DDEBUG_PERKS
-#EE_DEFS += -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643
+#EE_DEFS += -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643
 #EE_DEFS += -DDEBUG_SOUNDS
 #EE_DEFS += -DMOB_INVINCIBLE
 #EE_DEFS += -DMOB_NO_DAMAGE

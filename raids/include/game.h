@@ -13,16 +13,8 @@
 
 #define TPS																		(60)
 
-#define ZOMBIE_MOBY_OCLASS										(0x20F6)
-#define EXECUTIONER_MOBY_OCLASS							  (0x2468)
-#define TREMOR_MOBY_OCLASS							      (0x24D3)
-#define SWARMER_MOBY_OCLASS							      (0x2695)
-#define REAPER_MOBY_OCLASS							      (0x2570)
-#define REACTOR_MOBY_OCLASS							      (0x20BE)
 #define NPC_MOBY_OCLASS                       (0x4006)
-
-#define STATUE_MOBY_OCLASS                    (0x2402)
-#define BIGAL_MOBY_OCLASS                     (0x2124)
+#define VENDOR_MOBY_OCLASS                    (0x263A)
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
 
@@ -90,9 +82,7 @@
 #define NANOLEECH_HEALTH											(5)
 #define NANOLEECH_CHANCE											(0.01)
 
-#define LEVELUP_XP_QUADRATIC_RATE             (10)
-#define LEVELUP_XP_LINEAR_RATE                (0)
-#define LEVELUP_XP_CONSTANT                   (0)
+#define LEVELUP_MAX_LEVEL                     (98)
 
 #define PLAYER_BASE_REVIVE_TICKS					    (60 * TPS)
 #define PLAYER_MIN_REVIVE_TICKS					      (10 * TPS)
@@ -124,15 +114,10 @@
 #define MOB_COMPLEXITY_LOD_FACTOR             (500)
 #define MOB_MAX_FLINCH_PROBABILITY            (0.25)
 
-#define SWARMER_RENDER_COST                   (40)
-#define ZOMBIE_RENDER_COST                    (85)
-#define TREMOR_RENDER_COST                    (150)
-#define REAPER_RENDER_COST                    (150)
-#define REACTOR_RENDER_COST                   (300)
-#define EXECUTIONER_RENDER_COST               (300)
-
 #define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.1)
 #define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.005)
+
+#define BADGE_SHARPSHOOTER_CRIT_AMOUNT        (0.05)
 
 enum GameNetMessage
 {
@@ -167,6 +152,7 @@ struct MobCreateArgs;
 
 typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
 typedef RaidsPlayerBank_t* (*GetBank_func)(void);
+typedef long (*GetAmmoRefillCost_func)(Player* player);
 typedef void (*BeginWorldHop_func)(char* mapFilename, int difficulty, int cost, int delayMs);
 typedef void (*SendBankAccountToServer_func)(void);
 typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, float difficultyMult);
@@ -179,6 +165,7 @@ typedef void (*MapOnMobSpawned_func)(Moby* moby);
 typedef int (*MapOnMobCreate_func)(struct MobCreateArgs* args);
 typedef void (*MapOnMobUpdate_func)(Moby* moby);
 typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int weaponId);
+typedef void (*MapCreateAmmoDropAt_func)(Moby* moby);
 typedef void (*FrameTick_func)(void);
 
 struct RaidsPlayerState
@@ -229,8 +216,6 @@ struct RaidsState
   int ClientsReady;
 	int MenuOpen;
   int OnHubWorld;
-	Moby* Vendor;
-	Moby* BigAl;
 	struct RaidsPlayer* LocalPlayerState;
 	int GameOver;
   int MissionComplete;
@@ -239,11 +224,14 @@ struct RaidsState
 	int WinningTeam;
 	int ActivePlayerCount;
 	int AlivePlayerCount;
+  int TicksWithNoLivingPlayers;
 	int IsHost;
 	float Difficulty;
   float AmmoDropChance;
+  float AmmoRefillCostMultiplier;
   int DifficultyStars;
   int PendingWorldHopAtTime;
+  int PendingWorldHopDifficultyStars;
   CustomMapDef_t* PendingWorldHopMapDef;
   CustomMapDef_t* CurrentMapDef;
 	char NumTeams;
@@ -260,6 +248,7 @@ struct RaidsMapConfig
   // mode
   PushSnack_func PushSnackFunc;
   GetBank_func GetBankFunc;
+  GetAmmoRefillCost_func GetAmmoRefillCostFunc;
   BeginWorldHop_func BeginWorldHopFunc;
   SendBankAccountToServer_func SendBankAccountToServerFunc;
   PopulateSpawnArgs_func PopulateSpawnArgsFunc;
@@ -273,6 +262,7 @@ struct RaidsMapConfig
   MapOnMobSpawned_func OnMobSpawnedFunc;
   MapOnMobUpdate_func OnMobUpdateFunc;
   MapOnMobKilled_func OnMobKilledFunc;
+  MapCreateAmmoDropAt_func CreateAmmoDropAtFunc;
   FrameTick_func OnFrameTickFunc;
 };
 

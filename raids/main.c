@@ -209,17 +209,6 @@ int shouldDrawHud(void)
 }
 
 //--------------------------------------------------------------------------
-void openWeaponsMenu(int localPlayerIndex)
-{
-	((void (*)(int, int))0x00544748)(localPlayerIndex, 4);
-	((void (*)(int, int))0x005415c8)(localPlayerIndex, 2);
-
-	((void (*)(int))0x00543e10)(localPlayerIndex); // hide player
-	int s = ((int (*)(int))0x00543648)(localPlayerIndex); // get hud enter state
-	((void (*)(int))0x005c2370)(s); // swapto
-}
-
-//--------------------------------------------------------------------------
 void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
 {
   // pass to base if we don't have a player start
@@ -365,7 +354,7 @@ int playerIsSmashingFlail(Player* player)
 
 //--------------------------------------------------------------------------
 void processPlayer(int pIndex) {
-	int localPlayerIndex, heldWeapon, hasMessage = 0;
+	int localPlayerIndex, heldWeapon;
 	Player** players = playerGetAll();
 	Player* player = players[pIndex];
 	struct RaidsPlayer * playerData = &State.PlayerStates[pIndex];
@@ -435,7 +424,7 @@ void processPlayer(int pIndex) {
       return;
     }
 
-		if (!hasMessage && messageCooldownTicks == 1) {
+		if (messageCooldownTicks == 1) {
       hudHidePopup();
 		}
 	} else {
@@ -538,13 +527,6 @@ void initialize(PatchStateContainer_t* gameState)
 	*(u32*)0x00621568 = 0;	// kills reached (2)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
   *(u32*)0x006210D8 = 0;	// all enemies leave (9)
-
-  // force ammo drops to local players only
-  POKE_U32(0x003ACC24, 0x8E351A9C);
-  HOOK_JAL(0x003aca8c, &ammoPickupTargetGetGadgetMaxAmmo);
-
-  // double ammo pickup amount
-  POKE_F32(0x003978C0, 0.3);
 
   // spawn area mod explosion on each ricochet of the v10 vipers
   //HOOK_JAL(0x003C283C, &onV10VipersHitSurface);
@@ -657,6 +639,7 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->State = &State;
   mapConfig->PushSnackFunc = &pushSnack;
   mapConfig->GetBankFunc = &bankGetLocalBank;
+  mapConfig->GetAmmoRefillCostFunc = &getAmmoRefillCost;
   mapConfig->BeginWorldHopFunc = &hopBegin;
   mapConfig->SendBankAccountToServerFunc = &bankSendAccountToServer;
   mapConfig->PopulateSpawnArgsFunc = &mobPopulateSpawnArgsFromConfig;
@@ -722,6 +705,7 @@ void initialize(PatchStateContainer_t* gameState)
   State.Difficulty = Difficulties[State.DifficultyStars];
 	State.LocalPlayerState = NULL;
 	State.NumTeams = 0;
+  State.TicksWithNoLivingPlayers = 0;
 	State.AlivePlayerCount = -1;
 	State.ActivePlayerCount = 0;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -752,6 +736,7 @@ void initialize(PatchStateContainer_t* gameState)
 
 	// initialize state
   State.AmmoDropChance = GAME_DEFAULT_AMMO_DROP_CHANCE;
+  State.AmmoRefillCostMultiplier = 1;
 	State.MobStats.MobsDrawnCurrent = 0;
 	State.MobStats.MobsDrawnLast = 0;
 	State.MobStats.MobsDrawGameTime = 0;
@@ -909,6 +894,9 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
           State.AlivePlayerCount++;
         }
       }
+
+      if (!State.AlivePlayerCount) State.TicksWithNoLivingPlayers++;
+      else State.TicksWithNoLivingPlayers = 0;
     }
   }
   else

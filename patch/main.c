@@ -2832,8 +2832,10 @@ void patchWeaponShotLag(void)
   // disable aim at near target logic
   HOOK_JAL(0x005F7E64, &onCalculateHeroAimPos);
 
-  // patch GetHit state update to handle custom magma cannon cooldown
-  HOOK_JAL(0x005E1DEC, &onSetPlayerState_GetHit);
+  if (gameConfig.customModeId != CUSTOM_MODE_RAIDS) {
+    // patch GetHit state update to handle custom magma cannon cooldown
+    HOOK_JAL(0x005E1DEC, &onSetPlayerState_GetHit);
+  }
 
   // decrement custom magma cannon cooldowns
   int i;

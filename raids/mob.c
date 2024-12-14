@@ -18,8 +18,6 @@
 int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
 Moby* mobLastInList = 0;
-Moby* mobAmmoDropMobyList[MAX_MOB_AMMO_DROPS];
-int mobAmmoDropMobyListRollingIndex = 0;
 
 extern struct RaidsMapConfig* mapConfig;
 extern PatchConfig_t* playerConfig;
@@ -41,6 +39,22 @@ extern struct RaidsState State;
 GuberEvent* mobCreateEvent(Moby* moby, u32 eventType);
 int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob);
 void playerRewardXp(int playerId, int weaponId, int xp);
+
+float difficultyXpMult[RAIDS_DIFFICULTY_COUNT] = {
+  [RAIDS_DIFFICULTY_1STAR] 1.0,
+  [RAIDS_DIFFICULTY_2STAR] 2.0,
+  [RAIDS_DIFFICULTY_3STAR] 4.0,
+  [RAIDS_DIFFICULTY_4STAR] 7.0,
+  [RAIDS_DIFFICULTY_5STAR] 10.0
+};
+
+float difficultyBoltMult[RAIDS_DIFFICULTY_COUNT] = {
+  [RAIDS_DIFFICULTY_1STAR] 1.0,
+  [RAIDS_DIFFICULTY_2STAR] 2.0,
+  [RAIDS_DIFFICULTY_3STAR] 4.0,
+  [RAIDS_DIFFICULTY_4STAR] 7.0,
+  [RAIDS_DIFFICULTY_5STAR] 10.0
+};
 
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
@@ -94,79 +108,6 @@ void mobStatsOnMobDestroyed(Moby* moby)
   if (spIdx >= 0 && spIdx < mapConfig->MobSpawnParamsCount) {
     State.MobStats.NumAlive[spIdx]--;
     State.MobStats.TotalAlive--;
-  }
-}
-
-//--------------------------------------------------------------------------
-int ammoPickupTargetGetGadgetMaxAmmo(GadgetBox* gbox, int gadgetId)
-{
-  int playerIdx = bankGetPlayerIdxFromGadgetBox(gbox);
-  if (playerIdx < 0) return 0;
-
-  Player* player = playerGetAll()[playerIdx];
-  if (!playerIsValid(player)) return 0;
-  if (!player->IsLocal) return 0; // local only
-
-  return playerGetWeaponMaxAmmo(gbox, gadgetId);
-}
-
-//--------------------------------------------------------------------------
-void ammoPickupUpdate(Moby* moby)
-{
-  // configure it to be pickup-able
-  if (moby->PVar) {
-    *(char*)(moby->PVar + 0x5C) = 1; // state
-  }
-
-  ((void (*)(Moby*))0x003ac050)(moby);
-}
-
-//--------------------------------------------------------------------------
-void mobSpawnAmmoDrop(Moby* moby)
-{
-
-  // find free slot
-  int i;
-  for (i = 0; i < MAX_MOB_AMMO_DROPS; ++i) {
-    if (!mobAmmoDropMobyList[i] || mobyIsDestroyed(mobAmmoDropMobyList[i]) || mobAmmoDropMobyList[i]->OClass != MOBY_ID_AMMO) break;
-  }
-
-  // use rolling index
-  if (i >= MAX_MOB_AMMO_DROPS) {
-    i = mobAmmoDropMobyListRollingIndex;
-  }
-
-  // destroy old ammo drop
-  if (mobAmmoDropMobyList[i] && mobAmmoDropMobyList[i]->OClass == MOBY_ID_AMMO) {
-    mobyDestroy(mobAmmoDropMobyList[i]);
-  }
-
-  mobAmmoDropMobyListRollingIndex = (i + 1) % MAX_MOB_AMMO_DROPS;
-  Moby* ammoMoby = mobAmmoDropMobyList[i] = mobySpawn(MOBY_ID_AMMO, 0x100);
-  if (ammoMoby) {
-    DPRINTF("spawn ammo %08X\n", (u32)ammoMoby);
-
-    // snap to ground
-    VECTOR from = {0,0,1,0};
-    VECTOR to = {0,0,-10,0};
-    vector_copy(ammoMoby->Position, moby->Position);
-    vector_add(from, moby->Position, from);
-    vector_add(to, moby->Position, to);
-    if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
-      vector_copy(ammoMoby->Position, CollLine_Fix_GetHitPosition());
-    }
-
-    // update draw
-    ammoMoby->Bangles |= 1;
-    ammoMoby->DrawDist = 255;
-    ammoMoby->UpdateDist = 255;
-    ammoMoby->PUpdate = ammoPickupUpdate;
-    
-    // configure it to be pickup-able
-    if (ammoMoby->PVar) {
-      *(float*)(ammoMoby->PVar + 0x2C) = 2; // radius?
-      *(char*)(ammoMoby->PVar + 0x5C) = 1; // state
-    }
   }
 }
 
@@ -282,22 +223,18 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	    args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
 		}
 
-    if (weaponId == WEAPON_ID_FLAIL) {
-      args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
-      args.Knockback.Power += 4; //((pDamager->GadgetBox->Gadgets[WEAPON_ID_FLAIL].Level + 1) / 5) + 1;
-    } else if (weaponId == WEAPON_ID_OMNI_SHIELD) {
+    if (weaponId == WEAPON_ID_OMNI_SHIELD) {
       damageFlags |= 0x40000000; // short slowdown
-      amount *= 2; // damage buff
       amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
-    } else if (weaponId == WEAPON_ID_ARBITER) {
-      amount *= 2; // damage buff
     }
 
     // crit
     if (pDamager->IsLocal) {
       float critProbability = 0;
+      RaidsInventoryItem_t* badge = bankGetEquippedBadgeFromGadgetBox(pDamager->GadgetBox);
       RaidsInventoryItem_t* item = bankGetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
       if (item) critProbability = item->CritChance / 255.0;
+      if (badge && badge->BadgeType == RAIDS_BADGE_TYPE_SHARPSHOOTER) critProbability += BADGE_SHARPSHOOTER_CRIT_AMOUNT * (1 + bankGetRarityFromQuality(badge->Quality));
 
       float r = randRange(0, 1);
       if (r < critProbability) {
@@ -378,17 +315,6 @@ int mobyComputeComplexity(Moby * moby)
     if (pvars->MobVars.SpawnParamsIdx >= 0 && pvars->MobVars.SpawnParamsIdx < mapConfig->MobSpawnParamsCount) {
       return mapConfig->MobSpawnParams[pvars->MobVars.SpawnParamsIdx].RenderCost;
     }
-  }
-
-  // baked by oclass
-  switch (moby->OClass)
-  {
-    case ZOMBIE_MOBY_OCLASS: return ZOMBIE_RENDER_COST;
-    case TREMOR_MOBY_OCLASS: return TREMOR_RENDER_COST;
-    case SWARMER_MOBY_OCLASS: return SWARMER_RENDER_COST;
-    case REACTOR_MOBY_OCLASS: return REACTOR_RENDER_COST;
-    case REAPER_MOBY_OCLASS: return REAPER_RENDER_COST;
-    case EXECUTIONER_MOBY_OCLASS: return EXECUTIONER_RENDER_COST;
   }
 
   if (!moby || !moby->PClass)
@@ -1120,8 +1046,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
   if (pvars->VTable && pvars->VTable->OnDestroy)
     pvars->VTable->OnDestroy(moby, killedByPlayerId, weaponId);
 	
-	int bolts = pvars->MobVars.Config.Bolts;
-	int xp = pvars->MobVars.Config.Xp;
+	int bolts = pvars->MobVars.Config.Bolts * difficultyBoltMult[State.DifficultyStars];
+	int xp = pvars->MobVars.Config.Xp * difficultyXpMult[State.DifficultyStars];
 
 	if (killedByPlayerId >= 0) {
         
@@ -1150,8 +1076,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     // spawn ammo chance
     // originally wanted to do this only if the killer was the local player
     // but to encourage cooperative play, it makes sense for it to randomly drop regardless
-    if (killedByPlayer && randRange(0, 1) < State.AmmoDropChance) {
-      mobSpawnAmmoDrop(moby);
+    if (killedByPlayer && mapConfig && mapConfig->CreateAmmoDropAtFunc && randRange(0, 1) < State.AmmoDropChance) {
+      mapConfig->CreateAmmoDropAtFunc(moby);
     }
 
     // spawn loot chance
@@ -1625,12 +1551,10 @@ void mobInitialize(void)
 {
   memset(MobComplexityValueByOClass, 0, sizeof(MobComplexityValueByOClass));
 	memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
-  memset(mobAmmoDropMobyList, 0, sizeof(mobAmmoDropMobyList));
   mobFirstInList = NULL;
   mobLastInList = NULL;
   mobInMobMove = 0;
   AllMobsSortedFreeSpots = MAX_MOBS_ALIVE;
-  mobAmmoDropMobyListRollingIndex = 0;
 }
 
 //--------------------------------------------------------------------------

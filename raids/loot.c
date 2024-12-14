@@ -5,6 +5,7 @@
 #include <libdl/stdlib.h>
 #include <libdl/color.h>
 #include <libdl/moby.h>
+#include <libdl/radar.h>
 #include <libdl/sound.h>
 #include <libdl/random.h>
 #include <libdl/utils.h>
@@ -32,9 +33,35 @@ u32 lootRarityColors[RAIDS_ITEM_RARITY_COUNT] = {
 
 void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
 
+//--------------------------------------------------------------------------
+void lootSetStatePickedUp(Moby* moby)
+{
+  mobySetState(moby, 2, -1);
+  ((void (*)(Moby*))0x0043b330)(moby);
+  ((void (*)(Moby*))0x0043c088)(moby);
+}
+
+//--------------------------------------------------------------------------
 void lootUpdate(Moby* moby)
 {
   char buf[64];
+
+  // draw on radar
+  int blipIdx = radarGetBlipIndex(moby);
+  if (blipIdx >= 0) {
+    RadarBlip* blip = radarGetBlips() + blipIdx;
+    blip->X = moby->Position[0];
+    blip->Y = moby->Position[1];
+    blip->Life = 0x1F;
+    blip->Type = 14;
+    blip->Team = TEAM_BLUE;
+  }
+
+  // auto despawn
+  int timeCreated = *(int*)(moby->PVar + 0x58);
+  if (moby->State != 2 && (gameGetTime() - timeCreated) > (TIME_MINUTE)) {
+    lootSetStatePickedUp(moby);
+  }
 
   // check if ready to destroy / auto give
   if (moby->State == 2 && moby->StateTimer > 5) {
@@ -45,16 +72,19 @@ void lootUpdate(Moby* moby)
     if (gadgetId) {
       char rarityCode[] = { '\x08', '\x0A', '\x09', '\x0B', '\x0E' };
       char itemName[64];
-      RaidsInventoryItem_t item = { .GadgetId = gadgetId, .Quality = quality, .Proficiency = proficiency };
+      RaidsInventoryItem_t item = { .GadgetId = gadgetId, .Quality = quality };
+      item.Proficiency = proficiency;
       bankGetItemName(&item, itemName, sizeof(itemName));
       snprintf(buf, sizeof(buf), "Got %c%s", rarityCode[rarity], itemName);
       pushSnack(buf, 60, 0);
     }
 
+    // destroy gadget
     Moby* gadgetMoby = *(Moby**)(moby->PVar + 0x04);
     if (gadgetMoby && !mobyIsDestroyed(gadgetMoby))
       mobyDestroy(gadgetMoby);
 
+    // destroy self
     mobyDestroy(moby);
     return;
   }
@@ -95,6 +125,7 @@ Moby* lootSpawn(VECTOR position, int gadgetId, int quality, int proficiency)
   *(char*)(moby->PVar + 0x54) = rarity;
   *(char*)(moby->PVar + 0x55) = quality;
   *(char*)(moby->PVar + 0x56) = proficiency;
+  *(char*)(moby->PVar + 0x57) = 0;
   *(int*)(moby->PVar + 0x58) = gameGetTime();
   *(int*)(moby->PVar + 0x60) = colorLerp(0x80000000, lootRarityColors[rarity], 0.8);
   *(int*)(moby->PVar + 0x64) = colorLerp(0x80000000, lootRarityColors[rarity], 0.7);

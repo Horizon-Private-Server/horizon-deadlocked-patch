@@ -34,6 +34,7 @@ void hopCancel(void)
 
   State.PendingWorldHopAtTime = 0;
   State.PendingWorldHopMapDef = NULL;
+  State.PendingWorldHopDifficultyStars = 0;
   hopCost = 0;
 }
 
@@ -55,7 +56,7 @@ int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime)
       if (strncmp(def->Filename, mapFilename, sizeof(def->Filename)) == 0) {
         State.PendingWorldHopMapDef = def;
         State.PendingWorldHopAtTime = loadAtTime;
-        State.DifficultyStars = difficulty;
+        State.PendingWorldHopDifficultyStars = difficulty;
             
         // charge host
         if (gameAmIHost()) {
@@ -167,6 +168,7 @@ void hopDo(void)
   State.MissionComplete = 0;
   State.MissionCompleteTime = 0;
   State.ClientsReady = 0;
+  State.DifficultyStars = State.PendingWorldHopDifficultyStars;
   Initialized = 0;
 
   // hop
@@ -174,6 +176,7 @@ void hopDo(void)
   State.CurrentMapDef = def;
   State.PendingWorldHopMapDef = NULL;
   State.PendingWorldHopAtTime = 0;
+  State.PendingWorldHopDifficultyStars = 0;
   PATCH_INTEROP->HopToCustomMap(def);
 }
 

@@ -55,13 +55,10 @@ char bankLevelUpBuf[64];
 char* bankBadgeNames[] = {
   [RAIDS_BADGE_TYPE_HEALTH_REGEN] "Health Regen %s",
   [RAIDS_BADGE_TYPE_AMMO_REGEN] "Ammo Regen %s",
-  [RAIDS_BADGE_TYPE_EXTRA_JUMP] "Extra Jump %s",
   [RAIDS_BADGE_TYPE_SHARPSHOOTER] "Sharpshooter %s",
   [RAIDS_BADGE_TYPE_BERSERKER] "Berserker %s",
-  [RAIDS_BADGE_TYPE_DAMAGE_COOLDOWN] "Flinch Resistance %s",
+  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Flinch Resistance %s",
   [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "Explosive Wrench %s",
-  [RAIDS_BADGE_TYPE_INFINITE_CHARGEBOOT] "Infinite Chargeboot",
-  [RAIDS_BADGE_TYPE_HOVERBOOTS] "Hoverboots",
   [RAIDS_BADGE_TYPE_EXTRALIFE] "Extra Life",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
@@ -252,7 +249,7 @@ int bankItemIsWeapon(RaidsInventoryItem_t* item)
 //--------------------------------------------------------------------------
 int bankItemIsBadge(RaidsInventoryItem_t* item)
 {
-  return item && item->GadgetId == BANK_BADGE_GADGET_ID && item->Proficiency > RAIDS_BADGE_TYPE_NONE && item->Proficiency < RAIDS_BADGE_TYPE_COUNT;
+  return item && item->GadgetId == BANK_BADGE_GADGET_ID && item->BadgeType > RAIDS_BADGE_TYPE_NONE && item->BadgeType < RAIDS_BADGE_TYPE_COUNT;
 }
 
 //--------------------------------------------------------------------------
@@ -338,7 +335,7 @@ void bankGetItemName(RaidsInventoryItem_t* item, char* buf, int bufSize)
 
   int rarity = bankGetRarityFromQuality(item->Quality);
   if (bankItemIsBadge(item)) {
-    snprintf(buf, bufSize, bankBadgeNames[item->Proficiency], bankBadgeLevelNames[rarity]);
+    snprintf(buf, bufSize, bankBadgeNames[item->BadgeType], bankBadgeLevelNames[rarity]);
   } else {
     struct GadgetDef* gadgetDef = weaponGetDef(item->GadgetId, 0);
     snprintf(buf, bufSize, "%s P%d", uiMsgString(rarity >= RAIDS_ITEM_RARITY_LEGENDARY ? gadgetDef->upgQSTag : gadgetDef->quickSelectTag), item->Proficiency + 1);
@@ -360,6 +357,16 @@ RaidsPlayerEquippedInventory_t* bankGetEquippedFromGadgetBox(GadgetBox* gbox)
   if (gbox->Initialized <= 0) return NULL;
 
   return &State.PlayerStates[(int)gbox->Initialized - 1].Inventory;
+}
+
+//--------------------------------------------------------------------------
+RaidsInventoryItem_t* bankGetEquippedBadgeFromGadgetBox(GadgetBox* gbox)
+{
+  RaidsPlayerEquippedInventory_t* inventory = bankGetEquippedFromGadgetBox(gbox);
+  if (!inventory) return NULL;
+  if (!bankItemIsBadge(&inventory->Badge)) return NULL;
+
+  return &inventory->Badge;
 }
 
 //--------------------------------------------------------------------------
@@ -685,6 +692,13 @@ void bankUpdateLocalState(Player * player)
     }
   }
 
+  RaidsInventoryItem_t* equippedBadge = bankGetLocalEquippedBadge();
+  if (!equippedBadge) {
+    memset(&State.PlayerStates[playerId].Inventory.Badge, 0, sizeof(RaidsInventoryItem_t));
+  } else {
+    memcpy(&State.PlayerStates[playerId].Inventory.Badge, equippedBadge, sizeof(RaidsInventoryItem_t));
+  }
+
   if (player->LocalPlayerIndex == 0) {
     bankBroadcastEquippedInventory();
     bankBroadcastAccount();
@@ -846,6 +860,7 @@ void bankInit(void)
     if (players[i] && players[i]->GadgetBox) {
       playerStripWeapons(players[i]);
       playerGiveWeapon(players[i]->GadgetBox, 17, 0, 0); // give cboots
+      playerGiveWeapon(players[i]->GadgetBox, WEAPON_ID_HACKER_RAY, 0, 0); // give hacker ray
       players[i]->GadgetBox->Initialized = i+1;
     }
   }
