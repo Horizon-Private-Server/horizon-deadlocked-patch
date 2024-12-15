@@ -101,9 +101,9 @@
 
 #define PLAYER_SKILLPOINT_DAMAGE_FACTOR       (0.08)
 #define PLAYER_SKILLPOINT_SPEED_FACTOR        (0.03)
-#define PLAYER_SKILLPOINT_HEALTH_FACTOR       (5)
+#define PLAYER_SKILLPOINT_HEALTH_FACTOR       (15)
 
-#define SNACK_ITEM_MAX_COUNT                  (16)
+#define SNACK_ITEM_MAX_COUNT                  (8)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
 
 #define MAX_MOB_SPAWN_PARAMS                  (10)

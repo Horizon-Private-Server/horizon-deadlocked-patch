@@ -341,7 +341,7 @@ void inventoryDrawAccountInfo(InventoryDrawState_t* drawState)
 }
 
 //--------------------------------------------------------------------------
-void inventoryDrawInventoryInfo(InventoryDrawState_t* drawState)
+void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
 {
   u32 bgColor = 0x70101010; // dark gray
   u32 textColor = 0x80FFFFFF; // white
@@ -390,14 +390,6 @@ void inventoryDrawInventoryInfo(InventoryDrawState_t* drawState)
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedItem->Damage - baseItem->Damage), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
-  // snprintf(strBuf, sizeof(strBuf), "Speed: %.2f", baseItem->Speed);
-  // gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-  // if (hasComparison) {
-  //   float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-  //   snprintf(strBuf, sizeof(strBuf), "> %.2f", selectedItem->Speed);
-  //   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor((selectedItem->Speed - baseItem->Speed)*100), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-  // }
-  // offY += 12;
   snprintf(strBuf, sizeof(strBuf), "Critical Hit: %.f%%", (baseItem->CritChance / 255.0) * 100);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
@@ -590,7 +582,7 @@ void inventoryDrawInventory(InventoryDrawState_t* drawState)
     }
   }
 
-  inventoryDrawInventoryInfo(drawState);
+  inventoryDrawItemInfo(drawState);
 }
 
 //--------------------------------------------------------------------------
@@ -607,7 +599,7 @@ enum InventoryItemAction inventoryDrawFooter(InventoryDrawState_t* drawState)
   RaidsPlayerBank_t* localBank = bankGetLocalBank();
   RaidsInventoryItem_t* selectedItem = bankGetLocalItemFromBank(inventoryFilterMapping[inventoryDrawState.SelectedIdx]);
   if (selectedItem) {
-    sellPrice = getPriceForItem(selectedItem);
+    sellPrice = selectedItem->Price;
     if (bankItemIsWeapon(selectedItem)) {
       int accountProf = getProficiencyFromXp(localBank->Account.WeaponXp[bankGetEquipSlotFromGadgetId(selectedItem->GadgetId)]);
       RaidsInventoryItem_t* equippedWeapon = bankGetLocalEquippedWeapon(selectedItem->GadgetId);
@@ -706,7 +698,7 @@ void inventoryDraw(void)
     char sellStrBuf[64];
     char sellPriceBuf[64];
     char itemNameBuf[64];
-    u32 sellPrice = getPriceForItem(selectedItem);
+    u32 sellPrice = selectedItem->Price;
     bankGetItemName(selectedItem, itemNameBuf, sizeof(itemNameBuf));
     snprintf(sellStrBuf, sizeof(sellStrBuf), "Sell %s?", itemNameBuf);
     snprintf(sellPriceBuf, sizeof(sellPriceBuf), "\x0A%'d", sellPrice);

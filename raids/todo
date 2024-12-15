@@ -67,7 +67,9 @@ Add store (hub only)
 ++Add account level max (99)
 Add account level prestige (get mythic badge)
 Add weapon proficiency prestige (get mythic weapon)
-Add ability to create POI (star blips) in forge
+++Add ability to create POI (star blips) in forge
 Re-adjust mob speed/damage/behaviors
 Add raids mode and map version check (prevent loading map unless version matches)
 ++Add hacker orb (SP)
+Add damageable proxy moby
+Add pickup (hold) moby to controller targets (sets player held moby)

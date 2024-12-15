@@ -53,13 +53,13 @@ long bankLastAccountRequestTime = 0;
 char bankLevelUpBuf[64];
 
 char* bankBadgeNames[] = {
-  [RAIDS_BADGE_TYPE_HEALTH_REGEN] "Health Regen %s",
-  [RAIDS_BADGE_TYPE_AMMO_REGEN] "Ammo Regen %s",
-  [RAIDS_BADGE_TYPE_SHARPSHOOTER] "Sharpshooter %s",
-  [RAIDS_BADGE_TYPE_BERSERKER] "Berserker %s",
-  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Flinch Resistance %s",
-  [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "Explosive Wrench %s",
-  [RAIDS_BADGE_TYPE_EXTRALIFE] "Second Chance",
+  [RAIDS_BADGE_TYPE_HEALTH_REGEN] "%cHealth Regen %s\x08",
+  [RAIDS_BADGE_TYPE_AMMO_REGEN] "%cAmmo Regen %s\x08",
+  [RAIDS_BADGE_TYPE_SHARPSHOOTER] "%cSharpshooter %s\x08",
+  [RAIDS_BADGE_TYPE_BERSERKER] "%cBerserker %s\x08",
+  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "%cFlinch Resistance %s\x08",
+  [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "%cExplosive Wrench %s\x08",
+  [RAIDS_BADGE_TYPE_EXTRALIFE] "%cSecond Chance\x08",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
 
@@ -69,6 +69,14 @@ char* bankBadgeLevelNames[] = {
   [RAIDS_ITEM_RARITY_RARE] "III",
   [RAIDS_ITEM_RARITY_LEGENDARY] "IV",
   [RAIDS_ITEM_RARITY_MYTHIC] "V",
+};
+
+char bankRarityCode[] = {
+  [RAIDS_ITEM_RARITY_COMMON] '\x08',
+  [RAIDS_ITEM_RARITY_UNCOMMON] '\x0A',
+  [RAIDS_ITEM_RARITY_RARE] '\x09',
+  [RAIDS_ITEM_RARITY_LEGENDARY] '\x0B',
+  [RAIDS_ITEM_RARITY_MYTHIC] '\x0E'
 };
 
 //--------------------------------------------------------------------------
@@ -335,10 +343,10 @@ void bankGetItemName(RaidsInventoryItem_t* item, char* buf, int bufSize)
 
   int rarity = bankGetRarityFromQuality(item->Quality);
   if (bankItemIsBadge(item)) {
-    snprintf(buf, bufSize, bankBadgeNames[item->BadgeType], bankBadgeLevelNames[rarity]);
+    snprintf(buf, bufSize, bankBadgeNames[item->BadgeType], bankRarityCode[rarity], bankBadgeLevelNames[rarity]);
   } else {
     struct GadgetDef* gadgetDef = weaponGetDef(item->GadgetId, 0);
-    snprintf(buf, bufSize, "%s P%d", uiMsgString(rarity >= RAIDS_ITEM_RARITY_LEGENDARY ? gadgetDef->upgQSTag : gadgetDef->quickSelectTag), item->Proficiency + 1);
+    snprintf(buf, bufSize, "%c%s P%d\x08", bankRarityCode[rarity], uiMsgString(rarity >= RAIDS_ITEM_RARITY_LEGENDARY ? gadgetDef->upgQSTag : gadgetDef->quickSelectTag), item->Proficiency + 1);
   }
 }
 
@@ -471,15 +479,6 @@ int bankGetAlphaModCount(GadgetBox* gadgetBox, int gadgetId, int alphaModId)
   if (!bankWeapon) return 0;
 
   return bankWeapon->AlphaModCounts[alphaModId-1];
-}
-
-//--------------------------------------------------------------------------
-float bankGetArbiterSpeed(Player* player)
-{
-  RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_ARBITER);
-  if (!bankWeapon) return 0;
-
-  return bankWeapon->Speed;
 }
 
 //--------------------------------------------------------------------------
@@ -724,7 +723,7 @@ void bankSellLocalItemAtIndex(int itemIdx)
     if (isEquipped) localBank->Inventory.EquippedWeaponIdxs[equipSlot] = -1;
   }
 
-  localBank->Account.Bolts += getPriceForItem(item);
+  localBank->Account.Bolts += item->Price;
   memset(item, 0, sizeof(RaidsInventoryItem_t));
   localBank->Inventory.RefreshLocalInventory = 1;
 }

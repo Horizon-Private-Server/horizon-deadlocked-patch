@@ -57,8 +57,6 @@ int snackItemsCount = 0;
 
 PatchConfig_t* playerConfig = NULL;
 
-u8 mobPlaySoundCooldownTicks[MAX_MOB_SPAWN_PARAMS][MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS] = {};
-
 int playerStates[GAME_MAX_PLAYERS] = {};
 int playerStateTimers[GAME_MAX_PLAYERS] = {};
 float Difficulties[RAIDS_DIFFICULTY_COUNT] = {
@@ -209,72 +207,6 @@ int shouldDrawHud(void)
 }
 
 //--------------------------------------------------------------------------
-void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
-{
-  // pass to base if we don't have a player start
-  playerGetSpawnpoint(player, outPos, outRot, firstRes);
-}
-
-//--------------------------------------------------------------------------
-// TODO: Move this into the code segment, overwriting GuiMain_GetGadgetVersionName at (0x00541850)
-char * customGetGadgetVersionName(int localPlayerIndex, int weaponId, int showWeaponLevel, int capitalize, int minLevel)
-{
-	Player* p = playerGetFromSlot(localPlayerIndex);
-	char* buf = (char*)(0x2F9D78 + localPlayerIndex*0x40);
-  struct GadgetDef* gadgetDef = weaponGetDef(weaponId, 0);
-	int level = 0;
-  int msgId = capitalize ? gadgetDef->uppercaseTag : gadgetDef->quickSelectTag;
-	if (p && p->GadgetBox) {
-		level = p->GadgetBox->Gadgets[weaponId].Level;
-	}
-
-	if (level >= 9)
-    msgId = capitalize ? gadgetDef->upgUCTag : gadgetDef->upgQSTag;
-
-	char* str = uiMsgString(msgId);
-	if (0 && level >= minLevel) {
-		snprintf(buf, 0x40, "%s V%d", str, level+1);
-		return buf;
-	} else {
-		snprintf(buf, 0x40, "%s", str);
-		return buf;
-	}
-}
-
-//--------------------------------------------------------------------------
-void customMineMobyUpdate(Moby* moby)
-{
-	// handle auto destructing v10 child mines after N seconds
-	// and auto destroy v10 child mines if they came from a remote client
-	u32 pvar = (u32)moby->PVar;
-	if (pvar) {
-		int mLayer = *(int*)(pvar + 0x200);
-		Player * p = playerGetAll()[*(short*)(pvar + 0xC0)];
-		int createdLocally = p && p->IsLocal;
-		int gameTime = gameGetTime();
-		int timeCreated = *(int*)(&moby->Rotation[3]);
-
-		// set initial time created
-		if (timeCreated == 0) {
-			timeCreated = gameTime;
-			*(int*)(&moby->Rotation[3]) = timeCreated;
-		}
-
-		// don't spawn child mines if mine was created by remote client
-		if (!createdLocally) {
-			*(int*)(pvar + 0x200) = 2;
-		} else if (p && mLayer > 0 && (gameTime - timeCreated) > (5 * TIME_SECOND)) {
-			*(int*)(&moby->Rotation[3]) = gameTime;
-			((void (*)(Moby*, Player*, int))0x003C90C0)(moby, p, 0);
-			return;
-		}
-	}
-	
-	// call base
-	((void (*)(Moby*))0x003C6C28)(moby);
-}
-
-//--------------------------------------------------------------------------
 void respawnDeadPlayers(void) {
 	int i;
 	Player** players = playerGetAll();
@@ -290,48 +222,6 @@ void respawnDeadPlayers(void) {
 		State.PlayerStates[i].IsDead = 0;
     //memset(State.PlayerStates[i].State.WeaponPrestige, 0, sizeof(State.PlayerStates[i].State.WeaponPrestige));
 	}
-}
-
-//--------------------------------------------------------------------------
-void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
-{
-  if (in->Damager) {
-    VECTOR dt;
-    vector_subtract(dt, target->Position, in->Damager->Position);
-    float dist = vector_length(dt);
-    float min = 0.2;
-    Player* damager = guberMobyGetPlayerDamager(in->Damager);
-    if (damager) min += 0.05 * playerGetWeaponAlphaModCount(damager->GadgetBox, WEAPON_ID_MAGMA_CANNON, ALPHA_MOD_AREA);
-
-    float falloff = minf(1, maxf(min, minf(1, 1 - (dist / 32))));
-    in->DamageHp *= falloff;
-  }
-
-  mobyCollDamageDirect(target, in);
-}
-
-//--------------------------------------------------------------------------
-void playerOnPushedIntoWall(Player* player)
-{
-  if (!player || !player->SkinMoby || !player->PlayerMoby) return;
-  
-  // push mobs away
-  //mobReactToExplosionAt(player->PlayerId, player->PlayerPosition, 1, 8);
-
-  // move player out of clipped wall
-  // using lastGoodPos doesn't always return us to before the clip
-  if (player->IsLocal) {
-    playerSetPosRot(player, player->Ground.lastGoodPos, player->PlayerRotation);
-  }
-}
-
-//--------------------------------------------------------------------------
-void onV10VipersHitSurface(Moby* moby)
-{
-  ((void (*)(Moby*))0x003C05D8)(moby);
-
-  // explosion
-  ((void (*)(float damage, float radius, VECTOR p, u32 damageFlags, Moby* moby, Moby* hitMoby))0x003c3a48)(1, 0.5, moby->Position, 0x801, moby, NULL);
 }
 
 //--------------------------------------------------------------------------
@@ -467,37 +357,6 @@ void forcePlayerHUD(void)
 }
 
 //--------------------------------------------------------------------------
-int whoKilledMeHook(Player* player, Moby* moby, int b)
-{
-  if (!moby)
-    return 0;
-
-  // only allow mobs or special mobys
-  if (mobyIsMob(moby) || moby->Bolts == -1) {
-    return ((int (*)(Player*, Moby*, int))0x005dff08)(player, moby, b);
-  }
-
-	return 0;
-}
-
-//--------------------------------------------------------------------------
-int onMobyPlayDesiredSound(int sound, int a1, Moby* moby)
-{
-  // catch mobs
-  if (mobyIsMob(moby)) {
-    int midx = ((struct MobPVar*)moby->PVar)->MobVars.SpawnParamsIdx;
-    if (midx >= 0) {
-      int sidx = sound % MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS;
-      if (mobPlaySoundCooldownTicks[midx][sidx]) return -1;
-      mobPlaySoundCooldownTicks[midx][sidx] = MOBS_PLAY_SOUND_COOLDOWN;
-    }
-  }
-
-  // pass to mobyPlaySound
-  return mobyPlaySound(sound, a1, moby);
-}
-
-//--------------------------------------------------------------------------
 void initialize(PatchStateContainer_t* gameState)
 {
 	static int startDelay = TPS * 0.2;
@@ -521,100 +380,9 @@ void initialize(PatchStateContainer_t* gameState)
     //mapConfig->Magic = MAP_CONFIG_MAGIC;
   }
 
-	// Disable normal game ending
-	*(u32*)0x006219B8 = 0;	// survivor (8)
-	*(u32*)0x00620F54 = 0;	// time end (1)
-	*(u32*)0x00621568 = 0;	// kills reached (2)
-	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
-  *(u32*)0x006210D8 = 0;	// all enemies leave (9)
-
-  // spawn area mod explosion on each ricochet of the v10 vipers
-  //HOOK_JAL(0x003C283C, &onV10VipersHitSurface);
-
-  // disable holoshields from disappearing
-  //*(u16*)0x00401478 = 2;
-
-  // disable ammo drop despawn
-  //POKE_U32(0x004FE814, 0);
-
-  // disable jump pad effect
-  POKE_U32(0x0042608C, 0);
-
-  // disable team based holoshield toggling
-  // enables players to shoot through eachothers shields
-  POKE_U32(0x005A3830, 0x2402FFFF);
-  POKE_U32(0x005A3834, 0x14500018);
-
-  // force holoshield hit testing
-  *(u32*)0x00401194 = 0;
-  *(u32*)0x003FFDE8 = 0x1000000D;
-  POKE_U32(0x003FFD98, 0x120000DD); // fix holo crash when owner leaves
-
-	// Disables end game draw dialog
-	*(u32*)0x0061fe84 = 0;
-
-	// sets start of colored weapon icons to v10
-	*(u32*)0x005420E0 = 0x2A020009;
-	*(u32*)0x005420E4 = 0x10400005;
-
-	// Removes MP check on HudAmmo weapon icon color (so v99 is pinkish)
-	*(u32*)0x00542114 = 0;
-
-	// Enable sniper to shoot through multiple enemies
-	*(u32*)0x003FC2A8 = 0;
-
-	// Disable sniper shot corn
-	//*(u32*)0x003FC410 = 0;
-	*(u32*)0x003FC5A8 = 0;
-
-	// Fix v10 arb overlapping shots
-	*(u32*)0x003F2E70 = 0x24020000;
-
-  // fix bolt crank moby (1A27) resetting itself on capture
-  POKE_U32(0x003D74C0, 0);
-
-  // hook when MobyPlayDesiredSound plays a sound for a moby
-  // lets us reduce the # of mob sounds
-  HOOK_JAL(0x004f790c, &onMobyPlayDesiredSound);
-  HOOK_J(0x004fa800, &onMobyPlayDesiredSound);
-
   // disable timebase query percentile filter
   // always accept remote time
   POKE_U32(0x01eabd60, 0);
-
-  // fix emp
-  //POKE_U32(0x0042075C, 0x2C42010B);
-  //POKE_U32(0x00420610, 0x24050001);
-  //HOOK_JAL(0x00420634, &onEmpHitMoby);
-  //HOOK_JAL(0x004209bc, &onEmpExplode);
-  //HOOK_JAL(0x0041fb8c, &onEmpFired);
-
-  // hook when v10 mag shot hits
-  HOOK_JAL(0x0044B374, &onV10MagDamageMoby);
-
-	// Change mine update function to ours
-  u32 mineUpdateFunc = 0x003c6c28;
-  u32* updateFuncs = (u32*)0x00249980;
-  for (i = 0; i < 113; ++i) {
-    if (*updateFuncs == mineUpdateFunc) { *updateFuncs = (u32)&customMineMobyUpdate; }
-    updateFuncs++;
-  }
-
-	// Change bangelize weapons call to ours
-	//*(u32*)0x005DD890 = 0x0C000000 | ((u32)&customBangelizeWeapons >> 2);
-
-	// Enable weapon version and v10 name variant in places that display weapon name
-	*(u32*)0x00541850 = 0x08000000 | ((u32)&customGetGadgetVersionName >> 2);
-	*(u32*)0x00541854 = 0;
-
-	// patch who killed me to prevent damaging others
-	*(u32*)0x005E07C8 = 0x0C000000 | ((u32)&whoKilledMeHook >> 2);
-	*(u32*)0x005E11B0 = *(u32*)0x005E07C8;
-
-  // patch mobs pushing you into walls and killing you
-  POKE_U32(0x005e4188, 0);
-  POKE_U32(0x005e419c, 0);
-  HOOK_JAL(0x005e41bc, &playerOnPushedIntoWall);
 
   // disable guber event delay until createTime+relDispatchTime reached
   // when players desync, their net time falls behind everyone else's
@@ -623,14 +391,6 @@ void initialize(PatchStateContainer_t* gameState)
   // since raids can cause a lot of frame lag, especially for players on emu/dzo
   // this fix is required to ensure that important mob guber events trigger on everyone's screen
   POKE_U32(0x00611518, 0x24040000);
-
-	// set default ammo for flail to 8
-	//*(u8*)0x0039A3B4 = 8;
-
-	// disable targeting players
-	*(u32*)0x005F8A80 = 0x10A20002;
-	*(u32*)0x005F8A84 = 0x0000102D;
-	*(u32*)0x005F8A88 = 0x24440001;
 
   // hook net messages
 	netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
@@ -650,10 +410,6 @@ void initialize(PatchStateContainer_t* gameState)
 
 	// set game over string
 	//strncpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
-
-	// disable v2s and packs
-	cheatsApplyNoV2s();
-	cheatsApplyNoPacks();
 
 	// change hud
 	forcePlayerHUD();
@@ -922,17 +678,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   if (refreshInventoryFlag)
     localBank->Inventory.RefreshLocalInventory = 0;
 
-  // tick down mob sound cooldown
-  int j;
-  for (i = 0; i < MAX_MOB_SPAWN_PARAMS; ++i) {
-    for (j = 0; j < MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS; ++j) {
-      if (mobPlaySoundCooldownTicks[i][j] > 0) {
-        --mobPlaySoundCooldownTicks[i][j];
-      }
-    }
-  }
-
-
   // draw hud stuff
   if (shouldDrawHud()) {
 
@@ -1004,7 +749,8 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grNoHealthBoxes = 1;
     gameConfig->grNoInvTimer = 0;
     gameConfig->grNoPickups = 0;
-    gameConfig->grV2s = 0;
+    gameConfig->grNoPacks = 1;
+    gameConfig->grV2s = 2;
     gameConfig->grVampire = 0;
     gameConfig->grHealthBars = 1;
     gameConfig->prChargebootForever = 0;
@@ -1117,10 +863,6 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 	setLobbyGameOptions(gameState->GameConfig);
   
-	// point get resurrect point to ours
-	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
-	*(u32*)0x005e2d44 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
-
   // reset bolts
   POKE_U32(0x00171b40, 0);
 }

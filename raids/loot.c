@@ -66,16 +66,15 @@ void lootUpdate(Moby* moby)
   // check if ready to destroy / auto give
   if (moby->State == 2 && moby->StateTimer > 5) {
     int gadgetId = *(int*)(moby->PVar + 0x50);
-    int rarity = *(char*)(moby->PVar + 0x54);
+    //int rarity = *(char*)(moby->PVar + 0x54);
     int quality = *(char*)(moby->PVar + 0x55);
     int proficiency = *(char*)(moby->PVar + 0x56);
     if (gadgetId) {
-      char rarityCode[] = { '\x08', '\x0A', '\x09', '\x0B', '\x0E' };
       char itemName[64];
       RaidsInventoryItem_t item = { .GadgetId = gadgetId, .Quality = quality };
       item.Proficiency = proficiency;
       bankGetItemName(&item, itemName, sizeof(itemName));
-      snprintf(buf, sizeof(buf), "Got %c%s", rarityCode[rarity], itemName);
+      snprintf(buf, sizeof(buf), "Got %s", itemName);
       pushSnack(buf, 60, 0);
     }
 
@@ -156,15 +155,32 @@ void lootRequestFromMob(Moby* mob, int gadgetId)
 
   struct MobPVar* pvars = (struct MobPVar*)mob->PVar;
   vector_copy(msg.Position, mob->Position);
-  msg.Type = 0;
+  msg.Type = LOOT_DROP_TYPE_MOB_DEATH;
   msg.KilledWithGadgetId = gadgetId;
+  msg.DifficultyStars = State.DifficultyStars;
   msg.MobDamage = pvars->MobVars.Config.Damage;
   msg.MobSpeed = pvars->MobVars.Config.Speed;
   msg.MobHealth = pvars->MobVars.Config.Health;
-  msg.MobDifficulty = State.Difficulty;
   msg.MobMobyOClass = mob->OClass;
 
   DPRINTF("sent loot gen request (MOB)\n");
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST, sizeof(msg), &msg);
+}
+
+//--------------------------------------------------------------------------
+void lootRequestFromPrestige(int gadgetId)
+{
+  struct RaidsGenerateLootDropRequest msg;
+  void* connection = netGetLobbyServerConnection();
+  if (!connection) return;
+
+  memset(&msg, 0, sizeof(msg));
+  vector_copy(msg.Position, playerGetFromSlot(0)->PlayerPosition);
+  msg.Type = LOOT_DROP_TYPE_PRESTIGE;
+  msg.KilledWithGadgetId = gadgetId;
+  msg.DifficultyStars = State.DifficultyStars;
+
+  DPRINTF("sent loot gen request (PRESTIGE)\n");
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST, sizeof(msg), &msg);
 }
 
@@ -176,7 +192,7 @@ void lootRequestFromMissionComplete(VECTOR position)
   if (!connection) return;
 
   vector_copy(msg.Position, position);
-  msg.Type = 1;
+  msg.Type = LOOT_DROP_TYPE_MISSION_COMPLETE;
   msg.KilledWithGadgetId = 0;
 
   DPRINTF("sent loot gen request (COMPLETE)\n");
