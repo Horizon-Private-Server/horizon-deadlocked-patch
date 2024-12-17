@@ -593,8 +593,10 @@ enum InventoryItemAction inventoryDrawFooter(InventoryDrawState_t* drawState)
   int canEquip = 0;
   int selectedTooStrong = 0;
   int canSell = 0;
+  int alreadyEquipped = 0;
   int isLoading = !bankGetHasInventory();
   u32 sellPrice = 0;
+  Player* localPlayer = playerGetFromSlot(0);
 
   RaidsPlayerBank_t* localBank = bankGetLocalBank();
   RaidsInventoryItem_t* selectedItem = bankGetLocalItemFromBank(inventoryFilterMapping[inventoryDrawState.SelectedIdx]);
@@ -604,11 +606,16 @@ enum InventoryItemAction inventoryDrawFooter(InventoryDrawState_t* drawState)
       int accountProf = getProficiencyFromXp(localBank->Account.WeaponXp[bankGetEquipSlotFromGadgetId(selectedItem->GadgetId)]);
       RaidsInventoryItem_t* equippedWeapon = bankGetLocalEquippedWeapon(selectedItem->GadgetId);
       selectedTooStrong = selectedItem->GadgetId && selectedItem->Proficiency > accountProf;
-      canEquip = !selectedTooStrong && selectedItem->GadgetId && equippedWeapon != selectedItem; // already equipped
+#if DEBUG
+      selectedTooStrong = 0;
+#endif
+      alreadyEquipped = equippedWeapon == selectedItem;
+      canEquip = !selectedTooStrong && selectedItem->GadgetId && !alreadyEquipped; // already equipped
       canSell = selectedItem->GadgetId && equippedWeapon != selectedItem && selectedItem->Notify != RAIDS_ITEM_NOTIFY_FAV; // can't sell equipped
     } else {
       RaidsInventoryItem_t* equippedBadge = bankGetLocalEquippedBadge();
-      canEquip = equippedBadge != selectedItem; // already equipped
+      alreadyEquipped = equippedBadge == selectedItem;
+      canEquip = !alreadyEquipped; // already equipped
       canSell = equippedBadge != selectedItem && selectedItem->Notify != RAIDS_ITEM_NOTIFY_FAV; // can't sell equipped
     }
   }
@@ -627,8 +634,9 @@ enum InventoryItemAction inventoryDrawFooter(InventoryDrawState_t* drawState)
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, -INVENTORY_DRAW_FULL_W/2 + 5, INVENTORY_DRAW_FULL_H/2 - 5, 0.8, textColor, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
 
   // input
-  if (canEquip && padGetButtonDown(0, PAD_CROSS) > 0) {                 // EQUIP
-    return INVENTORY_ITEM_ACTION_SELECT;
+  if (padGetButtonDown(0, PAD_CROSS) > 0) {                             // EQUIP
+    if (canEquip || alreadyEquipped) return INVENTORY_ITEM_ACTION_SELECT;
+    else playEquipRejectSound(localPlayer);
   } else if (canSell && padGetButtonDown(0, PAD_SQUARE) > 0) {          // SELL
     return INVENTORY_ITEM_ACTION_SELL;
   } else if (selectedItem && padGetButtonDown(0, PAD_CIRCLE) > 0) {     // FAVORITE
@@ -743,6 +751,7 @@ void inventoryDraw(void)
       inventorySetFilter(inventoryDrawState.FilterIdx);
     } else if (itemAction == INVENTORY_ITEM_ACTION_SELECT) {          // EQUIP
       bankEquipLocalItemAtIndex(inventoryFilterMapping[selIdx]);
+      playEquipSound(localPlayer);
     } else if (itemAction == INVENTORY_ITEM_ACTION_SELL) {          // SELL
       inventoryDrawState.ShowSellDialog = 1;
     } else if (itemAction == INVENTORY_ITEM_ACTION_FAV) {   // FAVORITE

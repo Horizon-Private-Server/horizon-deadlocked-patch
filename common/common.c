@@ -6,7 +6,7 @@
 #include "config.h"
 #include "messageid.h"
 
-#define OFFSET_TO_DZO_X(x) (x * (1080.0 / SCREEN_WIDTH));
+#define OFFSET_TO_DZO_X(x) (x * (1080.0 / SCREEN_HEIGHT));
 #define OFFSET_TO_DZO_Y(y) (y * (1080.0 / SCREEN_HEIGHT));
 
 //------------------------------------------------------------------------------

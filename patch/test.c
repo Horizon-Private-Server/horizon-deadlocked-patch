@@ -10,6 +10,7 @@
 #include <libdl/string.h>
 #include <libdl/stdlib.h>
 #include <libdl/weapon.h>
+#include <libdl/random.h>
 #include <libdl/pad.h>
 #include <libdl/collision.h>
 #include <libdl/color.h>
@@ -1377,6 +1378,31 @@ void runSceneSwitcher(void)
   }
 }
 
+float runRngMarteCarloSim(float probability, int count)
+{
+  //printf("%.1f%% RNG %d... ", probability * 100, count);
+
+  int yes = 0;
+  int no = 0;
+  int i = 0;
+  while (i < count) {
+
+    float r = randRange(0, 1);
+    if (r < probability) {
+      ++yes;
+    } else {
+      ++no;
+    }
+
+    ++i;
+  }
+
+  float percentYes = yes / (float)count;
+  float percentNo = 1 - percentYes;
+  //printf("%.1f%%\n", percentYes * 100);
+  return percentYes;
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -1387,6 +1413,18 @@ void runTestLogic(void)
 
   //drawPositionYaw();
   //gameConfig.grBetterFlags = 1;
+
+  // static float maxdt = 0;
+  // float target = 0.5;
+  // float result = runRngMarteCarloSim(target, 1000);
+  // float dt = fabsf(target - result);
+  // if (dt > 0.01) {
+  //   if (dt > maxdt) {
+  //     maxdt = dt;
+  //     DPRINTF("%f%%\n", maxdt * 100);
+  //   }
+  // }
+
 
   //runSystemTime();
   if (isInGame()) {
@@ -1423,9 +1461,9 @@ void runTestLogic(void)
     //runSendMonitor();
     //runSceneSwitcher();
 
-    if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
-      mapHopTo(&customMapDefs[0]);
-    }
+    // if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+    //   mapHopTo(&customMapDefs[0]);
+    // }
 
     // if (padGetButtonDown(0, PAD_DOWN) > 0) {
     //   Player* p = playerGetFromSlot(0);

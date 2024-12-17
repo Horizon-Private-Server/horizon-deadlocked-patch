@@ -243,7 +243,7 @@ void bankSendAccountToServer(void)
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
   if (!bankHasAccount) return;
-  
+
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_ACCOUNT_REQUEST, sizeof(localBank->Account), &localBank->Account);
   DPRINTF("sent account\n");
 }
@@ -285,7 +285,7 @@ u64 bankAddXP(u64 amount)
     bankLocalBank.Account.SkillPoints += 1;
 
     snprintf(bankLevelUpBuf, sizeof(bankLevelUpBuf), "You have reached level %d", nextLevel + 1);
-    uiShowPopup(0, bankLevelUpBuf);
+    pushSnack(bankLevelUpBuf, 120, 0);
     bankSendAccountToServer(); // send to server
   }
 
@@ -307,7 +307,7 @@ u64 bankAddWeaponXP(u64 amount, int gadgetId)
   if (nextLevel > level) {
     struct GadgetDef* gadgetDef = weaponGetDef(gadgetId, 0);
     snprintf(bankLevelUpBuf, sizeof(bankLevelUpBuf), "You have reached %s P%d", uiMsgString(gadgetDef->quickSelectTag), nextLevel + 1);
-    uiShowPopup(0, bankLevelUpBuf);
+    pushSnack(bankLevelUpBuf, 120, 0);
     bankSendAccountToServer(); // send to server
   }
 
@@ -331,7 +331,7 @@ enum RaidsItemRarity bankGetRarityFromQuality(u8 quality)
 {
   if (quality < 64) return RAIDS_ITEM_RARITY_COMMON;
   if (quality < 128) return RAIDS_ITEM_RARITY_UNCOMMON;
-  if (quality < 196) return RAIDS_ITEM_RARITY_RARE;
+  if (quality < 192) return RAIDS_ITEM_RARITY_RARE;
   if (quality < 255) return RAIDS_ITEM_RARITY_LEGENDARY;
   return RAIDS_ITEM_RARITY_MYTHIC;
 }
@@ -392,10 +392,10 @@ RaidsInventoryItem_t* bankGetEquippedWeaponFromGadgetBox(GadgetBox* gbox, int ga
 }
 
 //--------------------------------------------------------------------------
-float bankGetWeaponProficiencyFromGadgetBox(GadgetBox* gbox, int gadgetId)
+float bankGetWeaponXpProgressFromGadgetBox(GadgetBox* gbox, int gadgetId)
 {
   RaidsPlayerBank_t* localBank = bankGetLocalBank();
-  
+
   int slot = bankGetEquipSlotFromGadgetId(gadgetId);
   if (slot < 0) return 0;
 
@@ -463,7 +463,10 @@ RaidsInventoryItem_t* bankGetLocalEquippedBadge(void)
 u32 bankGetGadgetColor(int localPlayerIndex, int gadgetId)
 {
   RaidsInventoryItem_t* bankWeapon = bankGetLocalEquippedWeapon(gadgetId);
-  if (bankWeapon) return bankRarityColors[bankGetRarityFromQuality(bankWeapon->Quality)];
+  if (bankWeapon) {
+    int rarity = bankGetRarityFromQuality(bankWeapon->Quality);
+    return bankRarityColors[rarity];
+  }
 
   return 0x80D0D0D0;
 }
@@ -650,6 +653,7 @@ void bankRemoveGadget(Player* player, int gadgetId)
 void bankApplyItem(Player* player, RaidsInventoryItem_t* item)
 {
   int gadgetId = item->GadgetId;
+  int rarity = bankGetRarityFromQuality(item->Quality);
   GadgetBox* gbox = player->GadgetBox;
 
   // give
@@ -658,6 +662,8 @@ void bankApplyItem(Player* player, RaidsInventoryItem_t* item)
     bankTryAddGadgetToQuickSelect(player, gadgetId);
   }
   gbox->Gadgets[gadgetId].Level = bankGetRarityFromQuality(item->Quality) >= RAIDS_ITEM_RARITY_LEGENDARY ? 9 : 0;
+  gbox->Gadgets[gadgetId].UNK_10 = (gbox->Gadgets[gadgetId].UNK_10 & 0xFF) | (rarity << 8) | (item->Proficiency << 16);
+  gbox->Gadgets[gadgetId].Experience = (int)(bankGetWeaponXpProgressFromGadgetBox(gbox, gadgetId) * 100000);
 
   // configure mobys
   if (player->Gadgets[0].id == gadgetId) {
@@ -842,7 +848,7 @@ void bankInit(void)
 
   // hook HudAmmo XP bar
   POKE_U32(0x00552CD8, 0x10000013);
-  HOOK_JAL(0x00552D28, &bankGetWeaponProficiencyFromGadgetBox);
+  HOOK_JAL(0x00552D28, &bankGetWeaponXpProgressFromGadgetBox);
 
   //HOOK_J_OP(0x00626d98, &bankGetGadgetMaxLevel, 0);
   //HOOK_J_OP(0x00626fb8, &bankGetGadgetMaxAmmo, 0);

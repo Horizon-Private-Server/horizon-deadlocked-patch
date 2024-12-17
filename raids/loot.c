@@ -39,12 +39,34 @@ void lootSetStatePickedUp(Moby* moby)
   mobySetState(moby, 2, -1);
   ((void (*)(Moby*))0x0043b330)(moby);
   ((void (*)(Moby*))0x0043c088)(moby);
+
+  // play pickup sound
+  Player* player = playerGetFromSlot(0);
+  if (player && player->PlayerMoby)
+    mobyPlaySoundByClass(1, 0, player->PlayerMoby, MOBY_ID_WEAPON_PICKUP);
 }
 
 //--------------------------------------------------------------------------
 void lootUpdate(Moby* moby)
 {
   char buf[64];
+
+  // fall
+  char* hit = (char*)(moby->PVar + 0x57);
+  if (!*hit) {
+    VECTOR vel = {0,0,-1*MATH_DT,0};
+    VECTOR nextPos;
+    vector_add(nextPos, vel, moby->Position);
+    if (CollLine_Fix(moby->Position, nextPos, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
+      vector_copy(nextPos, CollLine_Fix_GetHitPosition());
+      *hit = 1;
+    }
+
+    vector_subtract(vel, nextPos, moby->Position);
+    vector_copy(moby->Position, nextPos);
+
+
+  }
 
   // draw on radar
   int blipIdx = radarGetBlipIndex(moby);
@@ -57,9 +79,11 @@ void lootUpdate(Moby* moby)
     blip->Team = TEAM_BLUE;
   }
 
-  // auto despawn
+  // auto despawn after a period of time
+  // or if the user opens their inventory
+  // as in that case they will already see the item
   int timeCreated = *(int*)(moby->PVar + 0x58);
-  if (moby->State != 2 && (gameGetTime() - timeCreated) > (TIME_MINUTE)) {
+  if (moby->State != 2 && ((gameGetTime() - timeCreated) > TIME_MINUTE || State.MenuOpen == RAIDS_CUSTOM_MENU_INVENTORY)) {
     lootSetStatePickedUp(moby);
   }
 
@@ -194,6 +218,7 @@ void lootRequestFromMissionComplete(VECTOR position)
   vector_copy(msg.Position, position);
   msg.Type = LOOT_DROP_TYPE_MISSION_COMPLETE;
   msg.KilledWithGadgetId = 0;
+  msg.DifficultyStars = State.DifficultyStars;
 
   DPRINTF("sent loot gen request (COMPLETE)\n");
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST, sizeof(msg), &msg);
@@ -202,7 +227,22 @@ void lootRequestFromMissionComplete(VECTOR position)
 //--------------------------------------------------------------------------
 void lootTick(void)
 {
-  
+#if DEBUG
+  if (padGetButtonDown(0, PAD_DOWN | PAD_L1) > 0) {
+    struct RaidsGenerateLootDropRequest msg;
+    void* connection = netGetLobbyServerConnection();
+    if (!connection) return;
+
+    VECTOR offset={0,5,0,0};
+    vector_add(msg.Position, playerGetFromSlot(0)->PlayerPosition, offset);
+    msg.Type = LOOT_DROP_TYPE_MOB_DEATH;
+    msg.KilledWithGadgetId = weaponSlotToId(1 + rand(8));
+    msg.DifficultyStars = State.DifficultyStars;
+
+    DPRINTF("sent loot gen request (MOB)\n");
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST, sizeof(msg), &msg);
+  }
+#endif
 }
 
 //--------------------------------------------------------------------------

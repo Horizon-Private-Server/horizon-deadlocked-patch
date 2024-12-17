@@ -164,8 +164,8 @@ void hopDo(void)
   }
 
   // reset init
-  if (State.MissionComplete || State.OnHubWorld) State.MissionStartTime = 0;
-  State.MissionComplete = 0;
+  State.MissionStartTime = 0;
+  State.MissionStatus = RAIDS_MISSION_ACTIVE;
   State.MissionCompleteTime = 0;
   State.ClientsReady = 0;
   State.DifficultyStars = State.PendingWorldHopDifficultyStars;
@@ -191,9 +191,21 @@ void hopTick(void)
     return;
   }
 
+  float x = SCREEN_WIDTH * 0.5;
+  float y = SCREEN_HEIGHT * 0.2;
+  float offY = 0;
+
+  if (strncmp(State.PendingWorldHopMapDef->Filename, RAIDS_HUB_MAPFILENAME, sizeof(State.PendingWorldHopMapDef->Filename)) != 0) {
+    drawStars(x, y, 0, offY, 16, 4, 0x80008080, TEXT_ALIGN_MIDDLECENTER, State.PendingWorldHopDifficultyStars + 1);
+    offY += 20;
+  }
+  
+  gfxHelperDrawText(x, y, 0, offY, 0.9, 0x80FFFFFF, State.PendingWorldHopMapDef->Name, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  offY += 16;
+
   char strBuf[64];
-  snprintf(strBuf, sizeof(strBuf), "%d... %s", delaySeconds, State.PendingWorldHopMapDef->Name);
-  gfxHelperDrawText(SCREEN_WIDTH - 15, 100, 0, 0, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_TOPRIGHT, COMMON_DZO_DRAW_NORMAL);
+  snprintf(strBuf, sizeof(strBuf), "%d", delaySeconds);
+  gfxHelperDrawText(x, y, 0, offY, 0.8, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 }
 
 //--------------------------------------------------------------------------

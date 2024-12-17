@@ -31,6 +31,7 @@
 #include <libdl/utils.h>
 #include <libdl/collision.h>
 #include <libdl/radar.h>
+#include <libdl/music.h>
 #include "module.h"
 #include "messageid.h"
 #include "config.h"
@@ -40,7 +41,6 @@
 #include "include/bank.h"
 #include "include/loot.h"
 #include "include/inventory.h"
-#include "include/levelselect.h"
 #include "include/mob.h"
 #include "include/bubble.h"
 #include "include/utils.h"
@@ -60,12 +60,29 @@ PatchConfig_t* playerConfig = NULL;
 int playerStates[GAME_MAX_PLAYERS] = {};
 int playerStateTimers[GAME_MAX_PLAYERS] = {};
 float Difficulties[RAIDS_DIFFICULTY_COUNT] = {
-  [RAIDS_DIFFICULTY_1STAR] 1.0,
+  [RAIDS_DIFFICULTY_1STAR] 0.5,
   [RAIDS_DIFFICULTY_2STAR] 30.0,
   [RAIDS_DIFFICULTY_3STAR] 150.0,
   [RAIDS_DIFFICULTY_4STAR] 400.0,
   [RAIDS_DIFFICULTY_5STAR] 1000.0,
 };
+
+//--------------------------------------------------------------------------
+void respawnDeadPlayers(void) {
+	int i;
+	Player** players = playerGetAll();
+
+	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+		Player * p = players[i];
+		if (p && playerIsDead(p)) {
+      if (p->IsLocal) {
+			  playerRespawn(p);
+      }
+		}
+		
+		State.PlayerStates[i].IsDead = 0;
+	}
+}
 
 //--------------------------------------------------------------------------
 void setPlayerEXP(int localPlayerIndex, float expPercent)
@@ -162,19 +179,149 @@ void drawSnack(void)
 }
 
 //--------------------------------------------------------------------------
+u64 missionCompleteGetBoltReward(void)
+{
+  Player* player = playerGetFromSlot(0);
+  u64 bolts = State.PlayerStates[player->PlayerId].State.Bolts >> 2;
+  bolts -= bolts % 1000;
+  if (bolts < 10000) bolts = 10000;
+  if (bolts > 100000) bolts = 100000;
+  return bolts;
+}
+
+//--------------------------------------------------------------------------
+u64 missionCompleteGetXpReward(void)
+{
+  Player* player = playerGetFromSlot(0);
+
+  // xp is based on amount of xp earned during gameplay
+  // clamp between 5000 and 100000
+  u64 xp = State.PlayerStates[player->PlayerId].State.Experience >> 2;
+  xp -= xp % 100;
+  if (xp < 1000) xp = 1000;
+  if (xp > 10000) xp = 10000;
+  return xp;
+}
+
+//--------------------------------------------------------------------------
 void drawMissionCompleteMessage(void)
 {
-  float x = SCREEN_WIDTH * 0.5, y = SCREEN_HEIGHT * 0.3;
+  if (hasPendingWorldHop()) return;
+  if (State.MenuOpen) return;
+
+  float x = SCREEN_WIDTH * 0.5, y = SCREEN_HEIGHT * 0.16;
   char strBuf[64];
 
+  drawStars(x, y, 0, 0, 24, 6, 0x80008080, TEXT_ALIGN_MIDDLECENTER, State.DifficultyStars + 1);
   snprintf(strBuf, sizeof(strBuf), "%s", State.CurrentMapDef->Name);
-  gfxHelperDrawText(x, y, 0, 0, 1.5, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(x, y, 0, 30, 1.5, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
   int time = State.MissionCompleteTime - State.MissionStartTime;
   snprintf(strBuf, sizeof(strBuf), "Completed in %02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
-  gfxHelperDrawText(x, y, 0, 30, 1.0, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(x, y, 0, 50, 0.9, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
-  uiShowHelpPopup(0, "Use Up to open the Planet Select menu.", 100);
+  snprintf(strBuf, sizeof(strBuf), "\x0A+%'ld\x08 Bolts        \x0A+%'ld\x08 XP", missionCompleteGetBoltReward(), missionCompleteGetXpReward());
+  gfxHelperDrawText(x, y, 0, 65, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+
+  snprintf(strBuf, sizeof(strBuf), "Press [UP] to open the Planet Select menu");
+  gfxHelperDrawText(x, SCREEN_HEIGHT - 20, 0, 0, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMCENTER, COMMON_DZO_DRAW_NORMAL);
+}
+
+//--------------------------------------------------------------------------
+int collisionIdIsWalkable(int collisionId)
+{
+  collisionId &= 0x0f;
+  return collisionId == 0x03 || collisionId == 0x07 || collisionId == 0x09 || collisionId == 0x0A || collisionId == 0x0E || collisionId == 0x0F;
+}
+
+//--------------------------------------------------------------------------
+void onMissionCompleteRequestRewards(int cuboidIdx)
+{
+  int lootCount = 2;
+  Player* player = playerGetFromSlot(0);
+  VECTOR pos;
+  VECTOR up = {0,0,5,0};
+
+  // all players should be alive
+  respawnDeadPlayers();
+
+  // # of loot drops is based on duration of run
+  // the longer the run the more drops
+  // to equalize time invested in a run, vs the payout at the end
+  // 0-9 min = 1 drop
+  // 9-27 min = 2 drops
+  // 27+ min = 3 drops
+  // with some randomness
+  float minutes = (State.MissionCompleteTime - State.MissionStartTime) / TIME_MINUTE;
+  lootCount = (int)clamp(logf(minutes + randRange(0, 5)) / logf(3), 1, 3) + rand(3);
+
+  SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
+
+  // spawn N loot drops near local player 0
+  int i;
+  for (i = 0; i < lootCount; ++i) {
+
+    // try get random nearby pos above solid ground
+    int r = 0;
+    for (r = 0; r < 5; ++r) {
+
+      if (cuboidIdx < 0) {
+        vector_fromyaw(pos, randRadian());
+        vector_scale(pos, pos, randRange(5, 15));
+        vector_add(pos, pos, up);
+        vector_add(pos, pos, player->PlayerPosition);
+      } else {
+        pos[0] = randRange(-1, 1);
+        pos[1] = randRange(-1, 1);
+        pos[2] = 1;
+        vector_apply(pos, pos, cuboid->M0);
+      }
+
+      VECTOR to = {0,0,-50,0};
+      vector_add(to, to, pos);
+      if (CollLine_Fix(pos, to, COLLISION_FLAG_IGNORE_DYNAMIC, NULL, NULL)) {
+        if (collisionIdIsWalkable(CollLine_Fix_GetHitCollisionId())) {
+          // found spot above ground
+          vector_copy(pos, CollLine_Fix_GetHitPosition());
+          break;
+        }
+      }
+    }
+
+    lootRequestFromMissionComplete(pos);
+  }
+
+  // 
+  bankAddBolts(missionCompleteGetBoltReward());
+  bankAddXP(missionCompleteGetXpReward());
+}
+
+//--------------------------------------------------------------------------
+int onMissionFailedRemote(void * connection, void * data)
+{
+  State.MissionStatus = RAIDS_MISSION_FAILED;
+  musicPlayTrack(MUSIC_TRACK_LOSS, 0);
+  DPRINTF("recv mission failed\n");
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+void missionCheckForMissionFailed(void)
+{
+  if (!missionIsActive()) return;
+
+  int failed = !State.OnHubWorld && State.ClientsReady && State.TicksWithNoLivingPlayers > 30 && State.ActivePlayerCount && !hasPendingWorldHop();
+  if (!failed) return;
+
+  // broadcast
+  void* connection = netGetDmeServerConnection();
+  if (connection) {
+    netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_SET_MISSION_FAILED, 0, NULL);
+  }
+
+  State.MissionStatus = RAIDS_MISSION_FAILED;
+  musicPlayTrack(MUSIC_TRACK_LOSS, 0);
+  DPRINTF("send mission failed\n");
 }
 
 //--------------------------------------------------------------------------
@@ -204,24 +351,6 @@ int shouldDrawHud(void)
 {
   PlayerHUDFlags* hudFlags = hudGetPlayerFlags(0);
   return hudFlags && hudFlags->Flags.Raw != 0;
-}
-
-//--------------------------------------------------------------------------
-void respawnDeadPlayers(void) {
-	int i;
-	Player** players = playerGetAll();
-
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player * p = players[i];
-		if (p && playerIsDead(p)) {
-      if (p->IsLocal) {
-			  playerRespawn(p);
-      }
-		}
-		
-		State.PlayerStates[i].IsDead = 0;
-    //memset(State.PlayerStates[i].State.WeaponPrestige, 0, sizeof(State.PlayerStates[i].State.WeaponPrestige));
-	}
 }
 
 //--------------------------------------------------------------------------
@@ -366,6 +495,13 @@ void initialize(PatchStateContainer_t* gameState)
 	Player** players = playerGetAll();
 	int i;
 
+	// Disable normal game ending
+	*(u32*)0x006219B8 = 0;	// survivor (8)
+	*(u32*)0x00620F54 = 0;	// time end (1)
+	*(u32*)0x00621568 = 0;	// kills reached (2)
+	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
+  *(u32*)0x006210D8 = 0;	// all enemies leave (9)
+
   if (firstTime) {
     firstTime = 0;
     
@@ -394,6 +530,7 @@ void initialize(PatchStateContainer_t* gameState)
 
   // hook net messages
 	netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_SET_MISSION_FAILED, &onMissionFailedRemote);
 
   // write map config
   mapConfig->State = &State;
@@ -407,6 +544,8 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->OnGetGuberFunc = &getGuber;
   mapConfig->OnGuberEventFunc = &handleEvent;
   mapConfig->TryCreateMobFunc = &mobCreate;
+  mapConfig->RequestPrestigeLootFunc = &lootRequestFromPrestige;
+  mapConfig->RequestMissionCompleteLootFunc = &onMissionCompleteRequestRewards;
 
 	// set game over string
 	//strncpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
@@ -426,7 +565,6 @@ void initialize(PatchStateContainer_t* gameState)
   inventoryInit();
   lootInit();
   hopInit();
-  levelselectInit();
 
   memset(playerStates, 0, sizeof(playerStates));
   memset(playerStateTimers, 0, sizeof(playerStateTimers));
@@ -491,6 +629,9 @@ void initialize(PatchStateContainer_t* gameState)
 	}
 
 	// initialize state
+  State.DesiredMusicTrack = -1;
+  State.DesiredMusicTrackForce = 0;
+  State.DesiredMusicTrackSkipTransition = 0;
   State.AmmoDropChance = GAME_DEFAULT_AMMO_DROP_CHANCE;
   State.AmmoRefillCostMultiplier = 1;
 	State.MobStats.MobsDrawnCurrent = 0;
@@ -582,22 +723,82 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 #if DEBUG_SOUNDS
   {
     static int aaa = 0;
-    const int mobyClass = MOBY_ID_HEALTH_BOX_MULT;
-    Player* localPlayer = playerGetFromSlot(0);
+    int play = 0;
 		if (padGetButtonDown(0, PAD_RIGHT) > 0) {
 			aaa += 1;
-			printf("%d\n", aaa);
-      mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
+      play = 1;
 		} else if (padGetButtonDown(0, PAD_LEFT) > 0) {
 			aaa -= 1;
-			printf("%d\n", aaa);
-      mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
+      play = 1;
 		} else if (padGetButtonDown(0, PAD_UP) > 0) {
-			printf("%d\n", aaa);
-      mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
+      play = 1;
 		}
+
+    if (play) {
+      //def.Index = aaa;
+      //soundPlay(&def, 0, playerGetFromSlot(0)->PlayerMoby, NULL, 0x400);
+      //mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_WEAPON_PICKUP);
+      musicPlayTrack(aaa*2, 1);
+			printf("%d 0x%x\n", aaa*2, aaa*2);
+    }
   }
 #endif
+
+  // play music
+  if (isInGame() && musicIsLoaded()) {
+
+    static int lastDesiredTrack = -1;
+    int currentTrack = musicGetCurrentTrack();
+
+    // if failed or completed, don't update tracks anymore
+    if (State.MissionStatus != RAIDS_MISSION_ACTIVE) {
+      State.DesiredMusicTrack = -1;
+      currentTrack = -1;
+    }
+
+    // prevent a blacklisted track from playing
+    // unless it was explicitly requested
+    if (mapConfig && mapConfig->TrackWhitelistEnabled && currentTrack >= 0) {
+      if (lastDesiredTrack != currentTrack) {
+        int trackIsWhitelisted = 0;
+        for (i = 0; i < mapConfig->TrackWhitelistCount; ++i) {
+          if (mapConfig->TrackWhitelist[i] == currentTrack) {
+            trackIsWhitelisted = 1;
+            break;
+          }
+        }
+
+        if (!trackIsWhitelisted) {
+          if (mapConfig->TrackWhitelistCount <= 0) {
+            musicStopTrack();
+            DPRINTF("bad track %d, pausing\n", currentTrack);
+          } else {
+            int randomTrackId = mapConfig->TrackWhitelist[rand(mapConfig->TrackWhitelistCount)];
+            DPRINTF("bad track %d, playing %d\n", currentTrack, randomTrackId);
+            musicPlayTrack(randomTrackId, 1);
+          }
+        }
+      }
+    }
+    
+    if (State.DesiredMusicTrack >= 0 && (currentTrack != State.DesiredMusicTrack || State.DesiredMusicTrackForce)) {
+      
+      DPRINTF("music play track %d=>%d (immediate:%d)\n", currentTrack, State.DesiredMusicTrack, State.DesiredMusicTrackSkipTransition);
+      if (State.DesiredMusicTrackSkipTransition) {
+        musicPlayTrack(State.DesiredMusicTrack, 1);
+      } else {
+        musicTransitionTrack(0, State.DesiredMusicTrack, 0x400, 0x400);
+        POKE_U16(0x00206990, State.DesiredMusicTrack);
+      }
+
+      lastDesiredTrack = State.DesiredMusicTrack;
+      if (!State.DesiredMusicLoop) {
+        State.DesiredMusicTrack = -1;
+        State.DesiredMusicTrackSkipTransition = 0;
+      }
+      State.DesiredMusicTrackForce = 0;
+    }
+  }
 
   // get bank on first load
   // send bank when game ends
@@ -625,10 +826,15 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   {
     forcePlayerHUD();
     drawSnack();
+    missionCheckForMissionFailed();
 
-    // draw mission complete message
-    if (State.MissionComplete && !gameIsAnyStartMenuOpen()) { // && (gameGetTime() - State.MissionCompleteTime) < (10*TIME_SECOND)) {
-      drawMissionCompleteMessage();
+    // draw hud
+    if (!gameIsAnyStartMenuOpen()) {
+      if (missionIsComplete()) {
+        drawMissionCompleteMessage();
+      } else if (!isOnHubWorld() && missionIsActive()) {
+        drawStars(SCREEN_WIDTH - 15, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
+      }
     }
 
     // 
@@ -672,7 +878,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   inventoryTick();
   lootTick();
   hopTick();
-  levelselectFrameTick();
 
   // reset inventory refresh flag
   if (refreshInventoryFlag)
@@ -725,13 +930,6 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
-
-	// no vehicles
-	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 0;
 
 	// enable all weapons
 	gameOptions->WeaponFlags.Chargeboots = 1;

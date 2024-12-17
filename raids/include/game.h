@@ -78,7 +78,7 @@
 #define MOB_POSTFX_MINIBOMB_DMG_PERC          (0.15)
 
 #define JACKPOT_BOLTS													(50)
-#define XP_ALPHAMOD_XP												(10)
+#define XP_ALPHAMOD_XP												(5)
 #define NANOLEECH_HEALTH											(5)
 #define NANOLEECH_CHANCE											(0.01)
 
@@ -114,8 +114,8 @@
 #define MOB_COMPLEXITY_LOD_FACTOR             (500)
 #define MOB_MAX_FLINCH_PROBABILITY            (0.25)
 
-#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.1)
-#define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.005)
+#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.2)
+#define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.01)
 
 #define BADGE_SHARPSHOOTER_CRIT_AMOUNT        (0.05)
 
@@ -126,6 +126,7 @@ enum GameNetMessage
   CUSTOM_MSG_WORLD_HOP_MISSING_MAP,
   CUSTOM_MSG_SET_PLAYER_EQUIPPED_INVENTORY,
   CUSTOM_MSG_SET_PLAYER_ACCOUNT,
+  CUSTOM_MSG_SET_MISSION_FAILED,
 };
 
 enum RaidsCustomMenus
@@ -134,6 +135,7 @@ enum RaidsCustomMenus
   RAIDS_CUSTOM_MENU_INVENTORY,
   RAIDS_CUSTOM_MENU_LEVELSELECT,
   RAIDS_CUSTOM_MENU_STORE,
+  RAIDS_CUSTOM_MENU_SKILLS,
 };
 
 enum RaidsDifficultys
@@ -144,6 +146,13 @@ enum RaidsDifficultys
   RAIDS_DIFFICULTY_4STAR,
   RAIDS_DIFFICULTY_5STAR,
   RAIDS_DIFFICULTY_COUNT
+};
+
+enum RaidsMissionStatus
+{
+  RAIDS_MISSION_ACTIVE = 0,
+  RAIDS_MISSION_FAILED = 1,
+  RAIDS_MISSION_COMPLETED = 2,
 };
 
 struct MobConfig;
@@ -160,6 +169,8 @@ typedef void (*RegisterNpc_func)(Moby* moby);
 typedef int (*OnGuberEvent_func)(Moby* moby, GuberEvent* event);
 typedef struct Guber* (*OnGetGuber_func)(Moby* moby);
 typedef int (*TryCreateMob_func)(struct MobCreateArgs* args);
+typedef void (*RequestPrestigeLoot_func)(int gadgetId);
+typedef void (*RequestMissionCompleteLoot_func)(int cuboidIdx);
 
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
 typedef int (*MapOnMobCreate_func)(struct MobCreateArgs* args);
@@ -171,6 +182,7 @@ typedef void (*FrameTick_func)(void);
 struct RaidsPlayerState
 {
   u64 Experience;
+  u64 Bolts;
 	int Kills;
 	int Deaths;
   u16 Skills[RAIDS_SKILLS_COUNT];
@@ -218,7 +230,7 @@ struct RaidsState
   int OnHubWorld;
 	struct RaidsPlayer* LocalPlayerState;
 	int GameOver;
-  int MissionComplete;
+  int MissionStatus;
   int MissionStartTime;
   int MissionCompleteTime;
 	int WinningTeam;
@@ -230,11 +242,15 @@ struct RaidsState
   float AmmoDropChance;
   float AmmoRefillCostMultiplier;
   int DifficultyStars;
+  int DesiredMusicTrack;
   int PendingWorldHopAtTime;
   int PendingWorldHopDifficultyStars;
   CustomMapDef_t* PendingWorldHopMapDef;
   CustomMapDef_t* CurrentMapDef;
 	char NumTeams;
+  char DesiredMusicTrackSkipTransition;
+  char DesiredMusicTrackForce;
+  char DesiredMusicLoop;
 };
 
 struct RaidsMapConfig
@@ -244,6 +260,9 @@ struct RaidsMapConfig
   struct RaidsState* State;
   struct MobSpawnParams* MobSpawnParams;
   int MobSpawnParamsCount;
+  int* TrackWhitelist;
+  int TrackWhitelistCount;
+  int TrackWhitelistEnabled;
 
   // mode
   PushSnack_func PushSnackFunc;
@@ -256,6 +275,8 @@ struct RaidsMapConfig
   OnGuberEvent_func OnGuberEventFunc;
   OnGetGuber_func OnGetGuberFunc;
   TryCreateMob_func TryCreateMobFunc;
+  RequestPrestigeLoot_func RequestPrestigeLootFunc;
+  RequestMissionCompleteLoot_func RequestMissionCompleteLootFunc;
 
   // map
   MapOnMobCreate_func OnMobCreateFunc;

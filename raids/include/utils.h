@@ -27,6 +27,8 @@
 struct RaidsInventoryItem;
 
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
+void playEquipRejectSound(Player* player);
+void playEquipSound(Player* player);
 void playUpgradeSound(Player* player);
 void playPaidSound(Player* player);
 int getWeaponIdFromOClass(short oclass);
@@ -55,8 +57,14 @@ Moby* playerGetTargetMoby(Player* player);
 int localPlayerHasInput(void);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
+void drawStars(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count);
 
 int hasPendingWorldHop(void);
 int isOnHubWorld(void);
+int missionIsFailed(void);
+int missionIsComplete(void);
+int missionIsActive(void);
+
+void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
 
 #endif // RAIDS_UTILS_H

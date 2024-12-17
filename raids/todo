@@ -63,13 +63,25 @@ consider making ammo amods more likely w/ rarity?
 ++Quick select is desynced
 
 ++Add map code for badge effects
-Add store (hub only)
+++Add store (hub only)
 ++Add account level max (99)
-Add account level prestige (get mythic badge)
-Add weapon proficiency prestige (get mythic weapon)
+++Add account level prestige (get mythic badge)
+++Add weapon proficiency prestige (get mythic weapon)
 ++Add ability to create POI (star blips) in forge
 Re-adjust mob speed/damage/behaviors
 Add raids mode and map version check (prevent loading map unless version matches)
 ++Add hacker orb (SP)
 Add damageable proxy moby
 Add pickup (hold) moby to controller targets (sets player held moby)
+++Fix mobs not despawning when on bad ground
+Fix ammo drops only spawning for host
+++Have loot drops spawn regardless of who kills the mob
+Fix leviathan laser invis
+++Add sound when pickup loot drop
+Add sound when level up
+Add controller condition moby state changed, increased, decreased, changed to
+Add levelselect "tags" (Stealth, Puzzle, Wave Survival, Boss, Platformer)
+Store level stats and show on levelselect (time player, # of completes & fails, drops earned, xp earned, bolts earned, times played)
+++Add mission complete rewards
+Add draw text window to dzo
+Add hacker orb stand (2401) to dzo

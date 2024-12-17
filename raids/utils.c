@@ -1,6 +1,7 @@
 #include "include/utils.h"
 #include "include/mob.h"
 #include "include/game.h"
+#include "common.h"
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
@@ -14,9 +15,9 @@ extern struct RaidsState State;
 extern struct RaidsMapConfig* mapConfig;
 
 /* 
- * upgrade sound def
+ * reusable menu sound def
  */
-SoundDef UpgradeSoundDef =
+SoundDef MenuSoundDef =
 {
 	0.0,	// MinRange
 	20.0,	// MaxRange
@@ -26,24 +27,7 @@ SoundDef UpgradeSoundDef =
 	0,			// MaxPitch
 	0,			// Loop
 	0x10,		// Flags
-	0x3A,		// Index (0x2C, )
-	3			  // Bank
-};
-
-/* 
- * paid sound def
- */
-SoundDef PaidSoundDef =
-{
-	0.0,	// MinRange
-	20.0,	// MaxRange
-	100,		// MinVolume
-	2000,		// MaxVolume
-	0,			// MinPitch
-	0,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	32,		  // Index
+	19,		  // Index
 	3			  // Bank
 };
 
@@ -62,14 +46,34 @@ Moby * spawnExplosion(VECTOR position, float size, u32 color)
 	return moby;
 }
 
+void playLevelUpSound(Player* player)
+{	
+  MenuSoundDef.Index = 44;
+	soundPlay(&MenuSoundDef, 0, player->PlayerMoby, 0, 0x400);
+}
+
+void playEquipRejectSound(Player* player)
+{	
+  MenuSoundDef.Index = 27;
+	soundPlay(&MenuSoundDef, 0, player->PlayerMoby, 0, 0x400);
+}
+
+void playEquipSound(Player* player)
+{	
+  MenuSoundDef.Index = 19;
+	soundPlay(&MenuSoundDef, 0, player->PlayerMoby, 0, 0x400);
+}
+
 void playUpgradeSound(Player* player)
 {	
-	soundPlay(&UpgradeSoundDef, 0, player->PlayerMoby, 0, 0x400);
+  MenuSoundDef.Index = 58;
+	soundPlay(&MenuSoundDef, 0, player->PlayerMoby, 0, 0x400);
 }
 
 void playPaidSound(Player* player)
 {
-  soundPlay(&PaidSoundDef, 0, player->PlayerMoby, 0, 0x400);
+  MenuSoundDef.Index = 32;
+  soundPlay(&MenuSoundDef, 0, player->PlayerMoby, 0, 0x400);
 }
 
 int getWeaponIdFromOClass(short oclass)
@@ -177,14 +181,14 @@ long getAmmoRefillCost(Player* player)
   if (!player || !player->GadgetBox) return -1;
     
   float ammoRefillCostPerShot[WEAPON_SLOT_COUNT] = {
-    [WEAPON_SLOT_VIPERS] 5,
-    [WEAPON_SLOT_MAGMA_CANNON] 20,
-    [WEAPON_SLOT_ARBITER] 100,
-    [WEAPON_SLOT_FUSION_RIFLE] 100,
-    [WEAPON_SLOT_MINE_LAUNCHER] 100,
-    [WEAPON_SLOT_B6] 100,
-    [WEAPON_SLOT_OMNI_SHIELD] 100,
-    [WEAPON_SLOT_FLAIL] 50,
+    [WEAPON_SLOT_VIPERS] 50,
+    [WEAPON_SLOT_MAGMA_CANNON] 200,
+    [WEAPON_SLOT_ARBITER] 1000,
+    [WEAPON_SLOT_FUSION_RIFLE] 1000,
+    [WEAPON_SLOT_MINE_LAUNCHER] 1000,
+    [WEAPON_SLOT_B6] 1000,
+    [WEAPON_SLOT_OMNI_SHIELD] 1000,
+    [WEAPON_SLOT_FLAIL] 500,
   };
 
   int j;
@@ -375,4 +379,38 @@ int hasPendingWorldHop(void)
 int isOnHubWorld(void)
 {
   return State.OnHubWorld;
+}
+
+//--------------------------------------------------------------------------
+int missionIsFailed(void)
+{
+  return State.MissionStatus == RAIDS_MISSION_FAILED;
+}
+
+//--------------------------------------------------------------------------
+int missionIsComplete(void)
+{
+  return State.MissionStatus == RAIDS_MISSION_COMPLETED;
+}
+
+//--------------------------------------------------------------------------
+int missionIsActive(void)
+{
+  return !hasPendingWorldHop() && State.MissionStatus == RAIDS_MISSION_ACTIVE;
+}
+
+//--------------------------------------------------------------------------
+void drawStars(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count)
+{
+  if (count <= 0) return;
+  
+  float w = (size * count) + (spacing * (count - 1));
+  helperAlign(&offsetX, &offsetY, w, size, alignment);
+  
+  gfxSetupGifPaging(0);
+  int i;
+  for (i = 0; i < count; ++i) {
+    gfxHelperDrawSprite(anchorX, anchorY, offsetX + i * (size + spacing), offsetY, size, size, 32, 32, 88, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  }
+  gfxDoGifPaging();
 }

@@ -1058,14 +1058,16 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
     // factor XP mods
     if (killedByLocal) {
-      int xpModCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
+      int xpModCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_XP);
       xp += xpModCount * XP_ALPHAMOD_XP;
     }
 
     // receive bolts & xp
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
       bankAddBolts(bolts);
-      bankAddXP(killedByLocal ? xp : (xp >> 2));
+      bankAddXP(killedByLocal ? xp : (xp >> 1));
+      pState->State.Experience += xp;
+      pState->State.Bolts += bolts;
     }
 
     // weapon XP only if this client killed the mob
@@ -1076,13 +1078,15 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     // spawn ammo chance
     // originally wanted to do this only if the killer was the local player
     // but to encourage cooperative play, it makes sense for it to randomly drop regardless
-    if (killedByPlayer && mapConfig && mapConfig->CreateAmmoDropAtFunc && randRange(0, 1) < State.AmmoDropChance) {
-      mapConfig->CreateAmmoDropAtFunc(moby);
+    if (killedByLocal || pvars->MobVars.ClosestDistToLocal < (25*25)) {
+      if (killedByPlayer && mapConfig && mapConfig->CreateAmmoDropAtFunc && randRange(0, 1) < State.AmmoDropChance) {
+        mapConfig->CreateAmmoDropAtFunc(moby);
+      }
     }
 
     // spawn loot chance
-    if (killedByLocal && randRange(0, 1) < GAME_DEFAULT_LOOT_DROP_CHANCE) {
-      lootRequestFromMob(moby, weaponId);
+    if (randRange(0, 1) < GAME_DEFAULT_LOOT_DROP_CHANCE) {
+      lootRequestFromMob(moby, killedByLocal ? weaponId : 0);
     }
 
 		// handle weapon jackpot

@@ -12,6 +12,38 @@ enum COMMON_DZO_DRAW_TYPE
   COMMON_DZO_DRAW_ONLY,
 };
 
+/*
+ * NAME :    helperAlign
+ *
+ * DESCRIPTION :
+ *       Transforms the point by the given alignment.
+ *
+ * NOTES :
+ *
+ * ARGS :
+ *
+ * RETURN :
+ *
+ * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
+ */
+void helperAlign(float* pX, float* pY, float w, float h, enum TextAlign alignment);
+
+/*
+ * NAME :    helperRealign
+ *
+ * DESCRIPTION :
+ *       Transforms the point from one alignment to another.
+ *
+ * NOTES :
+ *
+ * ARGS :
+ *
+ * RETURN :
+ *
+ * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
+ */
+void helperRealign(float* pX, float* pY, float w, float h, enum TextAlign fromAlignment, enum TextAlign toAlignment);
+
 //------------------------------------------------------------------------------
 //------------------------------------ DRAW ------------------------------------
 //------------------------------------------------------------------------------

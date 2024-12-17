@@ -137,6 +137,7 @@ void processFreecam(void);
 void extraLocalsRun(void);
 void igScoreboardRun(void);
 void quickChatRun(void);
+void spMusicRun(void);
 
 #if SCAVENGER_HUNT
 void scavHuntRun(void);
@@ -203,29 +204,29 @@ extern int dlIsActive;
 
 int lastLodLevel = 2;
 const int lodPatchesPotato[][2] = {
-	{ 0x0050e318, 0x03E00008 }, // disable corn
-	{ 0x0050e31c, 0x00000000 },
-	{ 0x0041d400, 0x03E00008 }, // disable small weapon explosion
-	{ 0x0041d404, 0x00000000 },
-	{ 0x003F7154, 0x00000000 }, // disable b6 ball shadow
-	{ 0x003A18F0, 0x24020000 }, // disable b6 particles
-	{ 0x0042EA50, 0x24020000 }, // disable mag particles
-	{ 0x0043C150, 0x24020000 }, // disable mag shells
-	{ 0x003A18F0, 0x24020000 }, // disable fusion shot particles
-	{ 0x0042608C, 0x00000000 }, // disable jump pad blur effect
+  { 0x0050e318, 0x03E00008 }, // disable corn
+  { 0x0050e31c, 0x00000000 },
+  { 0x0041d400, 0x03E00008 }, // disable small weapon explosion
+  { 0x0041d404, 0x00000000 },
+  { 0x003F7154, 0x00000000 }, // disable b6 ball shadow
+  { 0x003A18F0, 0x24020000 }, // disable b6 particles
+  { 0x0042EA50, 0x24020000 }, // disable mag particles
+  { 0x0043C150, 0x24020000 }, // disable mag shells
+  { 0x003A18F0, 0x24020000 }, // disable fusion shot particles
+  { 0x0042608C, 0x00000000 }, // disable jump pad blur effect
 };
 
 const int lodPatchesNormal[][2] = {
-	{ 0x0050e318, 0x27BDFE40 }, // enable corn
-	{ 0x0050e31c, 0x7FB40100 },
-	{ 0x0041d400, 0x27BDFF00 }, // enable small weapon explosion
-	{ 0x0041d404, 0x7FB00060 },
-	{ 0x003F7154, 0x0C140F40 }, // enable b6 ball shadow
-	{ 0x003A18F0, 0x0C13DC80 }, // enable b6 particles
-	{ 0x0042EA50, 0x0C13DC80 }, // enable mag particles
-	{ 0x0043C150, 0x0C13DC80 }, // enable mag shells
-	{ 0x003A18F0, 0x0C13DC80 }, // enable fusion shot particles
-	{ 0x0042608C, 0x0C131194 }, // enable jump pad blur effect
+  { 0x0050e318, 0x27BDFE40 }, // enable corn
+  { 0x0050e31c, 0x7FB40100 },
+  { 0x0041d400, 0x27BDFF00 }, // enable small weapon explosion
+  { 0x0041d404, 0x7FB00060 },
+  { 0x003F7154, 0x0C140F40 }, // enable b6 ball shadow
+  { 0x003A18F0, 0x0C13DC80 }, // enable b6 particles
+  { 0x0042EA50, 0x0C13DC80 }, // enable mag particles
+  { 0x0043C150, 0x0C13DC80 }, // enable mag shells
+  { 0x003A18F0, 0x0C13DC80 }, // enable fusion shot particles
+  { 0x0042608C, 0x0C131194 }, // enable jump pad blur effect
 };
 
 
@@ -246,104 +247,104 @@ extern MapLoaderState_t MapLoaderState;
 
 struct FlagPVars
 {
-	VECTOR BasePosition;
-	short CarrierIdx;
-	short LastCarrierIdx;
-	short Team;
-	char UNK_16[6];
-	int TimeFlagDropped;
+  VECTOR BasePosition;
+  short CarrierIdx;
+  short LastCarrierIdx;
+  short Team;
+  char UNK_16[6];
+  int TimeFlagDropped;
 };
 
 typedef struct ChangeTeamRequest {
-	u32 Seed;
-	int PoolSize;
-	char Pool[GAME_MAX_PLAYERS];
+  u32 Seed;
+  int PoolSize;
+  char Pool[GAME_MAX_PLAYERS];
 } ChangeTeamRequest_t;
 
 typedef struct SetLobbyClientPatchConfigRequest {
-	int PlayerId;
-	PatchConfig_t Config;
+  int PlayerId;
+  PatchConfig_t Config;
 } SetLobbyClientPatchConfigRequest_t;
 
 //
 enum PlayerStateConditionType
 {
-	PLAYERSTATECONDITION_REMOTE_EQUALS,
-	PLAYERSTATECONDITION_LOCAL_EQUALS,
-	PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS
+  PLAYERSTATECONDITION_REMOTE_EQUALS,
+  PLAYERSTATECONDITION_LOCAL_EQUALS,
+  PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS
 };
 
 typedef struct PlayerStateRemoteHistory
 {
-	int CurrentRemoteState;
-	int TimeRemoteStateLastChanged;
-	int TimeLastRemoteStateForced;
+  int CurrentRemoteState;
+  int TimeRemoteStateLastChanged;
+  int TimeLastRemoteStateForced;
 } PlayerStateRemoteHistory_t;
 
 PlayerStateRemoteHistory_t RemoteStateTimeStart[GAME_MAX_PLAYERS];
 
 typedef struct PlayerStateCondition
 {
-	enum PlayerStateConditionType Type;
-	int TicksSince;
-	int StateId;
-	int MaxTicks; // number of ticks since start of the remote state before state is ignored
+  enum PlayerStateConditionType Type;
+  int TicksSince;
+  int StateId;
+  int MaxTicks; // number of ticks since start of the remote state before state is ignored
 } PlayerStateCondition_t;
 
 //
 const PlayerStateCondition_t stateSkipRemoteConditions[] = {
-	{	// skip when player is swinging
-		.Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
-		.TicksSince = 0,
-		.StateId = PLAYER_STATE_SWING,
-		.MaxTicks = 0
-	},
-	{	// skip when player is drowning
-		.Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
-		.TicksSince = 0,
-		.StateId = PLAYER_STATE_DROWN,
-		.MaxTicks = 0
-	},
-	{	// skip when player is falling into death void
-		.Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
-		.TicksSince = 0,
-		.StateId = PLAYER_STATE_DEATH_FALL,
-		.MaxTicks = 0
-	},
+  {	// skip when player is swinging
+    .Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+    .TicksSince = 0,
+    .StateId = PLAYER_STATE_SWING,
+    .MaxTicks = 0
+  },
+  {	// skip when player is drowning
+    .Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+    .TicksSince = 0,
+    .StateId = PLAYER_STATE_DROWN,
+    .MaxTicks = 0
+  },
+  {	// skip when player is falling into death void
+    .Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+    .TicksSince = 0,
+    .StateId = PLAYER_STATE_DEATH_FALL,
+    .MaxTicks = 0
+  },
 };
 
 const PlayerStateCondition_t stateForceRemoteConditions[] = {
-	{ // force chargebooting
-		.Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
-		.TicksSince = 15,
-		.StateId = PLAYER_STATE_CHARGE,
-		.MaxTicks = 60
-	},
-	// { // force remote if local is still wrenching
-	// 	PLAYERSTATECONDITION_LOCAL_EQUALS,
-	// 	15,
-	// 	19
-	// },
-	// { // force remote if local is still hyper striking
-	// 	PLAYERSTATECONDITION_LOCAL_EQUALS,
-	// 	15,
-	// 	20
-	// }
+  { // force chargebooting
+    .Type = PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS,
+    .TicksSince = 15,
+    .StateId = PLAYER_STATE_CHARGE,
+    .MaxTicks = 60
+  },
+  // { // force remote if local is still wrenching
+  // 	PLAYERSTATECONDITION_LOCAL_EQUALS,
+  // 	15,
+  // 	19
+  // },
+  // { // force remote if local is still hyper striking
+  // 	PLAYERSTATECONDITION_LOCAL_EQUALS,
+  // 	15,
+  // 	20
+  // }
 };
 
 // 
 int isUnloading __attribute__((section(".config"))) = 0;
 PatchConfig_t config __attribute__((section(".config"))) = {
-	.framelimiter = 2,
-	.enableGamemodeAnnouncements = 0,
-	.enableSpectate = 0,
-	.enableSingleplayerMusic = 0,
-	.levelOfDetail = 2,
-	.enablePlayerStateSync = 0,
-	.disableAimAssist = 0,
-	.enableFpsCounter = 0,
-	.disableCircleToHackerRay = 0,
-	.disableScavengerHunt = 0,
+  .framelimiter = 2,
+  .enableGamemodeAnnouncements = 0,
+  .enableSpectate = 0,
+  .enableSingleplayerMusic = 0,
+  .levelOfDetail = 2,
+  .enablePlayerStateSync = 0,
+  .disableAimAssist = 0,
+  .enableFpsCounter = 0,
+  .disableCircleToHackerRay = 0,
+  .disableScavengerHunt = 0,
   .playerFov = 0,
   .preferredGameServer = 0,
   .enableSingleTapChargeboot = 0,
@@ -485,41 +486,41 @@ void runSingletapChargeboot(struct PAD* pad, u8* rdata)
  */
 void patchCameraSpeed()
 {
-	const u16 SPEED = 0x140;
-	char buffer[16];
+  const u16 SPEED = 0x140;
+  char buffer[16];
 
-	// Check if the value is the default max of 64
-	// This is to ensure that we only write here when
-	// we're in game and the patch hasn't already been applied
-	if (CAMERA_SPEED_PATCH_OFF1 == 0x40)
-	{
-		CAMERA_SPEED_PATCH_OFF1 = SPEED;
-		CAMERA_SPEED_PATCH_OFF2 = SPEED+1;
-	}
+  // Check if the value is the default max of 64
+  // This is to ensure that we only write here when
+  // we're in game and the patch hasn't already been applied
+  if (CAMERA_SPEED_PATCH_OFF1 == 0x40)
+  {
+    CAMERA_SPEED_PATCH_OFF1 = SPEED;
+    CAMERA_SPEED_PATCH_OFF2 = SPEED+1;
+  }
 
-	// Patch edit profile bar
-	if (uiGetActive() == UI_ID_EDIT_PROFILE)
-	{
-		void * editProfile = (void*)UI_POINTERS[30];
-		if (editProfile)
-		{
-			// get cam speed element
-			void * camSpeedElement = (void*)*(u32*)(editProfile + 0xC0);
-			if (camSpeedElement)
-			{
-				// update max value
-				*(u32*)(camSpeedElement + 0x78) = SPEED;
+  // Patch edit profile bar
+  if (uiGetActive() == UI_ID_EDIT_PROFILE)
+  {
+    void * editProfile = (void*)UI_POINTERS[30];
+    if (editProfile)
+    {
+      // get cam speed element
+      void * camSpeedElement = (void*)*(u32*)(editProfile + 0xC0);
+      if (camSpeedElement)
+      {
+        // update max value
+        *(u32*)(camSpeedElement + 0x78) = SPEED;
 
-				// get current value
-				float value = *(u32*)(camSpeedElement + 0x70) / 64.0;
+        // get current value
+        float value = *(u32*)(camSpeedElement + 0x70) / 64.0;
 
-				// render
-				sprintf(buffer, "%.0f%%", value*100);
-				gfxScreenSpaceText(240,   166,   1, 1, 0x80000000, buffer, -1, 1);
-				gfxScreenSpaceText(240-1, 166-1, 1, 1, 0x80FFFFFF, buffer, -1, 1);
-			}
-		}
-	}
+        // render
+        sprintf(buffer, "%.0f%%", value*100);
+        gfxScreenSpaceText(240,   166,   1, 1, 0x80000000, buffer, -1, 1);
+        gfxScreenSpaceText(240-1, 166-1, 1, 1, 0x80FFFFFF, buffer, -1, 1);
+      }
+    }
+  }
 }
 
 /*
@@ -538,11 +539,11 @@ void patchCameraSpeed()
  */
 void patchAnnouncements()
 {
-	u32 addrValue = ANNOUNCEMENTS_CHECK_PATCH;
-	if (config.enableGamemodeAnnouncements && addrValue == 0x907E01A9)
-		ANNOUNCEMENTS_CHECK_PATCH = 0x241E0000;
-	else if (!config.enableGamemodeAnnouncements && addrValue == 0x241E0000)
-		ANNOUNCEMENTS_CHECK_PATCH = 0x907E01A9;
+  u32 addrValue = ANNOUNCEMENTS_CHECK_PATCH;
+  if (config.enableGamemodeAnnouncements && addrValue == 0x907E01A9)
+    ANNOUNCEMENTS_CHECK_PATCH = 0x241E0000;
+  else if (!config.enableGamemodeAnnouncements && addrValue == 0x241E0000)
+    ANNOUNCEMENTS_CHECK_PATCH = 0x907E01A9;
 }
 
 /*
@@ -562,15 +563,15 @@ void patchAnnouncements()
  */
 void patchResurrectWeaponOrdering_HookWeaponStripMe(Player * player)
 {
-	// backup currently equipped weapons
-	if (player->IsLocal) {
-		weaponOrderBackup[player->LocalPlayerIndex][0] = playerGetLocalEquipslot(player->LocalPlayerIndex, 0);
-		weaponOrderBackup[player->LocalPlayerIndex][1] = playerGetLocalEquipslot(player->LocalPlayerIndex, 1);
-		weaponOrderBackup[player->LocalPlayerIndex][2] = playerGetLocalEquipslot(player->LocalPlayerIndex, 2);
-	}
+  // backup currently equipped weapons
+  if (player->IsLocal) {
+    weaponOrderBackup[player->LocalPlayerIndex][0] = playerGetLocalEquipslot(player->LocalPlayerIndex, 0);
+    weaponOrderBackup[player->LocalPlayerIndex][1] = playerGetLocalEquipslot(player->LocalPlayerIndex, 1);
+    weaponOrderBackup[player->LocalPlayerIndex][2] = playerGetLocalEquipslot(player->LocalPlayerIndex, 2);
+  }
 
-	// call hooked WeaponStripMe function after backup
-	((void (*)(Player*))0x005e2e68)(player);
+  // call hooked WeaponStripMe function after backup
+  ((void (*)(Player*))0x005e2e68)(player);
 }
 
 /*
@@ -596,35 +597,35 @@ void patchResurrectWeaponOrdering_HookWeaponStripMe(Player * player)
  */
 void patchResurrectWeaponOrdering_HookGiveMeRandomWeapons(Player* player, int weaponCount)
 {
-	int i, j, matchCount = 0;
+  int i, j, matchCount = 0;
 
-	// call hooked GiveMeRandomWeapons function first
-	((void (*)(Player*, int))0x005f7510)(player, weaponCount);
+  // call hooked GiveMeRandomWeapons function first
+  ((void (*)(Player*, int))0x005f7510)(player, weaponCount);
 
-	// then try and overwrite given weapon order if weapons match equipped weapons before death
-	if (player->IsLocal) {
+  // then try and overwrite given weapon order if weapons match equipped weapons before death
+  if (player->IsLocal) {
 
-		// restore backup if they match (regardless of order) newly assigned weapons
-		for (i = 0; i < 3; ++i) {
-			int backedUpSlotValue = weaponOrderBackup[player->LocalPlayerIndex][i];
-			for (j = 0; j < 3; ++j) {
-				if (backedUpSlotValue == playerGetLocalEquipslot(player->LocalPlayerIndex, j)) {
-					matchCount++;
-				}
-			}
-		}
+    // restore backup if they match (regardless of order) newly assigned weapons
+    for (i = 0; i < 3; ++i) {
+      int backedUpSlotValue = weaponOrderBackup[player->LocalPlayerIndex][i];
+      for (j = 0; j < 3; ++j) {
+        if (backedUpSlotValue == playerGetLocalEquipslot(player->LocalPlayerIndex, j)) {
+          matchCount++;
+        }
+      }
+    }
 
-		// if we found a match, set
-		if (matchCount == 3) {
-			// set equipped weapon in order
-			for (i = 0; i < 3; ++i) {
-				playerSetLocalEquipslot(player->LocalPlayerIndex, i, weaponOrderBackup[player->LocalPlayerIndex][i]);
-			}
+    // if we found a match, set
+    if (matchCount == 3) {
+      // set equipped weapon in order
+      for (i = 0; i < 3; ++i) {
+        playerSetLocalEquipslot(player->LocalPlayerIndex, i, weaponOrderBackup[player->LocalPlayerIndex][i]);
+      }
 
-			// equip first slot weapon
-			playerEquipWeapon(player, weaponOrderBackup[player->LocalPlayerIndex][0]);
-		}
-	}
+      // equip first slot weapon
+      playerEquipWeapon(player, weaponOrderBackup[player->LocalPlayerIndex][0]);
+    }
+  }
 }
 
 /*
@@ -644,11 +645,11 @@ void patchResurrectWeaponOrdering_HookGiveMeRandomWeapons(Player* player, int we
  */
 void patchResurrectWeaponOrdering(void)
 {
-	if (!isInGame())
-		return;
+  if (!isInGame())
+    return;
 
-	HOOK_JAL(0x005e2b2c, &patchResurrectWeaponOrdering_HookWeaponStripMe);
-	HOOK_JAL(0x005e2b48, &patchResurrectWeaponOrdering_HookGiveMeRandomWeapons);
+  HOOK_JAL(0x005e2b2c, &patchResurrectWeaponOrdering_HookWeaponStripMe);
+  HOOK_JAL(0x005e2b48, &patchResurrectWeaponOrdering_HookGiveMeRandomWeapons);
 }
 
 /*
@@ -761,19 +762,19 @@ int hasSonyMACAddress(void)
  */
 void patchLevelOfDetail(void)
 {
-	int i = 0;
+  int i = 0;
 
-	// only apply in game
-	if (!isInGame()) {
-		lastLodLevel = -1;
-		return;
-	}
+  // only apply in game
+  if (!isInGame()) {
+    lastLodLevel = -1;
+    return;
+  }
 
-	// patch lod
-	if (*(u32*)0x005930B8 == 0x02C3B020)
-	{
-		*(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
-	}
+  // patch lod
+  if (*(u32*)0x005930B8 == 0x02C3B020)
+  {
+    *(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
+  }
 
   if (lastClientType != CLIENT_TYPE_DZO) {
 
@@ -866,8 +867,8 @@ void patchLevelOfDetail(void)
     }
   }
 
-	// backup lod
-	lastLodLevel = config.levelOfDetail;
+  // backup lod
+  lastLodLevel = config.levelOfDetail;
 }
 
 /*
@@ -886,19 +887,19 @@ void patchLevelOfDetail(void)
  */
 void patchCameraShake(void)
 {
-	if (!isInGame())
-		return;
+  if (!isInGame())
+    return;
 
-	if (config.disableCameraShake)
-	{
-		POKE_U32(0x004b14a0, 0x03E00008);
-		POKE_U32(0x004b14a4, 0);
-	}
-	else
-	{
-		POKE_U32(0x004b14a0, 0x34030470);
-		POKE_U32(0x004b14a4, 0x27BDFF70);
-	}
+  if (config.disableCameraShake)
+  {
+    POKE_U32(0x004b14a0, 0x03E00008);
+    POKE_U32(0x004b14a4, 0);
+  }
+  else
+  {
+    POKE_U32(0x004b14a0, 0x34030470);
+    POKE_U32(0x004b14a4, 0x27BDFF70);
+  }
 }
 
 /*
@@ -950,9 +951,9 @@ void patchDeadzones(void)
  */
 int patchGameSettings_OpenPasswordInputDialog(void * a0, char * title, char * value, int a3, int maxLength, int t1, int t2, int t3, int t4)
 {
-	strncpy((char*)value, PASSWORD_BUFFER, maxLength);
+  strncpy((char*)value, PASSWORD_BUFFER, maxLength);
 
-	return internal_uiInputDialog(a0, title, value, a3, maxLength, t1, t2, t3, t4);
+  return internal_uiInputDialog(a0, title, value, a3, maxLength, t1, t2, t3, t4);
 }
 
 /*
@@ -976,10 +977,10 @@ int patchGameSettings_OpenPasswordInputDialog(void * a0, char * title, char * va
  */
 void patchGameSettingsLoad_Save(void * a0, int offset0, int offset1, int value)
 {
-	u32 step1 = *(u32*)((u32)a0 + offset0);
-	u32 step2 = *(u32*)(step1 + 0x58);
-	u32 step3 = *(u32*)(step2 + offset1);
-	((void (*)(u32, int))step3)(step1, value);
+  u32 step1 = *(u32*)((u32)a0 + offset0);
+  u32 step2 = *(u32*)(step1 + 0x58);
+  u32 step3 = *(u32*)(step2 + offset1);
+  ((void (*)(u32, int))step3)(step1, value);
 }
 
 /*
@@ -999,56 +1000,56 @@ void patchGameSettingsLoad_Save(void * a0, int offset0, int offset1, int value)
  */
 void patchGameSettingsLoad_Hook(void * a0, void * a1)
 {
-	int index = 0;
+  int index = 0;
 
-	// Load normal
-	((void (*)(void *, void *))GAMESETTINGS_LOAD_FUNC)(a0, a1);
+  // Load normal
+  ((void (*)(void *, void *))GAMESETTINGS_LOAD_FUNC)(a0, a1);
 
-	// Get gametype
-	index = ((int (*)(int))GAMESETTINGS_GET_INDEX_FUNC)(5);
-	int gamemode = ((int (*)(void *, int))GAMESETTINGS_GET_VALUE_FUNC)(a1, index);
+  // Get gametype
+  index = ((int (*)(int))GAMESETTINGS_GET_INDEX_FUNC)(5);
+  int gamemode = ((int (*)(void *, int))GAMESETTINGS_GET_VALUE_FUNC)(a1, index);
 
-	// Handle each gamemode separately
-	switch (gamemode)
-	{
-		case GAMERULE_DM:
-		{
-			// Save survivor
-			patchGameSettingsLoad_Save(a0, 0x100, 0xA4, lastSurvivor);
-			break;
-		}
-		case GAMERULE_CTF:
-		{
-			// Save crazy mode
-			patchGameSettingsLoad_Save(a0, 0x10C, 0xA4, !lastCrazyMode);
-			break;
-		}
-	}
+  // Handle each gamemode separately
+  switch (gamemode)
+  {
+    case GAMERULE_DM:
+    {
+      // Save survivor
+      patchGameSettingsLoad_Save(a0, 0x100, 0xA4, lastSurvivor);
+      break;
+    }
+    case GAMERULE_CTF:
+    {
+      // Save crazy mode
+      patchGameSettingsLoad_Save(a0, 0x10C, 0xA4, !lastCrazyMode);
+      break;
+    }
+  }
 
-	// enable pw input prompt when password is true
-	POKE_U32(0x0072E4A0, 0x0000182D);
-	HOOK_JAL(0x0072e510, &patchGameSettings_OpenPasswordInputDialog);
-	
-	// allow user to enable/disable password
-	POKE_U32(0x0072C408, 0x0000282D);
-	
+  // enable pw input prompt when password is true
+  POKE_U32(0x0072E4A0, 0x0000182D);
+  HOOK_JAL(0x0072e510, &patchGameSettings_OpenPasswordInputDialog);
+  
+  // allow user to enable/disable password
+  POKE_U32(0x0072C408, 0x0000282D);
+  
 
-	// password
-	if (strlen(PASSWORD_BUFFER) > 0) {
+  // password
+  if (strlen(PASSWORD_BUFFER) > 0) {
 
-		// set default to on
-		patchGameSettingsLoad_Save(a0, 0xC4, 0xA4, 1);
-		DPRINTF("pw %s\n", PASSWORD_BUFFER);
-	}
+    // set default to on
+    patchGameSettingsLoad_Save(a0, 0xC4, 0xA4, 1);
+    DPRINTF("pw %s\n", PASSWORD_BUFFER);
+  }
 
-	if (gamemode != GAMERULE_CQ)
-	{
-		// respawn timer
-		GAMESETTINGS_RESPAWN_TIME2 = lastRespawnTime; //*(u8*)0x002126DC;
-	}
+  if (gamemode != GAMERULE_CQ)
+  {
+    // respawn timer
+    GAMESETTINGS_RESPAWN_TIME2 = lastRespawnTime; //*(u8*)0x002126DC;
+  }
 
-	if (GAMESETTINGS_RESPAWN_TIME2 < 0)
-		GAMESETTINGS_RESPAWN_TIME2 = lastRespawnTime;
+  if (GAMESETTINGS_RESPAWN_TIME2 < 0)
+    GAMESETTINGS_RESPAWN_TIME2 = lastRespawnTime;
 }
 
 /*
@@ -1067,10 +1068,10 @@ void patchGameSettingsLoad_Hook(void * a0, void * a1)
  */
 void patchGameSettingsLoad()
 {
-	if (GAMESETTINGS_LOAD_PATCH == 0x0C1CBBDE)
-	{
-		GAMESETTINGS_LOAD_PATCH = 0x0C000000 | ((u32)&patchGameSettingsLoad_Hook >> 2);
-	}
+  if (GAMESETTINGS_LOAD_PATCH == 0x0C1CBBDE)
+  {
+    GAMESETTINGS_LOAD_PATCH = 0x0C000000 | ((u32)&patchGameSettingsLoad_Hook >> 2);
+  }
 }
 
 /*
@@ -1089,25 +1090,25 @@ void patchGameSettingsLoad()
  */
 void patchPopulateCreateGame_Hook(void * a0, int settingsCount, u32 * settingsPtrs)
 {
-	u32 respawnTimerPtr = 0x012B35D8;
-	int i = 0;
+  u32 respawnTimerPtr = 0x012B35D8;
+  int i = 0;
 
-	// Check if already loaded
-	for (; i < settingsCount; ++i)
-	{
-		if (settingsPtrs[i] == respawnTimerPtr)
-			break;
-	}
+  // Check if already loaded
+  for (; i < settingsCount; ++i)
+  {
+    if (settingsPtrs[i] == respawnTimerPtr)
+      break;
+  }
 
-	// If not loaded then append respawn timer
-	if (i == settingsCount)
-	{
-		++settingsCount;
-		settingsPtrs[i] = respawnTimerPtr;
-	}
+  // If not loaded then append respawn timer
+  if (i == settingsCount)
+  {
+    ++settingsCount;
+    settingsPtrs[i] = respawnTimerPtr;
+  }
 
-	// Populate
-	((void (*)(void *, int, u32 *))GAMESETTINGS_BUILD_FUNC)(a0, settingsCount, settingsPtrs);
+  // Populate
+  ((void (*)(void *, int, u32 *))GAMESETTINGS_BUILD_FUNC)(a0, settingsCount, settingsPtrs);
 }
 
 /*
@@ -1126,14 +1127,14 @@ void patchPopulateCreateGame_Hook(void * a0, int settingsCount, u32 * settingsPt
  */
 void patchPopulateCreateGame()
 {
-	// Patch function pointer
-	if (GAMESETTINGS_BUILD_PTR == GAMESETTINGS_BUILD_FUNC)
-	{
-		GAMESETTINGS_BUILD_PTR = (u32)&patchPopulateCreateGame_Hook;
-	}
+  // Patch function pointer
+  if (GAMESETTINGS_BUILD_PTR == GAMESETTINGS_BUILD_FUNC)
+  {
+    GAMESETTINGS_BUILD_PTR = (u32)&patchPopulateCreateGame_Hook;
+  }
 
-	// Patch default respawn timer
-	GAMESETTINGS_RESPAWN_TIME = lastRespawnTime;
+  // Patch default respawn timer
+  GAMESETTINGS_RESPAWN_TIME = lastRespawnTime;
 }
 
 /*
@@ -1152,13 +1153,13 @@ void patchPopulateCreateGame()
  */
 u64 patchCreateGame_Hook(void * a0)
 {
-	// Save respawn timer if not survivor
-	lastSurvivor = GAMESETTINGS_SURVIVOR;
-	lastRespawnTime = GAMESETTINGS_RESPAWN_TIME2;
-	lastCrazyMode = GAMESETTINGS_CRAZYMODE;
+  // Save respawn timer if not survivor
+  lastSurvivor = GAMESETTINGS_SURVIVOR;
+  lastRespawnTime = GAMESETTINGS_RESPAWN_TIME2;
+  lastCrazyMode = GAMESETTINGS_CRAZYMODE;
 
-	// Load normal
-	return ((u64 (*)(void *))GAMESETTINGS_CREATE_FUNC)(a0);
+  // Load normal
+  return ((u64 (*)(void *))GAMESETTINGS_CREATE_FUNC)(a0);
 }
 
 /*
@@ -1177,11 +1178,11 @@ u64 patchCreateGame_Hook(void * a0)
  */
 void patchCreateGame()
 {
-	// Patch function pointer
-	if (GAMESETTINGS_CREATE_PATCH == 0x0C1C2D50)
-	{
-		GAMESETTINGS_CREATE_PATCH = 0x0C000000 | ((u32)&patchCreateGame_Hook >> 2);
-	}
+  // Patch function pointer
+  if (GAMESETTINGS_CREATE_PATCH == 0x0C1C2D50)
+  {
+    GAMESETTINGS_CREATE_PATCH = 0x0C000000 | ((u32)&patchCreateGame_Hook >> 2);
+  }
 }
 
 /*
@@ -1222,17 +1223,17 @@ int* getMapVehiclesEnabledTable(int mapId)
  */
 void patchWideStats_Hook(void)
 {
-	int* mediusStats = (int*)0x001722C0;
-	int* stats = *(int**)0x0017277c;
+  int* mediusStats = (int*)0x001722C0;
+  int* stats = *(int**)0x0017277c;
 
-	if (stats) {
-		// store each respective gamemode rank in player medius stats
-		mediusStats[1] = stats[17]; // CQ
-		mediusStats[2] = stats[24]; // CTF
-		mediusStats[3] = stats[11]; // DM
-		mediusStats[4] = stats[31]; // KOTH
-		mediusStats[5] = stats[38]; // JUGGY
-	}
+  if (stats) {
+    // store each respective gamemode rank in player medius stats
+    mediusStats[1] = stats[17]; // CQ
+    mediusStats[2] = stats[24]; // CTF
+    mediusStats[3] = stats[11]; // DM
+    mediusStats[4] = stats[31]; // KOTH
+    mediusStats[5] = stats[38]; // JUGGY
+  }
 }
 
 /*
@@ -1251,7 +1252,7 @@ void patchWideStats_Hook(void)
  */
 void patchWideStats(void)
 {
-	*(u32*)0x0015C0EC = 0x08000000 | ((u32)&patchWideStats_Hook >> 2);
+  *(u32*)0x0015C0EC = 0x08000000 | ((u32)&patchWideStats_Hook >> 2);
 }
 
 /*
@@ -1380,12 +1381,12 @@ void patchComputePoints(void)
  */
 int patchKillStealing_Hook(Player * target, Moby * damageSource, u64 a2)
 {
-	// if player is already dead return 0
-	if (target->Health <= 0)
-		return 0;
+  // if player is already dead return 0
+  if (target->Health <= 0)
+    return 0;
 
-	// pass through
-	return ((int (*)(Player*,Moby*,u64))0x005DFF08)(target, damageSource, a2);
+  // pass through
+  return ((int (*)(Player*,Moby*,u64))0x005DFF08)(target, damageSource, a2);
 }
 
 /*
@@ -1404,12 +1405,12 @@ int patchKillStealing_Hook(Player * target, Moby * damageSource, u64 a2)
  */
 void patchKillStealing()
 {
-	// 
-	if (KILL_STEAL_WHO_HIT_ME_PATCH == 0x0C177FC2)
-	{
-		KILL_STEAL_WHO_HIT_ME_PATCH = 0x0C000000 | ((u32)&patchKillStealing_Hook >> 2);
-		KILL_STEAL_WHO_HIT_ME_PATCH2 = KILL_STEAL_WHO_HIT_ME_PATCH;
-	}
+  // 
+  if (KILL_STEAL_WHO_HIT_ME_PATCH == 0x0C177FC2)
+  {
+    KILL_STEAL_WHO_HIT_ME_PATCH = 0x0C000000 | ((u32)&patchKillStealing_Hook >> 2);
+    KILL_STEAL_WHO_HIT_ME_PATCH2 = KILL_STEAL_WHO_HIT_ME_PATCH;
+  }
 }
 
 /*
@@ -1428,16 +1429,16 @@ void patchKillStealing()
  */
 void patchAggTime(int aggTimeMs)
 {
-	u16* currentAggTime = (u16*)0x0015ac04;
+  u16* currentAggTime = (u16*)0x0015ac04;
 
-	// only update on change
-	if (*currentAggTime == aggTimeMs)
-		return;
+  // only update on change
+  if (*currentAggTime == aggTimeMs)
+    return;
 
-	*currentAggTime = aggTimeMs;
-	void * connection = netGetDmeServerConnection();
-	if (connection)
-		netSetSendAggregationInterval(connection, 0, aggTimeMs);
+  *currentAggTime = aggTimeMs;
+  void * connection = netGetDmeServerConnection();
+  if (connection)
+    netSetSendAggregationInterval(connection, 0, aggTimeMs);
 }
 
 /*
@@ -1549,8 +1550,8 @@ void patchFov(void)
 {
   static int ingame = 0;
   static int lastFov = 0;
-	if (!isInGame()) {
-		ingame = 0;
+  if (!isInGame()) {
+    ingame = 0;
     return;
   }
 
@@ -1588,55 +1589,55 @@ void patchFov(void)
  */
 void patchFrameSkip()
 {
-	static int disableByAuto = 0;
-	static int autoDisableDelayTicks = 0;
-	
-	int addrValue = FRAME_SKIP_WRITE0;
+  static int disableByAuto = 0;
+  static int autoDisableDelayTicks = 0;
+  
+  int addrValue = FRAME_SKIP_WRITE0;
   int emuClient = CLIENT_TYPE_DZO == interopData.Client || interopData.Client == CLIENT_TYPE_PCSX2; // force framelimiter off for dzo/emu
-	int disableFramelimiter = config.framelimiter == 2 || emuClient;
-	int totalTimeMs = renderTimeMs + updateTimeMs;
-	float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
+  int disableFramelimiter = config.framelimiter == 2 || emuClient;
+  int totalTimeMs = renderTimeMs + updateTimeMs;
+  float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
 
   GameSettings* gs = gameGetSettings();
   int intelligentFps = 60;
   if (gs && gs->PlayerCount > 6) intelligentFps = 30;
 
-	if (!emuClient && config.framelimiter == 1) // auto
-	{
-		// already disabled, to re-enable must have instantaneous high total time
-		if (disableByAuto && totalTimeMs > 15.0) {
-			autoDisableDelayTicks = 30; // 1 seconds before can disable again
-			disableByAuto = 0; 
-		} else if (disableByAuto && averageTotalTimeMs > 14.0) {
-			autoDisableDelayTicks = 60; // 2 seconds before can disable again
-			disableByAuto = 0; 
-		}
+  if (!emuClient && config.framelimiter == 1) // auto
+  {
+    // already disabled, to re-enable must have instantaneous high total time
+    if (disableByAuto && totalTimeMs > 15.0) {
+      autoDisableDelayTicks = 30; // 1 seconds before can disable again
+      disableByAuto = 0; 
+    } else if (disableByAuto && averageTotalTimeMs > 14.0) {
+      autoDisableDelayTicks = 60; // 2 seconds before can disable again
+      disableByAuto = 0; 
+    }
 
-		// not disabled, to disable must have average low total time
-		// and must not have just enabled it
-		else if (autoDisableDelayTicks == 0 && !disableByAuto && averageTotalTimeMs < 12.5)
-			disableByAuto = 1;
+    // not disabled, to disable must have average low total time
+    // and must not have just enabled it
+    else if (autoDisableDelayTicks == 0 && !disableByAuto && averageTotalTimeMs < 12.5)
+      disableByAuto = 1;
 
-		// decrement disable delay
-		if (autoDisableDelayTicks > 0)
-			--autoDisableDelayTicks;
+    // decrement disable delay
+    if (autoDisableDelayTicks > 0)
+      --autoDisableDelayTicks;
 
-		// set framelimiter
-		disableFramelimiter = disableByAuto;
-	}
+    // set framelimiter
+    disableFramelimiter = disableByAuto;
+  }
 
-	// re-enable framelimiter if last fps is really low
-	if (disableFramelimiter && addrValue == 0xAF848859)
-	{
-		FRAME_SKIP_WRITE0 = 0;
-		FRAME_SKIP = 0;
+  // re-enable framelimiter if last fps is really low
+  if (disableFramelimiter && addrValue == 0xAF848859)
+  {
+    FRAME_SKIP_WRITE0 = 0;
+    FRAME_SKIP = 0;
     FRAME_SKIP_TARGET_FPS = 60;
-	}
-	else if (!disableFramelimiter && addrValue == 0)
-	{
-		FRAME_SKIP_WRITE0 = 0xAF848859;
+  }
+  else if (!disableFramelimiter && addrValue == 0)
+  {
+    FRAME_SKIP_WRITE0 = 0xAF848859;
     FRAME_SKIP_TARGET_FPS = intelligentFps;
-	}
+  }
 }
 
 /*
@@ -1713,7 +1714,7 @@ void handleWeaponShotDelayed(Player* player, char event, int dispatchTime, short
   //   DPRINTF("GADGET %d EVENT %d TIME %d=>%d (%d)\n", gadgetId, event, startTime, dispatchTime, gameGetTime());
   // }
   
-	((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, event, dispatchTime, gadgetId, gadgetIdx, message);
+  ((void (*)(Player*, char, int, short, char, struct tNW_GadgetEventMessage*))0x005f0318)(player, event, dispatchTime, gadgetId, gadgetIdx, message);
 }
 
 /*
@@ -1734,11 +1735,11 @@ Moby* onB6BallSpawned(void)
 {
   Moby* moby;
 
-	// pointer to b6 ball moby is stored in $v0
-	asm volatile (
-		"move %0, $v0"
-		: : "r" (moby)
-	);
+  // pointer to b6 ball moby is stored in $v0
+  asm volatile (
+    "move %0, $v0"
+    : : "r" (moby)
+  );
 
   if (!moby) return NULL;
   Player* sourcePlayer = *(Player**)(moby->PVar + 0x90);
@@ -1814,7 +1815,7 @@ int onB6BallFiredRemote(void* connection, void* data)
   Moby* ball = ((Moby* (*)(Moby* gadget, VECTOR pos, VECTOR vel, int, Moby* heroMoby, Player* hero, int dispatchTime, int))0x003f5f80)
     (player->Gadgets[0].pMoby, pos, vel, 0, player->PlayerMoby, player, gameGetTime(), 0);
 
-	return sizeof(msg);
+  return sizeof(msg);
 }
 
 /*
@@ -1835,13 +1836,13 @@ u128 getFusionShotDirection(Player* target, int a1, u128 vFrom, u128 vTo, Moby* 
 {
   VECTOR from, to;
 
-	// move from registers to memory
+  // move from registers to memory
   vector_write(from, vFrom);
   vector_write(to, vTo);
 
   // if we have a valid player target
-	// then we want to check that the given to from will hit
-	// if it doesn't then we want to force it to hit
+  // then we want to check that the given to from will hit
+  // if it doesn't then we want to force it to hit
   if (target)
   {
     // if the shot didn't hit the target then we want to force the shot to hit the target
@@ -1851,7 +1852,7 @@ u128 getFusionShotDirection(Player* target, int a1, u128 vFrom, u128 vTo, Moby* 
     }
   }
 
-	// call base get direction
+  // call base get direction
   return ((u128 (*)(Player*, int, u128, u128, float))0x003f9fc0)(target, a1, vFrom, vTo, 0.0);
 }
 
@@ -1985,20 +1986,20 @@ void flagHandlePickup(Moby* flagMoby, int pIdx)
 {
   Player* player = playerGetAll()[pIdx];
   if (!player || !flagMoby) return;
-	struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
+  struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
   if (!pvars) return;
 
-	if (flagMoby->State != 1)
-		return;
+  if (flagMoby->State != 1)
+    return;
 
-	// flag is currently returning
-	if (flagIsReturning(flagMoby))
-		return;
+  // flag is currently returning
+  if (flagIsReturning(flagMoby))
+    return;
 
-	// flag is currently being picked up
-	if (flagIsBeingPickedUp(flagMoby))
-		return;
-	
+  // flag is currently being picked up
+  if (flagIsBeingPickedUp(flagMoby))
+    return;
+  
   // only allow actions by living players
   if (playerIsDead(player) || player->Health <= 0)
     return;
@@ -2035,7 +2036,7 @@ void flagRequestPickup(Moby* flagMoby, int pIdx)
   int gameTime = gameGetTime();
   Player* player = playerGetAll()[pIdx];
   if (!player || !flagMoby) return;
-	struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
+  struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
   if (!pvars) return;
 
   if (gameAmIHost())
@@ -2075,108 +2076,108 @@ void flagRequestPickup(Moby* flagMoby, int pIdx)
  */
 void customFlagLogic(Moby* flagMoby)
 {
-	VECTOR t;
-	int i;
-	Player** players = playerGetAll();
-	int gameTime = gameGetTime();
-	GameOptions* gameOptions = gameGetOptions();
+  VECTOR t;
+  int i;
+  Player** players = playerGetAll();
+  int gameTime = gameGetTime();
+  GameOptions* gameOptions = gameGetOptions();
 
-	if (!isInGame()) {
+  if (!isInGame()) {
     return;
   }
 
-	// validate flag
-	if (!flagMoby)
-		return;
+  // validate flag
+  if (!flagMoby)
+    return;
 
-	// get pvars
-	struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
-	if (!pvars)
-		return;
+  // get pvars
+  struct FlagPVars* pvars = (struct FlagPVars*)flagMoby->PVar;
+  if (!pvars)
+    return;
 
-	// 
-	if (flagMoby->State != 1)
-		return;
+  // 
+  if (flagMoby->State != 1)
+    return;
 
-	// flag is currently returning
-	if (flagIsReturning(flagMoby))
-		return;
+  // flag is currently returning
+  if (flagIsReturning(flagMoby))
+    return;
 
-	// flag is currently being picked up
-	if (flagIsBeingPickedUp(flagMoby))
-		return;
-	
-	// return to base if flag has been idle for 40 seconds
-	if ((pvars->TimeFlagDropped + (TIME_SECOND * 40)) < gameTime && !flagIsAtBase(flagMoby)) {
-		flagReturnToBase(flagMoby, 0, 0xFF);
-		return;
-	}
+  // flag is currently being picked up
+  if (flagIsBeingPickedUp(flagMoby))
+    return;
+  
+  // return to base if flag has been idle for 40 seconds
+  if ((pvars->TimeFlagDropped + (TIME_SECOND * 40)) < gameTime && !flagIsAtBase(flagMoby)) {
+    flagReturnToBase(flagMoby, 0, 0xFF);
+    return;
+  }
 
-	// return to base if flag landed on bad ground
-	if (!flagIsOnSafeGround(flagMoby)) {
-		flagReturnToBase(flagMoby, 0, 0xFF);
-		return;
-	}
+  // return to base if flag landed on bad ground
+  if (!flagIsOnSafeGround(flagMoby)) {
+    flagReturnToBase(flagMoby, 0, 0xFF);
+    return;
+  }
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player* player = players[i];
-		if (!player || !player->IsLocal)
-			continue;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->IsLocal)
+      continue;
 
-		// wait 3 seconds for last carrier to be able to pick up again
-		if ((pvars->TimeFlagDropped + 3*TIME_SECOND) > gameTime && i == pvars->LastCarrierIdx)
-			continue;
+    // wait 3 seconds for last carrier to be able to pick up again
+    if ((pvars->TimeFlagDropped + 3*TIME_SECOND) > gameTime && i == pvars->LastCarrierIdx)
+      continue;
 
-		// only allow actions by living players
-		if (playerIsDead(player) || player->Health <= 0)
-			continue;
+    // only allow actions by living players
+    if (playerIsDead(player) || player->Health <= 0)
+      continue;
 
-		// something to do with vehicles
-		// not sure exactly when this case is true
-		if (((int (*)(Player*))0x00619b58)(player))
-			continue;
+    // something to do with vehicles
+    // not sure exactly when this case is true
+    if (((int (*)(Player*))0x00619b58)(player))
+      continue;
 
-		// skip player if they've only been alive for < 3 seconds
-		if (player->timers.timeAlive <= 180)
-			continue;
+    // skip player if they've only been alive for < 3 seconds
+    if (player->timers.timeAlive <= 180)
+      continue;
 
-		// skip player if in vehicle
-		if (player->Vehicle)
-			continue;
+    // skip player if in vehicle
+    if (player->Vehicle)
+      continue;
 
-		// skip if player state is in vehicle and critterMode is on
-		if (player->Camera && player->PlayerState == PLAYER_STATE_VEHICLE && player->Camera->camHeroData.critterMode)
-			continue;
+    // skip if player state is in vehicle and critterMode is on
+    if (player->Camera && player->PlayerState == PLAYER_STATE_VEHICLE && player->Camera->camHeroData.critterMode)
+      continue;
 
-		// skip if player is on teleport pad
-		if (player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_TELEPORT_PAD)
-			continue;
+    // skip if player is on teleport pad
+    if (player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_TELEPORT_PAD)
+      continue;
 
-		// player must be within 2 units of flag
-		vector_subtract(t, flagMoby->Position, player->PlayerPosition);
-		float sqrDistance = vector_sqrmag(t);
-		if (sqrDistance > (2*2))
-			continue;
+    // player must be within 2 units of flag
+    vector_subtract(t, flagMoby->Position, player->PlayerPosition);
+    float sqrDistance = vector_sqrmag(t);
+    if (sqrDistance > (2*2))
+      continue;
 
-		// player is on different team than flag and player isn't already holding flag
-		if (player->Team != pvars->Team) {
-			if (!player->HeldMoby) {
+    // player is on different team than flag and player isn't already holding flag
+    if (player->Team != pvars->Team) {
+      if (!player->HeldMoby) {
         flagRequestPickup(flagMoby, i);
-				return;
-			}
-		}
-		// player is on same team so attempt to return flag
-		else if (gameOptions->GameFlags.MultiplayerGameFlags.FlagReturn) {
-			vector_subtract(t, pvars->BasePosition, flagMoby->Position);
-			float sqrDistanceToBase = vector_sqrmag(t);
-			if (sqrDistanceToBase > 0.1) {
+        return;
+      }
+    }
+    // player is on same team so attempt to return flag
+    else if (gameOptions->GameFlags.MultiplayerGameFlags.FlagReturn) {
+      vector_subtract(t, pvars->BasePosition, flagMoby->Position);
+      float sqrDistanceToBase = vector_sqrmag(t);
+      if (sqrDistanceToBase > 0.1) {
         flagRequestPickup(flagMoby, i);
-				return;
-			}
-		}
-	}
+        return;
+      }
+    }
+  }
 
-	//0x00619b58
+  //0x00619b58
 }
 
 /*
@@ -2195,24 +2196,24 @@ void customFlagLogic(Moby* flagMoby)
  */
 int onRemoteClientRequestPickUpFlag(void * connection, void * data)
 {
-	int i;
-	ClientRequestPickUpFlag_t msg;
+  int i;
+  ClientRequestPickUpFlag_t msg;
   Player** players;
-	memcpy(&msg, data, sizeof(msg));
+  memcpy(&msg, data, sizeof(msg));
 
-	// ignore if not in game
-	if (!isInGame() || !gameAmIHost())
-	  return sizeof(ClientRequestPickUpFlag_t);
+  // ignore if not in game
+  if (!isInGame() || !gameAmIHost())
+    return sizeof(ClientRequestPickUpFlag_t);
 
-	DPRINTF("remote player %d requested pick up flag %X at %d\n", msg.PlayerId, msg.FlagUID, msg.GameTime);
+  DPRINTF("remote player %d requested pick up flag %X at %d\n", msg.PlayerId, msg.FlagUID, msg.GameTime);
 
   // get list of players
   players = playerGetAll();
 
-	// get remote player or ignore message
-	Player* remotePlayer = playerGetAll()[msg.PlayerId];
-	if (!remotePlayer)
-	  return sizeof(ClientRequestPickUpFlag_t);
+  // get remote player or ignore message
+  Player* remotePlayer = playerGetAll()[msg.PlayerId];
+  if (!remotePlayer)
+    return sizeof(ClientRequestPickUpFlag_t);
 
   // get flag
   GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(msg.FlagUID);
@@ -2222,7 +2223,7 @@ int onRemoteClientRequestPickUpFlag(void * connection, void * data)
     flagHandlePickup(flagMoby, msg.PlayerId);
   }
 
-	return sizeof(ClientRequestPickUpFlag_t);
+  return sizeof(ClientRequestPickUpFlag_t);
 }
 
 /*
@@ -2241,14 +2242,14 @@ int onRemoteClientRequestPickUpFlag(void * connection, void * data)
  */
 void runFlagPickupFix(void)
 {
-	VECTOR t;
-	int i = 0;
-	Player** players = playerGetAll();
+  VECTOR t;
+  int i = 0;
+  Player** players = playerGetAll();
 
-	if (!isInGame()) {
+  if (!isInGame()) {
     memset(flagRequestCounters, 0, sizeof(flagRequestCounters));
-		return;
-	}
+    return;
+  }
 
   // decrement request counters
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -2256,45 +2257,18 @@ void runFlagPickupFix(void)
   }
 
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_FLAG_REQUEST_PICKUP, &onRemoteClientRequestPickUpFlag);
-	
+  
   // set pickup cooldown to 0.5 seconds
   //POKE_U16(0x00418aa0, 500);
 
-	// disable normal flag update code
-	POKE_U32(0x00418858, 0x03E00008);
-	POKE_U32(0x0041885C, 0x0000102D);
+  // disable normal flag update code
+  POKE_U32(0x00418858, 0x03E00008);
+  POKE_U32(0x0041885C, 0x0000102D);
 
   // allow flag to land on swimmable water
   POKE_U32(0x0038E130, 0x004176B0);
 
-	// run custom flag update on flags
-	GuberMoby* gm = guberMobyGetFirst();
-  while (gm)
-  {
-    if (gm->Moby)
-    {
-      switch (gm->Moby->OClass)
-      {
-        case MOBY_ID_BLUE_FLAG:
-        case MOBY_ID_RED_FLAG:
-        case MOBY_ID_GREEN_FLAG:
-        case MOBY_ID_ORANGE_FLAG:
-        {
-					customFlagLogic(gm->Moby);
-					break;
-				}
-			}
-		}
-    gm = (GuberMoby*)gm->Guber.Prev;
-	}
-
-	return;
-	/*
-	// iterate guber mobies
-	// finding each flag
-	// we want to check if we're the master
-	// if we're not and within some reasonable distance then 
-	// just run the flag update manually
+  // run custom flag update on flags
   GuberMoby* gm = guberMobyGetFirst();
   while (gm)
   {
@@ -2307,56 +2281,83 @@ void runFlagPickupFix(void)
         case MOBY_ID_GREEN_FLAG:
         case MOBY_ID_ORANGE_FLAG:
         {
-					int flagUpdateRan = 0;
-
-					// ensure no one is master
-					void * master = masterGet(gm->Guber.Id.UID);
-					if (master)
-						masterDelete(master);
-
-					// detect if flag is currently held
-					for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-						Player* player = players[i];
-						if (player && player->HeldMoby == gm->Moby) {
-							flagUpdateRan = 1;
-							break;
-						}
-					}
-
-					if (!flagUpdateRan) {
-						for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-							// get local player
-							Player* localPlayer = playerGetFromSlot(i);
-							if (localPlayer) {
-								// get distance from local player to flag
-								vector_subtract(t, gm->Moby->Position, localPlayer->PlayerPosition);
-								float sqrDist = vector_sqrmag(t);
-
-								if (sqrDist < (5 * 5))
-								{
-									// run update
-									((void (*)(Moby*, u32))0x00418858)(gm->Moby, 0);
-									flagUpdateRan = 1;
-
-									// we only need to run it once per client
-									// even if both locals are near the flag
-									break;
-								}
-							}
-						}
-					}
-
-					// run flag update as host if no one else is nearby
-					if (gameAmIHost() && !flagUpdateRan) {
-						((void (*)(Moby*, u32))0x00418858)(gm->Moby, 0);
-					}
+          customFlagLogic(gm->Moby);
           break;
         }
       }
     }
     gm = (GuberMoby*)gm->Guber.Prev;
   }
-	*/
+
+  return;
+  /*
+  // iterate guber mobies
+  // finding each flag
+  // we want to check if we're the master
+  // if we're not and within some reasonable distance then 
+  // just run the flag update manually
+  GuberMoby* gm = guberMobyGetFirst();
+  while (gm)
+  {
+    if (gm->Moby)
+    {
+      switch (gm->Moby->OClass)
+      {
+        case MOBY_ID_BLUE_FLAG:
+        case MOBY_ID_RED_FLAG:
+        case MOBY_ID_GREEN_FLAG:
+        case MOBY_ID_ORANGE_FLAG:
+        {
+          int flagUpdateRan = 0;
+
+          // ensure no one is master
+          void * master = masterGet(gm->Guber.Id.UID);
+          if (master)
+            masterDelete(master);
+
+          // detect if flag is currently held
+          for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+            Player* player = players[i];
+            if (player && player->HeldMoby == gm->Moby) {
+              flagUpdateRan = 1;
+              break;
+            }
+          }
+
+          if (!flagUpdateRan) {
+            for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+              // get local player
+              Player* localPlayer = playerGetFromSlot(i);
+              if (localPlayer) {
+                // get distance from local player to flag
+                vector_subtract(t, gm->Moby->Position, localPlayer->PlayerPosition);
+                float sqrDist = vector_sqrmag(t);
+
+                if (sqrDist < (5 * 5))
+                {
+                  // run update
+                  ((void (*)(Moby*, u32))0x00418858)(gm->Moby, 0);
+                  flagUpdateRan = 1;
+
+                  // we only need to run it once per client
+                  // even if both locals are near the flag
+                  break;
+                }
+              }
+            }
+          }
+
+          // run flag update as host if no one else is nearby
+          if (gameAmIHost() && !flagUpdateRan) {
+            ((void (*)(Moby*, u32))0x00418858)(gm->Moby, 0);
+          }
+          break;
+        }
+      }
+    }
+    gm = (GuberMoby*)gm->Guber.Prev;
+  }
+  */
 }
 
 /*
@@ -2449,12 +2450,12 @@ void patchFlagCaptureMessage(void)
  */
 void runHealthPickupFix(void)
 {
-	if (!isInGame()) return;
+  if (!isInGame()) return;
 
   typedef void (*guberMobyMasterVTableUpdate_func)(void * guber);
 
-	// run master update on healthboxes
-	GuberMoby* gm = guberMobyGetFirst();
+  // run master update on healthboxes
+  GuberMoby* gm = guberMobyGetFirst();
   while (gm)
   {
     if (gm->Moby)
@@ -2463,13 +2464,13 @@ void runHealthPickupFix(void)
       {
         case MOBY_ID_HEALTH_BOX_MULT:
         {
-					((guberMobyMasterVTableUpdate_func)(0x00411F60))(gm->Moby);
-					break;
-				}
-			}
-		}
+          ((guberMobyMasterVTableUpdate_func)(0x00411F60))(gm->Moby);
+          break;
+        }
+      }
+    }
     gm = (GuberMoby*)gm->Guber.Prev;
-	}
+  }
 }
 
 /*
@@ -2617,13 +2618,13 @@ float getB6Damage(Player* hitPlayer)
   Moby* b6Moby;
   float radius, damage;
 
-	asm volatile (
+  asm volatile (
     ".set noreorder;"
-		"move %0, $s4;"
+    "move %0, $s4;"
     "swc1 $f21, 0(%1);"
     "swc1 $f20, 0(%2);"
-		: : "r" (b6Moby), "r" (&radius), "r" (&damage)
-	);
+    : : "r" (b6Moby), "r" (&radius), "r" (&damage)
+  );
 
   // get hip joint of moby
   MATRIX hipJoint;
@@ -2771,29 +2772,29 @@ u128 fusionShotUpdatePos(Moby* moby) {
 void patchWeaponShotLag(void)
 {
   GameSettings* gs = gameGetSettings();
-	if (!isInGame())
-		return;
+  if (!isInGame())
+    return;
 
-	// send all shots reliably
-	//u32* ptr = (u32*)0x00627AB4;
-	//if (*ptr == 0x906407F8) {
-		// change to reliable
-		//*ptr = 0x24040000 | 0x40;
+  // send all shots reliably
+  //u32* ptr = (u32*)0x00627AB4;
+  //if (*ptr == 0x906407F8) {
+    // change to reliable
+    //*ptr = 0x24040000 | 0x40;
 
-		// get rid of additional 3 packets sent
-		// since its reliable we don't need redundancy
-		//*(u32*)0x0060F474 = 0;
-		//*(u32*)0x0060F4C4 = 0;
-	//}
+    // get rid of additional 3 packets sent
+    // since its reliable we don't need redundancy
+    //*(u32*)0x0060F474 = 0;
+    //*(u32*)0x0060F4C4 = 0;
+  //}
 
-	// patches fusion shot so that remote shots aren't given additional "shake"
-	// ie, remote shots go in the same direction that is sent by the source client
-	POKE_U32(0x003FA28C, 0);
+  // patches fusion shot so that remote shots aren't given additional "shake"
+  // ie, remote shots go in the same direction that is sent by the source client
+  POKE_U32(0x003FA28C, 0);
 
-	// patches function that converts fusion shot start and end positions
-	// to a direction to always hit target player if there is a target
-	POKE_U32(0x003fa5c0, 0x0240402D);
-	HOOK_JAL(0x003fa5c8, &getFusionShotDirection);
+  // patches function that converts fusion shot start and end positions
+  // to a direction to always hit target player if there is a target
+  POKE_U32(0x003fa5c0, 0x0240402D);
+  HOOK_JAL(0x003fa5c8, &getFusionShotDirection);
 
   // immediately set fusion shot moby state to 1
   // which begins the process of sending the shot fired packet with 1 frame of latency
@@ -2801,27 +2802,27 @@ void patchWeaponShotLag(void)
   //POKE_U32(0x003fe160, 0);
   //HOOK_JAL(0x003fe018, &fusionShotUpdatePos);
 
-	// patch all weapon shots to be shot on remote as soon as they arrive
-	// instead of waiting for the gametime when they were shot on the remote
-	// since all shots happen immediately (none are sent ahead-of-time)
-	// and this only happens when a client's timebase is desync'd
-	HOOK_JAL(0x0062ac60, &handleWeaponShotDelayed);
-	HOOK_JAL(0x0060f754, &handleWeaponShotDelayed);
-	HOOK_JAL(0x0060538c, &handleWeaponShotDelayed);
-	HOOK_JAL(0x0060f474, &handleWeaponShotDelayed);
+  // patch all weapon shots to be shot on remote as soon as they arrive
+  // instead of waiting for the gametime when they were shot on the remote
+  // since all shots happen immediately (none are sent ahead-of-time)
+  // and this only happens when a client's timebase is desync'd
+  HOOK_JAL(0x0062ac60, &handleWeaponShotDelayed);
+  HOOK_JAL(0x0060f754, &handleWeaponShotDelayed);
+  HOOK_JAL(0x0060538c, &handleWeaponShotDelayed);
+  HOOK_JAL(0x0060f474, &handleWeaponShotDelayed);
 
 #if B6_BALL_SHOT_FIRED_REPLACEMENT
   HOOK_J(0x003F6164, &onB6BallSpawned);
 #endif
 
-	// this disables filtering out fusion shots where the player is facing the opposite direction
-	// in other words, a player may appear to shoot behind them but it's just lag/desync
-	FUSION_SHOT_BACKWARDS_BRANCH = 0x1000005F;
+  // this disables filtering out fusion shots where the player is facing the opposite direction
+  // in other words, a player may appear to shoot behind them but it's just lag/desync
+  FUSION_SHOT_BACKWARDS_BRANCH = 0x1000005F;
 
-	// send fusion shot reliably
-	if (*(u32*)0x003FCE8C == 0x910407F8)
-		*(u32*)0x003FCE8C = 0x24040040;
-		
+  // send fusion shot reliably
+  if (*(u32*)0x003FCE8C == 0x910407F8)
+    *(u32*)0x003FCE8C = 0x24040040;
+    
   // extend player timeout from 7.2 seconds to 32.7 seconds
   POKE_U16(0x00613FAC, 0x8000);
 
@@ -2866,8 +2867,8 @@ void patchWeaponShotLag(void)
   //   }
   // }
 
-	// fix b6 eating on down slope
-	runFixB6EatOnDownSlope();
+  // fix b6 eating on down slope
+  runFixB6EatOnDownSlope();
 }
 
 /*
@@ -2914,39 +2915,39 @@ void runPlayerGadgetEventHandlers(void)
  */
 void patchRadarScale(void)
 {
-	u32 frameSizeValue = 0;
-	u32 minimapBorderColor = 0;
-	u32 minimapTeamBorderColorInstruction = 0x0000282D;
-	float scale = 1;
-	if (!isInGame())
-		return;
+  u32 frameSizeValue = 0;
+  u32 minimapBorderColor = 0;
+  u32 minimapTeamBorderColorInstruction = 0x0000282D;
+  float scale = 1;
+  if (!isInGame())
+    return;
 
-	// adjust expanded frame size
-	if (!config.minimapScale) {
-		frameSizeValue = 0x460C6300;
-		minimapBorderColor = 0x80969696;
-		minimapTeamBorderColorInstruction = 0x0200282D;
-	}
-	
-	// read expanded animation time (0=shrunk, 1=expanded)
-	float frameExpandedT = *(float*)0x0030F750;
-	float smallScale = 1 + (config.minimapSmallZoom / 5.0);
-	float bigScale = 1 + (config.minimapBigZoom / 5.0);
-	scale = lerpf(smallScale, bigScale, frameExpandedT);
-	
-	// set radar frame size during animation
-	POKE_U32(0x00556900, frameSizeValue);
-	// remove border 
-	POKE_U32(0x00278C90, minimapBorderColor);
-	// remove team border
-	POKE_U32(0x00556D08, minimapTeamBorderColorInstruction);
+  // adjust expanded frame size
+  if (!config.minimapScale) {
+    frameSizeValue = 0x460C6300;
+    minimapBorderColor = 0x80969696;
+    minimapTeamBorderColorInstruction = 0x0200282D;
+  }
+  
+  // read expanded animation time (0=shrunk, 1=expanded)
+  float frameExpandedT = *(float*)0x0030F750;
+  float smallScale = 1 + (config.minimapSmallZoom / 5.0);
+  float bigScale = 1 + (config.minimapBigZoom / 5.0);
+  scale = lerpf(smallScale, bigScale, frameExpandedT);
+  
+  // set radar frame size during animation
+  POKE_U32(0x00556900, frameSizeValue);
+  // remove border 
+  POKE_U32(0x00278C90, minimapBorderColor);
+  // remove team border
+  POKE_U32(0x00556D08, minimapTeamBorderColorInstruction);
 
-	// set minimap scale
-	*(float*)0x0038A320 = 500 * scale; // when idle
-	*(float*)0x0038A324 = 800 * scale; // when moving
+  // set minimap scale
+  *(float*)0x0038A320 = 500 * scale; // when idle
+  *(float*)0x0038A324 = 800 * scale; // when moving
 
-	// set blip scale
-	*(float*)0x0038A300 = 0.04 / scale;
+  // set blip scale
+  *(float*)0x0038A300 = 0.04 / scale;
 }
 
 /*
@@ -2967,34 +2968,34 @@ void patchRadarScale(void)
  */
 int patchStateUpdate_Hook(void * a0, void * a1)
 {
-	int v0 = ((int (*)(void*,void*))0x0061e130)(a0, a1);
-	Player * p = (Player*)((u32)a0 - 0x2FEC);
+  int v0 = ((int (*)(void*,void*))0x0061e130)(a0, a1);
+  Player * p = (Player*)((u32)a0 - 0x2FEC);
 
   // we don't have a free bit to store p2/p3 in the tNW_PlayerPadInputMessage
   // users will have to use new player sync
   if (p->IsLocal && p->LocalPlayerIndex > 1)
     return 0;
 
-	// when we're dead we don't really need to send the state very often
-	// so we'll only send it every second
-	// and when we do we'll send a full update (including position and player state)
-	if (p->Health <= 0)
-	{
-		// only send every 60 frames
-		int tick = *(int*)((u32)a0 + 0x1D8);
-		if (tick % 60 != 0)
-			return 0;
+  // when we're dead we don't really need to send the state very often
+  // so we'll only send it every second
+  // and when we do we'll send a full update (including position and player state)
+  if (p->Health <= 0)
+  {
+    // only send every 60 frames
+    int tick = *(int*)((u32)a0 + 0x1D8);
+    if (tick % 60 != 0)
+      return 0;
 
-		// set to 1 to force full state update
-		//*(u8*)((u32)p + 0x31cf) = 1;
-	}
-	else
-	{
-		// set to 1 to force full state update
-		//*(u8*)((u32)p + 0x31cf) = 1;
-	}
+    // set to 1 to force full state update
+    //*(u8*)((u32)p + 0x31cf) = 1;
+  }
+  else
+  {
+    // set to 1 to force full state update
+    //*(u8*)((u32)p + 0x31cf) = 1;
+  }
 
-	return v0;
+  return v0;
 }
 
 /*
@@ -3013,8 +3014,8 @@ int patchStateUpdate_Hook(void * a0, void * a1)
  */
 void patchStateUpdate(void)
 {
-	if (*(u32*)0x0060eb80 == 0x0C18784C)
-		*(u32*)0x0060eb80 = 0x0C000000 | ((u32)&patchStateUpdate_Hook >> 2);
+  if (*(u32*)0x0060eb80 == 0x0C18784C)
+    *(u32*)0x0060eb80 = 0x0C000000 | ((u32)&patchStateUpdate_Hook >> 2);
 }
 
 /*
@@ -3034,16 +3035,16 @@ void patchStateUpdate(void)
  */
 void runCorrectPlayerChargebootRotation(void)
 {
-	int i;
-	VECTOR t;
-	Player** players = playerGetAll();
+  int i;
+  VECTOR t;
+  Player** players = playerGetAll();
   static int heldTriangleTimers[GAME_MAX_PLAYERS];
 
-	if (!isInGame())
-		return;
+  if (!isInGame())
+    return;
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player* p = players[i];
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* p = players[i];
 
     if (p) {
 
@@ -3081,7 +3082,7 @@ void runCorrectPlayerChargebootRotation(void)
         }
       }
     }
-	}
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -3107,7 +3108,7 @@ int onSetPlayerDzoCosmeticsRemote(void * connection, void * data)
 int onClientVoteToEndStateUpdateRemote(void * connection, void * data)
 {
   memcpy(&voteToEndState, data, sizeof(voteToEndState));
-	return sizeof(voteToEndState);
+  return sizeof(voteToEndState);
 }
 
 /*
@@ -3128,9 +3129,9 @@ int onClientVoteToEndRemote(void * connection, void * data)
 {
   int playerId;
   memcpy(&playerId, data, sizeof(playerId));
-	onClientVoteToEnd(playerId);
+  onClientVoteToEnd(playerId);
 
-	return sizeof(playerId);
+  return sizeof(playerId);
 }
 
 /*
@@ -3365,9 +3366,9 @@ int onClientReadyRemote(void * connection, void * data)
 {
   int clientId;
   memcpy(&clientId, data, sizeof(clientId));
-	onClientReady(clientId);
+  onClientReady(clientId);
 
-	return sizeof(clientId);
+  return sizeof(clientId);
 }
 
 /*
@@ -3391,10 +3392,10 @@ void sendClientReady(void)
   if (patchStateContainer.ClientsReadyMask & bit)
     return;
 
-	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &clientId);
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &clientId);
   DPRINTF("send client ready\n");
 
-	// locally
+  // locally
   onClientReady(clientId);
 }
 
@@ -3450,54 +3451,54 @@ void runClientReadyMessager(void)
  */
 int runSendGameUpdate(void)
 {
-	static int lastGameUpdate = 0;
-	static int newGame = 0;
-	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
+  static int lastGameUpdate = 0;
+  static int newGame = 0;
+  GameSettings * gameSettings = gameGetSettings();
+  GameOptions * gameOptions = gameGetOptions();
   GameData * gameData = gameGetData();
   Player** players = playerGetAll();
-	int gameTime = gameGetTime();
-	int i;
-	void * connection = netGetLobbyServerConnection();
+  int gameTime = gameGetTime();
+  int i;
+  void * connection = netGetLobbyServerConnection();
 
-	// skip if not online, in lobby, or the game host
-	if (!connection || !gameSettings || !gameAmIHost())
-	{
-		lastGameUpdate = -GAME_UPDATE_SENDRATE;
-		newGame = 1;
-		return 0;
-	}
+  // skip if not online, in lobby, or the game host
+  if (!connection || !gameSettings || !gameAmIHost())
+  {
+    lastGameUpdate = -GAME_UPDATE_SENDRATE;
+    newGame = 1;
+    return 0;
+  }
 
-	// skip if time since last update is less than sendrate
-	if ((gameTime - lastGameUpdate) < GAME_UPDATE_SENDRATE)
-		return 0;
+  // skip if time since last update is less than sendrate
+  if ((gameTime - lastGameUpdate) < GAME_UPDATE_SENDRATE)
+    return 0;
 
-	// update last sent time
-	lastGameUpdate = gameTime;
+  // update last sent time
+  lastGameUpdate = gameTime;
 
-	// construct
-	patchStateContainer.GameStateUpdate.RoundNumber = 0;
-	patchStateContainer.GameStateUpdate.TeamsEnabled = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
-	patchStateContainer.GameStateUpdate.Version = 1;
+  // construct
+  patchStateContainer.GameStateUpdate.RoundNumber = 0;
+  patchStateContainer.GameStateUpdate.TeamsEnabled = gameOptions->GameFlags.MultiplayerGameFlags.Teamplay;
+  patchStateContainer.GameStateUpdate.Version = 1;
 
-	// copy over client ids
-	memcpy(patchStateContainer.GameStateUpdate.ClientIds, gameSettings->PlayerClients, sizeof(patchStateContainer.GameStateUpdate.ClientIds));
+  // copy over client ids
+  memcpy(patchStateContainer.GameStateUpdate.ClientIds, gameSettings->PlayerClients, sizeof(patchStateContainer.GameStateUpdate.ClientIds));
 
-	// reset some stuff whenever we enter a new game
-	if (newGame)
-	{
-		memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
-		memset(patchStateContainer.CustomGameStats.Payload, 0, sizeof(patchStateContainer.CustomGameStats.Payload));
-		newGame = 0;
-	}
+  // reset some stuff whenever we enter a new game
+  if (newGame)
+  {
+    memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
+    memset(patchStateContainer.CustomGameStats.Payload, 0, sizeof(patchStateContainer.CustomGameStats.Payload));
+    newGame = 0;
+  }
 
-	// copy teams over
-	memcpy(patchStateContainer.GameStateUpdate.Teams, gameSettings->PlayerTeams, sizeof(patchStateContainer.GameStateUpdate.Teams));
+  // copy teams over
+  memcpy(patchStateContainer.GameStateUpdate.Teams, gameSettings->PlayerTeams, sizeof(patchStateContainer.GameStateUpdate.Teams));
 
-	// 
-	if (isInGame())
-	{
-		memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
+  // 
+  if (isInGame())
+  {
+    memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
 
     if (gameSettings->GameRules == GAMERULE_JUGGY) {
       for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -3516,152 +3517,9 @@ int runSendGameUpdate(void)
           patchStateContainer.GameStateUpdate.TeamScores[item->TeamId] = item->Value;
       }
     }
-	}
-
-	return 1;
-}
-
-/*
- * NAME :		runEnableSingleplayerMusic
- * 
- * DESCRIPTION :
- * 
- * 
- * NOTES :
- * 
- * ARGS : 
- * 
- * RETURN :
- * 
- * AUTHOR :			Troy "Agent Moose" Pruitt
- */
-void runEnableSingleplayerMusic(void)
-{
-	static int FinishedConvertingTracks = 0;
-	static int AddedTracks = 0;
-  static int Loading = 0;
-
-  if (isInMenus()) {
-    Loading = 0;
-    return;
   }
 
-	if (!config.enableSingleplayerMusic || !musicIsLoaded())
-		return;
-
-  // indicate to user we're loading sp music
-  // running uiRunCallbacks triggers our vsync hook and reinvokes this method
-  // while it is still looping
-  if (Loading)
-  {
-    // after finished loading, and in game, set music to include new tracks
-    if (Loading == 2 && FinishedConvertingTracks && isInGame()) {
-      ((void (*)(int,int,int))0x0051f928)(4,13 + AddedTracks,0x400);
-      POKE_U16(0x004A8328, 13 + AddedTracks);
-      Loading = 3;
-    }
-
-    return;
-  }
-
-  Loading = 1;
-	u32 NewTracksLocation = 0x001CF940;
-	if (!FinishedConvertingTracks || *(u32*)NewTracksLocation == 0)
-	{
-		AddedTracks = 0;
-		int MultiplayerSectorID = *(u32*)0x001CF85C;
-    char Stack[0x800];
-		int Sector = 0x001CE470;
-		int a;
-		int Offset = 0;
-
-		// Zero out stack by the appropriate heap size (0x2a0 in this case)
-		// This makes sure we get the correct values we need later on.
-		memset((u32*)Stack, 0, 0x800);
-
-		// Loop through each Sector
-		for(a = 0; a < 12; a++)
-		{
-      // let the game handle net and rendering stuff
-      // this prevents the user from lagging out if the disc
-      // takes forever to seek
-      //uiRunCallbacks();
-
-			Offset += 0x18;
-			int MapSector = *(u32*)(Sector + Offset);
-			// Check if Map Sector is not zero
-			if (MapSector != 0)
-			{
-				internal_wadGetSectors(MapSector, 1, Stack);
-				int SectorID = *(u32*)(Stack + 0x4);
-
-				// BUG FIX AREA: If Stack is set to 0x23ac00, you need to add SectorID != 0x1DC1BE to if statement.
-				// The bug is: On first load, the SectorID isn't what I need it to be,
-				// the internal_wadGetSectors function doesn't update it quick enough for some reason.
-				// the following if statement fixes it
-
-				// make sure SectorID doesn't match 0x1dc1be, if so:
-				// - Subtract 0x18 from offset and -1 from loop.
-				if (SectorID != 0x0)
-				{
-					DPRINTF("Sector: 0x%X\n", MapSector);
-					DPRINTF("Sector ID: 0x%X\n", SectorID);
-
-					// do music stuffs~
-					// Get SP 2 MP Offset for current SectorID.
-					int SP2MP = SectorID - MultiplayerSectorID;
-					// Remember we skip the first track because it is the start of the sp track, not the body of it.
-					int b = 0;
-					int Songs = Stack + 0x18;
-					// while current song doesn't equal zero, then convert.
-					// if it does equal zero, that means we reached the end of the list and we move onto the next batch of tracks.
-					do
-					{
-						// Left Audio
-						int StartingSong = *(u32*)(Songs + b);
-						// Right Audio
-						int EndingSong = *(u32*)((u32)(Songs + b) + 0x8);
-						// Convert Left/Right Audio
-						int ConvertedSong_Start = SP2MP + StartingSong;
-						int ConvertedSong_End = SP2MP + EndingSong;
-						// Apply newly Converted tracks
-						*(u32*)(NewTracksLocation) = ConvertedSong_Start;
-						*(u32*)(NewTracksLocation + 0x08) = ConvertedSong_End;
-						NewTracksLocation += 0x10;
-						// If on DreadZone Station, and first song, add 0x20 instead of 0x20
-						// This fixes an offset bug.
-						if (a == 0 && b == 0)
-						{
-							b += 0x28;
-						}
-						else
-						{
-							b += 0x20;
-						}
-						AddedTracks++;
-					}
-					while (*(u32*)(Songs + b) != 0);
-				}
-				else
-				{
-					Offset -= 0x18;
-					a--;
-				}
-			}
-			else
-			{
-				a--;
-			}
-		}
-
-		// Zero out stack to finish the job.
-		memset((u32*)Stack, 0, 0x800);
-
-		FinishedConvertingTracks = 1;
-		DPRINTF("AddedTracks: %d\n", AddedTracks);
-	};
-
-  Loading = 2;
+  return 1;
 }
 
 /*
@@ -3680,21 +3538,21 @@ void runEnableSingleplayerMusic(void)
  */
 void runGameStartMessager(void)
 {
-	GameSettings * gameSettings = gameGetSettings();
-	if (!gameSettings)
-		return;
+  GameSettings * gameSettings = gameGetSettings();
+  if (!gameSettings)
+    return;
 
-	// in staging
-	if (uiGetActive() == UI_ID_GAME_LOBBY)
-	{
-		// check if game started
-		if (!sentGameStart && gameSettings->GameLoadStartTime > 0)
-		{
-			// check if host
-			if (gameAmIHost())
-			{
-				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
-			}
+  // in staging
+  if (uiGetActive() == UI_ID_GAME_LOBBY)
+  {
+    // check if game started
+    if (!sentGameStart && gameSettings->GameLoadStartTime > 0)
+    {
+      // check if host
+      if (gameAmIHost())
+      {
+        netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_STARTED, 0, gameSettings);
+      }
 
       // request latest scavenger hunt settings
       scavHuntQueryForRemoteSettings();
@@ -3704,37 +3562,37 @@ void runGameStartMessager(void)
       if (connection) netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_SERVER_DATE_TIME, 0, NULL);
 
 #if DEBUG
-			redownloadCustomModeBinaries = 1;
+      redownloadCustomModeBinaries = 1;
 #endif
 
-			sentGameStart = 1;
-		}
-	}
-	else
-	{
-		sentGameStart = 0;
-	}
+      sentGameStart = 1;
+    }
+  }
+  else
+  {
+    sentGameStart = 0;
+  }
 }
 
 int checkStateCondition(const PlayerStateCondition_t * condition, int localState, int remoteState)
 {
-	switch (condition->Type)
-	{
-		case PLAYERSTATECONDITION_REMOTE_EQUALS: // check remote is and local isn't
-		{
-			return condition->StateId == remoteState;
-		}
-		case PLAYERSTATECONDITION_LOCAL_EQUALS: // check local is and remote isn't
-		{
-			return condition->StateId == localState;
-		}
-		case PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS: // check local or remote is
-		{
-			return condition->StateId == remoteState || condition->StateId == localState;
-		}
-	}
+  switch (condition->Type)
+  {
+    case PLAYERSTATECONDITION_REMOTE_EQUALS: // check remote is and local isn't
+    {
+      return condition->StateId == remoteState;
+    }
+    case PLAYERSTATECONDITION_LOCAL_EQUALS: // check local is and remote isn't
+    {
+      return condition->StateId == localState;
+    }
+    case PLAYERSTATECONDITION_LOCAL_OR_REMOTE_EQUALS: // check local or remote is
+    {
+      return condition->StateId == remoteState || condition->StateId == localState;
+    }
+  }
 
-	return 0;
+  return 0;
 }
 
 /*
@@ -3769,7 +3627,7 @@ void runPlayerPositionSmooth(void)
   }
 
   Player ** players = playerGetAll();
-	int i;
+  int i;
 
   for (i = 0; i < GAME_MAX_PLAYERS; ++i)
   {
@@ -3843,84 +3701,84 @@ void runPlayerPositionSmooth(void)
  */
 void runPlayerStateSync(void)
 {
-	const int stateForceCount = sizeof(stateForceRemoteConditions) / sizeof(PlayerStateCondition_t);
-	const int stateSkipCount = sizeof(stateSkipRemoteConditions) / sizeof(PlayerStateCondition_t);
-	int gameTime = gameGetTime();
-	Player ** players = playerGetAll();
-	int i,j;
+  const int stateForceCount = sizeof(stateForceRemoteConditions) / sizeof(PlayerStateCondition_t);
+  const int stateSkipCount = sizeof(stateSkipRemoteConditions) / sizeof(PlayerStateCondition_t);
+  int gameTime = gameGetTime();
+  Player ** players = playerGetAll();
+  int i,j;
 
-	if (!isInGame() || !config.enablePlayerStateSync)
-		return;
+  if (!isInGame() || !config.enablePlayerStateSync)
+    return;
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		Player* p = players[i];
-		if (p && !playerIsLocal(p))
-		{
-			// get remote state
-			int localState = p->PlayerState;
-			int remoteState = *(int*)((u32)p + 0x3a80);
-			if (RemoteStateTimeStart[i].CurrentRemoteState != remoteState)
-			{
-				RemoteStateTimeStart[i].CurrentRemoteState = remoteState;
-				RemoteStateTimeStart[i].TimeRemoteStateLastChanged = gameTime;
-			}
-			int remoteStateTicks = ((gameTime - RemoteStateTimeStart[i].TimeRemoteStateLastChanged) / 1000) * 60;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player* p = players[i];
+    if (p && !playerIsLocal(p))
+    {
+      // get remote state
+      int localState = p->PlayerState;
+      int remoteState = *(int*)((u32)p + 0x3a80);
+      if (RemoteStateTimeStart[i].CurrentRemoteState != remoteState)
+      {
+        RemoteStateTimeStart[i].CurrentRemoteState = remoteState;
+        RemoteStateTimeStart[i].TimeRemoteStateLastChanged = gameTime;
+      }
+      int remoteStateTicks = ((gameTime - RemoteStateTimeStart[i].TimeRemoteStateLastChanged) / 1000) * 60;
 
-			// force onto local state
-			PlayerVTable* vtable = playerGetVTable(p);
-			if (!playerIsDead(p) && vtable && remoteState != localState)
-			{
-				int pStateTimer = p->timers.state;
-				int skip = 0;
+      // force onto local state
+      PlayerVTable* vtable = playerGetVTable(p);
+      if (!playerIsDead(p) && vtable && remoteState != localState)
+      {
+        int pStateTimer = p->timers.state;
+        int skip = 0;
 
-				// iterate each condition
-				// if one is true, skip to the next player
-				for (j = 0; j < stateSkipCount; ++j)
-				{
-					const PlayerStateCondition_t* condition = &stateSkipRemoteConditions[j];
-					if (pStateTimer >= condition->TicksSince)
-					{
-						if (checkStateCondition(condition, localState, remoteState))
-						{
-							//DPRINTF("%d skipping remote player %08x (%d) state (%d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, pStateTimer);
-							skip = 1;
-							break;
-						}
-					}
-				}
+        // iterate each condition
+        // if one is true, skip to the next player
+        for (j = 0; j < stateSkipCount; ++j)
+        {
+          const PlayerStateCondition_t* condition = &stateSkipRemoteConditions[j];
+          if (pStateTimer >= condition->TicksSince)
+          {
+            if (checkStateCondition(condition, localState, remoteState))
+            {
+              //DPRINTF("%d skipping remote player %08x (%d) state (%d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, pStateTimer);
+              skip = 1;
+              break;
+            }
+          }
+        }
 
-				// go to next player
-				if (skip)
-					continue;
+        // go to next player
+        if (skip)
+          continue;
 
-				// iterate each condition
-				// if one is true, then force the remote state onto the local player
-				for (j = 0; j < stateForceCount; ++j)
-				{
-					const PlayerStateCondition_t* condition = &stateForceRemoteConditions[j];
-					if (pStateTimer >= condition->TicksSince
-							&& (condition->MaxTicks <= 0 || remoteStateTicks < condition->MaxTicks)
-							&& (gameTime - RemoteStateTimeStart[i].TimeLastRemoteStateForced) > 500)
-					{
-						if (checkStateCondition(condition, localState, remoteState))
-						{
-							if (condition->MaxTicks > 0 && remoteState != condition->StateId) {
-								//DPRINTF("%d changing remote player %08x (%d) state ticks to %d (from %d) state:%d\n", j, (u32)p, p->PlayerId, condition->MaxTicks, p->timers.state, localState);
-								p->timers.state = condition->MaxTicks;
-							} else {
-								//DPRINTF("%d changing remote player %08x (%d) state to %d (from %d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, localState, pStateTimer);
-								vtable->UpdateState(p, remoteState, 1, 0, 1);
-								p->timers.state = remoteStateTicks;
-							}
-							RemoteStateTimeStart[i].TimeLastRemoteStateForced = gameTime;
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
+        // iterate each condition
+        // if one is true, then force the remote state onto the local player
+        for (j = 0; j < stateForceCount; ++j)
+        {
+          const PlayerStateCondition_t* condition = &stateForceRemoteConditions[j];
+          if (pStateTimer >= condition->TicksSince
+              && (condition->MaxTicks <= 0 || remoteStateTicks < condition->MaxTicks)
+              && (gameTime - RemoteStateTimeStart[i].TimeLastRemoteStateForced) > 500)
+          {
+            if (checkStateCondition(condition, localState, remoteState))
+            {
+              if (condition->MaxTicks > 0 && remoteState != condition->StateId) {
+                //DPRINTF("%d changing remote player %08x (%d) state ticks to %d (from %d) state:%d\n", j, (u32)p, p->PlayerId, condition->MaxTicks, p->timers.state, localState);
+                p->timers.state = condition->MaxTicks;
+              } else {
+                //DPRINTF("%d changing remote player %08x (%d) state to %d (from %d) timer:%d\n", j, (u32)p, p->PlayerId, remoteState, localState, pStateTimer);
+                vtable->UpdateState(p, remoteState, 1, 0, 1);
+                p->timers.state = remoteStateTicks;
+              }
+              RemoteStateTimeStart[i].TimeLastRemoteStateForced = gameTime;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /*
@@ -3939,12 +3797,12 @@ void runPlayerStateSync(void)
  */
 void onGameStartMenuBack(long a0)
 {
-	// call start menu back callback
-	((void (*)(long))0x00560E30)(a0);
+  // call start menu back callback
+  ((void (*)(long))0x00560E30)(a0);
 
-	// open config
-	if (netGetLobbyServerConnection())
-		configMenuEnable();
+  // open config
+  if (netGetLobbyServerConnection())
+    configMenuEnable();
 }
 
 /*
@@ -3991,12 +3849,12 @@ void patchStartMenuBack_Hook(long a0, u64 a1, u64 a2, u8 a3)
 u64 hookedProcessLevel()
 {
   // enable singleplayer music
-  runEnableSingleplayerMusic();
+  spMusicRun();
 
-	u64 r = ((u64 (*)(void))0x001579A0)();
+  u64 r = ((u64 (*)(void))0x001579A0)();
 
-	// Start at the first game module
-	GameModule * module = GLOBAL_GAME_MODULES_START;
+  // Start at the first game module
+  GameModule * module = GLOBAL_GAME_MODULES_START;
 
   // increase wait for players to 45 seconds
   POKE_U32(0x0021E1E8, 45 * 60);
@@ -4008,19 +3866,19 @@ u64 hookedProcessLevel()
     POKE_U16(0x005ce238, 120 * 60);
   }
 
-	// call gamerules level load
-	grLoadStart();
+  // call gamerules level load
+  grLoadStart();
 
-	// pass event to modules
-	while (module->Entrypoint)
-	{
-		if (module->State > GAMEMODULE_OFF)
-			module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOAD);
+  // pass event to modules
+  while (module->Entrypoint)
+  {
+    if (module->State > GAMEMODULE_OFF)
+      module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOAD);
 
-		++module;
-	}
+    ++module;
+  }
 
-	return r;
+  return r;
 }
 
 /*
@@ -4039,8 +3897,8 @@ u64 hookedProcessLevel()
  */
 void patchProcessLevel(void)
 {
-	// jal hookedProcessLevel
-	*(u32*)0x00157D38 = 0x0C000000 | (u32)&hookedProcessLevel / 4;
+  // jal hookedProcessLevel
+  *(u32*)0x00157D38 = 0x0C000000 | (u32)&hookedProcessLevel / 4;
 }
 
 /*
@@ -4059,31 +3917,31 @@ void patchProcessLevel(void)
  */
 int sendGameDataBlock(short offset, char endOfList, void* buffer, int size)
 {
-	int i = 0;
-	struct GameDataBlock data;
+  int i = 0;
+  struct GameDataBlock data;
 
-	data.Offset = offset;
+  data.Offset = offset;
 
-	// send in chunks
-	while (i < size)
-	{
-		short len = (size - i);
-		if (len > sizeof(data.Payload)) {
-			len = sizeof(data.Payload);
-	    data.EndOfList = 0;
+  // send in chunks
+  while (i < size)
+  {
+    short len = (size - i);
+    if (len > sizeof(data.Payload)) {
+      len = sizeof(data.Payload);
+      data.EndOfList = 0;
     } else {
-	    data.EndOfList = endOfList;
+      data.EndOfList = endOfList;
     }
 
-		data.Length = len;
-		memcpy(data.Payload, (char*)buffer + i, len);
-		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SEND_GAME_DATA, sizeof(struct GameDataBlock), &data);
-		i += len;
-		data.Offset += len;
-	}
+    data.Length = len;
+    memcpy(data.Payload, (char*)buffer + i, len);
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SEND_GAME_DATA, sizeof(struct GameDataBlock), &data);
+    i += len;
+    data.Offset += len;
+  }
 
-	// return written bytes
-	return i;
+  // return written bytes
+  return i;
 }
 
 /*
@@ -4105,30 +3963,30 @@ void sendGameData(void)
   GameOptions* gameOptions = gameGetOptions();
   GameSettings* gameSettings = gameGetSettings();
   GameData* gameData = gameGetData();
-	short offset = 0;
+  short offset = 0;
   int hasCustomGameData = patchStateContainer.CustomGameStatsSize > 0;
   int header[] = {
     0x1337C0DE,
     PATCH_GAME_STATS_VERSION
   };
 
-	// ensure in game/staging
-	if (!gameSettings)
-		return;
-	
-	DPRINTF("sending stats... ");
-	offset += sendGameDataBlock(offset, 0, header, sizeof(header));
-	offset += sendGameDataBlock(offset, 0, gameData, sizeof(GameData)); uiRunCallbacks();
-	offset += sendGameDataBlock(offset, 0, &patchStateContainer.GameSettingsAtStart, sizeof(GameSettings)); uiRunCallbacks();
-	offset += sendGameDataBlock(offset, 0, gameSettings, sizeof(GameSettings)); uiRunCallbacks();
-	offset += sendGameDataBlock(offset, 0, gameOptions, sizeof(GameOptions)); uiRunCallbacks();
-	offset += sendGameDataBlock(offset, !hasCustomGameData, &patchStateContainer.GameStateUpdate, sizeof(UpdateGameStateRequest_t));
+  // ensure in game/staging
+  if (!gameSettings)
+    return;
+  
+  DPRINTF("sending stats... ");
+  offset += sendGameDataBlock(offset, 0, header, sizeof(header));
+  offset += sendGameDataBlock(offset, 0, gameData, sizeof(GameData)); uiRunCallbacks();
+  offset += sendGameDataBlock(offset, 0, &patchStateContainer.GameSettingsAtStart, sizeof(GameSettings)); uiRunCallbacks();
+  offset += sendGameDataBlock(offset, 0, gameSettings, sizeof(GameSettings)); uiRunCallbacks();
+  offset += sendGameDataBlock(offset, 0, gameOptions, sizeof(GameOptions)); uiRunCallbacks();
+  offset += sendGameDataBlock(offset, !hasCustomGameData, &patchStateContainer.GameStateUpdate, sizeof(UpdateGameStateRequest_t));
   if (hasCustomGameData) {
     uiRunCallbacks();
-	  offset += sendGameDataBlock(offset, 1, &patchStateContainer.CustomGameStats, patchStateContainer.CustomGameStatsSize);
+    offset += sendGameDataBlock(offset, 1, &patchStateContainer.CustomGameStats, patchStateContainer.CustomGameStatsSize);
   }
   
-	DPRINTF("done.\n");
+  DPRINTF("done.\n");
 }
 
 /*
@@ -4147,41 +4005,41 @@ void sendGameData(void)
  */
 int processSendGameData(void)
 {
-	static int state = 0;
+  static int state = 0;
   GameSettings* gameSettings = gameGetSettings();
-	int send = 0;
+  int send = 0;
 
-	// ensure in game/staging
-	if (!gameSettings)
-		return 0;
-	
-	if (isInGame())
-	{
-		// move game settings
-		if (state == 0)
-		{
-			memcpy(&patchStateContainer.GameSettingsAtStart, gameSettings, sizeof(GameSettings));
-			state = 1;
-		}
+  // ensure in game/staging
+  if (!gameSettings)
+    return 0;
+  
+  if (isInGame())
+  {
+    // move game settings
+    if (state == 0)
+    {
+      memcpy(&patchStateContainer.GameSettingsAtStart, gameSettings, sizeof(GameSettings));
+      state = 1;
+    }
 
-		// game has ended
-		if (state == 1 && gameGetFinishedExitTime() && gameAmIHost())
-			send = 1;
-	}
-	else if (state > 0)
-	{
-		// host leaves the game
-		if (state == 1 && gameAmIHost())
-			send = 1;
+    // game has ended
+    if (state == 1 && gameGetFinishedExitTime() && gameAmIHost())
+      send = 1;
+  }
+  else if (state > 0)
+  {
+    // host leaves the game
+    if (state == 1 && gameAmIHost())
+      send = 1;
 
-		state = 0;
-	}
+    state = 0;
+  }
 
-	// 
-	if (send)
-		state = 2;
+  // 
+  if (send)
+    state = 2;
 
-	return send;
+  return send;
 }
 
 /*
@@ -4200,38 +4058,38 @@ int processSendGameData(void)
  */
 void runFpsCounter(void)
 {
-	char buf[64];
-	static int lastGameTime = 0;
-	static int tickCounter = 0;
+  char buf[64];
+  static int lastGameTime = 0;
+  static int tickCounter = 0;
 
-	if (!isInGame())
-		return;
+  if (!isInGame())
+    return;
 
-	// initialize time
-	if (tickCounter == 0 && lastGameTime == 0)
-		lastGameTime = gameGetTime();
-	
-	// update fps every 60 frames
-	++tickCounter;
-	if (tickCounter >= 60)
-	{
-		int currentTime = gameGetTime();
-		lastFps = tickCounter / ((currentTime - lastGameTime) / (float)TIME_SECOND);
-		lastGameTime = currentTime;
-		tickCounter = 0;
-	}
+  // initialize time
+  if (tickCounter == 0 && lastGameTime == 0)
+    lastGameTime = gameGetTime();
+  
+  // update fps every 60 frames
+  ++tickCounter;
+  if (tickCounter >= 60)
+  {
+    int currentTime = gameGetTime();
+    lastFps = tickCounter / ((currentTime - lastGameTime) / (float)TIME_SECOND);
+    lastGameTime = currentTime;
+    tickCounter = 0;
+  }
 
-	// render if enabled
-	if (config.enableFpsCounter)
-	{
-		if (averageRenderTimeMs > 0) {
-			snprintf(buf, 64, "EE: %.1fms GS: %.1fms FPS: %.2f", averageUpdateTimeMs, averageRenderTimeMs, lastFps);
-		} else {
-			snprintf(buf, 64, "FPS: %.2f", lastFps);
-		}
-		
-		gfxScreenSpaceText(SCREEN_WIDTH - 5, 5, 0.75, 0.75, 0x80FFFFFF, buf, -1, 2);
-	}
+  // render if enabled
+  if (config.enableFpsCounter)
+  {
+    if (averageRenderTimeMs > 0) {
+      snprintf(buf, 64, "EE: %.1fms GS: %.1fms FPS: %.2f", averageUpdateTimeMs, averageRenderTimeMs, lastFps);
+    } else {
+      snprintf(buf, 64, "FPS: %.2f", lastFps);
+    }
+    
+    gfxScreenSpaceText(SCREEN_WIDTH - 5, 5, 0.75, 0.75, 0x80FFFFFF, buf, -1, 2);
+  }
 }
 
 void runFastLoad(void)
@@ -4260,20 +4118,20 @@ void runFastLoad(void)
 
 int hookCheckHostStartGame(void* a0)
 {
-	GameSettings* gs = gameGetSettings();
+  GameSettings* gs = gameGetSettings();
 
-	// call base
-	int v0 = ((int (*)(void*))0x00757660)(a0);
+  // call base
+  int v0 = ((int (*)(void*))0x00757660)(a0);
 
-	// success
-	if (v0) {
+  // success
+  if (v0) {
 
-		// verify we have map
-		if (mapOverrideResponse < 0) {
-			showNoMapPopup = 1;
-			netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
-			return 0;
-		}
+    // verify we have map
+    if (mapOverrideResponse < 0) {
+      showNoMapPopup = 1;
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+      return 0;
+    }
 
     // if survival
     // verify we have the latest maps
@@ -4285,24 +4143,24 @@ int hookCheckHostStartGame(void* a0)
       }
     }
 
-		// wait for download to finish
-		if (dlIsActive) {
-			showMiscPopup = 1;
-			strncpy(miscPopupTitle, "System", 32);
-			strncpy(miscPopupBody, "Please wait for the download to finish.", 64);
-			return 0;
-		}
+    // wait for download to finish
+    if (dlIsActive) {
+      showMiscPopup = 1;
+      strncpy(miscPopupTitle, "System", 32);
+      strncpy(miscPopupBody, "Please wait for the download to finish.", 64);
+      return 0;
+    }
 
-		// if training, verify we're the only player in the lobby
-		if (gameConfig.customModeId == CUSTOM_MODE_TRAINING && gs && gs->PlayerCount != 1) {
-			showMiscPopup = 1;
-			strncpy(miscPopupTitle, "Training", 32);
-			strncpy(miscPopupBody, "Too many players to start.", 64);
-			return 0;
-		}
-	}
+    // if training, verify we're the only player in the lobby
+    if (gameConfig.customModeId == CUSTOM_MODE_TRAINING && gs && gs->PlayerCount != 1) {
+      showMiscPopup = 1;
+      strncpy(miscPopupTitle, "Training", 32);
+      strncpy(miscPopupBody, "Too many players to start.", 64);
+      return 0;
+    }
+  }
 
-	return v0;
+  return v0;
 }
 
 /*
@@ -4321,16 +4179,16 @@ int hookCheckHostStartGame(void* a0)
  */
 void runCheckGameMapInstalled(void)
 {
-	int i;
-	GameSettings* gs = gameGetSettings();
-	if (!gs || !isInMenus())
-		return;
+  int i;
+  GameSettings* gs = gameGetSettings();
+  if (!gs || !isInMenus())
+    return;
 
-	// install start game hook
-	if (*(u32*)0x00759580 == 0x0C1D5D98)
-		*(u32*)0x00759580 = 0x0C000000 | ((u32)&hookCheckHostStartGame >> 2);
+  // install start game hook
+  if (*(u32*)0x00759580 == 0x0C1D5D98)
+    *(u32*)0x00759580 = 0x0C000000 | ((u32)&hookCheckHostStartGame >> 2);
 
-	int clientId = gameGetMyClientId();
+  int clientId = gameGetMyClientId();
   for (i = 1; i < GAME_MAX_PLAYERS; ++i)
   {
     if (gs->PlayerClients[i] == clientId && gs->PlayerStates[i] == 6)
@@ -4371,58 +4229,58 @@ void runCheckGameMapInstalled(void)
  */
 void processGameModules()
 {
-	// Start at the first game module
-	GameModule * module = GLOBAL_GAME_MODULES_START;
+  // Start at the first game module
+  GameModule * module = GLOBAL_GAME_MODULES_START;
 
-	// Game settings
-	GameSettings * gamesettings = gameGetSettings();
+  // Game settings
+  GameSettings * gamesettings = gameGetSettings();
 
-	// Iterate through all the game modules until we hit an empty one
-	while (module->Entrypoint)
-	{
-		// Ensure we have game settings
-		if (gamesettings)
-		{
-			// Check the module is enabled
-			if (module->State > GAMEMODULE_OFF)
-			{
-				// If in game, run game entrypoint
-				if (isInGame())
-				{
-					// Check if the game hasn't ended
-					// We also give the module a second after the game has ended to
-					// do some end game logic
-					if (!gameHasEnded() || gameGetTime() < (gameGetFinishedExitTime() + TIME_SECOND))
-					{
-						// Invoke module
+  // Iterate through all the game modules until we hit an empty one
+  while (module->Entrypoint)
+  {
+    // Ensure we have game settings
+    if (gamesettings)
+    {
+      // Check the module is enabled
+      if (module->State > GAMEMODULE_OFF)
+      {
+        // If in game, run game entrypoint
+        if (isInGame())
+        {
+          // Check if the game hasn't ended
+          // We also give the module a second after the game has ended to
+          // do some end game logic
+          if (!gameHasEnded() || gameGetTime() < (gameGetFinishedExitTime() + TIME_SECOND))
+          {
+            // Invoke module
             module->Entrypoint(module, &patchStateContainer, GAMEMODULE_GAME_FRAME);
-					}
-				}
-				else if (isInMenus())
-				{
-					// Invoke lobby module if still active
+          }
+        }
+        else if (isInMenus())
+        {
+          // Invoke lobby module if still active
           module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOBBY);
-				}
-			}
+        }
+      }
 
-		}
-		// If we aren't in a game then try to turn the module off
-		// ONLY if it's temporarily enabled
-		else if (module->State == GAMEMODULE_TEMP_ON)
-		{
-			module->State = GAMEMODULE_OFF;
-		}
-		else if (module->State == GAMEMODULE_ALWAYS_ON)
-		{
-			// Invoke lobby module if still active
-			if (isInMenus())
-			{
-				module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOBBY);
-			}
-		}
+    }
+    // If we aren't in a game then try to turn the module off
+    // ONLY if it's temporarily enabled
+    else if (module->State == GAMEMODULE_TEMP_ON)
+    {
+      module->State = GAMEMODULE_OFF;
+    }
+    else if (module->State == GAMEMODULE_ALWAYS_ON)
+    {
+      // Invoke lobby module if still active
+      if (isInMenus())
+      {
+        module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOBBY);
+      }
+    }
 
-		++module;
-	}
+    ++module;
+  }
 }
 
 /*
@@ -4441,16 +4299,16 @@ void processGameModules()
  */
 void processGameModulesUpdate()
 {
-	// Start at the first game module
-	GameModule * module = GLOBAL_GAME_MODULES_START;
+  // Start at the first game module
+  GameModule * module = GLOBAL_GAME_MODULES_START;
 
-	// check we're in game
+  // check we're in game
   if (!isInGame() || !gameGetSettings()) return;
   if (gameHasEnded() && gameGetTime() > (gameGetFinishedExitTime() + TIME_SECOND)) return;
 
-	// Iterate through all the game modules until we hit an empty one
-	while (module->Entrypoint)
-	{
+  // Iterate through all the game modules until we hit an empty one
+  while (module->Entrypoint)
+  {
     // Check the module is enabled
     if (module->State > GAMEMODULE_OFF)
     {
@@ -4458,8 +4316,8 @@ void processGameModulesUpdate()
       module->Entrypoint(module, &patchStateContainer, GAMEMODULE_GAME_UPDATE);
     }
 
-		++module;
-	}
+    ++module;
+  }
 }
 
 /*
@@ -4478,84 +4336,84 @@ void processGameModulesUpdate()
  */
 int onSetTeams(void * connection, void * data)
 {
-	int i, j;
+  int i, j;
   ChangeTeamRequest_t request;
-	u32 seed;
-	char teamByClientId[GAME_MAX_PLAYERS];
+  u32 seed;
+  char teamByClientId[GAME_MAX_PLAYERS];
 
-	// move message payload into local
-	memcpy(&request, data, sizeof(ChangeTeamRequest_t));
+  // move message payload into local
+  memcpy(&request, data, sizeof(ChangeTeamRequest_t));
 
-	// move seed
-	memcpy(&seed, &request.Seed, 4);
+  // move seed
+  memcpy(&seed, &request.Seed, 4);
 
-	//
-	memset(teamByClientId, -1, sizeof(teamByClientId));
-
-#if DEBUG
-	printf("pool size: %d\npool: ", request.PoolSize);
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		printf("%d=%d,", i, request.Pool[i]);
-	printf("\n");
-#endif
-
-	// get game settings
-	GameSettings* gameSettings = gameGetSettings();
-	if (gameSettings)
-	{
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		{
-			int clientId = gameSettings->PlayerClients[i];
-			if (clientId >= 0)
-			{
-				int teamId = teamByClientId[clientId];
-				if (teamId < 0)
-				{
-					if (request.PoolSize == 0)
-					{
-						teamId = 0;
-					}
-					else
-					{
-						// psuedo random
-						sha1(&seed, 4, &seed, 4);
-
-						// get pool index from rng
-						int teamPoolIndex = seed % request.PoolSize;
-
-						// set team
-						teamId = request.Pool[teamPoolIndex];
-
-						DPRINTF("pool info pid:%d poolIndex:%d poolSize:%d team:%d\n", i, teamPoolIndex, request.PoolSize, teamId);
-
-						// remove element from pool
-						if (request.PoolSize > 0)
-						{
-							for (j = teamPoolIndex+1; j < request.PoolSize; ++j)
-								request.Pool[j-1] = request.Pool[j];
-							request.PoolSize -= 1;
+  //
+  memset(teamByClientId, -1, sizeof(teamByClientId));
 
 #if DEBUG
-							printf("pool after shift ");
-							for (j = 0; j < request.PoolSize; ++j)
-								printf("%d=%d ", j, request.Pool[j]);
-							printf("\n");
+  printf("pool size: %d\npool: ", request.PoolSize);
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    printf("%d=%d,", i, request.Pool[i]);
+  printf("\n");
 #endif
-						}
-					}
 
-					// set client id team
-					teamByClientId[clientId] = teamId;
-				}
+  // get game settings
+  GameSettings* gameSettings = gameGetSettings();
+  if (gameSettings)
+  {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      int clientId = gameSettings->PlayerClients[i];
+      if (clientId >= 0)
+      {
+        int teamId = teamByClientId[clientId];
+        if (teamId < 0)
+        {
+          if (request.PoolSize == 0)
+          {
+            teamId = 0;
+          }
+          else
+          {
+            // psuedo random
+            sha1(&seed, 4, &seed, 4);
 
-				// set team
-				DPRINTF("setting pid:%d to %d\n", i, teamId);
-				gameSettings->PlayerTeams[i] = teamId;
-			}
-		}
-	}
+            // get pool index from rng
+            int teamPoolIndex = seed % request.PoolSize;
 
-	return sizeof(ChangeTeamRequest_t);
+            // set team
+            teamId = request.Pool[teamPoolIndex];
+
+            DPRINTF("pool info pid:%d poolIndex:%d poolSize:%d team:%d\n", i, teamPoolIndex, request.PoolSize, teamId);
+
+            // remove element from pool
+            if (request.PoolSize > 0)
+            {
+              for (j = teamPoolIndex+1; j < request.PoolSize; ++j)
+                request.Pool[j-1] = request.Pool[j];
+              request.PoolSize -= 1;
+
+#if DEBUG
+              printf("pool after shift ");
+              for (j = 0; j < request.PoolSize; ++j)
+                printf("%d=%d ", j, request.Pool[j]);
+              printf("\n");
+#endif
+            }
+          }
+
+          // set client id team
+          teamByClientId[clientId] = teamId;
+        }
+
+        // set team
+        DPRINTF("setting pid:%d to %d\n", i, teamId);
+        gameSettings->PlayerTeams[i] = teamId;
+      }
+    }
+  }
+
+  return sizeof(ChangeTeamRequest_t);
 }
 
 /*
@@ -4574,21 +4432,21 @@ int onSetTeams(void * connection, void * data)
  */
 int onSetLobbyClientPatchConfig(void * connection, void * data)
 {
-	int i;
+  int i;
   SetLobbyClientPatchConfigRequest_t request;
-	GameSettings* gs = gameGetSettings();
+  GameSettings* gs = gameGetSettings();
 
-	// move message payload into local
-	memcpy(&request, data, sizeof(SetLobbyClientPatchConfigRequest_t));
+  // move message payload into local
+  memcpy(&request, data, sizeof(SetLobbyClientPatchConfigRequest_t));
 
-	if (request.PlayerId >= 0 && request.PlayerId < GAME_MAX_PLAYERS) {
-		DPRINTF("recieved %d config\n", request.PlayerId);
+  if (request.PlayerId >= 0 && request.PlayerId < GAME_MAX_PLAYERS) {
+    DPRINTF("recieved %d config\n", request.PlayerId);
 
-		
-		memcpy(&lobbyPlayerConfigs[request.PlayerId], &request.Config, sizeof(PatchConfig_t));
-	}
+    
+    memcpy(&lobbyPlayerConfigs[request.PlayerId], &request.Config, sizeof(PatchConfig_t));
+  }
 
-	return sizeof(SetLobbyClientPatchConfigRequest_t);
+  return sizeof(SetLobbyClientPatchConfigRequest_t);
 }
 
 /*
@@ -4719,10 +4577,10 @@ void onServerSetLobbyNameOverridesRemote(void* connection, void* data)
  */
 int onSetRanks(void * connection, void * data)
 {
-	int i, j;
+  int i, j;
 
-	// move message payload into local
-	memcpy(&lastSetRanksRequest, data, sizeof(ServerSetRanksRequest_t));
+  // move message payload into local
+  memcpy(&lastSetRanksRequest, data, sizeof(ServerSetRanksRequest_t));
 
   // 
   if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && !hasShownSurvivalPrestigeMessage) {
@@ -4733,7 +4591,7 @@ int onSetRanks(void * connection, void * data)
     }
   }
 
-	return sizeof(ServerSetRanksRequest_t);
+  return sizeof(ServerSetRanksRequest_t);
 }
 
 /*
@@ -4752,22 +4610,22 @@ int onSetRanks(void * connection, void * data)
  */
 int getCustomGamemodeRankNumber(int offset)
 {
-	GameSettings* gs = gameGetSettings();
-	int pid = offset / 4;
-	float rank = gs->PlayerRanks[pid];
-	int i;
+  GameSettings* gs = gameGetSettings();
+  int pid = offset / 4;
+  float rank = gs->PlayerRanks[pid];
+  int i;
 
-	if (gameConfig.customModeId != CUSTOM_MODE_NONE && lastSetRanksRequest.Enabled)
-	{
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		{
-			if (lastSetRanksRequest.AccountIds[i] == gs->PlayerAccountIds[pid])
-			{
-				rank = lastSetRanksRequest.Ranks[i];
-				break;
-			}
-		}
-	}
+  if (gameConfig.customModeId != CUSTOM_MODE_NONE && lastSetRanksRequest.Enabled)
+  {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      if (lastSetRanksRequest.AccountIds[i] == gs->PlayerAccountIds[pid])
+      {
+        rank = lastSetRanksRequest.Ranks[i];
+        break;
+      }
+    }
+  }
 
 #if COMP
   if (rank < 1000) return 0x759d;         // Avenger
@@ -4777,7 +4635,7 @@ int getCustomGamemodeRankNumber(int offset)
   return 0x75a2;                          // Vindicator
 #endif
 
-	return ((int (*)(float))0x0077B8A0)(rank);
+  return ((int (*)(float))0x0077B8A0)(rank);
 }
 
 /*
@@ -4796,16 +4654,16 @@ int getCustomGamemodeRankNumber(int offset)
  */
 void patchStagingRankNumber(void)
 {
-	if (!isInMenus())
-		return;
-	
+  if (!isInMenus())
+    return;
+  
 #if COMP
   POKE_U32(0x0075AC48, 0x00408021);
   POKE_U32(0x0075ac68, 0);
 #endif
 
-	HOOK_JAL(0x0075AC3C, &getCustomGamemodeRankNumber);
-	POKE_U32(0x0075AC40, 0x0060202D);
+  HOOK_JAL(0x0075AC3C, &getCustomGamemodeRankNumber);
+  POKE_U32(0x0075AC40, 0x0060202D);
 }
 
 //--------------------------------------------------------------------------
@@ -4835,11 +4693,11 @@ char* searchGetMapNameFromMapId(int mapId)
 {
   int idx;
 
-	// pointer to b6 ball moby is stored in $v0
-	asm volatile (
-		"move %0, $s1"
-		: : "r" (idx)
-	);
+  // pointer to b6 ball moby is stored in $v0
+  asm volatile (
+    "move %0, $s1"
+    : : "r" (idx)
+  );
 
   char* map = ((char* (*)(int))0x00764330)(mapId);
   void* ptr = searchGetSearchResultPtr(idx / 4);
@@ -4883,10 +4741,10 @@ char* searchGetModeNameFromModeId2(int modeId)
   void* ptr = 0;
   char* gameName;
 
-	asm volatile (
-		"move %0, $s4"
-		: : "r" (gameName)
-	);
+  asm volatile (
+    "move %0, $s4"
+    : : "r" (gameName)
+  );
 
   char* modeName = ((char* (*)(int))0x00764B80)(modeId);
   while ((ptr = searchGetSearchResultPtr(idx))) {
@@ -4917,11 +4775,11 @@ void searchSetModeName(UiTextElement_t* element, char* str)
 {
   int idx;
   
-	// pointer to b6 ball moby is stored in $v0
-	asm volatile (
-		"move %0, $s3"
-		: : "r" (idx)
-	);
+  // pointer to b6 ball moby is stored in $v0
+  asm volatile (
+    "move %0, $s3"
+    : : "r" (idx)
+  );
 
   void* ptr = searchGetSearchResultPtr(idx);
   if (ptr) {
@@ -4965,54 +4823,54 @@ char scrPrintRingBuf[SCRPRINT_RINGSIZE][SCRPRINT_BUFSIZE];
 
 int scrPrintHook(int fd, char* buf, int len)
 {
-	// add to our ring buf
-	int n = len < SCRPRINT_BUFSIZE ? len : SCRPRINT_BUFSIZE;
-	memcpy(scrPrintRingBuf[scrPrintTop], buf, n);
-	scrPrintRingBuf[scrPrintTop][n] = 0;
-	scrPrintTop = (scrPrintTop + 1) % SCRPRINT_RINGSIZE;
+  // add to our ring buf
+  int n = len < SCRPRINT_BUFSIZE ? len : SCRPRINT_BUFSIZE;
+  memcpy(scrPrintRingBuf[scrPrintTop], buf, n);
+  scrPrintRingBuf[scrPrintTop][n] = 0;
+  scrPrintTop = (scrPrintTop + 1) % SCRPRINT_RINGSIZE;
 
-	// loop bottom to end of ring
-	if (scrPrintBottom == scrPrintTop)
-		scrPrintBottom = (scrPrintTop + 1) % SCRPRINT_RINGSIZE;
+  // loop bottom to end of ring
+  if (scrPrintBottom == scrPrintTop)
+    scrPrintBottom = (scrPrintTop + 1) % SCRPRINT_RINGSIZE;
 
-	return ((int (*)(int, char*, int))0x00127168)(fd, buf, len);
+  return ((int (*)(int, char*, int))0x00127168)(fd, buf, len);
 }
 
 void handleScrPrint(void)
 {
-	int i = scrPrintTop;
-	float x = 15, y = SCREEN_HEIGHT - 15;
+  int i = scrPrintTop;
+  float x = 15, y = SCREEN_HEIGHT - 15;
 
-	// hook
-	*(u32*)0x00123D38 = 0x0C000000 | ((u32)&scrPrintHook >> 2);
+  // hook
+  *(u32*)0x00123D38 = 0x0C000000 | ((u32)&scrPrintHook >> 2);
 
-	if (scrPrintTop != scrPrintBottom)
-	{
-		// draw
-		do
-		{
-			i--;
-			if (i < 0)
-				i = SCRPRINT_RINGSIZE - 1;
+  if (scrPrintTop != scrPrintBottom)
+  {
+    // draw
+    do
+    {
+      i--;
+      if (i < 0)
+        i = SCRPRINT_RINGSIZE - 1;
 
-			gfxScreenSpaceText(x+1, y+1, 0.7, 0.7, 0x80000000, scrPrintRingBuf[i], -1, 0);
-			gfxScreenSpaceText(x, y, 0.7, 0.7, 0x80FFFFFF, scrPrintRingBuf[i], -1, 0);
+      gfxScreenSpaceText(x+1, y+1, 0.7, 0.7, 0x80000000, scrPrintRingBuf[i], -1, 0);
+      gfxScreenSpaceText(x, y, 0.7, 0.7, 0x80FFFFFF, scrPrintRingBuf[i], -1, 0);
 
-			y -= 12;
-		}
-		while (i != scrPrintBottom);
+      y -= 12;
+    }
+    while (i != scrPrintBottom);
 
-		// move bottom to top
-		if (scrPrintStepTicker == 0)
-		{
-			scrPrintBottom = (scrPrintBottom + 1) % SCRPRINT_RINGSIZE;
-			scrPrintStepTicker = 60 * 5;
-		}
-		else
-		{
-			scrPrintStepTicker--;
-		}
-	}
+    // move bottom to top
+    if (scrPrintStepTicker == 0)
+    {
+      scrPrintBottom = (scrPrintBottom + 1) % SCRPRINT_RINGSIZE;
+      scrPrintStepTicker = 60 * 5;
+    }
+    else
+    {
+      scrPrintStepTicker--;
+    }
+  }
 }
 #endif
 
@@ -5032,27 +4890,27 @@ void handleScrPrint(void)
  */
 void drawHook(u64 a0)
 {
-	static int renderTimeCounterMs = 0;
-	static int frames = 0;
-	static long ticksIntervalStarted = 0;
+  static int renderTimeCounterMs = 0;
+  static int frames = 0;
+  static long ticksIntervalStarted = 0;
 
-	long t0 = timerGetSystemTime();
-	((void (*)(u64))0x004c3240)(a0);
-	long t1 = timerGetSystemTime();
+  long t0 = timerGetSystemTime();
+  ((void (*)(u64))0x004c3240)(a0);
+  long t1 = timerGetSystemTime();
 
-	renderTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
+  renderTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
 
-	renderTimeCounterMs += renderTimeMs;
-	frames++;
+  renderTimeCounterMs += renderTimeMs;
+  frames++;
 
-	// update every 500 ms
-	if ((t1 - ticksIntervalStarted) > (SYSTEM_TIME_TICKS_PER_MS * 500))
-	{
-		averageRenderTimeMs = renderTimeCounterMs / (float)frames;
-		renderTimeCounterMs = 0;
-		frames = 0;
-		ticksIntervalStarted = t1;
-	}
+  // update every 500 ms
+  if ((t1 - ticksIntervalStarted) > (SYSTEM_TIME_TICKS_PER_MS * 500))
+  {
+    averageRenderTimeMs = renderTimeCounterMs / (float)frames;
+    renderTimeCounterMs = 0;
+    frames = 0;
+    ticksIntervalStarted = t1;
+  }
 }
 
 /*
@@ -5073,7 +4931,7 @@ void updatePad(struct PAD* pad, u8* rdata, int size, u32 a3)
   // need to run this before UpdatePad
   runSingletapChargeboot(pad, rdata);
 
-	((void (*)(struct PAD*, u8*, int, u32))pad->RawPadInputCallback)(pad, rdata, size, a3);
+  ((void (*)(struct PAD*, u8*, int, u32))pad->RawPadInputCallback)(pad, rdata, size, a3);
 }
 
 /*
@@ -5092,31 +4950,31 @@ void updatePad(struct PAD* pad, u8* rdata, int size, u32 a3)
  */
 void updateHook(void)
 {
-	static int updateTimeCounterMs = 0;
-	static int frames = 0;
-	static long ticksIntervalStarted = 0;
+  static int updateTimeCounterMs = 0;
+  static int frames = 0;
+  static long ticksIntervalStarted = 0;
 
   // trigger config menu update
   if (playerGetNumLocals() > 1)
     onConfigGameMenu();
 
-	long t0 = timerGetSystemTime();
-	((void (*)(void))0x005986b0)();
-	long t1 = timerGetSystemTime();
+  long t0 = timerGetSystemTime();
+  ((void (*)(void))0x005986b0)();
+  long t1 = timerGetSystemTime();
 
-	updateTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
+  updateTimeMs = (t1-t0) / SYSTEM_TIME_TICKS_PER_MS;
 
-	updateTimeCounterMs += updateTimeMs;
-	frames++;
+  updateTimeCounterMs += updateTimeMs;
+  frames++;
 
-	// update every 500 ms
-	if ((t1 - ticksIntervalStarted) > (SYSTEM_TIME_TICKS_PER_MS * 500))
-	{
-		averageUpdateTimeMs = updateTimeCounterMs / (float)frames;
-		updateTimeCounterMs = 0;
-		frames = 0;
-		ticksIntervalStarted = t1;
-	}
+  // update every 500 ms
+  if ((t1 - ticksIntervalStarted) > (SYSTEM_TIME_TICKS_PER_MS * 500))
+  {
+    averageUpdateTimeMs = updateTimeCounterMs / (float)frames;
+    updateTimeCounterMs = 0;
+    frames = 0;
+    ticksIntervalStarted = t1;
+  }
 }
 
 /*
@@ -5135,9 +4993,9 @@ void updateHook(void)
  */
 int onCustomModeDownloadInitiated(void * connection, void * data)
 {
-	DPRINTF("requested mode binaries started %d\n", dlIsActive);
-	redownloadCustomModeBinaries = 0;
-	return 0;
+  DPRINTF("requested mode binaries started %d\n", dlIsActive);
+  redownloadCustomModeBinaries = 0;
+  return 0;
 }
 
 /*
@@ -5234,10 +5092,10 @@ void sendClientType(void)
  */
 void runPayloadDownloadRequester(void)
 {
-	GameModule * module = GLOBAL_GAME_MODULES_START;
-	GameSettings* gs = gameGetSettings();
-	if (!gs) {
-		
+  GameModule * module = GLOBAL_GAME_MODULES_START;
+  GameSettings* gs = gameGetSettings();
+  if (!gs) {
+    
     if (dlIsActive == 201) {
       dlIsActive = 0;
     }
@@ -5245,46 +5103,46 @@ void runPayloadDownloadRequester(void)
     return;
   }
 
-	// don't make any requests when the config menu is active
-	if (gameAmIHost() && isConfigMenuActive)
-		return;
+  // don't make any requests when the config menu is active
+  if (gameAmIHost() && isConfigMenuActive)
+    return;
 
-	if (!dlIsActive) {
-		// redownload when set mode doesn't match downloaded one
-		if (!redownloadCustomModeBinaries && gameConfig.customModeId && (module->State == 0 || module->ModeId != gameConfig.customModeId)) {
-			redownloadCustomModeBinaries = 1;
-			DPRINTF("mode id %d != %d\n", gameConfig.customModeId, module->ModeId);
-		}
+  if (!dlIsActive) {
+    // redownload when set mode doesn't match downloaded one
+    if (!redownloadCustomModeBinaries && gameConfig.customModeId && (module->State == 0 || module->ModeId != gameConfig.customModeId)) {
+      redownloadCustomModeBinaries = 1;
+      DPRINTF("mode id %d != %d\n", gameConfig.customModeId, module->ModeId);
+    }
 
-		// redownload when set map doesn't match downloaded one
-		// if (!redownloadCustomModeBinaries && module->State && module->MapId != gameConfig.customMapId) {
-		// 	redownloadCustomModeBinaries = 1;
-		// 	DPRINTF("map id %d != %d\n", gameConfig.customMapId, module->MapId);
-		// }
+    // redownload when set map doesn't match downloaded one
+    // if (!redownloadCustomModeBinaries && module->State && module->MapId != gameConfig.customMapId) {
+    // 	redownloadCustomModeBinaries = 1;
+    // 	DPRINTF("map id %d != %d\n", gameConfig.customMapId, module->MapId);
+    // }
     if (!redownloadCustomModeBinaries && patchStateContainer.SelectedCustomMapChanged) {
       redownloadCustomModeBinaries = 1;
     }
 
     // redownload if training mode changed
     if (!redownloadCustomModeBinaries && module->State && module->ModeId == CUSTOM_MODE_TRAINING && gameConfig.trainingConfig.type != module->Arg3) {
-			redownloadCustomModeBinaries = 1;
-			DPRINTF("training type id %d != %d\n", gameConfig.trainingConfig.type, module->Arg3);
+      redownloadCustomModeBinaries = 1;
+      DPRINTF("training type id %d != %d\n", gameConfig.trainingConfig.type, module->Arg3);
     }
 
-		// disable when module id doesn't match mode
-		// unless mode is forced (negative mode)
-		if (redownloadCustomModeBinaries == 1 || (module->State && !gameConfig.customModeId && module->ModeId >= 0)) {
-			DPRINTF("disabling module mode:%d\n", module->ModeId);
-			module->State = 0;
-			memset((void*)(u32)0x000F0000, 0, 0xF000);
-		}
+    // disable when module id doesn't match mode
+    // unless mode is forced (negative mode)
+    if (redownloadCustomModeBinaries == 1 || (module->State && !gameConfig.customModeId && module->ModeId >= 0)) {
+      DPRINTF("disabling module mode:%d\n", module->ModeId);
+      module->State = 0;
+      memset((void*)(u32)0x000F0000, 0, 0xF000);
+    }
 
-		if (redownloadCustomModeBinaries == 1) {
-			netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_REQUEST_CUSTOM_MODE_PATCH, 0, &dlIsActive);
-			redownloadCustomModeBinaries = 2;
-			DPRINTF("requested mode binaries\n");
-		}
-	}
+    if (redownloadCustomModeBinaries == 1) {
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_REQUEST_CUSTOM_MODE_PATCH, 0, &dlIsActive);
+      redownloadCustomModeBinaries = 2;
+      DPRINTF("requested mode binaries\n");
+    }
+  }
 
   patchStateContainer.SelectedCustomMapChanged = 0;
 }
@@ -5368,47 +5226,47 @@ void onOnlineMenu(void)
   static int hasDevGameConfig = 0;
   char buf[64];
 
-	// call normal draw routine
-	((void (*)(void))0x00707F28)();
+  // call normal draw routine
+  ((void (*)(void))0x00707F28)();
 
   // let the user read the EULA/Announcements without a big download bar appearing over it
   if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_1) == uiGetActivePointer()) return;
   if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_2) == uiGetActivePointer()) return;
 
-	// 
-	lastMenuInvokedTime = gameGetTime();
+  // 
+  lastMenuInvokedTime = gameGetTime();
 
-	//
-	if (!hasInitialized)
-	{
-		padEnableInput();
-		onConfigInitialize();
+  //
+  if (!hasInitialized)
+  {
+    padEnableInput();
+    onConfigInitialize();
     PATCH_DZO_INTEROP_FUNCS = 0;
-		memset(lobbyPlayerConfigs, 0, sizeof(lobbyPlayerConfigs));
-		memset(&voteToEndState, 0, sizeof(voteToEndState));
-		hasInitialized = 1;
-	}
+    memset(lobbyPlayerConfigs, 0, sizeof(lobbyPlayerConfigs));
+    memset(&voteToEndState, 0, sizeof(voteToEndState));
+    hasInitialized = 1;
+  }
 
-	// 
-	if (hasInitialized == 1)
-	{
-		uiShowOkDialog("System", "Patch has been successfully loaded.");
-		hasInitialized = 2;
-	}
+  // 
+  if (hasInitialized == 1)
+  {
+    uiShowOkDialog("System", "Patch has been successfully loaded.");
+    hasInitialized = 2;
+  }
 
-	// map loader
-	onMapLoaderOnlineMenu();
+  // map loader
+  onMapLoaderOnlineMenu();
 
 #if COMP
-	// run comp patch logic
-	runCompMenuLogic();
+  // run comp patch logic
+  runCompMenuLogic();
 #endif
 
   // banner
   bannerDraw();
 
-	// settings
-	onConfigOnlineMenu();
+  // settings
+  onConfigOnlineMenu();
 
   // check if dev item is newly enabled
   // and we're host
@@ -5428,49 +5286,49 @@ void onOnlineMenu(void)
     hasShownSurvivalPrestigeMessage = 2;
   }
 
-	if (showNoMapPopup)
-	{
-		if (mapOverrideResponse == -1)
-		{
-			uiShowOkDialog("Custom Maps", "You have not installed the map modules.");
-		}
-		else
-		{
+  if (showNoMapPopup)
+  {
+    if (mapOverrideResponse == -1)
+    {
+      uiShowOkDialog("Custom Maps", "You have not installed the map modules.");
+    }
+    else
+    {
 #if MAPDOWNLOADER
-			sprintf(buf, "Would you like to download the map now?");
-			
-			//uiShowOkDialog("Custom Maps", buf);
-			if (uiShowYesNoDialog("Required Map Update", buf) == 1)
-			{
-				ClientInitiateMapDownloadRequest_t msg = {
-					.MapId = (int)gameConfig.customMapId
-				};
-				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
-			}
+      sprintf(buf, "Would you like to download the map now?");
+      
+      //uiShowOkDialog("Custom Maps", buf);
+      if (uiShowYesNoDialog("Required Map Update", buf) == 1)
+      {
+        ClientInitiateMapDownloadRequest_t msg = {
+          .MapId = (int)gameConfig.customMapId
+        };
+        netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
+      }
 #else
       int i;
       sprintf(buf, "Please install %s to play.", MapLoaderState.MapName);
-			uiShowOkDialog("Custom Maps", buf);
+      uiShowOkDialog("Custom Maps", buf);
 #endif
-		}
+    }
 
-		showNoMapPopup = 0;
-	}
+    showNoMapPopup = 0;
+  }
 
-	// 
-	if (showNeedLatestMapsPopup)
-	{
+  // 
+  if (showNeedLatestMapsPopup)
+  {
     sprintf(buf, "Please download the latest custom maps to play. %d %d", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
     uiShowOkDialog("Custom Maps", buf);
 
-		showNeedLatestMapsPopup = 0;
-	}
+    showNeedLatestMapsPopup = 0;
+  }
 
-	if (showMiscPopup)
-	{
-		uiShowOkDialog(miscPopupTitle, miscPopupBody);
-		showMiscPopup = 0;
-	}
+  if (showMiscPopup)
+  {
+    uiShowOkDialog(miscPopupTitle, miscPopupBody);
+    showMiscPopup = 0;
+  }
 }
 
 /*
@@ -5489,90 +5347,90 @@ void onOnlineMenu(void)
  */
 int main (void)
 {
-	int i;
+  int i;
   static Moby* mpMoby = NULL;
-	
-	// Call this first
-	dlPreUpdate();
+  
+  // Call this first
+  dlPreUpdate();
 
   //
   //if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
   //  POKE_U32(0x0036D664, gameGetTime() + (TIME_SECOND * 1020));
   //}
 
-	// auto enable pad input to prevent freezing when popup shows
-	if (lastMenuInvokedTime > 0 && gameGetTime() - lastMenuInvokedTime > TIME_SECOND)
-	{
-		padEnableInput();
-		lastMenuInvokedTime = 0;
-	}
+  // auto enable pad input to prevent freezing when popup shows
+  if (lastMenuInvokedTime > 0 && gameGetTime() - lastMenuInvokedTime > TIME_SECOND)
+  {
+    padEnableInput();
+    lastMenuInvokedTime = 0;
+  }
 
-	//
-	if (!hasInitialized)
-	{
-		DPRINTF("patch loaded\n");
-		onConfigInitialize();
-		hasInitialized = 1;
+  //
+  if (!hasInitialized)
+  {
+    DPRINTF("patch loaded\n");
+    onConfigInitialize();
+    hasInitialized = 1;
 
-		if (isInGame()) {
-			uiShowPopup(0, "Patch has been successfully loaded.");
-			hasInitialized = 2;
-		}
-	}
+    if (isInGame()) {
+      uiShowPopup(0, "Patch has been successfully loaded.");
+      hasInitialized = 2;
+    }
+  }
 
   // write patch pointers
   PATCH_INTEROP = &interopData;
 
-	// invoke exception display installer
-	if (*(u32*)EXCEPTION_DISPLAY_ADDR != 0)
-	{
-		if (!hasInstalledExceptionHandler)
-		{
-			((void (*)(void))EXCEPTION_DISPLAY_ADDR)();
-			hasInstalledExceptionHandler = 1;
-		}
-		
-		// change display to match progressive scan resolution
-		if (IS_PROGRESSIVE_SCAN)
-		{
-			*(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F4) = 0x0083;
-			*(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F8) = 0x210E;
-		}
-		else
-		{
-			*(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F4) = 0x0183;
-			*(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F8) = 0x2278;
-		}
-	}
+  // invoke exception display installer
+  if (*(u32*)EXCEPTION_DISPLAY_ADDR != 0)
+  {
+    if (!hasInstalledExceptionHandler)
+    {
+      ((void (*)(void))EXCEPTION_DISPLAY_ADDR)();
+      hasInstalledExceptionHandler = 1;
+    }
+    
+    // change display to match progressive scan resolution
+    if (IS_PROGRESSIVE_SCAN)
+    {
+      *(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F4) = 0x0083;
+      *(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F8) = 0x210E;
+    }
+    else
+    {
+      *(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F4) = 0x0183;
+      *(u16*)(EXCEPTION_DISPLAY_ADDR + 0x9F8) = 0x2278;
+    }
+  }
 
 #if SCR_PRINT
-	handleScrPrint();
+  handleScrPrint();
 #endif
 
-	// install net handlers
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_REQUEST_TEAM_CHANGE, &onSetTeams);
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST, &onSetLobbyClientPatchConfig);
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
-	netInstallCustomMsgHandler(CUSTOM_MSG_RESPONSE_CUSTOM_MODE_PATCH, &onCustomModeDownloadInitiated);
-	netInstallCustomMsgHandler(CUSTOM_MSG_CLIENT_READY, &onClientReadyRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_VOTED_TO_END, &onClientVoteToEndRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED, &onClientVoteToEndStateUpdateRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_NAME_OVERRIDES, &onServerSetLobbyNameOverridesRemote);
+  // install net handlers
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_REQUEST_TEAM_CHANGE, &onSetTeams);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_CLIENT_PATCH_CONFIG_REQUEST, &onSetLobbyClientPatchConfig);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_RANKS, &onSetRanks);
+  netInstallCustomMsgHandler(CUSTOM_MSG_RESPONSE_CUSTOM_MODE_PATCH, &onCustomModeDownloadInitiated);
+  netInstallCustomMsgHandler(CUSTOM_MSG_CLIENT_READY, &onClientReadyRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_VOTED_TO_END, &onClientVoteToEndRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_VOTE_TO_END_STATE_UPDATED, &onClientVoteToEndStateUpdateRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_LOBBY_NAME_OVERRIDES, &onServerSetLobbyNameOverridesRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DATE_TIME_RESPONSE, &onServerDateTimeResponseRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_B6_BALL_FIRED, &onB6BallFiredRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_B6_BALL_FIRED, &onB6BallFiredRemote);
 
   // dzo cosmetics are sent by dzo clients
   // the dzo patch handles it for us
   // but for non-dzo clients we need to handle it so that the size is properly returned
   if (interopData.Client != CLIENT_TYPE_DZO) {
-	  netInstallCustomMsgHandler(CUSTOM_MSG_DZO_COSMETICS_UPDATE, &onSetPlayerDzoCosmeticsRemote);
+    netInstallCustomMsgHandler(CUSTOM_MSG_DZO_COSMETICS_UPDATE, &onSetPlayerDzoCosmeticsRemote);
   }
 
   // banner
   bannerTick();
 
-	// Run map loader
-	runMapLoader();
+  // Run map loader
+  runMapLoader();
 
 #if PINGTEST
   runLagTestLogic();
@@ -5586,13 +5444,13 @@ int main (void)
   //patchAggTime(5);
 
 #if COMP
-	// run comp patch logic
-	runCompLogic();
+  // run comp patch logic
+  runCompLogic();
 #endif
 
 #if TEST
-	// run test patch logic
-	runTestLogic();
+  // run test patch logic
+  runTestLogic();
 #endif
   
 #if LEVELHOP
@@ -5615,11 +5473,11 @@ int main (void)
   //
   sendClientType();
 
-	// 
-	runCheckGameMapInstalled();
+  // 
+  runCheckGameMapInstalled();
 
-	// Run game start messager
-	runGameStartMessager();
+  // Run game start messager
+  runGameStartMessager();
 
 #if SCAVENGER_HUNT
   // scavenger hunt
@@ -5646,48 +5504,48 @@ int main (void)
     runCorrectPlayerChargebootRotation();
   }
 
-	// 
-	runFpsCounter();
+  // 
+  runFpsCounter();
 
   // 
   runVoteToEndLogic();
 
-	// Run add singleplayer music
-  runEnableSingleplayerMusic();
+  // Run add singleplayer music
+  spMusicRun();
 
-	// detects when to download a new custom mode patch
-	runPayloadDownloadRequester();
+  // detects when to download a new custom mode patch
+  runPayloadDownloadRequester();
 
   // sends client ready state to others in lobby when we load the level
   // ensures our local copy of who is ready is reset when loading a new lobby
   runClientReadyMessager();
 
-	// Patch camera speed
-	patchCameraSpeed();
+  // Patch camera speed
+  patchCameraSpeed();
 
-	// Patch announcements
-	patchAnnouncements();
+  // Patch announcements
+  patchAnnouncements();
 
-	// Patch create game settings load
-	patchGameSettingsLoad();
+  // Patch create game settings load
+  patchGameSettingsLoad();
 
-	// Patch populate create game
-	patchPopulateCreateGame();
+  // Patch populate create game
+  patchPopulateCreateGame();
 
-	// Patch save create game settings
-	patchCreateGame();
+  // Patch save create game settings
+  patchCreateGame();
 
-	// Patch frame skip
-	patchFrameSkip();
+  // Patch frame skip
+  patchFrameSkip();
 
   // Toggle aim assist
   patchAimAssist();
 
-	// Patch shots to be less laggy
-	patchWeaponShotLag();
+  // Patch shots to be less laggy
+  patchWeaponShotLag();
 
-	// Ensures that player's don't lag through the flag
-	runFlagPickupFix();
+  // Ensures that player's don't lag through the flag
+  runFlagPickupFix();
 
   // 
   //runHealthPickupFix();
@@ -5695,23 +5553,23 @@ int main (void)
   //
   patchFlagCaptureMessage();
 
-	// Patch state update to run more optimized
-	patchStateUpdate();
+  // Patch state update to run more optimized
+  patchStateUpdate();
 
-	// Patch radar scale
-	patchRadarScale();
+  // Patch radar scale
+  patchRadarScale();
 
-	// Patch process level call
-	patchProcessLevel();
+  // Patch process level call
+  patchProcessLevel();
 
-	// Patch kill stealing
-	patchKillStealing();
+  // Patch kill stealing
+  patchKillStealing();
 
-	// Patch resurrect weapon ordering
-	patchResurrectWeaponOrdering();
+  // Patch resurrect weapon ordering
+  patchResurrectWeaponOrdering();
 
-	// Patch camera shake
-	patchCameraShake();
+  // Patch camera shake
+  patchCameraShake();
 
   // disabled because it makes aim assist too easy
   //patchDeadzones();
@@ -5722,8 +5580,8 @@ int main (void)
   //
   patchCycleOrder();
 
-	// 
-	//patchWideStats();
+  // 
+  //patchWideStats();
 
   // 
   patchComputePoints();
@@ -5731,29 +5589,29 @@ int main (void)
   // 
   patchFov();
 
-	//
-	patchLevelOfDetail();
+  //
+  patchLevelOfDetail();
 
-	// 
-	patchStateContainer.UpdateCustomGameStats = processSendGameData();
+  // 
+  patchStateContainer.UpdateCustomGameStats = processSendGameData();
 
-	// 
-	patchStateContainer.UpdateGameState = runSendGameUpdate();
+  // 
+  patchStateContainer.UpdateGameState = runSendGameUpdate();
 
-	// Process game modules
-	processGameModules();
+  // Process game modules
+  processGameModules();
 
-	// config update
-	onConfigUpdate();
+  // config update
+  onConfigUpdate();
 
-	// in game stuff
-	if (isInGame())
-	{
-		// hook render function
-		HOOK_JAL(0x004A84B0, &updateHook);
-		HOOK_JAL(0x004A9C10, &updateHook);
-		HOOK_JAL(0x004C3A94, &drawHook);
-		HOOK_JAL(0x004A9A48, &drawHook);
+  // in game stuff
+  if (isInGame())
+  {
+    // hook render function
+    HOOK_JAL(0x004A84B0, &updateHook);
+    HOOK_JAL(0x004A9C10, &updateHook);
+    HOOK_JAL(0x004C3A94, &drawHook);
+    HOOK_JAL(0x004A9A48, &drawHook);
     HOOK_JAL(0x005281F0, &updatePad);
       
     // fix weird overflow caused by player sync
@@ -5792,83 +5650,83 @@ int main (void)
       mpMoby->PUpdate = NULL;
     }
 
-		// reset when in game
-		hasSendReachedEndScoreboard = 0;
+    // reset when in game
+    hasSendReachedEndScoreboard = 0;
 
-	#if DEBUG
-		if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
-		{
-			gameEnd(0);
-		}
-	#endif
+  #if DEBUG
+    if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
+    {
+      gameEnd(0);
+    }
+  #endif
 
-		//
-		grGameStart();
+    //
+    grGameStart();
 
-		// this lets guber events that are < 5 seconds old be processed (original is 1.2 seconds)
-		//GADGET_EVENT_MAX_TLL = 5 * TIME_SECOND;
+    // this lets guber events that are < 5 seconds old be processed (original is 1.2 seconds)
+    //GADGET_EVENT_MAX_TLL = 5 * TIME_SECOND;
 
-		// put hacker ray in weapon select
-		GameSettings * gameSettings = gameGetSettings();
-		if (gameSettings && gameSettings->GameRules == GAMERULE_CQ)
-		{
-			// put hacker ray in weapon select
-			*(u32*)0x0038A0DC = WEAPON_ID_HACKER_RAY;
+    // put hacker ray in weapon select
+    GameSettings * gameSettings = gameGetSettings();
+    if (gameSettings && gameSettings->GameRules == GAMERULE_CQ)
+    {
+      // put hacker ray in weapon select
+      *(u32*)0x0038A0DC = WEAPON_ID_HACKER_RAY;
 
-			// disable/enable press circle to equip hacker ray
-			*(u32*)0x005DE870 = config.disableCircleToHackerRay ? 0x24040000 : 0x00C0202D;
-		}
+      // disable/enable press circle to equip hacker ray
+      *(u32*)0x005DE870 = config.disableCircleToHackerRay ? 0x24040000 : 0x00C0202D;
+    }
 
     // increase cboot max slope
     POKE_U16(0x00608CD0, 0x3F40);
 
-		// close config menu on transition to lobby
-		if (lastGameState != 1)
-			configMenuDisable();
+    // close config menu on transition to lobby
+    if (lastGameState != 1)
+      configMenuDisable();
 
-		// Hook game start menu back callback
-		if (*(u32*)0x005605D4 == 0x0C15803E)
-		{
-			*(u32*)0x005605D4 = 0x0C000000 | ((u32)&patchStartMenuBack_Hook / 4);
-		}
+    // Hook game start menu back callback
+    if (*(u32*)0x005605D4 == 0x0C15803E)
+    {
+      *(u32*)0x005605D4 = 0x0C000000 | ((u32)&patchStartMenuBack_Hook / 4);
+    }
 
-		// patch red and brown as last two color codes
-		*(u32*)0x00391978 = COLOR_CODE_EX1;
-		*(u32*)0x0039197C = COLOR_CODE_EX2;
+    // patch red and brown as last two color codes
+    *(u32*)0x00391978 = COLOR_CODE_EX1;
+    *(u32*)0x0039197C = COLOR_CODE_EX2;
 
-		// if survivor is enabled then set the respawn time to -1
-		GameOptions* gameOptions = gameGetOptions();
-	  if (gameOptions && gameOptions->GameFlags.MultiplayerGameFlags.Survivor)
-			gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0xFF;
+    // if survivor is enabled then set the respawn time to -1
+    GameOptions* gameOptions = gameGetOptions();
+    if (gameOptions && gameOptions->GameFlags.MultiplayerGameFlags.Survivor)
+      gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0xFF;
 
     // trigger config menu update
     if (playerGetNumLocals() == 1)
       onConfigGameMenu();
 
 #if MAPEDITOR
-		// trigger map editor update
-		onMapEditorGameUpdate();
+    // trigger map editor update
+    onMapEditorGameUpdate();
 #endif
 
     // run net update after vsync when in game
     INetUpdate();
 
-		lastGameState = 1;
-	}
-	else if (isInMenus())
-	{
-		// render ms isn't important in the menus so assume best case scenario of 0ms
-		renderTimeMs = 0;
-		averageRenderTimeMs = 0;
-		updateTimeMs = 0;
-		averageUpdateTimeMs = 0;
+    lastGameState = 1;
+  }
+  else if (isInMenus())
+  {
+    // render ms isn't important in the menus so assume best case scenario of 0ms
+    renderTimeMs = 0;
+    averageRenderTimeMs = 0;
+    updateTimeMs = 0;
+    averageUpdateTimeMs = 0;
 
     mpMoby = NULL;
     
-		//
-		grLobbyStart();
+    //
+    grLobbyStart();
     runShowCustomMapModeInSearch();
-		patchStagingRankNumber();
+    patchStagingRankNumber();
 
     // enable selecting any vehicle for all maps
     HOOK_J(0x00764e48, &getMapVehiclesEnabledTable);
@@ -5879,25 +5737,25 @@ int main (void)
     // this lets it handle out of game logic
     playerSyncTick();
 
-		// Hook menu loop
-		if (*(u32*)0x00594CBC == 0)
-			*(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
+    // Hook menu loop
+    if (*(u32*)0x00594CBC == 0)
+      *(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
 
-		// send patch game config on create game
-		GameSettings * gameSettings = gameGetSettings();
-		if (gameSettings && gameSettings->GameLoadStartTime < 0)
-		{
-			// if host and just entered staging, send patch game config
-			if (gameAmIHost() && !isInStaging)
-			{
-				// copy over last game config as host
-				memcpy(&gameConfig, &gameConfigHostBackup, sizeof(PatchGameConfig_t));
+    // send patch game config on create game
+    GameSettings * gameSettings = gameGetSettings();
+    if (gameSettings && gameSettings->GameLoadStartTime < 0)
+    {
+      // if host and just entered staging, send patch game config
+      if (gameAmIHost() && !isInStaging)
+      {
+        // copy over last game config as host
+        memcpy(&gameConfig, &gameConfigHostBackup, sizeof(PatchGameConfig_t));
         patchStateContainer.SelectedCustomMapChanged = isInMenus() && selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
         patchStateContainer.SelectedCustomMapId = selectedMapIdHostBackup;
 
-				// send
-				configTrySendGameConfig();
-			}
+        // send
+        configTrySendGameConfig();
+      }
 
       if (gameAmIHost()) {
         gfxScreenSpaceText(SCREEN_WIDTH - 20, 0, 0.7, 0.7, 0x80FFFFFF, "Press START to configure custom game rules.", -1, 2);
@@ -5905,109 +5763,109 @@ int main (void)
 
       if (hasPendingLobbyNameOverrides) forceLobbyNameOverrides();
 
-			// try and apply ranks
-			/*
-			if (hasSetRanks && hasSetRanks != gameSettings->PlayerCount)
-			{
-				for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-				{
-					int accountId = lastSetRanksRequest.AccountIds[i];
-					if (accountId >= 0)
-					{
-						for (j = 0; j < GAME_MAX_PLAYERS; ++j)
-						{
-							if (gameSettings->PlayerAccountIds[j] == accountId)
-							{
-								gameSettings->PlayerRanks[j] = lastSetRanksRequest.Ranks[i];
-							}
-						}
-					}
-				}
+      // try and apply ranks
+      /*
+      if (hasSetRanks && hasSetRanks != gameSettings->PlayerCount)
+      {
+        for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+        {
+          int accountId = lastSetRanksRequest.AccountIds[i];
+          if (accountId >= 0)
+          {
+            for (j = 0; j < GAME_MAX_PLAYERS; ++j)
+            {
+              if (gameSettings->PlayerAccountIds[j] == accountId)
+              {
+                gameSettings->PlayerRanks[j] = lastSetRanksRequest.Ranks[i];
+              }
+            }
+          }
+        }
 
-				hasSetRanks = gameSettings->PlayerCount;
-			}
-			*/
+        hasSetRanks = gameSettings->PlayerCount;
+      }
+      */
 
-			isInStaging = 1;
-		}
-		else
-		{
-			isInStaging = 0;
-			//hasSetRanks = 0;
-		}
+      isInStaging = 1;
+    }
+    else
+    {
+      isInStaging = 0;
+      //hasSetRanks = 0;
+    }
 
-		// send game reached end scoreboard
-		if (!hasSendReachedEndScoreboard)
-		{
-			if (gameSettings && gameSettings->GameStartTime > 0 && uiGetActive() == 0x15C && gameAmIHost())
-			{
-				hasSendReachedEndScoreboard = 1;
-				netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_REACHED_END_SCOREBOARD, 0, NULL);
-			}
-			else if (!gameSettings)
-			{
-				// disable if not in a lobby (must be in a lobby to send)
-				hasSendReachedEndScoreboard = 1;
-			}
-		}
+    // send game reached end scoreboard
+    if (!hasSendReachedEndScoreboard)
+    {
+      if (gameSettings && gameSettings->GameStartTime > 0 && uiGetActive() == 0x15C && gameAmIHost())
+      {
+        hasSendReachedEndScoreboard = 1;
+        netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GAME_LOBBY_REACHED_END_SCOREBOARD, 0, NULL);
+      }
+      else if (!gameSettings)
+      {
+        // disable if not in a lobby (must be in a lobby to send)
+        hasSendReachedEndScoreboard = 1;
+      }
+    }
 
-		// patch server hostname
-		/*
-		if (0)
-		{
-			char * muisServerHostname = (char*)0x001B1ECD;
-			char * serverHostname = (char*)0x004BF4F0;
-			if (!gameSettings && strlen(muisServerHostname) > 0)
-			{
-				for (i = 0; i < 32; ++i)
-				{
-					char c = muisServerHostname[i];
-					if (c < 0x20)
-						c = '.';
-					serverHostname[i] = c;
-				}
-			}
-		}
-		*/
+    // patch server hostname
+    /*
+    if (0)
+    {
+      char * muisServerHostname = (char*)0x001B1ECD;
+      char * serverHostname = (char*)0x004BF4F0;
+      if (!gameSettings && strlen(muisServerHostname) > 0)
+      {
+        for (i = 0; i < 32; ++i)
+        {
+          char c = muisServerHostname[i];
+          if (c < 0x20)
+            c = '.';
+          serverHostname[i] = c;
+        }
+      }
+    }
+    */
 
-		// patch red and brown as last two color codes
-		*(u32*)0x004C8A68 = COLOR_CODE_EX1;
-		*(u32*)0x004C8A6C = COLOR_CODE_EX2;
-		
-		// close config menu on transition to lobby
-		if (lastGameState != 0)
-			configMenuDisable();
+    // patch red and brown as last two color codes
+    *(u32*)0x004C8A68 = COLOR_CODE_EX1;
+    *(u32*)0x004C8A6C = COLOR_CODE_EX2;
+    
+    // close config menu on transition to lobby
+    if (lastGameState != 0)
+      configMenuDisable();
 
-		lastGameState = 0;
-	}
+    lastGameState = 0;
+  }
 
-	// Process spectate
-	if (config.enableSpectate)
-		processSpectate();
+  // Process spectate
+  if (config.enableSpectate)
+    processSpectate();
   else
     PATCH_POINTERS_SPECTATE = 0;
 
   // Process freecam
   if (isInGame() && gameConfig.drFreecam) {
-	  processFreecam();
+    processFreecam();
   } else {
     resetFreecam();
   }
 
-	//
-	if (patchStateContainer.UpdateGameState) {
-		patchStateContainer.UpdateGameState = 0;
-		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &patchStateContainer.GameStateUpdate);
-	}
+  //
+  if (patchStateContainer.UpdateGameState) {
+    patchStateContainer.UpdateGameState = 0;
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_SET_GAME_STATE, sizeof(UpdateGameStateRequest_t), &patchStateContainer.GameStateUpdate);
+  }
 
-	// 
-	if (patchStateContainer.UpdateCustomGameStats) {
-		patchStateContainer.UpdateCustomGameStats = 0;
-		sendGameData();
-	}
+  // 
+  if (patchStateContainer.UpdateCustomGameStats) {
+    patchStateContainer.UpdateCustomGameStats = 0;
+    sendGameData();
+  }
 
-	// Call this last
-	dlPostUpdate();
+  // Call this last
+  dlPostUpdate();
 
-	return 0;
+  return 0;
 }
