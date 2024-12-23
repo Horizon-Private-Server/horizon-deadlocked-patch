@@ -9,7 +9,7 @@
 #include <libdl/utils.h>
 #include "config.h"
 
-#define SP_MUSIC_TRACK_COUNT                (62)
+#define SP_MUSIC_TRACK_COUNT                (64)
 
 extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
@@ -76,7 +76,11 @@ int spMusicTrackTable[SP_MUSIC_TRACK_COUNT][2] = {
   { 0x00030E0F, 0x000312D6 },
   { 0x0003182B, 0x00031D04 },
   { 0x0003227F, 0x00032735 },
-  { 0x00032CFB, 0x000332D2 }
+  { 0x00032CFB, 0x000332D2 },
+
+  // these are extras added
+  { 0x0009BBAC - 0x000F8D29, 0x0009C017 - 0x000F8D29 }, // challenge complete
+  { 0x0009C482 - 0x000F8D29, 0x0009C7C7 - 0x000F8D29 }, // challenge failed
 };
 
 //--------------------------------------------------------------------------

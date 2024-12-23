@@ -124,7 +124,6 @@ char inventoryBadgeSpriteIds[] = {
   [RAIDS_BADGE_TYPE_BERSERKER] 114,
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] 115,
   [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] 116,
-  [RAIDS_BADGE_TYPE_EXTRALIFE] 117,
   [RAIDS_BADGE_TYPE_COUNT] 0,
 };
 
@@ -135,7 +134,6 @@ char inventoryBadgeSpriteDims[] = {
   [RAIDS_BADGE_TYPE_BERSERKER] 32,
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] 32,
   [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] 32,
-  [RAIDS_BADGE_TYPE_EXTRALIFE] 32,
   [RAIDS_BADGE_TYPE_COUNT] 0,
 };
 
@@ -153,7 +151,6 @@ char* inventoryBadgeDescriptions[] = {
   [RAIDS_BADGE_TYPE_BERSERKER] "Reduce damage taken from melee attacks. Weak to ranged attacks.",
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Increase flinch cooldown time.",
   [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "Give your wrench that extra little oomph.",
-  [RAIDS_BADGE_TYPE_EXTRALIFE] "Have one extra life per mission.",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
 
@@ -214,7 +211,7 @@ void inventorySetFilter(int filter)
 
     // count
     inventoryTabCounts[tab]++;
-    if (localBank->Inventory.Items[i].Notify) inventoryTabHasNew[tab] = 1;
+    if (localBank->Inventory.Items[i].Notify == RAIDS_ITEM_NOTIFY_NEW) inventoryTabHasNew[tab] = 1;
 
     // add to mapping if matches filter
     if (filter == tab) {
@@ -345,6 +342,7 @@ void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
 {
   u32 bgColor = 0x70101010; // dark gray
   u32 textColor = 0x80FFFFFF; // white
+  u32 textRedColor = 0x804040D0; // light red
   u32 spriteColor = 0x80808080; // gray
   float fw = INVENTORY_DRAW_INFO_W;
   float fh = INVENTORY_DRAW_INFO_H;
@@ -374,9 +372,16 @@ void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
 
   if (isBadge) {
 
+    float height = 100;
+    if (missionIsActive()) {
+      gfxHelperDrawTextWindow(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY + 80, fw - 10, 20, 5, 5, 0.7, textRedColor, "Cannot equip Class Mods in the middle of a mission.", -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NORMAL);
+      height = 80;
+    }
+
     // description
     offX = 10;
-    gfxHelperDrawTextWindow(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw - 10, 100, 5, 5, 0.7, textColor, inventoryBadgeDescriptions[selectedItem->BadgeType], -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawTextWindow(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw - 10, height, 5, 5, 0.7, textColor, inventoryBadgeDescriptions[selectedItem->BadgeType], -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NORMAL);
+
     return;
   }
 
@@ -594,6 +599,7 @@ enum InventoryItemAction inventoryDrawFooter(InventoryDrawState_t* drawState)
   int selectedTooStrong = 0;
   int canSell = 0;
   int alreadyEquipped = 0;
+  int badgeAndMissionActive = 0;
   int isLoading = !bankGetHasInventory();
   u32 sellPrice = 0;
   Player* localPlayer = playerGetFromSlot(0);
@@ -614,8 +620,9 @@ enum InventoryItemAction inventoryDrawFooter(InventoryDrawState_t* drawState)
       canSell = selectedItem->GadgetId && equippedWeapon != selectedItem && selectedItem->Notify != RAIDS_ITEM_NOTIFY_FAV; // can't sell equipped
     } else {
       RaidsInventoryItem_t* equippedBadge = bankGetLocalEquippedBadge();
+      badgeAndMissionActive = missionIsActive();
       alreadyEquipped = equippedBadge == selectedItem;
-      canEquip = !alreadyEquipped; // already equipped
+      canEquip = !alreadyEquipped && !badgeAndMissionActive; // already equipped
       canSell = equippedBadge != selectedItem && selectedItem->Notify != RAIDS_ITEM_NOTIFY_FAV; // can't sell equipped
     }
   }

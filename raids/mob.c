@@ -939,6 +939,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
 	pvars->MobVars.Config.AutoAggroMaxRange = params->Config.AutoAggroMaxRange;
 	pvars->MobVars.Config.VisionRange = params->Config.VisionRange;
+  pvars->MobVars.Config.RangedMaxDistanceToTarget = params->Config.RangedMaxDistanceToTarget;
 	pvars->MobVars.Config.PeripheryRangeTheta = params->Config.PeripheryRangeTheta;
 	pvars->MobVars.Health = pvars->MobVars.Config.Health;
 	pvars->MobVars.Order = -1;
@@ -987,18 +988,21 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// destroy spawn from
 	if (spawnFromUID != -1) {
-		GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(spawnFromUID);
-		if (gm && gm->Moby && gm->Moby->PVar && !mobyIsDestroyed(gm->Moby) && mobyIsMob(gm->Moby)) {
-			struct MobPVar* spawnFromPVars = (struct MobPVar*)gm->Moby->PVar;
-			if (spawnFromPVars->MobVars.Destroyed != 1) {
-        // pass to mob destroy
-        if (pvars->VTable && pvars->VTable->OnDestroy)
-          pvars->VTable->OnDestroy(moby, -1, -1);
+		Guber* gm = (Guber*)guberGetObjectByUID(spawnFromUID);
+    if (gm) {
+      Moby* gmMoby = gm->VTable->GetMoby(gm);
+      if (gmMoby && gmMoby->PVar && !mobyIsDestroyed(gmMoby) && mobyIsMob(gmMoby)) {
+        struct MobPVar* spawnFromPVars = (struct MobPVar*)gmMoby->PVar;
+        if (spawnFromPVars->MobVars.Destroyed != 1) {
+          // pass to mob destroy
+          if (pvars->VTable && pvars->VTable->OnDestroy)
+            pvars->VTable->OnDestroy(gmMoby, -1, -1);
 
-				guberMobyDestroy(gm->Moby);
-			}
-		}
-	}
+          guberMobyDestroy(gmMoby);
+        }
+      }
+    }
+  }
 
 	// if we aren't in the sorted list, try and find an empty spot
 	if (pvars->MobVars.Order < 0 && AllMobsSortedFreeSpots > 0) {
@@ -1059,20 +1063,22 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     // factor XP mods
     if (killedByLocal) {
       int xpModCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_XP);
-      xp += xpModCount * XP_ALPHAMOD_XP;
+      xp += xp * xpModCount * XP_ALPHAMOD_XP_PERC;
     }
 
     // receive bolts & xp
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
       bankAddBolts(bolts);
-      bankAddXP(killedByLocal ? xp : (xp >> 1));
+      //bankAddXP(killedByLocal ? xp : (xp >> 1));
       pState->State.Experience += xp;
       pState->State.Bolts += bolts;
     }
 
     // weapon XP only if this client killed the mob
-    if (weaponId > 0 && killedByLocal) {
+    if (killedByLocal && weaponId > 0) {
       bankAddWeaponXP(xp, weaponId);
+    } else if (!killedByLocal && localPlayer->WeaponHeldId && !playerIsDead(localPlayer)) {
+      bankAddWeaponXP((xp >> 1), localPlayer->WeaponHeldId);
     }
 
     // spawn ammo chance
@@ -1535,7 +1541,7 @@ void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct Mob
   output->CollRadiusEighths = (u8)(config->CollRadius * 8);
   output->SpeedEighths = (u16)(speed * 8);
   output->ReactionTickCount = (u8)config->ReactionTickCount;
-  output->AttackCooldownTickCount = (u8)config->AttackCooldownTickCount;
+  output->AttackCooldownTickCount = config->AttackCooldownTickCount;
 }
 
 //--------------------------------------------------------------------------

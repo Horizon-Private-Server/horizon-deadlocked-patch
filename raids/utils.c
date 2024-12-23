@@ -133,6 +133,26 @@ int getLevelFromXp(u64 xp)
 {
   if (xp < 0) return 0;
 
+  int level = (int)xp / LEVELUP_PLAYER_LINEAR_FACTOR;
+  if (level > LEVELUP_MAX_LEVEL) return LEVELUP_MAX_LEVEL;
+  if (level < 0) return 0;
+  return level;
+}
+
+//--------------------------------------------------------------------------
+u64 getXpForLevel(int level)
+{
+  if (level > LEVELUP_MAX_LEVEL) level = LEVELUP_MAX_LEVEL;
+  if (level <= 0) return 0;
+  
+  return level * LEVELUP_PLAYER_LINEAR_FACTOR;
+}
+
+//--------------------------------------------------------------------------
+int getProficiencyFromXp(u64 xp)
+{
+  if (xp < 0) return 0;
+
   // (500 (2/3)^(1/3))/(sqrt(3) sqrt(27 x^2 + 500000000) - 9 x)^(1/3) - (sqrt(3) sqrt(27 x^2 + 500000000) - 9 x)^(1/3)/(2^(1/3) 3^(2/3))
   // Constants
   const double c1 = 0.87358046;                 // (2/3)^(1/3)
@@ -156,23 +176,11 @@ int getLevelFromXp(u64 xp)
 }
 
 //--------------------------------------------------------------------------
-u64 getXpForLevel(int level)
-{
-  if (level > LEVELUP_MAX_LEVEL) level = LEVELUP_MAX_LEVEL;
-  if (level <= 0) return 0;
-  return (u64)((double)powf(1*level, 3) + 500*level);
-}
-
-//--------------------------------------------------------------------------
-int getProficiencyFromXp(u64 xp)
-{
-  return getLevelFromXp(xp);
-}
-
-//--------------------------------------------------------------------------
 u64 getXpForProficiency(int proficiency)
 {
-  return getXpForLevel(proficiency);
+  if (proficiency > LEVELUP_MAX_LEVEL) proficiency = LEVELUP_MAX_LEVEL;
+  if (proficiency <= 0) return 0;
+  return (u64)((double)powf(1*proficiency, 3) + 500*proficiency);
 }
 
 //--------------------------------------------------------------------------
@@ -396,11 +404,11 @@ int missionIsComplete(void)
 //--------------------------------------------------------------------------
 int missionIsActive(void)
 {
-  return !hasPendingWorldHop() && State.MissionStatus == RAIDS_MISSION_ACTIVE;
+  return !isOnHubWorld() && !hasPendingWorldHop() && State.MissionStatus == RAIDS_MISSION_ACTIVE;
 }
 
 //--------------------------------------------------------------------------
-void drawStars(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count)
+void drawSprites(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count, int texId, int texDim)
 {
   if (count <= 0) return;
   
@@ -410,7 +418,19 @@ void drawStars(float anchorX, float anchorY, float offsetX, float offsetY, float
   gfxSetupGifPaging(0);
   int i;
   for (i = 0; i < count; ++i) {
-    gfxHelperDrawSprite(anchorX, anchorY, offsetX + i * (size + spacing), offsetY, size, size, 32, 32, 88, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawSprite(anchorX, anchorY, offsetX + i * (size + spacing), offsetY, size, size, texDim, texDim, texId, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   gfxDoGifPaging();
+}
+
+//--------------------------------------------------------------------------
+void drawStars(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count)
+{
+  drawSprites(anchorX, anchorY, offsetX, offsetY, size, spacing, color, alignment, count, 88, 32);
+}
+
+//--------------------------------------------------------------------------
+void drawLives(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count)
+{
+  drawSprites(anchorX, anchorY, offsetX, offsetY, size, spacing, color, alignment, count, 0, 64);
 }

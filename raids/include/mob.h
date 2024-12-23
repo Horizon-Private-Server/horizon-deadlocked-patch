@@ -97,14 +97,15 @@ struct MobConfig {
 
   float AutoAggroMaxRange;
   float VisionRange;
+  float RangedMaxDistanceToTarget;
   float PeripheryRangeTheta;
 
 	u16 Bangles;
 	u16 Xp;
+	u16 AttackCooldownTickCount;
 
   u16 OutOfSightDeAggroTickCount;
 	u8 ReactionTickCount;
-	u8 AttackCooldownTickCount;
 };
 
 struct MobSpawnedConfig {
@@ -121,14 +122,15 @@ struct MobSpawnedConfig {
 
   float AutoAggroMaxRange;
   float VisionRange;
+  float RangedMaxDistanceToTarget;
   float PeripheryRangeTheta;
 
 	u16 Bangles;
 	u16 Xp;
+	u16 AttackCooldownTickCount;
 
   u16 OutOfSightDeAggroTickCount;
 	u8 ReactionTickCount;
-	u8 AttackCooldownTickCount;
 };
 
 struct MobSpawnParams {
@@ -165,6 +167,8 @@ struct MobMoveVars {
   float PathEdgeAlpha;
   float LastPathEdgeAlphaForJump;
   float CollRadius;
+  float PreferredHeight;
+  float CurrentHeightLimit;
 	u16 StuckCounter;
   char Grounded;
   char HitWall;
@@ -172,6 +176,8 @@ struct MobMoveVars {
   char MoveStep;
   char LastMoveStep;
   char PathGraphIdx;
+  char ForceUseTargetPosition;
+  char IsOwner;
   u8 WasStuckTicks;
   u8 StuckCheckTicks;
   u8 StuckJumpCount;
@@ -348,12 +354,12 @@ struct MobSpawnEventArgs
 	u16 SpeedEighths;
 	u16 Damage;
 	u16 AttackRadiusEighths;
+	u16 AttackCooldownTickCount;
   u8 SpawnParamsIdx;
 	u8 Xp;
 	u8 HitRadiusEighths;
   u8 CollRadiusEighths;
 	u8 ReactionTickCount;
-	u8 AttackCooldownTickCount;
 };
 
 struct MobCreateArgs

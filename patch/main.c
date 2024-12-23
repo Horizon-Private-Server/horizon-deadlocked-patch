@@ -645,7 +645,7 @@ void patchResurrectWeaponOrdering_HookGiveMeRandomWeapons(Player* player, int we
  */
 void patchResurrectWeaponOrdering(void)
 {
-  if (!isInGame())
+  if (!isInGame() || gameConfig.customModeId == CUSTOM_MODE_RAIDS)
     return;
 
   HOOK_JAL(0x005e2b2c, &patchResurrectWeaponOrdering_HookWeaponStripMe);

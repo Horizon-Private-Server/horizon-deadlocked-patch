@@ -59,7 +59,6 @@ char* bankBadgeNames[] = {
   [RAIDS_BADGE_TYPE_BERSERKER] "%cBerserker %s\x08",
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "%cFlinch Resistance %s\x08",
   [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "%cExplosive Wrench %s\x08",
-  [RAIDS_BADGE_TYPE_EXTRALIFE] "%cSecond Chance\x08",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
 
@@ -278,6 +277,7 @@ u64 bankAddXP(u64 amount)
 
   // add xp
   u64 xp = bankLocalBank.Account.Experience;
+  bankLocalBank.Account.Experience += amount;
 
   int level = getLevelFromXp(xp);
   int nextLevel = getLevelFromXp(xp + amount);
@@ -289,7 +289,7 @@ u64 bankAddXP(u64 amount)
     bankSendAccountToServer(); // send to server
   }
 
-  return bankLocalBank.Account.Experience += amount;
+  return bankLocalBank.Account.Experience;
 }
 
 //--------------------------------------------------------------------------
@@ -301,17 +301,19 @@ u64 bankAddWeaponXP(u64 amount, int gadgetId)
 
   // add xp
   u64 xp = bankLocalBank.Account.WeaponXp[slot];
+  bankLocalBank.Account.WeaponXp[slot] += amount;
 
   int level = getProficiencyFromXp(xp);
   int nextLevel = getProficiencyFromXp(xp + amount);
   if (nextLevel > level) {
     struct GadgetDef* gadgetDef = weaponGetDef(gadgetId, 0);
+    bankAddXP(LEVELUP_PLAYER_INCREMENT_AMOUNT);
     snprintf(bankLevelUpBuf, sizeof(bankLevelUpBuf), "You have reached %s P%d", uiMsgString(gadgetDef->quickSelectTag), nextLevel + 1);
     pushSnack(bankLevelUpBuf, 120, 0);
     bankSendAccountToServer(); // send to server
   }
 
-  return bankLocalBank.Account.WeaponXp[slot] += amount;
+  return bankLocalBank.Account.WeaponXp[slot];
 }
 
 //--------------------------------------------------------------------------
@@ -780,6 +782,33 @@ void bankTickPlayer(Player * player)
       bankRemoveGadget(player, gadgetId);
     }
   }
+  
+  if (gbox->Gadgets[WEAPON_ID_HACKER_RAY].Level < 0)
+    playerGiveWeapon(gbox, WEAPON_ID_HACKER_RAY, 0, 0); // give hacker ray
+}
+
+//--------------------------------------------------------------------------
+void bankOnResurrectWeaponStripMe(Player* player)
+{
+  if (!player->IsLocal)
+    return;
+
+  int pIdx = player->PlayerId;
+  int i = player->LocalPlayerIndex;
+  State.PlayerStates[pIdx].LastEquipslots[0] = playerGetLocalEquipslot(i, 0);
+  State.PlayerStates[pIdx].LastEquipslots[1] = playerGetLocalEquipslot(i, 1);
+  State.PlayerStates[pIdx].LastEquipslots[2] = playerGetLocalEquipslot(i, 2);
+}
+
+//--------------------------------------------------------------------------
+void bankOnResurrectGiveMeRandomWeapons(Player* player, int weaponCount)
+{
+  if (!player->IsLocal)
+    return;
+
+  playerSetLocalEquipslot(player->LocalPlayerIndex, 0, State.PlayerStates[player->PlayerId].LastEquipslots[0]);
+  playerSetLocalEquipslot(player->LocalPlayerIndex, 1, State.PlayerStates[player->PlayerId].LastEquipslots[1]);
+  playerSetLocalEquipslot(player->LocalPlayerIndex, 2, State.PlayerStates[player->PlayerId].LastEquipslots[2]);
 }
 
 //--------------------------------------------------------------------------
@@ -849,6 +878,11 @@ void bankInit(void)
   // hook HudAmmo XP bar
   POKE_U32(0x00552CD8, 0x10000013);
   HOOK_JAL(0x00552D28, &bankGetWeaponXpProgressFromGadgetBox);
+  
+  // disable randomize weapons on respawn
+  POKE_U32(0x005E2B40, 0);
+  HOOK_JAL(0x005e2b2c, &bankOnResurrectWeaponStripMe);
+  HOOK_JAL(0x005e2b48, &bankOnResurrectGiveMeRandomWeapons);
 
   //HOOK_J_OP(0x00626d98, &bankGetGadgetMaxLevel, 0);
   //HOOK_J_OP(0x00626fb8, &bankGetGadgetMaxAmmo, 0);

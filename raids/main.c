@@ -57,14 +57,20 @@ int snackItemsCount = 0;
 
 PatchConfig_t* playerConfig = NULL;
 
-int playerStates[GAME_MAX_PLAYERS] = {};
-int playerStateTimers[GAME_MAX_PLAYERS] = {};
 float Difficulties[RAIDS_DIFFICULTY_COUNT] = {
-  [RAIDS_DIFFICULTY_1STAR] 0.5,
+  [RAIDS_DIFFICULTY_1STAR] 0,
   [RAIDS_DIFFICULTY_2STAR] 30.0,
   [RAIDS_DIFFICULTY_3STAR] 150.0,
   [RAIDS_DIFFICULTY_4STAR] 400.0,
   [RAIDS_DIFFICULTY_5STAR] 1000.0,
+};
+
+int Lives[RAIDS_DIFFICULTY_COUNT] = {
+  [RAIDS_DIFFICULTY_1STAR] 2,
+  [RAIDS_DIFFICULTY_2STAR] 2,
+  [RAIDS_DIFFICULTY_3STAR] 2,
+  [RAIDS_DIFFICULTY_4STAR] 2,
+  [RAIDS_DIFFICULTY_5STAR] 2,
 };
 
 //--------------------------------------------------------------------------
@@ -74,14 +80,28 @@ void respawnDeadPlayers(void) {
 
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
-		if (p && playerIsDead(p)) {
-      if (p->IsLocal) {
-			  playerRespawn(p);
-      }
+		if (playerIsValid(p) && playerIsDead(p)) {
+      playerRespawn(p);
 		}
-		
-		State.PlayerStates[i].IsDead = 0;
 	}
+}
+
+//--------------------------------------------------------------------------
+int onMissionFailedRemote(void * connection, void * data)
+{
+  State.MissionStatus = RAIDS_MISSION_FAILED;
+  musicPlayTrack(0x9A, 0);
+  DPRINTF("recv mission failed\n");
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int onUseLifeRemote(void * connection, void * data)
+{
+  respawnDeadPlayers();
+  State.LivesLeft--;
+  DPRINTF("recv use life\n");
+  return 0;
 }
 
 //--------------------------------------------------------------------------
@@ -196,7 +216,7 @@ u64 missionCompleteGetXpReward(void)
 
   // xp is based on amount of xp earned during gameplay
   // clamp between 5000 and 100000
-  u64 xp = State.PlayerStates[player->PlayerId].State.Experience >> 2;
+  u64 xp = 500 + (State.PlayerStates[player->PlayerId].State.Experience >> 1);
   xp -= xp % 100;
   if (xp < 1000) xp = 1000;
   if (xp > 10000) xp = 10000;
@@ -220,8 +240,8 @@ void drawMissionCompleteMessage(void)
   snprintf(strBuf, sizeof(strBuf), "Completed in %02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
   gfxHelperDrawText(x, y, 0, 50, 0.9, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
-  snprintf(strBuf, sizeof(strBuf), "\x0A+%'ld\x08 Bolts        \x0A+%'ld\x08 XP", missionCompleteGetBoltReward(), missionCompleteGetXpReward());
-  gfxHelperDrawText(x, y, 0, 65, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  //snprintf(strBuf, sizeof(strBuf), "\x0A+%'ld\x08 Bolts        \x0A+%'ld\x08 XP", missionCompleteGetBoltReward(), missionCompleteGetXpReward());
+  //gfxHelperDrawText(x, y, 0, 65, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
   snprintf(strBuf, sizeof(strBuf), "Press [UP] to open the Planet Select menu");
   gfxHelperDrawText(x, SCREEN_HEIGHT - 20, 0, 0, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMCENTER, COMMON_DZO_DRAW_NORMAL);
@@ -235,12 +255,15 @@ int collisionIdIsWalkable(int collisionId)
 }
 
 //--------------------------------------------------------------------------
-void onMissionCompleteRequestRewards(int cuboidIdx)
+void onMissionComplete(int cuboidIdx)
 {
   int lootCount = 2;
   Player* player = playerGetFromSlot(0);
   VECTOR pos;
   VECTOR up = {0,0,5,0};
+
+  // play challenge complete track
+  musicPlayTrack(0x98, 0);
 
   // all players should be alive
   respawnDeadPlayers();
@@ -293,16 +316,7 @@ void onMissionCompleteRequestRewards(int cuboidIdx)
 
   // 
   bankAddBolts(missionCompleteGetBoltReward());
-  bankAddXP(missionCompleteGetXpReward());
-}
-
-//--------------------------------------------------------------------------
-int onMissionFailedRemote(void * connection, void * data)
-{
-  State.MissionStatus = RAIDS_MISSION_FAILED;
-  musicPlayTrack(MUSIC_TRACK_LOSS, 0);
-  DPRINTF("recv mission failed\n");
-  return 0;
+  //bankAddXP(missionCompleteGetXpReward());
 }
 
 //--------------------------------------------------------------------------
@@ -310,7 +324,7 @@ void missionCheckForMissionFailed(void)
 {
   if (!missionIsActive()) return;
 
-  int failed = !State.OnHubWorld && State.ClientsReady && State.TicksWithNoLivingPlayers > 30 && State.ActivePlayerCount && !hasPendingWorldHop();
+  int failed = !State.OnHubWorld && State.ClientsReady && State.TicksWithNoLivingPlayers > TPS && !State.LivesLeft && State.ActivePlayerCount && !hasPendingWorldHop();
   if (!failed) return;
 
   // broadcast
@@ -320,8 +334,23 @@ void missionCheckForMissionFailed(void)
   }
 
   State.MissionStatus = RAIDS_MISSION_FAILED;
-  musicPlayTrack(MUSIC_TRACK_LOSS, 0);
+  musicPlayTrack(0x9A, 0);
   DPRINTF("send mission failed\n");
+}
+
+//--------------------------------------------------------------------------
+void missionUseLife(void)
+{
+  if (State.LivesLeft <= 0) return;
+
+  // broadcast
+  void* connection = netGetDmeServerConnection();
+  if (connection) {
+    netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_USE_LIFE, 0, NULL);
+  }
+
+  State.LivesLeft--;
+  respawnDeadPlayers();
 }
 
 //--------------------------------------------------------------------------
@@ -395,12 +424,12 @@ void processPlayer(int pIndex) {
 	// set max health
 	player->MaxHealth = 50 + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_HEALTH]);
 
-  // update state timers
-  if (playerStates[pIndex] != player->PlayerState)
-    playerStateTimers[pIndex] = 0;
-  else
-    playerStateTimers[pIndex] += 1;
-  playerStates[pIndex] = player->PlayerState;
+  // update death state
+  if (!playerData->IsDead && playerIsDead(player)) {
+    playerData->IsDead = 1;
+  } else if (playerData->IsDead && !playerIsDead(player)) {
+    playerData->IsDead = 0;
+  }
 
 	if (player->IsLocal) {
 		
@@ -452,7 +481,7 @@ void processPlayer(int pIndex) {
     // so we'll check to see if their remote player state is no longer cranking
     // and we'll stop them
     int remoteState = *(int*)((u32)player + 0x3a80);
-    int playerStateTimer = playerStateTimers[pIndex];
+    int playerStateTimer = player->timers.state; // playerStateTimers[pIndex];
     if (player->PlayerState == PLAYER_STATE_BOLT_CRANK
      && remoteState != PLAYER_STATE_BOLT_CRANK
      && playerStateTimer > TPS*3) {
@@ -502,6 +531,9 @@ void initialize(PatchStateContainer_t* gameState)
 	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
   *(u32*)0x006210D8 = 0;	// all enemies leave (9)
 
+  // disable MP dialog
+  POKE_U32(0x004e3960, 0);
+
   if (firstTime) {
     firstTime = 0;
     
@@ -518,7 +550,7 @@ void initialize(PatchStateContainer_t* gameState)
 
   // disable timebase query percentile filter
   // always accept remote time
-  POKE_U32(0x01eabd60, 0);
+  //POKE_U32(0x01eabd60, 0);
 
   // disable guber event delay until createTime+relDispatchTime reached
   // when players desync, their net time falls behind everyone else's
@@ -526,11 +558,12 @@ void initialize(PatchStateContainer_t* gameState)
   // leading to even more desyncing issues
   // since raids can cause a lot of frame lag, especially for players on emu/dzo
   // this fix is required to ensure that important mob guber events trigger on everyone's screen
-  POKE_U32(0x00611518, 0x24040000);
+  //POKE_U32(0x00611518, 0x24040000);
 
   // hook net messages
 	netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_SET_MISSION_FAILED, &onMissionFailedRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_USE_LIFE, &onUseLifeRemote);
 
   // write map config
   mapConfig->State = &State;
@@ -545,7 +578,7 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->OnGuberEventFunc = &handleEvent;
   mapConfig->TryCreateMobFunc = &mobCreate;
   mapConfig->RequestPrestigeLootFunc = &lootRequestFromPrestige;
-  mapConfig->RequestMissionCompleteLootFunc = &onMissionCompleteRequestRewards;
+  mapConfig->OnMissionCompleteFunc = &onMissionComplete;
 
 	// set game over string
 	//strncpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
@@ -565,9 +598,6 @@ void initialize(PatchStateContainer_t* gameState)
   inventoryInit();
   lootInit();
   hopInit();
-
-  memset(playerStates, 0, sizeof(playerStates));
-  memset(playerStateTimers, 0, sizeof(playerStateTimers));
 
   if (startDelay) {
     --startDelay;
@@ -602,6 +632,7 @@ void initialize(PatchStateContainer_t* gameState)
   State.TicksWithNoLivingPlayers = 0;
 	State.AlivePlayerCount = -1;
 	State.ActivePlayerCount = 0;
+  State.LivesLeft = Lives[State.DifficultyStars];
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
 
@@ -613,6 +644,12 @@ void initialize(PatchStateContainer_t* gameState)
 
       // set max health
       p->Health = p->MaxHealth = 50 + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[i].State.Skills[RAIDS_SKILLS_HEALTH]);
+
+      State.PlayerStates[i].IsDead = 0;
+      State.PlayerStates[i].State.Bolts = 0;
+      State.PlayerStates[i].State.Experience = 0;
+      State.PlayerStates[i].State.Kills = 0;
+      State.PlayerStates[i].State.Deaths = 0;
 
 			// is local
 			State.PlayerStates[i].IsLocal = p->IsLocal;
@@ -744,8 +781,100 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
+#if DEBUG_ANIMS
+  {
+    static int aaa = 0;
+    Moby* animMoby = mobyFindNextByOClass(mobyListGetStart(), 8499);
+    Moby* animMoby2 = mobyFindNextByOClass(mobyListGetStart(), 8496);
+    if (animMoby && animMoby->PClass) {
+      int play = 0;
+      if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+        aaa += 1;
+        play = 1;
+      } else if (padGetButtonDown(0, PAD_LEFT) > 0) {
+        aaa -= 1;
+        play = 1;
+      }
+
+      int animCount = *(char*)(animMoby->PClass + 0x0C);
+      if (play && animCount > 0) {
+        if (aaa >= animCount) aaa = animCount - 1;
+        if (aaa < 0) aaa = 0;
+        mobyAnimTransition(animMoby, aaa, 0, 0);
+			  printf("anim %d 0x%x (of %d)\n", aaa, aaa, animCount);
+      }
+    }
+    
+    if (animMoby2 && animMoby2->PClass) {
+      int play = 0;
+      if (padGetButtonDown(0, PAD_DOWN) > 0) {
+        aaa += 1;
+        play = 1;
+      } else if (padGetButtonDown(0, PAD_UP) > 0) {
+        aaa -= 1;
+        play = 1;
+      }
+
+      int animCount = *(char*)(animMoby2->PClass + 0x0C);
+      if (play && animCount > 0) {
+        if (aaa >= animCount) aaa = animCount - 1;
+        if (aaa < 0) aaa = 0;
+        mobyAnimTransition(animMoby2, aaa, 0, 0);
+			  printf("anim2 %d 0x%x (of %d)\n", aaa, aaa, animCount);
+      }
+    }
+  }
+#endif
+
+#if DEBUG_JOINTS
+  {
+    int i = 0;
+    char buf[32];
+    int animJointCount = 0;
+    Moby* jointMoby = mobyFindNextByOClass(mobyListGetStart(), 8499);
+    MATRIX jointMtx;
+
+    if (jointMoby) {
+      // get anim joint count
+      void* pclass = jointMoby->PClass;
+      if (pclass) {
+        animJointCount = **(u32**)((u32)pclass + 0x1C);
+      }
+
+      for (i = 0; i < animJointCount; ++i) {
+        snprintf(buf, sizeof(buf), "%d", i);
+        mobyGetJointMatrix(jointMoby, i, jointMtx);
+        int x,y;
+        if (gfxWorldSpaceToScreenSpace(&jointMtx[12], &x, &y)) {
+          gfxScreenSpaceText(x, y, 0.5, 0.5, 0x80FFFFFF, buf, -1, 4);
+        }
+      }
+    }
+  }
+#endif
+
   // play music
   if (isInGame() && musicIsLoaded()) {
+
+    /*
+    static int aaa = 150;
+    int play = 0;
+    if (padGetButtonDown(0, PAD_LEFT) > 0 && aaa > 0) {
+      aaa -= 2;
+      play = 1;
+    } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+      aaa += 2;
+      play = 1;
+    } else if (padGetButtonDown(0, PAD_DOWN) > 0) {
+      play = 1;
+    }
+
+    if (play) {
+      State.DesiredMusicTrack = aaa;
+      State.DesiredMusicTrackSkipTransition = 1;
+      State.DesiredMusicTrackForce = 1;
+    }
+    */
 
     static int lastDesiredTrack = -1;
     int currentTrack = musicGetCurrentTrack();
@@ -832,8 +961,9 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     if (!gameIsAnyStartMenuOpen()) {
       if (missionIsComplete()) {
         drawMissionCompleteMessage();
-      } else if (!isOnHubWorld() && missionIsActive()) {
+      } else if (missionIsActive()) {
         drawStars(SCREEN_WIDTH - 15, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
+        drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
       }
     }
 
@@ -852,13 +982,20 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       // determine number of players alive
       State.AlivePlayerCount = 0;
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
+        if (playerIsValid(players[i]) && !playerIsDead(players[i])) {
           State.AlivePlayerCount++;
         }
       }
 
-      if (!State.AlivePlayerCount) State.TicksWithNoLivingPlayers++;
-      else State.TicksWithNoLivingPlayers = 0;
+      if (!State.AlivePlayerCount) {
+        State.TicksWithNoLivingPlayers++;
+        if (State.TicksWithNoLivingPlayers > (3*TPS) && State.LivesLeft > 0) {
+          missionUseLife();
+          State.TicksWithNoLivingPlayers = 0;
+        }
+      } else {
+        State.TicksWithNoLivingPlayers = 0;
+      }
     }
   }
   else

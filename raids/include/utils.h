@@ -58,6 +58,7 @@ int localPlayerHasInput(void);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 void drawStars(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count);
+void drawLives(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count);
 
 int hasPendingWorldHop(void);
 int isOnHubWorld(void);

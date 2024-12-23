@@ -158,9 +158,10 @@ void hopDo(void)
     Player* player = playerGetFromSlot(i);
     if (!player) continue;
 
-    State.PlayerStates[i].LastEquipslots[0] = playerGetLocalEquipslot(i, 0);
-    State.PlayerStates[i].LastEquipslots[1] = playerGetLocalEquipslot(i, 1);
-    State.PlayerStates[i].LastEquipslots[2] = playerGetLocalEquipslot(i, 2);
+    int pIdx = player->PlayerId;
+    State.PlayerStates[pIdx].LastEquipslots[0] = playerGetLocalEquipslot(i, 0);
+    State.PlayerStates[pIdx].LastEquipslots[1] = playerGetLocalEquipslot(i, 1);
+    State.PlayerStates[pIdx].LastEquipslots[2] = playerGetLocalEquipslot(i, 2);
   }
 
   // reset init

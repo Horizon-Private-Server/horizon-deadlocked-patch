@@ -51,7 +51,7 @@
 #define MOB_BASE_DAMAGE										    (10)
 #define MOB_BASE_DAMAGE_SCALE                 (0.03*1)
 #define MOB_BASE_SPEED											  (3)
-#define MOB_BASE_SPEED_SCALE                  (0.05*1)
+#define MOB_BASE_SPEED_SCALE                  (0.01*1)
 #define MOB_BASE_HEALTH										    (30)
 #define MOB_BASE_HEALTH_SCALE                 (0.05*1)
 
@@ -78,11 +78,13 @@
 #define MOB_POSTFX_MINIBOMB_DMG_PERC          (0.15)
 
 #define JACKPOT_BOLTS													(50)
-#define XP_ALPHAMOD_XP												(5)
+#define XP_ALPHAMOD_XP_PERC 									(0.5)
 #define NANOLEECH_HEALTH											(5)
 #define NANOLEECH_CHANCE											(0.01)
 
 #define LEVELUP_MAX_LEVEL                     (98)
+#define LEVELUP_PLAYER_LINEAR_FACTOR          (100)
+#define LEVELUP_PLAYER_INCREMENT_AMOUNT       (25)
 
 #define PLAYER_BASE_REVIVE_TICKS					    (60 * TPS)
 #define PLAYER_MIN_REVIVE_TICKS					      (10 * TPS)
@@ -127,6 +129,7 @@ enum GameNetMessage
   CUSTOM_MSG_SET_PLAYER_EQUIPPED_INVENTORY,
   CUSTOM_MSG_SET_PLAYER_ACCOUNT,
   CUSTOM_MSG_SET_MISSION_FAILED,
+  CUSTOM_MSG_USE_LIFE,
 };
 
 enum RaidsCustomMenus
@@ -170,7 +173,7 @@ typedef int (*OnGuberEvent_func)(Moby* moby, GuberEvent* event);
 typedef struct Guber* (*OnGetGuber_func)(Moby* moby);
 typedef int (*TryCreateMob_func)(struct MobCreateArgs* args);
 typedef void (*RequestPrestigeLoot_func)(int gadgetId);
-typedef void (*RequestMissionCompleteLoot_func)(int cuboidIdx);
+typedef void (*OnMissionComplete_func)(int cuboidIdx);
 
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
 typedef int (*MapOnMobCreate_func)(struct MobCreateArgs* args);
@@ -233,6 +236,7 @@ struct RaidsState
   int MissionStatus;
   int MissionStartTime;
   int MissionCompleteTime;
+  int LivesLeft;
 	int WinningTeam;
 	int ActivePlayerCount;
 	int AlivePlayerCount;
@@ -276,7 +280,7 @@ struct RaidsMapConfig
   OnGetGuber_func OnGetGuberFunc;
   TryCreateMob_func TryCreateMobFunc;
   RequestPrestigeLoot_func RequestPrestigeLootFunc;
-  RequestMissionCompleteLoot_func RequestMissionCompleteLootFunc;
+  OnMissionComplete_func OnMissionCompleteFunc;
 
   // map
   MapOnMobCreate_func OnMobCreateFunc;

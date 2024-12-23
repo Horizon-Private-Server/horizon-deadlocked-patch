@@ -68,15 +68,15 @@ consider making ammo amods more likely w/ rarity?
 ++Add account level prestige (get mythic badge)
 ++Add weapon proficiency prestige (get mythic weapon)
 ++Add ability to create POI (star blips) in forge
-Re-adjust mob speed/damage/behaviors
+++Re-adjust mob speed/damage/behaviors
 Add raids mode and map version check (prevent loading map unless version matches)
 ++Add hacker orb (SP)
 Add damageable proxy moby
 Add pickup (hold) moby to controller targets (sets player held moby)
 ++Fix mobs not despawning when on bad ground
-Fix ammo drops only spawning for host
+++Fix ammo drops only spawning for host
 ++Have loot drops spawn regardless of who kills the mob
-Fix leviathan laser invis
+++Fix leviathan laser invis
 ++Add sound when pickup loot drop
 Add sound when level up
 Add controller condition moby state changed, increased, decreased, changed to
@@ -85,3 +85,18 @@ Store level stats and show on levelselect (time player, # of completes & fails, 
 ++Add mission complete rewards
 Add draw text window to dzo
 Add hacker orb stand (2401) to dzo
+Change class mods to have up to 4 effects
+Add ammo crates
+Only generate loot for items in quickselect
+Change loot drop proficiency to random in range by difficulty, not by account prof +-
+Remove "Got ammo"
+++Lower turret damage
+Fix stalker turret rotation desync
+Fix leviathan laser desync
+Rename explosive wrench to berserker
+Remove MP help dialogue messages ("in deathmatch mode, get the specified number of kills to win!")
+Fix forge auto texture clamp to account for multiple objects that use the same texture
+Have player XP increase every time a weapon prof is leveled
+++Fix respawning resetting equipped weapons
+Fix dzo quickselect
+Have ranged attacks stop/pause when they hit their target?
