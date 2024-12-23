@@ -170,6 +170,7 @@ void hopDo(void)
   State.MissionCompleteTime = 0;
   State.ClientsReady = 0;
   State.DifficultyStars = State.PendingWorldHopDifficultyStars;
+  State.MenuOpen = 0;
   Initialized = 0;
 
   // hop

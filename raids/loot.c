@@ -52,7 +52,7 @@ void lootUpdate(Moby* moby)
   char buf[64];
 
   // fall
-  char* hit = (char*)(moby->PVar + 0x57);
+  char* hit = (char*)(moby->PVar + 0x5C);
   if (!*hit) {
     VECTOR vel = {0,0,-1*MATH_DT,0};
     VECTOR nextPos;
@@ -82,23 +82,21 @@ void lootUpdate(Moby* moby)
   // auto despawn after a period of time
   // or if the user opens their inventory
   // as in that case they will already see the item
-  int timeCreated = *(int*)(moby->PVar + 0x58);
+  int timeCreated = *(int*)(moby->PVar + 0x50);
   if (moby->State != 2 && ((gameGetTime() - timeCreated) > TIME_MINUTE || State.MenuOpen == RAIDS_CUSTOM_MENU_INVENTORY)) {
     lootSetStatePickedUp(moby);
   }
 
   // check if ready to destroy / auto give
   if (moby->State == 2 && moby->StateTimer > 5) {
-    int gadgetId = *(int*)(moby->PVar + 0x50);
-    //int rarity = *(char*)(moby->PVar + 0x54);
-    int quality = *(char*)(moby->PVar + 0x55);
-    int proficiency = *(char*)(moby->PVar + 0x56);
-    if (gadgetId) {
+    RaidsInventoryItem_t item;
+    memcpy(&item, moby->PVar + 0x60, sizeof(RaidsInventoryItem_t));
+
+    if (item.Type) {
       char itemName[64];
-      RaidsInventoryItem_t item = { .GadgetId = gadgetId, .Quality = quality };
-      item.Proficiency = proficiency;
       bankGetItemName(&item, itemName, sizeof(itemName));
       snprintf(buf, sizeof(buf), "Got %s", itemName);
+      DPRINTF("pickup %d (gadget %d)\n", item.Type, item.WeaponData.GadgetId);
       pushSnack(buf, 60, 0);
     }
 
@@ -117,25 +115,29 @@ void lootUpdate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-Moby* lootSpawn(VECTOR position, int gadgetId, int quality, int proficiency)
+Moby* lootSpawn(VECTOR position, RaidsInventoryItem_t* item)
 {
   int pickupId = 3;
-  int rarity = bankGetRarityFromQuality(quality);
+  int rarity = bankGetRarityFromQuality(item->Quality);
 
-  switch (gadgetId)
-  {
-    case WEAPON_ID_VIPERS: pickupId = 2; break;
-    case WEAPON_ID_MAGMA_CANNON: pickupId = 3; break;
-    case WEAPON_ID_ARBITER: pickupId = 4; break;
-    case WEAPON_ID_FUSION_RIFLE: pickupId = 5; break;
-    case WEAPON_ID_MINE_LAUNCHER: pickupId = 6; break;
-    case WEAPON_ID_B6: pickupId = 7; break;
-    case WEAPON_ID_FLAIL: pickupId = 12; break;
-    case WEAPON_ID_OMNI_SHIELD: pickupId = 16; break;
-    case BANK_BADGE_GADGET_ID: pickupId = 1; break;
+  if (item->Type == RAIDS_ITEM_WEAPON) {
+    switch (item->WeaponData.GadgetId)
+    {
+      case WEAPON_ID_VIPERS: pickupId = 2; break;
+      case WEAPON_ID_MAGMA_CANNON: pickupId = 3; break;
+      case WEAPON_ID_ARBITER: pickupId = 4; break;
+      case WEAPON_ID_FUSION_RIFLE: pickupId = 5; break;
+      case WEAPON_ID_MINE_LAUNCHER: pickupId = 6; break;
+      case WEAPON_ID_B6: pickupId = 7; break;
+      case WEAPON_ID_FLAIL: pickupId = 12; break;
+      case WEAPON_ID_OMNI_SHIELD: pickupId = 16; break;
+    }
+  } else {
+    pickupId = 1;
   }
 
-  Moby* moby = mobySpawn(0x243E, 0x50 + 0x20);
+
+  Moby* moby = mobySpawn(0x243E, 0x50 + 0x10 + sizeof(RaidsInventoryItem_t));
 
   vector_copy(moby->Position, position);
   moby->PUpdate = lootUpdate;
@@ -144,16 +146,12 @@ Moby* lootSpawn(VECTOR position, int gadgetId, int quality, int proficiency)
   *(int*)(moby->PVar + 0x00) = pickupId;
   *(int*)(moby->PVar + 0x08) = 0x0001FFFF;
   *(int*)(moby->PVar + 0x0C) = 0x1E;
-  *(int*)(moby->PVar + 0x50) = gadgetId;
-  *(char*)(moby->PVar + 0x54) = rarity;
-  *(char*)(moby->PVar + 0x55) = quality;
-  *(char*)(moby->PVar + 0x56) = proficiency;
-  *(char*)(moby->PVar + 0x57) = 0;
-  *(int*)(moby->PVar + 0x58) = gameGetTime();
-  *(int*)(moby->PVar + 0x60) = colorLerp(0x80000000, lootRarityColors[rarity], 0.8);
-  *(int*)(moby->PVar + 0x64) = colorLerp(0x80000000, lootRarityColors[rarity], 0.7);
+  *(int*)(moby->PVar + 0x50) = gameGetTime();
+  *(int*)(moby->PVar + 0x54) = colorLerp(0x80000000, lootRarityColors[rarity], 0.8);
+  *(int*)(moby->PVar + 0x58) = colorLerp(0x80000000, lootRarityColors[rarity], 0.7);
+  memcpy(moby->PVar + 0x60, item, sizeof(RaidsInventoryItem_t));
 
-  DPRINTF("loot spawn %08X\n", (u32)moby);
+  DPRINTF("loot spawn %08X (type %d, gadget %d)\n", (u32)moby, item->Type, item->WeaponData.GadgetId);
   return moby;
 }
 
@@ -163,7 +161,7 @@ int lootOnGenerateLootResponse(void* connection, void* data)
   struct RaidsGenerateLootDropResponse msg;
   memcpy(&msg, data, sizeof(msg));
 
-  lootSpawn(msg.Position, msg.Drop.GadgetId, msg.Drop.Quality, msg.Drop.Proficiency);
+  lootSpawn(msg.Position, &msg.Drop);
 
   DPRINTF("got loot gen response\n");
   return sizeof(msg);
@@ -227,8 +225,8 @@ void lootRequestFromMissionComplete(VECTOR position)
 //--------------------------------------------------------------------------
 void lootTick(void)
 {
-#if DEBUG
-  if (padGetButtonDown(0, PAD_DOWN | PAD_L1) > 0) {
+#if DEBUG && 0
+  if (padGetButtonDown(0, PAD_L1) > 0) {
     struct RaidsGenerateLootDropRequest msg;
     void* connection = netGetLobbyServerConnection();
     if (!connection) return;
@@ -251,8 +249,8 @@ void lootInit(void)
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_RESPONSE, &lootOnGenerateLootResponse);
 
   // pull aura color from pvars
-  POKE_U32(0x0043BF28, 0x8E440060);
-  POKE_U32(0x0043BF30, 0x8E450064);
+  POKE_U32(0x0043BF28, 0x8E440054);
+  POKE_U32(0x0043BF30, 0x8E450058);
 
   // allow gadget pickup even if maxed ammo
   POKE_U32(0x0043A824, 0);

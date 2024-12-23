@@ -123,7 +123,6 @@ char inventoryBadgeSpriteIds[] = {
   [RAIDS_BADGE_TYPE_SHARPSHOOTER] 113,
   [RAIDS_BADGE_TYPE_BERSERKER] 114,
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] 115,
-  [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] 116,
   [RAIDS_BADGE_TYPE_COUNT] 0,
 };
 
@@ -133,7 +132,6 @@ char inventoryBadgeSpriteDims[] = {
   [RAIDS_BADGE_TYPE_SHARPSHOOTER] 32,
   [RAIDS_BADGE_TYPE_BERSERKER] 32,
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] 32,
-  [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] 32,
   [RAIDS_BADGE_TYPE_COUNT] 0,
 };
 
@@ -148,9 +146,17 @@ char* inventoryBadgeDescriptions[] = {
   [RAIDS_BADGE_TYPE_HEALTH_REGEN] "Slowly regenerate health.",
   [RAIDS_BADGE_TYPE_AMMO_REGEN] "Slowly regenerate ammunition.",
   [RAIDS_BADGE_TYPE_SHARPSHOOTER] "Increase critical hit chance.",
-  [RAIDS_BADGE_TYPE_BERSERKER] "Reduce damage taken from melee attacks. Weak to ranged attacks.",
+  [RAIDS_BADGE_TYPE_BERSERKER] ".",
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Increase flinch cooldown time.",
-  [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "Give your wrench that extra little oomph.",
+  [RAIDS_BADGE_TYPE_COUNT] NULL,
+};
+
+char* inventoryBadgeNames[] = {
+  [RAIDS_BADGE_TYPE_HEALTH_REGEN] "Health Regen",
+  [RAIDS_BADGE_TYPE_AMMO_REGEN] "Ammo Regen",
+  [RAIDS_BADGE_TYPE_SHARPSHOOTER] "Sharpshooter",
+  [RAIDS_BADGE_TYPE_BERSERKER] "Berserker",
+  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Flinch Resistance",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
 
@@ -199,14 +205,16 @@ void inventorySetFilter(int filter)
   memset(inventoryTabHasNew, 0, sizeof(inventoryTabHasNew));
   for (i = 0; i < BANK_MAX_ITEMS; ++i) {
     // count
-    int weaponGadgetId = localBank->Inventory.Items[i].GadgetId;
+    RaidsInventoryItem_t* item = &localBank->Inventory.Items[i];
     int tab = 0;
-    if (!weaponGadgetId) continue;
+    if (!item->Type) continue;
     
-    if (weaponGadgetId == BANK_BADGE_GADGET_ID) {
+    if (item->Type == RAIDS_ITEM_BADGE) {
       tab = INVENTORY_TAB_BADGES;
+    } else if (item->Type == RAIDS_ITEM_WEAPON) {
+      tab = weaponIdToSlot(item->WeaponData.GadgetId);
     } else {
-      tab = weaponIdToSlot(weaponGadgetId);
+      continue;
     }
 
     // count
@@ -348,7 +356,7 @@ void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
   float fh = INVENTORY_DRAW_INFO_H;
   float offX = fw/2;
   float offY = 0;
-  char strBuf[64];
+  char strBuf[128];
 
   // draw box
   gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw, fh, bgColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
@@ -359,7 +367,7 @@ void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
   int hasComparison = 0;
   int isBadge = bankItemIsBadge(selectedItem);
   RaidsInventoryItem_t* baseItem = NULL;
-  RaidsInventoryItem_t* equippedItem = isBadge ? bankGetLocalEquippedBadge() : bankGetLocalEquippedWeapon(selectedItem->GadgetId);
+  RaidsInventoryItem_t* equippedItem = isBadge ? bankGetLocalEquippedBadge() : bankGetLocalEquippedWeapon(selectedItem->WeaponData.GadgetId);
   hasComparison = equippedItem && equippedItem != selectedItem;
   baseItem = hasComparison ? equippedItem : selectedItem;
 
@@ -380,27 +388,49 @@ void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
 
     // description
     offX = 10;
-    gfxHelperDrawTextWindow(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw - 10, height, 5, 5, 0.7, textColor, inventoryBadgeDescriptions[selectedItem->BadgeType], -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NORMAL);
+    int i;
+    for (i = 0; i < BANK_BADGE_EFFECT_COUNT; ++i) {
+      int badgeType = baseItem->BadgeData.Effects[i];
+      float badgeStrength = baseItem->BadgeData.EffectStrength[i] / 255.0;
+      if (!badgeType) continue;
+
+      snprintf(strBuf, sizeof(strBuf), "%s (%f)", inventoryBadgeNames[badgeType], badgeStrength);
+      gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      offY += 12;
+    }
+
+    if (hasComparison) {
+      offY += 12;
+      for (i = 0; i < BANK_BADGE_EFFECT_COUNT; ++i) {
+        int badgeType = selectedItem->BadgeData.Effects[i];
+        float badgeStrength = selectedItem->BadgeData.EffectStrength[i] / 255.0;
+        if (!badgeType) continue;
+
+        snprintf(strBuf, sizeof(strBuf), "> %s (%f)", inventoryBadgeNames[badgeType], badgeStrength);
+        gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+        offY += 12;
+      }
+    }
 
     return;
   }
 
   // stats
   offX = 10;
-  snprintf(strBuf, sizeof(strBuf), "Damage: %d", baseItem->Damage);
+  snprintf(strBuf, sizeof(strBuf), "Damage: %d", baseItem->WeaponData.Damage);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
     float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-    snprintf(strBuf, sizeof(strBuf), "> %d", selectedItem->Damage);
-    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedItem->Damage - baseItem->Damage), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    snprintf(strBuf, sizeof(strBuf), "> %d", selectedItem->WeaponData.Damage);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedItem->WeaponData.Damage - baseItem->WeaponData.Damage), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
-  snprintf(strBuf, sizeof(strBuf), "Critical Hit: %.f%%", (baseItem->CritChance / 255.0) * 100);
+  snprintf(strBuf, sizeof(strBuf), "Critical Hit: %.f%%", (baseItem->WeaponData.CritChance / 255.0) * 100);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
     float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-    snprintf(strBuf, sizeof(strBuf), "> %.f%%", (selectedItem->CritChance / 255.0) * 100);
-    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedItem->CritChance - baseItem->CritChance), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    snprintf(strBuf, sizeof(strBuf), "> %.f%%", (selectedItem->WeaponData.CritChance / 255.0) * 100);
+    gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selectedItem->WeaponData.CritChance - baseItem->WeaponData.CritChance), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
   int baseRarity = bankGetRarityFromQuality(baseItem->Quality);
@@ -413,27 +443,27 @@ void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, inventoryDrawGetCompareColor(selRarity - baseRarity), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
-  snprintf(strBuf, sizeof(strBuf), "Paint: %s", inventoryPaintNames[baseItem->Paint]);
+  snprintf(strBuf, sizeof(strBuf), "Paint: %s", inventoryPaintNames[baseItem->WeaponData.Paint]);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
     float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryPaintNames[selectedItem->Paint]);
+    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryPaintNames[selectedItem->WeaponData.Paint]);
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
-  snprintf(strBuf, sizeof(strBuf), "Special: %s", inventoryPaintSpecialNames[baseItem->PaintSpecialMask]);
+  snprintf(strBuf, sizeof(strBuf), "Special: %s", inventoryPaintSpecialNames[baseItem->WeaponData.PaintSpecialMask]);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
     float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryPaintSpecialNames[selectedItem->PaintSpecialMask]);
+    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryPaintSpecialNames[selectedItem->WeaponData.PaintSpecialMask]);
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
-  snprintf(strBuf, sizeof(strBuf), "Omega: %s", inventoryOmegaNames[baseItem->OmegaMod]);
+  snprintf(strBuf, sizeof(strBuf), "Omega: %s", inventoryOmegaNames[baseItem->WeaponData.OmegaMod]);
   gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   if (hasComparison) {
     float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryOmegaNames[selectedItem->OmegaMod]);
+    snprintf(strBuf, sizeof(strBuf), "> %s", inventoryOmegaNames[selectedItem->WeaponData.OmegaMod]);
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + strW + 5, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
   }
   offY += 12;
@@ -445,12 +475,12 @@ void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
   offX = 5;
   for (i = 1; i < ALPHA_MOD_COUNT; ++i) {
     gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 16, 16, 32, 32, inventoryAlphaModSpriteIds[i], spriteColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-    snprintf(strBuf, sizeof(strBuf), "%d", baseItem->AlphaModCounts[i-1]);
+    snprintf(strBuf, sizeof(strBuf), "%d", baseItem->WeaponData.AlphaModCounts[i-1]);
     gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 0, offY + 10, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     if (hasComparison) {
       float strW = gfxGetFontWidth(strBuf, -1, 0.7);
-      snprintf(strBuf, sizeof(strBuf), ">%d", selectedItem->AlphaModCounts[i-1]);
-      gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 2 + strW, offY + 11, 0.6, inventoryDrawGetCompareColor(selectedItem->AlphaModCounts[i-1] - baseItem->AlphaModCounts[i-1]), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      snprintf(strBuf, sizeof(strBuf), ">%d", selectedItem->WeaponData.AlphaModCounts[i-1]);
+      gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX + 2 + strW, offY + 11, 0.6, inventoryDrawGetCompareColor(selectedItem->WeaponData.AlphaModCounts[i-1] - baseItem->WeaponData.AlphaModCounts[i-1]), strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     }
     
     offX += 25;
@@ -489,6 +519,7 @@ void inventoryDrawItem(InventoryDrawState_t* drawState, int row, int col, RaidsI
   if (!item) return;
 
   int isBadge = bankItemIsBadge(item);
+  int isWeapon = bankItemIsWeapon(item);
 
   // seen
   if (isSelected && item->Notify == RAIDS_ITEM_NOTIFY_NEW) {
@@ -500,19 +531,22 @@ void inventoryDrawItem(InventoryDrawState_t* drawState, int row, int col, RaidsI
   if (isBadge) {
     isEquipped = inventoryFilterMapping[idx] == localBank->Inventory.EquippedBadgeIdx;
   } else {
-    isEquipped = inventoryFilterMapping[idx] == localBank->Inventory.EquippedWeaponIdxs[bankGetEquipSlotFromGadgetId(item->GadgetId)];
+    isEquipped = inventoryFilterMapping[idx] == localBank->Inventory.EquippedWeaponIdxs[bankGetEquipSlotFromGadgetId(item->WeaponData.GadgetId)];
   }
 
   if (isEquipped) {
     gfxHelperDrawBox(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, fw, fh, equippedColor, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
   }
 
-  int slotId = weaponIdToSlot(item->GadgetId);
+  int slotId = weaponIdToSlot(item->WeaponData.GadgetId);
   int iconSpriteId = inventoryWeaponSpriteIds[slotId];
   int iconSpriteDim = inventoryWeaponSpriteDims[slotId];
-  if (slotId == 0) {
-    iconSpriteId = inventoryBadgeSpriteIds[item->BadgeType];
-    iconSpriteDim = inventoryBadgeSpriteDims[item->BadgeType];
+  if (isBadge) {
+    slotId = 0;
+    iconSpriteId = 114;
+    iconSpriteDim = 32;
+    //iconSpriteId = inventoryBadgeSpriteIds[item->BadgeType];
+    //iconSpriteDim = inventoryBadgeSpriteDims[item->BadgeType];
   }
   
   // draw icon
@@ -533,13 +567,13 @@ void inventoryDrawItem(InventoryDrawState_t* drawState, int row, int col, RaidsI
   }
 
   // draw paint
-  if (item->Paint || item->PaintSpecialMask) {
-    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX-w/2+1, offY+h/2-1, 8, 8, 32, 32, 80 + (item->PaintSpecialMask>0?1:0), bankPaintColors[item->Paint] | 0x80000000, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  if (isWeapon && (item->WeaponData.Paint || item->WeaponData.PaintSpecialMask)) {
+    gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX-w/2+1, offY+h/2-1, 8, 8, 32, 32, 80 + (item->WeaponData.PaintSpecialMask>0?1:0), bankPaintColors[item->WeaponData.Paint] | 0x80000000, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
   }
 
   // draw omega
-  if (item->OmegaMod) {
-    u32 omegaColor = ((u32 (*)(int))0x00541fd0)(item->OmegaMod);
+  if (isWeapon &&item->WeaponData.OmegaMod) {
+    u32 omegaColor = ((u32 (*)(int))0x00541fd0)(item->WeaponData.OmegaMod);
     gfxHelperDrawSprite(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX+w/2-2, offY+h/2-2, 12, 12, 32, 32, 79, omegaColor | 0x80000000, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
   }
 
@@ -609,15 +643,15 @@ enum InventoryItemAction inventoryDrawFooter(InventoryDrawState_t* drawState)
   if (selectedItem) {
     sellPrice = selectedItem->Price;
     if (bankItemIsWeapon(selectedItem)) {
-      int accountProf = getProficiencyFromXp(localBank->Account.WeaponXp[bankGetEquipSlotFromGadgetId(selectedItem->GadgetId)]);
-      RaidsInventoryItem_t* equippedWeapon = bankGetLocalEquippedWeapon(selectedItem->GadgetId);
-      selectedTooStrong = selectedItem->GadgetId && selectedItem->Proficiency > accountProf;
+      int accountProf = getProficiencyFromXp(localBank->Account.WeaponXp[bankGetEquipSlotFromGadgetId(selectedItem->WeaponData.GadgetId)]);
+      RaidsInventoryItem_t* equippedWeapon = bankGetLocalEquippedWeapon(selectedItem->WeaponData.GadgetId);
+      selectedTooStrong = selectedItem->WeaponData.GadgetId && selectedItem->WeaponData.Proficiency > accountProf;
 #if DEBUG
       selectedTooStrong = 0;
 #endif
       alreadyEquipped = equippedWeapon == selectedItem;
-      canEquip = !selectedTooStrong && selectedItem->GadgetId && !alreadyEquipped; // already equipped
-      canSell = selectedItem->GadgetId && equippedWeapon != selectedItem && selectedItem->Notify != RAIDS_ITEM_NOTIFY_FAV; // can't sell equipped
+      canEquip = !selectedTooStrong && selectedItem->WeaponData.GadgetId && !alreadyEquipped; // already equipped
+      canSell = selectedItem->WeaponData.GadgetId && equippedWeapon != selectedItem && selectedItem->Notify != RAIDS_ITEM_NOTIFY_FAV; // can't sell equipped
     } else {
       RaidsInventoryItem_t* equippedBadge = bankGetLocalEquippedBadge();
       badgeAndMissionActive = missionIsActive();
@@ -633,7 +667,7 @@ enum InventoryItemAction inventoryDrawFooter(InventoryDrawState_t* drawState)
   if (!isLoading) {
     strcat(strBuf, "\x14 \x15 FILTER    ");
     if (canEquip) strcat(strBuf, "\x10 EQUIP    ");
-    if (selectedTooStrong) { snprintf(sellPriceStrBuf, sizeof(sellPriceStrBuf), "MUST BE P%d TO EQUIP    ", selectedItem->Proficiency+1); strcat(strBuf, sellPriceStrBuf); }
+    if (selectedTooStrong) { snprintf(sellPriceStrBuf, sizeof(sellPriceStrBuf), "MUST BE P%d TO EQUIP    ", selectedItem->WeaponData.Proficiency+1); strcat(strBuf, sellPriceStrBuf); }
     if (selectedItem) strcat(strBuf, "\x11 FAV    ");
     if (canSell) { strcat(strBuf, "\x13 SELL    "); }
   }

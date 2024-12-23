@@ -58,7 +58,6 @@ char* bankBadgeNames[] = {
   [RAIDS_BADGE_TYPE_SHARPSHOOTER] "%cSharpshooter %s\x08",
   [RAIDS_BADGE_TYPE_BERSERKER] "%cBerserker %s\x08",
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "%cFlinch Resistance %s\x08",
-  [RAIDS_BADGE_TYPE_EXPLOSIVE_WRENCH] "%cExplosive Wrench %s\x08",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
 
@@ -250,13 +249,13 @@ void bankSendAccountToServer(void)
 //--------------------------------------------------------------------------
 int bankItemIsWeapon(RaidsInventoryItem_t* item)
 {
-  return item && item->GadgetId && item->GadgetId != BANK_BADGE_GADGET_ID;
+  return item && item->Type == RAIDS_ITEM_WEAPON;
 }
 
 //--------------------------------------------------------------------------
 int bankItemIsBadge(RaidsInventoryItem_t* item)
 {
-  return item && item->GadgetId == BANK_BADGE_GADGET_ID && item->BadgeType > RAIDS_BADGE_TYPE_NONE && item->BadgeType < RAIDS_BADGE_TYPE_COUNT;
+  return item && item->Type == RAIDS_ITEM_BADGE;
 }
 
 //--------------------------------------------------------------------------
@@ -345,10 +344,11 @@ void bankGetItemName(RaidsInventoryItem_t* item, char* buf, int bufSize)
 
   int rarity = bankGetRarityFromQuality(item->Quality);
   if (bankItemIsBadge(item)) {
-    snprintf(buf, bufSize, bankBadgeNames[item->BadgeType], bankRarityCode[rarity], bankBadgeLevelNames[rarity]);
+    //snprintf(buf, bufSize, bankBadgeNames[item->BadgeType], bankRarityCode[rarity], bankBadgeLevelNames[rarity]);
+    snprintf(buf, bufSize, "%cClass Mod\x08", bankRarityCode[rarity]);
   } else {
-    struct GadgetDef* gadgetDef = weaponGetDef(item->GadgetId, 0);
-    snprintf(buf, bufSize, "%c%s P%d\x08", bankRarityCode[rarity], uiMsgString(rarity >= RAIDS_ITEM_RARITY_LEGENDARY ? gadgetDef->upgQSTag : gadgetDef->quickSelectTag), item->Proficiency + 1);
+    struct GadgetDef* gadgetDef = weaponGetDef(item->WeaponData.GadgetId, 0);
+    snprintf(buf, bufSize, "%c%s P%d\x08", bankRarityCode[rarity], uiMsgString(rarity >= RAIDS_ITEM_RARITY_LEGENDARY ? gadgetDef->upgQSTag : gadgetDef->quickSelectTag), item->WeaponData.Proficiency + 1);
   }
 }
 
@@ -388,7 +388,7 @@ RaidsInventoryItem_t* bankGetEquippedWeaponFromGadgetBox(GadgetBox* gbox, int ga
 
   int idx = weaponIdToSlot(gadgetId)-1;
   if (idx < 0 || idx >= COUNT_OF(inventory->Items)) return NULL;
-  if (inventory->Items[idx].GadgetId != gadgetId) return NULL;
+  if (inventory->Items[idx].Type != RAIDS_ITEM_WEAPON || inventory->Items[idx].WeaponData.GadgetId != gadgetId) return NULL;
 
   return &inventory->Items[idx];
 }
@@ -423,7 +423,8 @@ RaidsInventoryItem_t* bankGetLocalEquippedWeapon(int gadgetId)
   if (equipIdx < 0) return NULL;
   RaidsInventoryItem_t* item = &bankLocalBank.Inventory.Items[equipIdx];
 
-  if (item->GadgetId != gadgetId) return NULL;
+  if (item->Type != RAIDS_ITEM_WEAPON) return NULL;
+  if (item->WeaponData.GadgetId != gadgetId) return NULL;
   return item;
 }
 
@@ -434,7 +435,7 @@ RaidsInventoryItem_t* bankGetLocalItemFromBank(int index)
   if (index >= BANK_MAX_ITEMS) return NULL;
 
   RaidsInventoryItem_t* item = &bankLocalBank.Inventory.Items[index];
-  if (!item->GadgetId) return NULL;
+  if (!item->Type) return NULL;
 
   return item;
 }
@@ -443,7 +444,7 @@ RaidsInventoryItem_t* bankGetLocalItemFromBank(int index)
 RaidsInventoryItem_t* bankGetLocalWeaponFromBank(int index)
 {
   RaidsInventoryItem_t* item = bankGetLocalItemFromBank(index);
-  if (!item || item->GadgetId == BANK_BADGE_GADGET_ID) return NULL;
+  if (!item || item->Type != RAIDS_ITEM_WEAPON || !item->WeaponData.GadgetId) return NULL;
   return item;
 }
 
@@ -451,7 +452,7 @@ RaidsInventoryItem_t* bankGetLocalWeaponFromBank(int index)
 RaidsInventoryItem_t* bankGetLocalBadgeFromBank(int index)
 {
   RaidsInventoryItem_t* item = bankGetLocalItemFromBank(index);
-  if (!item || item->GadgetId != BANK_BADGE_GADGET_ID) return NULL;
+  if (!item || item->Type != RAIDS_ITEM_BADGE) return NULL;
   return item;
 }
 
@@ -474,6 +475,21 @@ u32 bankGetGadgetColor(int localPlayerIndex, int gadgetId)
 }
 
 //--------------------------------------------------------------------------
+float bankGetEquippedBadgeEffectStrength(int playerId, enum RaidsBadgeType effect)
+{
+  RaidsInventoryItem_t* badge = &State.PlayerStates[playerId].Inventory.Badge;
+  if (!badge || badge->Type != RAIDS_ITEM_BADGE) return 0;
+
+  int i;
+  for (i = 0; i < BANK_BADGE_EFFECT_COUNT; ++i) {
+    if (badge->BadgeData.Effects[i] == effect)
+      return badge->BadgeData.EffectStrength[i] / 255.0;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 int bankGetAlphaModCount(GadgetBox* gadgetBox, int gadgetId, int alphaModId)
 {
   if (!gadgetBox || !gadgetBox->Initialized) return 0;
@@ -483,7 +499,7 @@ int bankGetAlphaModCount(GadgetBox* gadgetBox, int gadgetId, int alphaModId)
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(gadgetBox, gadgetId);
   if (!bankWeapon) return 0;
 
-  return bankWeapon->AlphaModCounts[alphaModId-1];
+  return bankWeapon->WeaponData.AlphaModCounts[alphaModId-1];
 }
 
 //--------------------------------------------------------------------------
@@ -492,7 +508,7 @@ float bankGetArbiterNapalmDamage(Player* player)
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_ARBITER);
   if (!bankWeapon) return 0;
 
-  return bankWeapon->Damage * MOB_POSTFX_NAPALM_DMG_PERC;
+  return bankWeapon->WeaponData.Damage * MOB_POSTFX_NAPALM_DMG_PERC;
 }
 
 float bankGetArbiterMinibombDamage(Player* player)
@@ -500,7 +516,7 @@ float bankGetArbiterMinibombDamage(Player* player)
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_ARBITER);
   if (!bankWeapon) return 0;
 
-  return bankWeapon->Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
+  return bankWeapon->WeaponData.Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
 }
 
 //--------------------------------------------------------------------------
@@ -509,7 +525,7 @@ float bankGetMineLauncherNapalmDamage(Player* player)
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_MINE_LAUNCHER);
   if (!bankWeapon) return 0;
 
-  return bankWeapon->Damage * MOB_POSTFX_NAPALM_DMG_PERC;
+  return bankWeapon->WeaponData.Damage * MOB_POSTFX_NAPALM_DMG_PERC;
 }
 
 //--------------------------------------------------------------------------
@@ -518,7 +534,7 @@ float bankGetMineLauncherMinibombDamage(Player* player)
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_MINE_LAUNCHER);
   if (!bankWeapon) return 0;
 
-  return bankWeapon->Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
+  return bankWeapon->WeaponData.Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
 }
 
 //--------------------------------------------------------------------------
@@ -527,7 +543,7 @@ float bankGetB6NapalmDamage(Player* player)
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_B6);
   if (!bankWeapon) return 0;
 
-  return bankWeapon->Damage * MOB_POSTFX_NAPALM_DMG_PERC;
+  return bankWeapon->WeaponData.Damage * MOB_POSTFX_NAPALM_DMG_PERC;
 }
 
 //--------------------------------------------------------------------------
@@ -536,7 +552,7 @@ float bankGetB6MinibombDamage(Player* player)
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(player->GadgetBox, WEAPON_ID_B6);
   if (!bankWeapon) return 0;
 
-  return bankWeapon->Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
+  return bankWeapon->WeaponData.Damage * MOB_POSTFX_MINIBOMB_DMG_PERC;
 }
 
 //--------------------------------------------------------------------------
@@ -570,7 +586,7 @@ void bankSpawnMinibombs(Moby* pParent, int count, VECTOR rootVel, float randSpee
 float bankGetGadgetDamage(GadgetBox* gbox, int gadgetId, int damageType, int multiplier)
 {
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(gbox, gadgetId);
-  if (bankWeapon) return bankWeapon->Damage * multiplier;
+  if (bankWeapon) return bankWeapon->WeaponData.Damage * multiplier;
 
   int level = gbox->Gadgets[gadgetId].Level;
   return ((float (*)(int gadgetId, int level, int damageType, int multiplier))0x00627520)(gadgetId, level, damageType, multiplier);
@@ -605,14 +621,14 @@ void bankApplyGadgetMoby(Player* player, RaidsInventoryItem_t* item, Moby* moby)
   float glowOpacity = 0.5;
   if (!moby) return;
 
-  if (item->Paint) {
-    moby->PrimaryColor = bankPaintColors[item->Paint];
+  if (item->WeaponData.Paint) {
+    moby->PrimaryColor = bankPaintColors[item->WeaponData.Paint];
   } else {
     moby->PrimaryColor = player->PlayerMoby->PrimaryColor;
     glowOpacity = 1;
   }
 
-  if (item->PaintSpecialMask & RAIDS_GADGET_PAINTSPECIAL_ADDITIVE) {
+  if (item->WeaponData.PaintSpecialMask & RAIDS_GADGET_PAINTSPECIAL_ADDITIVE) {
     moby->Opacity = 0x50;
     moby->ModeBits |= MOBY_MODE_BIT_DRAW_TRANSPARENT_WEIRD;
     glowAlpha = 0x80000000;
@@ -622,7 +638,7 @@ void bankApplyGadgetMoby(Player* player, RaidsInventoryItem_t* item, Moby* moby)
     moby->ModeBits &= ~MOBY_MODE_BIT_DRAW_TRANSPARENT_WEIRD;
   }
   
-  if (item->PaintSpecialMask & RAIDS_GADGET_PAINTSPECIAL_GLOW) {
+  if (item->WeaponData.PaintSpecialMask & RAIDS_GADGET_PAINTSPECIAL_GLOW) {
     moby->PrimaryColor = colorLerp(0, moby->PrimaryColor, glowOpacity) | glowAlpha;
     moby->Lights = 0;
     //moby->ModeBits2 |= 8;
@@ -654,7 +670,7 @@ void bankRemoveGadget(Player* player, int gadgetId)
 //--------------------------------------------------------------------------
 void bankApplyItem(Player* player, RaidsInventoryItem_t* item)
 {
-  int gadgetId = item->GadgetId;
+  int gadgetId = item->WeaponData.GadgetId;
   int rarity = bankGetRarityFromQuality(item->Quality);
   GadgetBox* gbox = player->GadgetBox;
 
@@ -664,7 +680,7 @@ void bankApplyItem(Player* player, RaidsInventoryItem_t* item)
     bankTryAddGadgetToQuickSelect(player, gadgetId);
   }
   gbox->Gadgets[gadgetId].Level = bankGetRarityFromQuality(item->Quality) >= RAIDS_ITEM_RARITY_LEGENDARY ? 9 : 0;
-  gbox->Gadgets[gadgetId].UNK_10 = (gbox->Gadgets[gadgetId].UNK_10 & 0xFF) | (rarity << 8) | (item->Proficiency << 16);
+  gbox->Gadgets[gadgetId].UNK_10 = (gbox->Gadgets[gadgetId].UNK_10 & 0xFF) | (rarity << 8) | (item->WeaponData.Proficiency << 16);
   gbox->Gadgets[gadgetId].Experience = (int)(bankGetWeaponXpProgressFromGadgetBox(gbox, gadgetId) * 100000);
 
   // configure mobys
@@ -673,7 +689,7 @@ void bankApplyItem(Player* player, RaidsInventoryItem_t* item)
     bankApplyGadgetMoby(player, item, player->Gadgets[0].pMoby2);
   }
 
-  gbox->Gadgets[gadgetId].OmegaMod = item->OmegaMod;
+  gbox->Gadgets[gadgetId].OmegaMod = item->WeaponData.OmegaMod;
 }
 
 //--------------------------------------------------------------------------
@@ -720,13 +736,13 @@ void bankSellLocalItemAtIndex(int itemIdx)
 
   if (itemIdx < 0 || itemIdx >= BANK_MAX_ITEMS) return;
   RaidsInventoryItem_t* item = &localBank->Inventory.Items[itemIdx];
-  if (!item || !item->GadgetId) return;
+  if (!item || !item->Type) return;
 
   if (bankItemIsBadge(item)) {
     int isEquipped = localBank->Inventory.EquippedBadgeIdx == itemIdx;
     if (isEquipped) localBank->Inventory.EquippedBadgeIdx = -1;
   } else {
-    int equipSlot = bankGetEquipSlotFromGadgetId(item->GadgetId);
+    int equipSlot = bankGetEquipSlotFromGadgetId(item->WeaponData.GadgetId);
     int isEquipped = localBank->Inventory.EquippedWeaponIdxs[equipSlot] == itemIdx;
     if (isEquipped) localBank->Inventory.EquippedWeaponIdxs[equipSlot] = -1;
   }
@@ -744,12 +760,12 @@ void bankEquipLocalItemAtIndex(int itemIdx)
 
   if (itemIdx < 0 || itemIdx >= BANK_MAX_ITEMS) return;
   RaidsInventoryItem_t* item = &localBank->Inventory.Items[itemIdx];
-  if (!item || !item->GadgetId) return;
+  if (!item || !item->Type) return;
 
   if (bankItemIsBadge(item)) {
     localBank->Inventory.EquippedBadgeIdx = itemIdx;
   } else {
-    localBank->Inventory.EquippedWeaponIdxs[bankGetEquipSlotFromGadgetId(item->GadgetId)] = itemIdx;
+    localBank->Inventory.EquippedWeaponIdxs[bankGetEquipSlotFromGadgetId(item->WeaponData.GadgetId)] = itemIdx;
   }
 
   localBank->Inventory.RefreshLocalInventory = 1;

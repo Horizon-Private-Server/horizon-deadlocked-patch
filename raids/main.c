@@ -306,6 +306,7 @@ void onMissionComplete(int cuboidIdx)
         if (collisionIdIsWalkable(CollLine_Fix_GetHitCollisionId())) {
           // found spot above ground
           vector_copy(pos, CollLine_Fix_GetHitPosition());
+          pos[2] += 1;
           break;
         }
       }

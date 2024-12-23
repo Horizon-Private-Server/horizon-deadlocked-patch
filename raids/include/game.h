@@ -80,7 +80,7 @@
 #define JACKPOT_BOLTS													(50)
 #define XP_ALPHAMOD_XP_PERC 									(0.5)
 #define NANOLEECH_HEALTH											(5)
-#define NANOLEECH_CHANCE											(0.01)
+#define NANOLEECH_CHANCE											(0.05)
 
 #define LEVELUP_MAX_LEVEL                     (98)
 #define LEVELUP_PLAYER_LINEAR_FACTOR          (100)
@@ -293,6 +293,9 @@ struct RaidsMapConfig
 
 struct RaidsCustomMapExtraData
 {
+  int RaidsVersion;
+  float DifficultyApproximate;
+  int UNUSED[2];
   int Cost[5];
   char Author[32];
   char Description[256];

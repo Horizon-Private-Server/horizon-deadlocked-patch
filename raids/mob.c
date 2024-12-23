@@ -178,7 +178,7 @@ void mobSendStateUpdateUnreliable(Moby* moby)
   // action update
   msg.StateUpdate.Action = pvars->MobVars.Action;
   msg.StateUpdate.ActionId = pvars->MobVars.ActionId;
-  msg.StateUpdate.Random = pvars->MobVars.DynamicRandom;
+  msg.StateUpdate.Random = pvars->MobVars.DynamicRandom = (u8)rand(256);
 
   // state update
   memcpy(msg.StateUpdate.Position, moby->Position, 12);
@@ -231,10 +231,9 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
     // crit
     if (pDamager->IsLocal) {
       float critProbability = 0;
-      RaidsInventoryItem_t* badge = bankGetEquippedBadgeFromGadgetBox(pDamager->GadgetBox);
       RaidsInventoryItem_t* item = bankGetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
-      if (item) critProbability = item->CritChance / 255.0;
-      if (badge && badge->BadgeType == RAIDS_BADGE_TYPE_SHARPSHOOTER) critProbability += BADGE_SHARPSHOOTER_CRIT_AMOUNT * (1 + bankGetRarityFromQuality(badge->Quality));
+      if (item) critProbability = item->WeaponData.CritChance / 255.0;
+      critProbability += bankGetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
 
       float r = randRange(0, 1);
       if (r < critProbability) {

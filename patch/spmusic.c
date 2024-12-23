@@ -95,7 +95,7 @@ void spMusicLoad(void)
   }
 
   ((void (*)(int,int,int))0x0051f928)(4,13 + SP_MUSIC_TRACK_COUNT,0x400);
-  POKE_U16(0x004A8328, 13 + SP_MUSIC_TRACK_COUNT);
+  POKE_U16(0x004A8328, 13 + SP_MUSIC_TRACK_COUNT - 2);
   //musicPlayTrack(MUSIC_TRACK_DREADZONE_STATION, 1);
 
   DPRINTF("SPMUSIC loaded %d tracks\n", SP_MUSIC_TRACK_COUNT);

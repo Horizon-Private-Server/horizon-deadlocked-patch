@@ -85,18 +85,18 @@ Store level stats and show on levelselect (time player, # of completes & fails, 
 ++Add mission complete rewards
 Add draw text window to dzo
 Add hacker orb stand (2401) to dzo
-Change class mods to have up to 4 effects
+++Change class mods to have up to 4 effects
 Add ammo crates
 Only generate loot for items in quickselect
-Change loot drop proficiency to random in range by difficulty, not by account prof +-
-Remove "Got ammo"
+++Change loot drop proficiency to random in range by difficulty, not by account prof +-
+++Remove "Got ammo"
 ++Lower turret damage
 Fix stalker turret rotation desync
 Fix leviathan laser desync
-Rename explosive wrench to berserker
-Remove MP help dialogue messages ("in deathmatch mode, get the specified number of kills to win!")
+++Rename explosive wrench to berserker
+++Remove MP help dialogue messages ("in deathmatch mode, get the specified number of kills to win!")
 Fix forge auto texture clamp to account for multiple objects that use the same texture
-Have player XP increase every time a weapon prof is leveled
+++Have player XP increase every time a weapon prof is leveled
 ++Fix respawning resetting equipped weapons
 Fix dzo quickselect
-Have ranged attacks stop/pause when they hit their target?
+++Have ranged attacks stop/pause when they hit their target?
