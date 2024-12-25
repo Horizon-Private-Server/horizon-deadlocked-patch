@@ -5638,7 +5638,7 @@ int main (void)
     //POKE_U32(0x005282dc, 0);
 
     // disable guber wait for dispatchTime
-    POKE_U32(0x00611518, 0x24040000);
+    //POKE_U32(0x00611518, 0x24040000);
 
     // find and hook multiplayer moby
     if (!mpMoby) {

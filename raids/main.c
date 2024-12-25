@@ -61,8 +61,8 @@ float Difficulties[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_1STAR] 0,
   [RAIDS_DIFFICULTY_2STAR] 30.0,
   [RAIDS_DIFFICULTY_3STAR] 150.0,
-  [RAIDS_DIFFICULTY_4STAR] 400.0,
-  [RAIDS_DIFFICULTY_5STAR] 1000.0,
+  [RAIDS_DIFFICULTY_4STAR] 1000.0,
+  [RAIDS_DIFFICULTY_5STAR] 3000.0,
 };
 
 int Lives[RAIDS_DIFFICULTY_COUNT] = {
@@ -423,7 +423,8 @@ void processPlayer(int pIndex) {
 	player->Speed = 1 + (PLAYER_SKILLPOINT_SPEED_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_SPEED]);
 
 	// set max health
-	player->MaxHealth = 50 + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_HEALTH]);
+  float cmodHealthBuff = BADGE_HEALTH_BUFF_AMOUNT * bankGetEquippedBadgeEffectStrength(pIndex, RAIDS_BADGE_TYPE_HEATH_BUFF);
+	player->MaxHealth = 50 + cmodHealthBuff + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_HEALTH]);
 
   // update death state
   if (!playerData->IsDead && playerIsDead(player)) {
@@ -782,11 +783,10 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
-#if DEBUG_ANIMS
+#if DEBUG_ANIMS || 1
   {
     static int aaa = 0;
-    Moby* animMoby = mobyFindNextByOClass(mobyListGetStart(), 8499);
-    Moby* animMoby2 = mobyFindNextByOClass(mobyListGetStart(), 8496);
+    Moby* animMoby = mobyFindNextByOClass(mobyListGetStart(), 8353);
     if (animMoby && animMoby->PClass) {
       int play = 0;
       if (padGetButtonDown(0, PAD_RIGHT) > 0) {
@@ -805,25 +805,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 			  printf("anim %d 0x%x (of %d)\n", aaa, aaa, animCount);
       }
     }
-    
-    if (animMoby2 && animMoby2->PClass) {
-      int play = 0;
-      if (padGetButtonDown(0, PAD_DOWN) > 0) {
-        aaa += 1;
-        play = 1;
-      } else if (padGetButtonDown(0, PAD_UP) > 0) {
-        aaa -= 1;
-        play = 1;
-      }
-
-      int animCount = *(char*)(animMoby2->PClass + 0x0C);
-      if (play && animCount > 0) {
-        if (aaa >= animCount) aaa = animCount - 1;
-        if (aaa < 0) aaa = 0;
-        mobyAnimTransition(animMoby2, aaa, 0, 0);
-			  printf("anim2 %d 0x%x (of %d)\n", aaa, aaa, animCount);
-      }
-    }
   }
 #endif
 
@@ -832,7 +813,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     int i = 0;
     char buf[32];
     int animJointCount = 0;
-    Moby* jointMoby = mobyFindNextByOClass(mobyListGetStart(), 8499);
+    Moby* jointMoby = mobyFindNextByOClass(mobyListGetStart(), 8353);
     MATRIX jointMtx;
 
     if (jointMoby) {
@@ -1068,6 +1049,13 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+
+  // enable all vehicles
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 1;
 
 	// enable all weapons
 	gameOptions->WeaponFlags.Chargeboots = 1;

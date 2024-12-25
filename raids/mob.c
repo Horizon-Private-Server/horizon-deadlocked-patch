@@ -278,12 +278,9 @@ int getMaxComplexity(void)
   // reduce by lod
   maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? (2 - playerConfig->levelOfDetail) : 0);
 
-  // dzo bypasses max complexity
-  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO)
-    maxComplexity = MAX_MOB_COMPLEXITY_DRAWN_DZO;
-
-  // reduce by map complexity
-  maxComplexity -= State.MapBaseComplexity;
+  // dzo bypasses map complexity
+  if (PATCH_INTEROP->Client != CLIENT_TYPE_DZO)
+    maxComplexity -= State.MapBaseComplexity;
 
   // reduce by number of visible players
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -450,6 +447,7 @@ void mobSetTarget(Moby* moby, Moby* target)
 	// set target and dirty
 	pvars->MobVars.MoveVars.Target = target;
 	pvars->MobVars.ScoutCooldownTicks = 60;
+  pvars->MobVars.MoveVars.PathNewTicks = 0;
 	pvars->MobVars.Dirty = 1;
 }
 
@@ -1045,10 +1043,14 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	guberEventRead(event, &killedByPlayerId, sizeof(killedByPlayerId));
 	guberEventRead(event, &weaponId, sizeof(weaponId));
 
+  // pass death to map
+  if (mapConfig && mapConfig->OnMobDestroyedFunc)
+    mapConfig->OnMobDestroyedFunc(moby);
+    
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnDestroy)
     pvars->VTable->OnDestroy(moby, killedByPlayerId, weaponId);
-	
+
 	int bolts = pvars->MobVars.Config.Bolts * difficultyBoltMult[State.DifficultyStars];
 	int xp = pvars->MobVars.Config.Xp * difficultyXpMult[State.DifficultyStars];
 
@@ -1274,14 +1276,18 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
   memcpy(pvars->MobVars.MoveVars.TargetPosition, args->TargetPosition, 12);
 
 	// 
-	if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) > 0 && pvars->MobVars.Action != args->Action) {
+	if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) > 0) {
 		pvars->MobVars.LastActionId = args->ActionId;
-    pvars->MobVars.LastAction = pvars->MobVars.Action;
     pvars->MobVars.DynamicRandom = args->Random;
     
-    // pass to mob handler
-    if (pvars->VTable && pvars->VTable->ForceLocalAction)
-      pvars->VTable->ForceLocalAction(moby, args->Action);
+    // if action has changed
+    if (pvars->MobVars.Action != args->Action) {
+      pvars->MobVars.LastAction = pvars->MobVars.Action;
+
+      // pass to mob handler
+      if (pvars->VTable && pvars->VTable->ForceLocalAction)
+        pvars->VTable->ForceLocalAction(moby, args->Action);
+    }
 	}
 
 	// 
@@ -1725,7 +1731,7 @@ void mobTick(void)
         Player* p = players[j];
         if (!playerIsValid(p)) continue;
 
-        vector_subtract(t, m->Position, p->CameraPos);
+        vector_subtract(t, m->Position, p->PlayerPosition);
 				float dist = vector_sqrmag(t);
 				if (p->IsLocal && dist < pvars->MobVars.ClosestDistToLocal)
 					pvars->MobVars.ClosestDistToLocal = dist;

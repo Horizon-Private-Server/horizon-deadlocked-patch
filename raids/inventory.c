@@ -31,6 +31,7 @@ enum InventoryItemAction
 extern struct RaidsState State;
 extern u32 bankRarityColors[];
 extern u32 bankPaintColors[];
+extern char bankRarityCode[];
 char inventoryFilterMapping[BANK_MAX_ITEMS];
 char inventoryTabCounts[INVENTORY_TAB_COUNT];
 char inventoryTabHasNew[INVENTORY_TAB_COUNT];
@@ -117,38 +118,11 @@ char inventoryWeaponSpriteDims[] = {
   [WEAPON_SLOT_FLAIL] 32,
 };
 
-char inventoryBadgeSpriteIds[] = {
-  [RAIDS_BADGE_TYPE_HEALTH_REGEN] 111,
-  [RAIDS_BADGE_TYPE_AMMO_REGEN] 112,
-  [RAIDS_BADGE_TYPE_SHARPSHOOTER] 113,
-  [RAIDS_BADGE_TYPE_BERSERKER] 114,
-  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] 115,
-  [RAIDS_BADGE_TYPE_COUNT] 0,
-};
-
-char inventoryBadgeSpriteDims[] = {
-  [RAIDS_BADGE_TYPE_HEALTH_REGEN] 32,
-  [RAIDS_BADGE_TYPE_AMMO_REGEN] 32,
-  [RAIDS_BADGE_TYPE_SHARPSHOOTER] 32,
-  [RAIDS_BADGE_TYPE_BERSERKER] 32,
-  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] 32,
-  [RAIDS_BADGE_TYPE_COUNT] 0,
-};
-
 char inventorySkillSpriteIds[] = {
   [RAIDS_SKILLS_HEALTH] 15,
   [RAIDS_SKILLS_DAMAGE] 9,
   [RAIDS_SKILLS_SPEED] 52,
   [RAIDS_SKILLS_UNUSED] 0
-};
-
-char* inventoryBadgeDescriptions[] = {
-  [RAIDS_BADGE_TYPE_HEALTH_REGEN] "Slowly regenerate health.",
-  [RAIDS_BADGE_TYPE_AMMO_REGEN] "Slowly regenerate ammunition.",
-  [RAIDS_BADGE_TYPE_SHARPSHOOTER] "Increase critical hit chance.",
-  [RAIDS_BADGE_TYPE_BERSERKER] ".",
-  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Increase flinch cooldown time.",
-  [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
 
 char* inventoryBadgeNames[] = {
@@ -157,6 +131,8 @@ char* inventoryBadgeNames[] = {
   [RAIDS_BADGE_TYPE_SHARPSHOOTER] "Sharpshooter",
   [RAIDS_BADGE_TYPE_BERSERKER] "Berserker",
   [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "Flinch Resistance",
+  [RAIDS_BADGE_TYPE_HEATH_BUFF] "Nanotech Reserves",
+  [RAIDS_BADGE_TYPE_AMMO_BUFF] "Extra Mags",
   [RAIDS_BADGE_TYPE_COUNT] NULL,
 };
 
@@ -390,23 +366,27 @@ void inventoryDrawItemInfo(InventoryDrawState_t* drawState)
     offX = 10;
     int i;
     for (i = 0; i < BANK_BADGE_EFFECT_COUNT; ++i) {
-      int badgeType = baseItem->BadgeData.Effects[i];
-      float badgeStrength = baseItem->BadgeData.EffectStrength[i] / 255.0;
+      int badgeType = selectedItem->BadgeData.Effects[i];
+      float badgeStrength = selectedItem->BadgeData.EffectStrength[i] / 255.0;
       if (!badgeType) continue;
 
-      snprintf(strBuf, sizeof(strBuf), "%s (%f)", inventoryBadgeNames[badgeType], badgeStrength);
+      int badgeRarity = bankGetRarityFromQuality(selectedItem->BadgeData.EffectStrength[i]);
+      snprintf(strBuf, sizeof(strBuf), "%c%s (%f)", bankRarityCode[badgeRarity], inventoryBadgeNames[badgeType], badgeStrength);
       gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
       offY += 12;
     }
 
     if (hasComparison) {
       offY += 12;
+      gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.6, textColor, "Equipped Class Mod:", -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      offY += 10;
       for (i = 0; i < BANK_BADGE_EFFECT_COUNT; ++i) {
-        int badgeType = selectedItem->BadgeData.Effects[i];
-        float badgeStrength = selectedItem->BadgeData.EffectStrength[i] / 255.0;
+        int badgeType = equippedItem->BadgeData.Effects[i];
+        float badgeStrength = equippedItem->BadgeData.EffectStrength[i] / 255.0;
         if (!badgeType) continue;
 
-        snprintf(strBuf, sizeof(strBuf), "> %s (%f)", inventoryBadgeNames[badgeType], badgeStrength);
+        int badgeRarity = bankGetRarityFromQuality(equippedItem->BadgeData.EffectStrength[i]);
+        snprintf(strBuf, sizeof(strBuf), "%c%s (%f)", bankRarityCode[badgeRarity], inventoryBadgeNames[badgeType], badgeStrength);
         gfxHelperDrawText(INVENTORY_DRAW_CENTER_X, INVENTORY_DRAW_CENTER_Y, offX, offY, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
         offY += 12;
       }
@@ -545,8 +525,6 @@ void inventoryDrawItem(InventoryDrawState_t* drawState, int row, int col, RaidsI
     slotId = 0;
     iconSpriteId = 114;
     iconSpriteDim = 32;
-    //iconSpriteId = inventoryBadgeSpriteIds[item->BadgeType];
-    //iconSpriteDim = inventoryBadgeSpriteDims[item->BadgeType];
   }
   
   // draw icon

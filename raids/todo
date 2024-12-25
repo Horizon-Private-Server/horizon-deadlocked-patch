@@ -100,3 +100,5 @@ Fix forge auto texture clamp to account for multiple objects that use the same t
 ++Fix respawning resetting equipped weapons
 Fix dzo quickselect
 ++Have ranged attacks stop/pause when they hit their target?
+Have vehicle health + damage scale
+Add spawn corn controller target

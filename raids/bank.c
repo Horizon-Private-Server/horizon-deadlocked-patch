@@ -52,23 +52,6 @@ long bankLastInventoryRequestTime = 0;
 long bankLastAccountRequestTime = 0;
 char bankLevelUpBuf[64];
 
-char* bankBadgeNames[] = {
-  [RAIDS_BADGE_TYPE_HEALTH_REGEN] "%cHealth Regen %s\x08",
-  [RAIDS_BADGE_TYPE_AMMO_REGEN] "%cAmmo Regen %s\x08",
-  [RAIDS_BADGE_TYPE_SHARPSHOOTER] "%cSharpshooter %s\x08",
-  [RAIDS_BADGE_TYPE_BERSERKER] "%cBerserker %s\x08",
-  [RAIDS_BADGE_TYPE_FLINCH_RESISTANCE] "%cFlinch Resistance %s\x08",
-  [RAIDS_BADGE_TYPE_COUNT] NULL,
-};
-
-char* bankBadgeLevelNames[] = {
-  [RAIDS_ITEM_RARITY_COMMON] "I",
-  [RAIDS_ITEM_RARITY_UNCOMMON] "II",
-  [RAIDS_ITEM_RARITY_RARE] "III",
-  [RAIDS_ITEM_RARITY_LEGENDARY] "IV",
-  [RAIDS_ITEM_RARITY_MYTHIC] "V",
-};
-
 char bankRarityCode[] = {
   [RAIDS_ITEM_RARITY_COMMON] '\x08',
   [RAIDS_ITEM_RARITY_UNCOMMON] '\x0A',
@@ -344,7 +327,6 @@ void bankGetItemName(RaidsInventoryItem_t* item, char* buf, int bufSize)
 
   int rarity = bankGetRarityFromQuality(item->Quality);
   if (bankItemIsBadge(item)) {
-    //snprintf(buf, bufSize, bankBadgeNames[item->BadgeType], bankRarityCode[rarity], bankBadgeLevelNames[rarity]);
     snprintf(buf, bufSize, "%cClass Mod\x08", bankRarityCode[rarity]);
   } else {
     struct GadgetDef* gadgetDef = weaponGetDef(item->WeaponData.GadgetId, 0);
@@ -492,14 +474,20 @@ float bankGetEquippedBadgeEffectStrength(int playerId, enum RaidsBadgeType effec
 //--------------------------------------------------------------------------
 int bankGetAlphaModCount(GadgetBox* gadgetBox, int gadgetId, int alphaModId)
 {
+  int extra = 0;
   if (!gadgetBox || !gadgetBox->Initialized) return 0;
   if (alphaModId > 8) return 0;
   if (alphaModId <= 0) return 0;
 
+  int pIdx = bankGetPlayerIdxFromGadgetBox(gadgetBox);
   RaidsInventoryItem_t* bankWeapon = bankGetEquippedWeaponFromGadgetBox(gadgetBox, gadgetId);
   if (!bankWeapon) return 0;
 
-  return bankWeapon->WeaponData.AlphaModCounts[alphaModId-1];
+  if (alphaModId == ALPHA_MOD_AMMO) {
+    extra = (int)ceilf(BADGE_AMMO_MOD_BUFF_AMOUNT * bankGetEquippedBadgeEffectStrength(pIdx, RAIDS_BADGE_TYPE_AMMO_BUFF));
+  }
+
+  return extra + bankWeapon->WeaponData.AlphaModCounts[alphaModId-1];
 }
 
 //--------------------------------------------------------------------------
