@@ -84,9 +84,10 @@ enum MenuActionId
 
 	ACTION_MODULES_NOT_INSTALLED = 0,
 	ACTION_DOWNLOADING_MODULES = 1,
-	ACTION_MODULES_INSTALLED = 2,
-	ACTION_NEW_MAPS_UPDATE = 3,
-  ACTION_REFRESHING_MAPLIST = 4,
+	ACTION_MODULES_WAIT_FOR_INSTALL = 2,
+	ACTION_MODULES_INSTALLED = 3,
+	ACTION_NEW_MAPS_UPDATE = 4,
+  ACTION_REFRESHING_MAPLIST = 5,
 
 	ACTION_NONE = 100
 };
@@ -358,47 +359,13 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	usbFsModuleSize = msg->Module1Size;
 	usbSrvModuleSize = msg->Module2Size;
 
-	// 
-	loadModules();
-
-	//
-	int init = rpcInit = rpcUSBInit();
-
-	DPRINTF("rpcUSBInit: %d, %08X:%d, %08X:%d\n", init, (u32)USB_FS_MODULE_PTR, usbFsModuleSize, (u32)USB_SRV_MODULE_PTR, usbSrvModuleSize);
-	
-	//
-	if (init < 0)
-	{
-		actionState = ACTION_ERROR_LOADING_MODULES;
-	}
-	else
-	{
-    // check if host fs exists
-    useHost = 1;
-    if (!readGlobalVersion(NULL)) useHost = 0;
-
-    // read local global version
-    readLocalGlobalVersion();
-		if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
-		{
-			// Indicate new version
-			actionState = ACTION_NEW_MAPS_UPDATE;
-		}
-		else
-		{
-			// Indicate maps installed
-			actionState = ACTION_MODULES_INSTALLED;
-		}
-		
-		DPRINTF("local maps version %d || remote maps version %d\n", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
-
-    // refresh map list
-    refreshCustomMapList();
-		
-		// if in game, ask server to resend map override to use
-		if (gameGetSettings())
-			netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
-	}
+	// if not OPL load modules
+  if (loadModulesImmediately()) {
+	  loadModules();
+    initModules();
+  } else {
+    actionState = ACTION_MODULES_WAIT_FOR_INSTALL;
+  }
 
 	return sizeof(MapServerSentModulesMessage);
 }
@@ -573,10 +540,67 @@ void loadModules(void)
 }
 
 //------------------------------------------------------------------------------
+void initModules(void)
+{
+	int init = rpcInit = rpcUSBInit();
+
+	DPRINTF("rpcUSBInit: %d, %08X:%d, %08X:%d\n", init, (u32)USB_FS_MODULE_PTR, usbFsModuleSize, (u32)USB_SRV_MODULE_PTR, usbSrvModuleSize);
+	
+	//
+	if (init < 0)
+	{
+		actionState = ACTION_ERROR_LOADING_MODULES;
+	}
+	else
+	{
+    // check if host fs exists
+    useHost = 1;
+    if (!readGlobalVersion(NULL)) useHost = 0;
+
+    // read local global version
+    readLocalGlobalVersion();
+		if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
+		{
+			// Indicate new version
+			actionState = ACTION_NEW_MAPS_UPDATE;
+		}
+		else
+		{
+			// Indicate maps installed
+			actionState = ACTION_MODULES_INSTALLED;
+		}
+		
+		DPRINTF("local maps version %d || remote maps version %d\n", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
+
+    // refresh map list
+    refreshCustomMapList();
+		
+		// if in game, ask server to resend map override to use
+		if (gameGetSettings())
+			netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+	}
+}
+
+//------------------------------------------------------------------------------
+int loadModulesImmediately(void)
+{
+  // dzo always load immediately
+  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO) return 1;
+
+  // if on OPL USB wait for loadHookFunc
+  if (config.altModuleLoad) return 0;
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 u64 loadHookFunc(u64 a0, u64 a1)
 {
 	// Load our usb modules
-	loadModules();
+  if (LOAD_MODULES_STATE != 100) {
+	  loadModules();
+    initModules();
+  }
 
 	// Loads sound driver
 	return ((u64 (*)(u64, u64))0x001518C8)(a0, a1);
@@ -1490,6 +1514,16 @@ void onMapLoaderOnlineMenu(void)
 		// render text
 		//gfxScreenSpaceText(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 1, 1, downloadColor, "Downloading modules, please wait...", -1, 4);
 	}
+  else if (actionState == ACTION_MODULES_WAIT_FOR_INSTALL)
+  {
+		padEnableInput();
+		uiShowOkDialog("Custom Maps", "You will now be logged out to complete the USB driver installation.");
+		actionState = ACTION_NONE;
+
+    // logout
+    ((void (*)(int))0x007647B0)(0x23);
+    uiChangeMenu(UI_MENU_ID_ONLINE_PROFILE_SELECT);
+  }
 	else if (actionState == ACTION_MODULES_INSTALLED)
 	{
 		// enable input
@@ -1601,8 +1635,8 @@ void hook(void)
 	// For some reason we can't load the IRX modules whenever we want
 	// So here we hook into when the game uses rpc calls
 	// This triggers when entering the online profile select, leaving profile select, and logging out.
-	//if (!initialized || *hookLoadModulesAddr == 0x0C054632)
-	//	*hookLoadModulesAddr = 0x0C000000 | ((u32)(&loadHookFunc) / 4);
+	if (!initialized || *hookLoadModulesAddr == 0x0C054632)
+		*hookLoadModulesAddr = 0x0C000000 | ((u32)(&loadHookFunc) / 4);
 
 	// Install hooks
 	if (!initialized || *hookLoadAddr == 0x0C058E10)

@@ -232,17 +232,17 @@ MenuElem_ListData_t dataFixedCycleOrder = {
 };
 
 // deadzone
-MenuElem_ListData_t dataDeadzone = {
-  .value = &config.deadzone,
-  .stateHandler = NULL,
-  .count = 4,
-  .items = {
-    "37.5% (Default)",
-    "25%",
-    "12.5%",
-    "6.25%"
-  }
-};
+// MenuElem_ListData_t dataDeadzone = {
+//   .value = &config.deadzone,
+//   .stateHandler = NULL,
+//   .count = 4,
+//   .items = {
+//     "37.5% (Default)",
+//     "25%",
+//     "12.5%",
+//     "6.25%"
+//   }
+// };
 
 // general tab menu items
 MenuElem_t menuElementsGeneral[] = {
@@ -257,6 +257,7 @@ MenuElem_t menuElementsGeneral[] = {
 #endif
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers, "Which game server you'd like to use when creating a game." },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
+  { "Alt USB Module Load (OPL USB)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.altModuleLoad, "Uses alternative method to load USB modules. May fix custom maps on OPL USB." },
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements, "Enables Dallas commentary in all games." },
   { "Camera Pulling", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableAimAssist, "Toggles code that pulls the camera towards nearby targets when aiming." },
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake, "Toggles the camera shake caused by nearby explosions." },

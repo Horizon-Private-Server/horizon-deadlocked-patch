@@ -54,7 +54,7 @@ typedef struct PatchConfig
   char enableInGameScoreboard;
   char enableNPSLagComp;
   char enableFastLoad;
-  char deadzone;
+  char altModuleLoad;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
