@@ -991,6 +991,9 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
       if (gmMoby && gmMoby->PVar && !mobyIsDestroyed(gmMoby) && mobyIsMob(gmMoby)) {
         struct MobPVar* spawnFromPVars = (struct MobPVar*)gmMoby->PVar;
         if (spawnFromPVars->MobVars.Destroyed != 1) {
+          // keep health
+          pvars->MobVars.Health = spawnFromPVars->MobVars.Health;
+
           // pass to mob destroy
           if (pvars->VTable && pvars->VTable->OnDestroy)
             pvars->VTable->OnDestroy(gmMoby, -1, -1);
@@ -1538,13 +1541,13 @@ void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct Mob
   output->SpawnParamsIdx = spawnParamsIdx;
   output->Bolts = (config->Bolts + randRangeInt(-50, 50)); // * BOLT_TAX[(int)gs->PlayerCount];
   output->Xp = config->Xp;
-  output->StartHealth = health;
+  output->StartHealth = (int)clamp(health, 0, 0x7FFFFFFF);
   output->Bangles = (u16)config->Bangles;
-  output->Damage = (u16)damage;
-  output->AttackRadiusEighths = (u16)(config->AttackRadius * 8);
-  output->HitRadiusEighths = (u8)(config->HitRadius * 8);
-  output->CollRadiusEighths = (u8)(config->CollRadius * 8);
-  output->SpeedEighths = (u16)(speed * 8);
+  output->Damage = (u16)clamp(damage, 0, 0xFFFF);
+  output->AttackRadiusEighths = (u16)clamp(config->AttackRadius * 8, 0, 0xFFFF);
+  output->HitRadiusEighths = (u8)clamp(config->HitRadius * 8, 0, 0xFF);
+  output->CollRadiusEighths = (u8)clamp(config->CollRadius * 8, 0, 0xFF);
+  output->SpeedEighths = (u16)clamp(speed * 8, 0, 0xFFFF);
   output->ReactionTickCount = (u8)config->ReactionTickCount;
   output->AttackCooldownTickCount = config->AttackCooldownTickCount;
 }

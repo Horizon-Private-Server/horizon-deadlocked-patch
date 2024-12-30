@@ -37,6 +37,8 @@
 #define USB_FS_MODULE_PTR												(*(void**)0x000CFFF8)
 #define USB_SRV_MODULE_PTR											(*(void**)0x000CFFFC)
 
+#define EXTRA_CODE_SEG_PTR                      ((void*)0x01A00000)
+
 void hook(void);
 void loadModules(void);
 
@@ -106,6 +108,7 @@ char * fWad = "%sdl/%s.wad";
 char * fSound = "%sdl/%s.sound";
 char * fBg = "%sdl/%s.bg";
 char * fMap = "%sdl/%s.map";
+char * fCode = "%sdl/%s.code";
 char * fVersion = "%sdl/%s.version";
 char * fGlobalVersion = "%sdl/version";
 
@@ -629,7 +632,7 @@ int readFile(char * path, void * buffer, int offset, int length)
 	rpcUSBSync(0, NULL, &fSize);
 
 	// limit read length to size of file
-	if (fSize < (length+offset))
+	if (length < 0 || fSize < (length+offset))
 		length = fSize-offset;
 
 	// Go start read point
@@ -1297,6 +1300,12 @@ void hookedGetMap(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0,
 	// Check if loading MP map
 	if (MapLoaderState.Enabled && HAS_LOADED_MODULES)
 	{
+    // also load extra code segment
+    snprintf(membuffer, sizeof(membuffer), fCode, getMapPathPrefix(), MapLoaderState.MapFileName);
+    if (readFile(membuffer, EXTRA_CODE_SEG_PTR, 0, -1) > 0) {
+      HOOK_J(0x00598BA0, EXTRA_CODE_SEG_PTR);
+    }
+
 		// We hardcode the size because that's the max that deadlocked can hold
 		if (readLevelMapUsb(dest, 0x27400))
 			return;

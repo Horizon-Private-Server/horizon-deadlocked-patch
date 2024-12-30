@@ -45,12 +45,14 @@
 #include "include/bubble.h"
 #include "include/utils.h"
 
+#define EXTRA_CODE_SEG_PTR                      ((void*)0x01A00000)
+
 char LocalPlayerStrBuffer[2][64];
 int Initialized = 0;
 int FirstTimeInitialized = 0;
 
 struct RaidsState State;
-struct RaidsMapConfig* mapConfig = (struct RaidsMapConfig*)(0x01EF0000 + 0x10);
+struct RaidsMapConfig* mapConfig = (struct RaidsMapConfig*)(EXTRA_CODE_SEG_PTR + 0x10);
 
 struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
@@ -59,7 +61,7 @@ PatchConfig_t* playerConfig = NULL;
 
 float Difficulties[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_1STAR] 0,
-  [RAIDS_DIFFICULTY_2STAR] 30.0,
+  [RAIDS_DIFFICULTY_2STAR] 10.0,
   [RAIDS_DIFFICULTY_3STAR] 150.0,
   [RAIDS_DIFFICULTY_4STAR] 1000.0,
   [RAIDS_DIFFICULTY_5STAR] 3000.0,
@@ -321,6 +323,14 @@ void onMissionComplete(int cuboidIdx)
 }
 
 //--------------------------------------------------------------------------
+void onMissionFail(void)
+{
+  State.MissionStatus = RAIDS_MISSION_FAILED;
+  musicPlayTrack(0x9A, 0);
+  DPRINTF("recv mission failed\n");
+}
+
+//--------------------------------------------------------------------------
 void missionCheckForMissionFailed(void)
 {
   if (!missionIsActive()) return;
@@ -543,13 +553,11 @@ void initialize(PatchStateContainer_t* gameState)
     memset(&State, 0, sizeof(State));
   }
 
-  // clear if magic not valid
-  if (mapConfig->Magic != MAP_CONFIG_MAGIC) {
-    memset(mapConfig, 0, sizeof(struct RaidsMapConfig));
+  // wait for map code seg to load
+  if (!hasMapConfig()) {
     return;
-    //mapConfig->Magic = MAP_CONFIG_MAGIC;
   }
-
+  
   // disable timebase query percentile filter
   // always accept remote time
   //POKE_U32(0x01eabd60, 0);
@@ -581,6 +589,7 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->TryCreateMobFunc = &mobCreate;
   mapConfig->RequestPrestigeLootFunc = &lootRequestFromPrestige;
   mapConfig->OnMissionCompleteFunc = &onMissionComplete;
+  mapConfig->OnMissionFailFunc = &onMissionFail;
 
 	// set game over string
 	//strncpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
@@ -749,6 +758,10 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	// Determine if host
 	State.IsHost = gameAmIHost();
   playerConfig = gameState->Config;
+
+  if (!hasMapConfig()) {
+    return;
+  }
 
 	if (!Initialized) {
 		initialize(gameState);
@@ -1181,7 +1194,7 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // reset initialized on load
   // enables level hopping
   Initialized = 0;
-  if (mapConfig) mapConfig->ClientsReady = 0;
+  //if (hasMapConfig()) mapConfig->ClientsReady = 0;
   State.OnHubWorld = 0;
   State.ClientsReady = 0;
 

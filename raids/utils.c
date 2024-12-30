@@ -434,3 +434,9 @@ void drawLives(float anchorX, float anchorY, float offsetX, float offsetY, float
 {
   drawSprites(anchorX, anchorY, offsetX, offsetY, size, spacing, color, alignment, count, 0, 64);
 }
+
+//--------------------------------------------------------------------------
+int hasMapConfig(void)
+{
+  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC;
+}

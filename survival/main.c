@@ -2943,7 +2943,7 @@ void initialize(PatchStateContainer_t* gameState)
 
   // disable timebase query percentile filter
   // always accept remote time
-  POKE_U32(0x01eabd60, 0);
+  //POKE_U32(0x01eabd60, 0);
 
   // Fix locals using same bolt count
   HOOK_J(0x00557C00, &_getLocalBolts);
@@ -2995,7 +2995,7 @@ void initialize(PatchStateContainer_t* gameState)
   // leading to even more desyncing issues
   // since survival can cause a lot of frame lag, especially for players on emu/dzo
   // this fix is required to ensure that important mob guber events trigger on everyone's screen
-  POKE_U32(0x00611518, 0x24040000);
+  //POKE_U32(0x00611518, 0x24040000);
 
 	// set default ammo for flail to 8
 	//*(u8*)0x0039A3B4 = 8;

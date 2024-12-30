@@ -68,4 +68,6 @@ int missionIsActive(void);
 
 void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
 
+int hasMapConfig(void);
+
 #endif // RAIDS_UTILS_H
