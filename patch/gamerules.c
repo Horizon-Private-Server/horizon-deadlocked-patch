@@ -705,7 +705,7 @@ void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damage
 			damageFlags = 0x801;
 
 		HeadbuttHitTimers[hitPlayer->PlayerId] = HEADBUTT_COOLDOWN_TICKS;
-		DPRINTF("damaging %d (health:%f) with %f and %X\n", hitPlayer->PlayerId, hitPlayer->Health, hitpoints, damageFlags);
+		//DPRINTF("damaging %d (health:%f) with %f and %X\n", hitPlayer->PlayerId, hitPlayer->Health, hitpoints, damageFlags);
 	}
 
 	((void (*)(float, Moby*, Moby*, int, VECTOR, VECTOR))0x00503500)(hitpoints, hitMoby, sourceMoby, damageFlags, fromPos, t0);
@@ -1414,8 +1414,8 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
 		}
 	}
 
-	DPRINTF("BETTER FLAGS\n\t SPAWN DATA: %08X\n\tBLUE: %08X\n\t RED: %08X\n\t GREEN: %08X\n\t ORANGE: %08X\n"
-		, (u32)mpInitPVarData, (u32)flags[0], (u32)flags[1], (u32)flags[2], (u32)flags[3]);
+	//DPRINTF("BETTER FLAGS\n\t SPAWN DATA: %08X\n\tBLUE: %08X\n\t RED: %08X\n\t GREEN: %08X\n\t ORANGE: %08X\n"
+	//	, (u32)mpInitPVarData, (u32)flags[0], (u32)flags[1], (u32)flags[2], (u32)flags[3]);
 
 	// 
   int mapId = gameGetSettings()->GameLevel;
@@ -1425,7 +1425,7 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
   for (i = 0; i < BetterFlagRulesCount; ++i) {
     if (BetterFlagRules[i].MapId == mapId) {
       rule = &BetterFlagRules[i];
-      DPRINTF("found better flag rule for map %d at %d\n", mapId, i);
+      //DPRINTF("found better flag rule for map %d at %d\n", mapId, i);
       break;
     }
   }
@@ -1439,7 +1439,7 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
         flags[i]->PosX = rule->Flags[i][0];
         flags[i]->PosY = rule->Flags[i][1];
         flags[i]->PosZ = rule->Flags[i][2];
-        DPRINTF("better flags update flag %d\n", i);
+        //DPRINTF("better flags update flag %d\n", i);
       }
 
       if (!teamHasPlayer(i)) continue;
@@ -1452,7 +1452,7 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
         int spIndex = mpInitPVarData[SPAWN_OFFS[i] + j];
         memcpy(&cuboidsHeader->CuboidInstances[spIndex].M0[12], rule->PointsAndYaw[ptsAndYawIdx], 3 * sizeof(float));
         cuboidsHeader->CuboidInstances[spIndex].M1[14] = rule->PointsAndYaw[ptsAndYawIdx][3];
-        DPRINTF("better flags update flag %d sp %d\n", i, j);
+        //DPRINTF("better flags update flag %d sp %d\n", i, j);
       }
     }
 

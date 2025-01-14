@@ -22,6 +22,7 @@
 #include <libdl/ui.h>
 #include <libdl/stdio.h>
 #include <libdl/stdlib.h>
+#include <libdl/guber.h>
 #include <libdl/graphics.h>
 #include <libdl/spawnpoint.h>
 #include <libdl/random.h>
@@ -40,12 +41,10 @@
 #include "include/hop.h"
 #include "include/bank.h"
 #include "include/loot.h"
-#include "include/inventory.h"
 #include "include/mob.h"
 #include "include/bubble.h"
+#include "include/stats.h"
 #include "include/utils.h"
-
-#define EXTRA_CODE_SEG_PTR                      ((void*)0x01A00000)
 
 char LocalPlayerStrBuffer[2][64];
 int Initialized = 0;
@@ -61,10 +60,10 @@ PatchConfig_t* playerConfig = NULL;
 
 float Difficulties[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_1STAR] 0,
-  [RAIDS_DIFFICULTY_2STAR] 10.0,
+  [RAIDS_DIFFICULTY_2STAR] 25.0,
   [RAIDS_DIFFICULTY_3STAR] 150.0,
-  [RAIDS_DIFFICULTY_4STAR] 1000.0,
-  [RAIDS_DIFFICULTY_5STAR] 3000.0,
+  [RAIDS_DIFFICULTY_4STAR] 500.0,
+  [RAIDS_DIFFICULTY_5STAR] 1250.0,
 };
 
 int Lives[RAIDS_DIFFICULTY_COUNT] = {
@@ -73,6 +72,36 @@ int Lives[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_3STAR] 2,
   [RAIDS_DIFFICULTY_4STAR] 2,
   [RAIDS_DIFFICULTY_5STAR] 2,
+};
+
+float VehicleHealthMultipliers[] = {
+  [0] 2.0, // puma
+  [1] 3.0, // hovership
+  [2] 0.0,
+  [3] 0.0,
+  [4] 0.0,
+  [5] 3.0, // landstalker
+  [6] 1.0, // hoverbike
+};
+
+float VehicleDriverDamage[] = {
+  [0] 50.0, // puma
+  [1] 75.0, // hovership
+  [2] 0.0,
+  [3] 0.0,
+  [4] 0.0,
+  [5] 50.0, // landstalker
+  [6] 50.0, // hoverbike
+};
+
+float VehiclePassengerDamage[] = {
+  [0] 100.0, // puma
+  [1] 120.0, // hovership
+  [2] 0.0,
+  [3] 0.0,
+  [4] 0.0,
+  [5] 120.0, // landstalker
+  [6] 0.0, // hoverbike
 };
 
 //--------------------------------------------------------------------------
@@ -212,14 +241,14 @@ u64 missionCompleteGetBoltReward(void)
 }
 
 //--------------------------------------------------------------------------
-u64 missionCompleteGetXpReward(void)
+float missionCompleteGetXpReward(void)
 {
   Player* player = playerGetFromSlot(0);
 
   // xp is based on amount of xp earned during gameplay
   // clamp between 5000 and 100000
-  u64 xp = 500 + (State.PlayerStates[player->PlayerId].State.Experience >> 1);
-  xp -= xp % 100;
+  float xp = 500 + (State.PlayerStates[player->PlayerId].State.Experience / 2);
+  xp -= (long)xp % 100;
   if (xp < 1000) xp = 1000;
   if (xp > 10000) xp = 10000;
   return xp;
@@ -318,8 +347,18 @@ void onMissionComplete(int cuboidIdx)
   }
 
   // 
-  bankAddBolts(missionCompleteGetBoltReward());
+  mapConfig->BankVTable->AddBolts(missionCompleteGetBoltReward());
   //bankAddXP(missionCompleteGetXpReward());
+
+  // send time to server
+  struct RaidsSetMissionCompleteRequest msg;
+  void* connection = netGetLobbyServerConnection();
+  if (!connection) return;
+
+  msg.TimeMs = State.MissionCompleteTime - State.MissionStartTime;
+  msg.Difficulty = State.DifficultyStars;
+  strncpy(msg.MapFilename, State.CurrentMapDef->Filename, sizeof(msg.MapFilename));
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_RAIDS_SET_MISSION_COMPLETED_REQUEST, sizeof(msg), &msg);
 }
 
 //--------------------------------------------------------------------------
@@ -328,6 +367,14 @@ void onMissionFail(void)
   State.MissionStatus = RAIDS_MISSION_FAILED;
   musicPlayTrack(0x9A, 0);
   DPRINTF("recv mission failed\n");
+
+  // explode all players
+  int i;
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player) player->timers.explodeTimer = TPS;
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -344,23 +391,24 @@ void missionCheckForMissionFailed(void)
     netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_SET_MISSION_FAILED, 0, NULL);
   }
 
-  State.MissionStatus = RAIDS_MISSION_FAILED;
-  musicPlayTrack(0x9A, 0);
-  DPRINTF("send mission failed\n");
+  onMissionFail();
 }
 
 //--------------------------------------------------------------------------
 void missionUseLife(void)
 {
   if (State.LivesLeft <= 0) return;
+  if (missionIsActive()) {
+    
+    // broadcast
+    void* connection = netGetDmeServerConnection();
+    if (connection) {
+      netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_USE_LIFE, 0, NULL);
+    }
 
-  // broadcast
-  void* connection = netGetDmeServerConnection();
-  if (connection) {
-    netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_USE_LIFE, 0, NULL);
+    State.LivesLeft--;
   }
 
-  State.LivesLeft--;
   respawnDeadPlayers();
 }
 
@@ -384,6 +432,21 @@ int handleEvent(Moby* moby, GuberEvent* event)
   if (mobyIsMob(moby)) return mobHandleEvent(moby, event);
 
 	return 0;
+}
+
+//--------------------------------------------------------------------------
+void vehicleReinitPhysicsPost(Vehicle* vehicle)
+{
+	// pointer to gameplay data is stored in $s1
+	asm volatile (
+		"move %0, $s1"
+		: : "r" (vehicle)
+	);
+
+  vehicle->maxHP = 10000;
+  vehicle->hitPoints = 10000;
+  vehicle->fDriverAttackDamage = VehicleDriverDamage[vehicle->vehicleType];
+  vehicle->fPassengerAttackDamage = VehiclePassengerDamage[vehicle->vehicleType];
 }
 
 //--------------------------------------------------------------------------
@@ -418,8 +481,12 @@ void processPlayer(int pIndex) {
 	Player* player = players[pIndex];
 	struct RaidsPlayer * playerData = &State.PlayerStates[pIndex];
 
-	if (!player || !player->PlayerMoby)
+	if (!playerIsValid(player))
 		return;
+
+  // respawn if mission completed
+  if (playerIsDead(player) && missionIsComplete())
+    playerRespawn(player);
 
 	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
 	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
@@ -433,8 +500,17 @@ void processPlayer(int pIndex) {
 	player->Speed = 1 + (PLAYER_SKILLPOINT_SPEED_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_SPEED]);
 
 	// set max health
-  float cmodHealthBuff = BADGE_HEALTH_BUFF_AMOUNT * bankGetEquippedBadgeEffectStrength(pIndex, RAIDS_BADGE_TYPE_HEATH_BUFF);
+  float cmodHealthBuff = BADGE_HEALTH_BUFF_AMOUNT * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pIndex, RAIDS_BADGE_TYPE_HEATH_BUFF);
 	player->MaxHealth = 50 + cmodHealthBuff + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_HEALTH]);
+
+  // set vehicle max health if driver
+  Vehicle* vehicle = player->Vehicle;
+  if (vehicle && player->InVehicle && vehicle->pDriver == player) {
+    vector_write(player->Velocity, 0); // make sure predictive movements aren't used
+    vehicle->maxHP = player->MaxHealth * VehicleHealthMultipliers[vehicle->vehicleType];
+    if (vehicle->hitPoints > vehicle->maxHP)
+      vehicle->hitPoints = vehicle->maxHP;
+  }
 
   // update death state
   if (!playerData->IsDead && playerIsDead(player)) {
@@ -450,7 +526,7 @@ void processPlayer(int pIndex) {
 		heldWeapon = player->WeaponHeldId;
 
 	  // set max xp
-		u64 xp = bankGetXP();
+		u64 xp = 0; // mapConfig->BankVTable->GetXP();
     int level = getLevelFromXp(xp);
 		u64 lastXp = getXpForLevel(level);
 		u64 nextXp = getXpForLevel(level + 1);
@@ -551,16 +627,23 @@ void initialize(PatchStateContainer_t* gameState)
     
     // clear state
     memset(&State, 0, sizeof(State));
+    
+    // load map stats
+    if (PATCH_INTEROP) hopLoadMapStats(PATCH_INTEROP->MapLoaderFilename);
   }
 
-  // wait for map code seg to load
-  if (!hasMapConfig()) {
-    return;
-  }
-  
   // disable timebase query percentile filter
   // always accept remote time
-  //POKE_U32(0x01eabd60, 0);
+  POKE_U32(0x01eabd60, 0);
+
+  // disable timebandits hack
+  POKE_U32(0x0015B118, 0);
+
+  HOOK_J(0x004546EC, &vehicleReinitPhysicsPost); // puma
+  HOOK_J(0x00465244, &vehicleReinitPhysicsPost); // hoverbike
+  HOOK_J(0x0047da18, &vehicleReinitPhysicsPost); // landstalker
+  HOOK_J(0x0046ED14, &vehicleReinitPhysicsPost); // hovership
+  POKE_U32(0x005F6488, 0); // enable vehicle targeting non-players
 
   // disable guber event delay until createTime+relDispatchTime reached
   // when players desync, their net time falls behind everyone else's
@@ -575,13 +658,40 @@ void initialize(PatchStateContainer_t* gameState)
   netInstallCustomMsgHandler(CUSTOM_MSG_SET_MISSION_FAILED, &onMissionFailedRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_USE_LIFE, &onUseLifeRemote);
 
+  // component init
+  mobInitialize();
+  bubbleInit();
+  lootInit();
+  hopInit();
+  statsInit();
+
+	// change hud
+	forcePlayerHUD();
+  setPlayerEXP(0, 0);
+  setPlayerEXP(1, 0);
+
+  // 
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* p = playerGetFromSlot(i);
+    if (playerIsValid(p)) {
+      int pIdx = p->PlayerId;
+      playerSetLocalEquipslot(i, 0, State.PlayerStates[pIdx].LastEquipslots[0]);
+      playerSetLocalEquipslot(i, 1, State.PlayerStates[pIdx].LastEquipslots[1]);
+      playerSetLocalEquipslot(i, 2, State.PlayerStates[pIdx].LastEquipslots[2]);
+    }
+  }
+
+  // wait for map code seg to load
+  if (!hasMapConfig()) {
+    return;
+  }
+  
   // write map config
   mapConfig->State = &State;
   mapConfig->PushSnackFunc = &pushSnack;
-  mapConfig->GetBankFunc = &bankGetLocalBank;
+  mapConfig->PushDamageBubbleFunc = &bubblePush;
   mapConfig->GetAmmoRefillCostFunc = &getAmmoRefillCost;
   mapConfig->BeginWorldHopFunc = &hopBegin;
-  mapConfig->SendBankAccountToServerFunc = &bankSendAccountToServer;
   mapConfig->PopulateSpawnArgsFunc = &mobPopulateSpawnArgsFromConfig;
   mapConfig->RegisterNpcFunc = &mobRegisterNpc;
   mapConfig->OnGetGuberFunc = &getGuber;
@@ -594,21 +704,8 @@ void initialize(PatchStateContainer_t* gameState)
 	// set game over string
 	//strncpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
 
-	// change hud
-	forcePlayerHUD();
-  setPlayerEXP(0, 0);
-  setPlayerEXP(1, 0);
-
   // prevent player from doing anything
   padDisableInput();
-
-  // component init
-  mobInitialize();
-  bubbleInit();
-  bankInit();
-  inventoryInit();
-  lootInit();
-  hopInit();
 
   if (startDelay) {
     --startDelay;
@@ -616,7 +713,7 @@ void initialize(PatchStateContainer_t* gameState)
   }
 
   // wait for all clients to be ready
-  // or for 15 seconds
+  // or for 5 seconds
   if (!gameState->AllClientsReady && waitingForClientsReady < (5 * TPS)) {
     uiShowPopup(0, "Waiting For Players...");
     ++waitingForClientsReady;
@@ -661,6 +758,7 @@ void initialize(PatchStateContainer_t* gameState)
       State.PlayerStates[i].State.Experience = 0;
       State.PlayerStates[i].State.Kills = 0;
       State.PlayerStates[i].State.Deaths = 0;
+      memset(State.PlayerStates[i].State.AllKills, 0, sizeof(State.PlayerStates[i].State.AllKills));
 
 			// is local
 			State.PlayerStates[i].IsLocal = p->IsLocal;
@@ -759,15 +857,25 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	State.IsHost = gameAmIHost();
   playerConfig = gameState->Config;
 
-  if (!hasMapConfig()) {
-    return;
-  }
-
 	if (!Initialized) {
 		initialize(gameState);
 		return;
 	}
 
+  if (!hasMapConfig()) {
+    return;
+  }
+
+  // prevent input in menus
+  if (State.MenuOpen) {
+    for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+      Player* local = playerGetFromSlot(i);
+      if (local) {
+        local->timers.noInput = 10;
+        local->timers.noCamInputTimer = 10;
+      }
+    }
+  }
 
   // get local player data
   //struct RaidsPlayer* localPlayerData = &State.PlayerStates[localPlayer->PlayerId];
@@ -796,7 +904,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
-#if DEBUG_ANIMS || 1
+#if DEBUG_ANIMS
   {
     static int aaa = 0;
     Moby* animMoby = mobyFindNextByOClass(mobyListGetStart(), 8353);
@@ -926,26 +1034,25 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
   // get bank on first load
   // send bank when game ends
-  if (!gameHasEnded()) {
-    if (!bankGetHasAccount() && !bankHasPendingAccountRequest()) {
-      bankRequestAccountFromServer();
+  struct BankVTable* bankVTable = mapConfig->BankVTable;
+  if (bankVTable) {
+    if (!gameHasEnded()) {
+      if (!bankVTable->GetHasAccount() && !bankVTable->HasPendingAccountRequest()) {
+        bankVTable->RequestAccountFromServer();
+      }
+      if (!bankVTable->GetHasInventory() && !bankVTable->HasPendingInventoryRequest()) {
+        bankVTable->RequestInventoryFromServer();
+      }
+    } else if (sendBankAtEnd) {
+      if (bankVTable->GetHasAccount()) bankVTable->SendAccountToServer();
+      //bankSendInventoryToServer();
+      sendBankAtEnd = 0;
     }
-    if (!bankGetHasInventory() && !bankHasPendingInventoryRequest()) {
-      bankRequestInventoryFromServer();
-    }
-  } else if (sendBankAtEnd) {
-    if (bankGetHasAccount()) bankSendAccountToServer();
-    //bankSendInventoryToServer();
-    sendBankAtEnd = 0;
+    
+    // bolts
+    POKE_U32(0x00171b40, bankVTable->GetBolts());
   }
 
-  RaidsPlayerBank_t* localBank = bankGetLocalBank();
-  int refreshInventoryFlag = localBank->Inventory.RefreshLocalInventory;
-
-  // map frame tick
-  if (mapConfig && mapConfig->OnFrameTickFunc)
-    mapConfig->OnFrameTickFunc();
-  
   if (!State.GameOver)
   {
     forcePlayerHUD();
@@ -1003,17 +1110,18 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     }
   }
 
-  // ticks
-  mobTick();
+  // before game ticks
   bubbleTick();
-  bankTick();
-  inventoryTick();
-  lootTick();
   hopTick();
 
-  // reset inventory refresh flag
-  if (refreshInventoryFlag)
-    localBank->Inventory.RefreshLocalInventory = 0;
+  // map frame tick
+  if (mapConfig && mapConfig->OnFrameTickFunc)
+    mapConfig->OnFrameTickFunc();
+  
+  // ticks
+  mobTick();
+  lootTick();
+  statsTick();
 
   // draw hud stuff
   if (shouldDrawHud()) {
@@ -1033,8 +1141,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     // aaa = (aaa + 1) % RAIDS_WEAPON_RARITY_COUNT;
   }
 #endif
-
-  POKE_U32(0x00171b40, bankGetBolts());
 
 	// last
 	dlPostUpdate();
@@ -1097,6 +1203,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grCqDisableTurrets = 0;
     gameConfig->grCqDisableUpgrades = 0;
     gameConfig->grRespawnOverride = 0;
+    gameConfig->grNewPlayerSync = 1;
   }
 
 	// force everyone to same team as host
@@ -1138,6 +1245,33 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		// set bolts
 		//sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%ld", pState->TotalBolts);
 	}
+}
+
+//--------------------------------------------------------------------------
+void waitForMapConfig(PatchStateContainer_t * gameState)
+{
+  //int* state = 0x0021e684;
+  if (*(u16*)0x004a7dec != 0xA9B0) return;
+
+  if (!mapConfig || mapConfig->Magic != MAP_CONFIG_MAGIC) {
+    
+    // prevent game from finishing loading
+    POKE_U32(0x004A7FD4, 0);
+    POKE_U32(0x004A7FDC, 0);
+    POKE_U32(0x004A7FE4, 0);
+    POKE_U32(0x004A82E8, 0);
+  } else if (!hasMapConfig()) {
+
+    // call map code to let it initialize
+    ((void (*)(void))EXTRA_CODE_SEG_PTR)();
+
+  } else if (gameState->AllClientsReady && *(u16*)0x0021ddb4 == 6) {
+
+    // let game load
+    POKE_U32(0x0021e680, 15);
+    POKE_U32(0x0021e684, 15);
+    POKE_U32(0x0021ddb4, 15);
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -1199,7 +1333,7 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   State.ClientsReady = 0;
 
 	setLobbyGameOptions(gameState->GameConfig);
-  
+
   // reset bolts
   POKE_U32(0x00171b40, 0);
 }
@@ -1207,11 +1341,14 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
 {
+  waitForMapConfig(gameState);
   switch (context)
   {
     case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
     case GAMEMODULE_LOAD: loadStart(module, gameState); break;
     case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
     case GAMEMODULE_GAME_UPDATE: break;
+    case GAMEMODULE_SCENE_LOADING: break;
+    case GAMEMODULE_UNKNOWN: break;
   }
 }

@@ -302,11 +302,15 @@ int getMaxComplexity(void)
   Player** players = playerGetAll();
 
   // reduce by lod
-  maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? (2 - playerConfig->levelOfDetail) : 0);
+  int lodFactor = (int)powf(maxf(0, (playerConfig ? (2 - playerConfig->levelOfDetailMobs) : 0)), 2);
+  maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * lodFactor;
+
+  if (playerConfig->levelOfDetailMobs == 3)
+    maxComplexity += MOB_COMPLEXITY_LOD_FACTOR*2;
 
   // dzo bypasses max complexity
-  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO)
-    maxComplexity = MAX_MOB_COMPLEXITY_DRAWN_DZO;
+  //if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO)
+  //  maxComplexity = MAX_MOB_COMPLEXITY_DRAWN_DZO;
 
   // reduce by map complexity
   maxComplexity -= State.MapBaseComplexity;

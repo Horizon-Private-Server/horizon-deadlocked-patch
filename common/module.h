@@ -21,6 +21,8 @@
 #include "config.h"
 #include "messageid.h"
 
+#define EXTRA_CODE_SEG_PTR                      ((void*)0x01B80000)
+
 // Forward declarations
 struct GameModule;
 struct PatchStateContainer;
@@ -74,6 +76,8 @@ typedef enum GameModuleContext
     GAMEMODULE_LOAD,
     GAMEMODULE_GAME_FRAME,
     GAMEMODULE_GAME_UPDATE,
+    GAMEMODULE_SCENE_LOADING,
+    GAMEMODULE_UNKNOWN
 } GameModuleContext;
 
 /*

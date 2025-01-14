@@ -168,6 +168,14 @@ MenuElem_ListData_t dataLevelOfDetail = {
   .items = { "Potato", "Low", "Normal", "High" }
 };
 
+// level of detail list item
+MenuElem_ListData_t dataMobLevelOfDetail = {
+  .value = &config.levelOfDetailMobs,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = { "Potato", "Low", "Normal", "High" }
+};
+
 // framelimiter list item
 MenuElem_ListData_t dataFramelimiter = {
   .value = &config.framelimiter,
@@ -257,7 +265,7 @@ MenuElem_t menuElementsGeneral[] = {
 #endif
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers, "Which game server you'd like to use when creating a game." },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
-  { "Alt USB Module Load (OPL USB)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.altModuleLoad, "Uses alternative method to load USB modules. May fix custom maps on OPL USB." },
+  //{ "Alt USB Module Load (OPL USB)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.altModuleLoad, "Uses alternative method to load USB modules. May fix custom maps on OPL USB." },
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements, "Enables Dallas commentary in all games." },
   { "Camera Pulling", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableAimAssist, "Toggles code that pulls the camera towards nearby targets when aiming." },
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake, "Toggles the camera shake caused by nearby explosions." },
@@ -271,6 +279,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Fusion Reticle", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule, "Toggles the in game fusion reticle. Normally disabled in multiplayer this setting adds it back." },
   { "In Game Scoreboard (L3)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableInGameScoreboard, "Toggles the in game scoreboard. Hold L3 to display." },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail, "Configures the level of detail of the scene. Lower this to reduce the graphics requirements on laggy maps/survival." },
+  { "Mob Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataMobLevelOfDetail, "Configures the level of detail of Mobs in Survival and Raids. Lower this to reduce the graphics requirements when lagging in survival and/or raids." },
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale, "Toggles between half and full screen expanded radar." },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom, "Tweaks the expanded radar zoom." },
   { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom, "Tweaks the minimized radar zoom." },
@@ -1113,10 +1122,6 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
 
   char gm = gameConfig.customModeId;
   char v = *value;
-
-  // hidden
-  if (v && customMapDefs[v-1].HideFromMapList == 1)
-    return 0;
 
   switch (gm)
   {

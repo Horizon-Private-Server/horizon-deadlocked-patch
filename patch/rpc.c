@@ -22,6 +22,7 @@ static int Rpc_Buffer[16] 			__attribute__((aligned(64)));
 static struct { 			// size = 256
 	int flags;
 	char filename[256];	// 0
+  u8 pad[12];
 } openParam __attribute__((aligned(64)));
 
 static struct { 		// size =
@@ -41,12 +42,14 @@ static struct { 		// size =
 	int fd;				// 0
 	void * buf;		// 4
 	int size;			// 
+  void * read;
 } readParam __attribute__((aligned(64)));
 
 static struct { 		// size =
 	int fd;				// 0
 	int offset;
 	int whence;
+  u8 pad[4];
 } seekParam __attribute__((aligned(64)));
 
 static struct { 			// size = 256
@@ -219,6 +222,7 @@ int rpcUSBread(int fd, void *buf, int size)
 	readParam.fd = fd;
 	readParam.buf = buf;
 	readParam.size = size;
+  readParam.read = Rpc_Buffer;
 
 	SifWriteBackDCache(buf, size);
 	 	
@@ -449,7 +453,11 @@ int rpcUSBSyncNB(int mode, int *cmd, int *result)
 	// get the current rpc cmd
 	if (cmd)
 		*cmd = currentCmd;
-	
+
+	// get result
+	if(result)
+		*result = *(int*)Rpc_Buffer;
+
 	// if function is still processing, return 0
 	if (funcIsExecuting == 1)
 		return 0;

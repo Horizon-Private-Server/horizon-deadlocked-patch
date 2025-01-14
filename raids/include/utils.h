@@ -23,6 +23,8 @@
 #include <libdl/time.h>
 #include <libdl/player.h>
 #include <libdl/sound.h>
+#include <libdl/weapon.h>
+#include "mob.h"
 
 struct RaidsInventoryItem;
 
@@ -31,14 +33,15 @@ void playEquipRejectSound(Player* player);
 void playEquipSound(Player* player);
 void playUpgradeSound(Player* player);
 void playPaidSound(Player* player);
-int getWeaponIdFromOClass(short oclass);
+enum MobDamageSource getDamageSourceFromOClass(short oclass);
+enum WEAPON_IDS getWeaponIdFromDamageSource(enum MobDamageSource source);
 u8 decTimerU8(u8* timeValue);
 u16 decTimerU16(u16* timeValue);
 u32 decTimerU32(u32* timeValue);
-int getProficiencyFromXp(u64 xp);
-u64 getXpForProficiency(int level);
-int getLevelFromXp(u64 xp);
-u64 getXpForLevel(int level);
+int getProficiencyFromXp(double xp);
+double getXpForProficiency(int level);
+int getLevelFromXp(u32 xp);
+u32 getXpForLevel(int level);
 long getAmmoRefillCost(Player* player);
 void drawDreadTokenIcon(float x, float y, float scale);
 struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);

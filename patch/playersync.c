@@ -15,12 +15,13 @@
 #include "include/config.h"
 
 #define PLAYER_SYNC_DATAS_PTR     (*(PlayerSyncPlayerData_t**)0x000CFFB0)
-#define CMD_BUFFER_SIZE           (32)
+#define CMD_BUFFER_SIZE           (1)
 
 typedef struct PlayerSyncStateUpdateUnpacked
 {
   VECTOR Position;
   VECTOR Rotation;
+  Moby* GroundMoby;
   int GameTime;
   float CameraDistance;
   float CameraHeight;
@@ -167,6 +168,7 @@ void playerSyncHandlePlayerState(Player* player)
   PlayerSyncStateUpdateUnpacked_t* stateCurrent = &data->StateUpdates[data->StateUpdateCmdId];
   if (!stateCurrent->Valid) return;
   
+  Moby* playerMoby = player->PlayerMoby;
   int rate = playerSyncGetSendRate();
   PlayerVTable* vtable = playerGetVTable(player);
   float tPos = 0.15;
@@ -188,7 +190,7 @@ void playerSyncHandlePlayerState(Player* player)
     ((void (*)(Player*))0x005e2940)(player);
     player->pNetPlayer->warpMessage.isResurrecting = 0;
   }
-
+  
   // extrapolate
   GameSettings* gs = gameGetSettings();
   if (config.enableNPSLagComp && data->TicksSinceLastUpdate == 0 && !playerIsDead(player) && gs) {
@@ -232,21 +234,28 @@ void playerSyncHandlePlayerState(Player* player)
     //stateCurrent->CameraYaw += dt[2];
   }
 
+  // compute absolute position
+  VECTOR stateCurrentPosition;
+  vector_copy(stateCurrentPosition, stateCurrent->Position);
+  if (stateCurrent->GroundMoby) {
+    vector_add(stateCurrentPosition, stateCurrentPosition, stateCurrent->GroundMoby->Position);
+  }
+
   // snap position
-  vector_subtract(dt, data->LastReceivedPosition, player->PlayerPosition);
-  if (vector_sqrmag(dt) > (7*7)) {
-    vector_copy(player->PlayerPosition, data->LastReceivedPosition);
-    vector_copy(stateCurrent->Position, data->LastReceivedPosition);
-    //DPRINTF("tp\n");
+  float snapRadius = (stateCurrent->GroundMoby != player->Ground.pMoby) ? 4 : 49;
+  vector_subtract(dt, stateCurrentPosition, player->PlayerPosition);
+  if (vector_sqrmag(dt) > snapRadius) {
+    vector_copy(player->PlayerPosition, stateCurrentPosition);
+    //vector_copy(stateCurrent->Position, data->LastReceivedPosition);
+    DPRINTF("tp player %d (dist %f)\n", player->PlayerId, vector_length(dt));
   }
 
   // lerp position if distance is greater than threshold
-  vector_subtract(dt, stateCurrent->Position, player->PlayerPosition);
-  if (vector_sqrmag(dt) > (0.1*0.1)) {
-    vector_lerp(player->PlayerPosition, player->PlayerPosition, stateCurrent->Position, tPos);
+  else if (vector_sqrmag(dt) > (0.01*0.01)) {
+    vector_lerp(player->PlayerPosition, player->PlayerPosition, stateCurrentPosition, tPos);
   }
 
-  vector_copy(player->PlayerMoby->Position, player->PlayerPosition);
+  vector_copy(playerMoby->Position, player->PlayerPosition);
   vector_copy(player->RemoteHero.receivedSyncPos, player->PlayerPosition);
   vector_copy(player->RemoteHero.posAtSyncFrame, player->PlayerPosition);
 
@@ -482,6 +491,7 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
   memcpy(unpacked.Position, msg.Position, sizeof(float) * 3);
   memcpy(unpacked.Rotation, msg.Rotation, sizeof(float) * 3);
   unpacked.GameTime = msg.GameTime;
+  unpacked.GroundMoby = NULL;
   unpacked.CameraDistance = msg.CameraDistance / 1024.0;
   unpacked.CameraYaw = msg.CameraYaw / 10240.0;
   unpacked.CameraPitch = msg.CameraPitch / 10240.0;
@@ -498,13 +508,22 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
   unpacked.CmdId = msg.CmdId;
   unpacked.Valid = 1;
 
+  if (msg.GroundMobyUID != -1 && (msg.Flags & 1)) {
+    Guber* groundGuber = guberGetObjectByUID(msg.GroundMobyUID);
+    if (groundGuber) {
+      unpacked.GroundMoby = groundGuber->VTable->GetMoby(groundGuber);
+    }
+  } else if (msg.GroundMobyUID != -1 && (msg.Flags & 2)) {
+    unpacked.GroundMoby = mobyFindByUID(msg.GroundMobyUID);
+  }
+
   // target sync player data
   PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[msg.PlayerIdx];
 
   // move into buffer
-  memcpy(data->StateUpdates[msg.CmdId], &unpacked, sizeof(unpacked));
-  int cmdDt = playerSyncCmdDelta(data->StateUpdateCmdId, unpacked.CmdId);
-  //DPRINTF("%d => %d (%d)\n", data->StateUpdateCmdId, unpacked.CmdId, cmdDt);
+  memcpy(&data->StateUpdates[msg.CmdId], &unpacked, sizeof(unpacked));
+  int cmdDt = 1; //playerSyncCmdDelta(data->StateUpdateCmdId, unpacked.CmdId);
+  //DPRINTF("%d => %d (%d) %08X\n", data->StateUpdateCmdId, unpacked.CmdId, cmdDt, (u32)&data->StateUpdates[msg.CmdId]);
   if (cmdDt > 0) {
     data->LastNetTime = unpacked.GameTime;
     data->StateUpdateCmdId = unpacked.CmdId;
@@ -559,6 +578,7 @@ void playerSyncBroadcastPlayerState(Player* player)
   memcpy(msg.Position, player->PlayerPosition, sizeof(float) * 3);
   memcpy(msg.Rotation, player->PlayerRotation, sizeof(float) * 3);
   msg.GameTime = data->LastNetTime = gameGetTime();
+  msg.GroundMobyUID = -1;
   msg.PlayerIdx = player->PlayerId;
   msg.CameraDistance = (short)(dist * 1024.0);
   msg.CameraPitch = (short)(pitch * 10240.0);
@@ -575,6 +595,26 @@ void playerSyncBroadcastPlayerState(Player* player)
   msg.State = player->PlayerState;
   msg.StateId = data->LastStateId;
   msg.CmdId = data->StateUpdateCmdId = (data->StateUpdateCmdId + 1) % CMD_BUFFER_SIZE;
+
+  // check if we're on a ground moby
+  // if so, sync relative position
+  Moby* groundMoby = player->Ground.pMoby;
+  if (groundMoby) {
+    Guber* groundMobyGuber = guberGetObjectByMoby(groundMoby);
+    if (groundMobyGuber) {
+      msg.GroundMobyUID = groundMobyGuber->Id.UID;
+      msg.Flags = 1;
+    } else if (groundMoby->UID > 0) {
+      msg.GroundMobyUID = groundMoby->UID;
+      msg.Flags = 2;
+    }
+
+    if (msg.GroundMobyUID != -1) {
+      VECTOR relativePosition;
+      vector_subtract(relativePosition, player->PlayerPosition, groundMoby->Position);
+      memcpy(msg.Position, relativePosition, sizeof(float) * 3);
+    }
+  }
 
   // sync gadget level
   if (msg.GadgetId >= 0 && msg.GadgetId < 32)
@@ -621,7 +661,7 @@ void playerSyncTick(void)
 
 #if DEBUG
   // always on
-  //gameConfig.grNewPlayerSync = 1;
+  gameConfig.grNewPlayerSync = 1;
 #endif
 
   if (!gameConfig.grNewPlayerSync) return;

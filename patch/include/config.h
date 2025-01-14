@@ -118,12 +118,17 @@ typedef struct CustomMapVersionFileDef
   int Version;
   int BaseMapId;
   short ForcedCustomModeId;
-  char HideFromMapList;
-  char _padding;
+  short Subsort;
   short ExtraDataCount;
   short ShrubMinRenderDistance;
   char Name[32];
 } CustomMapVersionFileDef_t;
+
+typedef struct CustomMapRaidsExtraDataHeader
+{
+  int RaidsVersion;
+  short MinLevelRequired;
+} CustomMapRaidsExtraDataHeader_t;
 
 typedef void (*SndCompleteProc)(int loc, int user_data);
 
@@ -134,9 +139,11 @@ typedef struct MapLoaderState
 		u8 CheckState;
     char MapName[32];
     char MapFileName[128];
+    int LoadedBytes;
     int LoadingFileSize;
     int LoadingFd;
     int Loaded;
+    int FinishedLoading;
     void * LevelBuffer;
     void * SoundBuffer;
     SndCompleteProc SoundLoadCb;
@@ -183,6 +190,7 @@ typedef struct PlayerSyncStateUpdatePacked
   float Position[3];
   float Rotation[3];
   int GameTime;
+  int GroundMobyUID;
   short CameraDistance;
   short CameraYaw;
   short CameraPitch;
@@ -196,7 +204,10 @@ typedef struct PlayerSyncStateUpdatePacked
   char GadgetLevel;
   char State;
   char StateId;
-  char PlayerIdx;
+  struct {
+    char PlayerIdx : 5;
+    char Flags : 3;
+  };
   u8 CmdId;
 } PlayerSyncStateUpdatePacked_t;
 

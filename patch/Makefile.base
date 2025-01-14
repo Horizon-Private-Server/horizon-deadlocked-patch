@@ -1,12 +1,12 @@
 EE_ELF ?= patch-11184.elf
 EE_BIN ?= patch-11184.bin
-EE_OBJS += common.o main.o spectate.o maploader.o banner.o rpc.o config.o functions.o mapeditor.o scoreboard.o quickchat.o gamerules.o halftime.o freecam.o playersync.o extralocals.o macaddrs.o spmusic.o
+EE_OBJS += common.o main.o spectate.o maploader.o banner.o rpc.o config.o functions.o mapeditor.o scoreboard.o gamerules.o halftime.o freecam.o playersync.o extralocals.o macaddrs.o spmusic.o
 EE_LIBS += -ldl
 
 EE_INCS := -I../common -I../libdl/include
 EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
-EE_DEFS += -DDEBUG
+#EE_DEFS += -DDEBUG
 EE_DEFS += -DSCAVENGER_HUNT
 #EE_DEFS += -DTWEAKERS
 #EE_DEFS += -DDEV
@@ -16,6 +16,7 @@ EE_DEFS += -DSCAVENGER_HUNT
 #EE_DEFS += -DTEST
 #EE_DEFS += -DPINGTEST
 #EE_DEFS += -DLEVELHOP
+EE_DEFS += -DQUICKCHAT
 
 # build test if defined
 ifneq (,$(findstring -DTEST,$(EE_DEFS)))
@@ -25,6 +26,11 @@ endif
 # build scavenger hunt if defined
 ifneq (,$(findstring -DSCAVENGER_HUNT,$(EE_DEFS)))
     EE_OBJS += scavengerhunt.o
+endif
+
+# build scavenger hunt if defined
+ifneq (,$(findstring -DQUICKCHAT,$(EE_DEFS)))
+    EE_OBJS += quickchat.o
 endif
 
 all: $(EE_BIN) clean copy

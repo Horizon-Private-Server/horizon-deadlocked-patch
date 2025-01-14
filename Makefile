@@ -23,6 +23,7 @@ all:
 	$(MAKE) -C elfloader
 	$(MAKE) -C tag
 	$(MAKE) -C hns
+	$(MAKE) -C usbserv
 	
 clean:
 	$(MAKE) -C patch clean
@@ -47,4 +48,5 @@ clean:
 	$(MAKE) -C elfloader clean
 	$(MAKE) -C tag clean
 	$(MAKE) -C hns clean
+	$(MAKE) -C usbserv clean
 

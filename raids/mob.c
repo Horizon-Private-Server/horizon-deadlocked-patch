@@ -19,7 +19,6 @@ int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
 Moby* mobLastInList = 0;
 
-extern struct RaidsMapConfig* mapConfig;
 extern PatchConfig_t* playerConfig;
 
 int mobOrderedDrawUpToIndex = MAX_MOBS_ALIVE;
@@ -217,13 +216,14 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	Player * pDamager = playerGetFromUID(guberGetUID(sourcePlayer));
 	if (pDamager)
 	{
-		int weaponId = getWeaponIdFromOClass(source->OClass);
-		if (weaponId >= 0) {
-			args.Knockback.Power = (u8)playerGetWeaponAlphaModCount(pDamager->GadgetBox, weaponId, ALPHA_MOD_IMPACT);
+		enum MobDamageSource sourceId = getDamageSourceFromOClass(source->OClass);
+    int weaponId = getWeaponIdFromDamageSource(sourceId);
+		if (sourceId > 0) {
+			args.Knockback.Power = (u8)playerGetWeaponAlphaModCount(pDamager->GadgetBox, sourceId, ALPHA_MOD_IMPACT);
 	    args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
 		}
 
-    if (weaponId == WEAPON_ID_OMNI_SHIELD) {
+    if (sourceId == MOB_DAMAGE_SOURCE_HOLOSHIELD) {
       damageFlags |= 0x40000000; // short slowdown
       amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
     }
@@ -231,9 +231,9 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
     // crit
     if (pDamager->IsLocal) {
       float critProbability = 0;
-      RaidsInventoryItem_t* item = bankGetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
+      RaidsInventoryItem_t* item = mapConfig->BankVTable->GetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
       if (item) critProbability = item->WeaponData.CritChance / 255.0;
-      critProbability += bankGetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
+      critProbability += mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
 
       float r = randRange(0, 1);
       if (r < critProbability) {
@@ -276,11 +276,18 @@ int getMaxComplexity(void)
   Player** players = playerGetAll();
 
   // reduce by lod
-  maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * (playerConfig ? (2 - playerConfig->levelOfDetail) : 0);
+  int lodFactor = (int)powf(maxf(0, (playerConfig ? (2 - playerConfig->levelOfDetailMobs) : 0)), 2);
+  maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * lodFactor;
 
-  // dzo bypasses map complexity
-  if (PATCH_INTEROP->Client != CLIENT_TYPE_DZO)
-    maxComplexity -= State.MapBaseComplexity;
+  if (playerConfig->levelOfDetailMobs == 3)
+    maxComplexity += MOB_COMPLEXITY_LOD_FACTOR*2;
+
+  // dzo bypasses max complexity
+  //if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO)
+  //  maxComplexity = MAX_MOB_COMPLEXITY_DRAWN_DZO;
+
+  // reduce by map complexity
+  maxComplexity -= State.MapBaseComplexity;
 
   // reduce by number of visible players
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -409,7 +416,7 @@ int mobyGetComplexity(Moby* moby)
 void mobDestroy(Moby* moby, int hitByUID)
 {
 	char killedByPlayerId = -1;
-	char weaponId = -1;
+	char sourceId = -1;
 
   if (!moby)
     return;
@@ -423,7 +430,7 @@ void mobDestroy(Moby* moby, int hitByUID)
 	if (guberEvent) {
 
 		// get weapon id from source oclass
-		weaponId = getWeaponIdFromOClass(pvars->MobVars.LastHitByOClass);
+    sourceId = getDamageSourceFromOClass(pvars->MobVars.LastHitByOClass);
 
 		// get damager player id
 		Player* damager = (Player*)playerGetFromUID(hitByUID);
@@ -432,7 +439,7 @@ void mobDestroy(Moby* moby, int hitByUID)
 
 		// 
 		guberEventWrite(guberEvent, &killedByPlayerId, sizeof(killedByPlayerId));
-		guberEventWrite(guberEvent, &weaponId, sizeof(weaponId));
+		guberEventWrite(guberEvent, &sourceId, sizeof(sourceId));
 	}
 }
 
@@ -469,19 +476,20 @@ void mobSetAction(Moby* moby, int action)
 	// 	guberEventWrite(event, &args, sizeof(struct MobActionUpdateEventArgs));
 	// }
 
-  // mark dirty if owner and mob wants state update
-  if (mobAmIOwner(moby) && pvars->VTable && pvars->VTable->ShouldForceStateUpdateOnAction && pvars->VTable->ShouldForceStateUpdateOnAction(moby, action)) {
-    pvars->MobVars.Dirty = 1;
+  if (mobAmIOwner(moby)) {
+
+    pvars->MobVars.LastAction = pvars->MobVars.Action;
+    pvars->MobVars.LastActionId = pvars->MobVars.ActionId++;
+    //pvars->MobVars.DynamicRandom = (char)rand(255);
+      
+    // mark dirty if owner and mob wants state update
+    if (pvars->VTable && pvars->VTable->ShouldForceStateUpdateOnAction && pvars->VTable->ShouldForceStateUpdateOnAction(moby, action))
+      pvars->MobVars.Dirty = 1;
   }
-  
-  pvars->MobVars.LastActionId = pvars->MobVars.ActionId++;
-  pvars->MobVars.LastAction = pvars->MobVars.Action;
-  
+
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->ForceLocalAction)
     pvars->VTable->ForceLocalAction(moby, action);
-
-  pvars->MobVars.DynamicRandom = (char)rand(255);
 }
 
 //--------------------------------------------------------------------------
@@ -503,8 +511,6 @@ void mobHandleDraw(Moby* moby)
 {
 	int i;
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  int minMobsForHiding = 20;
-  float minRankForDrawCutoff = 0.75;
 
   if (mobyIsNpc(moby)) return;
 
@@ -522,37 +528,11 @@ void mobHandleDraw(Moby* moby)
 		}
 	}
 
-  // dzo clients don't need draw optimization as much
-  // unfortunately the cost of each mob can cause problems on the VU
-  // so we are forced to stop animating some
-  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO) {
-    minMobsForHiding = 30;
-    minRankForDrawCutoff = 0.25;
-  }
-  
-  if (1) {
-    moby->DrawDist = 128;
-    if (pvars->MobVars.Order >= mobOrderedDrawUpToIndex) {
-      if (pvars->VTable && pvars->VTable->PostDraw) {
-        gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
-        moby->DrawDist = 0;
-      }
-    }
-  } else {
-    int order = pvars->MobVars.Order;
-    moby->DrawDist = 128;
-    if (order >= 0) {
-      float rank = 1 - clamp(order / (float)MAX_MOBS_ALIVE_REAL, 0, 1);
-      //float rankCurve = powf(rank, 6);
-      
-      if (State.MobStats.TotalAlive > minMobsForHiding) {
-        if (rank < minRankForDrawCutoff) {
-          if (pvars->VTable && pvars->VTable->PostDraw) {
-            gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
-            moby->DrawDist = 0;
-          }
-        }
-      }
+  moby->DrawDist = 128;
+  if (pvars->MobVars.Order >= mobOrderedDrawUpToIndex) {
+    if (pvars->VTable && pvars->VTable->PostDraw) {
+      gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
+      moby->DrawDist = 0;
     }
   }
 }
@@ -742,12 +722,17 @@ void mobUpdate(Moby* moby)
     if (damage > 0) {
       Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
       if (damager) {
-        damage *= 1 + (PLAYER_SKILLPOINT_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Skills[RAIDS_SKILLS_DAMAGE]);
+        // damage skill is factored differently with vehicles
+        if (damager->Vehicle && damager->InVehicle) {
+          damage *= 1 + (PLAYER_SKILLPOINT_VEHICLE_FACTOR * State.PlayerStates[damager->PlayerId].State.Skills[RAIDS_SKILLS_DAMAGE]);
+        } else {
+          damage *= 1 + (PLAYER_SKILLPOINT_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Skills[RAIDS_SKILLS_DAMAGE]);
+        }
 
         // deal extra damage after being hit
-        if (damager->timers.postHitInvinc > 0) {
-          damage *= 2;
-        }
+        // if (damager->timers.postHitInvinc > 0) {
+        //   damage *= 2;
+        // }
       }
 
       // give mob final say before damage is applied
@@ -963,6 +948,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// initialize target vars
 	pvars->TargetVars.hitPoints = pvars->MobVars.Health;
+	pvars->TargetVars.maxHitPoints = pvars->MobVars.Health;
 	pvars->TargetVars.team = 10;
 	pvars->TargetVars.targetHeight = 1;
   //pvars->TargetVars.damageTypes = 0x40; // shock
@@ -1035,7 +1021,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 {
-	char killedByPlayerId, weaponId;
+	char killedByPlayerId, sourceId;
 	Player** players = playerGetAll();
   Player* localPlayer = playerGetFromSlot(0);
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
@@ -1044,7 +1030,9 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 	// 
 	guberEventRead(event, &killedByPlayerId, sizeof(killedByPlayerId));
-	guberEventRead(event, &weaponId, sizeof(weaponId));
+	guberEventRead(event, &sourceId, sizeof(sourceId));
+
+  int weaponId = getWeaponIdFromDamageSource(sourceId);
 
   // pass death to map
   if (mapConfig && mapConfig->OnMobDestroyedFunc)
@@ -1052,10 +1040,10 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnDestroy)
-    pvars->VTable->OnDestroy(moby, killedByPlayerId, weaponId);
+    pvars->VTable->OnDestroy(moby, killedByPlayerId, sourceId);
 
 	int bolts = pvars->MobVars.Config.Bolts * difficultyBoltMult[State.DifficultyStars];
-	int xp = pvars->MobVars.Config.Xp * difficultyXpMult[State.DifficultyStars];
+	float xp = pvars->MobVars.Config.Xp * difficultyXpMult[State.DifficultyStars];
 
 	if (killedByPlayerId >= 0) {
         
@@ -1072,17 +1060,17 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
     // receive bolts & xp
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
-      bankAddBolts(bolts);
-      //bankAddXP(killedByLocal ? xp : (xp >> 1));
-      pState->State.Experience += xp;
+      mapConfig->BankVTable->AddBolts(bolts);
+      //mapConfig->BankVTable->AddXP(killedByLocal ? xp : (xp >> 1));
+      //pState->State.Experience += xp;
       pState->State.Bolts += bolts;
     }
 
     // weapon XP only if this client killed the mob
     if (killedByLocal && weaponId > 0) {
-      bankAddWeaponXP(xp, weaponId);
+      mapConfig->BankVTable->AddWeaponXP(xp, weaponId);
     } else if (!killedByLocal && localPlayer->WeaponHeldId && !playerIsDead(localPlayer)) {
-      bankAddWeaponXP((xp >> 1), localPlayer->WeaponHeldId);
+      mapConfig->BankVTable->AddWeaponXP((double)(xp / 2), localPlayer->WeaponHeldId);
     }
 
     // spawn ammo chance
@@ -1102,32 +1090,35 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		// handle weapon jackpot
 		if (weaponId > 1 && killedByLocal) {
 			int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
-      bankAddBolts(jackpotCount * JACKPOT_BOLTS);
+      mapConfig->BankVTable->AddBolts(jackpotCount * JACKPOT_BOLTS);
 		}
 
 		// handle weapon nanoleech
 		if (weaponId > 1 && killedByLocal && !playerIsDead(killedByPlayer)) {
 			int nanoleechCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_NANOLEECH);
-      if (randRange(0,1) < (NANOLEECH_CHANCE*nanoleechCount)) {
-        float nanoleechAmount = NANOLEECH_HEALTH;
+      if (randRange(0,1) < (NANOLEECH_CHANCE)) {
+        float nanoleechAmount = NANOLEECH_HEALTH*nanoleechCount;
         float newHealth = clamp(killedByPlayer->Health + nanoleechAmount, 0, killedByPlayer->MaxHealth);
         if (nanoleechCount && newHealth != killedByPlayer->Health) {
           playerSetHealth(killedByPlayer, newHealth);
-          mobyPlaySoundByClass(1, 0, killedByPlayer->PlayerMoby, MOBY_ID_HEALTH_BOX_MULT);
+          //mobyPlaySoundByClass(1, 0, killedByPlayer->PlayerMoby, MOBY_ID_HEALTH_BOX_MULT);
         }
       }
 		}
 
 		// handle stats
+    if (sourceId > 0 && pvars->MobVars.SpawnParamsIdx >= 0)
+      pState->State.AllKills[sourceId-1][pvars->MobVars.SpawnParamsIdx]++;
 		pState->State.Kills++;
 		gameData->PlayerStats.Kills[(int)killedByPlayerId]++;
 		int weaponSlotId = weaponIdToSlot(weaponId);
-		if (weaponId > 0 && (weaponId != WEAPON_ID_WRENCH || weaponSlotId == WEAPON_SLOT_WRENCH))
+		if (weaponId > 0 && (weaponId != WEAPON_ID_WRENCH || weaponSlotId == WEAPON_SLOT_WRENCH)) {
 			gameData->PlayerStats.WeaponKills[(int)killedByPlayerId][weaponSlotId]++;
+    }
 
     // pass kill to map
     if (mapConfig && mapConfig->OnMobKilledFunc)
-      mapConfig->OnMobKilledFunc(moby, killedByPlayerId, weaponId);
+      mapConfig->OnMobKilledFunc(moby, killedByPlayerId, sourceId);
 	}
 
 	if (pvars->MobVars.Order >= 0) {
@@ -1239,6 +1230,7 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 	// 
 	if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args.ActionId) > 0 && pvars->MobVars.Action != args.Action) {
 		pvars->MobVars.LastActionId = args.ActionId;
+		pvars->MobVars.ActionId = args.ActionId;
     pvars->MobVars.LastAction = pvars->MobVars.Action;
     
     // pass to mob handler
@@ -1281,6 +1273,7 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
 	// 
 	if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) > 0) {
 		pvars->MobVars.LastActionId = args->ActionId;
+		pvars->MobVars.ActionId = args->ActionId;
     pvars->MobVars.DynamicRandom = args->Random;
     
     // if action has changed
@@ -1294,12 +1287,10 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
 	}
 
 	// 
-	Player* target = (Player*)guberGetObjectByUID(args->TargetUID);
-	if (target) {
-    Moby* targetMoby = playerGetTargetMoby(target);
-    if (targetMoby != pvars->MobVars.MoveVars.Target) {
-      pvars->MobVars.MoveVars.Target = targetMoby;
-    }
+  Guber* targetGuber = guberGetObjectByUID(args->TargetUID);
+  if (targetGuber) {
+    Moby* targetMoby = targetGuber->VTable->GetMoby(targetGuber);
+    pvars->MobVars.MoveVars.Target = targetMoby;
   } else {
     pvars->MobVars.MoveVars.Target = NULL;
   }
@@ -1441,9 +1432,9 @@ void mobRegisterNpc(Moby* moby)
 
 	// set update
 	moby->PUpdate = &mobUpdate;
-	moby->ModeBits |= MOBY_MODE_BIT_CAN_BE_AUTO_TARGETED | MOBY_MODE_BIT_HAS_SPECIAL_VARS;
+	moby->ModeBits |= MOBY_MODE_BIT_CAN_BE_DAMAGED | MOBY_MODE_BIT_CAN_BE_AUTO_TARGETED | MOBY_MODE_BIT_HAS_SPECIAL_VARS;
 	moby->Opacity = 0x80;
-	moby->CollActive = 1;
+	//moby->CollActive = 1;
   moby->UpdateDist = -1;
 
 	// update pvars
@@ -1474,6 +1465,7 @@ void mobRegisterNpc(Moby* moby)
 
 	// initialize target vars
 	pvars->TargetVars.hitPoints = pvars->MobVars.Health;
+	pvars->TargetVars.maxHitPoints = pvars->MobVars.Health;
 	pvars->TargetVars.targetHeight = 1;
 
 	// 
@@ -1498,10 +1490,6 @@ void mobRegisterNpc(Moby* moby)
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnSpawn)
     pvars->VTable->OnSpawn(moby, moby->Position, moby->Rotation[2], -1, rand(256), NULL);
-	
-#if LOG_STATS2
-	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.MobStats.TotalAlive, State.MobStats.TotalSpawned);
-#endif
 }
 
 //--------------------------------------------------------------------------

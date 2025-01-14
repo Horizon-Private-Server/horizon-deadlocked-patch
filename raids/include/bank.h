@@ -105,8 +105,8 @@ typedef struct RaidsPlayerInventory
 
 typedef struct RaidsPlayerAccount
 {
-  u64 Experience;
-  u64 WeaponXp[WEAPON_SLOT_COUNT-1];
+  double WeaponXp[WEAPON_SLOT_COUNT-1];
+  u32 Experience;
   u32 Bolts;
   u32 SkillPoints;
   u16 Skills[RAIDS_SKILLS_COUNT];
@@ -140,6 +140,35 @@ struct RaidsUpdateBankInventoryRequest
   char EquippedWeaponIdxs[WEAPON_SLOT_COUNT-1];
 };
 
+struct RaidsBankGetMapStatsRequest
+{
+  u32 ResponseAddress;
+  int CollectiblesCount;
+  int ChallengesCount;
+  char MapFilename[64];
+};
+
+struct RaidsBankMapStats
+{
+  int Invalid;
+  int CollectiblesCount;
+  u32 CollectiblesMask;
+  int ChallengesCount;
+  u32 ChallengesMask;
+  float PercentageComplete;
+  u32 BestTimeMsPerDifficulty[5];
+  char MapFilename[64];
+};
+
+struct RaidsBankSetMapStatsRequest
+{
+  int CollectiblesCount;
+  u32 CollectiblesMask;
+  int ChallengesCount;
+  u32 ChallengesMask;
+  char MapFilename[64];
+};
+
 struct RaidsBankSetPlayerEquippedInventoryMsg
 {
   int ClientId;
@@ -152,48 +181,55 @@ struct RaidsBankSetPlayerAccountMsg
   RaidsPlayerAccount_t Account;
 };
 
-int bankGetHasInventory(void);
-int bankHasPendingInventoryRequest(void);
-int bankGetHasAccount(void);
-int bankHasPendingAccountRequest(void);
+typedef RaidsPlayerBank_t* (*BankGetLocalBank_func)(void);
+typedef void (*BankGetItemName_func)(RaidsInventoryItem_t* item, char* buf, int bufSize);
+typedef enum RaidsItemRarity (*BankGetRarityFromQuality_func)(int quality);
+typedef float (*BankGetEquippedBadgeEffectStrength_func)(int playerId, enum RaidsBadgeType effect);
+typedef RaidsInventoryItem_t* (*BankGetEquippedWeaponFromGadgetBox_func)(GadgetBox* gbox, int gadgetId);
 
-int bankItemIsWeapon(RaidsInventoryItem_t* item);
-int bankItemIsBadge(RaidsInventoryItem_t* item);
-void bankGetItemName(RaidsInventoryItem_t* item, char* buf, int bufSize);
+typedef void (*BankRequestInventoryFromServer_func)(void);
+typedef void (*BankSendInventoryToServer_func)(void);
+typedef void (*BankRequestAccountFromServer_func)(void);
+typedef void (*BankSendAccountToServer_func)(void);
+typedef void (*BankRequestMapStats_func)(char* mapFilename, struct RaidsBankMapStats* dest);
 
-u32 bankGetBolts(void);
-u32 bankAddBolts(u32 amount);
-u32 bankSubtractBolts(u32 amount);
-u64 bankGetXP(void);
-u64 bankAddXP(u64 amount);
-u64 bankGetWeaponXP(int gadgetId);
-u64 bankAddWeaponXP(u64 amount, int gadgetId);
+typedef int (*BankGetHasInventory_func)(void);
+typedef int (*BankHasPendingInventoryRequest_func)(void);
+typedef int (*BankGetHasAccount_func)(void);
+typedef int (*BankHasPendingAccountRequest_func)(void);
 
-void bankRequestInventoryFromServer(void);
-void bankSendInventoryToServer(void);
-void bankRequestAccountFromServer(void);
-void bankSendAccountToServer(void);
+typedef u32 (*BankGetXP_func)(void);
+typedef u32 (*BankGetBolts_func)(void);
+typedef u32 (*BankAddBolts_func)(u32 amt);
+typedef u32 (*BankSubBolts_func)(u32 amt);
+typedef double (*BankGetWeaponXP_func)(int gadgetId);
+typedef double (*BankAddWeaponXP_func)(double amt, int gadgetId);
 
-RaidsPlayerBank_t* bankGetLocalBank(void);
-RaidsInventoryItem_t* bankGetLocalItemFromBank(int index);
-RaidsInventoryItem_t* bankGetLocalWeaponFromBank(int index);
-RaidsInventoryItem_t* bankGetLocalBadgeFromBank(int index);
-RaidsInventoryItem_t* bankGetLocalEquippedBadge(void);
-void bankEquipLocalItemAtIndex(int weaponIdx);
-void bankSellLocalItemAtIndex(int weaponIdx);
-int bankGetEquipSlotFromGadgetId(int gadgetId);
-RaidsInventoryItem_t* bankGetLocalEquippedWeapon(int gadgetId);
-int bankGetPlayerIdxFromGadgetBox(GadgetBox* gbox);
-RaidsPlayerEquippedInventory_t* bankGetEquippedFromGadgetBox(GadgetBox* gbox);
-RaidsInventoryItem_t* bankGetEquippedBadgeFromGadgetBox(GadgetBox* gbox);
-RaidsInventoryItem_t* bankGetEquippedWeaponFromGadgetBox(GadgetBox* gbox, int gadgetId);
-enum RaidsItemRarity bankGetRarityFromQuality(u8 quality);
-float bankGetEquippedBadgeEffectStrength(int playerId, enum RaidsBadgeType effect);
+struct BankVTable
+{
+  BankGetLocalBank_func GetLocalBank;
+  BankGetItemName_func GetItemName;
+  BankGetRarityFromQuality_func GetRarityFromQuality;
+  BankGetEquippedBadgeEffectStrength_func GetEquippedBadgeEffectStrength;
+  BankGetEquippedWeaponFromGadgetBox_func GetEquippedWeaponFromGadgetBox;
 
-void bankOpen(void);
-void bankClose(void);
+  BankRequestInventoryFromServer_func RequestInventoryFromServer;
+  BankSendInventoryToServer_func SendInventoryToServer;
+  BankRequestAccountFromServer_func RequestAccountFromServer;
+  BankSendAccountToServer_func SendAccountToServer;
+  BankRequestMapStats_func RequestMapStats;
 
-void bankTick(void);
-void bankInit(void);
+  BankGetHasInventory_func GetHasInventory;
+  BankHasPendingInventoryRequest_func HasPendingInventoryRequest;
+  BankGetHasAccount_func GetHasAccount;
+  BankHasPendingAccountRequest_func HasPendingAccountRequest;
+  
+  BankGetXP_func GetXP;
+  BankGetBolts_func GetBolts;
+  BankAddBolts_func AddBolts;
+  BankSubBolts_func SubBolts;
+  BankGetWeaponXP_func GetWeaponXP;
+  BankAddWeaponXP_func AddWeaponXP;
+};
 
 #endif // RAIDS_BANK_H

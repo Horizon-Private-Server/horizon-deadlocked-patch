@@ -44,6 +44,7 @@ static struct { 		// size =
 	int fd;				// 0
 	void * buf;		// 4
 	int size;			// 
+	void* read;
 } readParam __attribute__((aligned(64)));
 
 static struct { 		// size =
@@ -207,6 +208,7 @@ int rpcUSBread(int fd, void *buf, int size)
 	readParam.fd = fd;
 	readParam.buf = buf;
 	readParam.size = size;
+  readParam.read = NULL;
 
 	SifWriteBackDCache(buf, size);
 	 	

@@ -25,11 +25,30 @@ void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
 int hopCost = 0;
 
 //--------------------------------------------------------------------------
+void hopLoadMapStats(char* mapFilename)
+{
+  if (!mapFilename || !mapFilename[0]) return;
+
+  // update current map stats
+  char exDataBuf[RAIDS_MAX_EXDATA_SIZE];
+  memset(exDataBuf, 0, sizeof(exDataBuf));
+  struct RaidsCustomMapExtraData* exData = (struct RaidsCustomMapExtraData*)exDataBuf;
+  PATCH_INTEROP->ReadCustomMapExtraData(mapFilename, exDataBuf, sizeof(exDataBuf), CUSTOM_MODE_RAIDS);
+  State.CurrentMapStats.Invalid = 1;
+  State.CurrentMapStats.ChallengesCount = exData->ChallengesCount;
+  State.CurrentMapStats.CollectiblesCount = exData->CollectiblesCount;
+
+  // request map data
+  if (mapConfig && mapConfig->BankVTable)
+    mapConfig->BankVTable->RequestMapStats(mapFilename, &State.CurrentMapStats);
+}
+
+//--------------------------------------------------------------------------
 void hopCancel(void)
 {
   // refund host
   if (State.PendingWorldHopMapDef && State.PendingWorldHopAtTime && gameAmIHost()) {
-    bankAddBolts(hopCost);
+    mapConfig->BankVTable->AddBolts(hopCost);
   }
 
   State.PendingWorldHopAtTime = 0;
@@ -61,7 +80,7 @@ int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime)
         // charge host
         if (gameAmIHost()) {
           hopCost = cost;
-          bankSubtractBolts(cost);
+          mapConfig->BankVTable->SubBolts(cost);
         }
         return 1;
       }
@@ -156,7 +175,7 @@ void hopDo(void)
   int i;
   for (i = 0; i < GAME_MAX_LOCALS; ++i) {
     Player* player = playerGetFromSlot(i);
-    if (!player) continue;
+    if (!playerIsValid(player)) continue;
 
     int pIdx = player->PlayerId;
     State.PlayerStates[pIdx].LastEquipslots[0] = playerGetLocalEquipslot(i, 0);
@@ -173,12 +192,25 @@ void hopDo(void)
   State.MenuOpen = 0;
   Initialized = 0;
 
+  // save inventory before hop
+  struct BankVTable* bankVTable = mapConfig ? mapConfig->BankVTable : NULL;
+  if (bankVTable && bankVTable->GetHasAccount()) {
+    bankVTable->SendAccountToServer();
+    bankVTable->SendInventoryToServer();
+  }
+
   // hop
   CustomMapDef_t* def = State.PendingWorldHopMapDef;
   State.CurrentMapDef = def;
   State.PendingWorldHopMapDef = NULL;
   State.PendingWorldHopAtTime = 0;
   State.PendingWorldHopDifficultyStars = 0;
+  memset(&State.CurrentMapStats, 0, sizeof(State.CurrentMapStats));
+
+  // update current map stats
+  hopLoadMapStats(def->Filename);
+
+  // hop to
   PATCH_INTEROP->HopToCustomMap(def);
 }
 

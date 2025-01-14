@@ -37,8 +37,6 @@
 #define USB_FS_MODULE_PTR												(*(void**)0x000CFFF8)
 #define USB_SRV_MODULE_PTR											(*(void**)0x000CFFFC)
 
-#define EXTRA_CODE_SEG_PTR                      ((void*)0x01A00000)
-
 void hook(void);
 void loadModules(void);
 
@@ -171,14 +169,63 @@ CustomMapDef_t* getCustomMapDef(int index)
 }
 
 //------------------------------------------------------------------------------
+int maploaderIsLoadingCustomMap(void)
+{
+  return MapLoaderState.Enabled && MapLoaderState.MapFileName[0] && HAS_LOADED_MODULES;
+}
+
+//------------------------------------------------------------------------------
+void maploaderTransitionDraw(void)
+{
+  if (maploaderIsLoadingCustomMap()) {
+    float w = MapLoaderState.FinishedLoading ? 1.0 : clamp(MapLoaderState.LoadedBytes / (float)MapLoaderState.LoadingFileSize, 0, 1);
+    float h = 0.03;
+    gfxScreenSpaceBox(0, 1 - h/2, w, h, 0x80000080);
+  }
+}
+
+//------------------------------------------------------------------------------
+char* mapHopGetMsgString(int msg)
+{
+  return "";
+}
+
+//------------------------------------------------------------------------------
+void mapHopToLoadingOnlineWadDraw(int a0)
+{
+  gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 1, 1, 0x80FFFFFF, "loading...", -1, TEXT_ALIGN_MIDDLECENTER);
+
+  // vsync
+  ((void (*)(int))0x00138d70)(a0);
+}
+
+//------------------------------------------------------------------------------
 void mapHopTo(CustomMapDef_t* def)
 {
   int mapId = def->BaseMapId;
 
+  HOOK_J_OP(0x004e4180, &mapHopGetMsgString, 0);
+
   //POKE_U32(0x0021de80, 4);
-  POKE_U32(0x0021e6a4, 6);
-  POKE_U32(0x005A90F4, 0x24020001);
+  //POKE_U32(0x0021e6a4, 6);
+  //POKE_U32(0x0021ddb4, 6);
+  //HOOK_JAL(0x005A90F4, &mapHopTransitionUpdate);
+  //HOOK_JAL(0x005a8e9c, &mapHopTransitionDraw);
+  //HOOK_J(0x0062dd00, &mapHopTransitionUpdate);
   POKE_U32(0x005ab1e8, 0);
+
+  // trick transition into thinking we're returning to lobby (uses correct function ptrs)
+  POKE_U32(0x005A99A8, 0x24060000);
+
+  // disable spinning moby
+  POKE_U32(0x0062e4f8, 0);
+  POKE_U32(0x0062e508, 0);
+
+  // disable weapons, game info, and loading screen gray bg
+  POKE_U32(0x0062E4A0, 0);
+  POKE_U32(0x0062E4D8, 0);
+  POKE_U32(0x0062E4E0, 0);
+  //HOOK_JAL(0x0062E4D8, &maploaderTransitionDraw);
 
   strncpy(MapLoaderState.MapName, def->Name, sizeof(MapLoaderState.MapName));
   strncpy(MapLoaderState.MapFileName, def->Filename, sizeof(MapLoaderState.MapFileName));
@@ -188,28 +235,46 @@ void mapHopTo(CustomMapDef_t* def)
   MapLoaderState.LoadingFd = -1;
   MapLoaderState.LoadingFileSize = -1;
 
-  void** binPtrs = (void**)0x001dfbf0;
-  void** texPtrs = (void**)0x001dfc18;
-  void* buffer = *(void**)0x00240D78;
-  GameSettings* gs = gameGetSettings();
+  volatile void** binPtrs = (void**)0x001dfbf0;
+  volatile void** texPtrs = (void**)0x001dfc18;
+  volatile void* buffer = *(void**)0x00240D78;
+  volatile GameSettings* gs = gameGetSettings();
 
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-    if (gs->PlayerStates[i] > 0) gs->PlayerStates[i] = 7;
-
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* p = playerGetAll()[i];
-    if (!p || !p->pNetPlayer) continue;
-
-    p->pNetPlayer->bCallbackCalled = 0;
+    if (gs->PlayerStates[i] > 0 && gs->PlayerClients[i] >= 0) {
+      gs->PlayerStates[i] = 7;
+    } else {
+      gs->PlayerStates[i] = i == 0 ? 8 : gs->PlayerStates[i];
+      //gs->PlayerSkins[i] = -1;
+      //gs->PlayerTypes[i] = 0;
+    }
+    //printf("%d=%d\n", i, gs->PlayerStates[i]);
   }
 
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    volatile Player* p = playerGetAll()[i];
+    if (!playerIsValid(p)) continue;
+
+    p->pNetPlayer->bCallbackCalled = 0;
+    //printf("reset bCallbackCalled %d\n", i);
+  }
+
+  gs->PlayerCountAtStart = gs->PlayerCount;
+  //printf("players at start %d\n", gs->PlayerCountAtStart);
+
   // trick dzo into recognizing we're loading a new scene
-  POKE_U32(0x0021E1EC, 0); // isInGame = 0
-  POKE_U32(0x0022026C, def->BaseMapId); // isSceneLoading = baseMapId
-  ((void (*)(void))0x001270C0)();
-  POKE_U32(0x0021E1EC, 1); // isInGame = 0
-  POKE_U32(0x0022026C, 1); // isSceneLoading = baseMapId
+  {
+    POKE_U32(0x0021E1EC, 0); // isInGame = 0
+    POKE_U32(0x0022026C, def->BaseMapId); // isSceneLoading = baseMapId
+    ((void (*)(void))0x001270C0)();
+    POKE_U32(0x0021E1EC, 1); // isInGame = 0
+    POKE_U32(0x0022026C, 1); // isSceneLoading = baseMapId
+  }
+
+  // draw we're loading the wad
+  HOOK_JAL(0x004c4a94, &mapHopToLoadingOnlineWadDraw);
+  ((void (*)(int, int))0x004c4930)(2, 0);
 
   // read onlinewad
   void* onlineWadBuffer = *(u32*)0x0021dd90 - 0x7D0000;
@@ -223,12 +288,12 @@ void mapHopTo(CustomMapDef_t* def)
   // load player skins
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     int clientId = gs->PlayerClients[i];
-    if (clientId < 0) continue;
+    //if (clientId < 0) continue;
     int armorIdx = gs->PlayerSkins[i];
     if (armorIdx < 0) continue;
 
     int isLocal = clientId == gameGetMyClientId();
-    if (armorIdx == 0 && isLocal) continue;
+    //if (armorIdx == 0 && isLocal) continue;
 
     // parse armor table
     void* armorDef = onlineWadBuffer + 0x250 + (isLocal ? 0 : 0x14) + (0x28 * armorIdx);
@@ -249,6 +314,9 @@ void mapHopTo(CustomMapDef_t* def)
   // load
   ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
   DPRINTF("load %d %s\n", mapId, def->Filename);
+
+  // reset FadeToBlack draw hook
+  HOOK_JAL(0x004c4a94, 0x00138d70);
 
   // pass up to server
   if (gameAmIHost()) {
@@ -584,11 +652,13 @@ void initModules(void)
 //------------------------------------------------------------------------------
 int loadModulesImmediately(void)
 {
+  return 1;
+
   // dzo always load immediately
   if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO) return 1;
 
   // if on OPL USB wait for loadHookFunc
-  if (config.altModuleLoad) return 0;
+  // if (config.altModuleLoad) return 0;
 
   return 1;
 }
@@ -943,6 +1013,7 @@ int readLevelUsb(u8 * buf)
 	}
 
 	// Try to read from usb
+  MapLoaderState.LoadedBytes = 0;
 	if (rpcUSBread(MapLoaderState.LoadingFd, buf, MapLoaderState.LoadingFileSize) != 0)
 	{
 		DPRINTF("error reading from file.\n");
@@ -960,6 +1031,7 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
 {
   // parse extra data
   CustomMapVersionFileDef_t versionFileDef;
+  CustomMapRaidsExtraDataHeader_t raidsExDataHeader;
   int extraDataModeMask = 0, i;
   memcpy(&versionFileDef, versionFileBuffer, sizeof(CustomMapVersionFileDef_t));
   for (i = 0; i < versionFileDef.ExtraDataCount && i < 24; ++i) {
@@ -969,13 +1041,32 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
     }
   }
 
-  // insert alphabetically
+  // insert by sort, then alphabetically
   int insertAtIdx = customMapDefCount;
   for (i = 0; i < customMapDefCount; ++i) {
-    int c = strncmp(versionFileDef.Name, customMapDefs[i].Name, sizeof(customMapDefs[i].Name));
+
+    if (versionFileDef.ForcedCustomModeId == CUSTOM_MODE_RAIDS) {
+      if (customMapDefs[i].ForcedCustomModeId != CUSTOM_MODE_RAIDS) continue;
+      
+      int isHub = strncmp(filenameWithoutExtension, "raids_hub", 10) == 0;
+      if (isHub) {
+        insertAtIdx = i;
+        break;
+      }
+    }
+
+    int c = versionFileDef.Subsort - customMapDefs[i].Subsort;
     if (c < 0) {
       insertAtIdx = i;
       break;
+    }
+
+    if (c == 0) {
+      c = strncmp(versionFileDef.Name, customMapDefs[i].Name, sizeof(customMapDefs[i].Name));
+      if (c < 0) {
+        insertAtIdx = i;
+        break;
+      }
     }
   }
 
@@ -988,9 +1079,9 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
   customMapDefs[insertAtIdx].Version = versionFileDef.Version;
   customMapDefs[insertAtIdx].BaseMapId = versionFileDef.BaseMapId;
   customMapDefs[insertAtIdx].ForcedCustomModeId = versionFileDef.ForcedCustomModeId;
-  customMapDefs[insertAtIdx].HideFromMapList = versionFileDef.HideFromMapList;
   customMapDefs[insertAtIdx].CustomModeExtraDataMask = extraDataModeMask;
   customMapDefs[insertAtIdx].ShrubMinRenderDistance = versionFileDef.ShrubMinRenderDistance;
+  customMapDefs[insertAtIdx].Subsort = versionFileDef.Subsort;
   strncpy(customMapDefs[insertAtIdx].Filename, filenameWithoutExtension, sizeof(customMapDefs[insertAtIdx].Filename));
   strncpy(customMapDefs[insertAtIdx].Name, versionFileDef.Name, sizeof(customMapDefs[insertAtIdx].Name));
   customMapDefCount++;
@@ -1007,7 +1098,7 @@ void refreshCustomMapList(void)
   char filename[64];
   char filenameWithoutExtension[64];
   char fullpath[256];
-  char buffer[256];
+  char buffer[256] __attribute__((aligned(16)));
   int versionExtLen = strlen(versionExt);
   int actionStateAtStart = actionState;
   long timeLastUI = timerGetSystemTime();
@@ -1183,7 +1274,8 @@ void hookedLoad(u64 arg0, void * dest, u32 sectorStart, u32 sectorSize, u64 arg4
   MapLoaderState.LevelBuffer = dest;
   MapLoaderState.SoundBuffer = 0;
   MapLoaderState.Loaded = 0;
-	if (MapLoaderState.Enabled && HAS_LOADED_MODULES)
+  MapLoaderState.FinishedLoading = 0;
+	if (maploaderIsLoadingCustomMap())
 	{
     // load sound wad first
     // Generate sound filename
@@ -1255,12 +1347,16 @@ u32 hookedCheck(void)
       }
 
       // finished loading level +/ sound wads
+      MapLoaderState.FinishedLoading = 1;
 			return 0;
 		}
 	}
 
+  // read bytes
+  MapLoaderState.LoadedBytes = r;
+
 	// Set bg color to red
-	*((vu32*)0x120000e0) = 0x1010B4;
+	//*((vu32*)0x120000e0) = 0x1010B4;
 
 	// Not sure if this is necessary but it doesn't hurt to call the game's native load check
 	check();
@@ -1272,7 +1368,7 @@ u32 hookedCheck(void)
 //------------------------------------------------------------------------------
 void hookedLoadingScreen(u64 a0, void * a1, u64 a2, u64 a3, u64 t0, u64 t1, u64 t2)
 {
-	if (MapLoaderState.Enabled && HAS_LOADED_MODULES && readLevelBgUsb(a1, a3 * 0x800) > 0)
+	if (maploaderIsLoadingCustomMap() && readLevelBgUsb(a1, a3 * 0x800) > 0)
 	{
 
 	}
@@ -1296,7 +1392,7 @@ void hookedGetTable(u32 startSector, u32 sectorCount, u8 * dest, u32 levelId)
 	}
 
 	// Check if loading MP map
-	if (MapLoaderState.Enabled && HAS_LOADED_MODULES)
+	if (maploaderIsLoadingCustomMap())
 	{
 		// Disable if map doesn't match
 		if (levelId != MapLoaderState.MapId && (levelId - 20) != MapLoaderState.MapId)
@@ -1319,16 +1415,31 @@ void hookedGetTable(u32 startSector, u32 sectorCount, u8 * dest, u32 levelId)
 }
 
 //------------------------------------------------------------------------------
-void hookedGetMap(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0, u64 t1, u64 t2)
+void hookedMapLoad(int a0, int a1)
 {
-	// Check if loading MP map
-	if (MapLoaderState.Enabled && HAS_LOADED_MODULES)
-	{
-    // also load extra code segment
+  // call base func
+  ((void (*)(int, int))0x004ea128)(a0, a1);
+
+  // load extra code segment
+	if (maploaderIsLoadingCustomMap()) {
     snprintf(membuffer, sizeof(membuffer), fCode, getMapPathPrefix(), MapLoaderState.MapFileName);
     if (readFile(membuffer, EXTRA_CODE_SEG_PTR, 0, -1) > 0) {
       HOOK_J(0x00598BA0, EXTRA_CODE_SEG_PTR);
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+void hookedGetMap(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0, u64 t1, u64 t2)
+{
+	// Check if loading MP map
+	if (maploaderIsLoadingCustomMap())
+	{
+    // also load extra code segment
+    // snprintf(membuffer, sizeof(membuffer), fCode, getMapPathPrefix(), MapLoaderState.MapFileName);
+    // if (readFile(membuffer, EXTRA_CODE_SEG_PTR, 0, -1) > 0) {
+    //   HOOK_J(0x00598BA0, EXTRA_CODE_SEG_PTR);
+    // }
 
 		// We hardcode the size because that's the max that deadlocked can hold
 		if (readLevelMapUsb(dest, 0x27400))
@@ -1348,7 +1459,7 @@ void hookedGetHud(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0,
 void hookedSoundCoreBankLoad(int loc, int offset, SndCompleteProc cb, u64 user_data)
 {
 	// Check if loading MP map
-	if (MapLoaderState.Enabled && HAS_LOADED_MODULES && MapLoaderState.LevelBuffer > 0 && MapLoaderState.SoundBuffer > 0)
+	if (maploaderIsLoadingCustomMap() && MapLoaderState.LevelBuffer > 0 && MapLoaderState.SoundBuffer > 0)
 	{
     MapLoaderState.SoundLoadCb = cb;
     MapLoaderState.SoundLoadUserData = user_data;
@@ -1587,7 +1698,7 @@ void onMapLoaderOnlineMenu(void)
 	{
 		if (!mapsAllocateModuleBuffer())
 		{
-			printf("failed to allocation module buffers\n");
+			DPRINTF("failed to allocation module buffers\n");
 			initialized = 1;
 		}
 
@@ -1612,31 +1723,34 @@ void hook(void)
 	u32 * hookLoadingScreenAddr = (u32*)0x00705554;
 	u32 * hookTableAddr = (u32*)0x00159B20;
 	u32 * hookMapAddr = (u32*)0x00557580;
+  u32 * hookMapLoadAddr = (u32*)0x004a8180;
 	u32 * hookHudAddr = (u32*)0x0053F970;
   u32 * hookSoundCoreBank = (u32*)0x005FEC74;
 	u32 * hookLoadCdvdAddr = (u32*)0x00163814;
 	u32 * hookLoadScreenMapNameStringAddr = (u32*)0x007055B4;
 	u32 * hookLoadScreenModeNameStringAddr = (u32*)0x0070583C;
+	u32 * hookLoadScreenDraw = (u32*)0x00706c74;
 
   if (isInGame()) {
     hookLoadAddr = (u32*)0x004e9ed0;
     hookCheckAddr = (u32*)0x004e9d38;
-    hookLoadingScreenAddr = (u32*)0x00081000;
+    hookLoadingScreenAddr = (u32*)0x0062ce04;
     hookTableAddr = (u32*)0x00159B20;
     hookSoundCoreBank = (u32*)0x0051f80c;
     hookLoadCdvdAddr = (u32*)0x00163814;
-    hookLoadScreenMapNameStringAddr = (u32*)0x00081000;
-    hookLoadScreenModeNameStringAddr = (u32*)0x00081000;
+    hookLoadScreenMapNameStringAddr = (u32*)0x0062ce64;
+    hookLoadScreenModeNameStringAddr = (u32*)0x0062d0ec;
+    hookLoadScreenDraw = (u32*)0x0062e524;
   }
 
 	// Load modules
-	u32 * hookLoadModulesAddr = (u32*)0x00161364;
+	//u32 * hookLoadModulesAddr = (u32*)0x00161364;
 
 	// For some reason we can't load the IRX modules whenever we want
 	// So here we hook into when the game uses rpc calls
 	// This triggers when entering the online profile select, leaving profile select, and logging out.
-	if (!initialized || *hookLoadModulesAddr == 0x0C054632)
-		*hookLoadModulesAddr = 0x0C000000 | ((u32)(&loadHookFunc) / 4);
+	//if (!initialized || *hookLoadModulesAddr == 0x0C054632)
+	//	*hookLoadModulesAddr = 0x0C000000 | ((u32)(&loadHookFunc) / 4);
 
 	// Install hooks
 	if (!initialized || *hookLoadAddr == 0x0C058E10)
@@ -1647,11 +1761,13 @@ void hook(void)
 		*hookCheckAddr = 0x0C000000 | ((u32)(&hookedCheck) / 4);
 		*hookLoadAddr = 0x0C000000 | ((u32)(&hookedLoad) / 4);
     *hookSoundCoreBank = 0x0C000000 | ((u32)(&hookedSoundCoreBankLoad) / 4);
+    HOOK_J(hookLoadScreenDraw, &maploaderTransitionDraw);
 	}
 
 	// These get hooked after the map loads but before the game starts
-	if (!initialized || *hookMapAddr == 0x0C058E02)
+	if (*hookMapAddr == 0x0C058E02)
 	{
+    HOOK_JAL(hookMapLoadAddr, &hookedMapLoad);
 		*hookMapAddr = 0x0C000000 | ((u32)(&hookedGetMap) / 4);
 	}
 
@@ -1762,7 +1878,7 @@ int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int cust
 {
   //
   if (mapFilename && mapFilename[0] && customModeId > 0) {
-    char buffer[1024];
+    char buffer[2048] __attribute__((aligned(16)));
     char filepath[256];
     snprintf(filepath, sizeof(filepath), fVersion, getMapPathPrefix(), mapFilename);
 

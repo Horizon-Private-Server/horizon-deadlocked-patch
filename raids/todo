@@ -71,7 +71,7 @@ consider making ammo amods more likely w/ rarity?
 ++Re-adjust mob speed/damage/behaviors
 Add raids mode and map version check (prevent loading map unless version matches)
 ++Add hacker orb (SP)
-Add damageable proxy moby
+++Add damageable proxy moby
 Add pickup (hold) moby to controller targets (sets player held moby)
 ++Fix mobs not despawning when on bad ground
 ++Fix ammo drops only spawning for host
@@ -79,26 +79,51 @@ Add pickup (hold) moby to controller targets (sets player held moby)
 ++Fix leviathan laser invis
 ++Add sound when pickup loot drop
 Add sound when level up
-Add controller condition moby state changed, increased, decreased, changed to
+++Add controller condition moby state changed, increased, decreased, changed to
 Add levelselect "tags" (Stealth, Puzzle, Wave Survival, Boss, Platformer)
-Store level stats and show on levelselect (time player, # of completes & fails, drops earned, xp earned, bolts earned, times played)
+++Store level stats and show on levelselect (time player, # of completes & fails, drops earned, xp earned, bolts earned, times played)
 ++Add mission complete rewards
-Add draw text window to dzo
-Add hacker orb stand (2401) to dzo
+++Add draw text window to dzo
+++Add hacker orb stand (2401) to dzo
 ++Change class mods to have up to 4 effects
 Add ammo crates
-Only generate loot for items in quickselect
+++Only generate loot for items in quickselect
 ++Change loot drop proficiency to random in range by difficulty, not by account prof +-
 ++Remove "Got ammo"
 ++Lower turret damage
 Fix stalker turret rotation desync
-Fix leviathan laser desync
+++Fix leviathan laser desync
 ++Rename explosive wrench to berserker
 ++Remove MP help dialogue messages ("in deathmatch mode, get the specified number of kills to win!")
-Fix forge auto texture clamp to account for multiple objects that use the same texture
+++Fix forge auto texture clamp to account for multiple objects that use the same texture
 ++Have player XP increase every time a weapon prof is leveled
 ++Fix respawning resetting equipped weapons
-Fix dzo quickselect
+++Fix dzo quickselect
 ++Have ranged attacks stop/pause when they hit their target?
-Have vehicle health + damage scale
+++Have vehicle health + damage scale
 Add spawn corn controller target
+
+++Add num player controller condition
+++Add collectibles
+++Add challenges
+++Add health % condition
+++Add player kills condition mob mask
+++Add safer guber create event, checks # of free events and caches events until more slots are freed
+Add reaper
+Add bladeballs
+++Improve leviathan laser logic
+++Fix loadout not loading on map load
+++Sort raids maps by min account level
+++Fix leviathan strafe direction desync
+++Fix levelselect stars & map resetting on mapload
+
+Add moby collision (enabled/disabled) condition & target
+Add player hold moby condition & taret
+Add proximity condition (player & moby)
+++Have hop loading finish after code has initialized
+++Add loading screen to hopper
+Fix music auto transition to exclude Mission Failed & Complete tracks
+++Disable inputs when in menus
+Add cooldown to button press interactions (vendor/store/skills)
+Add select cooldown to menus
+NPS handle player on moving platform

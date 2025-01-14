@@ -20,9 +20,6 @@
 #include "config.h"
 #include "common.h"
 
-extern struct RaidsState State;
-extern struct RaidsMapConfig* mapConfig;
-
 u32 lootRarityColors[RAIDS_ITEM_RARITY_COUNT] = {
   [RAIDS_ITEM_RARITY_COMMON] 0x80808080,
   [RAIDS_ITEM_RARITY_UNCOMMON] 0x80007000,
@@ -94,7 +91,7 @@ void lootUpdate(Moby* moby)
 
     if (item.Type) {
       char itemName[64];
-      bankGetItemName(&item, itemName, sizeof(itemName));
+      mapConfig->BankVTable->GetItemName(&item, itemName, sizeof(itemName));
       snprintf(buf, sizeof(buf), "Got %s", itemName);
       DPRINTF("pickup %d (gadget %d)\n", item.Type, item.WeaponData.GadgetId);
       pushSnack(buf, 60, 0);
@@ -118,7 +115,7 @@ void lootUpdate(Moby* moby)
 Moby* lootSpawn(VECTOR position, RaidsInventoryItem_t* item)
 {
   int pickupId = 3;
-  int rarity = bankGetRarityFromQuality(item->Quality);
+  int rarity = mapConfig->BankVTable->GetRarityFromQuality(item->Quality);
 
   if (item->Type == RAIDS_ITEM_WEAPON) {
     switch (item->WeaponData.GadgetId)
@@ -184,6 +181,9 @@ void lootRequestFromMob(Moby* mob, int gadgetId)
   msg.MobSpeed = pvars->MobVars.Config.Speed;
   msg.MobHealth = pvars->MobVars.Config.Health;
   msg.MobMobyOClass = mob->OClass;
+  msg.QuickSelectGadgets[0] = playerGetLocalEquipslot(0, 0);
+  msg.QuickSelectGadgets[1] = playerGetLocalEquipslot(0, 1);
+  msg.QuickSelectGadgets[2] = playerGetLocalEquipslot(0, 2);
 
   DPRINTF("sent loot gen request (MOB)\n");
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST, sizeof(msg), &msg);
@@ -201,6 +201,7 @@ void lootRequestFromPrestige(int gadgetId)
   msg.Type = LOOT_DROP_TYPE_PRESTIGE;
   msg.KilledWithGadgetId = gadgetId;
   msg.DifficultyStars = State.DifficultyStars;
+  memset(msg.QuickSelectGadgets, 0, sizeof(msg.QuickSelectGadgets));
 
   DPRINTF("sent loot gen request (PRESTIGE)\n");
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST, sizeof(msg), &msg);
@@ -217,6 +218,9 @@ void lootRequestFromMissionComplete(VECTOR position)
   msg.Type = LOOT_DROP_TYPE_MISSION_COMPLETE;
   msg.KilledWithGadgetId = 0;
   msg.DifficultyStars = State.DifficultyStars;
+  msg.QuickSelectGadgets[0] = playerGetLocalEquipslot(0, 0);
+  msg.QuickSelectGadgets[1] = playerGetLocalEquipslot(0, 1);
+  msg.QuickSelectGadgets[2] = playerGetLocalEquipslot(0, 2);
 
   DPRINTF("sent loot gen request (COMPLETE)\n");
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST, sizeof(msg), &msg);

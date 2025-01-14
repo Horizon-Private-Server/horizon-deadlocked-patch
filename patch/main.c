@@ -727,7 +727,6 @@ int hasSonyMACAddress(void)
   // if we can't get the mac address, then assume we're on a PS2
   // but don't save result so that we run again
   if (!getMACAddress(mac)) return 1;
-  DPRINTF("mac %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
   // latest PCSX2 uses fixed 4 bytes followed by 2 bytes generated from the host net adapter
   // we'll assume that any client matching the first 4 bytes are on pcsx2
@@ -776,7 +775,7 @@ void patchLevelOfDetail(void)
     *(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
   }
 
-  if (lastClientType != CLIENT_TYPE_DZO) {
+  if (1) {
 
     // force lod on certain maps
     int lod = config.levelOfDetail;
@@ -815,7 +814,7 @@ void patchLevelOfDetail(void)
       case 1: // low
       {
         _lodScale = 0.2;
-        SHRUB_RENDER_DISTANCE = maxf(minShrubRenderDist, 100);
+        SHRUB_RENDER_DISTANCE = maxf(minShrubRenderDist, 50);
         *DRAW_SHADOW_FUNC = 0x03E00008;
         *(DRAW_SHADOW_FUNC + 1) = 0;
 
@@ -1039,7 +1038,7 @@ void patchGameSettingsLoad_Hook(void * a0, void * a1)
 
     // set default to on
     patchGameSettingsLoad_Save(a0, 0xC4, 0xA4, 1);
-    DPRINTF("pw %s\n", PASSWORD_BUFFER);
+    //DPRINTF("pw %s\n", PASSWORD_BUFFER);
   }
 
   if (gamemode != GAMERULE_CQ)
@@ -3387,13 +3386,19 @@ int onClientReadyRemote(void * connection, void * data)
  */
 void sendClientReady(void)
 {
+  static int timeLastSend = 0;
   int clientId = gameGetMyClientId();
   int bit = 1 << clientId;
-  if (patchStateContainer.ClientsReadyMask & bit)
+  int dt = gameGetTime() - timeLastSend;
+
+  // until all clients ready, send ours periodically in case a client missed ours
+  if (patchStateContainer.AllClientsReady && isInGame()) return;
+  if ((patchStateContainer.ClientsReadyMask & bit) && dt < TIME_SECOND)
     return;
 
+  timeLastSend = gameGetTime();
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &clientId);
-  DPRINTF("send client ready\n");
+  DPRINTF("send client ready (%d)\n", clientId);
 
   // locally
   onClientReady(clientId);
@@ -3424,7 +3429,7 @@ void runClientReadyMessager(void)
     patchStateContainer.ClientsReadyMask = 0;
     cleared = 1;
   }
-  else if (isInGame())
+  else if (isInGame() || isSceneLoadedNotYetInGame())
   {
     sendClientReady();
     cleared = 0;
@@ -3555,7 +3560,9 @@ void runGameStartMessager(void)
       }
 
       // request latest scavenger hunt settings
+#if SCAVENGER_HUNT
       scavHuntQueryForRemoteSettings();
+#endif
 
       // get server datetime
       void* connection = netGetLobbyServerConnection();
@@ -4244,6 +4251,8 @@ void processGameModules()
       // Check the module is enabled
       if (module->State > GAMEMODULE_OFF)
       {
+        int state = GAMEMODULE_UNKNOWN;
+
         // If in game, run game entrypoint
         if (isInGame())
         {
@@ -4251,16 +4260,15 @@ void processGameModules()
           // We also give the module a second after the game has ended to
           // do some end game logic
           if (!gameHasEnded() || gameGetTime() < (gameGetFinishedExitTime() + TIME_SECOND))
-          {
-            // Invoke module
-            module->Entrypoint(module, &patchStateContainer, GAMEMODULE_GAME_FRAME);
-          }
+            state = GAMEMODULE_GAME_FRAME;
         }
         else if (isInMenus())
-        {
-          // Invoke lobby module if still active
-          module->Entrypoint(module, &patchStateContainer, GAMEMODULE_LOBBY);
-        }
+          state = GAMEMODULE_LOBBY;
+        else if (isSceneLoading())
+          state = GAMEMODULE_SCENE_LOADING;
+      
+        // Invoke module
+        module->Entrypoint(module, &patchStateContainer, state);
       }
 
     }
@@ -5495,7 +5503,9 @@ int main (void)
   igScoreboardRun();
 
   // enable in game quick chat
+#if QUICKCHAT
   quickChatRun();
+#endif
 
   // old lag fixes
   if (!gameConfig.grNewPlayerSync) {
@@ -5604,9 +5614,13 @@ int main (void)
   // config update
   onConfigUpdate();
 
-  // in game stuff
-  if (isInGame())
+  // in game stuff0
+  if (hasGameCodeSeg())
   {
+    // change waiting for players to poll nwUpdate() instead of padUpdate()
+    // this keeps gametime moving consistently
+    HOOK_JAL(0x004A8BA0, 0x0015ada8);
+
     // hook render function
     HOOK_JAL(0x004A84B0, &updateHook);
     HOOK_JAL(0x004A9C10, &updateHook);
@@ -5641,7 +5655,9 @@ int main (void)
     //POKE_U32(0x00611518, 0x24040000);
 
     // find and hook multiplayer moby
-    if (!mpMoby) {
+    if (!isInGame()) {
+      mpMoby = NULL;
+    } else if (!mpMoby) {
       mpMoby = mobyFindNextByOClass(mobyListGetStart(), 0x106A);
       if (mpMoby) {
         mpMoby->PUpdate = &onMobyUpdate;

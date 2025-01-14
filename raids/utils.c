@@ -11,8 +11,6 @@
 #include <libdl/random.h>
 #include <libdl/graphics.h>
 
-extern struct RaidsState State;
-extern struct RaidsMapConfig* mapConfig;
 
 /* 
  * reusable menu sound def
@@ -76,26 +74,47 @@ void playPaidSound(Player* player)
   soundPlay(&MenuSoundDef, 0, player->PlayerMoby, 0, 0x400);
 }
 
-int getWeaponIdFromOClass(short oclass)
+enum MobDamageSource getDamageSourceFromOClass(short oclass)
 {
-	int weaponId = -1;
+	int source = MOB_DAMAGE_SOURCE_UNKNOWN;
 	if (oclass > 0) {
 		switch (oclass)
 		{
-			case MOBY_ID_DUAL_VIPER_SHOT: weaponId = WEAPON_ID_VIPERS; break;
-			case MOBY_ID_MAGMA_CANNON: weaponId = WEAPON_ID_MAGMA_CANNON; break;
-			case MOBY_ID_ARBITER_ROCKET0: weaponId = WEAPON_ID_ARBITER; break;
-			case MOBY_ID_FUSION_SHOT: weaponId = WEAPON_ID_FUSION_RIFLE; break;
-			case MOBY_ID_MINE_LAUNCHER_MINE: weaponId = WEAPON_ID_MINE_LAUNCHER; break;
-			case MOBY_ID_B6_BOMB_EXPLOSION: weaponId = WEAPON_ID_B6; break;
-			case MOBY_ID_FLAIL: weaponId = WEAPON_ID_FLAIL; break;
-			case MOBY_ID_HOLOSHIELD_LAUNCHER: weaponId = WEAPON_ID_OMNI_SHIELD; break;
-			case MOBY_ID_HOLOSHIELD_SHOT: weaponId = WEAPON_ID_OMNI_SHIELD; break;
-			case MOBY_ID_WRENCH: weaponId = WEAPON_ID_WRENCH; break;
+			case MOBY_ID_WRENCH: source = MOB_DAMAGE_SOURCE_WRENCH; break;
+			case MOBY_ID_DUAL_VIPER_SHOT: source = MOB_DAMAGE_SOURCE_DUAL_VIPERS; break;
+			case MOBY_ID_MAGMA_CANNON: source = MOB_DAMAGE_SOURCE_MAGMA_CANNON; break;
+			case MOBY_ID_ARBITER_ROCKET0: source = MOB_DAMAGE_SOURCE_ARBITER; break;
+			case MOBY_ID_FUSION_SHOT: source = MOB_DAMAGE_SOURCE_FUSION_RIFLE; break;
+			case MOBY_ID_MINE_LAUNCHER_MINE: source = MOB_DAMAGE_SOURCE_MINE_LAUNCHER; break;
+			case MOBY_ID_B6_BOMB_EXPLOSION: source = MOB_DAMAGE_SOURCE_B6_OBLITERATOR; break;
+			case MOBY_ID_FLAIL: source = MOB_DAMAGE_SOURCE_SCORPION_FLAIL; break;
+			case MOBY_ID_HOLOSHIELD_LAUNCHER: source = MOB_DAMAGE_SOURCE_HOLOSHIELD; break;
+			case MOBY_ID_HOLOSHIELD_SHOT: source = MOB_DAMAGE_SOURCE_HOLOSHIELD; break;
+			case MOBY_ID_PUMA: source = MOB_DAMAGE_SOURCE_PUMA; break;
+			case MOBY_ID_HOVERBIKE: source = MOB_DAMAGE_SOURCE_HOVERBIKE; break;
+			case MOBY_ID_HOVERSHIP: source = MOB_DAMAGE_SOURCE_HOVERSHIP; break;
+			case MOBY_ID_LANDSTALKER: source = MOB_DAMAGE_SOURCE_LANDSTALKER; break;
 		}
 	}
 
-	return weaponId;
+	return source;
+}
+
+enum WEAPON_IDS getWeaponIdFromDamageSource(enum MobDamageSource source)
+{
+  switch (source)
+  {
+    case MOB_DAMAGE_SOURCE_WRENCH: return WEAPON_ID_WRENCH;
+    case MOB_DAMAGE_SOURCE_DUAL_VIPERS: return WEAPON_ID_VIPERS;
+    case MOB_DAMAGE_SOURCE_MAGMA_CANNON: return WEAPON_ID_MAGMA_CANNON;
+    case MOB_DAMAGE_SOURCE_ARBITER: return WEAPON_ID_ARBITER;
+    case MOB_DAMAGE_SOURCE_FUSION_RIFLE: return WEAPON_ID_FUSION_RIFLE;
+    case MOB_DAMAGE_SOURCE_MINE_LAUNCHER: return WEAPON_ID_MINE_LAUNCHER;
+    case MOB_DAMAGE_SOURCE_B6_OBLITERATOR: return WEAPON_ID_B6;
+    case MOB_DAMAGE_SOURCE_SCORPION_FLAIL: return WEAPON_ID_FLAIL;
+    case MOB_DAMAGE_SOURCE_HOLOSHIELD: return WEAPON_ID_OMNI_SHIELD;
+    default: return WEAPON_ID_EMPTY;
+  }
 }
 
 u8 decTimerU8(u8* timeValue)
@@ -129,7 +148,7 @@ u32 decTimerU32(u32* timeValue)
 }
 
 //--------------------------------------------------------------------------
-int getLevelFromXp(u64 xp)
+int getLevelFromXp(u32 xp)
 {
   if (xp < 0) return 0;
 
@@ -140,7 +159,7 @@ int getLevelFromXp(u64 xp)
 }
 
 //--------------------------------------------------------------------------
-u64 getXpForLevel(int level)
+u32 getXpForLevel(int level)
 {
   if (level > LEVELUP_MAX_LEVEL) level = LEVELUP_MAX_LEVEL;
   if (level <= 0) return 0;
@@ -149,26 +168,10 @@ u64 getXpForLevel(int level)
 }
 
 //--------------------------------------------------------------------------
-int getProficiencyFromXp(u64 xp)
+int getProficiencyFromXp(double xp)
 {
-  if (xp < 0) return 0;
-
-  // (500 (2/3)^(1/3))/(sqrt(3) sqrt(27 x^2 + 500000000) - 9 x)^(1/3) - (sqrt(3) sqrt(27 x^2 + 500000000) - 9 x)^(1/3)/(2^(1/3) 3^(2/3))
-  // Constants
-  const double c1 = 0.87358046;                 // (2/3)^(1/3)
-  const double c2 = 1.25992104;                 // 2^(1/3)
-  const double c3 = 2.08008382;                 // 3^(2/3)
-  const double sqrt3 = 1.73205080;              // sqrt(3)
-
-  // Calculate the inner term
-  double inner = sqrt3 * sqrt((double)27.0 * xp * xp + 500000000.0) - (double)9.0 * xp;
-  
-  // Compute the two terms
-  double term1 = (double)500.0 * c1 / pow(inner, (double)1.0 / (double)3.0);
-  double term2 = pow(inner, (double)1.0 / (double)3.0) / (c2 * c3);
-
-  // Final result
-  double level = term1 - term2;
+  // 1/5 (-10 + sqrt(x + 100))
+  double level = (sqrt(xp + (double)100.0) - (double)10.0) / (double)5.0;
   
   if (level < 0) return 0;
   if (level > LEVELUP_MAX_LEVEL) return LEVELUP_MAX_LEVEL;
@@ -176,11 +179,11 @@ int getProficiencyFromXp(u64 xp)
 }
 
 //--------------------------------------------------------------------------
-u64 getXpForProficiency(int proficiency)
+double getXpForProficiency(int proficiency)
 {
   if (proficiency > LEVELUP_MAX_LEVEL) proficiency = LEVELUP_MAX_LEVEL;
   if (proficiency <= 0) return 0;
-  return (u64)((double)powf(1*proficiency, 3) + 500*proficiency);
+  return (double)powf(5*proficiency, 2) + 100*proficiency;
 }
 
 //--------------------------------------------------------------------------
@@ -438,5 +441,5 @@ void drawLives(float anchorX, float anchorY, float offsetX, float offsetY, float
 //--------------------------------------------------------------------------
 int hasMapConfig(void)
 {
-  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC;
+  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC && mapConfig->BankVTable;
 }

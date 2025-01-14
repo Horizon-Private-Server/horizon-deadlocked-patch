@@ -809,7 +809,7 @@ void otOnTimelimitReached(int reason)
     return;
   }
 
-  DPRINTF("ot game end called reason=%d\n", reason);
+  //DPRINTF("ot game end called reason=%d\n", reason);
 
   if (reason == 1) {
 
@@ -817,7 +817,7 @@ void otOnTimelimitReached(int reason)
     int bestScore = 0;
     int teamsWithBestScore = otGetScores(&bestScore, NULL);
 
-    DPRINTF("ot best score %d, teams with best score %d\n", bestScore, teamsWithBestScore);
+    //DPRINTF("ot best score %d, teams with best score %d\n", bestScore, teamsWithBestScore);
 
     if (teamsWithBestScore > 1) {
       otCtfBegin();
@@ -962,13 +962,13 @@ void overtimeLogic(void)
         gameSetWinner(winningTeam, 1);
         internal_gameEnd(2);
         gameSetWinner(winningTeam, 1);
-        DPRINTF("ot game over %d\n", winningTeam);
+        //DPRINTF("ot game over %d\n", winningTeam);
         OvertimeState = OT_GAMEOVER;
       } else if (winningTeam == -2) {
         // draw
         internal_gameEnd(1);
         gameSetWinner(-1, 1);
-        DPRINTF("ot game over draw\n");
+        //DPRINTF("ot game over draw\n");
         OvertimeState = OT_GAMEOVER;
       }
 

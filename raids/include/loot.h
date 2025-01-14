@@ -26,6 +26,7 @@ struct RaidsGenerateLootDropRequest
   float MobSpeed;
   int KilledWithGadgetId;
   u16 MobMobyOClass;
+  char QuickSelectGadgets[3];
 };
 
 struct RaidsGenerateLootDropResponse

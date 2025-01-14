@@ -1,7 +1,7 @@
 
 EE_ELF = raids-11184.elf
 EE_BIN = raids-11184.bin
-EE_OBJS = main.o utils.o config.o bubble.o mob.o bank.o inventory.o hop.o loot.o ../common/common.o
+EE_OBJS = main.o utils.o config.o bubble.o mob.o hop.o loot.o stats.o ../common/common.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
@@ -41,11 +41,13 @@ EE_DEFS := -DDEBUG -DMOB_CORN
 #EE_DEFS += -DFIXEDTARGET
 #EE_DEFS += -DJOINT_TEST
 #EE_DEFS += -DLOG_STATS
+#EE_DEFS += -DLOG_PERF_STATS
 #EE_DEFS += -DLOG_STATS2
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DRELEASE -DMOB_CORN
 #EE_DEFS += -DMOB_NO_DAMAGE
 #EE_DEFS += -DTRAILER
+#EE_DEFS += -DLOG_PERF_STATS
 endif
 
 .PHONY: all
