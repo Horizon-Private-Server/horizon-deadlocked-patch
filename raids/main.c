@@ -279,6 +279,16 @@ void drawMissionCompleteMessage(void)
 }
 
 //--------------------------------------------------------------------------
+void drawTimer(int time)
+{
+  char buf[32];
+
+  if (time < 0) time = 0;
+  snprintf(buf, sizeof(buf), "%02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
+  gfxHelperDrawText(SCREEN_WIDTH - 15, 105, 0, 0, 0.9, 0x80E0E0E0, buf, -1, TEXT_ALIGN_TOPRIGHT, COMMON_DZO_DRAW_NORMAL);
+}
+
+//--------------------------------------------------------------------------
 int collisionIdIsWalkable(int collisionId)
 {
   collisionId &= 0x0f;
@@ -726,7 +736,9 @@ void initialize(PatchStateContainer_t* gameState)
   //
   State.ClientsReady = 1;
   mapConfig->ClientsReady = 1;
-  if (State.MissionStartTime <= 0) State.MissionStartTime = gameGetTime();
+  if (State.MissionStartTime <= 0 && isInGame()) {
+    State.MissionStartTime = gameGetTime();
+  }
 
   // re-enable input
   padEnableInput();
@@ -858,6 +870,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   playerConfig = gameState->Config;
 
 	if (!Initialized) {
+    State.MissionStartTime = 0;
 		initialize(gameState);
 		return;
 	}
@@ -1061,11 +1074,18 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
     // draw hud
     if (!gameIsAnyStartMenuOpen()) {
+      int timer = -1;
       if (missionIsComplete()) {
+        timer = State.MissionCompleteTime - State.MissionStartTime;
         drawMissionCompleteMessage();
       } else if (missionIsActive()) {
         drawStars(SCREEN_WIDTH - 15, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
         drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
+        timer = gameGetTime() - State.MissionStartTime;
+      }
+
+      if (timer > 0) {
+        drawTimer(timer);
       }
     }
 
@@ -1122,11 +1142,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   mobTick();
   lootTick();
   statsTick();
-
-  // draw hud stuff
-  if (shouldDrawHud()) {
-
-  }
 
 #if DEBUG
   if (padGetButton(0, PAD_L1 | PAD_CROSS)) {

@@ -2713,7 +2713,7 @@ void onConfigUpdate(void)
 
   // in staging, update game info
   GameSettings * gameSettings = gameGetSettings();
-  if (gameSettings && gameSettings->GameLoadStartTime < 0 && netGetLobbyServerConnection())
+  if (isInMenus() && gameSettings && gameSettings->GameLoadStartTime < 0 && netGetLobbyServerConnection())
   {
     // 
     char * mapName = mapGetName(gameSettings->GameLevel);

@@ -11,6 +11,7 @@
 #include <libdl/game.h>
 #include <libdl/player.h>
 #include <libdl/utils.h>
+#include <libdl/sha1.h>
 #include "include/config.h"
 #include "rpc.h"
 #include "messageid.h"
@@ -194,9 +195,6 @@ char* mapHopGetMsgString(int msg)
 void mapHopToLoadingOnlineWadDraw(int a0)
 {
   gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 1, 1, 0x80FFFFFF, "loading...", -1, TEXT_ALIGN_MIDDLECENTER);
-
-  // vsync
-  ((void (*)(int))0x00138d70)(a0);
 }
 
 //------------------------------------------------------------------------------
@@ -261,6 +259,8 @@ void mapHopTo(CustomMapDef_t* def)
   }
 
   gs->PlayerCountAtStart = gs->PlayerCount;
+  //gs->GameLoadStartTime = -1;
+  //gs->GameStartTime = gameGetTime();
   //printf("players at start %d\n", gs->PlayerCountAtStart);
 
   // trick dzo into recognizing we're loading a new scene
@@ -1436,9 +1436,11 @@ void hookedGetMap(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0,
 	if (maploaderIsLoadingCustomMap())
 	{
     // also load extra code segment
-    // snprintf(membuffer, sizeof(membuffer), fCode, getMapPathPrefix(), MapLoaderState.MapFileName);
-    // if (readFile(membuffer, EXTRA_CODE_SEG_PTR, 0, -1) > 0) {
-    //   HOOK_J(0x00598BA0, EXTRA_CODE_SEG_PTR);
+    // if (0) {
+    //   snprintf(membuffer, sizeof(membuffer), fCode, getMapPathPrefix(), MapLoaderState.MapFileName);
+    //   if (readFile(membuffer, EXTRA_CODE_SEG_PTR, 0, -1) > 0) {
+    //     HOOK_J(0x00598BA0, EXTRA_CODE_SEG_PTR);
+    //   }
     // }
 
 		// We hardcode the size because that's the max that deadlocked can hold
@@ -1558,16 +1560,16 @@ int align(int addr, int align)
 int mapsAllocateModuleBuffer(void)
 {
 	if (!USB_FS_MODULE_PTR) {
-		USB_FS_MODULE_PTR = malloc(41100);
+		USB_FS_MODULE_PTR = malloc(41216);
 		if (USB_FS_MODULE_PTR) {
-			memset(USB_FS_MODULE_PTR, 0, 41100);
+			memset(USB_FS_MODULE_PTR, 0, 41216);
 			USB_FS_MODULE_PTR = (void*)align((int)USB_FS_MODULE_PTR, 0x10);
 		}
 	}
 	if (!USB_SRV_MODULE_PTR) {
-		USB_SRV_MODULE_PTR = malloc(12000);
+		USB_SRV_MODULE_PTR = malloc(12288);
 		if (USB_SRV_MODULE_PTR) {
-			memset(USB_SRV_MODULE_PTR, 0, 12000);
+			memset(USB_SRV_MODULE_PTR, 0, 12288);
 			USB_SRV_MODULE_PTR = (void*)align((int)USB_SRV_MODULE_PTR, 0x10);
 		}
 	}

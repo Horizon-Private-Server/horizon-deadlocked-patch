@@ -28,7 +28,7 @@ ifneq (,$(findstring -DSCAVENGER_HUNT,$(EE_DEFS)))
     EE_OBJS += scavengerhunt.o
 endif
 
-# build scavenger hunt if defined
+# build quickchat if defined
 ifneq (,$(findstring -DQUICKCHAT,$(EE_DEFS)))
     EE_OBJS += quickchat.o
 endif

@@ -90,6 +90,8 @@ extern PatchStateContainer_t patchStateContainer;
 // lobby clients patch config
 extern PatchConfig_t lobbyPlayerConfigs[GAME_MAX_PLAYERS];
 
+extern int isUnloading;
+
 /*
  *
  */
@@ -1808,6 +1810,37 @@ void invTimerLogic(void)
 	}
 }
 
+/*
+ * NAME :		mobyHealthOrbRadarBlip
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void mobyHealthOrbRadarBlip(Moby* moby)
+{
+  int blipIdx = radarGetBlipIndex(moby);
+  if (blipIdx >= 0) {
+    RadarBlip* blip = radarGetBlips() + blipIdx;
+    blip->Type = 3;
+    blip->Team = TEAM_GREEN;
+    blip->Life = 0x1F;
+    blip->Moby = moby;
+    blip->X = moby->Position[0];
+    blip->Y = moby->Position[1];
+    blip->Rotation = 0;
+  }
+
+  ((void (*)(Moby*, int))0x003bb8d8)(moby, 0);
+}
+
 #if TWEAKERS
 float tweakerGetPos(char value)
 {
@@ -1895,6 +1928,9 @@ void grInitialize(void)
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 		PlayerKills[i] = 0;
 
+  // hooks
+  HOOK_JAL(0x003BCC68, &mobyHealthOrbRadarBlip);
+
 	// reset
 	htReset();
   otReset();
@@ -1926,6 +1962,8 @@ void grGameStart(void)
 {
 	int i = 0;
 	GameSettings * gameSettings = gameGetSettings();
+
+  if (!isInGame()) return;
 
   // respawn anywhere
   //POKE_U32(0x0034a06c, 0x00000099);

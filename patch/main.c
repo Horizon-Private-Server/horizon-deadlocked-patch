@@ -2798,8 +2798,8 @@ void patchWeaponShotLag(void)
   // immediately set fusion shot moby state to 1
   // which begins the process of sending the shot fired packet with 1 frame of latency
   // instead of the built in 7 (130ms)
-  //POKE_U32(0x003fe160, 0);
-  //HOOK_JAL(0x003fe018, &fusionShotUpdatePos);
+  POKE_U32(0x003fe160, 0);
+  HOOK_JAL(0x003fe018, &fusionShotUpdatePos);
 
   // patch all weapon shots to be shot on remote as soon as they arrive
   // instead of waiting for the gametime when they were shot on the remote

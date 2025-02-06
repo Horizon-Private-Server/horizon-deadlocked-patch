@@ -486,7 +486,7 @@ void halftimeLogic(void)
 	GameSettings * gameSettings = gameGetSettings();
 
 	// Check we're in game and that it is compatible
-	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
+	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF || !isInGame())
     return;
 
 	// 
@@ -938,7 +938,7 @@ void overtimeLogic(void)
 	GameSettings * gameSettings = gameGetSettings();
 
 	// Check we're in game and that it is compatible
-	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
+	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF || !isInGame())
 		return;
 
 	// 

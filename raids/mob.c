@@ -40,11 +40,11 @@ int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob);
 void playerRewardXp(int playerId, int weaponId, int xp);
 
 float difficultyXpMult[RAIDS_DIFFICULTY_COUNT] = {
-  [RAIDS_DIFFICULTY_1STAR] 1.0,
-  [RAIDS_DIFFICULTY_2STAR] 2.0,
-  [RAIDS_DIFFICULTY_3STAR] 4.0,
-  [RAIDS_DIFFICULTY_4STAR] 7.0,
-  [RAIDS_DIFFICULTY_5STAR] 10.0
+  [RAIDS_DIFFICULTY_1STAR] 0.5,
+  [RAIDS_DIFFICULTY_2STAR] 1.0,
+  [RAIDS_DIFFICULTY_3STAR] 2.0,
+  [RAIDS_DIFFICULTY_4STAR] 3.0,
+  [RAIDS_DIFFICULTY_5STAR] 4.0
 };
 
 float difficultyBoltMult[RAIDS_DIFFICULTY_COUNT] = {

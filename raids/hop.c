@@ -39,7 +39,7 @@ void hopLoadMapStats(char* mapFilename)
   State.CurrentMapStats.CollectiblesCount = exData->CollectiblesCount;
 
   // request map data
-  if (mapConfig && mapConfig->BankVTable)
+  if (hasMapConfig())
     mapConfig->BankVTable->RequestMapStats(mapFilename, &State.CurrentMapStats);
 }
 
@@ -76,7 +76,7 @@ int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime)
         State.PendingWorldHopMapDef = def;
         State.PendingWorldHopAtTime = loadAtTime;
         State.PendingWorldHopDifficultyStars = difficulty;
-            
+
         // charge host
         if (gameAmIHost()) {
           hopCost = cost;
@@ -155,6 +155,12 @@ void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs)
 
   if (hopPrepare(mapFilename, difficulty, cost, gameGetTime() + delayMs)) {
 
+    GameSettings* gs = gameGetSettings();
+    if (gs) {
+      //gs->GameLoadStartTime = -1;
+      //gs->GameStartTime = gameGetTime();
+    }
+
     // broadcast
     struct HopOnBeginMsg msg = { .LoadAtTime = State.PendingWorldHopAtTime, .Difficulty = difficulty };
     if (State.PendingWorldHopMapDef)
@@ -191,12 +197,19 @@ void hopDo(void)
   State.DifficultyStars = State.PendingWorldHopDifficultyStars;
   State.MenuOpen = 0;
   Initialized = 0;
+  PATCH_INTEROP->PatchStateContainer->AllClientsReady = 0;
 
   // save inventory before hop
   struct BankVTable* bankVTable = mapConfig ? mapConfig->BankVTable : NULL;
   if (bankVTable && bankVTable->GetHasAccount()) {
     bankVTable->SendAccountToServer();
     bankVTable->SendInventoryToServer();
+  }
+
+  //
+  GameSettings* gs = gameGetSettings();
+  if (gs) {
+    gs->GameLoadStartTime = State.PendingWorldHopAtTime;
   }
 
   // hop

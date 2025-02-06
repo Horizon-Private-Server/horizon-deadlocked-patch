@@ -126,4 +126,12 @@ Fix music auto transition to exclude Mission Failed & Complete tracks
 ++Disable inputs when in menus
 Add cooldown to button press interactions (vendor/store/skills)
 Add select cooldown to menus
-NPS handle player on moving platform
+++NPS handle player on moving platform
+
+Add set player speed target
+Add set player ammo (per weapon) target (ie disables weapons)
+Add set player quad/shield target
+Fix bolt crank getting stuck
+Remove auto broadcasting of state of misc mobys? Gate, mover, etc? Controller should broadcast iterate, to disable unless configured as client only, then desync is intentional?
+Controller target set gravity (per player possible?)
+Controller in general better way to condition on player(s) and then use the matched player(s) in the targets

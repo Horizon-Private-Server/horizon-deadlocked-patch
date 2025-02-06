@@ -22,8 +22,8 @@
 
 #define RA_COUNTERS_SIZE  (64)
 
-#define GUBER_BACKUP_SIZE                            (64)
-#define GUBER_BACKUP_START_AT                        (10)
+#define GUBER_BACKUP_SIZE                            (512)
+#define GUBER_BACKUP_START_AT                        (50)
 
 typedef struct RollingValue {
   float Value;
@@ -45,12 +45,13 @@ RollingValue_t statsCollLineFix_Calls = { .Low = -1 };
 RACounter_t statsCollLineFix_RA[RA_COUNTERS_SIZE] = {};
 #endif
 
-GuberEvent statsGuberSafeBackup[GUBER_BACKUP_SIZE];
+GuberEvent* statsGuberSafeBackup = NULL;
 int statsGuberSafeBackupIdx = 0;
 
 //--------------------------------------------------------------------------
 int statsGuberEventBackupPop(void)
 {
+  if (!statsGuberSafeBackup) return 0;
   if (statsGuberSafeBackupIdx <= 0) return 0;
 
   GuberEvent* event = guberEventAlloc();
@@ -71,7 +72,7 @@ GuberEvent* statsGuberEventAllocSafe(void)
   // so backup old events
   int free = guberCountFreeEvents();
   while (free > GUBER_BACKUP_START_AT && statsGuberEventBackupPop()) free--;
-  if (free <= GUBER_BACKUP_START_AT) {
+  if (statsGuberSafeBackup && free <= GUBER_BACKUP_START_AT) {
 
     DPRINTF("statsGuberEventAllocSafe() called with %d free GuberEvents\n", free);
 
@@ -178,8 +179,8 @@ void statsTick(void)
 #if LOG_PERF_STATS
   //printf("FREE GUBER EVENTS %d\n", guberCountFreeEvents());
   statsRollingValueTick("GuberEvent Alloc", &statsGuberEventAlloc_Calls, TPS);
-  statsRollingValueTick("CollLine_Fix", &statsCollLineFix_Calls, TPS);
-  statsRATick("CollLine_Fix", statsCollLineFix_RA, RA_COUNTERS_SIZE, TPS);
+  //statsRollingValueTick("CollLine_Fix", &statsCollLineFix_Calls, TPS);
+  //statsRATick("CollLine_Fix", statsCollLineFix_RA, RA_COUNTERS_SIZE, TPS);
 #endif
 }
 
@@ -187,6 +188,11 @@ void statsTick(void)
 void statsInit(void)
 {
   //printf("FREE GUBER EVENTS %d\n", guberCountFreeEvents());
+
+  if (!statsGuberSafeBackup) {
+    statsGuberSafeBackup = (GuberEvent*)malloc(sizeof(GuberEvent) * GUBER_BACKUP_SIZE);
+    DPRINTF("alloc guber event backup %08X\n", (u32)statsGuberSafeBackup);
+  }
   
   // guber events
   HOOK_JAL(0x00611360, &statsOnGuberAllocEvent);
@@ -194,6 +200,6 @@ void statsInit(void)
 
 #if LOG_PERF_STATS
   // collision
-  HOOK_J_OP(0x004b8e28, statsOnCollLineFix, 0x0040202D);
+  //HOOK_J_OP(0x004b8e28, statsOnCollLineFix, 0x0040202D);
 #endif
 }
