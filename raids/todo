@@ -109,7 +109,7 @@ Add spawn corn controller target
 ++Add health % condition
 ++Add player kills condition mob mask
 ++Add safer guber create event, checks # of free events and caches events until more slots are freed
-Add reaper
+++Add reaper
 Add bladeballs
 ++Improve leviathan laser logic
 ++Fix loadout not loading on map load
@@ -118,7 +118,7 @@ Add bladeballs
 ++Fix levelselect stars & map resetting on mapload
 
 Add moby collision (enabled/disabled) condition & target
-Add player hold moby condition & taret
+Add player hold moby condition & target
 Add proximity condition (player & moby)
 ++Have hop loading finish after code has initialized
 ++Add loading screen to hopper
@@ -131,7 +131,20 @@ Add select cooldown to menus
 Add set player speed target
 Add set player ammo (per weapon) target (ie disables weapons)
 Add set player quad/shield target
-Fix bolt crank getting stuck
 Remove auto broadcasting of state of misc mobys? Gate, mover, etc? Controller should broadcast iterate, to disable unless configured as client only, then desync is intentional?
 Controller target set gravity (per player possible?)
 Controller in general better way to condition on player(s) and then use the matched player(s) in the targets
+Controller disable/enable certain weapons/gadgets (aren't equippable)
+
+++Have mobs prefer targets in aggro zone, including even when already locked onto target
+
+## 2/17/2025
+++Inventory - Migrate "equipped index" from int[] to copies of items (with UIDs)
+++Inventory - Query each tab, add pagination to navigate entire collection
+++Inventory - Unequip weapon on prestige
+++Catacrom - Reduce final waves from 10 to 6, improve overall difficulty scaling from wave 1 to wave 6
+++Catacrom - Add mission after activating bridge, before hack and destroy towers
+++Store - Remove mythics (remove legendaries?, lower prices?)
+++Level Select - Make negative cost planets inaccessible
+++Badge - Add more badge effects
+++Bolt Crank - Fix getting stuck when cranking is stopped by mob attacking

@@ -203,7 +203,7 @@ void hopDo(void)
   struct BankVTable* bankVTable = mapConfig ? mapConfig->BankVTable : NULL;
   if (bankVTable && bankVTable->GetHasAccount()) {
     bankVTable->SendAccountToServer();
-    bankVTable->SendInventoryToServer();
+    //bankVTable->SendInventoryToServer();
   }
 
   //

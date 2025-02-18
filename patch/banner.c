@@ -15,6 +15,7 @@ extern int dlIsActive;
 
 void bannerDraw(void)
 {
+  return;
   void* ptr = BANNER_IMAGE_PTR;
   if (!ptr) return;
   if (!isInMenus()) return;
@@ -35,6 +36,7 @@ void bannerDraw(void)
 
 void bannerTick(void)
 {
+  return;
   static int initialized = 0;
 
   if (!isInMenus()) {

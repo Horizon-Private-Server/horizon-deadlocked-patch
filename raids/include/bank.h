@@ -47,8 +47,12 @@ enum RaidsBadgeType
   RAIDS_BADGE_TYPE_SHARPSHOOTER,
   RAIDS_BADGE_TYPE_BERSERKER,
   RAIDS_BADGE_TYPE_FLINCH_RESISTANCE,
-  RAIDS_BADGE_TYPE_HEATH_BUFF,
-  RAIDS_BADGE_TYPE_AMMO_BUFF,
+  RAIDS_BADGE_TYPE_HEALTH_BUFF,
+  RAIDS_BADGE_TYPE_ALPHA_AMMO_BUFF,
+  RAIDS_BADGE_TYPE_ALPHA_AREA_BUFF,
+  RAIDS_BADGE_TYPE_ALPHA_SPEED_BUFF,
+  RAIDS_BADGE_TYPE_ALPHA_IMPACT_BUFF,
+  RAIDS_BADGE_TYPE_EXPLODING_ENEMIES,
   RAIDS_BADGE_TYPE_COUNT
 };
 
@@ -68,12 +72,20 @@ enum RaidsItemTypes
   RAIDS_ITEM_BADGE,
 };
 
+enum RaidsItemUpdateAction
+{
+  RAIDS_ITEM_UPDATE_NONE = 0,
+  RAIDS_ITEM_UPDATE_SELL,
+  RAIDS_ITEM_UPDATE_SET_NOTIFY
+};
+
 typedef struct RaidsInventoryItem
 {
   char Type;
   char Notify;
   u8 Quality; // determines rarity + values on probability curve
   u32 Price;
+  u32 Uid;
 
   union {
     struct {
@@ -94,14 +106,16 @@ typedef struct RaidsInventoryItem
   };
 } RaidsInventoryItem_t;
 
-typedef struct RaidsPlayerInventory
+typedef struct RaidsPlayerInventoryPage
 {
   RaidsInventoryItem_t Items[BANK_MAX_ITEMS];
   u32 TotalWeapons;
   int RefreshLocalInventory;
-  char EquippedBadgeIdx;
-  char EquippedWeaponIdxs[WEAPON_SLOT_COUNT-1];
-} RaidsPlayerInventory_t;
+  int Filter;
+  int Page;
+  int HasFlag;
+  long LastRequestTime;
+} RaidsPlayerInventoryPage_t;
 
 typedef struct RaidsPlayerAccount
 {
@@ -112,23 +126,30 @@ typedef struct RaidsPlayerAccount
   u16 Skills[RAIDS_SKILLS_COUNT];
 } RaidsPlayerAccount_t;
 
-typedef struct RaidsPlayerBank
-{
-  RaidsPlayerInventory_t Inventory;
-  RaidsPlayerAccount_t Account;
-} RaidsPlayerBank_t;
-
 typedef struct RaidsPlayerEquippedInventory
 {
   RaidsInventoryItem_t Items[WEAPON_SLOT_COUNT-1];
   RaidsInventoryItem_t Badge;
+  int RefreshLocalInventory;
 } RaidsPlayerEquippedInventory_t;
+
+typedef struct RaidsPlayerBank
+{
+  RaidsPlayerAccount_t Account;
+  RaidsPlayerEquippedInventory_t EquippedInventory;
+} RaidsPlayerBank_t;
 
 struct RaidsGetBankRequest
 {
   u32 DestAddress;
   u32 DestHasFlagAddress;
   u32 DestTimeFlagAddress;
+};
+
+struct RaidsUpdateBankInventoryItemRequest
+{
+  RaidsInventoryItem_t Item;
+  char Action;
 };
 
 struct RaidsUpdateBankInventoryRequest
@@ -187,14 +208,15 @@ typedef enum RaidsItemRarity (*BankGetRarityFromQuality_func)(int quality);
 typedef float (*BankGetEquippedBadgeEffectStrength_func)(int playerId, enum RaidsBadgeType effect);
 typedef RaidsInventoryItem_t* (*BankGetEquippedWeaponFromGadgetBox_func)(GadgetBox* gbox, int gadgetId);
 
-typedef void (*BankRequestInventoryFromServer_func)(void);
-typedef void (*BankSendInventoryToServer_func)(void);
+typedef void (*BankRequestInventoryFromServer_func)(RaidsPlayerInventoryPage_t* inventory, int filter, int page);
+typedef void (*BankSendInventoryItemToServer_func)(RaidsInventoryItem_t* item, enum RaidsItemUpdateAction action);
+typedef void (*BankRequestEquippedInventoryFromServer_func)(void);
 typedef void (*BankRequestAccountFromServer_func)(void);
 typedef void (*BankSendAccountToServer_func)(void);
 typedef void (*BankRequestMapStats_func)(char* mapFilename, struct RaidsBankMapStats* dest);
 
-typedef int (*BankGetHasInventory_func)(void);
-typedef int (*BankHasPendingInventoryRequest_func)(void);
+typedef int (*BankGetHasEquippedInventory_func)(void);
+typedef int (*BankHasPendingEquippedInventoryRequest_func)(void);
 typedef int (*BankGetHasAccount_func)(void);
 typedef int (*BankHasPendingAccountRequest_func)(void);
 
@@ -214,13 +236,14 @@ struct BankVTable
   BankGetEquippedWeaponFromGadgetBox_func GetEquippedWeaponFromGadgetBox;
 
   BankRequestInventoryFromServer_func RequestInventoryFromServer;
-  BankSendInventoryToServer_func SendInventoryToServer;
+  BankSendInventoryItemToServer_func SendInventoryItemToServer;
+  BankRequestEquippedInventoryFromServer_func RequestEquippedInventoryFromServer;
   BankRequestAccountFromServer_func RequestAccountFromServer;
   BankSendAccountToServer_func SendAccountToServer;
   BankRequestMapStats_func RequestMapStats;
 
-  BankGetHasInventory_func GetHasInventory;
-  BankHasPendingInventoryRequest_func HasPendingInventoryRequest;
+  BankGetHasEquippedInventory_func GetHasEquippedInventory;
+  BankHasPendingEquippedInventoryRequest_func HasPendingEquippedInventoryRequest;
   BankGetHasAccount_func GetHasAccount;
   BankHasPendingAccountRequest_func HasPendingAccountRequest;
   

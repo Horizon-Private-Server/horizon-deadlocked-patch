@@ -510,7 +510,7 @@ void processPlayer(int pIndex) {
 	player->Speed = 1 + (PLAYER_SKILLPOINT_SPEED_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_SPEED]);
 
 	// set max health
-  float cmodHealthBuff = BADGE_HEALTH_BUFF_AMOUNT * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pIndex, RAIDS_BADGE_TYPE_HEATH_BUFF);
+  float cmodHealthBuff = BADGE_HEALTH_BUFF_AMOUNT * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pIndex, RAIDS_BADGE_TYPE_HEALTH_BUFF);
 	player->MaxHealth = 50 + cmodHealthBuff + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_HEALTH]);
 
   // set vehicle max health if driver
@@ -1053,8 +1053,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       if (!bankVTable->GetHasAccount() && !bankVTable->HasPendingAccountRequest()) {
         bankVTable->RequestAccountFromServer();
       }
-      if (!bankVTable->GetHasInventory() && !bankVTable->HasPendingInventoryRequest()) {
-        bankVTable->RequestInventoryFromServer();
+      if (!bankVTable->GetHasEquippedInventory() && !bankVTable->HasPendingEquippedInventoryRequest()) {
+        bankVTable->RequestEquippedInventoryFromServer();
       }
     } else if (sendBankAtEnd) {
       if (bankVTable->GetHasAccount()) bankVTable->SendAccountToServer();

@@ -152,10 +152,16 @@ int getLevelFromXp(u32 xp)
 {
   if (xp < 0) return 0;
 
-  int level = (int)xp / LEVELUP_PLAYER_LINEAR_FACTOR;
-  if (level > LEVELUP_MAX_LEVEL) return LEVELUP_MAX_LEVEL;
-  if (level < 0) return 0;
+  int level = 0;
+  while (getXpForLevel(level) < xp)
+    ++level;
+
   return level;
+
+  //int level = (int)xp / LEVELUP_PLAYER_LINEAR_FACTOR;
+  //if (level > LEVELUP_MAX_LEVEL) return LEVELUP_MAX_LEVEL;
+  //if (level < 0) return 0;
+  //return level;
 }
 
 //--------------------------------------------------------------------------
@@ -164,7 +170,15 @@ u32 getXpForLevel(int level)
   if (level > LEVELUP_MAX_LEVEL) level = LEVELUP_MAX_LEVEL;
   if (level <= 0) return 0;
   
-  return level * LEVELUP_PLAYER_LINEAR_FACTOR;
+  int i = 0;
+  u32 xp = 0;
+  while (i < level) {
+    i++;
+    xp += LEVELUP_PLAYER_LINEAR_FACTOR + floorf(i / (float)LEVELUP_PLAYER_STEP_EVERY)*LEVELUP_PLAYER_STEP_FACTOR;
+  }
+
+  return xp;
+  //return level * LEVELUP_PLAYER_LINEAR_FACTOR;
 }
 
 //--------------------------------------------------------------------------

@@ -93,6 +93,7 @@ struct MobConfig {
 	float MaxHealth;
   float HealthScale;
 
+  float TurnSpeed;
 	float AttackRadius;
 	float HitRadius;
   float CollRadius;
@@ -116,6 +117,7 @@ struct MobSpawnedConfig {
 	float Scale;
 	float Damage;
 	float Speed;
+  float TurnSpeed;
 	float Health;
 
 	float AttackRadius;
@@ -215,6 +217,7 @@ struct MobVars {
 	int LastAcidBy;
   float LastAcidByDamage;
 	int LastHitBy;
+	float LastHitByDamage;
 	u16 LastHitByOClass;
 	u16 NextCheckActionDelayTicks;
 	u16 NextActionDelayTicks;

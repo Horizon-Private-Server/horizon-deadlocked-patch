@@ -233,7 +233,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
       float critProbability = 0;
       RaidsInventoryItem_t* item = mapConfig->BankVTable->GetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
       if (item) critProbability = item->WeaponData.CritChance / 255.0;
-      critProbability += mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
+      critProbability += 0.5 * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
 
       float r = randRange(0, 1);
       if (r < critProbability) {
@@ -913,6 +913,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.Damage = (float)args.Damage;
 	pvars->MobVars.Config.Health = (float)args.StartHealth;
 	pvars->MobVars.Config.Speed = (float)args.SpeedEighths / 8.0;
+	pvars->MobVars.Config.TurnSpeed = params->Config.TurnSpeed;
 	pvars->MobVars.Config.AttackRadius = (float)args.AttackRadiusEighths / 8.0;
 	pvars->MobVars.Config.HitRadius = (float)args.HitRadiusEighths / 8.0;
 	pvars->MobVars.Config.CollRadius = (float)args.CollRadiusEighths / 8.0;
@@ -1163,7 +1164,11 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnDamage)
     pvars->VTable->OnDamage(moby, &args);
-	
+
+  // pass damage to map
+  if (mapConfig && mapConfig->OnMobDamagedFunc)
+    mapConfig->OnMobDamagedFunc(moby, &args);
+
 	// flash
 	mobyStartFlash(moby, FT_HIT, 0x800000FF, 0);
 
@@ -1194,6 +1199,7 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
     // save last hit by
     pvars->MobVars.LastHitBy = args.SourceUID;
     pvars->MobVars.LastHitByOClass = args.SourceOClass;
+    pvars->MobVars.LastHitByDamage = damage;
 
     VECTOR mobCenter = {0,0,pvars->TargetVars.targetHeight,0};
     vector_add(mobCenter, mobCenter, moby->Position);
