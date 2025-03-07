@@ -7,6 +7,7 @@ EE_INCS := -I../common -I../libdl/include
 EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 #EE_DEFS += -DDEBUG
+#EE_DEFS += -DRELOADPATCH
 EE_DEFS += -DSCAVENGER_HUNT
 #EE_DEFS += -DTWEAKERS
 #EE_DEFS += -DDEV
@@ -16,7 +17,8 @@ EE_DEFS += -DSCAVENGER_HUNT
 #EE_DEFS += -DTEST
 #EE_DEFS += -DPINGTEST
 #EE_DEFS += -DLEVELHOP
-EE_DEFS += -DQUICKCHAT
+#EE_DEFS += -DQUICKCHAT
+#EE_DEFS += -DNPS_INSTANTSYNC
 
 # build test if defined
 ifneq (,$(findstring -DTEST,$(EE_DEFS)))

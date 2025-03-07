@@ -775,7 +775,7 @@ void patchLevelOfDetail(void)
     *(u32*)0x005930B8 = 0x08000000 | ((u32)&_correctTieLod >> 2);
   }
 
-  if (1) {
+  if (customMapDefs) {
 
     // force lod on certain maps
     int lod = config.levelOfDetail;
@@ -1332,7 +1332,7 @@ int patchComputePoints_Hook(int playerIdx)
   }
 
   if (gameData && gameData->GameIsOver) {
-    //DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
+    DPRINTF("points for %d => base:%d ours:%d\n", playerIdx, basePoints, newPoints);
   }
 
   return newPoints;
@@ -2899,6 +2899,54 @@ void runPlayerGadgetEventHandlers(void)
 }
 
 /*
+ * NAME :		onMiscStateUpdateGetIsSwimming
+ * 
+ * DESCRIPTION :
+ * 			Hooks the state update of some states, including GETHIT_SURF, to handle getting hit & dying in water.
+ *      Since in MP this code is missing and players will otherwise be invincible in the swimming state.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onMiscStateUpdateGetIsSwimming(Player* player)
+{
+  int isSwimming = ((int (*)(Player*))0x005DB690)(player);
+
+  if (isSwimming && player->PlayerMoby) {
+    char damageIdx = player->PlayerMoby->CollDamage;
+    if (damageIdx >= 0) {
+      MobyColDamage* colDamage = mobyGetDamage(player->PlayerMoby, 1, 0);
+      if (colDamage && colDamage->Moby == player->PlayerMoby) {
+        playerDecHealth(player, colDamage->DamageHp);
+        player->PlayerMoby->CollDamage = -1;
+
+        if (player->Health <= 0) {
+          // crashes
+          //playerGetVTable(player)->UpdateState(player, 106, 1, 0, 0);
+
+          // manually set to drown
+          player->PlayerPreviousState = player->PlayerState;
+          player->PlayerState = 148;
+          player->PlayerStateType = 20;
+          player->PlayerSubstate = 0;
+          player->timers.state = 0;
+          player->timers.stateType = 0;
+          player->InShallowWater = 0;
+          mobyAnimTransition(player->PlayerMoby, 0x39, 0, 0);
+        }
+      }
+    }
+  }
+
+  return isSwimming;
+}
+
+/*
  * NAME :		patchRadarScale
  * 
  * DESCRIPTION :
@@ -3325,10 +3373,21 @@ void onClientReady(int clientId)
   int i;
   int bit = 1 << clientId;
 
+  // if client is still sending ready but we've already got their ready
+  // then they must have missed our ready (or someone's)
+  // so resend just to be sure they got it
+  if (patchStateContainer.AllClientsReady) {
+    int myClientId = gameGetMyClientId();
+    if (myClientId != clientId && (patchStateContainer.ClientsReadyMask & myClientId)) {
+      int bit = 1 << myClientId;
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &myClientId);
+    }
+  }
+
   // set ready
   patchStateContainer.AllClientsReady = 0;
   patchStateContainer.ClientsReadyMask |= bit;
-  DPRINTF("received client ready from %d\n", clientId);
+  DPRINTF("received client ready from %d (mask %02X)\n", clientId, patchStateContainer.ClientsReadyMask);
 
   if (!gs)
     return;
@@ -3384,24 +3443,24 @@ int onClientReadyRemote(void * connection, void * data)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void sendClientReady(void)
+int sendClientReady(int timeLastSent)
 {
-  static int timeLastSend = 0;
   int clientId = gameGetMyClientId();
   int bit = 1 << clientId;
-  int dt = gameGetTime() - timeLastSend;
+  int dt = gameGetTime() - timeLastSent;
 
   // until all clients ready, send ours periodically in case a client missed ours
-  if (patchStateContainer.AllClientsReady && isInGame()) return;
+  if (patchStateContainer.AllClientsReady && isInGame()) return timeLastSent;
   if ((patchStateContainer.ClientsReadyMask & bit) && dt < TIME_SECOND)
-    return;
+    return timeLastSent;
 
-  timeLastSend = gameGetTime();
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &clientId);
   DPRINTF("send client ready (%d)\n", clientId);
 
   // locally
   onClientReady(clientId);
+
+  return gameGetTime();
 }
 
 /*
@@ -3421,21 +3480,24 @@ void sendClientReady(void)
 void runClientReadyMessager(void)
 {
   static int cleared = 0;
+  static int timeLastSent = 0;
   GameSettings* gs = gameGetSettings();
 
   if (isSceneLoading() && !cleared)
   {
     patchStateContainer.AllClientsReady = 0;
     patchStateContainer.ClientsReadyMask = 0;
+    timeLastSent = 0;
     cleared = 1;
   }
   else if (isInGame() || isSceneLoadedNotYetInGame())
   {
-    sendClientReady();
+    timeLastSent = sendClientReady(timeLastSent);
     cleared = 0;
   }
   else if (isInMenus())
   {
+    timeLastSent = 0;
     cleared = 0;
   }
 }
@@ -4101,6 +4163,7 @@ void runFpsCounter(void)
 
 void runFastLoad(void)
 {
+  return; // disabled cause it breaks halftime? timebandits on maybe?
   if (interopData.Client == CLIENT_TYPE_NORMAL) return; // only DZO/EMU
   if (!MapLoaderState.Enabled) return; // only custom maps
 
@@ -5283,7 +5346,7 @@ void onOnlineMenu(void)
   }
   else if (!isConfigMenuActive) {
     int lastHasDevConfig = hasDevGameConfig;
-    hasDevGameConfig = gameConfig.drFreecam != 0;
+    hasDevGameConfig = configHasDevRules();
     if (gameAmIHost() && hasDevGameConfig && !lastHasDevConfig) {
       uiShowOkDialog("Warning", "By enabling a dev rule this game will not count towards stats.");
     }
@@ -5462,18 +5525,20 @@ int main (void)
 #endif
   
 #if LEVELHOP
-  {
-    if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0 && patchStateContainer.SelectedCustomMapId > 0) {
-      mapHopTo(&customMapDefs[patchStateContainer.SelectedCustomMapId - 1]);
-    }
-  }
-  {
-    if (padGetButtonDown(0, PAD_L1 | PAD_LEFT) > 0 && patchStateContainer.SelectedCustomMapId > 0) {
-      GameSettings* gs = gameGetSettings();
-      if (gs) {
-        gs->PlayerSkins[0] = (gs->PlayerSkins[0] + 1) % 22;
+  if (isInGame()) {
+    {
+      if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0 && patchStateContainer.SelectedCustomMapId > 0) {
+        mapHopTo(&customMapDefs[patchStateContainer.SelectedCustomMapId - 1]);
       }
-      mapHopTo(&customMapDefs[patchStateContainer.SelectedCustomMapId - 1]);
+    }
+    {
+      if (padGetButtonDown(0, PAD_L1 | PAD_LEFT) > 0 && patchStateContainer.SelectedCustomMapId > 0) {
+        GameSettings* gs = gameGetSettings();
+        if (gs) {
+          gs->PlayerSkins[0] = (gs->PlayerSkins[0] + 1) % 22;
+        }
+        mapHopTo(&customMapDefs[patchStateContainer.SelectedCustomMapId - 1]);
+      }
     }
   }
 #endif
@@ -5614,9 +5679,18 @@ int main (void)
   // config update
   onConfigUpdate();
 
+  // disable timebase query percentile filter
+  // always accept remote time
+  //POKE_U32(0x01eabd60, 0);
+
   // in game stuff0
   if (hasGameCodeSeg())
   {
+    // level reload
+    if (gameConfig.drLevelReload && isInGame() && padGetButtonDown(0, PAD_L1 | PAD_UP | PAD_CIRCLE) > 0 && patchStateContainer.SelectedCustomMapId > 0) {
+      mapHopTo(&customMapDefs[patchStateContainer.SelectedCustomMapId - 1]);
+    }
+
     // change waiting for players to poll nwUpdate() instead of padUpdate()
     // this keeps gametime moving consistently
     HOOK_JAL(0x004A8BA0, 0x0015ada8);
@@ -5635,12 +5709,23 @@ int main (void)
     POKE_U32(0x004b8084, 0x00612023);
     POKE_U32(0x004b80a0, 0x00622023);
 
+    // hook GETHIT_SURF state to handle taking damage
+    HOOK_JAL(0x0060603c, &onMiscStateUpdateGetIsSwimming);
+
+    // force remote camera pos to -6 cam dist when NPS is off
+    POKE_U16(0x006122C8, 0xC0C0);
+
     // allow local flinching before remote flinch for chargebooting targets
     POKE_U32(0x005E1C94, 0);
 
     // immediately join global chat when game ends
     if (gameHasEnded()) {
       voiceEnableGlobalChat(1);
+    }
+
+    // disable rank for dev toggles
+    if (configHasDevRules()) {
+      gameSetIsGameRanked(0);
     }
 
     // prevents wrench lag
@@ -5669,7 +5754,7 @@ int main (void)
     // reset when in game
     hasSendReachedEndScoreboard = 0;
 
-  #if DEBUG
+  #if DEBUG || RELOADPATCH
     if (padGetButtonDown(0, PAD_L3 | PAD_R3) > 0)
     {
       gameEnd(0);

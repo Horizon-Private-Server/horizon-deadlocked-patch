@@ -112,6 +112,7 @@ void igScoreboardDraw(void)
   GameSettings* gs = gameGetSettings();
   if (!isInGame() || !gs) return;
 
+  int draw = COMMON_DZO_DRAW_NONE; //COMMON_DZO_DRAW_NORMAL;
   float anchorX = 0.5 * SCREEN_WIDTH;
   float anchorY = 0.3 * SCREEN_HEIGHT;
   float width = 0.65 * SCREEN_WIDTH;
@@ -122,16 +123,16 @@ void igScoreboardDraw(void)
 
   // bg
   //gfxScreenSpaceBox(0.15, 0.3, 0.65, 0.08, 0x20000000);
-  gfxHelperDrawBox(anchorX, anchorY, 0, 0, width, height, 0x20000000, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(anchorX, anchorY, 0, 0, width, height, 0x20000000, TEXT_ALIGN_TOPCENTER, draw);
 
   // columns
-  gfxHelperDrawText(anchorX, aY, offsets[0], 0, 1, 0x80FFFFFF, "Player", -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
-  gfxHelperDrawText(anchorX, aY, offsets[1], 0, 1, 0x80FFFFFF, "Kills", -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
-  gfxHelperDrawText(anchorX, aY, offsets[2], 0, 1, 0x80FFFFFF, "Deaths", -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(anchorX, aY, offsets[0], 0, 1, 0x80FFFFFF, "Player", -1, TEXT_ALIGN_MIDDLELEFT, draw);
+  gfxHelperDrawText(anchorX, aY, offsets[1], 0, 1, 0x80FFFFFF, "Kills", -1, TEXT_ALIGN_MIDDLECENTER, draw);
+  gfxHelperDrawText(anchorX, aY, offsets[2], 0, 1, 0x80FFFFFF, "Deaths", -1, TEXT_ALIGN_MIDDLECENTER, draw);
 #if USE_CLIENT_PING
-  gfxHelperDrawText(anchorX, aY, offsets[3], 0, 1, 0x80FFFFFF, "Ping", -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(anchorX, aY, offsets[3], 0, 1, 0x80FFFFFF, "Ping", -1, TEXT_ALIGN_MIDDLECENTER, draw);
 #else
-  gfxHelperDrawText(anchorX, aY, offsets[3], 0, 1, 0x80FFFFFF, "RTT", -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(anchorX, aY, offsets[3], 0, 1, 0x80FFFFFF, "RTT", -1, TEXT_ALIGN_MIDDLECENTER, draw);
 #endif
 
   // rows
@@ -147,15 +148,15 @@ void igScoreboardDraw(void)
 
     int team = gs->PlayerTeams[i];
     if (players[i]) team = players[i]->Team;
-    gfxHelperDrawBox(anchorX, aY, 0, yOff, width, rowHeight, TEAM_COLORS[team], TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
-    gfxHelperDrawText(anchorX, aY, offsets[0], yOff, 1, 0x80FFFFFF, gs->PlayerNames[i], -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawBox(anchorX, aY, 0, yOff, width, rowHeight, TEAM_COLORS[team], TEXT_ALIGN_MIDDLECENTER, draw);
+    gfxHelperDrawText(anchorX, aY, offsets[0], yOff, 1, 0x80FFFFFF, gs->PlayerNames[i], -1, TEXT_ALIGN_MIDDLELEFT, draw);
 
     snprintf(buf, sizeof(buf), "%d", gdata->PlayerStats.Kills[i]);
-    gfxHelperDrawText(anchorX, aY, offsets[1], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(anchorX, aY, offsets[1], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, draw);
     snprintf(buf, sizeof(buf), "%d", gdata->PlayerStats.Deaths[i]);
-    gfxHelperDrawText(anchorX, aY, offsets[2], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(anchorX, aY, offsets[2], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, draw);
     snprintf(buf, sizeof(buf), "%dms", ClientLatency[gs->PlayerClients[i]]);
-    gfxHelperDrawText(anchorX, aY, offsets[3], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(anchorX, aY, offsets[3], yOff, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, draw);
 
     y -= rowHeight;
   }

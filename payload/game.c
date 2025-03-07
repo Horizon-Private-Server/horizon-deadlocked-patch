@@ -1604,7 +1604,7 @@ void initialize(PatchStateContainer_t* gameState)
 	int i;
 
 	// set payload moby to NULL
-	State.PayloadMoby = NULL;
+  memset(&State, 0, sizeof(State));
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)

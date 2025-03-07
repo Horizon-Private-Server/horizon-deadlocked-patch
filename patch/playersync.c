@@ -4,6 +4,7 @@
 #include <libdl/net.h>
 #include <libdl/stdlib.h>
 #include <libdl/stdio.h>
+#include <libdl/string.h>
 #include <libdl/math.h>
 #include <libdl/math3d.h>
 #include <libdl/radar.h>
@@ -15,7 +16,7 @@
 #include "include/config.h"
 
 #define PLAYER_SYNC_DATAS_PTR     (*(PlayerSyncPlayerData_t**)0x000CFFB0)
-#define CMD_BUFFER_SIZE           (1)
+#define CMD_BUFFER_SIZE           (8)
 
 typedef struct PlayerSyncStateUpdateUnpacked
 {
@@ -53,6 +54,8 @@ typedef struct PlayerSyncPlayerData
   int SendRateTicker;
   char LastStateId;
   char Pad[32];
+  u8 CurrentStateUpdateCmdId;
+  u8 CurrentSubStateId;
   u8 StateUpdateCmdId;
   PlayerSyncStateUpdateUnpacked_t StateUpdates[CMD_BUFFER_SIZE];
 } PlayerSyncPlayerData_t;
@@ -72,12 +75,28 @@ extern void* _playerSyncPatchHeroTransAnim;
 int playerSyncCmdDelta(int fromCmdId, int toCmdId)
 {
   int delta = toCmdId - fromCmdId;
-  if (delta < -(CMD_BUFFER_SIZE/2))
-    delta += CMD_BUFFER_SIZE;
-  else if (delta > (CMD_BUFFER_SIZE/2))
-    delta -= CMD_BUFFER_SIZE;
+  // if (delta < -(CMD_BUFFER_SIZE/2))
+  //   delta += CMD_BUFFER_SIZE;
+  // else if (delta > (CMD_BUFFER_SIZE/2))
+  //   delta -= CMD_BUFFER_SIZE;
+  if (delta < -128)
+    delta += 256;
+  else if (delta > 128)
+    delta -= 256;
 
   return delta;
+}
+
+//--------------------------------------------------------------------------
+int playerSyncGetCmdId(int cmdId)
+{
+  return (cmdId + 256) % 256;
+}
+
+//--------------------------------------------------------------------------
+int playerSyncCmdGetBufIndex(int cmdId)
+{
+  return (cmdId + CMD_BUFFER_SIZE) % CMD_BUFFER_SIZE;
 }
 
 //--------------------------------------------------------------------------
@@ -157,32 +176,129 @@ void playerSyncHandlePostPlayerState(Player* player)
 }
 
 //--------------------------------------------------------------------------
+void playerRotationLerp(VECTOR out, VECTOR a, VECTOR b, float t)
+{
+  out[0] = lerpfAngle(a[0], b[0], t);
+  out[1] = lerpfAngle(a[1], b[1], t);
+  out[2] = lerpfAngle(a[2], b[2], t);
+}
+
+//--------------------------------------------------------------------------
+void playerStateUpdateLerp(PlayerSyncStateUpdateUnpacked_t* out, PlayerSyncStateUpdateUnpacked_t* a, PlayerSyncStateUpdateUnpacked_t* b, float t)
+{
+  int isHalfway = t >= 0.5;
+  if (t <= 0) {
+    memcpy(out, a, sizeof(PlayerSyncStateUpdateUnpacked_t));
+    return;
+  }
+
+  if (t >= 1) {
+    memcpy(out, b, sizeof(PlayerSyncStateUpdateUnpacked_t));
+    return;
+  }
+
+  // interpolate states
+  vector_lerp(out->Position, a->Position, b->Position, t);
+  playerRotationLerp(out->Rotation, a->Rotation, b->Rotation, t);
+  out->CameraDistance = lerpf(a->CameraDistance, b->CameraDistance, t);
+  out->CameraHeight = lerpf(a->CameraHeight, b->CameraHeight, t);
+  out->CameraPitch = lerpfAngle(a->CameraPitch, b->CameraPitch, t);
+  out->CameraYaw = lerpfAngle(a->CameraYaw, b->CameraYaw, t);
+  out->NoInput = (short)lerpf(a->NoInput, b->NoInput, t);
+  out->MoveX = (u8)lerpf(a->MoveX, b->MoveX, t);
+  out->MoveY = (u8)lerpf(a->MoveY, b->MoveY, t);
+  out->GameTime = (int)lerpf(a->GameTime, b->GameTime, t);
+  out->GroundMoby = isHalfway ? b->GroundMoby : a->GroundMoby;
+  out->Health = isHalfway ? b->Health : a->Health;
+  out->PadBits = isHalfway ? b->PadBits : a->PadBits;
+  out->GadgetId = isHalfway ? b->GadgetId : a->GadgetId;
+  out->GadgetLevel = isHalfway ? b->GadgetLevel : a->GadgetLevel;
+  out->State = isHalfway ? b->State : a->State;
+  out->StateId = isHalfway ? b->StateId : a->StateId;
+  out->PlayerIdx = isHalfway ? b->PlayerIdx : a->PlayerIdx;
+  out->Valid = isHalfway ? b->Valid : a->Valid;
+  out->CmdId = isHalfway ? b->CmdId : a->CmdId;
+
+  // if we've changed ground moby
+  // we want to respect the change by forcing the position to b->Position
+  // otherwise the world space a != local space b
+  // we could also translate both a,b positions into world, then lerp, then convert to out->GroundMoby local too
+  if (b->GroundMoby != a->GroundMoby) {
+    out->GroundMoby = b->GroundMoby;
+    vector_copy(out->Position, b->Position);
+  }
+}
+
+//--------------------------------------------------------------------------
 void playerSyncHandlePlayerState(Player* player)
 {
   MATRIX m, mInv;
   VECTOR dt;
   int i;
+  int rate = playerSyncGetSendRate();
   if (!player || player->IsLocal || !player->PlayerMoby || !PLAYER_SYNC_DATAS_PTR) return;
 
   PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
-  PlayerSyncStateUpdateUnpacked_t* stateCurrent = &data->StateUpdates[data->StateUpdateCmdId];
+
+  // move forward subtick
+  data->CurrentSubStateId++;
+  if (data->CurrentSubStateId > rate && data->StateUpdateCmdId != data->CurrentStateUpdateCmdId) {
+    data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId)].Valid = 0; // mark invalid/used
+    data->CurrentStateUpdateCmdId = playerSyncGetCmdId(data->CurrentStateUpdateCmdId + 1);
+    data->CurrentSubStateId = 0;
+  }
+
+  // we're running behind 
+  int stateIdDelta = playerSyncCmdDelta(data->CurrentStateUpdateCmdId, data->StateUpdateCmdId);
+  if (stateIdDelta > 1) {
+    DPRINTF("%'d running behind %d, %d=>%d\n", gameGetTime(), stateIdDelta, data->CurrentStateUpdateCmdId, data->StateUpdateCmdId);
+    data->CurrentSubStateId = 0;
+
+    int targetId = playerSyncGetCmdId(data->StateUpdateCmdId - 1);
+    while (data->CurrentStateUpdateCmdId != targetId) {
+      data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId)].Valid = 0; // mark invalid/used
+      data->CurrentStateUpdateCmdId = playerSyncGetCmdId(data->CurrentStateUpdateCmdId + 1);
+    }
+  } else if (stateIdDelta == 0 && data->CurrentSubStateId > (rate/2)) {
+    DPRINTF("%'d running ahead %d\n", gameGetTime(), data->CurrentSubStateId);
+    data->CurrentSubStateId = (int)maxf(0, data->CurrentSubStateId - 1);
+  }
+
+  #if NPS_INSTANTSYNC
+  data->CurrentSubStateId = 0;
+  data->CurrentStateUpdateCmdId = data->StateUpdateCmdId;
+  #endif
+  
+  PlayerSyncStateUpdateUnpacked_t stateInterpolated;
+  PlayerSyncStateUpdateUnpacked_t* stateCurrent = &data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId)];
+  PlayerSyncStateUpdateUnpacked_t* stateNext = &data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId+1)];
+  
   if (!stateCurrent->Valid) return;
   
   Moby* playerMoby = player->PlayerMoby;
-  int rate = playerSyncGetSendRate();
   PlayerVTable* vtable = playerGetVTable(player);
+  float tSub = data->CurrentSubStateId / (float)(rate + 1);
   float tPos = 0.15;
   float tRot = 0.15;
   float tCam = 0.5;
   int padIdx = 0;
+
+  if (!stateNext->Valid) {
+    tSub = 0;
+  }
+  //printf("%d %d/%f\n", data->CurrentStateUpdateCmdId, data->CurrentSubStateId, tSub);
+
+  // interpolate states
+  playerStateUpdateLerp(&stateInterpolated, stateCurrent, stateNext, tSub);
 
   // reset pad
   data->Pad[2] = 0xFF;
   data->Pad[3] = 0xFF;
 
   // set no input
-  if (data->TicksSinceLastUpdate == 0) {
-    player->timers.noInput = stateCurrent->NoInput;
+  //if (data->TicksSinceLastUpdate == 0) {
+  if (data->CurrentSubStateId == 0) {
+    player->timers.noInput = stateInterpolated.NoInput;
   }
 
   // resurrecting
@@ -192,34 +308,9 @@ void playerSyncHandlePlayerState(Player* player)
   }
   
   // extrapolate
+  #if NPS_INSTANTSYNC
   GameSettings* gs = gameGetSettings();
-  if (config.enableNPSLagComp && data->TicksSinceLastUpdate == 0 && !playerIsDead(player) && gs) {
-    
-    VECTOR targetPos, targetRot;
-    vector_copy(targetPos, stateCurrent->Position);
-    vector_copy(targetRot, stateCurrent->Rotation);
-
-    float lagComp = 2 * ((ClientLatency[gs->PlayerClients[player->PlayerId]]*0.5 + ClientLatency[gameGetMyClientId()]*0.5) / 16.66666);
-
-    // extrapolate position
-    vector_subtract(dt, player->PlayerPosition, data->LastLocalPosition);
-    vector_scale(dt, dt, lagComp);
-    vector_add(targetPos, targetPos, dt);
-
-    // extrapolate rotation
-    vector_subtract(dt, player->PlayerRotation, data->LastLocalRotation);
-    targetRot[0] = clampAngle(targetRot[0] + clampAngle(dt[0])*lagComp*0.5);
-    targetRot[1] = clampAngle(targetRot[1] + clampAngle(dt[1])*lagComp*0.5);
-    targetRot[2] = clampAngle(targetRot[2] + clampAngle(dt[2])*lagComp*0.5);
-
-    // update
-    //vector_copy(stateCurrent->Position, targetPos);
-    vector_lerp(stateCurrent->Position, stateCurrent->Position, targetPos, 0.5);
-    vector_copy(stateCurrent->Rotation, targetRot);
-  }
-
-  //if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
-  else if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
+  if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
     //DPRINTF("extrapolate %d\n", data->TicksSinceLastUpdate);
     
     // extrapolate position
@@ -231,28 +322,39 @@ void playerSyncHandlePlayerState(Player* player)
     stateCurrent->Rotation[0] = clampAngle(stateCurrent->Rotation[0] + clampAngle(dt[0]));
     stateCurrent->Rotation[1] = clampAngle(stateCurrent->Rotation[1] + clampAngle(dt[1]));
     stateCurrent->Rotation[2] = clampAngle(stateCurrent->Rotation[2] + clampAngle(dt[2]));
-    //stateCurrent->CameraYaw += dt[2];
+    //stateCurrent->CameraYaw = clampAngle(stateCurrent->CameraYaw + clampAngle(dt[2]));
+
+    vector_copy(stateInterpolated.Position, stateCurrent->Position);
+    vector_copy(stateInterpolated.Rotation, stateCurrent->Rotation);
   }
+  #endif
 
   // compute absolute position
   VECTOR stateCurrentPosition;
-  vector_copy(stateCurrentPosition, stateCurrent->Position);
-  if (stateCurrent->GroundMoby) {
-    vector_add(stateCurrentPosition, stateCurrentPosition, stateCurrent->GroundMoby->Position);
+  vector_copy(stateCurrentPosition, stateInterpolated.Position);
+  if (stateInterpolated.GroundMoby) {
+    vector_add(stateCurrentPosition, stateCurrentPosition, stateInterpolated.GroundMoby->Position);
   }
 
   // snap position
-  float snapRadius = (stateCurrent->GroundMoby != player->Ground.pMoby) ? 4 : 49;
+  float snapRadius = (stateInterpolated.GroundMoby != player->Ground.pMoby) ? 4 : 49;
   vector_subtract(dt, stateCurrentPosition, player->PlayerPosition);
   if (vector_sqrmag(dt) > snapRadius) {
+    VECTOR dif;
+    vector_subtract(dif, stateCurrentPosition, player->PlayerPosition);
     vector_copy(player->PlayerPosition, stateCurrentPosition);
-    //vector_copy(stateCurrent->Position, data->LastReceivedPosition);
+    vector_add(player->CameraPos, player->CameraPos, dif);
+    //vector_copy(stateInterpolated.Position, data->LastReceivedPosition);
     DPRINTF("tp player %d (dist %f)\n", player->PlayerId, vector_length(dt));
   }
 
   // lerp position if distance is greater than threshold
   else if (vector_sqrmag(dt) > (0.01*0.01)) {
-    vector_lerp(player->PlayerPosition, player->PlayerPosition, stateCurrentPosition, tPos);
+    VECTOR dif;
+    vector_subtract(dif, stateCurrentPosition, player->PlayerPosition);
+    vector_scale(dif, dif, tPos);
+    vector_add(player->PlayerPosition, player->PlayerPosition, dif);
+    vector_add(player->CameraPos, player->CameraPos, dif);
   }
 
   vector_copy(playerMoby->Position, player->PlayerPosition);
@@ -260,19 +362,20 @@ void playerSyncHandlePlayerState(Player* player)
   vector_copy(player->RemoteHero.posAtSyncFrame, player->PlayerPosition);
 
   // lerp rotation
-  player->PlayerRotation[0] = lerpfAngle(player->PlayerRotation[0], stateCurrent->Rotation[0], tRot);
-  player->PlayerRotation[1] = lerpfAngle(player->PlayerRotation[1], stateCurrent->Rotation[1], tRot);
-  player->PlayerRotation[2] = lerpfAngle(player->PlayerRotation[2], stateCurrent->Rotation[2], tRot);
+  player->PlayerRotation[0] = lerpfAngle(player->PlayerRotation[0], stateInterpolated.Rotation[0], tRot);
+  player->PlayerRotation[1] = lerpfAngle(player->PlayerRotation[1], stateInterpolated.Rotation[1], tRot);
+  player->PlayerRotation[2] = lerpfAngle(player->PlayerRotation[2], stateInterpolated.Rotation[2], tRot);
   vector_copy(player->RemoteHero.receivedSyncRot, player->PlayerRotation);
 
   // lerp camera rotation
-  player->CamRot[1] = lerpfAngle(player->CamRot[1], stateCurrent->CameraPitch, tCam);
-  player->CamRot[2] = lerpfAngle(player->CamRot[2], stateCurrent->CameraYaw, tCam);
+  player->CamRot[0] = 0;
+  player->CamRot[1] = lerpfAngle(player->CamRot[1], stateInterpolated.CameraPitch, tCam);
+  player->CamRot[2] = lerpfAngle(player->CamRot[2], stateInterpolated.CameraYaw, tCam);
 
   // lerp camera position
   vector_write(player->CameraOffset, 0);
   vector_write(player->CameraRotOffset, 0);
-  player->CameraOffset[0] = -stateCurrent->CameraDistance;
+  player->CameraOffset[0] = -stateInterpolated.CameraDistance;
   vector_copy(&player->CameraMatrix[12], player->CameraPos);
   vector_copy(player->CamPos, player->CameraPos);
 
@@ -287,6 +390,17 @@ void playerSyncHandlePlayerState(Player* player)
   vector_copy(player->CameraForward, &m[0]);
   vector_copy(player->CameraDir, player->CameraForward);
 
+  // copy to player camera
+  if (player->Camera) {
+    VECTOR off;
+    matrix_unit(m);
+    matrix_rotate_y(m, m, player->CamRot[1]);
+    matrix_rotate_z(m, m, player->CamRot[2]);
+    vector_apply(off, player->CameraOffset, m);
+    vector_add(player->Camera->pos, player->CameraPos, off);
+    vector_copy(player->Camera->rot, player->CamRot);
+  }
+
   // compute inv matrix
   matrix_unit(mInv);
   matrix_rotate_y(mInv, mInv, clampAngle(-player->CamRot[1] + MATH_PI));
@@ -294,7 +408,7 @@ void playerSyncHandlePlayerState(Player* player)
   memcpy(player->CamUMtx, mInv, sizeof(VECTOR)*3);
 
   // set health
-  player->Health = stateCurrent->Health;
+  player->Health = stateInterpolated.Health;
 
   // set net camera rotation
   if (player->pNetPlayer) {
@@ -302,8 +416,8 @@ void playerSyncHandlePlayerState(Player* player)
   }
 
   // set joystick
-  float moveX = (stateCurrent->MoveX - 127) / 128.0;
-  float moveY = (stateCurrent->MoveY - 127) / 128.0;
+  float moveX = (stateInterpolated.MoveX - 127) / 128.0;
+  float moveY = (stateInterpolated.MoveY - 127) / 128.0;
   float mag = minf(1, sqrtf((moveX*moveX) + (moveY*moveY)));
   float ang = atan2f(moveY, moveX);
   *(float*)((u32)player + 0x2e08) = mag;
@@ -314,35 +428,35 @@ void playerSyncHandlePlayerState(Player* player)
 
   data->Pad[4] = 0x7F;
   data->Pad[5] = 0x7F;
-  data->Pad[6] = stateCurrent->MoveX;
-  data->Pad[7] = stateCurrent->MoveY;
+  data->Pad[6] = stateInterpolated.MoveX;
+  data->Pad[7] = stateInterpolated.MoveY;
 
   struct tNW_Player* netPlayer = player->pNetPlayer;
   if (netPlayer) {
-    netPlayer->padMessageElems[padIdx].msg.pad_data[2] = stateCurrent->PadBits & 0xFF;
-    netPlayer->padMessageElems[padIdx].msg.pad_data[3] = stateCurrent->PadBits >> 8;
+    netPlayer->padMessageElems[padIdx].msg.pad_data[2] = stateInterpolated.PadBits & 0xFF;
+    netPlayer->padMessageElems[padIdx].msg.pad_data[3] = stateInterpolated.PadBits >> 8;
     netPlayer->padMessageElems[padIdx].msg.pad_data[4] = 0x7F;
     netPlayer->padMessageElems[padIdx].msg.pad_data[5] = 0x7F;
-    netPlayer->padMessageElems[padIdx].msg.pad_data[6] = stateCurrent->MoveX;
-    netPlayer->padMessageElems[padIdx].msg.pad_data[7] = stateCurrent->MoveY;
+    netPlayer->padMessageElems[padIdx].msg.pad_data[6] = stateInterpolated.MoveX;
+    netPlayer->padMessageElems[padIdx].msg.pad_data[7] = stateInterpolated.MoveY;
   }
 
   // flail is not synced very well
   // so we're gonna pass R1 pad through to try and sync it up better
   // still not perfect
-  if (!player->timers.noInput && (stateCurrent->PadBits & PAD_R1) == 0 && player->WeaponHeldId == WEAPON_ID_FLAIL) {
+  if (!player->timers.noInput && (stateInterpolated.PadBits & PAD_R1) == 0 && player->WeaponHeldId == WEAPON_ID_FLAIL) {
     data->Pad[3] &= ~0x08;
   }
 
   // set remote received state
   player->RemoteHero.stateAtSyncFrame = player->PlayerState;
-  player->RemoteHero.receivedState = stateCurrent->State;
+  player->RemoteHero.receivedState = stateInterpolated.State;
 
   // update state
-  if (stateCurrent->StateId != data->LastStateId) {
+  if (stateInterpolated.StateId != data->LastStateId) {
     int skip = 0;
     int playerState = player->PlayerState;
-    //DPRINTF("%d => %d\n", data->LastState, stateCurrent->State);
+    //DPRINTF("%d => %d\n", data->LastState, stateInterpolated.State);
 
     // from
     switch (playerState)
@@ -354,7 +468,7 @@ void playerSyncHandlePlayerState(Player* player)
 
         // leave vehicle
         Vehicle* vehicle = player->Vehicle;
-        if (stateCurrent->State != PLAYER_STATE_VEHICLE && vehicle) {
+        if (stateInterpolated.State != PLAYER_STATE_VEHICLE && vehicle) {
 
           // driver leave
           if (vehicle->pDriver == player) {
@@ -388,16 +502,16 @@ void playerSyncHandlePlayerState(Player* player)
     }
 
     // to
-    switch (stateCurrent->State)
+    switch (stateInterpolated.State)
     {
       case PLAYER_STATE_JUMP_ATTACK:
       case PLAYER_STATE_COMBO_ATTACK:
       {
         //DPRINTF("wrench %d: pstate:%d pstatetime:%d lasttime:%d\n", gameGetTime(), playerState, player->timers.state, data->LastStateTime);
         skip = 1;
-        if (stateCurrent->State == playerState && player->timers.state < data->LastStateTime) {
-          data->LastStateId = stateCurrent->StateId;
-          data->LastState = stateCurrent->State;
+        if (stateInterpolated.State == playerState && player->timers.state < data->LastStateTime) {
+          data->LastStateId = stateInterpolated.StateId;
+          data->LastState = stateInterpolated.State;
         } else if ((player->timers.state % 10) != 0) {
           data->Pad[3] &= ~0x80;
         }
@@ -426,17 +540,17 @@ void playerSyncHandlePlayerState(Player* player)
     }
 
     if (!skip) {
-      //DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateCurrent->State, player->PlayerState);
+      //DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateInterpolated.State, player->PlayerState);
 
       if (player->PlayerSubstate > 1) {
         //DPRINTF("substate fix %d=>0\n", player->PlayerSubstate);
         player->PlayerSubstate = 0;
       }
 
-      int force = playerStateIsDead(player->PlayerState) && !playerStateIsDead(stateCurrent->State);
-      vtable->UpdateState(player, stateCurrent->State, 1, force, 1);
-      data->LastStateId = stateCurrent->StateId;
-      data->LastState = stateCurrent->State;
+      int force = playerStateIsDead(player->PlayerState) && !playerStateIsDead(stateInterpolated.State);
+      vtable->UpdateState(player, stateInterpolated.State, 1, force, 1);
+      data->LastStateId = stateInterpolated.StateId;
+      data->LastState = stateInterpolated.State;
 
     } else {
       data->LastStateTime = player->timers.state;
@@ -454,21 +568,21 @@ void playerSyncHandlePlayerState(Player* player)
 
   //
   if (player->pNetPlayer && player->pNetPlayer->pNetPlayerData) {
-    player->pNetPlayer->pNetPlayerData->handGadget = stateCurrent->GadgetId;
+    player->pNetPlayer->pNetPlayerData->handGadget = stateInterpolated.GadgetId;
     player->pNetPlayer->pNetPlayerData->lastKeepAlive = data->LastNetTime;
     player->pNetPlayer->pNetPlayerData->timeStamp = data->LastNetTime;
-    player->pNetPlayer->pNetPlayerData->hitPoints = stateCurrent->Health;
+    player->pNetPlayer->pNetPlayerData->hitPoints = stateInterpolated.Health;
     vector_copy(player->pNetPlayer->pNetPlayerData->vPosition, player->PlayerPosition);
 
     // force weapon level
-    if (player->GadgetBox && stateCurrent->GadgetId >= 0 && stateCurrent->GadgetId < 32) {
-      int level = player->GadgetBox->Gadgets[stateCurrent->GadgetId].Level;
-      if (level != stateCurrent->GadgetLevel) {
-        player->GadgetBox->Gadgets[stateCurrent->GadgetId].Level = stateCurrent->GadgetLevel;
+    if (player->GadgetBox && stateInterpolated.GadgetId >= 0 && stateInterpolated.GadgetId < 32) {
+      int level = player->GadgetBox->Gadgets[stateInterpolated.GadgetId].Level;
+      if (level != stateInterpolated.GadgetLevel) {
+        player->GadgetBox->Gadgets[stateInterpolated.GadgetId].Level = stateInterpolated.GadgetLevel;
 
         // update bangles if gadget equipped
-        if (player->Gadgets[0].id == stateCurrent->GadgetId && player->Gadgets[0].pMoby)
-          weaponMobyUpdateBangles(player->Gadgets[0].pMoby, stateCurrent->GadgetId, stateCurrent->GadgetLevel);
+        if (player->Gadgets[0].id == stateInterpolated.GadgetId && player->Gadgets[0].pMoby)
+          weaponMobyUpdateBangles(player->Gadgets[0].pMoby, stateInterpolated.GadgetId, stateInterpolated.GadgetLevel);
       } 
     }
   }
@@ -521,10 +635,25 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
   PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[msg.PlayerIdx];
 
   // move into buffer
-  memcpy(&data->StateUpdates[msg.CmdId], &unpacked, sizeof(unpacked));
-  int cmdDt = 1; //playerSyncCmdDelta(data->StateUpdateCmdId, unpacked.CmdId);
+  int cmdDt = playerSyncCmdDelta(data->StateUpdateCmdId, unpacked.CmdId);
   //DPRINTF("%d => %d (%d) %08X\n", data->StateUpdateCmdId, unpacked.CmdId, cmdDt, (u32)&data->StateUpdates[msg.CmdId]);
   if (cmdDt > 0) {
+
+    int bufIdx = playerSyncCmdGetBufIndex(unpacked.CmdId);
+    memcpy(&data->StateUpdates[bufIdx], &unpacked, sizeof(unpacked));
+
+    // create sub items
+    int startBufIdx = playerSyncCmdGetBufIndex(data->StateUpdateCmdId);
+    int nextId = playerSyncGetCmdId(data->StateUpdateCmdId + 1);
+    while (nextId != unpacked.CmdId) {
+      int nextBufIdx = playerSyncCmdGetBufIndex(nextId);
+      if (!data->StateUpdates[nextBufIdx].Valid) {
+        float t = playerSyncCmdDelta(data->StateUpdateCmdId, nextId) / (float)cmdDt;
+        playerStateUpdateLerp(&data->StateUpdates[nextBufIdx], &data->StateUpdates[startBufIdx], &data->StateUpdates[bufIdx], t);
+      }
+      nextId = playerSyncGetCmdId(nextId + 1);
+    }
+
     data->LastNetTime = unpacked.GameTime;
     data->StateUpdateCmdId = unpacked.CmdId;
     data->TicksSinceLastUpdate = 0;
@@ -594,7 +723,7 @@ void playerSyncBroadcastPlayerState(Player* player)
   msg.GadgetLevel = -1;
   msg.State = player->PlayerState;
   msg.StateId = data->LastStateId;
-  msg.CmdId = data->StateUpdateCmdId = (data->StateUpdateCmdId + 1) % CMD_BUFFER_SIZE;
+  msg.CmdId = data->StateUpdateCmdId = playerSyncGetCmdId(data->StateUpdateCmdId + 1);
 
   // check if we're on a ground moby
   // if so, sync relative position
@@ -659,7 +788,7 @@ void playerSyncTick(void)
     return;
   }
 
-#if DEBUG
+#if DEBUG || RELOADPATCH
   // always on
   gameConfig.grNewPlayerSync = 1;
 #endif

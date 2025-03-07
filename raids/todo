@@ -138,6 +138,22 @@ Controller disable/enable certain weapons/gadgets (aren't equippable)
 
 ++Have mobs prefer targets in aggro zone, including even when already locked onto target
 
+Add Weapon Mods
+  Acid
+  Napalm
+  Minibomb
+  Freeze
+  Will O' Wisp
+  Alpha mod
+  Proficiency buff
+  
+Add Contracts
+  Cost money to buy
+  Only one active at a time
+  Involves beating missions / getting certain # of kills w/ weapon on mob
+  Reward is wep XP, bolts, boss fight?, or contract token (used to buy boss fight)
+  Is active contract shared across party?
+
 ## 2/17/2025
 ++Inventory - Migrate "equipped index" from int[] to copies of items (with UIDs)
 ++Inventory - Query each tab, add pagination to navigate entire collection

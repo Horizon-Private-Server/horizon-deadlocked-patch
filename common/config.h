@@ -154,6 +154,8 @@ typedef struct PatchGameConfig
   char prHeadbuttFriendlyFire;
   char prChargebootForever;
   char drFreecam;
+  char drNoRank;
+  char drLevelReload;
   SurvivalConfig_t survivalConfig;
   PayloadConfig_t payloadConfig;
   TrainingConfig_t trainingConfig;

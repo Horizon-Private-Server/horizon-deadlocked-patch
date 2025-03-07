@@ -14,6 +14,7 @@
 #include <libdl/pad.h>
 #include <libdl/collision.h>
 #include <libdl/color.h>
+#include <libdl/moby.h>
 #include <libdl/utils.h>
 #include "messageid.h"
 #include "config.h"
@@ -1403,6 +1404,210 @@ float runRngMarteCarloSim(float probability, int count)
   return percentYes;
 }
 
+void* myMobyProc(Moby* mobyInstances, void* mobyAnimPtr, int mobyCount, int flags)
+{
+  return ((void* (*)(Moby*, void*, int, int))0x004fec20)(mobyInstances, mobyAnimPtr, mobyCount, flags);
+  char backup[0x1d0];
+  memcpy(backup, (void*)0x0022CBC0, 0x1d0);
+
+
+  float* cameraPos = (float*)0x0022CD00;
+  float* cameraR = (float*)0x0022CD10;
+
+  // face down from player
+  //cameraPos[2] += 100;
+  //vector_write(cameraR, 0);
+  //cameraR[1] = MATH_PI/2;
+  
+  // recompute camera matrices
+  //((void (*)(void))0x004c0000)();
+
+  // force fov
+  float fov = *(float*)0x0023D4B0;
+  //*(float*)0x0023D4B0 = 1024;
+  //((void (*)(void))0x004c0d18)();
+  //((void (*)(int))0x004c2f98)(0);
+
+  // moby proc
+  int batchsize = 240;
+  int count = 240; //(mobyListGetEnd() - mobyListGetStart()); // / sizeof(Moby);
+  int i;
+  for (i = 0; i < count; i += batchsize) {
+    int cnt = count - i;
+    if (cnt > batchsize) cnt = batchsize;
+    printf("MobyProc(%08X, %08X, %d/%d, %d)", mobyInstances + i, mobyAnimPtr, cnt + i, count, flags);
+    ((void (*)(Moby*, int, int))0x004f8d08)(mobyInstances + i, cnt, flags);
+    mobyAnimPtr = *(void**)0x002227a8;
+    //mobyAnimPtr = ((void* (*)(Moby*, void*, int, int))0x004fec20)(mobyInstances + i, mobyAnimPtr, cnt, flags);
+    printf(" => %08X\n", mobyAnimPtr);
+  }
+  
+  //printf("MobyProc(%08X, %08X, %d (%d), %d) => %08X\n", mobyInstances, mobyAnimPtr, mobyCount, count, flags, mobyAnimPtr);
+
+  // force fov
+  //*(float*)0x0023D4B0 = fov;
+  //((void (*)(int))0x004c2f98)(0);
+
+  //23D4B0
+  memcpy((void*)0x0022CBC0, backup, 0x1d0);
+  return mobyAnimPtr;
+}
+
+void onBeforeDrawMobys(void)
+{
+  int count = 0;
+  Moby mobysToDraw[20] = {};
+
+  float* cameraPos = (float*)0x0022CD00;
+  float* cameraForw = (float*)0x0022CD30;
+
+  // collect mobys
+  int i;
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->PlayerMoby) continue;
+
+    Moby* moby = player->PlayerMoby;
+    if ((moby->ModeBits & 1) == 0) {
+      vector_add(moby->Position, cameraPos, cameraForw);
+      //memcpy(&mobysToDraw[count], moby, sizeof(Moby));
+      //mobysToDraw[count].PChain = moby;
+      //mobysToDraw[count].Position[2] += 2;
+      //count++;
+      //moby->ModeBits |= 1; // hide
+    }
+  }
+
+  if (count > 0) {
+
+    // draw
+    ((void (*)(void))0x004f8c00)(); // DrawMobysSetup
+    ((void (*)(void))0x004f8b78)(); // InitMobyClassDists
+    ((void (*)(void))0x004f8ba0)(); // StashMobyClassDists
+
+    printf("draw %d\n", count);
+    ((void (*)(Moby*, int, int))0x004f8d08)(mobysToDraw, count, 1);
+    
+    ((void (*)(void))0x004f8bd0)(); // RestoreMobyClassDists
+    ((void (*)(void))0x004f8da8)(); // DrawMobysCleanup
+  }
+
+  // draw mobys
+  ((void (*)(void))0x004f8e08)();
+
+  // unhide
+  for (i = 0; i < count; ++i) {
+    //mobysToDraw[i].PChain->ModeBits &= ~1;
+  }
+}
+
+void onAfterDrawMobys(void)
+{
+  return;
+  ((void (*)(void))0x004f8c00)(); // DrawMobysSetup
+  ((void (*)(void))0x004f8b78)(); // InitMobyClassDists
+  ((void (*)(void))0x004f8ba0)(); // StashMobyClassDists
+
+  Moby* moby = playerGetFromSlot(0)->PlayerMoby;
+  moby->Position[2] += 2;
+  ((void (*)(Moby*, int, int))0x004f8d08)(moby, 1, 0);
+  moby->Position[2] -= 2;
+  
+  ((void (*)(void))0x004f8bd0)(); // RestoreMobyClassDists
+  ((void (*)(void))0x004f8da8)(); // DrawMobysCleanup
+}
+
+long myTimebaseGetSystemTime(void)
+{
+  long systemTime = timerGetSystemTime();
+  long* hostTicks = (long*)(0x00090000 + 0x38);
+  
+  long time = *hostTicks;
+  if (time == 0)
+    return systemTime;
+
+  return time; // * SYSTEM_TIME_TICKS_PER_MS;
+}
+
+void myTimebaseGetLocalTimeMs(int* out)
+{
+  long* hostTicks = (long*)(0x00090000 + 0x38);
+
+  if (out) {
+    *out = (int)(*hostTicks / SYSTEM_TIME_TICKS_PER_MS);
+  }
+}
+
+int myTimebaseUpdate(void)
+{
+  u32 value = ((u32 (*)(void))0x01eabae8)();
+  u32* secs = (u32*)0x001b23e8;
+  u32* counts = (u32*)0x001b23ec;
+  u32* usecs = (u32*)0x001b23f0;
+  u32* lastValue = (u32*)0x001b23f4;
+  int dt = value - *lastValue;
+
+  long hostTicks = *(long*)(0x00090000 + 0x38);
+  long maxUsecs = 1000 * 1000;
+  
+  *secs = hostTicks / (SYSTEM_TIME_TICKS_PER_MS * 1000);
+  *usecs = ((hostTicks * 1000) / SYSTEM_TIME_TICKS_PER_MS) % maxUsecs;
+  *counts += dt;
+
+  *lastValue = value;
+  return 0;
+}
+
+void runFrameRateVariationTest(void)
+{
+  static int lastGameTime = 0;
+  static long lastSystemTime = 0;
+  static long lastHostTime = 0;
+  
+  int* globalTimebase = (int*)0x00168ba8;
+  int* gameTime = (int*)0x00172378;
+  long* hostMs = (long*)(0x00090000 + 0x38);
+
+  int gDt = gameGetTime() - lastGameTime;
+  long sDt = (timerGetSystemTime() - lastSystemTime) / SYSTEM_TIME_TICKS_PER_MS;
+  long hDt = (*hostMs - lastHostTime) / SYSTEM_TIME_TICKS_PER_MS;
+  int dt = (int)(hDt - sDt);
+
+  char buf[64];
+  snprintf(buf, sizeof(buf), "%.3f %d %lld %lld %d", gameGetTime()/1000.0, gDt, sDt, hDt, dt);
+  gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  
+  // always ignore timebase query
+  POKE_U32(0x01eabd60, 0x10000003);
+  //POKE_U32(0x0015B118, 0); // disable timebanditshack
+  if (padGetButton(0, PAD_CROSS)) {
+    POKE_U32(0x01eabd60, 0);
+  }
+
+  lastGameTime = gameGetTime();
+  lastSystemTime = timerGetSystemTime();
+  lastHostTime = *hostMs;
+
+  u32* secs = (u32*)0x001b23e8;
+  u32* usecs = (u32*)0x001b23f0;
+  snprintf(buf, sizeof(buf), "%lld %lld", *secs, *usecs);
+  gfxHelperDrawText(15, 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+
+  // hooks
+  //HOOK_JAL(0x0015acc8, &myTimebaseGetSystemTime);
+  //HOOK_JAL(0x0015ac6c, &myTimebaseGetSystemTime);
+  //HOOK_JAL(0x01eabc20, &myTimebaseGetLocalTimeMs);
+  //HOOK_JAL(0x01eab6c0, &myTimebaseUpdate);
+  //POKE_U32(0x01eab21c, 0x087AAC8A);
+  if (isUnloading) {
+    //POKE_U32(0x01eab6c0, 0x0C7AAEBE);
+    //POKE_U32(0x0015acc8, 0x0C04B8DC);
+    //POKE_U32(0x0015ac6c, 0x0C04B8DC);
+    //POKE_U32(0x01eabc20, 0x0C7AAC84);
+  }
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -1425,7 +1630,7 @@ void runTestLogic(void)
   //   }
   // }
 
-
+  //runFrameRateVariationTest();
   //runSystemTime();
   if (isInGame()) {
     // if (padGetButtonDown(0, PAD_DOWN) > 0) {
@@ -1446,6 +1651,19 @@ void runTestLogic(void)
     //   );
 
     //   DPRINTF("lightning moby %08X\n", m);
+    // }
+
+    // animate all mobys, always
+    // POKE_U32(0x004AEC08, 0x0C12BD0C);
+    // POKE_U32(0x004f8e54, 0x0C13FB08);
+    // if (isUnloading) {
+    //   POKE_U32(0x004f8e54, 0x0C13FB08);
+    //   POKE_U32(0x004f8e68, 0x03E00008);
+    //   POKE_U32(0x004c3448, 0x0C13E382);
+    // } else {
+    //   HOOK_JAL(0x004f8e54, &myMobyProc);
+    //   HOOK_J(0x004f8e68, &onAfterDrawMobys);
+    //   HOOK_JAL(0x004c3448, &onBeforeDrawMobys);
     // }
 
     //runCubicLineDraw();
@@ -1483,12 +1701,12 @@ void runTestLogic(void)
     //     0, 0, 0, 0, 1, 0, 0, 0);
     // }
 
-    for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-      Player* p = playerGetFromSlot(i);
-      if (!p) continue;
-      if (p->Health < 50)
-        p->Health = 50;
-    }
+    // for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    //   Player* p = playerGetFromSlot(i);
+    //   if (!p) continue;
+    //   if (p->Health < 50)
+    //     p->Health = 50;
+    // }
 
     if (padGetButton(0, PAD_L1 | PAD_CIRCLE) > 0) {
       *(float*)0x00347BD8 = 0.125;

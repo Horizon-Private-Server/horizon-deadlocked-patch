@@ -200,6 +200,10 @@ void mapHopToLoadingOnlineWadDraw(int a0)
 //------------------------------------------------------------------------------
 void mapHopTo(CustomMapDef_t* def)
 {
+  static int inHopTo = 0;
+  if (inHopTo) return;
+
+  inHopTo = 1;
   int mapId = def->BaseMapId;
 
   HOOK_J_OP(0x004e4180, &mapHopGetMsgString, 0);
@@ -258,7 +262,9 @@ void mapHopTo(CustomMapDef_t* def)
     //printf("reset bCallbackCalled %d\n", i);
   }
 
+  PATCH_INTEROP->PatchStateContainer->AllClientsReady = 0;
   gs->PlayerCountAtStart = gs->PlayerCount;
+  gs->GameLoadStartTime = gameGetTime();
   //gs->GameLoadStartTime = -1;
   //gs->GameStartTime = gameGetTime();
   //printf("players at start %d\n", gs->PlayerCountAtStart);
@@ -313,7 +319,7 @@ void mapHopTo(CustomMapDef_t* def)
 
   // load
   ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
-  DPRINTF("load %d %s\n", mapId, def->Filename);
+  printf("load %d %s\n", mapId, def->Filename);
 
   // reset FadeToBlack draw hook
   HOOK_JAL(0x004c4a94, 0x00138d70);
@@ -329,6 +335,8 @@ void mapHopTo(CustomMapDef_t* def)
       }
     }
   }
+
+  inHopTo = 0;
 }
 
 //------------------------------------------------------------------------------

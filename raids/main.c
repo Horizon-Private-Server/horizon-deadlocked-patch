@@ -162,6 +162,11 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
 	expBar->Color2 = hudGetTeamColor(player->Team, 2);
 	expBar->Color3 = hudGetTeamColor(player->Team, 0);
 
+  // make sure dzo gets xp bar
+  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO) {
+    *(float*)0x002ADC4C = 0.2275 * clamp(expPercent, 0, 1);
+  }
+  
 	struct HUDWidgetTextObject* healthText = (struct HUDWidgetTextObject*)hudCanvasGetObject(canvas, 0xF000010E);
 	if (!healthText) {
 		//DPRINTF("no health text %d\n", localPlayerIndex);
@@ -536,13 +541,13 @@ void processPlayer(int pIndex) {
 		heldWeapon = player->WeaponHeldId;
 
 	  // set max xp
-		u64 xp = 0; // mapConfig->BankVTable->GetXP();
+		u32 xp = mapConfig->BankVTable->GetXP();
     int level = getLevelFromXp(xp);
-		u64 lastXp = getXpForLevel(level);
-		u64 nextXp = getXpForLevel(level + 1);
+		u32 lastXp = getXpForLevel(level);
+		u32 nextXp = getXpForLevel(level + 1);
     if (xp < lastXp) xp = lastXp;
-    float xpPerc = (float)((xp - lastXp) / (double)(nextXp - lastXp));
-    //DPRINTF("lvl:%d perc:%f %ld=>%ld xp:%ld\n", level, xpPerc, lastXp, nextXp, xp);
+    float xpPerc = (float)((xp - lastXp) / (float)(nextXp - lastXp));
+    //printf("lvl:%d perc:%f %'d=>%'d xp:%'d GetXP:%08X\n", level, xpPerc, lastXp, nextXp, xp, (u32)mapConfig->BankVTable->GetXP);
 		setPlayerEXP(localPlayerIndex, xpPerc);
 
 		// decrement flail ammo while spinning flail

@@ -141,8 +141,11 @@ void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
 void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
 void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
-#ifdef DEBUG
+#ifdef RELOADPATCH
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
+#endif
+
+#ifdef DEBUG
 void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element);
 #endif
 
@@ -254,8 +257,10 @@ MenuElem_ListData_t dataFixedCycleOrder = {
 
 // general tab menu items
 MenuElem_t menuElementsGeneral[] = {
-#ifdef DEBUG
+#ifdef RELOADPATCH
   { "Redownload patch", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadPatchSelectHandler },
+#endif
+#ifdef DEBUG
   { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
   { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler, "Vote to end the game. If a team/player is in the lead they will win." },
@@ -283,7 +288,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale, "Toggles between half and full screen expanded radar." },
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom, "Tweaks the expanded radar zoom." },
   { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom, "Tweaks the minimized radar zoom." },
-  { "NPS Lag Compensation", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableNPSLagComp, "When New Player Sync is enabled, attempt to reduce latency of player movements." },
+  // { "NPS Lag Compensation", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableNPSLagComp, "When New Player Sync is enabled, attempt to reduce latency of player movements." },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
   { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic, "When On, enables all music tracks in game. Currently not supported in Survival." },
   { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot, "Toggles tapping L2 once to chargeboot." },
@@ -750,8 +755,10 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Healthboxes", listActionHandler, menuStateHandler_SettingStateHandler, &dataHealthBoxes, "Whether health pickups are enabled, or if there is a box enclosure that must be broken first before picking up." },
   { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames, "Disables in game nametags." },
   { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync, "Replaces the Insomniac player sync netcode with a better custom Horizon implementation. Reduces player teleporting, rubberbanding, and jittery movement. Known on rare occasions to freeze PS2s." },
+#if QUICKCHAT
   { "Quick Chat", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grQuickChat, "Enables in game quick chat with the D-Pad." },
-  { "Radar Short Distance", listActionHandler, menuStateAlwaysEnabledHandler, &dataRadarShortDistance, "When radar is Short, multiplies the distance that enemies will appear on the radar." },
+#endif
+  { "Radar Short Distance", listActionHandler, menuStateHandler_SettingStateHandler, &dataRadarShortDistance, "When radar is Short, multiplies the distance that enemies will appear on the radar." },
   { "Radar Short Shared", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFogOfWarRadar, "When radar is Short, enemies will appear on your radar when teammates are near them." },
   { "Respawn Override", listActionHandler, menuStateAlwaysEnabledHandler, &dataRespawnOverride, "Overrides Create Game screen Respawn Time to the configured value (in seconds)." },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s, "Configures V2 weapon upgrades to be disabled, on (default), or always on (spawn with v2 weapons)." },
@@ -772,6 +779,8 @@ MenuElem_t menuElementsGameSettings[] = {
   // DEV RULES
   { "Dev Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   { "Freecam", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drFreecam, "Enables freecam mod. Use D-Pad Up and L1 to activate." },
+  { "Don't Save Stats", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drNoRank, "When enabled, stats like Rank, Kills, Deaths, etc will not be saved after this game." },
+  { "Reload Custom Map", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drLevelReload, "When enabled, pressing L1 + Up + Circle will reload the custom map." },
 };
 
 // game settings tab menu items
@@ -930,7 +939,7 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state)
   }
 }
 
-#ifdef DEBUG
+#ifdef RELOADPATCH
 
 // 
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
@@ -943,6 +952,10 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
   if (lobbyConnection)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
 }
+
+#endif
+
+#ifdef DEBUG
 
 // 
 void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
@@ -3037,6 +3050,7 @@ void configMenuDisable(void)
         gameConfig.grV2s = 0;
         gameConfig.grVampire = 0;
         gameConfig.grFogOfWarRadar = 1;
+        gameConfig.grRadarShortDistance = 1;
         gameConfig.grBetterFlags = 1;
         gameConfig.grBetterHills = 1;
         gameConfig.grFusionShotsAlwaysHit = 1;
@@ -3089,4 +3103,11 @@ void configMenuEnable(void)
   tabElements[selectedTabItem].stateHandler(&tabElements[selectedTabItem], &state);
   if ((state & ELEMENT_SELECTABLE) == 0 || (state & ELEMENT_VISIBLE) == 0)
     selectedTabItem = 0;
+}
+
+
+//------------------------------------------------------------------------------
+int configHasDevRules(void)
+{
+  return gameConfig.drFreecam || gameConfig.drLevelReload || gameConfig.drNoRank;
 }

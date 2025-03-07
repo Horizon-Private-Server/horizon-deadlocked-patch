@@ -153,7 +153,7 @@ int getLevelFromXp(u32 xp)
   if (xp < 0) return 0;
 
   int level = 0;
-  while (getXpForLevel(level) < xp)
+  while (getXpForLevel(level+1) < xp)
     ++level;
 
   return level;
