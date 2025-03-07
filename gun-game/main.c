@@ -66,6 +66,13 @@ char GunGameWeaponIds[] =
 	WEAPON_SLOT_FUSION_RIFLE,
 	WEAPON_SLOT_MINE_LAUNCHER,
 	WEAPON_SLOT_OMNI_SHIELD,
+	WEAPON_SLOT_B6,
+	WEAPON_SLOT_MAGMA_CANNON,
+	WEAPON_SLOT_ARBITER,
+	WEAPON_SLOT_FLAIL,
+	WEAPON_SLOT_FUSION_RIFLE,
+	WEAPON_SLOT_MINE_LAUNCHER,
+	WEAPON_SLOT_OMNI_SHIELD,
 	WEAPON_SLOT_WRENCH,
 	-1
 };
@@ -73,7 +80,9 @@ char GunGameWeaponIds[] =
 /*
  * 
  */
-const int GUN_INDEX_END = 9;
+const int GUN_INDEX_END = sizeof(GunGameWeaponIds) - 1;
+const int GUN_INDEX_RANDOM_START = 1;
+const int GUN_INDEX_RANDOM_END = (sizeof(GunGameWeaponIds) - 1) - 1;
 
 /*
  * 
@@ -551,7 +560,7 @@ void initialize(PatchStateContainer_t* gameState)
 
 	// Randomize middle tier weapons
 	u32 seed = gameSettings->SpawnSeed;
-	j = 1;
+	j = GUN_INDEX_RANDOM_START;
 	while (seed)
 	{
 		// If lowest bit is set then swap with next id
@@ -566,8 +575,8 @@ void initialize(PatchStateContainer_t* gameState)
 		++j;
 		
 		// Ensure id is within the randomize bounds
-		if (j > 5)
-			j = 1;
+		if (j >= (GUN_INDEX_RANDOM_END-1))
+			j = GUN_INDEX_RANDOM_START;
 
 		// Shift seed down
 		seed >>= 1;
@@ -814,6 +823,9 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 	// 
 	updateGameState(gameState);
+
+  // disable ranking
+  gameSetIsGameRanked(0);
 
 	// scoreboard
 	switch (activeId)

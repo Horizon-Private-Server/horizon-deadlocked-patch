@@ -463,6 +463,7 @@ MenuElem_OrderedListData_t dataCustomModes = {
     { CUSTOM_MODE_GUN_GAME, "Gun Game" },
     { CUSTOM_MODE_HNS, "Hide and Seek" },
     { CUSTOM_MODE_INFECTED, "Infected" },
+    { CUSTOM_MODE_OITC, "One in the Chamber" },
     { CUSTOM_MODE_PAYLOAD, "Payload" },
     { CUSTOM_MODE_RAIDS, "Raids" },
     { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
