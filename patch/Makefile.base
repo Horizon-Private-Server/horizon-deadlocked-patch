@@ -7,7 +7,7 @@ EE_INCS := -I../common -I../libdl/include
 EE_LDFLAGS = -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 #EE_DEFS += -DDEBUG
-EE_DEFS += -DRELOADPATCH
+#EE_DEFS += -DRELOADPATCH
 EE_DEFS += -DSCAVENGER_HUNT
 #EE_DEFS += -DTWEAKERS
 #EE_DEFS += -DDEV

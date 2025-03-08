@@ -2,7 +2,7 @@
  * FILENAME :		game.c
  * 
  * DESCRIPTION :
- * 		TEAM DEFENDER.
+ * 		ONE IN THE CHAMBER.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -230,19 +230,19 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
 		return;
 
   // force ffa
-  int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    if (gameSettings->PlayerClients[i] >= 0) {
-      gameSettings->PlayerTeams[i] = i;
-    }
-  }
+  //int i;
+  //for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  //  if (gameSettings->PlayerClients[i] >= 0) {
+  //    gameSettings->PlayerTeams[i] = i;
+  //  }
+  //}
 	
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 0;
+	//gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 0;
