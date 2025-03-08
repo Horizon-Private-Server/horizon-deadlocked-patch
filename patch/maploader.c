@@ -319,7 +319,7 @@ void mapHopTo(CustomMapDef_t* def)
 
   // load
   ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
-  printf("load %d %s\n", mapId, def->Filename);
+  DPRINTF("load %d %s\n", mapId, def->Filename);
 
   // reset FadeToBlack draw hook
   HOOK_JAL(0x004c4a94, 0x00138d70);

@@ -266,6 +266,12 @@ typedef struct SetLobbyClientPatchConfigRequest {
   PatchConfig_t Config;
 } SetLobbyClientPatchConfigRequest_t;
 
+typedef struct ClientReadyMessage
+{
+	int clientId;
+	int remoteClientsReadyMask;
+} ClientReadyMessage_t;
+
 //
 enum PlayerStateConditionType
 {
@@ -3367,28 +3373,32 @@ void runVoteToEndLogic(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void onClientReady(int clientId)
+void onClientReady(int clientId, int remoteClientsReadyMask)
 {
   GameSettings* gs = gameGetSettings();
   int i;
   int bit = 1 << clientId;
+
+  // set ready
+  patchStateContainer.ClientsReadyMask |= bit;
+  DPRINTF("received client ready from %d (mask %02X)\n", clientId, patchStateContainer.ClientsReadyMask);
 
   // if client is still sending ready but we've already got their ready
   // then they must have missed our ready (or someone's)
   // so resend just to be sure they got it
   if (patchStateContainer.AllClientsReady) {
     int myClientId = gameGetMyClientId();
-    if (myClientId != clientId && (patchStateContainer.ClientsReadyMask & myClientId)) {
-      int bit = 1 << myClientId;
-      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &myClientId);
+    int myBit = 1 << myClientId;
+    if (myClientId != clientId && (remoteClientsReadyMask & myBit) == 0 && (patchStateContainer.ClientsReadyMask & myBit)) {
+      ClientReadyMessage_t msg = {
+        .clientId = myClientId,
+        .remoteClientsReadyMask = patchStateContainer.ClientsReadyMask
+      };
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), clientId, CUSTOM_MSG_CLIENT_READY, sizeof(msg), &msg);
     }
   }
 
-  // set ready
   patchStateContainer.AllClientsReady = 0;
-  patchStateContainer.ClientsReadyMask |= bit;
-  DPRINTF("received client ready from %d (mask %02X)\n", clientId, patchStateContainer.ClientsReadyMask);
-
   if (!gs)
     return;
 
@@ -3422,11 +3432,11 @@ void onClientReady(int clientId)
  */
 int onClientReadyRemote(void * connection, void * data)
 {
-  int clientId;
-  memcpy(&clientId, data, sizeof(clientId));
-  onClientReady(clientId);
+  ClientReadyMessage_t msg;
+  memcpy(&msg, data, sizeof(msg));
+  onClientReady(msg.clientId, msg.remoteClientsReadyMask);
 
-  return sizeof(clientId);
+  return sizeof(msg);
 }
 
 /*
@@ -3454,11 +3464,15 @@ int sendClientReady(int timeLastSent)
   if ((patchStateContainer.ClientsReadyMask & bit) && dt < TIME_SECOND)
     return timeLastSent;
 
-  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, 4, &clientId);
+  ClientReadyMessage_t msg = {
+    .clientId = clientId,
+    .remoteClientsReadyMask = patchStateContainer.ClientsReadyMask
+  };
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_CLIENT_READY, sizeof(msg), &msg);
   DPRINTF("send client ready (%d)\n", clientId);
 
   // locally
-  onClientReady(clientId);
+  onClientReady(clientId, patchStateContainer.ClientsReadyMask);
 
   return gameGetTime();
 }
@@ -5710,10 +5724,10 @@ int main (void)
     POKE_U32(0x004b80a0, 0x00622023);
 
     // hook GETHIT_SURF state to handle taking damage
-    HOOK_JAL(0x0060603c, &onMiscStateUpdateGetIsSwimming);
+    //HOOK_JAL(0x0060603c, &onMiscStateUpdateGetIsSwimming);
 
     // force remote camera pos to -6 cam dist when NPS is off
-    POKE_U16(0x006122C8, 0xC0C0);
+    //POKE_U16(0x006122C8, 0xC0C0);
 
     // allow local flinching before remote flinch for chargebooting targets
     POKE_U32(0x005E1C94, 0);
