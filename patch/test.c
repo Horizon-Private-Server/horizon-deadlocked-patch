@@ -1608,6 +1608,184 @@ void runFrameRateVariationTest(void)
   }
 }
 
+//--------------------------------------------------------------------------
+static VECTOR bounceVels[GAME_MAX_PLAYERS] = {};
+static VECTOR lastGoodPos[GAME_MAX_PLAYERS] = {};
+static VECTOR lastGoodPos2[GAME_MAX_PLAYERS] = {};
+
+void onB6Explode(Moby* moby)
+{
+  const float MAX_DIST = 10;
+  const float POWER = 30;
+  const float RAMP = 2;
+
+  Player** players = playerGetAll();
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && playerIsConnected(player)) {
+      float dist = vector_distance(player->PlayerPosition, moby->Position);
+      if (dist < 10) {
+        
+        VECTOR thrust;
+        vector_subtract(thrust, player->PlayerPosition, moby->Position);
+        thrust[2] = 2;
+        vector_normalize(thrust, thrust);
+        vector_scale(thrust, thrust, POWER * powf((MAX_DIST - dist) / MAX_DIST, RAMP));
+        thrust[0] = thrust[1] = 0;
+        thrust[2] = POWER * powf((MAX_DIST - dist) / MAX_DIST, RAMP);
+        vector_add(bounceVels[i], bounceVels[i], thrust);
+        printf("hit %f ", dist); vector_print(thrust); printf("\n");
+      }
+    }
+  }
+}
+
+void bounceReflect(int i, VECTOR normal)
+{
+  VECTOR n;
+
+  vector_write(bounceVels[i], 0);
+  return;
+
+  float d = vector_innerproduct(bounceVels[i], normal);
+  if (d >= 0.1) {
+    // do nothing
+    // normal facing same dir of velocity
+  } else if (fabsf(d) < 0.1) {
+    //vector_write(bounceVels[i], 0);
+    vector_scale(bounceVels[i], bounceVels[i], 0.5);
+  } else {
+    vector_normalize(n, normal);
+    vector_reflect(bounceVels[i], bounceVels[i], n);
+    vector_scale(bounceVels[i], bounceVels[i], 0.9);
+  }
+}
+
+void playerOnPushedIntoWall(Player* player)
+{
+  if (!player || !player->SkinMoby || !player->PlayerMoby) return;
+  
+  int i = player->PlayerId;
+  printf("contact:%d\n", player->Coll.contact);
+  if (player->Coll.contact) {
+    bounceReflect(i, player->Coll.normal);
+  } else if (player->Ground.onGood) {
+    bounceReflect(i, player->Ground.normal);
+  }
+
+  // move player out of clipped wall
+  // using lastGoodPos doesn't always return us to before the clip
+  if (1) {
+    playerSetPosRot(player, lastGoodPos2[i], player->PlayerRotation);
+  }
+}
+
+void runBounce(void)
+{
+  int i;
+
+  // jump height min/max
+  //POKE_U16(0x006038E4, 0x4040);
+  //POKE_U16(0x0060391C, 0x4120);
+
+  // patch mobs pushing you into walls and killing you
+  POKE_U32(0x005e4188, 0);
+  POKE_U32(0x005e419c, 0);
+  HOOK_JAL(0x005e41bc, &playerOnPushedIntoWall);
+
+  VECTOR gravity = {0,0,-1 * MATH_DT,0};
+
+  // move speed 2x
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && playerIsConnected(player)) {
+      player->Speed = 1;
+
+      if (playerIsDead(player)) {
+        vector_write(bounceVels[i], 0);
+      }
+
+      if (player->IsLocal && padGetButtonDown(0, PAD_UP) > 0) {
+        VECTOR vup = {1,1,1,0};
+        vector_scale(vup, vup, 20);
+        vector_add(bounceVels[i], bounceVels[i], vup);
+      }
+
+      if (vector_sqrmag(bounceVels[i]) > 0.01) {
+        if (player->Coll.contact || player->Ground.onGood) {
+          vector_write(bounceVels[i], 0);
+        }
+
+        float* extVel = (float*)((u32)player + 0x130 + 0x10);
+        vector_scale(extVel, bounceVels[i], MATH_DT);
+        vector_add(bounceVels[i], bounceVels[i], gravity);
+        vector_scale(bounceVels[i], bounceVels[i], 0.99);
+
+      }
+
+      if (0 && vector_sqrmag(bounceVels[i]) > 0.01) {
+        float* extVel = (float*)((u32)player + 0x130 + 0x10);
+        
+        if (CollLine_Fix(lastGoodPos[i], player->PlayerPosition, COLLISION_FLAG_IGNORE_DYNAMIC, player->PlayerMoby, NULL) > 0) {
+          
+          bounceReflect(i, CollLine_Fix_GetHitNormal());
+
+          vector_copy(player->PlayerPosition, lastGoodPos2[i]);
+          vector_copy(player->PlayerMoby->Position, lastGoodPos2[i]);
+        } else {
+          vector_copy(lastGoodPos2[i], lastGoodPos[i]);
+          vector_copy(lastGoodPos[i], player->PlayerPosition);
+        }
+
+        if (player->Coll.contact) {
+          bounceReflect(i, player->Coll.normal);
+          //vector_normalize(n, bounceVels[i]);
+          //vector_add(player->PlayerPosition, player->PlayerPosition, n);
+          //vector_copy(player->PlayerMoby->Position, player->PlayerPosition);
+        } else if (player->Ground.onGood) {
+          bounceReflect(i, player->Ground.normal);
+        }
+
+        //vector_add(extVel, extVel, vels[i]);
+        vector_scale(extVel, bounceVels[i], MATH_DT);
+        vector_add(bounceVels[i], bounceVels[i], gravity);
+        vector_scale(bounceVels[i], bounceVels[i], 0.99);
+
+        if (!player->Ground.onGood) {
+          player->Ground.onGood = 0;
+          player->Ground.offAny = 1;
+          player->Ground.offGood = 1;
+          //vector_normalize(player->Ground.normal, player->Velocity);
+        }
+
+        //vector_print(vels[i]);
+        //printf("\n");
+        int targetState = PLAYER_STATE_GET_HIT;
+        //if (player->PlayerState != targetState)
+        //  playerGetVTable(player)->UpdateState(player, targetState, 0, 0, 0);
+      } else {
+        //vector_write(bounceVels[i], 0);
+      }
+    }
+  }
+
+  
+  // check for b6
+  Moby* m = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+  while (m < mEnd)
+  {
+    if (!mobyIsDestroyed(m) && m->OClass == MOBY_ID_B6_BALL0 && m->State == 4) {
+      DPRINTF("%08X\n", (u32)m->PUpdate);
+      onB6Explode(m);
+    }
+
+    ++m;
+  }
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -1652,6 +1830,8 @@ void runTestLogic(void)
 
     //   DPRINTF("lightning moby %08X\n", m);
     // }
+
+    runBounce();
 
     // animate all mobys, always
     // POKE_U32(0x004AEC08, 0x0C12BD0C);

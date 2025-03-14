@@ -5194,7 +5194,7 @@ void runPayloadDownloadRequester(void)
 
   if (!dlIsActive) {
     // redownload when set mode doesn't match downloaded one
-    if (!redownloadCustomModeBinaries && gameConfig.customModeId && (module->State == 0 || module->ModeId != gameConfig.customModeId)) {
+    if (!redownloadCustomModeBinaries && gameConfig.customModeId && (module->State == GAMEMODULE_OFF || module->ModeId != gameConfig.customModeId)) {
       redownloadCustomModeBinaries = 1;
       DPRINTF("mode id %d != %d\n", gameConfig.customModeId, module->ModeId);
     }
@@ -5216,9 +5216,9 @@ void runPayloadDownloadRequester(void)
 
     // disable when module id doesn't match mode
     // unless mode is forced (negative mode)
-    if (redownloadCustomModeBinaries == 1 || (module->State && !gameConfig.customModeId && module->ModeId >= 0)) {
+    if (redownloadCustomModeBinaries == 1 || (redownloadCustomModeBinaries == 0 && module->State && !gameConfig.customModeId && module->ModeId >= 0)) {
       DPRINTF("disabling module mode:%d\n", module->ModeId);
-      module->State = 0;
+      module->State = GAMEMODULE_OFF;
       memset((void*)(u32)0x000F0000, 0, 0xF000);
     }
 
@@ -5697,6 +5697,10 @@ int main (void)
   // always accept remote time
   //POKE_U32(0x01eabd60, 0);
 
+#if RELOADPATCH
+  gameConfig.drLevelReload = 1;
+#endif
+
   // in game stuff0
   if (hasGameCodeSeg())
   {
@@ -5724,10 +5728,10 @@ int main (void)
     POKE_U32(0x004b80a0, 0x00622023);
 
     // hook GETHIT_SURF state to handle taking damage
-    //HOOK_JAL(0x0060603c, &onMiscStateUpdateGetIsSwimming);
+    HOOK_JAL(0x0060603c, &onMiscStateUpdateGetIsSwimming);
 
     // force remote camera pos to -6 cam dist when NPS is off
-    //POKE_U16(0x006122C8, 0xC0C0);
+    POKE_U16(0x006122C8, 0xC0C0);
 
     // allow local flinching before remote flinch for chargebooting targets
     POKE_U32(0x005E1C94, 0);
@@ -5856,8 +5860,13 @@ int main (void)
     if (*(u32*)0x00594CBC == 0)
       *(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
 
-    // send patch game config on create game
+    // reset gameconfig
     GameSettings * gameSettings = gameGetSettings();
+    if (!gameSettings) {
+      memset(&gameConfig, 0, sizeof(gameConfig));
+    }
+
+    // send patch game config on create game
     if (gameSettings && gameSettings->GameLoadStartTime < 0)
     {
       // if host and just entered staging, send patch game config
