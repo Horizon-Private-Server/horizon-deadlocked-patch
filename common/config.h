@@ -197,6 +197,7 @@ typedef struct PatchInterop
   RefreshCustomMapDefsFunc_t RefreshCustomMapDefs;
   HopToCustomMapFunc_t HopToCustomMap;
   PatchStateContainer_t* PatchStateContainer;
+  int* ClientLatency;
 } PatchInterop_t;
 
 typedef struct DzoInteropFunctions
@@ -256,6 +257,7 @@ enum CUSTOM_MODE_ID
   CUSTOM_MODE_TAG,
   CUSTOM_MODE_RAIDS,
   CUSTOM_MODE_OITC,
+  CUSTOM_MODE_OBSTACLE,
   
 #if DEV
   CUSTOM_MODE_ANIM_EXTRACTOR,

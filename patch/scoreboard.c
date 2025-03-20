@@ -168,6 +168,10 @@ void igScoreboardRun(void)
   static int reset = 0;
   static int pingCooldown = 0;
 
+  // update patch interop ptr to client latency
+  if (PATCH_INTEROP)
+    PATCH_INTEROP->ClientLatency = ClientLatency;
+
 #if USE_CLIENT_PING
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, &igScoreboardOnRemoteClientPing);
 #else

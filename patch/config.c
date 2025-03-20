@@ -463,6 +463,7 @@ MenuElem_OrderedListData_t dataCustomModes = {
     { CUSTOM_MODE_GUN_GAME, "Gun Game" },
     { CUSTOM_MODE_HNS, "Hide and Seek" },
     { CUSTOM_MODE_INFECTED, "Infected" },
+    { CUSTOM_MODE_OBSTACLE, "Obstacle Course" },
     { CUSTOM_MODE_OITC, "One in the Chamber" },
     { CUSTOM_MODE_PAYLOAD, "Payload" },
     { CUSTOM_MODE_RAIDS, "Raids" },
@@ -491,6 +492,8 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
   [CUSTOM_MODE_TAG] NULL,
   [CUSTOM_MODE_RAIDS] "Raids",
+  [CUSTOM_MODE_OITC] NULL,
+  [CUSTOM_MODE_OBSTACLE] NULL,
   //[CUSTOM_MODE_BENCHMARK] NULL,
   [CUSTOM_MODE_GRIDIRON] NULL,
 #if DEV
@@ -1184,6 +1187,28 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
       // force first survival map
       for (i = 0; i < customMapDefCount; ++i) {
         if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
+          *value = i+1;
+          return 0;
+        }
+      }
+
+      // reset
+      *value = 0;
+      return 0;
+    }
+    case CUSTOM_MODE_OBSTACLE:
+    {
+      #if DEBUG
+        //return 1;
+      #endif
+      
+      // accept if selected map is obstacle
+      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_OBSTACLE)
+        return 1;
+
+      // force first obstacle map
+      for (i = 0; i < customMapDefCount; ++i) {
+        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_OBSTACLE) {
           *value = i+1;
           return 0;
         }

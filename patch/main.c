@@ -178,6 +178,7 @@ int hasShownSurvivalPrestigeMessage = 0;
 int hasPendingLobbyNameOverrides = 0;
 char mapOverrideResponse = 1;
 char showNeedLatestMapsPopup = 0;
+char showModeNeedsCustomMapPopup = 0;
 char showNoMapPopup = 0;
 char showMiscPopup = 0;
 char miscPopupTitle[32];
@@ -4209,7 +4210,9 @@ int hookCheckHostStartGame(void* a0)
 
   // success
   if (v0) {
-
+    int modeRequiresLatestMaps = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS;
+    int modeRequiresCustomMap = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS || gameConfig.customModeId == CUSTOM_MODE_OBSTACLE;
+    
     // verify we have map
     if (mapOverrideResponse < 0) {
       showNoMapPopup = 1;
@@ -4217,9 +4220,15 @@ int hookCheckHostStartGame(void* a0)
       return 0;
     }
 
+    // verify we have a custom map selected
+    if (modeRequiresCustomMap && !patchStateContainer.SelectedCustomMapId) {
+      showModeNeedsCustomMapPopup = 1;
+      return 0;
+    }
+
     // if survival
     // verify we have the latest maps
-    if ((gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS) && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+    if (modeRequiresLatestMaps && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
       readLocalGlobalVersion();
       if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
         showNeedLatestMapsPopup = 1;
@@ -4273,6 +4282,8 @@ void runCheckGameMapInstalled(void)
     *(u32*)0x00759580 = 0x0C000000 | ((u32)&hookCheckHostStartGame >> 2);
 
   int clientId = gameGetMyClientId();
+  int modeRequiresLatestMaps = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS;
+  int modeRequiresCustomMap = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS || gameConfig.customModeId == CUSTOM_MODE_OBSTACLE;
   for (i = 1; i < GAME_MAX_PLAYERS; ++i)
   {
     if (gs->PlayerClients[i] == clientId && gs->PlayerStates[i] == 6)
@@ -4283,10 +4294,10 @@ void runCheckGameMapInstalled(void)
         gameSetClientState(i, 0);
         showNoMapPopup = 1;
         netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
-      } else if ((gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS) && !patchStateContainer.SelectedCustomMapId) {
+      } else if (modeRequiresCustomMap && !patchStateContainer.SelectedCustomMapId) {
         gameSetClientState(i, 0);
-        showNoMapPopup = 1;
-      } else if ((gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS) && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+        showModeNeedsCustomMapPopup = 1;
+      } else if (modeRequiresLatestMaps && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
         readLocalGlobalVersion();
         if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
           gameSetClientState(i, 0);
@@ -5407,6 +5418,25 @@ void onOnlineMenu(void)
     uiShowOkDialog("Custom Maps", buf);
 
     showNeedLatestMapsPopup = 0;
+  }
+
+  if (showModeNeedsCustomMapPopup)
+  {
+    GameSettings* gameSettings = gameGetSettings();
+    char * modeName = gameGetGameModeName(gameSettings->GameRules);
+    if (gameConfig.customModeId) {
+      int i;
+      for (i = 0; i < dataCustomModes.count; ++i) {
+        if (dataCustomModes.items[i].value == (int)gameConfig.customModeId) {
+          modeName = dataCustomModes.items[i].name;
+          break;
+        }
+      }
+    }
+    sprintf(buf, "A custom map is required to play %s.", modeName);
+    uiShowOkDialog("Custom Maps", buf);
+
+    showModeNeedsCustomMapPopup = 0;
   }
 
   if (showMiscPopup)
