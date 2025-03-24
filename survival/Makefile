@@ -1,13 +1,13 @@
 
 EE_ELF = survival-11184.elf
 EE_BIN = survival-11184.bin
-EE_OBJS = main.o mob.o utils.o config.o demonbell.o bubble.o
+EE_OBJS = main.o mob.o utils.o config.o demonbell.o bubble.o stats.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
-# set to DEBUG or RELEASE
+# set to DEBUG or RELEASE or TEST
 BUILD_CONFIG := RELEASE
 
 # build flags
@@ -50,20 +50,29 @@ EE_DEFS += -DPAYDAY
 #EE_DEFS += -DJOINT_TEST
 #EE_DEFS += -DLOG_STATS
 #EE_DEFS += -DLOG_STATS2
+EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
+else ifeq ($(BUILD_CONFIG),TEST)
+EE_DEFS := -DRELEASE -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643 -DDROPS -DUPGRADES -DDEMONBELL -DSHARED_BOLTS -DSHARED_XP
+#EE_DEFS += -DSTARTROUND=24
+EE_DEFS += -DMOB_NO_DAMAGE
+EE_DEFS += -DDISABLE_SPAWNING
+EE_DEFS += -DMANUAL_SPAWN
+#EE_DEFS += -DPAYDAY
+#EE_DEFS += -DDEBUG_PERKS
+EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
+#EE_DEFS += -DTRAILER
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DRELEASE -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643 -DDROPS -DUPGRADES -DDEMONBELL -DSHARED_BOLTS -DSHARED_XP
-#EE_DEFS += -DSTARTROUND=100
-#EE_DEFS += -DMOB_NO_DAMAGE
-#EE_DEFS += -DTRAILER
+EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
 endif
 
-.PHONY: all maps orxon mpass
+.PHONY: all maps orxon mpass valix
 
 all: mode maps clean
 
 mode: $(EE_BIN) copy
 
-maps: orxon mpass veldin
+maps: orxon mpass veldin valix
 
 orxon: 
 	cd maps/orxon && $(MAKE)
@@ -74,11 +83,15 @@ mpass:
 veldin: 
 	cd maps/veldin && $(MAKE)
 
+valix: 
+	cd maps/valix && $(MAKE)
+
 clean: 
 	rm -f *.irx *.o
 	cd maps/orxon && $(MAKE) clean
 	cd maps/mpass && $(MAKE) clean
 	cd maps/veldin && $(MAKE) clean
+	cd maps/valix && $(MAKE) clean
  
 include $(CURDIR)/../Makefile.pref
 include $(CURDIR)/../Makefile.eeglobal

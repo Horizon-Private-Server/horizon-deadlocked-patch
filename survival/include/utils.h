@@ -56,4 +56,6 @@ int localPlayerHasInput(void);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 
+int hasMapConfig(void);
+
 #endif // SURVIVAL_UTILS_H

@@ -277,11 +277,24 @@ int mobyIsMob(Moby* moby)
 
   return moby->OClass == ZOMBIE_MOBY_OCLASS
     || moby->OClass == EXECUTIONER_MOBY_OCLASS
+    || moby->OClass == EXECUTIONER2_MOBY_OCLASS
     || moby->OClass == TREMOR_MOBY_OCLASS
     || moby->OClass == SWARMER_MOBY_OCLASS
     || moby->OClass == REACTOR_MOBY_OCLASS
     || moby->OClass == REAPER_MOBY_OCLASS
+    || moby->OClass == LEVIATHAN_MOBY_OCLASS
     ;
+}
+
+//--------------------------------------------------------------------------
+Moby* mobyGetFromIdxOrNull(int mobyIdx)
+{
+  if (mobyIdx < 0) return NULL;
+
+  Moby* moby = mobyListGetStart() + mobyIdx;
+  if (mobyIsDestroyed(moby)) return NULL;
+
+  return moby;
 }
 
 //--------------------------------------------------------------------------

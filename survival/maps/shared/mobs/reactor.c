@@ -520,41 +520,7 @@ void reactorSendCustomEvent(Moby* moby, int customEventId, void* payload, int si
 //--------------------------------------------------------------------------
 Moby* reactorGetNextTarget(Moby* moby)
 {
-  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-	Player ** players = playerGetAll();
-	int i;
-	VECTOR delta;
-	Moby * currentTarget = pvars->MobVars.Target;
-	Player * closestPlayer = NULL;
-	float closestPlayerDist = 100000;
-
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player* p = *players;
-		if (p && p->SkinMoby && !playerIsDead(p) && p->Health > 0 && p->SkinMoby->Opacity >= 0x80) {
-			vector_subtract(delta, p->PlayerPosition, moby->Position);
-			float dist = vector_length(delta);
-
-			if (dist < 300) {
-				// favor existing target
-				if (playerGetTargetMoby(p) == currentTarget)
-					dist *= (1.0 / REACTOR_TARGET_KEEP_CURRENT_FACTOR);
-				
-				// pick closest target
-				if (dist < closestPlayerDist) {
-					closestPlayer = p;
-					closestPlayerDist = dist;
-				}
-			}
-		}
-
-		++players;
-	}
-
-	if (closestPlayer) {
-    return playerGetTargetMoby(closestPlayer);
-  }
-
-	return NULL;
+  return mobGetNextTarget(moby, REACTOR_TARGET_KEEP_CURRENT_FACTOR);
 }
 
 //--------------------------------------------------------------------------

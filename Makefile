@@ -24,6 +24,7 @@ all:
 	$(MAKE) -C tag
 	$(MAKE) -C hns
 	$(MAKE) -C one-in-the-chamber
+	$(MAKE) -C obstacle-course
 	$(MAKE) -C usbserv
 	
 clean:
@@ -50,5 +51,6 @@ clean:
 	$(MAKE) -C tag clean
 	$(MAKE) -C hns clean
 	$(MAKE) -C one-in-the-chamber clean
+	$(MAKE) -C obstacle-course clean
 	$(MAKE) -C usbserv clean
 

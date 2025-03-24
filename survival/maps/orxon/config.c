@@ -401,6 +401,8 @@ SurvivalBakedConfig_t bakedConfig = {
   .Difficulty = 1.5,
   .SpawnDistanceFactor = 0.5,
   .BoltRankMultiplier = 1,
+  .StackboxBaseCost = 500000,
+  .StackboxCostPerPerk = 250000,
   .BakedSpawnPoints = {
     { .Type = BAKED_SPAWNPOINT_PLAYER_START, .Params = 0, .Position = { 328.6, 544.85, 434 }, .Rotation = { 0, 0, 0 } },
     { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 454.05, 566, 429.64 }, .Rotation = { 0, 0, -4.71239 } },

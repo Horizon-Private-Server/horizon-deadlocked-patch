@@ -19,10 +19,12 @@
 
 #define ZOMBIE_MOBY_OCLASS										(0x20F6)
 #define EXECUTIONER_MOBY_OCLASS							  (0x2468)
+#define EXECUTIONER2_MOBY_OCLASS							(0x20A1)
 #define TREMOR_MOBY_OCLASS							      (0x24D3)
 #define SWARMER_MOBY_OCLASS							      (0x2695)
 #define REAPER_MOBY_OCLASS							      (0x2570)
 #define REACTOR_MOBY_OCLASS							      (0x20BE)
+#define LEVIATHAN_MOBY_OCLASS							    (0x20C4)
 
 #define STATUE_MOBY_OCLASS                    (0x2402)
 #define BIGAL_MOBY_OCLASS                     (0x2124)
@@ -33,7 +35,7 @@
 #define MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS (20)
 
 #define MAX_MOBS_BASE													(10)
-#define MAX_MOBS_ROUND_WEIGHT									(10)
+//#define MAX_MOBS_ROUND_WEIGHT									(10)
 #define MAX_MOBS_ALIVE											  (60)
 #define MAX_MOBS_ALIVE_BUFFER									(10)
 #define MAX_MOBS_ALIVE_REAL									  (MAX_MOBS_ALIVE - MAX_MOBS_ALIVE_BUFFER)
@@ -79,6 +81,7 @@
 #define MOB_BASE_SPEED_SCALE                  (0.05*1)
 #define MOB_BASE_HEALTH										    (30)
 #define MOB_BASE_HEALTH_SCALE                 (0.05*1)
+#define MOB_JUMP_MOVE_SPEED                   (10)
 
 #define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
 #define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
@@ -173,36 +176,39 @@
 #define REAPER_RENDER_COST                    (150)
 #define REACTOR_RENDER_COST                   (300)
 #define EXECUTIONER_RENDER_COST               (300)
+#define EXECUTIONER2_RENDER_COST              (300)
+#define LEVIATHAN_RENDER_COST                 (300)
 
 enum GameNetMessage
 {
-	CUSTOM_MSG_ROUND_COMPLETE = CUSTOM_MSG_ID_GAME_MODE_START,
-	CUSTOM_MSG_ROUND_START,
-	CUSTOM_MSG_UPDATE_SPAWN_VARS,
-	CUSTOM_MSG_WEAPON_UPGRADE,
-	CUSTOM_MSG_REVIVE_PLAYER,
-	CUSTOM_MSG_PLAYER_DIED,
-	CUSTOM_MSG_PLAYER_SET_WEAPON_MODS,
-	CUSTOM_MSG_PLAYER_SET_STATS,
-	CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS,
-	CUSTOM_MSG_PLAYER_SET_DOUBLE_XP,
-	CUSTOM_MSG_PLAYER_SET_FREEZE,
+    CUSTOM_MSG_ROUND_COMPLETE = CUSTOM_MSG_ID_GAME_MODE_START,
+    CUSTOM_MSG_ROUND_START,
+    CUSTOM_MSG_UPDATE_SPAWN_VARS,
+    CUSTOM_MSG_WEAPON_UPGRADE,
+    CUSTOM_MSG_REVIVE_PLAYER,
+    CUSTOM_MSG_PLAYER_DIED,
+    CUSTOM_MSG_PLAYER_SET_WEAPON_MODS,
+    CUSTOM_MSG_PLAYER_SET_STATS,
+    CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS,
+    CUSTOM_MSG_PLAYER_SET_DOUBLE_XP,
+    CUSTOM_MSG_PLAYER_SET_FREEZE,
   CUSTOM_MSG_PLAYER_USE_ITEM,
   CUSTOM_MSG_MOB_UNRELIABLE_MSG,
-	CUSTOM_MSG_WEAPON_PRESTIGE,
-	CUSTOM_MSG_INTERACT_BANK_BOX,
+    CUSTOM_MSG_WEAPON_PRESTIGE,
+    CUSTOM_MSG_INTERACT_BANK_BOX,
   CUSTOM_MSG_WITHDRAWN_BANK_BOX,
   CUSTOM_MSG_SET_ROUND_50_TIME,
+  CUSTOM_MSG_TELEPORT_BIG_AL,
 };
 
 enum BakedSpawnpointType
 {
-	BAKED_SPAWNPOINT_NONE = 0,
-	BAKED_SPAWNPOINT_UPGRADE = 1,
-	BAKED_SPAWNPOINT_PLAYER_START = 2,
-	BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
-	BAKED_SPAWNPOINT_DEMON_BELL = 4,
-	BAKED_SPAWNPOINT_STACK_BOX = 5,
+    BAKED_SPAWNPOINT_NONE = 0,
+    BAKED_SPAWNPOINT_UPGRADE = 1,
+    BAKED_SPAWNPOINT_PLAYER_START = 2,
+    BAKED_SPAWNPOINT_MYSTERY_BOX = 3,
+    BAKED_SPAWNPOINT_DEMON_BELL = 4,
+    BAKED_SPAWNPOINT_STACK_BOX = 5,
 };
 
 enum MobStatId
@@ -218,6 +224,7 @@ enum MobStatId
   MOB_STAT_SWARMER            = 8,
   MOB_STAT_REACTOR            = 9,
   MOB_STAT_REAPER             = 10,
+  MOB_STAT_LEVIATHAN          = 11,
   MOB_STAT_COUNT
 };
 
@@ -265,6 +272,8 @@ typedef void (*ModeRevivePlayer_func)(Player* player, int fromPlayerId);
 
 typedef void (*MapOnMobSpawned_func)(Moby* moby);
 typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int killedByWeaponId);
+typedef int (*MapCanSpawnMobs_func)(void);
 typedef int (*CreateUpgradePickup_func)(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
 typedef int (*HandleUpgradePickupEvent_func)(Moby* moby, GuberEvent* event);
 typedef void (*PickupUpgradePickup_func)(Moby* moby, int pickedUpByPlayerId);
@@ -272,34 +281,38 @@ typedef int (*CreateMobDrop_func)(VECTOR position, enum DropType dropType, int d
 typedef int (*HandleMobDropEvent_func)(Moby* moby, GuberEvent* event);
 typedef int (*FrameTick_func)(void);
 
+typedef struct GuberMoby* (*GetGuber_func)(Moby* moby);
+typedef int (*HandleGuberEvent_func)(Moby* moby, GuberEvent* event);
 
 typedef struct SurvivalBakedSpawnpoint
 {
-	enum BakedSpawnpointType Type;
-	int Params;
-	float Position[3];
-	float Rotation[3];
+  enum BakedSpawnpointType Type;
+  int Params;
+  float Position[3];
+  float Rotation[3];
 } SurvivalBakedSpawnpoint_t;
 
 typedef struct SurvivalBakedConfig
 {
-	float Difficulty;
+  float Difficulty;
   float SpawnDistanceFactor;
   int BoltRankMultiplier;
-	SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];
+  SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];
+  int StackboxBaseCost;
+  int StackboxCostPerPerk;
 } SurvivalBakedConfig_t;
 
 struct SurvivalPlayerState
 {
-	u64 TotalBolts;
-	u32 XP;
-	int Bolts;
-	int Kills;
-	int Revives;
-	int TimesRevived;
-	int TimesRevivedSinceRoundStart;
-	int TotalTokens;
-	int CurrentTokens;
+  u64 TotalBolts;
+  u32 XP;
+  int Bolts;
+  int Kills;
+  int Revives;
+  int TimesRevived;
+  int TimesRevivedSinceRoundStart;
+  int TotalTokens;
+  int CurrentTokens;
   int Item;
   int BestRound;
   int TimesRolledMysteryBox;
@@ -307,46 +320,46 @@ struct SurvivalPlayerState
   int TimesActivatedPower;
   int TokensUsedOnGates;
   int BlessingSlots;
-	int KillsPerMob[MAX_MOB_SPAWN_PARAMS];
-	short DeathsByMob[MAX_MOB_SPAWN_PARAMS];
-	short Upgrades[UPGRADE_COUNT];
-	short AlphaMods[8];
+  int KillsPerMob[MAX_MOB_SPAWN_PARAMS];
+  short DeathsByMob[MAX_MOB_SPAWN_PARAMS];
+  short Upgrades[UPGRADE_COUNT];
+  short AlphaMods[8];
   char ItemBlessings[PLAYER_MAX_BLESSINGS];
   char WeaponPrestige[9];
-	char BestWeaponLevel[9];
+  char BestWeaponLevel[9];
   u8 ItemStackable[STACKABLE_ITEM_COUNT];
 };
 
 struct SurvivalPlayer
 {
-	float MinSqrDistFromMob;
-	float MaxSqrDistFromMob;
+  float MinSqrDistFromMob;
+  float MaxSqrDistFromMob;
   float LastHealth;
-	struct SurvivalPlayerState State;
-	int TimeOfDoublePoints;
-	int TimeOfDoubleXP;
+  struct SurvivalPlayerState State;
+  int TimeOfDoublePoints;
+  int TimeOfDoubleXP;
   int InvisibilityCloakStopTime;
   int HealthTornadoStopTime;
   int HealthTornadoActivateTicks;
   int TicksSinceHealthChanged;
   int RevivingPlayerId;
-	u16 ReviveCooldownTicks;
+  u16 ReviveCooldownTicks;
   u16 RevivingPlayerTicks;
-	u8 ActionCooldownTicks;
-	u8 MessageCooldownTicks;
-	char IsLocal;
-	char IsDead;
-	char IsInWeaponsMenu;
-	char IsDoublePoints;
-	char IsDoubleXP;
-	char HealthBarStrBuf[8];
+  u8 ActionCooldownTicks;
+  u8 MessageCooldownTicks;
+  char IsLocal;
+  char IsDead;
+  char IsInWeaponsMenu;
+  char IsDoublePoints;
+  char IsDoubleXP;
+  char HealthBarStrBuf[8];
 };
 
 struct SurvivalMobStats
 {
-	int MobsDrawnCurrent;
-	int MobsDrawnLast;
-	int MobsDrawGameTime;
+  int MobsDrawnCurrent;
+  int MobsDrawnLast;
+  int MobsDrawGameTime;
   int TotalSpawning;
   int TotalAlive;
   int TotalSpawnedThisRound;
@@ -357,45 +370,46 @@ struct SurvivalMobStats
 
 struct SurvivalState
 {
-	int RoundNumber;
-	int RoundStartTime;
-	int RoundCompleteTime;
-	int RoundEndTime;
-	int RoundMaxMobCount;
-	int RoundMaxSpawnedAtOnce;
-	int RoundSpawnTicker;
-	int RoundSpawnTickerCounter;
-	int RoundNextSpawnTickerCounter;
+  int RoundNumber;
+  int RoundStartTime;
+  int RoundCompleteTime;
+  int RoundEndTime;
+  int RoundMaxMobCount;
+  int RoundMaxSpawnedAtOnce;
+  int RoundSpawnTicker;
+  int RoundSpawnTickerCounter;
+  int RoundNextSpawnTickerCounter;
   int RoundDemonBellCount;
-	int RoundIsSpecial;
-	int RoundSpecialIdx;
-	int InitializedTime;
+  int RoundIsSpecial;
+  int RoundSpecialIdx;
+  int InitializedTime;
   int DemonBellCount;
   int MapBaseComplexity;
   struct SurvivalMobStats MobStats;
-	struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
+  struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
   char ClientReady[GAME_MAX_PLAYERS];
-	int RoundInitialized;
-	Moby* Vendor;
-	Moby* BigAl;
+  int RoundInitialized;
+  Moby* Vendor;
+  Moby* BigAl;
   Moby* PrestigeMachine;
   Moby* Bankbox;
   Moby* Stackbox;
-	Moby* UpgradeMobies[UPGRADE_COUNT];
+  Moby* UpgradeMobies[UPGRADE_COUNT];
   Moby* GateMobies[GATE_MAX_COUNT];
   Moby* MysteryBoxMoby;
-	struct SurvivalPlayer* LocalPlayerState;
-	int GameOver;
-	int WinningTeam;
-	int ActivePlayerCount;
-	int IsHost;
-	float Difficulty;
-	int TimeOfFreeze;
+  struct SurvivalPlayer* LocalPlayerState;
+  int GameOver;
+  int WinningTeam;
+  int ActivePlayerCount;
+  int IsHost;
+  float Difficulty;
+  int TimeOfFreeze;
   int InfiniteAmmoStopTime;
-	short DropCooldownTicks;
-	char Freeze;
-	char NumTeams;
+  short DropCooldownTicks;
+  char Freeze;
+  char NumTeams;
   int Round50Time;
+  Moby* BossMoby;
 };
 
 struct SurvivalMapConfig
@@ -425,12 +439,16 @@ struct SurvivalMapConfig
   // map
   MapOnMobCreate_func OnMobCreateFunc;
   MapOnMobSpawned_func OnMobSpawnedFunc;
+  MapOnMobKilled_func OnMobKilledFunc;
+  MapCanSpawnMobs_func CanSpawnMobsFunc;
   CreateUpgradePickup_func CreateUpgradePickupFunc;
   HandleUpgradePickupEvent_func OnUpgradePickupEventFunc;
   PickupUpgradePickup_func PickupUpgradeFunc;
   CreateMobDrop_func CreateMobDropFunc;
   HandleMobDropEvent_func OnMobDropEventFunc;
   FrameTick_func OnFrameTickFunc;
+  GetGuber_func OnUnhandledGetGuberFunc;
+  HandleGuberEvent_func OnUnhandledGuberEventFunc;
 
   // misc
   float WeaponPickupCooldownFactor;
@@ -441,129 +459,129 @@ struct SurvivalSpecialRoundParam
   int MinRound;
   int RepeatEveryNRounds;
   int RepeatCount;
-	int SpawnParamCount;
-	float SpawnCountFactor;
+  int SpawnParamCount;
+  float SpawnCountFactor;
   float SpawnRateFactor;
-	int MaxSpawnedAtOnce;
+  int MaxSpawnedAtOnce;
   char UnlimitedPostRoundTime;
   char DisableDrops;
-	char SpawnParamIds[4];
-	char Name[32];
+  char SpawnParamIds[4];
+  char Name[32];
 };
 
 struct SurvivalGameData
 {
-	u32 Version;
-	u32 RoundNumber;
+  u32 Version;
+  u32 RoundNumber;
   u32 Round50Time;
-	u64 Points[GAME_MAX_PLAYERS];
-	int Kills[GAME_MAX_PLAYERS];
-	int Revives[GAME_MAX_PLAYERS];
-	int TimesRevived[GAME_MAX_PLAYERS];
+  u64 Points[GAME_MAX_PLAYERS];
+  int Kills[GAME_MAX_PLAYERS];
+  int Revives[GAME_MAX_PLAYERS];
+  int TimesRevived[GAME_MAX_PLAYERS];
   int KillsPerMob[GAME_MAX_PLAYERS][MAX_MOB_SPAWN_PARAMS];
   short DeathsByMob[GAME_MAX_PLAYERS][MAX_MOB_SPAWN_PARAMS];
   short MobIds[MAX_MOB_SPAWN_PARAMS];
-	short BestRound[GAME_MAX_PLAYERS];
-	short PlayerUpgrades[GAME_MAX_PLAYERS][UPGRADE_COUNT];
-	short TimesRolledMysteryBox[GAME_MAX_PLAYERS];
-	short TimesActivatedDemonBell[GAME_MAX_PLAYERS];
-	short TimesActivatedPower[GAME_MAX_PLAYERS];
+  short BestRound[GAME_MAX_PLAYERS];
+  short PlayerUpgrades[GAME_MAX_PLAYERS][UPGRADE_COUNT];
+  short TimesRolledMysteryBox[GAME_MAX_PLAYERS];
+  short TimesActivatedDemonBell[GAME_MAX_PLAYERS];
+  short TimesActivatedPower[GAME_MAX_PLAYERS];
   short TokensUsedOnGates[GAME_MAX_PLAYERS];
-	char AlphaMods[GAME_MAX_PLAYERS][8];
-	char BestWeaponLevel[GAME_MAX_PLAYERS][9];
+  char AlphaMods[GAME_MAX_PLAYERS][8];
+  char BestWeaponLevel[GAME_MAX_PLAYERS][9];
 };
 
 typedef struct SurvivalRoundCompleteMessage
 {
-	int GameTime;
-	int BoltBonus;
+  int GameTime;
+  int BoltBonus;
 } SurvivalRoundCompleteMessage_t;
 
 typedef struct SurvivalPlayerWithdrawnBankBoxMessage
 {
   int Amount;
-	char PlayerId;
+  char PlayerId;
 } SurvivalPlayerWithdrawnBankBoxMessage_t;
 
 typedef struct SurvivalPlayerInteractBankBoxMessage
 {
   int Amount;
-	char PlayerId;
-	char Deposit;
+  char PlayerId;
+  char Deposit;
 } SurvivalPlayerInteractBankBoxMessage_t;
 
 typedef struct SurvivalPlayerInteractStackBoxMessage
 {
-	char PlayerId;
+  char PlayerId;
   char ItemId;
 } SurvivalPlayerInteractStackBoxMessage_t;
 
 typedef struct SurvivalWeaponUpgradeMessage
 {
-	char PlayerId;
-	char WeaponId;
-	char Level;
-	char Alphamod;
+  char PlayerId;
+  char WeaponId;
+  char Level;
+  char Alphamod;
 } SurvivalWeaponUpgradeMessage_t;
 
 typedef struct SurvivalWeaponPrestigeMessage
 {
-	char PlayerId;
-	char WeaponId;
+  char PlayerId;
+  char WeaponId;
   char PrestigeId;
 } SurvivalWeaponPrestigeMessage_t;
 
 typedef struct SurvivalRoundStartMessage
 {
-	int GameTime;
-	int RoundNumber;
+  int GameTime;
+  int RoundNumber;
 } SurvivalRoundStartMessage_t;
 
 typedef struct SurvivalReviveMessage
 {
-	int PlayerId;
-	int FromPlayerId;
+  int PlayerId;
+  int FromPlayerId;
 } SurvivalReviveMessage_t;
 
 typedef struct SurvivalSetPlayerDeadMessage
 {
-	int PlayerId;
-	char IsDead;
+  int PlayerId;
+  char IsDead;
 } SurvivalSetPlayerDeadMessage_t;
 
 typedef struct SurvivalSetWeaponModsMessage
 {
-	int PlayerId;
-	u8 WeaponId;
-	u8 Mods[10];
+  int PlayerId;
+  u8 WeaponId;
+  u8 Mods[10];
 } SurvivalSetWeaponModsMessage_t;
 
 typedef struct SurvivalSetPlayerStatsMessage
 {
-	int PlayerId;
-	struct SurvivalPlayerState Stats;
+  int PlayerId;
+  struct SurvivalPlayerState Stats;
 } SurvivalSetPlayerStatsMessage_t;
 
 typedef struct SurvivalSetPlayerDoublePointsMessage
 {
-	int TimeOfDoublePoints[GAME_MAX_PLAYERS];
-	char IsActive[GAME_MAX_PLAYERS];
+  int TimeOfDoublePoints[GAME_MAX_PLAYERS];
+  char IsActive[GAME_MAX_PLAYERS];
 } SurvivalSetPlayerDoublePointsMessage_t;
 
 typedef struct SurvivalSetPlayerDoubleXPMessage
 {
-	int TimeOfDoubleXP[GAME_MAX_PLAYERS];
-	char IsActive[GAME_MAX_PLAYERS];
+  int TimeOfDoubleXP[GAME_MAX_PLAYERS];
+  char IsActive[GAME_MAX_PLAYERS];
 } SurvivalSetPlayerDoubleXPMessage_t;
 
 typedef struct SurvivalSetFreezeMessage
 {
-	char IsActive;
+  char IsActive;
 } SurvivalSetFreezeMessage_t;
 
 typedef struct SurvivalPlayerUseItem
 {
-	int PlayerId;
+  int PlayerId;
   enum MysteryBoxItem Item;
 } SurvivalPlayerUseItem_t;
 

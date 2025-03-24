@@ -652,7 +652,7 @@ void patchResurrectWeaponOrdering_HookGiveMeRandomWeapons(Player* player, int we
  */
 void patchResurrectWeaponOrdering(void)
 {
-  if (!isInGame() || gameConfig.customModeId == CUSTOM_MODE_RAIDS)
+  if (!isInGame() || gameConfig.customModeId == CUSTOM_MODE_RAIDS || gameConfig.customModeId == CUSTOM_MODE_SURVIVAL)
     return;
 
   HOOK_JAL(0x005e2b2c, &patchResurrectWeaponOrdering_HookWeaponStripMe);
@@ -4228,9 +4228,13 @@ int hookCheckHostStartGame(void* a0)
 
     // if survival
     // verify we have the latest maps
-    if (modeRequiresLatestMaps && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
-      readLocalGlobalVersion();
-      if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
+    if (modeRequiresLatestMaps) {
+      int modeVersion = 0;
+      mapReadCurrentCustomMapExtraData(&modeVersion, 4);
+      int fail = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && modeVersion != CMODE_SURVIVAL_VERSION
+              || gameConfig.customModeId == CUSTOM_MODE_RAIDS && modeVersion != CMODE_RAIDS_VERSION;
+
+      if (fail) {
         showNeedLatestMapsPopup = 1;
         return 0;
       }
@@ -4297,11 +4301,16 @@ void runCheckGameMapInstalled(void)
       } else if (modeRequiresCustomMap && !patchStateContainer.SelectedCustomMapId) {
         gameSetClientState(i, 0);
         showModeNeedsCustomMapPopup = 1;
-      } else if (modeRequiresLatestMaps && mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
-        readLocalGlobalVersion();
-        if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion) {
-          gameSetClientState(i, 0);
+      } else if (modeRequiresLatestMaps) {
+        
+        int modeVersion = 0;
+        mapReadCurrentCustomMapExtraData(&modeVersion, 4);
+        int fail = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && modeVersion != CMODE_SURVIVAL_VERSION
+                || gameConfig.customModeId == CUSTOM_MODE_RAIDS && modeVersion != CMODE_RAIDS_VERSION;
+
+        if (fail) {
           showNeedLatestMapsPopup = 1;
+          gameSetClientState(i, 0);
         }
       }
     }
@@ -5196,6 +5205,7 @@ void runPayloadDownloadRequester(void)
       dlIsActive = 0;
     }
     
+    redownloadCustomModeBinaries = 0;
     return;
   }
 

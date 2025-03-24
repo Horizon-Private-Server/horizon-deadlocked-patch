@@ -10,6 +10,7 @@
 #include <libdl/graphics.h>
 
 extern struct SurvivalState State;
+extern struct SurvivalMapConfig* mapConfig;
 
 /* 
  * upgrade sound def
@@ -249,10 +250,12 @@ int mobyIsMob(Moby* moby)
 
   return moby->OClass == ZOMBIE_MOBY_OCLASS
     || moby->OClass == EXECUTIONER_MOBY_OCLASS
+    || moby->OClass == EXECUTIONER2_MOBY_OCLASS
     || moby->OClass == TREMOR_MOBY_OCLASS
     || moby->OClass == SWARMER_MOBY_OCLASS
     || moby->OClass == REACTOR_MOBY_OCLASS
     || moby->OClass == REAPER_MOBY_OCLASS
+    || moby->OClass == LEVIATHAN_MOBY_OCLASS
     ;
 }
 
@@ -354,4 +357,10 @@ int playerHasBlessing(int playerId, int blessing)
 int playerGetStackableCount(int playerId, int stackable)
 {
   return State.PlayerStates[playerId].State.ItemStackable[stackable];
+}
+
+//--------------------------------------------------------------------------
+int hasMapConfig(void)
+{
+  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC && mapConfig->OnMobCreateFunc;
 }

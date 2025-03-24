@@ -263,3 +263,25 @@ Fix freeze jump air speed super slow
 ++Explore more than 10 alpha mods
 ++Add vampire
 ++Add hoverboot boots
+
+++Don't spawn mobs near players in jump pad state
+++Don't have mobs target players in jump pad state
+Fix revive respawn moving player back to start
+++Add valix boss
+change valix swarmer to orange one
+Fix guber desync (have mobs that haven't recv state update auto die)
+Remove guber time delay sync
+++Have gamemode check map version before start
+++Fix leviathan laser
+++Add boss meter
+++Fix crash with multiple clients
+++Fix jump pad freezing mobs
+++Fix zero bolts on boss fight
+++Fix non host hacking boss orb not spawning mobs
+++Fix Al rotation for nonhost
+Add more weapon spawns?
+Increase bolts or lower cost for perks?
+
+Fix other maps
+Fix dzo weapon pickup buggy after pickup moves
+Add boss logic tied to health %

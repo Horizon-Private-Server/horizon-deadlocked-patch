@@ -64,7 +64,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
       .CollRadius = REACTOR_BASE_COLL_RADIUS * 1.0,
 			.ReactionTickCount = REACTOR_BASE_REACTION_TICKS * 0.35,
 			.AttackCooldownTickCount = REACTOR_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
-			.MobAttribute = 0,
+			.MobAttribute = MOB_ATTRIBUTE_BOSS,
 		}
 	},
 	// acid zombie

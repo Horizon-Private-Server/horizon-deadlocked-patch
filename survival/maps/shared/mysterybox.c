@@ -204,7 +204,7 @@ void mboxRandomizeWeaponPickups(void)
 				
 				int target = pickupCount / pickupOptionCount;
 				int gadgetId = 1;
-				if (target < 2) {
+				if (target < 3) {
 					do { j = rand(pickupOptionCount); } while (wepCounts[j] != target);
 
 					++wepCounts[j];

@@ -53,14 +53,14 @@ void onReachedEnd(void)
 }
 
 //--------------------------------------------------------------------------
-void drawTimer(int time)
+void drawTimer(int time, u32 color)
 {
   char buf[32];
 
   if (time < 0) time = 0;
 
-  snprintf(buf, sizeof(buf), "%02d:%02d.%03d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND, time % TIME_SECOND);
-  gfxHelperDrawText(15, SCREEN_HEIGHT - 25, 0, 0, 0.9, 0x80E0E0E0, buf, -1, 0, COMMON_DZO_DRAW_NORMAL);
+  snprintf(buf, sizeof(buf), "%d:%02d.%03d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND, time % TIME_SECOND);
+  gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 0.9, color, buf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
 }
 
 //--------------------------------------------------------------------------
@@ -68,9 +68,9 @@ void frameTick(void)
 {
   // draw timer
   if (State.LocalPlayerState && State.LocalPlayerState->TimeCompleted) {
-    drawTimer(State.LocalPlayerState->TimeCompleted - State.InitializedTime);
+    drawTimer(State.LocalPlayerState->TimeCompleted - State.InitializedTime, 0x8000E000);
   } else {
-    drawTimer(gameGetTime() - State.InitializedTime);
+    drawTimer(gameGetTime() - State.InitializedTime, 0x80E0E0E0);
   }
 }
 

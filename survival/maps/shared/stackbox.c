@@ -90,7 +90,7 @@ int sboxGetStackableCost(int playerId, enum StackableItemId item)
 {
   if (!MapConfig.State) return 0;
 
-  return STACK_BOX_BASE_COST + playerGetStackableCount(playerId, (int)item) * STACK_BOX_ADD_COST;
+  return MapConfig.BakedConfig->StackboxBaseCost + playerGetStackableCount(playerId, (int)item) * MapConfig.BakedConfig->StackboxCostPerPerk;
 }
 
 //--------------------------------------------------------------------------

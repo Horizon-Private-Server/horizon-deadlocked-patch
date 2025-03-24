@@ -29,12 +29,30 @@ struct TargetCache
 struct TargetCache TargetsCache[TARGETS_CACHE_COUNT];
 
 //--------------------------------------------------------------------------
+int pathUseTargetMoby(Moby* moby)
+{
+  if (!moby) return 0;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  return pvars->MobVars.Target && !pvars->MobVars.MoveVars.ForceUseTargetPosition;
+}
+
+//--------------------------------------------------------------------------
 u8* pathGetPathAt(int fromNodeIdx, int toNodeIdx)
 {
   int pathIdx = (fromNodeIdx * MOB_PATHFINDING_NODES_COUNT) + toNodeIdx;
   u32 addr = (u32)MOB_PATHFINDING_PATHS;
 
   return (u8*)(addr + pathIdx * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
+}
+
+//--------------------------------------------------------------------------
+u8* pathGetEdge(u8 edge)
+{
+  if (PATH_EDGE_IS_EMPTY(edge))
+    return NULL;
+
+  return (u8*)MOB_PATHFINDING_EDGES[edge];
 }
 
 //--------------------------------------------------------------------------
@@ -46,6 +64,41 @@ void pathGetSegment(u8* currentEdge, VECTOR fromNodePos, VECTOR toNodePos)
   vector_copy(toNodePos, MOB_PATHFINDING_NODES[currentEdge[1]]);
   fromNodePos[3] = 0;
   toNodePos[3] = 0;
+}
+
+//--------------------------------------------------------------------------
+int pathHasRouteFromTo(int fromNodeIdx, int toNodeIdx)
+{
+  if (fromNodeIdx == toNodeIdx) return 1;
+  u8* pathSegment = pathGetPathAt(fromNodeIdx, toNodeIdx);
+  if (!pathSegment) return 0;
+  if (PATH_EDGE_IS_EMPTY(pathSegment[0])) return 0;
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int pathHasRouteToTarget(Moby* moby, Moby* target)
+{
+  if (!moby || !moby->PVar) return 0;
+  if (!target) return 0;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  int inSight = 0;
+  int closestNodeIdxToTarget = pathTargetCacheGetClosestNodeIdx(target);
+  int closestNodeIdxToMob = pvars->MobVars.MoveVars.PathStartEndNodes[1];
+  if (pvars->MobVars.MoveVars.PathEdgeCurrent >= pvars->MobVars.MoveVars.PathEdgeCount) {
+    closestNodeIdxToMob = pvars->MobVars.MoveVars.PathStartEndNodes[1] = pathGetClosestNodeInSight(moby, &inSight);
+  }
+
+  // check if we have a path to, assume we've strayed to a new path and can't return
+  // we want to recalculate path in this case
+  if (!pathHasRouteFromTo(closestNodeIdxToMob, closestNodeIdxToTarget)) {
+    return 0;
+  }
+
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -299,6 +352,30 @@ int pathGetClosestNodeInSight(Moby* moby, int * foundInSight)
 }
 
 //--------------------------------------------------------------------------
+int pathGetClosestNodeIdx(VECTOR pos)
+{
+  int i;
+  VECTOR dt;
+  int bestSqrDist = 1000000;
+  int bestIdx = 0;
+
+  if (!pos) return -1;
+
+  for (i = 0; i < MOB_PATHFINDING_NODES_COUNT; ++i) {
+    vector_subtract(dt, pos, MOB_PATHFINDING_NODES[i]);
+    dt[3] = 0;
+
+    float sqrDist = vector_sqrmag(dt);
+    if (sqrDist < bestSqrDist) {
+      bestSqrDist = sqrDist;
+      bestIdx = i;
+    }
+  }
+
+  return bestIdx;
+}
+
+//--------------------------------------------------------------------------
 int pathRegisterTarget(Moby* moby)
 {
   int i;
@@ -350,28 +427,45 @@ int pathShouldFindNewPath(Moby* moby)
     return 1;
   }
 
-  int closestNodeIdxToTarget = pathTargetCacheGetClosestNodeIdx(pvars->MobVars.Target);
+  int closestNodeIdxToTarget = 0;
+  if (pathUseTargetMoby(moby)) {
+    closestNodeIdxToTarget = pathTargetCacheGetClosestNodeIdx(pvars->MobVars.Target);
+  } else {
+    closestNodeIdxToTarget = pathGetClosestNodeIdx(pvars->MobVars.TargetPosition);
+  }
+
   if (MOB_PATHFINDING_EDGES[lastEdge][1] != closestNodeIdxToTarget) {
     return 1;
   }
+
+  u8* currentEdge = pathGetCurrentEdge(moby);
+  if (currentEdge && !pathHasRouteFromTo(currentEdge[0], closestNodeIdxToTarget))
+    return 1;
 
   return 0;
 }
 
 //--------------------------------------------------------------------------
-void pathGetPath(Moby* moby)
+int pathGetPath(Moby* moby)
 {
   int i;
   int inSight = 0;
   if (!moby || !moby->PVar)
-    return;
+    return 0;
 
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (!pvars->MobVars.Target)
-    return;
+    return 0;
+
+  struct MobMoveVars* moveVars = &pvars->MobVars.MoveVars;
 
   // target closest node should be calculated and cached per frame in pathTick
-  int closestNodeIdxToTarget = pathTargetCacheGetClosestNodeIdx(pvars->MobVars.Target);
+  int closestNodeIdxToTarget = 0;
+  if (pathUseTargetMoby(moby)) {
+    closestNodeIdxToTarget = pathTargetCacheGetClosestNodeIdx(pvars->MobVars.Target);
+  } else {
+    closestNodeIdxToTarget = pathGetClosestNodeIdx(pvars->MobVars.TargetPosition);
+  }
 
   // we should reuse both the last node we were at
   // and the node we're currently going towards for this depending on the final path
@@ -379,31 +473,41 @@ void pathGetPath(Moby* moby)
   //DPRINTF("closest node to mob is %d (insight: %d)\n", closestNodeIdxToMob, inSight);
 
   int lastEdgeIdx = 255;
-  if (pvars->MobVars.MoveVars.PathEdgeCount) {
-    lastEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent];
+  if (moveVars->PathEdgeCount) {
+    lastEdgeIdx = moveVars->CurrentPath[moveVars->PathEdgeCurrent];
     if (PATH_EDGE_IS_EMPTY(lastEdgeIdx))
-      lastEdgeIdx = pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent - 1];
+      lastEdgeIdx = moveVars->CurrentPath[moveVars->PathEdgeCurrent - 1];
+  }
+  
+  // check if we have a path to, assume we've strayed to a new path and can't return
+  // we want to recalculate path in this case
+  if (!pathHasRouteFromTo(closestNodeIdxToMob, closestNodeIdxToTarget)) {
+    pvars->MobVars.Target = NULL;
+    moveVars->PathStartEndNodes[1] = closestNodeIdxToMob;
+    return;
   }
 
-  memcpy(pvars->MobVars.MoveVars.CurrentPath, pathGetPathAt(closestNodeIdxToMob, closestNodeIdxToTarget), sizeof(u8) * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
-  pvars->MobVars.MoveVars.PathEdgeCurrent = 0;
-  pvars->MobVars.MoveVars.PathEdgeAlpha = 0;
-  pvars->MobVars.MoveVars.PathHasReachedStart = 0;
-  pvars->MobVars.MoveVars.PathHasReachedEnd = 0;
-  pvars->MobVars.MoveVars.PathStartEndNodes[0] = closestNodeIdxToTarget;
-  pvars->MobVars.MoveVars.PathStartEndNodes[1] = closestNodeIdxToMob;
+  int maxLength = sizeof(moveVars->CurrentPath) / sizeof(u8);
+  moveVars->PathEdgeCount = pathBuildPath(closestNodeIdxToMob, closestNodeIdxToTarget, moveVars->CurrentPath, maxLength);
+  //memcpy(moveVars->CurrentPath, pathGetPathAt(closestNodeIdxToMob, closestNodeIdxToTarget), sizeof(u8) * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
+  moveVars->PathEdgeCurrent = 0;
+  moveVars->PathEdgeAlpha = 0;
+  moveVars->PathHasReachedStart = 0;
+  moveVars->PathHasReachedEnd = 0;
+  moveVars->PathStartEndNodes[0] = closestNodeIdxToTarget;
+  moveVars->PathStartEndNodes[1] = closestNodeIdxToMob;
   
   // count path length
-  for (i = 0; i < MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH; ++i) {
-    if (PATH_EDGE_IS_EMPTY(pvars->MobVars.MoveVars.CurrentPath[i]))
-      break;
-  }
-  pvars->MobVars.MoveVars.PathEdgeCount = i;
+  //for (i = 0; i < MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH; ++i) {
+  //  if (PATH_EDGE_IS_EMPTY(moveVars->CurrentPath[i]))
+  //    break;
+  //}
+  //moveVars->PathEdgeCount = i;
 
   // check if we're on same segment as last
   int isOnSameSegment = 0;
   if (!PATH_EDGE_IS_EMPTY(lastEdgeIdx)) {
-    isOnSameSegment = lastEdgeIdx == pvars->MobVars.MoveVars.CurrentPath[0];
+    isOnSameSegment = lastEdgeIdx == moveVars->CurrentPath[0];
   }
 
   // skip start if its backwards along path
@@ -412,7 +516,7 @@ void pathGetPath(Moby* moby)
   //if (i > 0 && (pathSegmentCanBeSkipped(moby, 0, 1, alpha) || isOnSameSegment)) {
   int canBeSkipped = pathCanStartNodeBeSkipped(moby);
   if (i > 0 && (isOnSameSegment || canBeSkipped)) {
-    pvars->MobVars.MoveVars.PathHasReachedStart = 1;
+    moveVars->PathHasReachedStart = 1;
   }
 
   // mark mob dirty to send path to others
@@ -422,18 +526,49 @@ void pathGetPath(Moby* moby)
 
 #if DEBUGPATH
   DPRINTF("NEW PATH GENERATED: (%d)\n", gameGetTime());
-  DPRINTF("\tFROM NODE %d (skip:%d,%d,%d)\n", closestNodeIdxToMob, pvars->MobVars.MoveVars.PathHasReachedStart, canBeSkipped, isOnSameSegment);
+  DPRINTF("\tFROM NODE %d (skip:%d,%d,%d)\n", closestNodeIdxToMob, moveVars->PathHasReachedStart, canBeSkipped, isOnSameSegment);
   DPRINTF("\tTO NODE %d\n", closestNodeIdxToTarget);
   DPRINTF("\tNODES: ");
   
   // count path length
-  for (i = 0; i < pvars->MobVars.MoveVars.PathEdgeCount; ++i) {
-    int edgeIdx = pvars->MobVars.MoveVars.CurrentPath[i];
+  for (i = 0; i < moveVars->PathEdgeCount; ++i) {
+    int edgeIdx = moveVars->CurrentPath[i];
     u8 * edge = MOB_PATHFINDING_EDGES[edgeIdx];
     DPRINTF("%d->%d, ", edge[0], edge[1]);
   }
   DPRINTF("\n");
 #endif
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+int pathBuildPath(int fromNodeIdx, int toNodeIdx, u8* outPath, int maxLength)
+{
+  // aggregate path by connecting segments from start to end
+  int currentNodeIdx = fromNodeIdx;
+  int lastCurrentNodeIdx = -1;
+  int i = 0;
+  int j = 0;
+  memset(outPath, -1, maxLength);
+  while (currentNodeIdx != toNodeIdx) {
+    if (j >= maxLength) break;
+    if (lastCurrentNodeIdx == currentNodeIdx) break; // prevent inf loop
+
+    lastCurrentNodeIdx = currentNodeIdx;
+    u8* pathSegment = pathGetPathAt(currentNodeIdx, toNodeIdx);
+    for (i = 0; j < maxLength && i < MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH; ++i) {
+      u8 edge = pathSegment[i];
+      if (PATH_EDGE_IS_EMPTY(edge))
+        break;
+
+      outPath[j++] = edge;
+      u8* segment = pathGetEdge(edge);
+      currentNodeIdx = segment[1];
+    }
+  }
+
+  return j;
 }
 
 //--------------------------------------------------------------------------
@@ -447,22 +582,25 @@ void pathSetPath(Moby* moby, int fromNodeIdx, int toNodeIdx, int currentOnPath, 
   if (!pvars->MobVars.Target)
     return;
 
-  memcpy(pvars->MobVars.MoveVars.CurrentPath, pathGetPathAt(fromNodeIdx, toNodeIdx), sizeof(u8) * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
-  if (pvars->MobVars.MoveVars.PathEdgeCurrent != currentOnPath) {
-    pvars->MobVars.MoveVars.PathEdgeAlpha = 0;
+  struct MobMoveVars* moveVars = &pvars->MobVars.MoveVars;
+  int maxLength = sizeof(moveVars->CurrentPath) / sizeof(u8);
+  moveVars->PathEdgeCount = pathBuildPath(fromNodeIdx, toNodeIdx, moveVars->CurrentPath, maxLength);
+  //memcpy(moveVars->CurrentPath, pathGetPathAt(fromNodeIdx, toNodeIdx), sizeof(u8) * MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH);
+  if (moveVars->PathEdgeCurrent != currentOnPath) {
+    moveVars->PathEdgeAlpha = 0;
   }
-  pvars->MobVars.MoveVars.PathEdgeCurrent = currentOnPath;
-  pvars->MobVars.MoveVars.PathHasReachedStart = hasReachedStart;
-  pvars->MobVars.MoveVars.PathHasReachedEnd = hasReachedEnd;
-  pvars->MobVars.MoveVars.PathStartEndNodes[0] = toNodeIdx;
-  pvars->MobVars.MoveVars.PathStartEndNodes[1] = fromNodeIdx;
+  moveVars->PathEdgeCurrent = currentOnPath;
+  moveVars->PathHasReachedStart = hasReachedStart;
+  moveVars->PathHasReachedEnd = hasReachedEnd;
+  moveVars->PathStartEndNodes[0] = toNodeIdx;
+  moveVars->PathStartEndNodes[1] = fromNodeIdx;
   
   // count path length
-  for (i = 0; i < MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH; ++i) {
-    if (PATH_EDGE_IS_EMPTY(pvars->MobVars.MoveVars.CurrentPath[i]))
-      break;
-  }
-  pvars->MobVars.MoveVars.PathEdgeCount = i;
+  //for (i = 0; i < MOB_PATHFINDING_PATHS_MAX_PATH_LENGTH; ++i) {
+  //  if (PATH_EDGE_IS_EMPTY(moveVars->CurrentPath[i]))
+  //    break;
+  //}
+  //moveVars->PathEdgeCount = i;
 }
 
 //--------------------------------------------------------------------------
@@ -548,13 +686,14 @@ void pathGetClosestPointOnNode(VECTOR output, VECTOR from, VECTOR target, int cu
 }
 
 //--------------------------------------------------------------------------
-void pathGetTargetPos(VECTOR output, Moby* moby)
+int pathGetTargetPos(VECTOR output, Moby* moby)
 {
+  int newPath = 0;
   VECTOR up = {0,0,1,0};
   VECTOR targetNodePos, delta;
   VECTOR from, to, edgeDir;
   if (!moby || !moby->PVar)
-    return;
+    return 0;
 
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
@@ -571,7 +710,7 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
   // reuse last calculated
   if (pvars->MobVars.MoveVars.PathTicks) {
     vector_copy(output, pvars->MobVars.MoveVars.LastTargetPos);
-    return;
+    return 0;
   }
 
   // delay next getTargetPos until next tick
@@ -580,20 +719,20 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
 
   // new path
   if (pvars->MobVars.MoveVars.PathNewTicks == 0 && pathShouldFindNewPath(moby)) {
-    pathGetPath(moby);
+    newPath = pathGetPath(moby);
     pvars->MobVars.MoveVars.PathNewTicks = 255;
   }
 
-  // set default output
-  if (pvars->MobVars.Target)
-    vector_copy(output, pvars->MobVars.Target->Position);
-  else
-    vector_copy(output, moby->Position);
+  // target closest node should be calculated and cached per frame in pathTick
+  if (pathUseTargetMoby(moby)) {
+    vector_copy(pvars->MobVars.TargetPosition, pvars->MobVars.Target->Position);
+  }
+  vector_copy(output, pvars->MobVars.TargetPosition);
 
   // no path
   if (!pvars->MobVars.MoveVars.PathEdgeCount || !pvars->MobVars.Target) {
     vector_copy(pvars->MobVars.MoveVars.LastTargetPos, output);
-    return;
+    return newPath;
   }
 
   // check if we can just go straight to the target
@@ -603,9 +742,9 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
 
     // if target is near and in sight
     // skip rest of path and go straight towards target
-    vector_subtract(delta, pvars->MobVars.Target->Position, moby->Position);
+    vector_subtract(delta, pvars->MobVars.TargetPosition, moby->Position);
     vector_add(from, moby->Position, up);
-    vector_add(to, pvars->MobVars.Target->Position, up);
+    vector_add(to, pvars->MobVars.TargetPosition, up);
 
     // near and can see
     if (vector_sqrmag(delta) < (MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH*MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH) && !CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
@@ -627,7 +766,7 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
         pvars->MobVars.MoveVars.PathEdgeCurrent = pvars->MobVars.MoveVars.PathEdgeCount;
       }
     } else if (pvars->MobVars.MoveVars.PathEdgeCurrent && pvars->MobVars.MoveVars.PathEdgeCurrent == pvars->MobVars.MoveVars.PathEdgeCount) {
-      pathGetPath(moby);
+      newPath = pathGetPath(moby);
     }
 
     pvars->MobVars.MoveVars.PathCheckNearAndSeeTargetTicks = TPS;
@@ -669,8 +808,8 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
     u8* lastEdge = pathGetCurrentEdge(moby);
     if (lastEdge && pathCanBeSkippedForTarget(moby)) {
       VECTOR targetToStart, targetToNext;
-      vector_subtract(targetToStart, MOB_PATHFINDING_NODES[lastEdge[0]], pvars->MobVars.Target->Position);
-      vector_subtract(targetToNext, MOB_PATHFINDING_NODES[lastEdge[1]], pvars->MobVars.Target->Position);
+      vector_subtract(targetToStart, MOB_PATHFINDING_NODES[lastEdge[0]], pvars->MobVars.TargetPosition);
+      vector_subtract(targetToNext, MOB_PATHFINDING_NODES[lastEdge[1]], pvars->MobVars.TargetPosition);
       if (vector_innerproduct(targetToNext, targetToStart) < 0) {
         VECTOR up = {0,0,1,0};
         VECTOR from, to;
@@ -688,12 +827,13 @@ void pathGetTargetPos(VECTOR output, Moby* moby)
   targetNodeIdx = pathGetTargetNodeIdx(moby);
   if (targetNodeIdx < 0) {
     vector_copy(pvars->MobVars.MoveVars.LastTargetPos, output);
-    return;
+    return newPath;
   }
 
   // get point
-  pathGetClosestPointOnNode(output, moby->Position, pvars->MobVars.Target->Position, targetNodeIdx, pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent+1], pvars->MobVars.Config.CollRadius);
+  pathGetClosestPointOnNode(output, moby->Position, pvars->MobVars.TargetPosition, targetNodeIdx, pvars->MobVars.MoveVars.CurrentPath[pvars->MobVars.MoveVars.PathEdgeCurrent+1], pvars->MobVars.Config.CollRadius);
   vector_copy(pvars->MobVars.MoveVars.LastTargetPos, output);
+  return newPath;
 }
 
 //--------------------------------------------------------------------------
