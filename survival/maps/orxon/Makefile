@@ -21,10 +21,9 @@ endif
 
 all: setup $(EE_BIN) clean
 	# payload and definition
-	cp $(CURDIR)/orxon.bin $(CURDIR)/bin/code.0008.bin
-	bin2codedef $(CURDIR)/bin/code.0008.bin 01EF0000 $(CURDIR)/bin/code.0008.def 004A7D98
+	cp $(CURDIR)/orxon.bin "$(CURDIR)/bin/survival v2 mf.code"
 
-	cp $(CURDIR)/static/*.* $(CURDIR)/bin/
+	# if [ -d "/out" ]; then cp -r $(CURDIR)/bin/* /out/; fi
 	
 setup:
 	mkdir -p $(CURDIR)/bin

@@ -539,6 +539,10 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
   int i;
   VECTOR t;
 
+  // pass to map
+  if (mapConfig && mapConfig->OnPlayerGetResFunc && mapConfig->OnPlayerGetResFunc(player, outPos, outRot, firstRes))
+    return;
+
   // spawn at player start
   SurvivalBakedConfig_t* bakedConfig = mapConfig->BakedConfig;
   if (bakedConfig) {
@@ -771,7 +775,7 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
     damage = damage * (1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * difficulty));
     speed = speed * (1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * difficulty));
     health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * difficulty), 2);
-    //printf("2 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
+    //printf("2 %d:%f damage:%f speed:%f health:%f\n", spawnParamsIdx, difficulty, damage, speed, health);
   }
 
   // enforce max values
@@ -3316,8 +3320,8 @@ void initialize(PatchStateContainer_t* gameState)
   }
 
 #if STARTROUND
-  State.RoundNumber = STARTROUND - 1;
-  //State.RoundIsSpecial = 1;
+  State.RoundNumber = STARTROUND - 2;
+  //State.RoundIsSpecial = MapConfig.
   //State.RoundSpecialIdx = 4;
   int xp[GAME_MAX_PLAYERS];
 
@@ -3474,6 +3478,16 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     initialize(gameState);
     return;
   }
+
+#if STARTROUND
+  static int startRoundDelay = 60 * 1;
+  if (startRoundDelay == 0) {
+    setRoundComplete();
+    startRoundDelay--;
+  } else if (startRoundDelay > 0) {
+    --startRoundDelay;
+  }
+#endif
 
   // get local player data
   struct SurvivalPlayer* localPlayerData = &State.PlayerStates[localPlayer->PlayerId];

@@ -529,7 +529,6 @@ void initialize(void)
   // enable teleporter for everyone
   HOOK_JAL(0x003dfd18, &onHasPlayerUsedTeleporter);
   POKE_U32(0x003dfd1c, 0x0240202D);
-  strncpy(uiMsgString(0x25f9), "The gods have blessed you plenty.", 34);
   //POKE_U32(0x003DFD20, 0x10000006);
   POKE_U32(0x003DFD6C, 0x00000000);
 
@@ -554,13 +553,21 @@ void initialize(void)
  */
 int main (void)
 {
-	if (!isInGame())
+  if (!isInGame() && !isSceneLoadedNotYetInGame())
 		return 0;
 
   dlPreUpdate();
 
   // init
   initialize();
+
+  if (!isInGame()) return;
+
+  static int hasInGameInit = 0;
+  if (!hasInGameInit) {
+    strncpy(uiMsgString(0x25f9), "The gods have blessed you plenty.", 34);
+    hasInGameInit = 1;
+  }
 
   //
   if (MapConfig.ClientsReady || !netGetDmeServerConnection())

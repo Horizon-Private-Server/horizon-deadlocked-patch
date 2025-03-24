@@ -201,6 +201,15 @@ void mobAlterTarget(VECTOR out, Moby* moby, VECTOR forward, float amount)
 }
 
 //--------------------------------------------------------------------------
+float mobGetCurrentMoveSpeed(Moby* moby)
+{
+  VECTOR hVelocity;
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  vector_projectonhorizontal(hVelocity, pvars->MobVars.MoveVars.Velocity);
+  return (vector_length(hVelocity) / (pvars->MobVars.Config.Speed * MATH_DT));
+}
+
+//--------------------------------------------------------------------------
 void mobReactToThorns(Moby* moby, float damage, int byPlayerId)
 {
   if (byPlayerId < 0) return;
@@ -431,7 +440,7 @@ void mobSetAction(Moby* moby, int action)
   if (pvars->VTable && pvars->VTable->ForceLocalAction)
     pvars->VTable->ForceLocalAction(moby, action);
 
-  pvars->MobVars.DynamicRandom = (char)rand(255);
+  //pvars->MobVars.DynamicRandom = (char)rand(255);
 }
 
 //--------------------------------------------------------------------------

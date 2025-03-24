@@ -55,6 +55,8 @@
 #define BOSS_ARENA_HACKERORB_COUNT      (7)
 #define BOSS_ARENA_JUMPPAD_MOBY_UID     (19)
 #define BOSS_ARENA_HACK_ORB_MOB_BONUS   (50)
+#define BOSS_ARENA_MAX_MINIONS          (5)
+#define BOSS_ARENA_MINIONS_AFTER        (0.5)
 
 void mobInit(void);
 void mobTick(void);
@@ -66,6 +68,7 @@ void stackableTick(void);
 void frameTick(void);
 void mapOnMobKilled(Moby* moby, int killedByPlayerId, int killedByWeaponId);
 int mapCanSpawnMobs(void);
+int mapGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes);
 
 int zombieCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 int leviathanCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
@@ -103,7 +106,8 @@ struct SurvivalMapConfig MapConfig __attribute__((section(".config"))) = {
   .BakedConfig = &bakedConfig,
   .OnFrameTickFunc = &frameTick,
   .OnMobKilledFunc = &mapOnMobKilled,
-  .CanSpawnMobsFunc = &mapCanSpawnMobs
+  .CanSpawnMobsFunc = &mapCanSpawnMobs,
+  .OnPlayerGetResFunc = &mapGetResurrectPoint
 };
 
 // big al locations
@@ -126,7 +130,7 @@ VECTOR BossArenaLocation = {
 
 VECTOR WeaponPickupLocationBackups[BOSS_ARENA_WEP_PICKUP_COUNT];
 Moby* BossHackerOrbs[BOSS_ARENA_HACKERORB_COUNT] = {};
-char BossHackerOrbsStates[BOSS_ARENA_HACKERORB_COUNT] = {};
+int BossHackerOrbsStates[BOSS_ARENA_HACKERORB_COUNT] = {};
 
 //--------------------------------------------------------------------------
 int mapSpawnMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags)
@@ -286,10 +290,16 @@ void mapOnBossFight(void)
     Moby* moby = BossHackerOrbs[i];
     if (!moby) continue;
 
+    if (BossHackerOrbsStates[i] > 0)
+      --BossHackerOrbsStates[i];
+
     // spawn more mobs when any hacker orb starts being hacked
     if ((moby->State == 1 || moby->State == 4) && BossHackerOrbsStates[i] == 0) {
-      BossHackerOrbsStates[i] = 1;
-      MapConfig.State->RoundMaxMobCount += BOSS_ARENA_HACK_ORB_MOB_BONUS;
+      BossHackerOrbsStates[i] = TPS * 30;
+      //if (BossHackerOrbCooldown <= 0) {
+        MapConfig.State->RoundMaxMobCount += BOSS_ARENA_HACK_ORB_MOB_BONUS;
+        //BossHackerOrbCooldown = TPS * 30;
+      //}
     }
 
     captured += moby->State == 4;
@@ -304,9 +314,17 @@ void mapOnBossFight(void)
 
   // while boss is alive, keep spawning minions
   if (IsInBossFight == 2) {
+
+    int spawnMinions = 0;
+    if (MapConfig.State && MapConfig.State->BossMoby) {
+      struct MobPVar* pvars = (struct MobPVar*)MapConfig.State->BossMoby->PVar;
+      float health = pvars->MobVars.Health / pvars->MobVars.Config.MaxHealth;
+      spawnMinions = health < BOSS_ARENA_MINIONS_AFTER;
+    }
+
     //printf("max:%d total:%d alive:%d spawning:%d ticker:%d\n", MapConfig.State->RoundMaxMobCount, MapConfig.State->MobStats.TotalSpawnedThisRound, MapConfig.State->MobStats.TotalAlive, MapConfig.State->MobStats.TotalSpawning, MapConfig.State->RoundSpawnTicker);
     int mobsLeft = (MapConfig.State->RoundMaxMobCount - MapConfig.State->MobStats.TotalSpawnedThisRound) + MapConfig.State->MobStats.TotalAlive + MapConfig.State->MobStats.TotalSpawning;
-    if (mobsLeft < 15) {
+    if (spawnMinions && mobsLeft < BOSS_ARENA_MAX_MINIONS) {
 
       MapConfig.State->RoundMaxMobCount += 1;
       MapConfig.SpecialRoundParams[0].SpawnParamCount = 1; // only spawn leviathans
@@ -569,6 +587,24 @@ void addBlip(Moby* moby, int type, int team, int life)
     blip->Type = type;
     blip->Team = team;
   }
+}
+
+//--------------------------------------------------------------------------
+int mapGetResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
+{
+  if (firstRes) return 0;
+  if (!player->IsLocal) return 0;
+
+  // use respawn cuboid
+  int i = player->PlayerId;
+  if (LocalPlayerRespawnCuboid[i] >= 0) {
+    SpawnPoint* sp = spawnPointGet(LocalPlayerRespawnCuboid[i]);
+    vector_copy(outPos, &sp->M0[12]);
+    vector_copy(outRot, &sp->M1[12]);
+    return 1;
+  }
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------

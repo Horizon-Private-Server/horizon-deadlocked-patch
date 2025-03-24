@@ -252,13 +252,15 @@ void initialize(void)
  */
 int main (void)
 {
-	if (!isInGame())
+  if (!isInGame() && !isSceneLoadedNotYetInGame())
 		return 0;
 
   dlPreUpdate();
 
   // init
   initialize();
+
+  if (!isInGame()) return;
 
   //
   if (MapConfig.ClientsReady || !netGetDmeServerConnection())

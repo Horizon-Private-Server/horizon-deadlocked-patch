@@ -181,7 +181,7 @@ void mobSendStateUpdateUnreliable(Moby* moby)
   // action update
   msg.StateUpdate.Action = pvars->MobVars.Action;
   msg.StateUpdate.ActionId = pvars->MobVars.ActionId;
-  msg.StateUpdate.Random = pvars->MobVars.DynamicRandom;
+  msg.StateUpdate.Random = pvars->MobVars.DynamicRandom = (u8)rand(256);
 
   // state update
   vector_copy(msg.StateUpdate.Position, moby->Position);
@@ -526,7 +526,7 @@ void mobSetAction(Moby* moby, int action)
   if (pvars->VTable && pvars->VTable->ForceLocalAction)
     pvars->VTable->ForceLocalAction(moby, action);
 
-  pvars->MobVars.DynamicRandom = (char)rand(255);
+  //pvars->MobVars.DynamicRandom = (char)rand(255);
 }
 
 //--------------------------------------------------------------------------

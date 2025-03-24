@@ -274,6 +274,7 @@ typedef void (*MapOnMobSpawned_func)(Moby* moby);
 typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int killedByWeaponId);
 typedef int (*MapCanSpawnMobs_func)(void);
+typedef int (*OnPlayerGetRes_func)(Player* player, VECTOR outPos, VECTOR outRot, int firstRes);
 typedef int (*CreateUpgradePickup_func)(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
 typedef int (*HandleUpgradePickupEvent_func)(Moby* moby, GuberEvent* event);
 typedef void (*PickupUpgradePickup_func)(Moby* moby, int pickedUpByPlayerId);
@@ -441,6 +442,7 @@ struct SurvivalMapConfig
   MapOnMobSpawned_func OnMobSpawnedFunc;
   MapOnMobKilled_func OnMobKilledFunc;
   MapCanSpawnMobs_func CanSpawnMobsFunc;
+  OnPlayerGetRes_func OnPlayerGetResFunc;
   CreateUpgradePickup_func CreateUpgradePickupFunc;
   HandleUpgradePickupEvent_func OnUpgradePickupEventFunc;
   PickupUpgradePickup_func PickupUpgradeFunc;

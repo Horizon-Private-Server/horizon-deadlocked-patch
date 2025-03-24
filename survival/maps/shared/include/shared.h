@@ -31,6 +31,7 @@ void mobSetAction(Moby* moby, int action);
 void mobTransAnimLerp(Moby* moby, int animId, int lerpFrames, float startOff);
 void mobTransAnim(Moby* moby, int animId, float startOff);
 int mobHasVelocity(struct MobPVar* pvars);
+float mobGetCurrentMoveSpeed(Moby* moby);
 void mobGetKnockbackVelocity(Moby* moby, VECTOR out);
 void mobGetTargetCenter(Moby* target, VECTOR out);
 int mobCanSeeMoby(Moby* moby, Moby* canSeeMoby);

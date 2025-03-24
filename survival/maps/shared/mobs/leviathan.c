@@ -108,12 +108,39 @@ int leviathanIsBoss(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+int leviathanIsEvasive(Moby* moby)
+{
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  float healthPerc = (pvars->MobVars.Health / pvars->MobVars.Config.Health);
+  return leviathanIsBoss(moby) && healthPerc < 0.5 && healthPerc >= 0.25;
+}
+
+//--------------------------------------------------------------------------
+int leviathanIsAggressive(Moby* moby)
+{
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  return leviathanIsBoss(moby) && (pvars->MobVars.Health / pvars->MobVars.Config.Health) < 0.25;
+}
+
+//--------------------------------------------------------------------------
 float leviathanGetScale(Moby* moby)
 {
   if (leviathanIsBoss(moby))
     return 2;
 
   return 1;
+}
+
+//--------------------------------------------------------------------------
+int leviathanGetLaserCooldownTicks(Moby* moby)
+{
+  int ticks = randRangeInt(LEVIATHAN_LASER_COOLDOWN_TICKS_MIN, LEVIATHAN_LASER_COOLDOWN_TICKS_MAX);
+  
+  // evasive so laser more often
+  if (leviathanIsEvasive(moby))
+    ticks >>= 2;
+
+  return ticks;
 }
 
 //--------------------------------------------------------------------------
@@ -150,7 +177,7 @@ void leviathanPostUpdate(Moby* moby)
 
   // 
   if (leviathanVars->AttackLaserCooldownTicks == 0) {
-    leviathanVars->AttackLaserCooldownTicks = randRangeInt(LEVIATHAN_LASER_COOLDOWN_TICKS_MIN, LEVIATHAN_LASER_COOLDOWN_TICKS_MAX);
+    leviathanVars->AttackLaserCooldownTicks = leviathanGetLaserCooldownTicks(moby);
   }
 
   // adjust animSpeed by speed and by animation
@@ -167,7 +194,7 @@ void leviathanPostUpdate(Moby* moby)
   } else if (leviathanIsDying(moby)) {
     animSpeed = 1;
   } else if (moby->AnimSeqId == LEVIATHAN_ANIM_WALK || moby->AnimSeqId == LEVIATHAN_ANIM_WALK_LEFT || moby->AnimSeqId == LEVIATHAN_ANIM_WALK_RIGHT) {
-    //animSpeed *= mobGetCurrentMoveSpeed(moby);
+    animSpeed *= mobGetCurrentMoveSpeed(moby);
   }
 
   // scale up attack and walk animations by speed
@@ -533,7 +560,9 @@ int leviathanDoActionMove(Moby* moby)
   LeviathanMobVars_t* leviathanVars = (LeviathanMobVars_t*)pvars->AdditionalMobVarsPtr;
 	Moby* target = pvars->MobVars.Target;
 	VECTOR t;
-  int strafe = pvars->MobVars.Action == LEVIATHAN_ACTION_STRAFE;
+  int evasive = leviathanIsEvasive(moby);
+  int aggressive = leviathanIsAggressive(moby);
+  int strafe = evasive || pvars->MobVars.Action == LEVIATHAN_ACTION_STRAFE;
   float speed = pvars->MobVars.Config.Speed;
   float turnSpeed = pvars->MobVars.MoveVars.Grounded ? LEVIATHAN_TURN_RADIANS_PER_SEC : LEVIATHAN_TURN_AIR_RADIANS_PER_SEC;
   float acceleration = pvars->MobVars.MoveVars.Grounded ? LEVIATHAN_MOVE_ACCELERATION : LEVIATHAN_MOVE_AIR_ACCELERATION;
@@ -550,6 +579,9 @@ int leviathanDoActionMove(Moby* moby)
     turnSpeed *= LEVIATHAN_CHASE_SPEED_MULT;
     strafe = 0;
     dir = 0;
+  } else if (evasive) {
+    speed *= LEVIATHAN_CHASE_SPEED_MULT;
+    turnSpeed *= LEVIATHAN_CHASE_SPEED_MULT;
   }
 
   pvars->MobVars.MoveVars.ForceUseTargetPosition = strafe;
@@ -560,7 +592,7 @@ int leviathanDoActionMove(Moby* moby)
     if (dir != 0 && sqrDistToTarget < (LEVIATHAN_CHASE_TARGET_RADIUS*LEVIATHAN_CHASE_TARGET_RADIUS)) {
       // move towards target if normal/aggro
       // move away if evasive
-      vector_scale(strafeFwd, moby->M0_03, 5);
+      vector_scale(strafeFwd, moby->M0_03, evasive ? -5 : 5);
       vector_add(strafeVec, strafeVec, strafeFwd);
     }
 
@@ -948,7 +980,7 @@ void leviathanForceLocalAction(Moby* moby, int action)
 		case LEVIATHAN_ACTION_ATTACK_STAB:
 		{
       leviathanComputeLaserTargets(moby);
-      leviathanVars->AttackLaserCooldownTicks = randRangeInt(LEVIATHAN_LASER_COOLDOWN_TICKS_MIN, LEVIATHAN_LASER_COOLDOWN_TICKS_MAX);
+      leviathanVars->AttackLaserCooldownTicks = leviathanGetLaserCooldownTicks(moby);
 			pvars->MobVars.AttackCooldownTicks = pvars->MobVars.Config.AttackCooldownTickCount;
 			break;
 		}
@@ -1094,7 +1126,7 @@ int leviathanShouldStrafe(Moby* moby)
   // if mob is ready to attack
   // and we're not already strafing (if we are timeout at 15 seconds)
   // or if target is looking away, rush at them
-  if (pvars->MobVars.AttackCooldownTicks <= 10 && (pvars->MobVars.Action != LEVIATHAN_ACTION_STRAFE || pvars->MobVars.CurrentActionForTicks > (15*TPS) || vector_innerproduct_unscaled(moby->M0_03, target->M0_03) >= 0)) {
+  if (!leviathanIsEvasive(moby) && pvars->MobVars.AttackCooldownTicks <= 10 && (pvars->MobVars.Action != LEVIATHAN_ACTION_STRAFE || pvars->MobVars.CurrentActionForTicks > (15*TPS) || vector_innerproduct_unscaled(moby->M0_03, target->M0_03) >= 0)) {
     strafe = 0;
   }
 
@@ -1114,6 +1146,8 @@ int leviathanShouldChase(Moby* moby)
   int chase = pvars->MobVars.Action == LEVIATHAN_ACTION_CHASE;
 
   if (!target) return 0;
+  if (leviathanIsEvasive(moby)) return 0;
+  if (leviathanIsAggressive(moby)) return 1;
   if (!chase && rand(101)) return 0;
 
   // get distance to target
