@@ -266,7 +266,7 @@ Fix freeze jump air speed super slow
 
 ++Don't spawn mobs near players in jump pad state
 ++Don't have mobs target players in jump pad state
-Fix revive respawn moving player back to start
+++Fix revive respawn moving player back to start
 ++Add valix boss
 change valix swarmer to orange one
 Fix guber desync (have mobs that haven't recv state update auto die)
@@ -285,3 +285,13 @@ Increase bolts or lower cost for perks?
 ++Fix other maps
 Fix dzo weapon pickup buggy after pickup moves
 ++Add boss logic tied to health %
+
+++speed up king leviathan swing animation
+++add arb area mod
+++buff v10 mag
+++will o wisp color match player team
+++have mob far away respawn rand(100) => rand(mobsAlive)
+
+++fix mobs going in circle around path nodes
+++fix mobs getting stuck under islands
+++have boss reset laser cooldown when enter evasive state

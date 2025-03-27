@@ -15,6 +15,7 @@
 extern struct SurvivalMapConfig MapConfig;
 
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
+Moby * spawnExplosionDamage(VECTOR position, float size, u32 color, Moby* damager, float damage, u32 damageFlags);
 void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, float damageRadius);
 void playPaidSound(Player* player);
 int tryPlayerInteract(Moby* moby, Player* player, char* message, char* lowerMessage, int boltCost, int tokenCost, int actionCooldown, float sqrDistance, int btns);

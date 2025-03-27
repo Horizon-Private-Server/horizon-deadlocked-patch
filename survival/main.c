@@ -417,7 +417,7 @@ struct GuberMoby* getGuber(Moby* moby)
     return moby->GuberMoby;
   if (mobyIsMob(moby))
     return moby->GuberMoby;
-  if (mapConfig)
+  if (mapConfig && mapConfig->OnUnhandledGetGuberFunc)
     return mapConfig->OnUnhandledGetGuberFunc(moby);
   
   return 0;
@@ -1742,9 +1742,9 @@ void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
     VECTOR dt;
     vector_subtract(dt, target->Position, in->Damager->Position);
     float dist = vector_length(dt);
-    float min = 0.2;
-    Player* damager = guberMobyGetPlayerDamager(in->Damager);
-    if (damager) min += 0.05 * playerGetWeaponAlphaModCount(damager->GadgetBox, WEAPON_ID_MAGMA_CANNON, ALPHA_MOD_AREA);
+    float min = 0.8;
+    //Player* damager = guberMobyGetPlayerDamager(in->Damager);
+    //if (damager) min += 0.05 * playerGetWeaponAlphaModCount(damager->GadgetBox, WEAPON_ID_MAGMA_CANNON, ALPHA_MOD_AREA);
 
     float falloff = minf(1, maxf(min, minf(1, 1 - (dist / 32))));
     float origDmg = in->DamageHp;
@@ -2216,7 +2216,7 @@ void processPlayer(int pIndex) {
     }
 
     // handle prestige logic
-    if (State.PrestigeMachine) {
+    if (State.PrestigeMachine && State.PrestigeMachine->Drawn) {
 
       // check distance
       vector_subtract(t, player->PlayerPosition, State.PrestigeMachine->Position);
@@ -2967,6 +2967,14 @@ void resetRoundState(void)
 }
 
 //--------------------------------------------------------------------------
+float playerGetArbiterExplosionRadius(Player* player)
+{
+  if (!player || !player->GadgetBox) return 0;
+
+  return playerGetWeaponAlphaModCount(player->GadgetBox, WEAPON_ID_ARBITER, ALPHA_MOD_AREA) * 0.5;
+}
+
+//--------------------------------------------------------------------------
 void initialize(PatchStateContainer_t* gameState)
 {
   static int waitingForClientsReady = 0;
@@ -3026,9 +3034,17 @@ void initialize(PatchStateContainer_t* gameState)
   // Enable sniper to shoot through multiple enemies
   *(u32*)0x003FC2A8 = 0;
 
+  // have sniper shot always shoot straight
+  POKE_U32(0x003F935C, 0);
+
   // Disable sniper shot corn
   //*(u32*)0x003FC410 = 0;
   *(u32*)0x003FC5A8 = 0;
+
+  // fix arbiter explosion radius
+  POKE_U32(0x003F595C, 0);
+  //POKE_U32(0x003F5760, 0x00028040);
+  HOOK_JAL_OP(0x003F57F0, &playerGetArbiterExplosionRadius, 0x8E2400A8);
 
   // Fix v10 arb overlapping shots
   *(u32*)0x003F2E70 = 0x24020000;
@@ -3522,12 +3538,14 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] = 1;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_SHOT] = 2;
     //State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_HOVERBOOTS] = 1;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_VAMPIRE] = 3;
+    //State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_VAMPIRE] = 3;
+    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXPLODING_ENEMIES] = 3;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_AMMO] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_SPEED] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_AREA] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_IMPACT] = 5;
     State.PlayerStates[i].State.Upgrades[UPGRADE_SPEED] = UpgradeMax[UPGRADE_SPEED];
+    State.PlayerStates[i].State.Upgrades[UPGRADE_DAMAGE] = 10;
   }
 #endif
 
@@ -3893,7 +3911,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     }
   }
 
-#if DEBUG
+#if DEBUG || TEST
   if (padGetButton(0, PAD_CROSS)) {
     *(float*)0x00347BD8 = 0.125;
   }
@@ -4256,10 +4274,10 @@ void waitForMapConfig(PatchStateContainer_t * gameState)
   if (!mapConfig || mapConfig->Magic != MAP_CONFIG_MAGIC) {
     
     // prevent game from finishing loading
-    POKE_U32(0x004A7FD4, 0);
-    POKE_U32(0x004A7FDC, 0);
-    POKE_U32(0x004A7FE4, 0);
-    POKE_U32(0x004A82E8, 0);
+    //POKE_U32(0x004A7FD4, 0);
+    //POKE_U32(0x004A7FDC, 0);
+    //POKE_U32(0x004A7FE4, 0);
+    //POKE_U32(0x004A82E8, 0);
   } else if (!hasMapConfig()) {
 
     // call map code to let it initialize
@@ -4268,9 +4286,9 @@ void waitForMapConfig(PatchStateContainer_t * gameState)
   } else if (gameState->AllClientsReady && *(u16*)0x0021ddb4 == 6) {
 
     // let game load
-    POKE_U32(0x0021e680, 15);
-    POKE_U32(0x0021e684, 15);
-    POKE_U32(0x0021ddb4, 15);
+    //POKE_U32(0x0021e680, 15);
+    //POKE_U32(0x0021e684, 15);
+    //POKE_U32(0x0021ddb4, 15);
   }
 }
 

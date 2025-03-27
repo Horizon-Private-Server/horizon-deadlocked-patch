@@ -429,9 +429,9 @@ void executionerDoAction(Moby* moby)
         // move
         if (!isInAirFromFlinching) {
           if (target) {
-            pathGetTargetPos(t, moby);
-            mobTurnTowards(moby, t, turnSpeed);
-            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+            if (pathGetTargetPos(t, moby) && mobAmIOwner(moby))
+              pvars->MobVars.Dirty = 1; // new path, sync with other clients
+            mobJumpTowards(moby, t);
           } else {
             mobStand(moby);
           }
@@ -475,8 +475,7 @@ void executionerDoAction(Moby* moby)
 
       if (!isInAirFromFlinching) {
         if (target) {
-
-          float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
+          float dir = mobGetCurrentWalkAngle(moby);
 
           // determine next position
           vector_copy(t, target->Position);
@@ -490,29 +489,18 @@ void executionerDoAction(Moby* moby)
             vector_normalize(t, t);
             vector_scale(t, t, 5);
             vector_subtract(t, target->Position, t);
-            mobTurnTowards(moby, target->Position, turnSpeed);
-            mobGetVelocityToTargetSimple(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+            mobMoveTowards(moby, t, pvars->MobVars.Config.Speed, turnSpeed, acceleration, dir);
             DPRINTF("%f\n", vector_length(pvars->MobVars.MoveVars.Velocity));
           }
           else if (dist > (pvars->MobVars.Config.AttackRadius - pvars->MobVars.Config.HitRadius)) {
 
-            pathGetTargetPos(t, moby);
-            vector_subtract(t, t, moby->Position);
-            float dist = vector_length(t);
-            if (dist < 10.0) {
-              executionerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-              vector_add(t, t, t2);
-            }
-            vector_scale(t, t, 1 / dist);
-            vector_add(t, moby->Position, t);
-
-            mobTurnTowards(moby, t, turnSpeed);
-            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+            if (pathGetTargetPos(t, moby) && mobAmIOwner(moby))
+              pvars->MobVars.Dirty = 1; // new path, sync with other clients
+            mobMoveTowards(moby, t, pvars->MobVars.Config.Speed, turnSpeed, acceleration, dir);
           } else {
             mobStand(moby);
           }
         } else {
-          // stand
           mobStand(moby);
         }
       }
@@ -551,10 +539,8 @@ void executionerDoAction(Moby* moby)
 
       if (!isInAirFromFlinching) {
         if (target) {
-          mobTurnTowards(moby, target->Position, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
+          mobMoveTowards(moby, target->Position, speedMult * pvars->MobVars.Config.Speed, turnSpeed, acceleration, 0);
         } else {
-          // stand
           mobStand(moby);
         }
       }

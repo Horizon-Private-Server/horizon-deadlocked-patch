@@ -111,15 +111,25 @@ int leviathanIsBoss(Moby* moby)
 int leviathanIsEvasive(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (!leviathanIsBoss(moby)) return 0;
+
   float healthPerc = (pvars->MobVars.Health / pvars->MobVars.Config.Health);
-  return leviathanIsBoss(moby) && healthPerc < 0.5 && healthPerc >= 0.25;
+  if (healthPerc > 0.25 && healthPerc < 0.5) return 1;
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------
 int leviathanIsAggressive(Moby* moby)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  return leviathanIsBoss(moby) && (pvars->MobVars.Health / pvars->MobVars.Config.Health) < 0.25;
+  if (!leviathanIsBoss(moby)) return 0;
+  
+  float healthPerc = (pvars->MobVars.Health / pvars->MobVars.Config.Health);
+  if (healthPerc < 0.25) return 1;
+  if (healthPerc > 0.5 && healthPerc < 0.75) return 1;
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------
@@ -138,7 +148,7 @@ int leviathanGetLaserCooldownTicks(Moby* moby)
   
   // evasive so laser more often
   if (leviathanIsEvasive(moby))
-    ticks >>= 2;
+    ticks /= 8;
 
   return ticks;
 }
@@ -205,7 +215,7 @@ void leviathanPostUpdate(Moby* moby)
     case LEVIATHAN_ANIM_WALK_LEFT:
     case LEVIATHAN_ANIM_WALK_RIGHT:
       {
-        animSpeed *= (pvars->MobVars.Config.Speed / MOB_BASE_SPEED) / scale;
+        animSpeed *= (pvars->MobVars.Config.Speed / MOB_BASE_SPEED);
         break;
       }
   }
@@ -284,8 +294,9 @@ void leviathanOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
 void leviathanOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  LeviathanMobVars_t* leviathanVars = (LeviathanMobVars_t*)pvars->AdditionalMobVarsPtr;
 	float damage = e->DamageQuarters / 4.0;
-  
+
   // take more damage in exhausted state
   if ((pvars->MobVars.Action == LEVIATHAN_ACTION_ATTACK_LASER || pvars->MobVars.Action == LEVIATHAN_ACTION_ATTACK_LASER_LOCKON) && moby->AnimSeqId == LEVIATHAN_ANIM_LASER_FIRE_EXHAUSTED) {
     e->DamageQuarters *= 2;
@@ -296,6 +307,11 @@ void leviathanOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 	int canFlinch = pvars->MobVars.Action != LEVIATHAN_ACTION_FLINCH 
             && pvars->MobVars.Action != LEVIATHAN_ACTION_BIG_FLINCH
             && pvars->MobVars.FlinchCooldownTicks == 0;
+
+  // every quarter health reset laser cooldown
+  if ((int)(newHp * 4) != (int)(pvars->MobVars.Health * 4)) {
+    leviathanVars->AttackLaserCooldownTicks = leviathanGetLaserCooldownTicks(moby);
+  }
 
 #if ALWAYS_FLINCH
   canFlinch = 1;
@@ -482,7 +498,7 @@ int leviathanGetPreferredAction(Moby* moby, int * delayTicks)
   }
 
   // jump if we've hit a slope and are grounded
-  if (mobHitWallShouldJump(moby, LEVIATHAN_MAX_WALKABLE_SLOPE)) {
+  if (!leviathanIsEvasive(moby) && pvars->MobVars.Action != LEVIATHAN_ACTION_STRAFE && mobHitWallShouldJump(moby, LEVIATHAN_MAX_WALKABLE_SLOPE)) {
     return LEVIATHAN_ACTION_JUMP;
   }
 
@@ -586,6 +602,10 @@ int leviathanDoActionMove(Moby* moby)
 
   pvars->MobVars.MoveVars.ForceUseTargetPosition = strafe;
   float strafeDir = (pvars->MobVars.DynamicRandom % 2) ? 1 : -1;
+#if DEBUGMOVE
+  strafeDir = fabsf(strafeDir);
+#endif
+
   if (strafe) {
     VECTOR strafeVec, strafeFwd;
     vector_scale(strafeVec, moby->M1_03, 5 * strafeDir);
@@ -626,6 +646,7 @@ void leviathanDoAction(Moby* moby)
   Moby* laserbeamMoby = leviathanVars->LaserbeamMoby;
   VECTOR up = {0,0,1,0};
 	VECTOR t;
+  int isBoss = leviathanIsBoss(moby);
   float difficulty = 1;
   float speed = pvars->MobVars.Config.Speed;
   float turnSpeed = 1 * (pvars->MobVars.MoveVars.Grounded ? LEVIATHAN_TURN_RADIANS_PER_SEC : LEVIATHAN_TURN_AIR_RADIANS_PER_SEC);
@@ -874,7 +895,15 @@ void leviathanDoAction(Moby* moby)
           // update laserbeam
           if (laserbeamMoby) {
             laserbeamMoby->State = LASERBEAM_STATE_ACTIVATED;
-            laserbeamSet(laserbeamMoby, &mtxTailHead[12], leviathanVars->LaserbeamDirection, 100, 0.3, damage, 0x00081801, 0x80208040, 0x3020FF20, 0x00ff00, 0x00ff00, 0x45, 0x0E);
+            float width = 0.3;
+            u32 colorBeam = 0x80208040;
+            u32 colorGlow = 0x3020FF20;
+            if (isBoss) {
+              width = 0.7;
+              colorBeam = 0x8010C020;
+              colorGlow = 0x5020FF20;
+            }
+            laserbeamSet(laserbeamMoby, &mtxTailHead[12], leviathanVars->LaserbeamDirection, 100, width, damage, 0x00081801, colorBeam, colorGlow, 0x00ff00, 0x00ff00, 0x45, 0x0E);
           }
 
           // check for laser hit target

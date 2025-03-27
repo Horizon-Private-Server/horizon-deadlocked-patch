@@ -290,7 +290,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom, "Tweaks the minimized radar zoom." },
   // { "NPS Lag Compensation", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableNPSLagComp, "When New Player Sync is enabled, attempt to reduce latency of player movements." },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
-  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic, "When On, enables all music tracks in game. Currently not supported in Survival." },
+  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic, "Enables all music tracks in game. Use R3 + Right to skip a track in game." },
   { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot, "Toggles tapping L2 once to chargeboot." },
   { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate, "Toggles the custom spectate feature. Use \x13 when dead to spectate." },
   // { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
@@ -454,7 +454,7 @@ MenuElem_ListData_t dataCustomMaps = {
 MenuElem_OrderedListData_t dataCustomModes = {
   .value = &gameConfig.customModeId,
   .stateHandler = menuStateHandler_SelectedGameModeOverride,
-  .count = CUSTOM_MODE_COUNT,
+  .count = 14,
   .items = {
     { CUSTOM_MODE_NONE, "None" },
     { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
@@ -466,7 +466,7 @@ MenuElem_OrderedListData_t dataCustomModes = {
     { CUSTOM_MODE_OBSTACLE, "Obstacle Course" },
     { CUSTOM_MODE_OITC, "One in the Chamber" },
     { CUSTOM_MODE_PAYLOAD, "Payload" },
-    { CUSTOM_MODE_RAIDS, "Raids" },
+    // { CUSTOM_MODE_RAIDS, "Raids" },
     { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
     { CUSTOM_MODE_TAG, "Tag" },
     { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },

@@ -70,9 +70,15 @@ int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromU
 {
 	struct MobSpawnEventArgs args;
   
+  int oclass = SWARMER_MOBY_OCLASS;
+
+#if SWARMER_ORANGE
+  oclass = SWARMER2_MOBY_OCLASS;
+#endif
+
 	// create guber object
 	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(SWARMER_MOBY_OCLASS, sizeof(struct MobPVar), &guberEvent, NULL);
+	guberMobyCreateSpawned(oclass, sizeof(struct MobPVar), &guberEvent, NULL);
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
@@ -463,9 +469,9 @@ void swarmerDoAction(Moby* moby)
         // move
         if (!isInAirFromFlinching) {
           if (target) {
-            pathGetTargetPos(t, moby);
-            mobTurnTowards(moby, t, turnSpeed);
-            mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+            if (pathGetTargetPos(t, moby) && mobAmIOwner(moby))
+              pvars->MobVars.Dirty = 1; // new path, sync with other clients
+            mobJumpTowards(moby, t);
           } else {
             mobStand(moby);
           }
@@ -506,24 +512,9 @@ void swarmerDoAction(Moby* moby)
     case SWARMER_ACTION_WALK:
 		{
       if (target) {
-
-        float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
-
-        // determine next position
-        pathGetTargetPos(t, moby);
-        //vector_copy(t, target->Position);
-        vector_subtract(t, t, moby->Position);
-        float dist = vector_length(t);
-        if (dist < 10.0) {
-          swarmerAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-          vector_add(t, t, t2);
-        }
-        vector_scale(t, t, 1 / dist);
-        vector_add(t, moby->Position, t);
-
-
-        mobTurnTowards(moby, t, turnSpeed);
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+        if (pathGetTargetPos(t, moby) && mobAmIOwner(moby))
+          pvars->MobVars.Dirty = 1; // new path, sync with other clients
+        mobMoveTowards(moby, t, pvars->MobVars.Config.Speed, turnSpeed, acceleration, mobGetCurrentWalkAngle(moby));
       } else {
         // stand
         mobStand(moby);
@@ -618,8 +609,7 @@ void swarmerDoAction(Moby* moby)
 
       if (!isInAirFromFlinching) {
         if (target) {
-          mobTurnTowards(moby, target->Position, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
+          mobMoveTowards(moby, target->Position, speedMult * pvars->MobVars.Config.Speed, turnSpeed, acceleration, 0);
         } else {
           // stand
           mobStand(moby);

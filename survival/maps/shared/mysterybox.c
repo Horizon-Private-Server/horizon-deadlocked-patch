@@ -193,7 +193,7 @@ void mboxRandomizeWeaponPickups(void)
 	if (gameOptions->WeaponFlags.B6) { wepEnabled[7] = 1; pickupOptionCount++; }
 	if (gameOptions->WeaponFlags.Holoshield) { wepEnabled[16] = 1; pickupOptionCount++; }
 	if (gameOptions->WeaponFlags.Flail) { wepEnabled[12] = 1; pickupOptionCount++; }
-	if (gameOptions->WeaponFlags.Chargeboots) { wepEnabled[13] = 1; pickupOptionCount++; }
+  if (gameOptions->WeaponFlags.Chargeboots && gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots == 0) { wepEnabled[13] = 1; pickupOptionCount++; }
 
 	if (pickupOptionCount > 0) {
 		Moby* moby = mobyListGetStart();

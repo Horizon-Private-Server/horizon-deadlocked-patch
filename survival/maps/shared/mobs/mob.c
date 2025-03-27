@@ -601,22 +601,40 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
 
     // if the hit point is before to
     // then we want to snap back before to
-    vector_subtract(to, CollLine_Fix_GetHitPosition(), up);
+    //vector_subtract(hitTo, CollLine_Fix_GetHitPosition(), up);
+    //vector_subtract(hitTo, hitTo, hitToEx);
     
     // stop if hit steep wall
     if (pvars->MobVars.MoveVars.WallSlope > (60 * MATH_DEG2RAD)) {
-      vector_projectonhorizontal(hitToEx, hitToEx);
-      vector_subtract(outputPos, to, hitToEx);
+      //vector_projectonhorizontal(hitToEx, hitToEx);
+      //vector_subtract(outputPos, to, hitToEx);
       DPRINTF("movecheck hit steep slope %f\n", pvars->MobVars.MoveVars.WallSlope * MATH_RAD2DEG);
-      return 2;
+      //return 2;
     }
 
+    // get tangent to surface
+    VECTOR hitTangent, hitBitangent;
+    VECTOR hitRight;
+    vector_outerproduct(hitRight, horizontalDelta, up);
+    vector_outerproduct(hitTangent, hitNormal, hitRight);
+    vector_outerproduct(hitBitangent, hitNormal, hitTangent);
+    vector_normalize(hitBitangent, hitBitangent);
+
+    float hitBitangentDotDelta = vector_innerproduct(hitBitangent, delta);
+    // float velToSurfaceTangentAngle = acosf(fabsf(hitBitangentDotDelta));
+    // if (velToSurfaceTangentAngle < (60 * MATH_DEG2RAD)) {
+    //   pvars->MobVars.MoveVars.HitWall = 0;
+    // }
+
+    vector_scale(hitBitangent, hitBitangent, hitBitangentDotDelta * vector_length(delta));
+    vector_add(outputPos, from, hitBitangent);
+
     //vector_projectonhorizontal(hitToEx, hitToEx);
-    vector_reflect(reflectedDelta, hitToEx, hitNormal);
+    //vector_reflect(reflectedDelta, hitToEx, hitNormal);
     //if (reflectedDelta[2] > delta[2])
     //  reflectedDelta[2] = delta[2];
 
-    vector_add(outputPos, to, reflectedDelta);
+    //vector_add(outputPos, to, reflectedDelta);
 
 #if DEBUGMOVE
     vector_copy(MoveCheckFinal, outputPos);
@@ -716,7 +734,7 @@ void mobMove(Moby* moby)
       if (mobMoveCheck(moby, nextPos, moby->Position, nextPos) == 1) {
         if (mobMoveCheck(moby, nextPos, moby->Position, nextPos)) {
           //vector_copy(nextPos, moby->Position); // don't move
-          pvars->MobVars.MoveVars.IsStuck = 1;
+          //pvars->MobVars.MoveVars.IsStuck = 1;
         }
       }
 
@@ -793,6 +811,7 @@ void mobMove(Moby* moby)
     if (!stuckCheckTicks) {
       pvars->MobVars.MoveVars.StuckCheckTicks = 60;
       pvars->MobVars.MoveVars.IsStuck = /* pvars->MobVars.MoveVars.HitWall && */ vector_length(pvars->MobVars.MoveVars.SumPositionDelta) < (pvars->MobVars.MoveVars.SumSpeedOver * 0.25);
+      //pvars->MobVars.MoveVars.IsStuck = 0;
       if (!pvars->MobVars.MoveVars.IsStuck) {
         pvars->MobVars.MoveVars.StuckJumpCount = 0;
         pvars->MobVars.MoveVars.StuckCounter = 0;
@@ -1185,12 +1204,12 @@ void mobPostDrawDebug(Moby* moby)
 #endif
 
 #if DEBUGMOVE
-  draw3DMarker(MoveCheckHit, 1, 0x80FFFFFF, "-");
+  draw3DMarker(MoveCheckHit, 1, 0x80FF00FF, "-");
   draw3DMarker(MoveCheckFrom, 1, 0x80FFFFFF, "a");
   draw3DMarker(MoveCheckTo, 1, 0x80FFFFFF, "b");
-  draw3DMarker(MoveCheckFinal, 1, 0x80FFFFFF, "+");
-  draw3DMarker(MoveCheckUp, 1, 0x80FFFFFF, "^");
-  draw3DMarker(MoveCheckDown, 1, 0x80FFFFFF, "v");
+  draw3DMarker(MoveCheckFinal, 1, 0x80FF00FF, "+");
+  draw3DMarker(MoveCheckUp, 1, 0x8000FFFF, "^");
+  draw3DMarker(MoveCheckDown, 1, 0x8000FFFF, "v");
   draw3DMarker(MoveNextPos, 1, 0x80FFFFFF, "o");
   draw3DMarker(MoveTargetLineOfSightHit, 1, 0x80FFFFFF, "x");
 #endif
@@ -1251,6 +1270,7 @@ void mobOnSpawned(Moby* moby)
 #endif
 #if MOB_SWARMER
     case SWARMER_MOBY_OCLASS:
+    case SWARMER2_MOBY_OCLASS:
     {
       pvars->VTable = &SwarmerVTable;
       break;

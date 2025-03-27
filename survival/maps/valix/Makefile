@@ -3,7 +3,7 @@ EE_OBJS = common.o main.o config.o path.o soulcollector.o hackerorb.o ../shared/
 EE_ELF = valix.elf
 EE_BIN = valix.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
-EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_LEVIATHAN -DMOB_REAPER -DMOB_TREMOR -DMOB_SWARMER -fno-builtin -nostdlib -nostartfiles -L.
+EE_LDFLAGS := -DMOB_ZOMBIE -DMOB_LEVIATHAN -DMOB_REAPER -DMOB_TREMOR -DMOB_SWARMER -DSWARMER_ORANGE -fno-builtin -nostdlib -nostartfiles -L.
 
 # set to DEBUG or RELEASE
 BUILD_CONFIG := RELEASE
@@ -12,7 +12,7 @@ BUILD_CONFIG := RELEASE
 # 	DEBUG									Enables debug strings and additional misc debug logic.
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DMOB_CORN -DDEBUGMBOX_ -DDEBUGPATH_ -DDEBUGSBOX_
+EE_DEFS := -DDEBUG -DMOB_CORN -DDEBUGMBOX_ -DDEBUGPATH_ -DDEBUGSBOX_ -DDEBUGMOVE
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DRELEASE -DMOB_CORN
 endif

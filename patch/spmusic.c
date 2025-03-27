@@ -7,9 +7,10 @@
 #include <libdl/pad.h>
 #include <libdl/music.h>
 #include <libdl/utils.h>
+#include <libdl/random.h>
 #include "config.h"
 
-#define SP_MUSIC_TRACK_COUNT                (64)
+#define SP_MUSIC_TRACK_COUNT                (62 /* + 2*/)
 
 extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
@@ -79,9 +80,15 @@ int spMusicTrackTable[SP_MUSIC_TRACK_COUNT][2] = {
   { 0x00032CFB, 0x000332D2 },
 
   // these are extras added
-  { 0x0009BBAC - 0x000F8D29, 0x0009C017 - 0x000F8D29 }, // challenge complete
-  { 0x0009C482 - 0x000F8D29, 0x0009C7C7 - 0x000F8D29 }, // challenge failed
+  //{ 0x0009BBAC - 0x000F8D29, 0x0009C017 - 0x000F8D29 }, // challenge complete
+  //{ 0x0009C482 - 0x000F8D29, 0x0009C7C7 - 0x000F8D29 }, // challenge failed
 };
+
+//--------------------------------------------------------------------------
+int spMusicGetRandom(void)
+{
+  return (rand((MUSIC_TRACK_DREADZONE_DEFEAT_GLEEMON_VOX - MUSIC_TRACK_MARAUDER_ADVANCED_QUALIFIER) >> 1) << 1) + MUSIC_TRACK_MARAUDER_ADVANCED_QUALIFIER;
+}
 
 //--------------------------------------------------------------------------
 void spMusicLoad(void)
@@ -95,7 +102,7 @@ void spMusicLoad(void)
   }
 
   ((void (*)(int,int,int))0x0051f928)(4,13 + SP_MUSIC_TRACK_COUNT,0x400);
-  POKE_U16(0x004A8328, 13 + SP_MUSIC_TRACK_COUNT - 2);
+  POKE_U16(0x004A8328, 13 + SP_MUSIC_TRACK_COUNT);
   //musicPlayTrack(MUSIC_TRACK_DREADZONE_STATION, 1);
 
   DPRINTF("SPMUSIC loaded %d tracks\n", SP_MUSIC_TRACK_COUNT);
@@ -113,5 +120,14 @@ void spMusicRun(void)
   } else if (!hasLoaded) {
     spMusicLoad();
     hasLoaded = 1;
+  }
+
+  // skip track
+  if (isInGame() && padGetButtonDown(0, PAD_RIGHT | PAD_R3) > 0) {
+    int track = spMusicGetRandom();
+    while (track == musicGetCurrentTrack())
+      track = spMusicGetRandom();
+
+    musicPlayTrack(track, 1);
   }
 }

@@ -22,6 +22,7 @@
 #define EXECUTIONER2_MOBY_OCLASS							(0x20A1)
 #define TREMOR_MOBY_OCLASS							      (0x24D3)
 #define SWARMER_MOBY_OCLASS							      (0x2695)
+#define SWARMER2_MOBY_OCLASS							    (0x2051)
 #define REAPER_MOBY_OCLASS							      (0x2570)
 #define REACTOR_MOBY_OCLASS							      (0x20BE)
 #define LEVIATHAN_MOBY_OCLASS							    (0x20C4)
@@ -157,6 +158,9 @@
 #define ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_RAMP (0.5)
 #define ITEM_STACKABLE_ALPHA_MOD_AMT          (2)
 #define ITEM_STACKABLE_VAMPIRE_HEALTH_AMT     (3)
+#define ITEM_STACKABLE_EXPLODINGENEMIES_DAMAGE          (20)
+#define ITEM_STACKABLE_EXPLODINGENEMIES_RADIUS          (5.0)
+
 
 #define SNACK_ITEM_MAX_COUNT                  (16)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
@@ -252,6 +256,7 @@ enum StackableItemId
   STACKABLE_ITEM_ALPHA_MOD_AREA         = 6, // stack +2 area mod
   STACKABLE_ITEM_ALPHA_MOD_AMMO         = 7, // stack +2 ammo mod
   STACKABLE_ITEM_VAMPIRE                = 8, // stack +X health gain
+  STACKABLE_ITEM_EXPLODING_ENEMIES      = 9, // stack +X damage per explosion
   STACKABLE_ITEM_COUNT
 };
 
@@ -411,6 +416,7 @@ struct SurvivalState
   char NumTeams;
   int Round50Time;
   Moby* BossMoby;
+  Moby** AllMobsSorted;
 };
 
 struct SurvivalMapConfig

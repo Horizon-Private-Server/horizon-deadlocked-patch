@@ -62,7 +62,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Speed = MOB_BASE_SPEED * 1.5,
 			.MaxSpeed = MOB_BASE_SPEED * 4.0,
       .SpeedScale = 0.2,
-			.Health = MOB_BASE_HEALTH * 40.0,
+			.Health = MOB_BASE_HEALTH * 50.0,
 			.MaxHealth = VALIX_MOB_MAX_HEALTH * 10.0,
       .HealthScale = 1.1,
 			.AttackRadius = LEVIATHAN_MELEE_ATTACK_RADIUS * 1.5,
@@ -97,7 +97,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MaxSpeed = MOB_BASE_SPEED * 3.0,
       .SpeedScale = 0.1,
 			.Health = MOB_BASE_HEALTH * 3.0,
-			.MaxHealth = VALIX_MOB_MAX_HEALTH * 2.0,
+			.MaxHealth = VALIX_MOB_MAX_HEALTH * 1.0,
       .HealthScale = 1.1,
 			.Bolts = MOB_BASE_BOLTS * 2.0,
 			.AttackRadius = LEVIATHAN_MELEE_ATTACK_RADIUS * 1.0,
@@ -132,7 +132,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MaxSpeed = MOB_BASE_SPEED * 3.0,
       .SpeedScale = 0.1,
 			.Health = MOB_BASE_HEALTH * 3.0,
-			.MaxHealth = VALIX_MOB_MAX_HEALTH * 2.0,
+			.MaxHealth = VALIX_MOB_MAX_HEALTH * 1.0,
       .HealthScale = 1.1,
 			.Bolts = MOB_BASE_BOLTS * 2.0,
 			.AttackRadius = LEVIATHAN_MELEE_ATTACK_RADIUS * 1.0,
@@ -147,13 +147,13 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	[MOB_SPAWN_PARAM_REAPER]
 	{
 		.Cost = REAPER_RENDER_COST,
-    .MaxSpawnedAtOnce = 20,
+    .MaxSpawnedAtOnce = 10,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
 		.MinRound = 18,
 		.CooldownTicks = 0,
     .CooldownOffsetPerRoundFactor = 0,
-		.Probability = 0.05,
+		.Probability = 0.03,
     .StatId = MOB_STAT_REAPER,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER,
 		.Name = "Reaper",
@@ -288,8 +288,8 @@ const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct M
 
 //--------------------------------------------------------------------------
 SurvivalBakedConfig_t bakedConfig = {
-  .Difficulty = 1.1,
-  .SpawnDistanceFactor = 0.2,
+  .Difficulty = 1.25,
+  .SpawnDistanceFactor = 0.3,
   .BoltRankMultiplier = 1,
   .StackboxBaseCost = 250000,
   .StackboxCostPerPerk = 250000,
@@ -309,24 +309,23 @@ SurvivalBakedConfig_t bakedConfig = {
     { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 381.25, 422.6, 331.24 }, .Rotation = { 0, 0, -4.233414 } },
     { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 378.5874, 421.2173, 331.24 }, .Rotation = { 0, 0, -4.233414 } },
     { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 375.9248, 419.8346, 331.24 }, .Rotation = { 0, 0, -4.233414 } },
-    { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 513.79, 524.81, 372.8475 }, .Rotation = { 0, 0, -4.233414 } },
-    { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 531.39, 537.32, 372.8475 }, .Rotation = { 0, 0, -4.233414 } },
-    { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 514.06, 544.04, 372.8475 }, .Rotation = { 0, 0, -4.233414 } },
+    { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 511.5981, 526.1113, 372.8475 }, .Rotation = { 0, 0, -0.8545017 } },
+    { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 524.3442, 544.6609, 372.8475 }, .Rotation = { 0, 0, -3.510569 } },
+    { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 516.9033, 545.4879, 372.8475 }, .Rotation = { 0, 0, -2.885621 } },
+    { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 510.8462, 540.9991, 372.8475 }, .Rotation = { 0, 0, -2.227496 } },
+    { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 508.58, 533.47, 372.8475 }, .Rotation = { 0, 0, -1.555972 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 289.3901, 476.7001, 331.4836 }, .Rotation = { 0, 0, 0.07918823 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 513.2501, 564.1602, 302.0029 }, .Rotation = { 0, 0, -4.370725 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 523.9602, 694.0902, 318.9662 }, .Rotation = { 0, 0, -2.405586 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 608.6002, 660.6802, 319.5969 }, .Rotation = { 0, 0, -3.352686 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 751.2002, 641.7102, 323.4836 }, .Rotation = { 0, 0, -2.626437 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 684.3101, 456.0502, 314.8038 }, .Rotation = { 0, 0, -1.216549 } },
-    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 517.8, 523.1, 372.1772 }, .Rotation = { 0, 0, 1.368546 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 531.5202, 532.9302, 372.2292 }, .Rotation = { 0, 0, -3.21687 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 587.3002, 416.8101, 350.0135 }, .Rotation = { 0, 0, -3.049145 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 626.5102, 176.14, 338.7231 }, .Rotation = { 0, 0, -3.049145 } }
 
   }
 };
-
-//--------------------------------------------------------------------------
-
 
 //--------------------------------------------------------------------------
 u32 MobPrimaryColors[] = {
@@ -340,7 +339,7 @@ u32 MobPrimaryColors[] = {
 };
 
 u32 MobSecondaryColors[] = {
-	[MOB_SPAWN_PARAM_SWARMER] 0x80202020,
+	[MOB_SPAWN_PARAM_SWARMER] 0x80808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
 	[MOB_SPAWN_PARAM_TREMOR] 	0x80202020,
 	[MOB_SPAWN_PARAM_REAPER]	0x80FF2020,
@@ -358,6 +357,21 @@ u32 MobLODColors[] = {
 	[MOB_SPAWN_PARAM_LEVIATHAN_COMMON]	0x00808080,
 	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x00808080,
 };
+
+//--------------------------------------------------------------------------
+int StackboxItems[] = {
+  STACKABLE_ITEM_LOW_HEALTH_DMG_BUF,
+  STACKABLE_ITEM_EXTRA_JUMP,
+  STACKABLE_ITEM_EXTRA_SHOT,
+  STACKABLE_ITEM_HOVERBOOTS,
+  STACKABLE_ITEM_ALPHA_MOD_SPEED,
+  STACKABLE_ITEM_ALPHA_MOD_IMPACT,
+  STACKABLE_ITEM_ALPHA_MOD_AREA,
+  STACKABLE_ITEM_ALPHA_MOD_AMMO,
+  STACKABLE_ITEM_VAMPIRE,
+  STACKABLE_ITEM_EXPLODING_ENEMIES,
+};
+const int StackboxItemsCount = sizeof(StackboxItems)/sizeof(int);
 
 //--------------------------------------------------------------------------
 struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {

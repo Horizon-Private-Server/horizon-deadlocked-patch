@@ -467,6 +467,21 @@ u32 MobLODColors[] = {
 };
 
 //--------------------------------------------------------------------------
+int StackboxItems[] = {
+  STACKABLE_ITEM_LOW_HEALTH_DMG_BUF,
+  STACKABLE_ITEM_EXTRA_JUMP,
+  STACKABLE_ITEM_EXTRA_SHOT,
+  STACKABLE_ITEM_HOVERBOOTS,
+  STACKABLE_ITEM_ALPHA_MOD_SPEED,
+  STACKABLE_ITEM_ALPHA_MOD_IMPACT,
+  STACKABLE_ITEM_ALPHA_MOD_AREA,
+  STACKABLE_ITEM_ALPHA_MOD_AMMO,
+  STACKABLE_ITEM_VAMPIRE,
+  //STACKABLE_ITEM_EXPLODING_ENEMIES,
+};
+const int StackboxItemsCount = sizeof(StackboxItems)/sizeof(int);
+
+//--------------------------------------------------------------------------
 struct MysteryBoxItemWeight MysteryBoxItemProbabilities[] = {
   { MYSTERY_BOX_ITEM_RESET_GATE, 0.03 },
   { MYSTERY_BOX_ITEM_QUAD, 0.0526 },

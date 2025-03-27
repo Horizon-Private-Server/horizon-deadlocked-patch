@@ -51,6 +51,7 @@
 #define OOB_AREA_INDEX_START            (0)
 #define OOB_AREA_INDEX_END              (9)
 #define OOB_AREA_INDEX_BOSS             (9)
+#define OOB_AREA_INDEX_DEATH            (10)
 #define BOSS_ARENA_WEP_PICKUP_COUNT     (16)
 #define BOSS_ARENA_HACKERORB_COUNT      (7)
 #define BOSS_ARENA_JUMPPAD_MOBY_UID     (19)
@@ -64,6 +65,8 @@ void configInit(void);
 void pathTick(void);
 void stackableInit(void);
 void stackableTick(void);
+
+void stackableOnMobKilled(Moby* moby, int killedByPlayerId, int killedByWeaponId);
 
 void frameTick(void);
 void mapOnMobKilled(Moby* moby, int killedByPlayerId, int killedByWeaponId);
@@ -167,6 +170,13 @@ void mapOnEndBossFight(void)
     }
   }
 
+  // enable prestige
+  Moby* prestigeMachineMoby = MapConfig.State->PrestigeMachine;
+  if (prestigeMachineMoby) {
+    prestigeMachineMoby->DrawDist = 64;
+    prestigeMachineMoby->CollActive = 0;
+  }
+
   // move weapon pickups back
   int count = 0;
   Moby* moby = mobyListGetStart();
@@ -205,9 +215,19 @@ void mapOnBeginBossFight(void)
   if (MapConfig.State->RoundCompleteTime) return;
   if (MapConfig.State->RoundEndTime) return;
 
+  // help
+  uiShowPopup(0, "Press \x11 to equip the Hacker Ray");
+
   // reset mob count
   MapConfig.State->RoundMaxMobCount = 0;
   MapConfig.SpecialRoundParams[0].SpawnParamCount = 3;
+
+  // disable prestige
+  Moby* prestigeMachineMoby = MapConfig.State->PrestigeMachine;
+  if (prestigeMachineMoby) {
+    prestigeMachineMoby->DrawDist = 0;
+    prestigeMachineMoby->CollActive = -1;
+  }
 
   // teleport players to boss arena
   int i;
@@ -290,16 +310,13 @@ void mapOnBossFight(void)
     Moby* moby = BossHackerOrbs[i];
     if (!moby) continue;
 
-    if (BossHackerOrbsStates[i] > 0)
+    if (moby->State != 4 && BossHackerOrbsStates[i] > 0)
       --BossHackerOrbsStates[i];
 
     // spawn more mobs when any hacker orb starts being hacked
     if ((moby->State == 1 || moby->State == 4) && BossHackerOrbsStates[i] == 0) {
-      BossHackerOrbsStates[i] = TPS * 30;
-      //if (BossHackerOrbCooldown <= 0) {
-        MapConfig.State->RoundMaxMobCount += BOSS_ARENA_HACK_ORB_MOB_BONUS;
-        //BossHackerOrbCooldown = TPS * 30;
-      //}
+      BossHackerOrbsStates[i] = TPS * 60 * 5;
+      MapConfig.State->RoundMaxMobCount += BOSS_ARENA_HACK_ORB_MOB_BONUS;
     }
 
     captured += moby->State == 4;
@@ -363,6 +380,7 @@ void mapOnMobKilled(Moby* moby, int killedByPlayerId, int killedByWeaponId)
     }
   }
 
+  stackableOnMobKilled(moby, killedByPlayerId, killedByWeaponId);
   soulcollectorOnSoul(moby->Position, killedByPlayerId);
 }
 
@@ -511,6 +529,21 @@ void mobForceIntoMapBounds(Moby* moby)
   if (!moby)
     return;
 
+  // check for OOB death
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  if (!pvars->MobVars.Destroy && !pvars->MobVars.Destroyed && !pvars->MobVars.Respawn) {
+    Area_t area;
+    if (areaGetArea(OOB_AREA_INDEX_DEATH, &area) && area.Cuboids) {
+      int i;
+      for (i = 0; i < area.CuboidCount; ++i) {
+        if (spawnPointIsPointInside(spawnPointGet(area.Cuboids[i]), moby->Position, NULL)) {
+          pvars->MobVars.Respawn = 1;
+          break;
+        }
+      }
+    }
+  }
+  
   if (moby->Position[0] < 200)
     moby->Position[0] = 200;
   // prevent mob from entering gas zone
@@ -774,7 +807,7 @@ void initialize(void)
     return;
 
   MapConfig.Magic = MAP_CONFIG_MAGIC;
-  MapConfig.WeaponPickupCooldownFactor = 1;
+  MapConfig.WeaponPickupCooldownFactor = 0.65;
   MapConfig.OnUnhandledGetGuberFunc = mapGetGuber;
   MapConfig.OnUnhandledGuberEventFunc = mapHandleGuberEvent;
 
@@ -890,7 +923,7 @@ int main (void)
 
     Player* localPlayer = playerGetFromSlot(0);
     if (localPlayer && localPlayer->SkinMoby) {
-      VECTOR pStart = { 328.6, 544.85, 434, 0 };
+      VECTOR pStart = { 521.06, 533, 434, 0 };
       VECTOR pRotStart = { 0, 0, 0, 0 };
       playerSetPosRot(localPlayer, pStart, pRotStart);
     }

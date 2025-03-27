@@ -468,9 +468,9 @@ void reaperDoAction(Moby* moby)
 			{
         // move
         if (target) {
-          pathGetTargetPos(t, moby);
-          mobTurnTowards(moby, t, turnSpeed);
-          mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+          if (pathGetTargetPos(t, moby) && mobAmIOwner(moby))
+            pvars->MobVars.Dirty = 1; // new path, sync with other clients
+          mobJumpTowards(moby, t);
         } else {
           mobStand(moby);
         }
@@ -539,21 +539,9 @@ void reaperDoAction(Moby* moby)
       }
       
       if (target) {
-        float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
-
-        // determine next position
-        pathGetTargetPos(t, moby);
-        vector_subtract(t, t, moby->Position);
-        float dist = vector_length(t);
-        if (dist < 10.0) {
-          reaperAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-          vector_add(t, t, t2);
-        }
-        vector_scale(t, t, 1 / dist);
-        vector_add(t, moby->Position, t);
-
-        mobTurnTowards(moby, t, turnSpeed);
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed * 3, acceleration);
+        if (pathGetTargetPos(t, moby) && mobAmIOwner(moby))
+          pvars->MobVars.Dirty = 1; // new path, sync with other clients
+        mobMoveTowards(moby, t, pvars->MobVars.Config.Speed * 3, turnSpeed, acceleration, mobGetCurrentWalkAngle(moby));
       } else {
         // stand
         mobStand(moby);
@@ -572,24 +560,10 @@ void reaperDoAction(Moby* moby)
     case REAPER_ACTION_WALK:
 		{
       if (target) {
-        float dir = ((pvars->MobVars.ActionId + pvars->MobVars.Random) % 3) - 1;
-
-        // determine next position
-        pathGetTargetPos(t, moby);
-        vector_subtract(t, t, moby->Position);
-        float dist = vector_length(t);
-        if (dist < 10.0) {
-          reaperAlterTarget(t2, moby, t, clamp(dist, 0, 10) * 0.3 * dir);
-          vector_add(t, t, t2);
-        }
-        vector_scale(t, t, 1 / dist);
-        vector_add(t, moby->Position, t);
-
-
-        mobTurnTowards(moby, t, turnSpeed);
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, t, pvars->MobVars.Config.Speed, acceleration);
+        if (pathGetTargetPos(t, moby) && mobAmIOwner(moby))
+          pvars->MobVars.Dirty = 1; // new path, sync with other clients
+        mobMoveTowards(moby, t, pvars->MobVars.Config.Speed, turnSpeed, acceleration, mobGetCurrentWalkAngle(moby));
       } else {
-        // stand
         mobStand(moby);
       }
 
@@ -623,10 +597,8 @@ void reaperDoAction(Moby* moby)
 			u32 damageFlags = 0x00081801;
 
       if (target) {
-        mobTurnTowards(moby, target->Position, turnSpeed);
-        mobGetVelocityToTarget(moby, pvars->MobVars.MoveVars.Velocity, moby->Position, target->Position, speedMult * pvars->MobVars.Config.Speed, acceleration);
+        mobMoveTowards(moby, target->Position, speedMult * pvars->MobVars.Config.Speed, turnSpeed, acceleration, 0);
       } else {
-        // stand
         mobStand(moby);
       }
 

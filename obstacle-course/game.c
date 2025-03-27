@@ -94,6 +94,12 @@ void initialize(PatchStateContainer_t* gameState)
 	// hook messages
 	netHookMessages();
 
+  // vehicle respawn ticks
+  POKE_U32(0x00386C00, 8);
+  POKE_U32(0x00386720, 8);
+  POKE_U32(0x00387550, 8);
+  POKE_U32(0x00386F30, 8);
+
   if (startDelay) {
     --startDelay;
     return;
@@ -211,7 +217,7 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
   gameState->GameConfig->grHalfTime = 0;
   gameState->GameConfig->grOvertime = 0;
   gameState->GameConfig->drFreecam = 0;
-  gameState->GameConfig->drLevelReload = 0;
+  //gameState->GameConfig->drLevelReload = 0;
   gameState->GameConfig->prChargebootForever = 0;
   gameState->GameConfig->prPlayerSize = 0;
   gameState->GameConfig->prRotatingWeapons = 0;

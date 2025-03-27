@@ -47,6 +47,7 @@ char* STACKABLE_ITEM_NAMES[] = {
   [STACKABLE_ITEM_ALPHA_MOD_AREA] "Area Mod Perk",
   [STACKABLE_ITEM_ALPHA_MOD_IMPACT] "Impact Mod Perk",
   [STACKABLE_ITEM_VAMPIRE] "Vampire Perk",
+  [STACKABLE_ITEM_EXPLODING_ENEMIES] "Will o' the Wisp",
 };
 
 char* STACKABLE_ITEM_DESC[] = {
@@ -59,6 +60,7 @@ char* STACKABLE_ITEM_DESC[] = {
   [STACKABLE_ITEM_ALPHA_MOD_AREA] "Gives +2 extra area mod for all weapons",
   [STACKABLE_ITEM_ALPHA_MOD_IMPACT] "Gives +2 extra impact mod for all weapons",
   [STACKABLE_ITEM_VAMPIRE] "Gives +3 health after each kill, disables health pickups",
+  [STACKABLE_ITEM_EXPLODING_ENEMIES] "Deals +10 explosive damage after each kill",
 };
 
 int STACKABLE_ITEM_TEX_IDS[] = {
@@ -71,6 +73,7 @@ int STACKABLE_ITEM_TEX_IDS[] = {
   [STACKABLE_ITEM_ALPHA_MOD_AREA] 42 - 3,
   [STACKABLE_ITEM_ALPHA_MOD_IMPACT] 47 - 3,
   [STACKABLE_ITEM_VAMPIRE] 110,
+  [STACKABLE_ITEM_EXPLODING_ENEMIES] 131,
 };
 
 u32 STACKABLE_ITEM_COLORS[] = {
@@ -85,6 +88,9 @@ u32 STACKABLE_ITEM_COLORS[] = {
   [STACKABLE_ITEM_VAMPIRE] 0x80808080,
 };
 
+extern int StackboxItems[];
+extern const int StackboxItemsCount;
+
 //--------------------------------------------------------------------------
 int sboxGetStackableCost(int playerId, enum StackableItemId item)
 {
@@ -96,7 +102,7 @@ int sboxGetStackableCost(int playerId, enum StackableItemId item)
 //--------------------------------------------------------------------------
 int sboxGetRandomItem(Moby* moby)
 {
-  if (!moby) return rand(STACKABLE_ITEM_COUNT);
+  if (!moby) return StackboxItems[rand(StackboxItemsCount)];
 
   struct StackBoxPVar* pvars = (struct StackBoxPVar*)moby->PVar;
 
@@ -104,7 +110,7 @@ int sboxGetRandomItem(Moby* moby)
   // avoid picking the current item
   int item = pvars->Item;
   while (item == pvars->Item)
-    item = rand(STACKABLE_ITEM_COUNT);
+    item = StackboxItems[rand(StackboxItemsCount)];
 
   return item;
 }
@@ -607,6 +613,7 @@ void sboxFrameTick(void)
           case STACKABLE_ITEM_LOW_HEALTH_DMG_BUF: snprintf(buffer, 32, "+%.f%%", count * ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_FAC * 100); break;
           case STACKABLE_ITEM_HOVERBOOTS: snprintf(buffer, 32, "+%.0f%%", ITEM_STACKABLE_HOVERBOOTS_SPEED_BUF * count * 100); break;
           case STACKABLE_ITEM_VAMPIRE: snprintf(buffer, 32, "+%d", ITEM_STACKABLE_VAMPIRE_HEALTH_AMT * count); break;
+          case STACKABLE_ITEM_EXPLODING_ENEMIES: snprintf(buffer, 32, "+%d", ITEM_STACKABLE_EXPLODINGENEMIES_DAMAGE * count); break;
         }
         gfxScreenSpaceText(x+6, y+8+2, 1, 1, 0x40000000, buffer, -1, 0);
         gfxScreenSpaceText(x+4,   y+8,   1, 1, 0x8000C0C0, buffer, -1, 0);

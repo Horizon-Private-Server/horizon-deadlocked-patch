@@ -70,6 +70,21 @@ Moby * spawnExplosion(VECTOR position, float size, u32 color)
 }
 
 //--------------------------------------------------------------------------
+Moby * spawnExplosionDamage(VECTOR position, float size, u32 color, Moby* damager, float damage, u32 damageFlags)
+{
+	// SpawnMoby_5025
+  Moby* moby = mobySpawnExplosion(
+    vector_read(position), 0, 0, 0, 0, 16, 0, 16, 0, 1, 0, 0, 0, 0,
+    damageFlags, 0, color, color, color, color, color, color, color, color,
+    0, 0, damager, 0, 0, size / 2.5, 0, damage, size
+  );
+  
+  mobyPlaySoundByClass(0, 0, moby, MOBY_ID_ARBITER_ROCKET0);
+
+	return moby;
+}
+
+//--------------------------------------------------------------------------
 void damageRadius(Moby* moby, VECTOR position, u32 damageFlags, float damage, float damageRadius)
 {
 	MobyColDamageIn in;
@@ -280,6 +295,7 @@ int mobyIsMob(Moby* moby)
     || moby->OClass == EXECUTIONER2_MOBY_OCLASS
     || moby->OClass == TREMOR_MOBY_OCLASS
     || moby->OClass == SWARMER_MOBY_OCLASS
+    || moby->OClass == SWARMER2_MOBY_OCLASS
     || moby->OClass == REACTOR_MOBY_OCLASS
     || moby->OClass == REAPER_MOBY_OCLASS
     || moby->OClass == LEVIATHAN_MOBY_OCLASS

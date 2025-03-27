@@ -351,6 +351,7 @@ int mobyComputeComplexity(Moby * moby)
   {
     case ZOMBIE_MOBY_OCLASS: return ZOMBIE_RENDER_COST;
     case TREMOR_MOBY_OCLASS: return TREMOR_RENDER_COST;
+    case SWARMER2_MOBY_OCLASS:
     case SWARMER_MOBY_OCLASS: return SWARMER_RENDER_COST;
     case REACTOR_MOBY_OCLASS: return REACTOR_RENDER_COST;
     case REAPER_MOBY_OCLASS: return REAPER_RENDER_COST;
@@ -840,7 +841,8 @@ void mobUpdate(Moby* moby)
   if (isOwner) {
 
     // handle cannot find target
-    if (pvars->MobVars.NoTargetCounter > 5) {
+    // randomize so that the respawns are staggered
+    if (pvars->MobVars.NoTargetCounter > 5 && rand(State.MobStats.TotalAlive + 1) == 0) {
       pvars->MobVars.Respawn = 1;
       pvars->MobVars.NoTargetCounter = 0;
     }
@@ -1049,6 +1051,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
     GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(spawnFromUID);
     if (gm && gm->Moby && gm->Moby->PVar && !mobyIsDestroyed(gm->Moby) && mobyIsMob(gm->Moby)) {
       struct MobPVar* spawnFromPVars = (struct MobPVar*)gm->Moby->PVar;
+      pvars->MobVars.Health = maxf(1, spawnFromPVars->MobVars.Health); // copy health
       if (spawnFromPVars->MobVars.Destroyed != 1) {
         guberMobyDestroy(gm->Moby);
       }
@@ -1499,6 +1502,7 @@ void mobInitialize(void)
   // 
   memset(MobComplexityValueByOClass, 0, sizeof(MobComplexityValueByOClass));
   memset(AllMobsSorted, 0, sizeof(AllMobsSorted));
+  State.AllMobsSorted = AllMobsSorted;
 }
 
 //--------------------------------------------------------------------------
