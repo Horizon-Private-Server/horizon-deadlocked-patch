@@ -295,3 +295,9 @@ Fix dzo weapon pickup buggy after pickup moves
 ++fix mobs going in circle around path nodes
 ++fix mobs getting stuck under islands
 ++have boss reset laser cooldown when enter evasive state
+
+++king leviathan swing laser more times
+fix mobs looping nodes
+++fix mobs not able to jump/walk up slopes
+++fix boss weapon spawns getting higher
+++fix will o wisp damage not procing with upgrades

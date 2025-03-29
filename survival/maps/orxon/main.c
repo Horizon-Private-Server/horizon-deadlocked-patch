@@ -108,22 +108,30 @@ void mobForceIntoMapBounds(Moby* moby)
 {
   if (!moby)
     return;
+    
+  int i;
+  VECTOR min = { 100, 400, 400, 0 };
+  VECTOR max = { 524.4, 800, 500, 0 };
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-  if (moby->Position[0] < 100)
-    moby->Position[0] = 100;
   // prevent mob from entering gas zone
-  else if (moby->Position[0] > 524.4)
-    moby->Position[0] = 524.4;
-  
-  if (moby->Position[1] < 400)
-    moby->Position[1] = 400;
-  else if (moby->Position[1] > 800)
-    moby->Position[1] = 800;
+  if (moby->Position[0] > max[0]) {
+    moby->Position[0] = max[0];
+    return;
+  }
 
-  if (moby->Position[2] < 400)
-    moby->Position[2] = 400;
-  else if (moby->Position[2] > 500)
-    moby->Position[2] = 500;
+  for (i = 0; i < 3; ++i) {
+    if (moby->Position[i] < min[i]) {
+      moby->Position[i] = min[i];
+      pvars->MobVars.Respawn = 1;
+      break;
+    }
+    else if (moby->Position[i] > max[i]) {
+      moby->Position[i] = max[i];
+      pvars->MobVars.Respawn = 1;
+      break;
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -214,6 +222,7 @@ void initialize(void)
   MapConfig.Magic = MAP_CONFIG_MAGIC;
   MapConfig.WeaponPickupCooldownFactor = 1;
 
+  mapApplyFixes();
   gateInit();
   mboxInit();
   mobInit();

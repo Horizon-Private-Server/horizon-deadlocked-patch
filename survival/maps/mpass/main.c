@@ -383,14 +383,14 @@ void mapReturnPlayersToMap(void)
 //--------------------------------------------------------------------------
 void mobForceIntoMapBounds(Moby* moby)
 {
+  if (!moby)
+    return;
+    
   int i;
   VECTOR min = { 370, 700, 495, 0 };
   VECTOR max = { 730, 970, 530, 0 };
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-  if (!moby)
-    return;
-    
   if (moby->Position[2] < min[2])
     pvars->MobVars.Respawn = 1;
 
@@ -489,6 +489,7 @@ void initialize(void)
   MapConfig.Magic = MAP_CONFIG_MAGIC;
   MapConfig.WeaponPickupCooldownFactor = 1;
 
+  mapApplyFixes();
   gateInit();
   mboxInit();
   mobInit();

@@ -75,21 +75,24 @@ void mobForceIntoMapBounds(Moby* moby)
 {
   if (!moby)
     return;
+    
+  int i;
+  VECTOR min = { 125, 300, 0, 0 };
+  VECTOR max = { 300, 550, 200, 0 };
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
-  if (moby->Position[0] < 125)
-    moby->Position[0] = 125;
-  else if (moby->Position[0] > 300)
-    moby->Position[0] = 300;
-  
-  if (moby->Position[1] < 300)
-    moby->Position[1] = 300;
-  else if (moby->Position[1] > 550)
-    moby->Position[1] = 550;
-
-  if (moby->Position[2] < 0)
-    moby->Position[2] = 0;
-  else if (moby->Position[2] > 200)
-    moby->Position[2] = 200;
+  for (i = 0; i < 3; ++i) {
+    if (moby->Position[i] < min[i]) {
+      moby->Position[i] = min[i];
+      pvars->MobVars.Respawn = 1;
+      break;
+    }
+    else if (moby->Position[i] > max[i]) {
+      moby->Position[i] = max[i];
+      pvars->MobVars.Respawn = 1;
+      break;
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -187,6 +190,7 @@ void initialize(void)
   MapConfig.Magic = MAP_CONFIG_MAGIC;
   MapConfig.WeaponPickupCooldownFactor = 0.5;
 
+  mapApplyFixes();
   gateInit();
   mboxInit();
   mobInit();

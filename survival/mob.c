@@ -1001,6 +1001,10 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 #endif
   //pvars->MobVars.Config.Health = pvars->MobVars.Health = 1;
 
+  //
+  pvars->MobVars.MoveVars.PathStartEndNodes[0] = 255;
+  pvars->MobVars.MoveVars.PathStartEndNodes[1] = 255;
+
   // initialize target vars
   pvars->TargetVars.hitPoints = pvars->MobVars.Health;
   pvars->TargetVars.team = 10;
@@ -1416,7 +1420,7 @@ int mobHandleEvent_Custom(Moby* moby, GuberEvent* event)
 int mobHandleEvent(Moby* moby, GuberEvent* event)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-
+  
   if (isInGame() && mobyIsMob(moby) && pvars) {
     u32 mobEvent = event->NetEvent.EventID;
     int isFromHost = gameIsHost(event->NetEvent.OriginClientIdx);
@@ -1482,8 +1486,11 @@ int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
   // log
   mobStatsOnNewMobCreated(spawnParamsIdx, spawnFromUID);
 
+  VECTOR p;
+  vector_copy(p, position);
+
   if (mapConfig->OnMobCreateFunc)
-    return mapConfig->OnMobCreateFunc(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
+    return mapConfig->OnMobCreateFunc(spawnParamsIdx, p, yaw, spawnFromUID, spawnFlags, config);
 
   return 0;
 }

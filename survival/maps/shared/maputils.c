@@ -446,3 +446,24 @@ int bakedSpawnGetFirst(int bakedSpawnType, VECTOR outPos, VECTOR outRot) {
 
   return 0;
 }
+
+//--------------------------------------------------------------------------
+Moby* mapOnGuberEventCreateMoby(int oclass, int pvarSize)
+{
+  if (mobyGetNumSpawnableMobys() < 50) {
+    Moby* m = mobyFindNextByOClass(mobyListGetStart(), 0x13A1);
+    if (!m) return NULL;
+    if (m) {
+      mobyDestroy(m);
+      m->CollCnt = 0; // lets the moby be reused instantly
+    }
+  }
+
+  return mobySpawn(oclass, pvarSize);
+}
+
+//--------------------------------------------------------------------------
+void mapApplyFixes(void)
+{
+  HOOK_JAL(0x0061c3ec, &mapOnGuberEventCreateMoby);
+}

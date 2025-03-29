@@ -585,7 +585,8 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     vector_normalize(hitNormal, CollLine_Fix_GetHitNormal());
 
     // compute wall slope
-    pvars->MobVars.MoveVars.WallSlope = maxf(pvars->MobVars.MoveVars.WallSlope, getSignedSlope(horizontalDelta, hitNormal));
+    float slope = getSignedSlope(horizontalDelta, hitNormal);
+    pvars->MobVars.MoveVars.WallSlope = maxf(pvars->MobVars.MoveVars.WallSlope, slope);
     pvars->MobVars.MoveVars.HitWall = 1;
 
     // check if we hit another mob
@@ -613,21 +614,23 @@ int mobMoveCheck(Moby* moby, VECTOR outputPos, VECTOR from, VECTOR to)
     }
 
     // get tangent to surface
-    VECTOR hitTangent, hitBitangent;
+    VECTOR hitTangent, hitBitangent, hitDir;
     VECTOR hitRight;
     vector_outerproduct(hitRight, horizontalDelta, up);
     vector_outerproduct(hitTangent, hitNormal, hitRight);
     vector_outerproduct(hitBitangent, hitNormal, hitTangent);
-    vector_normalize(hitBitangent, hitBitangent);
 
-    float hitBitangentDotDelta = vector_innerproduct(hitBitangent, delta);
+    vector_lerp(hitDir, hitTangent, hitBitangent, fabsf(2 * slope) / MATH_PI);
+    vector_normalize(hitDir, hitDir);
+
+    float hitBitangentDotDelta = signf(vector_innerproduct(hitDir, delta));
     // float velToSurfaceTangentAngle = acosf(fabsf(hitBitangentDotDelta));
     // if (velToSurfaceTangentAngle < (60 * MATH_DEG2RAD)) {
     //   pvars->MobVars.MoveVars.HitWall = 0;
     // }
 
-    vector_scale(hitBitangent, hitBitangent, hitBitangentDotDelta * vector_length(delta));
-    vector_add(outputPos, from, hitBitangent);
+    vector_scale(hitDir, hitDir, hitBitangentDotDelta * vector_length(delta));
+    vector_add(outputPos, from, hitDir);
 
     //vector_projectonhorizontal(hitToEx, hitToEx);
     //vector_reflect(reflectedDelta, hitToEx, hitNormal);
@@ -681,10 +684,11 @@ void mobMove(Moby* moby)
 
   if (moveSkipTicks == 0) {
 
-  // reset move step
-  moveStep = pvars->MobVars.MoveVars.MoveStep;
-  if (!isOwner && !moby->Drawn)
-    moveStep += 2;
+    // reset move step
+    moveStep = pvars->MobVars.MoveVars.MoveStep;
+    int rotatingDt = fabsf((mobMoveCheckCollideWithOtherMobsRotatingIndex - pvars->MobVars.Order) % MAX_MOBS_ALIVE) < 15;
+    if (!isOwner || !rotatingDt)
+      moveStep = MOB_MOVE_SKIP_TICKS_LOWPRIORITY;
 
 #if GATE
     gateSetCollision(0);

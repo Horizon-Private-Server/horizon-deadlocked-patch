@@ -51,4 +51,6 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
 
 int bakedSpawnGetFirst(int bakedSpawnType, VECTOR outPos, VECTOR outRot);
 
+void mapApplyFixes(void);
+
 #endif // SURVIVAL_MAP_UTILS_H

@@ -56,7 +56,8 @@
 #define ROUND_SPECIAL_BONUS_MULTIPLIER				(5)
 
 #define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(100)
-#define MOB_MOVE_SKIP_TICKS                   (4)
+#define MOB_MOVE_SKIP_TICKS                   (8)
+#define MOB_MOVE_SKIP_TICKS_LOWPRIORITY       (16)
 #define MOB_MAX_STUCK_COUNTER_FOR_NEW_PATH    (5)
 
 #define MOB_SHORT_FREEZE_DURATION_TICKS       (60)
@@ -279,6 +280,7 @@ typedef void (*MapOnMobSpawned_func)(Moby* moby);
 typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int killedByWeaponId);
 typedef int (*MapCanSpawnMobs_func)(void);
+typedef int (*MapConsiderMobSpawnPoint_func)(struct MobSpawnParams* mobSpawnParams, VECTOR position, float yaw, Player* targetPlayer);
 typedef int (*OnPlayerGetRes_func)(Player* player, VECTOR outPos, VECTOR outRot, int firstRes);
 typedef int (*CreateUpgradePickup_func)(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
 typedef int (*HandleUpgradePickupEvent_func)(Moby* moby, GuberEvent* event);
@@ -448,6 +450,7 @@ struct SurvivalMapConfig
   MapOnMobSpawned_func OnMobSpawnedFunc;
   MapOnMobKilled_func OnMobKilledFunc;
   MapCanSpawnMobs_func CanSpawnMobsFunc;
+  MapConsiderMobSpawnPoint_func ConsiderMobSpawnPointFunc;
   OnPlayerGetRes_func OnPlayerGetResFunc;
   CreateUpgradePickup_func CreateUpgradePickupFunc;
   HandleUpgradePickupEvent_func OnUpgradePickupEventFunc;

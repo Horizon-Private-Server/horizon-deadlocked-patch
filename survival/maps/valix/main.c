@@ -259,7 +259,6 @@ void mapOnBeginBossFight(void)
       vector_fromyaw(offset, yaw);
       vector_scale(offset, offset, 25);
       vector_add(moby->Position, BossArenaLocation, offset);
-
       ((void (*)(Moby*))moby->PUpdate)(moby);
       mobyUpdateTransform(moby);
       ++count;
@@ -528,9 +527,26 @@ void mobForceIntoMapBounds(Moby* moby)
 {
   if (!moby)
     return;
+    
+  int i;
+  VECTOR min = { 200, 0, 260, 0 };
+  VECTOR max = { 900, 800, 500, 0 };
+	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+
+  for (i = 0; i < 3; ++i) {
+    if (moby->Position[i] < min[i]) {
+      moby->Position[i] = min[i];
+      pvars->MobVars.Respawn = 1;
+      break;
+    }
+    else if (moby->Position[i] > max[i]) {
+      moby->Position[i] = max[i];
+      pvars->MobVars.Respawn = 1;
+      break;
+    }
+  }
 
   // check for OOB death
-  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (!pvars->MobVars.Destroy && !pvars->MobVars.Destroyed && !pvars->MobVars.Respawn) {
     Area_t area;
     if (areaGetArea(OOB_AREA_INDEX_DEATH, &area) && area.Cuboids) {
@@ -543,22 +559,6 @@ void mobForceIntoMapBounds(Moby* moby)
       }
     }
   }
-  
-  if (moby->Position[0] < 200)
-    moby->Position[0] = 200;
-  // prevent mob from entering gas zone
-  else if (moby->Position[0] > 900)
-    moby->Position[0] = 900;
-  
-  if (moby->Position[1] < 0)
-    moby->Position[1] = 0;
-  else if (moby->Position[1] > 800)
-    moby->Position[1] = 800;
-
-  if (moby->Position[2] < 260)
-    moby->Position[2] = 260;
-  else if (moby->Position[2] > 500)
-    moby->Position[2] = 500;
 }
 
 //--------------------------------------------------------------------------
@@ -757,6 +757,20 @@ void frameTick(void)
 }
 
 //--------------------------------------------------------------------------
+int mapConsiderMobSpawnPoint(struct MobSpawnParams* mobSpawnParams, VECTOR position, float yaw, Player* targetPlayer)
+{
+  if (!targetPlayer || !targetPlayer->PlayerMoby) return 1;
+
+  // check if we have a path to
+  // if not, don't spawn here
+  if (!pathHasRouteFromTo(pathGetClosestNodeIdx(position), pathTargetCacheGetClosestNodeIdx(targetPlayer->PlayerMoby))) {
+    return 0;
+  }
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
 struct GuberMoby* mapGetGuber(Moby* moby)
 {
   if (!moby) return NULL;
@@ -810,7 +824,9 @@ void initialize(void)
   MapConfig.WeaponPickupCooldownFactor = 0.65;
   MapConfig.OnUnhandledGetGuberFunc = mapGetGuber;
   MapConfig.OnUnhandledGuberEventFunc = mapHandleGuberEvent;
+  MapConfig.ConsiderMobSpawnPointFunc = mapConsiderMobSpawnPoint;
 
+  mapApplyFixes();
   mboxInit();
   mobInit();
   configInit();

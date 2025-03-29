@@ -547,22 +547,20 @@ void leviathanRenderPath(Moby* moby)
   int i;
 
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  struct PathGraph* pathGraph = pathGetMobyPathGraph(moby, &pvars->MobVars.MoveVars);
   u8* path = (u8*)pvars->MobVars.MoveVars.CurrentPath;
   int pathLen = pvars->MobVars.MoveVars.PathEdgeCount;
   int pathIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
 
 
   for (i = 0; i < pathLen; ++i) {
-    u8* edge = pathGraph->Edges[path[i]];
-    if (gfxWorldSpaceToScreenSpace(pathGraph->Nodes[edge[1]], &x, &y)) {
+    u8* edge = MOB_PATHFINDING_EDGES[path[i]];
+    if (gfxWorldSpaceToScreenSpace(MOB_PATHFINDING_NODES[edge[1]], &x, &y)) {
       gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, i == pathIdx ? "o" : "-", -1, 4);
     }
   }
 
   VECTOR t;
-  if (pathGetTargetPos(pathGraph, t, moby, &pvars->MobVars.MoveVars) && mobAmIOwner(moby))
-    pvars->MobVars.Dirty = 1; // new path, sync with other clients
+  pathGetTargetPos(t, moby);
   if (gfxWorldSpaceToScreenSpace(t, &x, &y)) {
     gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
   }
@@ -1206,5 +1204,8 @@ int leviathanShouldChase(Moby* moby)
 //--------------------------------------------------------------------------
 int leviathanGetLaserForTicks(Moby* moby)
 {
+  if (leviathanIsBoss(moby))
+    return LEVIATHAN_LASER_FIRE_FOR_TICKS * 3;
+    
   return LEVIATHAN_LASER_FIRE_FOR_TICKS;
 }

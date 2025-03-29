@@ -598,7 +598,7 @@ int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 }
 
 //--------------------------------------------------------------------------
-int spawnPointGetNearToPlayer(VECTOR out, float minDist)
+int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minDist)
 {
   VECTOR t;
   int spCount = spawnPointGetCount();
@@ -607,7 +607,6 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
   float bestPointDistSqr[SPAWNPOINT_NEAR_BUFFER_SIZE] = {100000,100000,100000};
   int bestPoints[SPAWNPOINT_NEAR_BUFFER_SIZE] = {-1,-1,-1};
   float minDistSqr = minDist * minDist;
-  float closestDistSqr = 0;
   //Player** players = playerGetAll();
 
   // pick random player
@@ -619,28 +618,18 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
       continue;
 
     SpawnPoint* sp = spawnPointGet(i);
-    closestDistSqr = 1000000;
 
-    // get closest sqr dist to any player
-    for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
-      //if (!players[j] || !players[j]->SkinMoby || playerIsDead(players[j]))
-      //  continue;
+    // get closest sqr dist to player
+    vector_subtract(t, (float*)&sp->M0[12], player->PlayerPosition);
+    float d = vector_sqrmag(t);
 
-      vector_subtract(t, (float*)&sp->M0[12], player->PlayerPosition);
-      float d = vector_sqrmag(t);
+    // randomize order a little
+    d += randRange(0, 0.5 * minDistSqr);
 
-      // randomize order a little
-      //d += randRange(0, 15 * 15);
-      d += randRange(0, 0.5 * minDistSqr);
-
-      if (d < closestDistSqr)
-        closestDistSqr = d;
-    }
-    
-    if (closestDistSqr >= minDistSqr) {
+    if (d >= minDistSqr) {
       if (found < SPAWNPOINT_NEAR_BUFFER_SIZE) {
         bestPoints[found] = i;
-        bestPointDistSqr[found] = closestDistSqr;
+        bestPointDistSqr[found] = d;
         found++;
       } else {
         // replace largest if closer
@@ -653,22 +642,11 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
           }
         }
 
-        if (closestDistSqr < largestIdxSqrDist) {
+        if (d < largestIdxSqrDist) {
           bestPoints[largestIdx] = i;
-          bestPointDistSqr[largestIdx] = closestDistSqr;
+          bestPointDistSqr[largestIdx] = d;
         }
       }
-      // for (j = found; j >= 0; --j) {
-      //   if (j >= SPAWNPOINT_NEAR_BUFFER_SIZE) continue;
-
-      //   if (closestDistSqr < bestPointDistSqr[j]) {
-          
-      //     if (found <= j) found = j+1;
-      //     bestPoints[j] = i;
-      //     bestPointDistSqr[j] = closestDistSqr;
-      //     break;
-      //   }
-      // }
     }
   }
 
@@ -680,6 +658,11 @@ int spawnPointGetNearToPlayer(VECTOR out, float minDist)
     SpawnPoint* sp = spawnPointGet(idx);
     VECTOR p = {randRange(-1, 1),randRange(-1, 1),0.1,0};
     vector_apply(out, p, sp->M0);
+
+    // let map decide if spawn point is valid
+    if (mapConfig->ConsiderMobSpawnPointFunc && !mapConfig->ConsiderMobSpawnPointFunc(mob, out, 0, player))
+      return 0;
+
     //vector_copy(out, (float*)&sp->M0[12]);
     //vector_fromyaw(t, randRadian());
     //vector_scale(t, t, 3);
@@ -723,16 +706,16 @@ int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob) {
 
   // spawn near player
   if (r <= MOB_SPAWN_NEAR_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_NEAR_PLAYER)) {
-    return spawnPointGetNearToPlayer(out, 30 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
+    return spawnPointGetNearToPlayer(mob, out, 30 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
   }
 
   // spawn semi near player
   if (r <= MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY && (mob->SpawnType & SPAWN_TYPE_SEMI_NEAR_PLAYER)) {
-    return spawnPointGetNearToPlayer(out, 60 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
+    return spawnPointGetNearToPlayer(mob, out, 60 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
   }
 
   // spawn
-  return spawnPointGetNearToPlayer(out, 100 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
+  return spawnPointGetNearToPlayer(mob, out, 100 * demonBellFactor * mapConfig->BakedConfig->SpawnDistanceFactor);
 }
 
 //--------------------------------------------------------------------------
@@ -3387,9 +3370,9 @@ void initialize(PatchStateContainer_t* gameState)
 
 #if FIXEDTARGET
   FIXEDTARGETMOBY = mobySpawn(0xE7D, 0);
-  FIXEDTARGETMOBY->Position[0] = 599.368225;
-  FIXEDTARGETMOBY->Position[1] = 902.109131;
-  FIXEDTARGETMOBY->Position[2] = 505.583221;
+  FIXEDTARGETMOBY->Position[0] = 697.54;
+  FIXEDTARGETMOBY->Position[1] = 445.12;
+  FIXEDTARGETMOBY->Position[2] = 314.7968;
 #endif
 
   Initialized = 1;
@@ -3533,7 +3516,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 #if DEBUG_PERKS
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_EMP_HEALTH_GUN;
+    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INFINITE_AMMO;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_JUMP] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] = 1;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_SHOT] = 2;
@@ -3545,7 +3528,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_AREA] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_IMPACT] = 5;
     State.PlayerStates[i].State.Upgrades[UPGRADE_SPEED] = UpgradeMax[UPGRADE_SPEED];
-    State.PlayerStates[i].State.Upgrades[UPGRADE_DAMAGE] = 10;
+    State.PlayerStates[i].State.Upgrades[UPGRADE_DAMAGE] = 200;
+    State.PlayerStates[i].State.Upgrades[UPGRADE_CRIT] = 100;
   }
 #endif
 
@@ -3914,6 +3898,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 #if DEBUG || TEST
   if (padGetButton(0, PAD_CROSS)) {
     *(float*)0x00347BD8 = 0.125;
+    *(float*)(0x347AA0 + 0x2E20) = 125;
   }
 
   //State.PlayerStates[0].State.Upgrades[UPGRADE_SPEED] = 30;
@@ -4176,7 +4161,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
   gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
 
-#if !DEBUG
+#if !DEBUG && !TEST
   gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
   gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;

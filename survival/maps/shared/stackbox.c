@@ -86,10 +86,33 @@ u32 STACKABLE_ITEM_COLORS[] = {
   [STACKABLE_ITEM_ALPHA_MOD_AREA] 0x80808080,
   [STACKABLE_ITEM_ALPHA_MOD_IMPACT] 0x80808080,
   [STACKABLE_ITEM_VAMPIRE] 0x80808080,
+  [STACKABLE_ITEM_EXPLODING_ENEMIES] 0x80808080,
+};
+
+int STACKABLE_ITEM_MAX[] = {
+  [STACKABLE_ITEM_EXTRA_JUMP] 0,
+  [STACKABLE_ITEM_EXTRA_SHOT] 0,
+  [STACKABLE_ITEM_HOVERBOOTS] 0,
+  [STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] 0,
+  [STACKABLE_ITEM_ALPHA_MOD_AMMO] 0,
+  [STACKABLE_ITEM_ALPHA_MOD_SPEED] 10,
+  [STACKABLE_ITEM_ALPHA_MOD_AREA] 5,
+  [STACKABLE_ITEM_ALPHA_MOD_IMPACT] 5,
+  [STACKABLE_ITEM_VAMPIRE] 0,
+  [STACKABLE_ITEM_EXPLODING_ENEMIES] 0
 };
 
 extern int StackboxItems[];
 extern const int StackboxItemsCount;
+
+//--------------------------------------------------------------------------
+int sboxCanBuy(int playerId, enum StackableItemId item)
+{
+  if (!MapConfig.State) return 0;
+
+  int count = playerGetStackableCount(playerId, (int)item);
+  return STACKABLE_ITEM_MAX[(int)item] <= 0 || count < STACKABLE_ITEM_MAX[(int)item];
+}
 
 //--------------------------------------------------------------------------
 int sboxGetStackableCost(int playerId, enum StackableItemId item)
@@ -153,6 +176,7 @@ void sboxPlayerBuy(Moby* moby, int playerId, enum StackableItemId item)
   if (!MapConfig.State) return;
   if (MapConfig.State->PlayerStates[playerId].State.Bolts < cost) return;
   if ((gameGetTime() - pvars->ActivatedTime) < (TIME_SECOND * 0.2)) return;
+  if (!sboxCanBuy(playerId, item)) return;
 
   // send to host
   if (!gameAmIHost()) {
@@ -335,10 +359,16 @@ void sboxUpdate(Moby* moby)
     if (!player || !player->pNetPlayer || !playerIsConnected(player)) continue;
 
     // prompt for 
-    int cost = sboxGetStackableCost(player->PlayerId, pvars->Item);
-    snprintf(buf, sizeof(buf), "\x11 %s \x0E%'d\x08", STACKABLE_ITEM_NAMES[pvars->Item], cost);
-    if (tryPlayerInteract(moby, player, buf, STACKABLE_ITEM_DESC[pvars->Item], 0, 0, PLAYER_STACK_BOX_COOLDOWN_TICKS, STACK_BOX_MAX_DIST*STACK_BOX_MAX_DIST, PAD_CIRCLE)) {
-      sboxPlayerBuy(moby, player->PlayerId, pvars->Item);
+    if (!sboxCanBuy(i, pvars->Item)) {
+      
+      tryPlayerInteract(moby, player, "Maxed Out", STACKABLE_ITEM_DESC[pvars->Item], 0, 0, PLAYER_STACK_BOX_COOLDOWN_TICKS, STACK_BOX_MAX_DIST*STACK_BOX_MAX_DIST, PAD_CIRCLE);
+    } else {
+
+      int cost = sboxGetStackableCost(player->PlayerId, pvars->Item);
+      snprintf(buf, sizeof(buf), "\x11 %s \x0E%'d\x08", STACKABLE_ITEM_NAMES[pvars->Item], cost);
+      if (tryPlayerInteract(moby, player, buf, STACKABLE_ITEM_DESC[pvars->Item], 0, 0, PLAYER_STACK_BOX_COOLDOWN_TICKS, STACK_BOX_MAX_DIST*STACK_BOX_MAX_DIST, PAD_CIRCLE)) {
+        sboxPlayerBuy(moby, player->PlayerId, pvars->Item);
+      }
     }
   }
 }
