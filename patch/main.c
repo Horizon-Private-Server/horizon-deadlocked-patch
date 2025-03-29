@@ -4772,6 +4772,12 @@ void patchStagingRankNumber(void)
 }
 
 //--------------------------------------------------------------------------
+int searchResultIndexMatchesFilter(void* result)
+{
+  return ((int (*)(void*, void*))0x0070D038)((void*)uiGetActivePointer() + 0x260, result);
+}
+
+//--------------------------------------------------------------------------
 void* searchGetSearchResultPtr(int idx)
 {
   u32 p1 = *(u32*)0x002233a4;
@@ -4782,9 +4788,14 @@ void* searchGetSearchResultPtr(int idx)
       u32 ptrs = *(u32*)(p2 + 0x4C);
 
       if (idx < count && count > 0 && ptrs > 0) {
-        u32 ptr = *(u32*)(ptrs + idx*4);
-        if (ptr > 0) {
-          return (void*)ptr;
+        int i;
+        int r = 0;
+        for (i = 0; i < count; ++i) {
+          void* ptr = *(void**)(ptrs + i*4);
+          if (!searchResultIndexMatchesFilter(ptr)) continue;
+          
+          if (r == idx) return ptr;
+          r++;
         }
       }
     }

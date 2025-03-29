@@ -186,7 +186,7 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 
 	// Some models are buggy when spawned from a beta box template, so spawn them the old way.
 	// On the other hand, some models can only be spawned using a beta box template.
-	if(def->SpawnNormal) {
+	if(def->SpawnNormal || 1) {
 		// Spawn box so we know the correct model and collision pointers
 		sourceBox = spawnWithPVars(def->OClass);
 		if (!sourceBox)
@@ -225,6 +225,7 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 	sourceBox->State = 0;
 	sourceBox->ModeBits = 0x0050;
 	sourceBox->GlowRGBA = 0x808C8C8C;
+  sourceBox->PUpdate = NULL;
 
 
  	sourceBox->Scale = (float)0.11 * scale * def->ObjectScale;
