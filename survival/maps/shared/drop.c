@@ -68,7 +68,7 @@ void dropPostDraw(Moby* moby)
 	VECTOR pBL = {0.5,0,-0.5,1};
 	VECTOR pBR = {-0.5,0,-0.5,1};
 	struct DropPVar* pvars = (struct DropPVar*)moby->PVar;
-	if (!pvars)
+	if (!pvars || mobyIsDestroyed(moby))
 		return;
 
 	// determine color

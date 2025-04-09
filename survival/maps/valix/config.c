@@ -58,7 +58,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Bangles = 0x1FFF,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
 			.MaxDamage = 0,
-      .DamageScale = 1.0,
+      .DamageScale = 1.1,
 			.Speed = MOB_BASE_SPEED * 1.5,
 			.MaxSpeed = MOB_BASE_SPEED * 4.0,
       .SpeedScale = 0.2,
@@ -318,12 +318,12 @@ SurvivalBakedConfig_t bakedConfig = {
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 513.2501, 564.1602, 302.0029 }, .Rotation = { 0, 0, -4.370725 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 523.9602, 694.0902, 318.9662 }, .Rotation = { 0, 0, -2.405586 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 608.6002, 660.6802, 319.5969 }, .Rotation = { 0, 0, -3.352686 } },
-    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 751.2002, 641.7102, 323.4836 }, .Rotation = { 0, 0, -2.626437 } },
+    { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 736.7205, 655.2805, 323.4836 }, .Rotation = { 0, 0, -1.727037 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 684.3101, 456.0502, 314.8038 }, .Rotation = { 0, 0, -1.216549 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 531.5202, 532.9302, 372.2292 }, .Rotation = { 0, 0, -3.21687 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 587.3002, 416.8101, 350.0135 }, .Rotation = { 0, 0, -3.049145 } },
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 626.5102, 176.14, 338.7231 }, .Rotation = { 0, 0, -3.049145 } }
-
+    
   }
 };
 

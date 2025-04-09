@@ -540,7 +540,7 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
   VECTOR t;
 
   // pass to map
-  if (mapConfig && mapConfig->OnPlayerGetResFunc && mapConfig->OnPlayerGetResFunc(player, outPos, outRot, firstRes))
+  if (hasMapConfig() && mapConfig->OnPlayerGetResFunc && mapConfig->OnPlayerGetResFunc(player, outPos, outRot, firstRes))
     return;
 
   // spawn at player start
@@ -563,6 +563,31 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 
   // pass to base if we don't have a player start
   playerGetSpawnpoint(player, outPos, outRot, firstRes);
+}
+
+//--------------------------------------------------------------------------
+void playerDamageAndTeleportToSpawn(Player* player, int toState, int bTransAnim, int bForce, int bFall)
+{
+  // check if toState is a death state
+  // and if so tp to spawn and subtract health
+  // otherwise pass state transition to handler
+  if (player->Health <= 0 || !playerStateIsDead(toState)) {
+    playerGetVTable(player)->UpdateState(player, toState, bTransAnim, bForce, bFall);
+    return;
+  }
+
+  VECTOR p, r;
+  getResurrectPoint(player, p, r, 0);
+
+  playerSetPosRot(player, p, r);
+  playerSetHealth(player, maxf(0, player->Health - player->MaxHealth*0.5));
+}
+
+//--------------------------------------------------------------------------
+void onMobyDestroyedCleanupAnimLayers(Moby* moby)
+{
+  ((void (*)(Moby*))0x004fb480)(moby);
+  moby->CollCnt = 0;
 }
 
 //--------------------------------------------------------------------------
@@ -2987,6 +3012,15 @@ void initialize(PatchStateContainer_t* gameState)
   *(u32*)0x00621568 = 0;	// kills reached (2)
   *(u32*)0x006211A0 = 0;	// all enemies leave (9)
   *(u32*)0x006210D8 = 0;	// all enemies leave (9)
+
+  // if a player dies from being stuck or drowning
+  // teleport player to spawn and damage
+  POKE_U32(0x0060adb4, 0);
+  HOOK_JAL(0x0060add4, &playerDamageAndTeleportToSpawn); // slope slide
+  POKE_U32(0x0060ade0, 0);
+  HOOK_JAL(0x005DA5AC, &playerDamageAndTeleportToSpawn); // drown / lava
+
+  HOOK_JAL(0x004f7780, &onMobyDestroyedCleanupAnimLayers);
 
   // spawn area mod explosion on each ricochet of the v10 vipers
   //HOOK_JAL(0x003C283C, &onV10VipersHitSurface);

@@ -310,7 +310,7 @@ void leviathanOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 
   // every quarter health reset laser cooldown
   if ((int)(newHp * 4) != (int)(pvars->MobVars.Health * 4)) {
-    leviathanVars->AttackLaserCooldownTicks = leviathanGetLaserCooldownTicks(moby);
+    leviathanVars->AttackLaserCooldownTicks = 1;
   }
 
 #if ALWAYS_FLINCH
