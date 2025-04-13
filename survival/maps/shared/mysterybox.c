@@ -103,7 +103,7 @@ int ALPHA_MOD_TEX_IDS[] = {
   [ALPHA_MOD_XP] 44 - 3,
 };
 
-const int ENABLED_ALPHA_MODS[] = {
+const char ENABLED_ALPHA_MODS[] = {
   ALPHA_MOD_SPEED,
   ALPHA_MOD_AMMO,
   ALPHA_MOD_IMPACT,

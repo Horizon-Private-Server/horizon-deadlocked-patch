@@ -163,7 +163,7 @@
 #define ITEM_STACKABLE_EXPLODINGENEMIES_RADIUS          (5.0)
 
 
-#define SNACK_ITEM_MAX_COUNT                  (16)
+#define SNACK_ITEM_MAX_COUNT                  (12)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
 
 #define MAX_MOB_SPAWN_PARAMS                  (10)
@@ -605,10 +605,9 @@ struct SurvivalSnackItem
 
 extern const int UPGRADE_COST[];
 extern const float BOLT_TAX[];
-extern const float DIFFICULTY_MAP[];
-extern const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[];
-extern const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[];
-extern const int ENABLED_ALPHA_MODS[];
+extern const char WEAPON_PICKUP_BASE_RESPAWN_TIMES[];
+extern const char WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[];
+extern const char ENABLED_ALPHA_MODS[];
 extern const int ENABLED_ALPHA_MODS_COUNT;
 
 struct GuberMoby* getGuber(Moby* moby);

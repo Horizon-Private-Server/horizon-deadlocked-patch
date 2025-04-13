@@ -232,7 +232,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
       damageFlags |= 0x40000000; // short slowdown
       amount *= 2; // damage buff
       amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
-    } else if (weaponId == WEAPON_ID_ARBITER) {
+    } else if (weaponId == WEAPON_ID_ARBITER || weaponId == WEAPON_ID_FUSION_RIFLE) {
       amount *= 2; // damage buff
     }
 
@@ -682,13 +682,13 @@ void mobUpdate(Moby* moby)
   }
 
   // default owner to host
-  if ((!ownerPlayer || pvars->TicksSinceLastStateUpdate > (MOB_AUTO_DIRTY_COOLDOWN_TICKS * 2)) && gameAmIHost()) {
-    pvars->MobVars.Owner = gameGetHostId();
+  if (pvars->TicksSinceLastStateUpdate > (MOB_AUTO_DIRTY_COOLDOWN_TICKS * 2) && gameAmIHost()) {
+    pvars->MobVars.Owner = gameGetMyClientId();
     mobSendOwnerUpdate(moby, pvars->MobVars.Owner);
   }
   
   // time out mob
-  if ((!ownerPlayer || pvars->TicksSinceLastStateUpdate > (MOB_AUTO_DIRTY_COOLDOWN_TICKS * 4))) {
+  if (pvars->TicksSinceLastStateUpdate > (MOB_AUTO_DIRTY_COOLDOWN_TICKS * 4)) {
     pvars->MobVars.Destroy = 1;
   }
   
@@ -961,6 +961,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   pvars->FlashVarsPtr = &pvars->FlashVars;
   pvars->ReactVarsPtr = &pvars->ReactVars;
   pvars->AdditionalMobVarsPtr = pvars + 1;
+  pvars->TicksSinceLastStateUpdate = 0;
   
   // free agent data
   pvars->MobVars.SpawnFlags = spawnFlags;
@@ -992,6 +993,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   pvars->MobVars.TimeLastGroundedTicks = 0;
   pvars->MobVars.Random = random;
   pvars->MobVars.DynamicRandom = random;
+  pvars->MobVars.Owner = gameGetHostId(); // default host as owner
   vector_copy(pvars->MobVars.MoveVars.NextPosition, p);
 #if MOB_NO_MOVE
   pvars->MobVars.Config.Speed = 0.001;

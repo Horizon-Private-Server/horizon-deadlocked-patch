@@ -584,9 +584,38 @@ void playerDamageAndTeleportToSpawn(Player* player, int toState, int bTransAnim,
 }
 
 //--------------------------------------------------------------------------
+void mobyEmptyDrawCallback(Moby* moby)
+{
+
+}
+
+//--------------------------------------------------------------------------
+void mobyRemoveDrawFunctions(Moby* moby)
+{
+  struct DrawFunction {
+    void* pCallback;
+    Moby* pMoby;
+    void* pUNK_C;
+    void* pUNK_10;
+  };
+
+  int count = *(int*)0x00222574;
+  struct DrawFunction* pDrawFuncs = (struct DrawFunction*)0x0023e700;
+
+  int i;
+  for (i = 0; i < count; ++i) {
+    struct DrawFunction* pDrawFunc = pDrawFuncs + i;
+    if (pDrawFunc->pMoby == moby) {
+      pDrawFunc->pCallback = &mobyEmptyDrawCallback;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
 void onMobyDestroyedCleanupAnimLayers(Moby* moby)
 {
   ((void (*)(Moby*))0x004fb480)(moby);
+  mobyRemoveDrawFunctions(moby);
   moby->CollCnt = 0;
 }
 
