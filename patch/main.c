@@ -753,6 +753,61 @@ int hasSonyMACAddress(void)
 }
 
 /*
+ * NAME :		runLagjumpPatch
+ * 
+ * DESCRIPTION :
+ * 			    
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void runLagjumpPatch(void)
+{
+  if (!isInGame()) return;
+
+  static volatile int padtrigger[2] = {0,0};
+
+  //Player* lp = playerGetFromSlot(0);
+  //char buf[64];
+  //snprintf(buf, sizeof(buf), "%d", lp->PlayerState);
+  //gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+
+  int i;
+	for (i = 0; i < 2; ++i) {
+		Player *player = playerGetFromSlot(i);
+		if (player && player->PlayerMoby) {
+      int hasState = player->PlayerState == PLAYER_STATE_SKID
+                  || player->PlayerState == PLAYER_STATE_WALK
+                  || player->PlayerState == PLAYER_STATE_IDLE
+                  || player->PlayerState == PLAYER_STATE_FALL
+                  //|| player->PlayerState == PLAYER_STATE_FLIP_JUMP
+                  ;
+			PlayerVTable *vtable = playerGetVTable(player);
+      float stickStrength = *(float*)((u32)player + 0x2e08);
+      int jumpDir = ((int (*)(Player *))0x005ee3b8)(player);
+			if (playerPadGetButton(player, PAD_R2 | PAD_CROSS) > 0) {
+        if (hasState && padtrigger[i] < 4) {
+          if (0.9 < stickStrength && player->Ground.onGood && jumpDir != 2) {
+            vtable->UpdateState(player, 0xb, 1, 0, 1);
+          }
+        } else {
+          padtrigger[i]++;
+        }
+
+        //printf("%08X state:%d jumpDir:%d stick:%.1f ongood:%d pad:%d stategood:%d\n", gameGetTime(), player->PlayerState, jumpDir, stickStrength, player->Ground.onGood, padtrigger[i], hasState);
+			} else {
+        padtrigger[i] = 0;
+      }
+		}
+	}
+}
+
+/*
  * NAME :		patchLevelOfDetail
  * 
  * DESCRIPTION :
@@ -5786,6 +5841,11 @@ int main (void)
 
     // allow local flinching before remote flinch for chargebooting targets
     POKE_U32(0x005E1C94, 0);
+
+    // lagjump
+    if (gameConfig.grLagjump) {
+      runLagjumpPatch();
+    }
 
     // immediately join global chat when game ends
     if (gameHasEnded()) {

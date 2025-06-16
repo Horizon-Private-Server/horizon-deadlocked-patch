@@ -164,3 +164,19 @@ Add Contracts
 ++Level Select - Make negative cost planets inaccessible
 ++Badge - Add more badge effects
 ++Bolt Crank - Fix getting stuck when cranking is stopped by mob attacking
+
+## 6/15/2025
+Inventory - Add "weapon mod" items (alpha mod, omega mod, paint, upgrade?)
+++Level Select - Add open world / raids tabs
+
+? Weapon Upgrading
+ - Add 10 upgrade slots to each weapon
+ - Each upgrade has a % chance to fail, losing 1 upgrade slot on the weapon and reverting up to 1 upgrade
+    5/10 -> fail -> 4/9 or 5/9
+ - The higher the rarity & the number of upgrades, the lower the rate of success
+    [Common] 5 => 6 [90% Success]
+    [Uncommon] 5 => 6 [84% Success]
+    [Rare] 5 => 6 [70% Success]
+    [Legendary] 5 => 6 [50% Success]
+    [Mythic] 5 => 6 [20% Success]
+

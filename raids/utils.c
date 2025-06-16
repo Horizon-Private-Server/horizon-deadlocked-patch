@@ -425,6 +425,12 @@ int missionIsActive(void)
 }
 
 //--------------------------------------------------------------------------
+int missionIsBossRaid(void)
+{
+  return State.MissionType == RAIDS_MISSION_RAID;
+}
+
+//--------------------------------------------------------------------------
 void drawSprites(float anchorX, float anchorY, float offsetX, float offsetY, float size, float spacing, u32 color, int alignment, int count, int texId, int texDim)
 {
   if (count <= 0) return;

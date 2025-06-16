@@ -52,7 +52,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
   // disable quick chat, health boxes, and v2s
   PatchGameConfig_t* gameConfig = gameState->GameConfig;
-  gameConfig->grQuickChat = 0;
+  //gameConfig->grQuickChat = 0;
   gameConfig->grNoHealthBoxes = 2;
   gameConfig->grV2s = 2;
 

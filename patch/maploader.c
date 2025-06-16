@@ -1886,15 +1886,18 @@ void runMapLoader(void)
 //------------------------------------------------------------------------------
 int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int customModeId)
 {
+  #define READ_CUSTOM_MAP_EXDATA_LEN (2048)
+
   //
   if (mapFilename && mapFilename[0] && customModeId > 0) {
-    char buffer[2048] __attribute__((aligned(16)));
+    char buffer[READ_CUSTOM_MAP_EXDATA_LEN];
     char filepath[256];
     snprintf(filepath, sizeof(filepath), fVersion, getMapPathPrefix(), mapFilename);
 
-    int read = readFile(filepath, buffer, 0, sizeof(buffer));
-    if (read < sizeof(CustomMapVersionFileDef_t))
+    int read = readFile(filepath, buffer, 0, READ_CUSTOM_MAP_EXDATA_LEN);
+    if (read < sizeof(CustomMapVersionFileDef_t)) {
       return 0;
+    }
 
     CustomMapVersionFileDef_t customMapVersion;
     memcpy(&customMapVersion, buffer, sizeof(customMapVersion));
@@ -1906,10 +1909,10 @@ int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int cust
         short extraDataLen = *(short*)((u32)buffer + 0x32 + 8*i);
         int extraDataOffset = *(int*)((u32)buffer + 0x34 + 8*i);
         int readLen = (extraDataLen < dstLen) ? extraDataLen : dstLen;
-
+        
         // check if we already read data
-        if ((extraDataOffset+extraDataLen) < sizeof(buffer)) {
-          memcpy(dst, &buffer[extraDataOffset], extraDataLen);
+        if ((extraDataOffset+extraDataLen) < READ_CUSTOM_MAP_EXDATA_LEN) {
+          memcpy(dst, &buffer[extraDataOffset], readLen);
         } else if (readFile(filepath, dst, extraDataOffset, readLen) != readLen) {
           return 0;
         }

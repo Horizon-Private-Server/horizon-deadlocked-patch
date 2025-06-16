@@ -287,10 +287,11 @@ void drawMissionCompleteMessage(void)
 void drawTimer(int time)
 {
   char buf[32];
+  int y = missionIsBossRaid() ? 105 : 85;
 
   if (time < 0) time = 0;
   snprintf(buf, sizeof(buf), "%02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
-  gfxHelperDrawText(SCREEN_WIDTH - 15, 105, 0, 0, 0.9, 0x80E0E0E0, buf, -1, TEXT_ALIGN_TOPRIGHT, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(SCREEN_WIDTH - 15, y, 0, 0, 0.9, 0x80E0E0E0, buf, -1, TEXT_ALIGN_TOPRIGHT, COMMON_DZO_DRAW_NORMAL);
 }
 
 //--------------------------------------------------------------------------
@@ -447,6 +448,42 @@ int handleEvent(Moby* moby, GuberEvent* event)
   if (mobyIsMob(moby)) return mobHandleEvent(moby, event);
 
 	return 0;
+}
+
+//--------------------------------------------------------------------------
+void mobyEmptyDrawCallback(Moby* moby)
+{
+
+}
+
+//--------------------------------------------------------------------------
+void mobyRemoveDrawFunctions(Moby* moby)
+{
+  struct DrawFunction {
+    void* pCallback;
+    Moby* pMoby;
+    void* pUNK_C;
+    void* pUNK_10;
+  };
+
+  int count = *(int*)0x00222574;
+  struct DrawFunction* pDrawFuncs = (struct DrawFunction*)0x0023e700;
+
+  int i;
+  for (i = 0; i < count; ++i) {
+    struct DrawFunction* pDrawFunc = pDrawFuncs + i;
+    if (pDrawFunc->pMoby == moby) {
+      pDrawFunc->pCallback = &mobyEmptyDrawCallback;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+void onMobyDestroyedCleanupAnimLayers(Moby* moby)
+{
+  ((void (*)(Moby*))0x004fb480)(moby);
+  mobyRemoveDrawFunctions(moby);
+  moby->CollCnt = 0;
 }
 
 //--------------------------------------------------------------------------
@@ -659,6 +696,8 @@ void initialize(PatchStateContainer_t* gameState)
   HOOK_J(0x0047da18, &vehicleReinitPhysicsPost); // landstalker
   HOOK_J(0x0046ED14, &vehicleReinitPhysicsPost); // hovership
   POKE_U32(0x005F6488, 0); // enable vehicle targeting non-players
+  
+  HOOK_JAL(0x004f7780, &onMobyDestroyedCleanupAnimLayers);
 
   // disable guber event delay until createTime+relDispatchTime reached
   // when players desync, their net time falls behind everyone else's
@@ -1085,7 +1124,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         drawMissionCompleteMessage();
       } else if (missionIsActive()) {
         drawStars(SCREEN_WIDTH - 15, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
-        drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
+        if (missionIsBossRaid()) drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
         timer = gameGetTime() - State.MissionStartTime;
       }
 

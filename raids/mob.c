@@ -71,7 +71,7 @@ void mobStatsOnNewMobCreated(int spawnParamIdx, int spawnFromUID)
   if (spawnFromUID == -1 && spawnParamIdx >= 0 && spawnParamIdx < mapConfig->MobSpawnParamsCount) {
     State.MobStats.NumAlive[spawnParamIdx]++;
     State.MobStats.NumSpawnedThisRound[spawnParamIdx]++;
-    State.MobStats.TotalAlive++;
+    //State.MobStats.TotalAlive++;
     State.MobStats.TotalSpawned++;
   }
 }
@@ -970,23 +970,18 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	mobySetState(moby, 0, -1);
   mobStatsOnNewMobSpawned(moby, spawnFromUID, fromThisClient);
 
-	// destroy spawn from
-	if (spawnFromUID != -1) {
-		Guber* gm = (Guber*)guberGetObjectByUID(spawnFromUID);
-    if (gm) {
-      Moby* gmMoby = gm->VTable->GetMoby(gm);
-      if (gmMoby && gmMoby->PVar && !mobyIsDestroyed(gmMoby) && mobyIsMob(gmMoby)) {
-        struct MobPVar* spawnFromPVars = (struct MobPVar*)gmMoby->PVar;
-        if (spawnFromPVars->MobVars.Destroyed != 1) {
-          // keep health
-          pvars->MobVars.Health = spawnFromPVars->MobVars.Health;
+  // destroy spawn from
+  if (spawnFromUID != -1) {
+    GuberMoby* gm = (GuberMoby*)guberGetObjectByUID(spawnFromUID);
+    if (gm && gm->Moby && gm->Moby->PVar && !mobyIsDestroyed(gm->Moby) && mobyIsMob(gm->Moby)) {
+      struct MobPVar* spawnFromPVars = (struct MobPVar*)gm->Moby->PVar;
+      pvars->MobVars.Health = maxf(1, spawnFromPVars->MobVars.Health); // copy health
+      if (spawnFromPVars->MobVars.Destroyed != 1) {
+        // pass to mob destroy
+        if (pvars->VTable && pvars->VTable->OnDestroy)
+          pvars->VTable->OnDestroy(gm->Moby, -1, -1);
 
-          // pass to mob destroy
-          if (pvars->VTable && pvars->VTable->OnDestroy)
-            pvars->VTable->OnDestroy(gmMoby, -1, -1);
-
-          guberMobyDestroy(gmMoby);
-        }
+        guberMobyDestroy(gm->Moby);
       }
     }
   }
@@ -1657,7 +1652,7 @@ void mobTick(void)
 		mobLastInList = NULL;
 
   // reset
-  //State.MobStats.TotalAlive = 0;
+  State.MobStats.TotalAlive = 0;
   //memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
   mobComplexitySum = 0;
   mobOrderedDrawUpToIndex = MAX_MOBS_ALIVE;
@@ -1683,7 +1678,7 @@ void mobTick(void)
 		if (m) {
 			struct MobPVar* pvars = (struct MobPVar*)m->PVar;
 
-      //State.MobStats.TotalAlive++;
+      State.MobStats.TotalAlive++;
       //if (mapConfig && pvars->MobVars.SpawnParamsIdx >= 0 && pvars->MobVars.SpawnParamsIdx < mapConfig->MobSpawnParamsCount) {
       //  State.MobStats.NumAlive[pvars->MobVars.SpawnParamsIdx]++;
       //}

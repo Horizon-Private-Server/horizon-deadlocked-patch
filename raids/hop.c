@@ -37,6 +37,7 @@ void hopLoadMapStats(char* mapFilename)
   State.CurrentMapStats.Invalid = 1;
   State.CurrentMapStats.ChallengesCount = exData->ChallengesCount;
   State.CurrentMapStats.CollectiblesCount = exData->CollectiblesCount;
+  State.MissionType = exData->MissionType;
 
   // request map data
   if (hasMapConfig())

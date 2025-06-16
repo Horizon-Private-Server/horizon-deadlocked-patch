@@ -15,7 +15,7 @@
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
 #define CMODE_SURVIVAL_VERSION    (3)
-#define CMODE_RAIDS_VERSION       (1)
+#define CMODE_RAIDS_VERSION       (0)
 
 struct CustomMapDef;
 
@@ -146,7 +146,7 @@ typedef struct PatchGameConfig
   char grCqDisableTurrets;
   char grCqDisableUpgrades;
   char grNewPlayerSync;
-  char grQuickChat;
+  char grLagjump;
   char grNoFusionADS;
   char grRespawnOverride;
   char grFogOfWarRadar;

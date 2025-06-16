@@ -68,6 +68,7 @@ int isOnHubWorld(void);
 int missionIsFailed(void);
 int missionIsComplete(void);
 int missionIsActive(void);
+int missionIsBossRaid(void);
 
 void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
 

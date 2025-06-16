@@ -97,6 +97,8 @@ typedef struct RaidsInventoryItem
       u8 CritChance; // 0-255 (0-100%) chance crit
       u8 OmegaMod;
       u8 AlphaModCounts[ALPHA_MOD_COUNT-1];
+      u8 Upgrades;
+      u8 MaxUpgrades;
     } WeaponData;
 
     struct {

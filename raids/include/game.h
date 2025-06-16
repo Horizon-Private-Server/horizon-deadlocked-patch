@@ -163,6 +163,13 @@ enum RaidsMissionStatus
   RAIDS_MISSION_COMPLETED = 2,
 };
 
+enum RaidsMissionTypes
+{
+  RAIDS_MISSION_HUB = 0,
+  RAIDS_MISSION_OPEN_WORLD = 1,
+  RAIDS_MISSION_RAID = 2,
+};
+
 enum MobDamageSource
 {
   MOB_DAMAGE_SOURCE_UNKNOWN = 0,
@@ -262,6 +269,7 @@ struct RaidsState
   int OnHubWorld;
 	struct RaidsPlayer* LocalPlayerState;
 	int GameOver;
+  int MissionType;
   int MissionStatus;
   int MissionStartTime;
   int MissionCompleteTime;
@@ -327,6 +335,7 @@ struct RaidsMapConfig
 struct RaidsCustomMapExtraData
 {
   int RaidsVersion;
+  int MissionType;
   int MinPlayerLevel;
   int CollectiblesCount;
   int ChallengesCount;

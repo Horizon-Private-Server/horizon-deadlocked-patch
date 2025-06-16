@@ -454,7 +454,11 @@ MenuElem_ListData_t dataCustomMaps = {
 MenuElem_OrderedListData_t dataCustomModes = {
   .value = &gameConfig.customModeId,
   .stateHandler = menuStateHandler_SelectedGameModeOverride,
+#if RAIDS
+  .count = 15,
+#else
   .count = 14,
+#endif
   .items = {
     { CUSTOM_MODE_NONE, "None" },
     { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
@@ -466,7 +470,9 @@ MenuElem_OrderedListData_t dataCustomModes = {
     { CUSTOM_MODE_OBSTACLE, "Obstacle Course" },
     { CUSTOM_MODE_OITC, "One in the Chamber" },
     { CUSTOM_MODE_PAYLOAD, "Payload" },
-    // { CUSTOM_MODE_RAIDS, "Raids" },
+#if RAIDS
+    { CUSTOM_MODE_RAIDS, "Raids" },
+#endif
     { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
     { CUSTOM_MODE_TAG, "Tag" },
     { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
@@ -765,6 +771,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Radar Short Distance", listActionHandler, menuStateHandler_SettingStateHandler, &dataRadarShortDistance, "When radar is Short, multiplies the distance that enemies will appear on the radar." },
   { "Radar Short Shared", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFogOfWarRadar, "When radar is Short, enemies will appear on your radar when teammates are near them." },
   { "Respawn Override", listActionHandler, menuStateAlwaysEnabledHandler, &dataRespawnOverride, "Overrides Create Game screen Respawn Time to the configured value (in seconds)." },
+  { "UYA Lagjump", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grLagjump, "Enables UYA-style lagjumping (R2 + X)." },
   { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s, "Configures V2 weapon upgrades to be disabled, on (default), or always on (spawn with v2 weapons)." },
   { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire, "Earn health for each kill." },
   { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks, "Toggle in game weapon packs." },
@@ -3085,7 +3092,7 @@ void configMenuDisable(void)
         gameConfig.grNoInvTimer = 1;
         gameConfig.grNoPacks = 1;
         gameConfig.grNoPickups = 1;
-        gameConfig.grQuickChat = 1;
+        //gameConfig.grQuickChat = 1;
         //gameConfig.grNoSniperHelpers = 1;
         gameConfig.grNewPlayerSync = 1;
         gameConfig.grCqPersistentCapture = 1;
