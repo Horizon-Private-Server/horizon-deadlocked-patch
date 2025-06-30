@@ -14,6 +14,7 @@
 #include <libdl/radar.h>
 #include <libdl/color.h>
 #include "include/loot.h"
+#include "include/tracker.h"
 
 int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
@@ -40,11 +41,11 @@ int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob);
 void playerRewardXp(int playerId, int weaponId, int xp);
 
 float difficultyXpMult[RAIDS_DIFFICULTY_COUNT] = {
-  [RAIDS_DIFFICULTY_1STAR] 0.5,
-  [RAIDS_DIFFICULTY_2STAR] 1.0,
-  [RAIDS_DIFFICULTY_3STAR] 2.0,
-  [RAIDS_DIFFICULTY_4STAR] 3.0,
-  [RAIDS_DIFFICULTY_5STAR] 4.0
+  [RAIDS_DIFFICULTY_1STAR] 1.0,
+  [RAIDS_DIFFICULTY_2STAR] 2.0,
+  [RAIDS_DIFFICULTY_3STAR] 4.0,
+  [RAIDS_DIFFICULTY_4STAR] 8.0,
+  [RAIDS_DIFFICULTY_5STAR] 16.0
 };
 
 float difficultyBoltMult[RAIDS_DIFFICULTY_COUNT] = {
@@ -233,7 +234,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
       float critProbability = 0;
       RaidsInventoryItem_t* item = mapConfig->BankVTable->GetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
       if (item) critProbability = item->WeaponData.CritChance / 255.0;
-      critProbability += 0.5 * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
+      //critProbability += 0.5 * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
 
       float r = randRange(0, 1);
       if (r < critProbability) {
@@ -722,12 +723,8 @@ void mobUpdate(Moby* moby)
     if (damage > 0) {
       Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
       if (damager) {
-        // damage skill is factored differently with vehicles
-        if (damager->Vehicle && damager->InVehicle) {
-          damage *= 1 + (PLAYER_SKILLPOINT_VEHICLE_FACTOR * State.PlayerStates[damager->PlayerId].State.Skills[RAIDS_SKILLS_DAMAGE]);
-        } else {
-          damage *= 1 + (PLAYER_SKILLPOINT_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Skills[RAIDS_SKILLS_DAMAGE]);
-        }
+        // apply player level damage buff
+        damage *= 1 + (PLAYER_LEVEL_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Level);
 
         // deal extra damage after being hit
         // if (damager->timers.postHitInvinc > 0) {
@@ -760,16 +757,22 @@ void mobUpdate(Moby* moby)
 
   // acid damage
   if (isOwner && acidEffectActiveTicks > 0 && (acidEffectActiveTicks % MOB_POSTFX_ACID_FREQ_TICKS) == 0) {
-    struct Guber* lastHitByGuber = guberGetObjectByUID(pvars->MobVars.LastAcidBy);
-    Moby* lastHitByMoby = lastHitByGuber ? lastHitByGuber->VTable->GetMoby(lastHitByGuber) : NULL;
+    struct Guber* lastAcidByGuber = guberGetObjectByUID(pvars->MobVars.LastAcidBy);
+    Moby* lastAcidByMoby = lastAcidByGuber ? lastAcidByGuber->VTable->GetMoby(lastAcidByGuber) : NULL;
+		enum MobDamageSource lastAcidBySourceId = getDamageSourceFromOClass(pvars->MobVars.LastAcidByOClass);
+    int lastAcidByWeaponId = getWeaponIdFromDamageSource(lastAcidBySourceId);
+    int acidStrength = 0;
+		if (lastAcidByWeaponId > 0) {
+      acidStrength = mapConfig->BankVTable->GetEquippedWeaponModRarity(lastAcidByGuber->Id.GID.HostId, lastAcidByWeaponId, RAIDS_WEAPON_MOD_ACID) + 1;
+		}
     struct MobyColDamageIn damageIn = {
       .DamageFlags = 0x00081801,
-      .DamageHp = pvars->MobVars.LastAcidByDamage * MOB_POSTFX_ACID_DMG_PERC,
+      .DamageHp = pvars->MobVars.LastAcidByDamage * MOB_POSTFX_ACID_DMG_PERC * acidStrength,
       .DamageStrength = 1,
       .DamageClass = 0,
-      .DamageIndex = lastHitByMoby ? lastHitByMoby->OClass : 0,
+      .DamageIndex = lastAcidByMoby ? lastAcidByMoby->OClass : 0,
       .Flags = 1,
-      .Damager = lastHitByMoby
+      .Damager = lastAcidByMoby
     };
     mobyCollDamageDirect(moby, &damageIn);
   }
@@ -1054,20 +1057,31 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
       xp += xp * xpModCount * XP_ALPHAMOD_XP_PERC;
     }
 
+    // round up
+    xp = ceilf(xp);
+
     // receive bolts & xp
+    u32 appliedPlayerXp = 0;
+    u32 appliedWeaponXp = 0;
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
       mapConfig->BankVTable->AddBolts(bolts);
-      //mapConfig->BankVTable->AddXP(killedByLocal ? xp : (xp >> 1));
-      //pState->State.Experience += xp;
+      mapConfig->BankVTable->AddXP((u32)xp);
+      pState->State.Experience += xp;
       pState->State.Bolts += bolts;
+      appliedPlayerXp = (u32)xp;
     }
 
     // weapon XP only if this client killed the mob
     if (killedByLocal && weaponId > 0) {
       mapConfig->BankVTable->AddWeaponXP(xp, weaponId);
+      appliedWeaponXp = (u32)xp;
     } else if (!killedByLocal && localPlayer->WeaponHeldId && !playerIsDead(localPlayer)) {
       mapConfig->BankVTable->AddWeaponXP((double)(xp / 2), localPlayer->WeaponHeldId);
+      appliedWeaponXp = (u32)(xp / 2);
     }
+    
+    // log
+    trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp, appliedWeaponXp, weaponId);
 
     // spawn ammo chance
     // originally wanted to do this only if the killer was the local player
@@ -1079,7 +1093,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     }
 
     // spawn loot chance
-    if (randRange(0, 1) < GAME_DEFAULT_LOOT_DROP_CHANCE) {
+    if (randRange(0, 1) >= (1-GAME_DEFAULT_LOOT_DROP_CHANCE)) {
       lootRequestFromMob(moby, killedByLocal ? weaponId : 0);
     }
 
@@ -1167,6 +1181,11 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 	// flash
 	mobyStartFlash(moby, FT_HIT, 0x800000FF, 0);
 
+  // get damage info
+	Player* damager = playerGetFromUID(args.SourceUID);
+  enum MobDamageSource hitBySourceId = getDamageSourceFromOClass(args.SourceOClass);
+  int hitByWeaponId = getWeaponIdFromDamageSource(hitBySourceId);
+
 	// decrement health
 	float damage = args.DamageQuarters / 4.0;
   float appliedDamage = maxf(0, minf(damage, pvars->MobVars.Health));
@@ -1181,14 +1200,16 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
     // acid
     pvars->MobVars.AcidEffectActiveTicks = MOB_POSTFX_ACID_DUR_TICKS;
     pvars->MobVars.LastAcidBy = args.SourceUID;
+    pvars->MobVars.LastAcidByOClass = args.SourceOClass;
     pvars->MobVars.LastAcidByDamage = damage;
-  } else if ((args.DamageFlags & 0x800000)) {
+  } else if ((args.DamageFlags & 0x800000) && damager && hitByWeaponId > 0) {
     // freeze
     pvars->MobVars.FreezeEffectActiveTicks = MOB_POSTFX_FREEZE_DUR_TICKS;
+    int freezeStrength = mapConfig->BankVTable->GetEquippedWeaponModRarity(damager->PlayerId, hitByWeaponId, RAIDS_WEAPON_MOD_FREEZE) + 1;
+    pvars->MobVars.FreezeEffectStrength = (int)maxf(freezeStrength, pvars->MobVars.FreezeEffectStrength);
   }
 
 	// get damager
-	Player* damager = playerGetFromUID(args.SourceUID);
   if (appliedDamage > 0) { // && damager && damager->IsLocal) {
 
     // save last hit by

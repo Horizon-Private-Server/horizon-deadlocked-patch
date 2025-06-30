@@ -41,7 +41,7 @@ void hopLoadMapStats(char* mapFilename)
 
   // request map data
   if (hasMapConfig())
-    mapConfig->BankVTable->RequestMapStats(mapFilename, &State.CurrentMapStats);
+    mapConfig->BankVTable->RequestMapStats(mapFilename, &State.CurrentMapStats, exData->MissionType);
 }
 
 //--------------------------------------------------------------------------

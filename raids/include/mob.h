@@ -215,6 +215,7 @@ struct MobVars {
 	float ClosestDistToPlayer;
   u32 Userdata;
 	int LastAcidBy;
+	int LastAcidByOClass;
   float LastAcidByDamage;
 	int LastHitBy;
 	float LastHitByDamage;
@@ -231,6 +232,7 @@ struct MobVars {
 	u16 TimeTargetOutOfSightTicks;
 	u16 AcidEffectActiveTicks;
   u16 FreezeEffectActiveTicks;
+  u8 FreezeEffectStrength;
   u8 TargetOutOfSightCheckTicks;
 	u8 ActionId;
 	u8 LastActionId;

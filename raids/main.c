@@ -44,6 +44,7 @@
 #include "include/mob.h"
 #include "include/bubble.h"
 #include "include/stats.h"
+#include "include/tracker.h"
 #include "include/utils.h"
 
 char LocalPlayerStrBuffer[2][64];
@@ -304,7 +305,7 @@ int collisionIdIsWalkable(int collisionId)
 //--------------------------------------------------------------------------
 void onMissionComplete(int cuboidIdx)
 {
-  int lootCount = 2;
+  int lootCount = 7;
   Player* player = playerGetFromSlot(0);
   VECTOR pos;
   VECTOR up = {0,0,5,0};
@@ -314,16 +315,6 @@ void onMissionComplete(int cuboidIdx)
 
   // all players should be alive
   respawnDeadPlayers();
-
-  // # of loot drops is based on duration of run
-  // the longer the run the more drops
-  // to equalize time invested in a run, vs the payout at the end
-  // 0-9 min = 1 drop
-  // 9-27 min = 2 drops
-  // 27+ min = 3 drops
-  // with some randomness
-  float minutes = (State.MissionCompleteTime - State.MissionStartTime) / TIME_MINUTE;
-  lootCount = (int)clamp(logf(minutes + randRange(0, 5)) / logf(3), 1, 3) + rand(3);
 
   SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
 
@@ -462,8 +453,8 @@ void mobyRemoveDrawFunctions(Moby* moby)
   struct DrawFunction {
     void* pCallback;
     Moby* pMoby;
+    struct DrawFunction* pNext;
     void* pUNK_C;
-    void* pUNK_10;
   };
 
   int count = *(int*)0x00222574;
@@ -481,9 +472,28 @@ void mobyRemoveDrawFunctions(Moby* moby)
 //--------------------------------------------------------------------------
 void onMobyDestroyedCleanupAnimLayers(Moby* moby)
 {
+  // base func
   ((void (*)(Moby*))0x004fb480)(moby);
+
+  // let moby be reused instantly
+  // unless mob, then let is die normal
+  if (mobyIsMob(moby) || mobyIsMob(moby->PParent)) return;
   mobyRemoveDrawFunctions(moby);
   moby->CollCnt = 0;
+}
+
+//--------------------------------------------------------------------------
+Moby* onGuberEventCreateMoby(int oclass, int pvarSize)
+{
+  if (mobyGetNumSpawnableMobys() < 50) {
+    Moby* m = mobyFindNextByOClass(mobyListGetStart(), 0x13A1);
+    if (!m) return NULL;
+    if (m) {
+      mobyDestroy(m);
+    }
+  }
+
+  return mobySpawn(oclass, pvarSize);
 }
 
 //--------------------------------------------------------------------------
@@ -549,12 +559,20 @@ void processPlayer(int pIndex) {
   playerData->LastHealth = player->Health;
 
   // player speed
-	player->Speed = 1 + (PLAYER_SKILLPOINT_SPEED_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_SPEED]);
+  int lightfootStrength = mapConfig->BankVTable->GetEquippedWeaponModRarity(pIndex, player->WeaponHeldId, RAIDS_WEAPON_MOD_LIGHTFOOT) + 1;
+  player->Speed = 1 + (WEAPON_MOD_LIGHTFOOT_FACTOR * lightfootStrength);
 
 	// set max health
-  float cmodHealthBuff = BADGE_HEALTH_BUFF_AMOUNT * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pIndex, RAIDS_BADGE_TYPE_HEALTH_BUFF);
-	player->MaxHealth = 50 + cmodHealthBuff + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Skills[RAIDS_SKILLS_HEALTH]);
-
+  // auto heal if max health increases
+  float maxHealth = 50 + (PLAYER_LEVEL_HEALTH_FACTOR * playerData->State.Level);
+  if (player->MaxHealth != maxHealth) {
+    if (maxHealth > player->MaxHealth) {
+      playerSetHealth(player, player->MaxHealth = maxHealth);
+    } else {
+      player->MaxHealth = maxHealth;
+    }
+  }
+  
   // set vehicle max health if driver
   Vehicle* vehicle = player->Vehicle;
   if (vehicle && player->InVehicle && vehicle->pDriver == player) {
@@ -578,14 +596,14 @@ void processPlayer(int pIndex) {
 		heldWeapon = player->WeaponHeldId;
 
 	  // set max xp
-		u32 xp = mapConfig->BankVTable->GetXP();
-    int level = getLevelFromXp(xp);
-		u32 lastXp = getXpForLevel(level);
-		u32 nextXp = getXpForLevel(level + 1);
+		u64 xp = mapConfig->BankVTable->GetXP();
+    int level = mapConfig->BankVTable->GetLevel();
+		u64 lastXp = getXpForLevel(level);
+		u64 nextXp = getXpForLevel(level + 1);
     if (xp < lastXp) xp = lastXp;
-    float xpPerc = (float)((xp - lastXp) / (float)(nextXp - lastXp));
+    double xpPerc = (double)((xp - lastXp) / (double)(nextXp - lastXp));
     //printf("lvl:%d perc:%f %'d=>%'d xp:%'d GetXP:%08X\n", level, xpPerc, lastXp, nextXp, xp, (u32)mapConfig->BankVTable->GetXP);
-		setPlayerEXP(localPlayerIndex, xpPerc);
+		setPlayerEXP(localPlayerIndex, (float)xpPerc);
 
 		// decrement flail ammo while spinning flail
 		GameOptions* gameOptions = gameGetOptions();
@@ -698,6 +716,7 @@ void initialize(PatchStateContainer_t* gameState)
   POKE_U32(0x005F6488, 0); // enable vehicle targeting non-players
   
   HOOK_JAL(0x004f7780, &onMobyDestroyedCleanupAnimLayers);
+  HOOK_JAL(0x0061c3ec, &onGuberEventCreateMoby);
 
   // disable guber event delay until createTime+relDispatchTime reached
   // when players desync, their net time falls behind everyone else's
@@ -718,6 +737,7 @@ void initialize(PatchStateContainer_t* gameState)
   lootInit();
   hopInit();
   statsInit();
+  trackerInit();
 
 	// change hud
 	forcePlayerHUD();
@@ -805,9 +825,6 @@ void initialize(PatchStateContainer_t* gameState)
 #endif
 
 		if (p) {
-
-      // set max health
-      p->Health = p->MaxHealth = 50 + (PLAYER_SKILLPOINT_HEALTH_FACTOR * State.PlayerStates[i].State.Skills[RAIDS_SKILLS_HEALTH]);
 
       State.PlayerStates[i].IsDead = 0;
       State.PlayerStates[i].State.Bolts = 0;
@@ -1143,6 +1160,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     }
     
     // count num alive
+    gameOptions->GameFlags.MultiplayerGameFlags.Survivor = missionIsBossRaid();
     if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
     {
       // determine number of players alive
@@ -1186,6 +1204,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   mobTick();
   lootTick();
   statsTick();
+  trackerTick();
 
 #if DEBUG
   if (padGetButton(0, PAD_L1 | PAD_CROSS)) {
@@ -1222,11 +1241,11 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickupsRandom = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 3;
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+	//gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 
   // enable all vehicles
 	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 1;

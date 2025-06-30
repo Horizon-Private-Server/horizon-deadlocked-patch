@@ -171,7 +171,12 @@ void gfxHelperDrawTextWindow(float anchorX, float anchorY, float offsetX, float 
 {
   float fx = anchorX + offsetX;
   float fy = anchorY + offsetY;
-  helperAlign(&fx, &fy, width, height, alignment);
+  //helperAlign(&fx, &fy, width, height, alignment);
+
+  if (alignment >= TEXT_ALIGN_MIDDLELEFT && alignment <= TEXT_ALIGN_MIDDLERIGHT)
+    flags |= FONT_WINDOW_FLAGS_V_ALIGN_CENTER;
+  if ((alignment % 3) == 1)
+    flags |= FONT_WINDOW_FLAGS_H_ALIGN_CENTER;
 
   struct FontWindow fontWindow = {
     .windowLeft = fx,
@@ -184,9 +189,21 @@ void gfxHelperDrawTextWindow(float anchorX, float anchorY, float offsetX, float 
     .maxHeight = height,
     .lineSpacing = 16 * scale,
     .flags = flags,
+    //.subPixelX = (short)((fx + textOffsetX)*2) % 2,
+    //.subPixelY = (short)((fy + textOffsetY)*2) % 2,
     .shadowOffsetX = 1,
     .shadowOffsetY = 1
   };
+
+  if ((flags & FONT_WINDOW_FLAGS_V_ALIGN_CENTER)) {
+    fontWindow.windowTop = fy - height*0.5;
+    fontWindow.windowBottom = fy + height*0.5;
+  }
+
+  if ((flags & FONT_WINDOW_FLAGS_H_ALIGN_CENTER)) {
+    fontWindow.windowLeft = fx - width*0.5;
+    fontWindow.windowRight = fx + width*0.5;
+  }
 
   // pass to dzo
   if (dzoDrawType > 0 && PATCH_DZO_INTEROP_FUNCS && isInGame()) {

@@ -75,7 +75,7 @@
 #define MOB_POSTFX_ACID_DMG_PERC              (0.05)
 #define MOB_POSTFX_FREEZE_DUR_TICKS           (TPS * 5)
 #define MOB_POSTFX_FREEZE_FACTOR              (0.75)
-#define MOB_POSTFX_NAPALM_DMG_PERC            (0.10)
+#define MOB_POSTFX_NAPALM_DMG_PERC            (0.15)
 #define MOB_POSTFX_MINIBOMB_DMG_PERC          (0.25)
 
 #define JACKPOT_BOLTS													(50)
@@ -83,7 +83,8 @@
 #define NANOLEECH_HEALTH											(3)
 #define NANOLEECH_CHANCE											(0.1)
 
-#define LEVELUP_MAX_LEVEL                     (98)
+#define LEVELUP_MAX_PROF_LEVEL                (98)
+#define LEVELUP_MAX_PLAYER_LEVEL              (98)
 #define LEVELUP_PLAYER_LINEAR_FACTOR          (100)
 #define LEVELUP_PLAYER_STEP_FACTOR            (50)
 #define LEVELUP_PLAYER_STEP_EVERY             (10)
@@ -109,6 +110,10 @@
 #define PLAYER_SKILLPOINT_DAMAGE_FACTOR       (0.08)
 #define PLAYER_SKILLPOINT_SPEED_FACTOR        (0.03)
 #define PLAYER_SKILLPOINT_HEALTH_FACTOR       (15)
+#define PLAYER_LEVEL_HEALTH_FACTOR            (10)
+#define PLAYER_LEVEL_DAMAGE_FACTOR            (0.01)
+
+#define WEAPON_MOD_LIGHTFOOT_FACTOR           (0.25)
 
 #define SNACK_ITEM_MAX_COUNT                  (8)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
@@ -122,7 +127,7 @@
 #define MOB_MAX_FLINCH_PROBABILITY            (0.25)
 
 #define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.2)
-#define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.01)
+#define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.015)
 
 #define BADGE_SHARPSHOOTER_CRIT_AMOUNT        (0.05)
 
@@ -144,6 +149,7 @@ enum RaidsCustomMenus
   RAIDS_CUSTOM_MENU_LEVELSELECT,
   RAIDS_CUSTOM_MENU_STORE,
   RAIDS_CUSTOM_MENU_SKILLS,
+  RAIDS_CUSTOM_MENU_UPGRADE,
 };
 
 enum RaidsDifficultys
@@ -221,10 +227,10 @@ struct RaidsPlayerState
 {
   u32 Bolts;
   float Experience;
+  int Level;
 	int Kills;
 	int Deaths;
 	int AllKills[MOB_DAMAGE_SOURCE_COUNT-1][MAX_MOB_SPAWN_PARAMS];
-  u16 Skills[RAIDS_SKILLS_COUNT];
 };
 
 struct RaidsPlayer

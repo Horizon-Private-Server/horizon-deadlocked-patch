@@ -17,6 +17,7 @@
 #include "include/bank.h"
 #include "include/mob.h"
 #include "include/loot.h"
+#include "include/tracker.h"
 #include "config.h"
 #include "common.h"
 
@@ -159,6 +160,7 @@ int lootOnGenerateLootResponse(void* connection, void* data)
   memcpy(&msg, data, sizeof(msg));
 
   lootSpawn(msg.Position, &msg.Drop);
+  trackerLogLootDrop();
 
   DPRINTF("got loot gen response\n");
   return sizeof(msg);

@@ -168,9 +168,17 @@ Add Contracts
 ## 6/15/2025
 Inventory - Add "weapon mod" items (alpha mod, omega mod, paint, upgrade?)
 ++Level Select - Add open world / raids tabs
+Hub - Add gamba machine
+++Hub - Add upgrade machine
+++Hub - Add dev options to
+  - Reset account
+  - Level up equipped weapon proficiency
+  - Level up account
+  - Get bolts
 
-? Weapon Upgrading
+++ Weapon Upgrading
  - Add 10 upgrade slots to each weapon
+ - If weapon is 10/10, player has option to upgrade to the next rarity, resetting upgrades back to 0. This would add a bunch of alpha mods to the weapon
  - Each upgrade has a % chance to fail, losing 1 upgrade slot on the weapon and reverting up to 1 upgrade
     5/10 -> fail -> 4/9 or 5/9
  - The higher the rarity & the number of upgrades, the lower the rate of success
@@ -180,3 +188,4 @@ Inventory - Add "weapon mod" items (alpha mod, omega mod, paint, upgrade?)
     [Legendary] 5 => 6 [50% Success]
     [Mythic] 5 => 6 [20% Success]
 
+Let you level up a weapon's proficiency by use (maybe 25% rate of normal xp gain)
