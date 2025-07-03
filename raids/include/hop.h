@@ -15,7 +15,7 @@ struct HopOnBeginMsg
   char MapFilename[64];
 };
 
-void hopLoadMapStats(char* mapFilename);
+void hopLoadMapStats(char* mapFilename, char* mapName);
 void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs);
 
 void hopTick(void);

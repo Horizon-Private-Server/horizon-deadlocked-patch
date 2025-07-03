@@ -25,7 +25,7 @@ void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
 int hopCost = 0;
 
 //--------------------------------------------------------------------------
-void hopLoadMapStats(char* mapFilename)
+void hopLoadMapStats(char* mapFilename, char* mapName)
 {
   if (!mapFilename || !mapFilename[0]) return;
 
@@ -41,7 +41,7 @@ void hopLoadMapStats(char* mapFilename)
 
   // request map data
   if (hasMapConfig())
-    mapConfig->BankVTable->RequestMapStats(mapFilename, &State.CurrentMapStats, exData->MissionType);
+    mapConfig->BankVTable->RequestMapStats(mapFilename, mapName, &State.CurrentMapStats, exData->MissionType);
 }
 
 //--------------------------------------------------------------------------
@@ -222,7 +222,7 @@ void hopDo(void)
   memset(&State.CurrentMapStats, 0, sizeof(State.CurrentMapStats));
 
   // update current map stats
-  hopLoadMapStats(def->Filename);
+  hopLoadMapStats(def->Filename, def->Name);
 
   // hop to
   PATCH_INTEROP->HopToCustomMap(def);

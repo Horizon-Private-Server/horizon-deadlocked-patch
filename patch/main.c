@@ -789,9 +789,9 @@ void runLagjumpPatch(void)
                   ;
 			PlayerVTable *vtable = playerGetVTable(player);
       float stickStrength = *(float*)((u32)player + 0x2e08);
-      int jumpDir = ((int (*)(Player *))0x005ee3b8)(player);
 			if (playerPadGetButton(player, PAD_R2 | PAD_CROSS) > 0) {
         if (hasState && padtrigger[i] < 4) {
+          int jumpDir = ((int (*)(Player *))0x005ee3b8)(player);
           if (0.9 < stickStrength && player->Ground.onGood && jumpDir != 2) {
             vtable->UpdateState(player, 0xb, 1, 0, 1);
           }

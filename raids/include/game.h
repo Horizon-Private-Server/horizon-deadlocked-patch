@@ -111,7 +111,7 @@
 #define PLAYER_SKILLPOINT_SPEED_FACTOR        (0.03)
 #define PLAYER_SKILLPOINT_HEALTH_FACTOR       (15)
 #define PLAYER_LEVEL_HEALTH_FACTOR            (10)
-#define PLAYER_LEVEL_DAMAGE_FACTOR            (0.01)
+#define PLAYER_LEVEL_DAMAGE_FACTOR            (0.04)
 
 #define WEAPON_MOD_LIGHTFOOT_FACTOR           (0.25)
 
@@ -150,6 +150,7 @@ enum RaidsCustomMenus
   RAIDS_CUSTOM_MENU_STORE,
   RAIDS_CUSTOM_MENU_SKILLS,
   RAIDS_CUSTOM_MENU_UPGRADE,
+  RAIDS_CUSTOM_MENU_CONTRACTS,
 };
 
 enum RaidsDifficultys
@@ -264,6 +265,16 @@ struct RaidsMobStats
   u8 NumAlive[MAX_MOB_SPAWN_PARAMS];
 };
 
+struct RaidsMobContractRule
+{
+  u16 MobOClass;
+  u16 MinCount;
+  u16 MaxCount;
+  u16 ExpirationMinutes;
+  float XpMult;
+  float BoltMult;
+};
+
 struct RaidsState
 {
 	int InitializedTime;
@@ -308,6 +319,8 @@ struct RaidsMapConfig
   struct RaidsState* State;
   struct MobSpawnParams* MobSpawnParams;
   int MobSpawnParamsCount;
+  struct RaidsMobContractRule* MobContractRules;
+  int MobContractRulesCount;
   int* TrackWhitelist;
   int TrackWhitelistCount;
   int TrackWhitelistEnabled;

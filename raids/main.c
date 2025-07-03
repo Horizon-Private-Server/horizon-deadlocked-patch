@@ -41,6 +41,7 @@
 #include "include/hop.h"
 #include "include/bank.h"
 #include "include/loot.h"
+#include "include/contract.h"
 #include "include/mob.h"
 #include "include/bubble.h"
 #include "include/stats.h"
@@ -366,6 +367,9 @@ void onMissionComplete(int cuboidIdx)
   msg.Difficulty = State.DifficultyStars;
   strncpy(msg.MapFilename, State.CurrentMapDef->Filename, sizeof(msg.MapFilename));
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_RAIDS_SET_MISSION_COMPLETED_REQUEST, sizeof(msg), &msg);
+
+  // pass to contracts
+  contractMissionComplete(msg.TimeMs);
 }
 
 //--------------------------------------------------------------------------
@@ -389,8 +393,10 @@ void missionCheckForMissionFailed(void)
 {
   if (!missionIsActive()) return;
 
-  int failed = !State.OnHubWorld && State.ClientsReady && State.TicksWithNoLivingPlayers > TPS && !State.LivesLeft && State.ActivePlayerCount && !hasPendingWorldHop();
-  if (!failed) return;
+  int canFail = !State.OnHubWorld && State.ClientsReady && State.ActivePlayerCount && !hasPendingWorldHop();
+  int failed = State.TicksWithNoLivingPlayers > TPS && !State.LivesLeft;
+  int timeRanOut = State.MissionCompleteTime < State.MissionStartTime;
+  if (!(canFail && failed) || !(canFail && timeRanOut)) return;
 
   // broadcast
   void* connection = netGetDmeServerConnection();
@@ -699,7 +705,7 @@ void initialize(PatchStateContainer_t* gameState)
     memset(&State, 0, sizeof(State));
     
     // load map stats
-    if (PATCH_INTEROP) hopLoadMapStats(PATCH_INTEROP->MapLoaderFilename);
+    if (PATCH_INTEROP) hopLoadMapStats(PATCH_INTEROP->MapLoaderFilename, "DreadZone Station");
   }
 
   // disable timebase query percentile filter
@@ -708,6 +714,11 @@ void initialize(PatchStateContainer_t* gameState)
 
   // disable timebandits hack
   POKE_U32(0x0015B118, 0);
+
+  // enables SP ground logic
+  // handles platforms much better
+  POKE_U16(0x005e5a80, 0);
+  POKE_U16(0x005e5b96, 0x10E0);
 
   HOOK_J(0x004546EC, &vehicleReinitPhysicsPost); // puma
   HOOK_J(0x00465244, &vehicleReinitPhysicsPost); // hoverbike
@@ -1114,6 +1125,9 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       if (!bankVTable->GetHasAccount() && !bankVTable->HasPendingAccountRequest()) {
         bankVTable->RequestAccountFromServer();
       }
+      if (!bankVTable->GetHasContracts() && !bankVTable->HasPendingContractsRequest()) {
+        bankVTable->RequestContractsFromServer();
+      }
       if (!bankVTable->GetHasEquippedInventory() && !bankVTable->HasPendingEquippedInventoryRequest()) {
         bankVTable->RequestEquippedInventoryFromServer();
       }
@@ -1205,6 +1219,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   lootTick();
   statsTick();
   trackerTick();
+  contractTick();
 
 #if DEBUG
   if (padGetButton(0, PAD_L1 | PAD_CROSS)) {
@@ -1265,7 +1280,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->WeaponFlags.Holoshield = 1;
 	gameOptions->WeaponFlags.Flail = 1;
 
-  // disable custom game rules
+  // apply custom game rules
   if (gameConfig) {
     gameConfig->grNoHealthBoxes = 1;
     gameConfig->grNoInvTimer = 0;
@@ -1282,6 +1297,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grCqDisableUpgrades = 0;
     gameConfig->grRespawnOverride = 0;
     gameConfig->grNewPlayerSync = 1;
+    gameConfig->grLagjump = 1;
   }
 
 	// force everyone to same team as host

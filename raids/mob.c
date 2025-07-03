@@ -15,6 +15,7 @@
 #include <libdl/color.h>
 #include "include/loot.h"
 #include "include/tracker.h"
+#include "include/contract.h"
 
 int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
@@ -1082,6 +1083,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     
     // log
     trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp, appliedWeaponXp, weaponId);
+    if (killedByLocal) contractHandleKill(moby->OClass, weaponId, appliedWeaponXp, appliedPlayerXp);
 
     // spawn ammo chance
     // originally wanted to do this only if the killer was the local player
