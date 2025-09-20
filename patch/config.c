@@ -100,6 +100,7 @@ void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* st
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateEnabledInMenusHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateDzoDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -107,6 +108,7 @@ void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* elem
 void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value);
@@ -265,6 +267,9 @@ MenuElem_t menuElementsGeneral[] = {
 #endif
   { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler, "Vote to end the game. If a team/player is in the lead they will win." },
   { "Refresh Maps", buttonActionHandler, menuStateEnabledInMenusHandler, gmRefreshMapsSelectHandler },
+#ifdef MAPBOOTELF
+  { "Boot Map Downloader", buttonActionHandler, menuStateHandler_BootMapDownloaderStateHandler, downloadMapUpdatesSelectHandler },
+#endif
 #if SCAVENGER_HUNT
   { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateScavengerHuntEnabledHandler, &config.disableScavengerHunt, "If you see this option, there is a Horizon scavenger hunt active. Enabling this will spawn random Horizon bolts in game. Collect the most to win the hunt!" },
 #endif
@@ -1026,16 +1031,19 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
 // 
 void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
-  ClientRequestBootElf_t request;
-  request.BootElfId = 1;
-  
   // close menu
   configMenuDisable();
 
-  // send request
-  void * lobbyConnection = netGetLobbyServerConnection();
-  if (lobbyConnection)
-    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
+  // prompt
+  if (uiShowYesNoDialog("Are you sure?", "Launching the map downloader will exit the game.") == 1) {
+    ClientRequestBootElf_t request;
+    request.BootElfId = 0;
+    
+    // send request
+    void * lobbyConnection = netGetLobbyServerConnection();
+    if (lobbyConnection)
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
+  }
 }
 
 // 
@@ -1077,6 +1085,15 @@ void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
     *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
   else
     *state = ELEMENT_HIDDEN;
+}
+
+// 
+void menuStateDzoDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (CLIENT_TYPE_DZO == PATCH_INTEROP->Client)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
 }
 
 // 
@@ -1584,6 +1601,19 @@ void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element,
   }
   
   *state = ELEMENT_HIDDEN;
+}
+
+// 
+void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+  int i = 0;
+  int hidden = CLIENT_TYPE_DZO == PATCH_INTEROP->Client || isInGame();
+  
+  if (hidden)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
 int getMenuElementState(TabElem_t* tab, MenuElem_t* element)

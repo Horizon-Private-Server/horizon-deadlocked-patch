@@ -8,7 +8,7 @@ EE_INCS := -I../common
 EE_LDFLAGS := -Werror -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE
-BUILD_CONFIG := RELEASE
+BUILD_CONFIG := DEBUG
 
 # build flags
 # 	DEBUG									Enables debug strings and additional misc debug logic.
@@ -42,7 +42,7 @@ EE_DEFS := -DDEBUG -DMOB_CORN
 #EE_DEFS += -DJOINT_TEST
 #EE_DEFS += -DLOG_STATS
 #EE_DEFS += -DLOG_STATS2
-EE_DEFS += -DLOG_PERF_STATS
+#EE_DEFS += -DLOG_PERF_STATS
 else ifeq ($(BUILD_CONFIG),RELEASE)
 EE_DEFS := -DRELEASE -DMOB_CORN
 #EE_DEFS += -DMOB_NO_DAMAGE

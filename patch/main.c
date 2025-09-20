@@ -5473,7 +5473,7 @@ void onOnlineMenu(void)
       if (uiShowYesNoDialog("Required Map Update", buf) == 1)
       {
         ClientInitiateMapDownloadRequest_t msg = {
-          .MapId = (int)gameConfig.customMapId
+          .MapId = 0
         };
         netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_INITIATE_DOWNLOAD_MAP_REQUEST, sizeof(ClientInitiateMapDownloadRequest_t), &msg);
       }

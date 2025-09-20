@@ -189,3 +189,21 @@ Hub - Add gamba machine
     [Mythic] 5 => 6 [20% Success]
 
 Let you level up a weapon's proficiency by use (maybe 25% rate of normal xp gain)
+
+## 7/6/2025
+Fix triangle opening menus on exit of other menus
+Fix ammo vendor triangle swapping weapons
+Fix being able to damage vehicles
+Add quake attack to tremors (v10 flail)
+Add thorn attack to reapers
+Fix swamper lunge not lunging
+Fix level select insta-X taking you to Hub
+Organize level select with Planets Tab & Raids Tab
+Add moby/box that can be moved/dragged
+Add customizable "drop" items to maps
+ - Maps can create up to 8 different drops
+ - Maps can set their texture & name
+ - Maps can spawn at will via controller or mob death
+ - Maps can use drops as a payment mechanisms like via gates or controllers
+ - Maps can let users exchange drops for bolts (maybe XP or other too?, or would be op?)
+ - Add getting X number of drops to contracts?
