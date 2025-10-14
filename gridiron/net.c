@@ -77,13 +77,13 @@ int onReceiveBallPickupRequestRemote(void * connection, void * data)
   BallPickupRequestMessage_t msg;
   memcpy(&msg, data, sizeof(msg));
 	DPRINTF("recv BallPickupRequestMessage\n");
-	onReceiveBallPickupRequest(msg.PickupByPlayerId);
+	onReceiveBallPickupRequest(msg.PickupByPlayerId, msg.ResetCounter);
 
 	return sizeof(BallPickupRequestMessage_t);
 }
 
 //--------------------------------------------------------------------------
-void sendBallPickupRequest(int playerIdx)
+void sendBallPickupRequest(int playerIdx, int resetCounter)
 {
   static int timeLastSent = 0;
 	BallPickupRequestMessage_t msg;
@@ -93,6 +93,7 @@ void sendBallPickupRequest(int playerIdx)
 
   // send to host
   msg.PickupByPlayerId = playerIdx;
+  msg.ResetCounter = resetCounter;
 	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), gameGetHostId(), CUSTOM_MSG_BALL_PICK_UP_REQUEST, sizeof(msg), &msg);
   timeLastSent = gameGetTime();
 }

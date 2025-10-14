@@ -40,7 +40,7 @@
 
 extern int Initialized;
 
-int tryEquipBall(int playerIdx);
+int tryEquipBall(int playerIdx, int resetCounter);
 int playerStateCanHoldBall(Player * player);
 int (*baseFlagHandleGuberEvent)(Moby*, GuberEvent*) = (int (*)(Moby*, GuberEvent*))0x00417BB8;
 
@@ -60,7 +60,7 @@ void onReceiveTeamScore(int teamScores[2])
 }
 
 //--------------------------------------------------------------------------
-void onReceiveBallPickupRequest(int fromPlayerIdx)
+void onReceiveBallPickupRequest(int fromPlayerIdx, int resetCounter)
 {
   if (!State.BallMoby || !isInGame()) return;
 
@@ -68,7 +68,7 @@ void onReceiveBallPickupRequest(int fromPlayerIdx)
   if (!player) return;
 
   if (playerStateCanHoldBall(player) && ballGetCarrierIdx(State.BallMoby) < 0) {
-    if (!tryEquipBall(fromPlayerIdx)) {
+    if (!tryEquipBall(fromPlayerIdx, resetCounter)) {
       ballResendPickup(State.BallMoby);
     }
   } else {
@@ -164,7 +164,7 @@ int playerStateCanHoldBall(Player * player)
 }
 
 //--------------------------------------------------------------------------
-int tryEquipBall(int playerIdx)
+int tryEquipBall(int playerIdx, int resetCounter)
 {
   Player* player = playerGetAll()[playerIdx];
 	if (playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS || !player || !State.BallMoby)
@@ -182,10 +182,10 @@ int tryEquipBall(int playerIdx)
 
 	// hold
   if (!gameAmIHost()) {
-    sendBallPickupRequest(playerIdx);
+    sendBallPickupRequest(playerIdx, resetCounter);
     player->HeldMoby = State.BallMoby;
   } else {
-	  ballPickup(State.BallMoby, playerIdx);
+	  ballPickup(State.BallMoby, playerIdx, resetCounter);
   }
 
   State.PlayerStates[playerIdx].TimeLastEquipPing = gameGetTime();
@@ -210,10 +210,11 @@ int tryPingEquip(int playerIdx)
 		return 0;
 
 	// hold
+  BallPVars_t * pvars = (BallPVars_t*)State.BallMoby->PVar;
   if (!gameAmIHost()) {
-    sendBallPickupRequest(playerIdx);
+    sendBallPickupRequest(playerIdx, pvars->ResetCounter);
   } else {
-	  ballPickup(State.BallMoby, playerIdx);
+	  ballPickup(State.BallMoby, playerIdx, pvars->ResetCounter);
   }
 
   State.PlayerStates[playerIdx].TimeLastEquipPing = gameGetTime();
@@ -278,7 +279,7 @@ void playerLogic(int playerIdx)
   else if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
     vector_subtract(temp, player->PlayerPosition, State.BallMoby->Position);
     if (vector_sqrmag(temp) < 4) {
-      tryEquipBall(playerIdx);
+      tryEquipBall(playerIdx, ballGetResetCounter(State.BallMoby));
     }
   }
   
@@ -286,7 +287,7 @@ void playerLogic(int playerIdx)
   // quick pickup
   if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
     if (padGetButtonDown(player->LocalPlayerIndex, PAD_L1 | PAD_UP) > 0) {
-      tryEquipBall(playerIdx);
+      tryEquipBall(playerIdx, ballGetResetCounter(State.BallMoby));
     }
   }
 #endif
@@ -603,6 +604,14 @@ void initialize(PatchStateContainer_t* gameState)
 
   // allow player to drop flag with CIRCLE
   //POKE_U32(0x005DFD44, 0);
+
+  // disable guber event delay until createTime+relDispatchTime reached
+  // when players desync, their net time falls behind everyone else's
+  // causing events that they receive to be delayed for long periods of time
+  // leading to even more desyncing issues
+  // since survival can cause a lot of frame lag, especially for players on emu/dzo
+  // this fix is required to ensure that important mob guber events trigger on everyone's screen
+  POKE_U32(0x00611518, 0x24040000);
 
 	// point get resurrect point to ours
 	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);

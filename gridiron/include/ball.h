@@ -7,8 +7,9 @@
 #define BALL_MOBY_OCLASS          (MOBY_ID_BETA_BOX)
 
 void ballReset(Moby* mobyy, int resetType);
+int ballGetResetCounter(Moby* moby);
 int ballGetCarrierIdx(Moby* moby);
-void ballPickup(Moby * moby, int playerIdx);
+void ballPickup(Moby * moby, int playerIdx, int resetCounter);
 void ballResendPickup(Moby * moby);
 void ballThrow(Moby * moby, float power);
 void ballUpdate(Moby * moby);
@@ -24,6 +25,7 @@ typedef struct BallPVars
   int CarrierIdx;
   int DieTime;
   int SyncTicks;
+  int ResetCounter;
 } BallPVars_t;
 
 enum BallEventType {

@@ -68,6 +68,35 @@ int ballRemoveFromHeldPlayer(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+int ballEnsureValidHeldPlayer(Moby* moby)
+{
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  Player** players = playerGetAll();
+  int i;
+  int droppedBall = 0;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && player->HeldMoby == moby && i != pvars->CarrierIdx) {
+      playerDropFlag(player, 1);
+      State.PlayerStates[i].TimeLastCarrier = gameGetTime();
+      droppedBall++;
+    }
+  }
+
+  return droppedBall;
+}
+
+//--------------------------------------------------------------------------
+int ballGetResetCounter(Moby* moby)
+{
+  if (!moby)
+    return -1;
+    
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  return pvars->ResetCounter;
+}
+
+//--------------------------------------------------------------------------
 int ballGetCarrierIdx(Moby* moby)
 {
   if (!moby)
@@ -137,7 +166,7 @@ void ballThrow(Moby * moby, float power)
 }
 
 //--------------------------------------------------------------------------
-void ballPickup(Moby * moby, int playerIdx)
+void ballPickup(Moby * moby, int playerIdx, int resetCounter)
 {
   if (!moby)
     return;
@@ -149,6 +178,7 @@ void ballPickup(Moby * moby, int playerIdx)
   if (!event) return;
 
   guberEventWrite(event, &playerIdx, 4);
+  guberEventWrite(event, &resetCounter, 4);
 }
 
 //--------------------------------------------------------------------------
@@ -224,12 +254,14 @@ void ballReset(Moby * moby, int resetType)
 void ballUpdate(Moby * moby)
 {
   VECTOR updatePos, toPos, hitNormal, direction;
-  float * hitPos = (float*)0x0023f930;
   if (!moby)
     return;
 
-  Player** players = playerGetAll();
+  // tick down sync
   BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  if (pvars->SyncTicks > 0) --pvars->SyncTicks;
+
+  Player** players = playerGetAll();
   int carrierIdx = pvars->CarrierIdx;
   Moby* visualMoby = pvars->VisualMoby;
   Player * carrier = NULL;
@@ -248,7 +280,7 @@ void ballUpdate(Moby * moby)
   }
 
   // 
-  if (!carrier && pvars->DieTime && gameGetTime() > pvars->DieTime)
+  if (!carrier && pvars->DieTime && gameGetTime() > pvars->DieTime && gameAmIHost())
   {
     ballReset(moby, BALL_RESET_CENTER);
     return;
@@ -313,7 +345,7 @@ void ballUpdate(Moby * moby)
         vector_reflect(pvars->Velocity, pvars->Velocity, hitNormal);
 
         float dot = vector_innerproduct(direction, hitNormal);
-        float exp = powf((dot + 1) / 2, 0.2);
+        //float exp = powf((dot + 1) / 2, 0.2);
         vector_scale(pvars->Velocity, pvars->Velocity, (clamp(1 - fabsf(dot), 0, 1) + BOUNCINESS_COEFF) * (1 - FRICTION_COEFF));
         //vector_scale(pvars->Velocity, pvars->Velocity, 0.9);
 
@@ -448,6 +480,7 @@ int ballHandleGuberEvent_Reset(Moby* moby, GuberEvent* event)
 
   // drop from existing carrier
   ballRemoveFromHeldPlayer(moby);
+  pvars->ResetCounter++;
   pvars->CarrierIdx = -1;
   pvars->DieTime = gameGetTime() + (TIME_SECOND * LIFETIME);
   ballMoveToResetPosition(moby, resetType);
@@ -461,33 +494,46 @@ int ballHandleGuberEvent_Reset(Moby* moby, GuberEvent* event)
 int ballHandleGuberEvent_Pickup(Moby* moby, GuberEvent* event)
 {
   // read
-  int playerIdx;
-  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
-  guberEventRead(event, &playerIdx, sizeof(playerIdx));
-
-  // already equipped
-  if (pvars->CarrierIdx == playerIdx) return;
-
-  // pickup
+  int playerIdx, resetCounter;
   Player** players = playerGetAll();
   Player* player = NULL;
-  if (playerIdx >= 0 && playerIdx < GAME_MAX_PLAYERS)
+  BallPVars_t * pvars = (BallPVars_t*)moby->PVar;
+  guberEventRead(event, &playerIdx, sizeof(playerIdx));
+  guberEventRead(event, &resetCounter, sizeof(resetCounter));
+
+  // make sure current held player is the carrier
+  ballEnsureValidHeldPlayer(moby);
+
+  // block
+  if (pvars->SyncTicks > 0) return 0;
+
+  // after a reset of the ball, we want to block any requests that were made from before the reset
+  if (resetCounter != pvars->ResetCounter) return 0;
+
+  // pickup
+  if (playerIdx >= 0 && playerIdx < GAME_MAX_PLAYERS) {
     player = players[playerIdx];
-  
-  // drop from existing carrier
-  ballRemoveFromHeldPlayer(moby);
+      
+    // ensure player is valid
+    if (!playerIsValid(player)) {
+      playerIdx = -1;
+      player = NULL;
+    }
+  }
 
   // set new carrier
+  int isNew = playerIdx != pvars->CarrierIdx;
   pvars->CarrierIdx = playerIdx;
   pvars->SyncTicks = 0;
   if (player)
     player->HeldMoby = moby;
     
   // popup and play sound
-  if (playerIdx >= 0) {
+  if (playerIdx >= 0 && isNew) {
     mobyPlaySoundByClass(0, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_RED_FLAG);
     uiShowPopup(0, "The ball has been picked up!");
   }
+
   return 0;
 }
 
@@ -503,28 +549,24 @@ int ballHandleGuberEvent_Drop(Moby* moby, GuberEvent* event)
   guberEventRead(event, velocity, 12);
   guberEventRead(event, &time, 4);
 
-  // ignore if carrier no longer has ball
-  if (pvars->CarrierIdx < 0) return;
-  
-  if (pvars->CarrierIdx >= 0) {
-    Player* player = playerGetAll()[pvars->CarrierIdx];
-    if (player && player->HeldMoby == moby) {
-      playerDropFlag(player, 1);
-    }
-      
-    State.PlayerStates[pvars->CarrierIdx].TimeLastCarrier = time;
+  // block
+  if (pvars->SyncTicks > 0) return 0;
 
+  if (pvars->CarrierIdx >= 0) {
     // popup and play sound
     mobyPlaySoundByClass(1, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_RED_FLAG);
     uiShowPopup(0, "The ball has been dropped!");
+    
+    // update die time
+    pvars->DieTime = time + (TIME_SECOND * LIFETIME);
   }
+  
+  // remove carrier
+  pvars->CarrierIdx = -1;
+  pvars->SyncTicks = 0;
   
   // remove from everyone else (in case of desync)
   ballRemoveFromHeldPlayer(moby);
-  
-  pvars->DieTime = time + (TIME_SECOND * LIFETIME);
-  pvars->CarrierIdx = -1;
-  pvars->SyncTicks = 0;
   
   // set
   vector_copy(moby->Position, position);

@@ -86,6 +86,7 @@ typedef struct SetTeamScoreMessage
 typedef struct BallPickupRequestMessage
 {
 	int PickupByPlayerId;
+	int ResetCounter;
 } BallPickupRequestMessage_t;
 
 typedef struct BallScoredMessage
@@ -96,7 +97,7 @@ typedef struct BallScoredMessage
 void sendPlayerStats(int playerId);
 void sendTeamScore(void);
 void sendBallScored(int playerIdx);
-void sendBallPickupRequest(int playerIdx);
+void sendBallPickupRequest(int playerIdx, int resetCounter);
 void netHookMessages(void);
 void updateTeamScore(int team);
 
