@@ -63,6 +63,7 @@ struct CGMState
 	int IsHost;
   char PopupMessageBuf[64];
   char HasMapData;
+  char HasFirstFrame;
 };
 
 struct CGMGameData

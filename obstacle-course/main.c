@@ -98,6 +98,13 @@ void gameFrameTick(struct GameModule * module, PatchStateContainer_t * gameState
 	if (!gameGetSettings() || !isInGame())
 		return;
 
+  // init game start time
+  if (!State.HasFirstFrame)
+  {
+    State.HasFirstFrame = 1;
+    State.InitializedTime = gameGetTime();
+  }
+
   // invoke custom mode frame update logic
 	if (!State.GameOver)
 		frameTick();
@@ -135,6 +142,9 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   
 	if (!Initialized)
 		initialize(gameState);
+
+  // reset start time on load
+  State.HasFirstFrame = 0;
 }
 
 //--------------------------------------------------------------------------
