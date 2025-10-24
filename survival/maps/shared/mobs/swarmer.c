@@ -249,7 +249,7 @@ void swarmerOnDamage(Moby* moby, struct MobDamageEventArgs* e)
 
 	// destroy
 	if (newHp <= 0) {
-    tremorForceLocalAction(moby, SWARMER_ACTION_DIE);
+    swarmerForceLocalAction(moby, SWARMER_ACTION_DIE);
     pvars->MobVars.LastHitBy = e->SourceUID;
     pvars->MobVars.LastHitByOClass = e->SourceOClass;
 	}

@@ -459,19 +459,19 @@ enum LeviathanAction leviathanGetPreferredAttack(Moby* moby)
   }
 
   // if target is right in front try stab
-  if (pvars->MobVars.Target) {
-    VECTOR inFrontPos;
+  VECTOR inFrontPos;
 
-    vector_scale(dt, moby->M0_03, 1 * 2);
-    vector_add(inFrontPos, moby->Position, dt);
-    vector_subtract(dt, inFrontPos, pvars->MobVars.Target->Position);
-    if (vector_sqrmag(dt) < 1) {
-      return LEVIATHAN_ACTION_ATTACK_STAB;
-    }
+  vector_scale(dt, moby->M0_03, 1 * 2);
+  vector_add(inFrontPos, moby->Position, dt);
+  vector_subtract(dt, inFrontPos, pvars->MobVars.Target->Position);
+  float sqrDist = vector_sqrmag(dt);
+  if (sqrDist < 1) {
+    return LEVIATHAN_ACTION_ATTACK_STAB;
+  } else if (sqrDist < attackRadiusSqr) {
+    return LEVIATHAN_ACTION_ATTACK_SWING;
   }
 
-  // default to swing
-	return LEVIATHAN_ACTION_ATTACK_SWING;
+	return -1;
 }
 
 //--------------------------------------------------------------------------

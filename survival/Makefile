@@ -29,21 +29,21 @@ BUILD_CONFIG := RELEASE
 #		PRINT_MOB_COMPLEXITY	When enabled, draws "complexity" number as sum of drawn mobs
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DMOB_CORN
+#EE_DEFS := -DDEBUG -DMOB_CORN
 #EE_DEFS += -DDEBUG_PERKS
 EE_DEFS += -DDROPS -DUPGRADES -DDEMONBELL -DSHARED_BOLTS -DSHARED_XP
 EE_DEFS += -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643
-EE_DEFS += -DMANUAL_DROP_SPAWN
+#EE_DEFS += -DMANUAL_DROP_SPAWN
 #EE_DEFS += -DAUTOSTART
-EE_DEFS += -DDISABLE_SPAWNING
-EE_DEFS += -DMANUAL_SPAWN
+#EE_DEFS += -DDISABLE_SPAWNING
+#EE_DEFS += -DMANUAL_SPAWN
 #EE_DEFS += -DDEBUG_SOUNDS
 #EE_DEFS += -DSTARTROUND=25
 #EE_DEFS += -DMOB_INVINCIBLE
 EE_DEFS += -DMOB_NO_DAMAGE
 #EE_DEFS += -DMOB_NO_MOVE
 #EE_DEFS += -DAUTOSTART
-EE_DEFS += -DPAYDAY
+#EE_DEFS += -DPAYDAY
 #EE_DEFS += -DBENCHMARK
 #EE_DEFS += -DPRINT_MOB_COMPLEXITY
 #EE_DEFS += -DFIXEDTARGET
@@ -59,8 +59,8 @@ EE_DEFS += -DMOB_NO_DAMAGE
 #EE_DEFS += -DMANUAL_SPAWN
 #EE_DEFS += -DMANUAL_DROP_SPAWN
 #EE_DEFS += -DPAYDAY
-EE_DEFS += -DDEBUG_PERKS
-EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=0
+#EE_DEFS += -DDEBUG_PERKS
+EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=1
 #EE_DEFS += -DFIXEDTARGET
 #EE_DEFS += -DTRAILER
 else ifeq ($(BUILD_CONFIG),RELEASE)
@@ -68,13 +68,13 @@ EE_DEFS := -DRELEASE -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLAS
 EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
 endif
 
-.PHONY: all maps orxon mpass valix
+.PHONY: all maps orxon mpass valix torval
 
 all: mode maps clean
 
 mode: $(EE_BIN) copy
 
-maps: orxon mpass veldin valix
+maps: orxon mpass veldin valix torval
 
 orxon: 
 	cd maps/orxon && $(MAKE)
@@ -88,12 +88,16 @@ veldin:
 valix: 
 	cd maps/valix && $(MAKE)
 
+torval: 
+	cd maps/torval && $(MAKE)
+
 clean: 
 	rm -f *.irx *.o
 	cd maps/orxon && $(MAKE) clean
 	cd maps/mpass && $(MAKE) clean
 	cd maps/veldin && $(MAKE) clean
 	cd maps/valix && $(MAKE) clean
+	cd maps/torval && $(MAKE) clean
  
 include $(CURDIR)/../Makefile.pref
 include $(CURDIR)/../Makefile.eeglobal

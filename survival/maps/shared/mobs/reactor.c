@@ -935,7 +935,7 @@ void reactorDoAction(Moby* moby)
           }
                   
           // create electricity
-          if (pvars->ReactVars.effectStates == 0) {
+          if (pvars->MobVars.Config.MobAttribute == MOB_ATTRIBUTE_BOSS && pvars->ReactVars.effectStates == 0) {
             pvars->ReactVars.effectStates = 0x84;
             pvars->ReactVars.effectTimers[2] = 10;
           }

@@ -23,7 +23,7 @@ all: setup $(EE_BIN) clean
 	# payload and definition
 	cp $(CURDIR)/valix.bin $(CURDIR)/bin/survival_valix.code
 
-	if [ -d "/out" ]; then cp -r $(CURDIR)/bin/* /out/; fi
+	if [ -d "/out/survival_valix/build/dl" ]; then cp -r $(CURDIR)/bin/* /out/survival_valix/build/dl; fi
 	
 setup:
 	mkdir -p $(CURDIR)/bin

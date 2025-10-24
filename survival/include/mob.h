@@ -343,10 +343,10 @@ struct MobSpawnEventArgs
   u16 Bangles;
   u16 SpeedEighths;
   u16 Damage;
+  u16 Xp;
   char MobType;
   char MobAttribute;
   u8 SpawnParamsIdx;
-  u8 Xp;
   u8 AttackRadiusEighths;
   u8 HitRadiusEighths;
   u8 CollRadiusEighths;
