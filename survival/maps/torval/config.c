@@ -7,6 +7,8 @@
 extern struct SurvivalMapConfig MapConfig;
 
 #define TORVAL_MOB_MAX_HEALTH            (100000000)
+#define TORVAL_MOB_BASE_BOLTS            (MOB_BASE_BOLTS * 1.5)
+#define TORVAL_MOB_XP_MULT               (1.0)
 
 
 //--------------------------------------------------------------------------
@@ -33,7 +35,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
 		.Name = "Reactor",
 		.Config = {
-			.Xp = 10000,
+			.Xp = 10000 * TORVAL_MOB_XP_MULT,
       .SharedXp = 1,
 			.Bangles = REACTOR_BANGLE_SHOULDER_PLATES,
 			.Damage = MOB_BASE_DAMAGE * 1.2,
@@ -45,7 +47,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 10.0,
 			.MaxHealth = TORVAL_MOB_MAX_HEALTH * 10.0,
       .HealthScale = 1.05,
-			.Bolts = MOB_BASE_BOLTS * 50.0,
+			.Bolts = TORVAL_MOB_BASE_BOLTS * 50.0,
 			.AttackRadius = REACTOR_MELEE_ATTACK_RADIUS * 1.0,
 			.HitRadius = REACTOR_MELEE_HIT_RADIUS * 1.0,
       .CollRadius = REACTOR_BASE_COLL_RADIUS * 1.0,
@@ -69,9 +71,9 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
 		.Name = "King Leviathan",
 		.Config = {
-			.Xp = 10000,
+			.Xp = 10000 * TORVAL_MOB_XP_MULT,
       .SharedXp = 1,
-			.Bolts = MOB_BASE_BOLTS * 50.0,
+			.Bolts = TORVAL_MOB_BASE_BOLTS * 50.0,
 			.Bangles = 0x1FFF,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
 			.MaxDamage = 0,
@@ -105,7 +107,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
 		.Name = "Executioner",
 		.Config = {
-			.Xp = 250,
+			.Xp = 250 * TORVAL_MOB_XP_MULT,
       .Bangles = EXECUTIONER2_BANGLE_LEFT_CHEST_PLATE | EXECUTIONER2_BANGLE_RIGHT_CHEST_PLATE
                 | EXECUTIONER2_BANGLE_LEFT_COLLAR_BONE | EXECUTIONER2_BANGLE_RIGHT_COLLAR_BONE
                 | EXECUTIONER2_BANGLE_HELMET | EXECUTIONER2_BANGLE_BRAIN,
@@ -118,7 +120,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 2.0,
 			.MaxHealth = TORVAL_MOB_MAX_HEALTH * 2.0,
       .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 3.0,
+			.Bolts = TORVAL_MOB_BASE_BOLTS * 3.0,
 			.AttackRadius = EXECUTIONER2_MELEE_ATTACK_RADIUS * 2.0,
 			.HitRadius = EXECUTIONER2_MELEE_HIT_RADIUS * 1.5,
       .CollRadius = EXECUTIONER2_BASE_COLL_RADIUS * 4,
@@ -142,7 +144,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
 		.Name = "Leviathan",
 		.Config = {
-			.Xp = 200,
+			.Xp = 200 * TORVAL_MOB_XP_MULT,
 			.Bangles = 0x1C1F,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
 			.MaxDamage = 0,
@@ -153,7 +155,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 3.0,
 			.MaxHealth = TORVAL_MOB_MAX_HEALTH * 1.0,
       .HealthScale = 1.1,
-			.Bolts = MOB_BASE_BOLTS * 2.0,
+			.Bolts = TORVAL_MOB_BASE_BOLTS * 2.0,
 			.AttackRadius = LEVIATHAN_MELEE_ATTACK_RADIUS * 1.0,
 			.HitRadius = LEVIATHAN_MELEE_HIT_RADIUS * 1.0,
       .CollRadius = LEVIATHAN_BASE_COLL_RADIUS * 1,
@@ -177,7 +179,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER,
 		.Name = "Reaper",
 		.Config = {
-			.Xp = 150,
+			.Xp = 150 * TORVAL_MOB_XP_MULT,
 			.Bangles = REAPER_BANGLE_SHOULDER_PAD_LEFT | REAPER_BANGLE_SHOULDER_PAD_RIGHT,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
 			.MaxDamage = 0,
@@ -188,7 +190,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 3.0,
 			.MaxHealth = TORVAL_MOB_MAX_HEALTH * 1.0,
       .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 2.0,
+			.Bolts = TORVAL_MOB_BASE_BOLTS * 2.0,
 			.AttackRadius = REAPER_MELEE_ATTACK_RADIUS * 1.0,
 			.HitRadius = REAPER_MELEE_HIT_RADIUS * 1.0,
       .CollRadius = REAPER_BASE_COLL_RADIUS * 1.0,
@@ -212,7 +214,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Zombie",
 		.Config = {
-			.Xp = 15,
+			.Xp = 20 * TORVAL_MOB_XP_MULT,
 			.Bangles = ZOMBIE_BANGLE_HEAD_1 | ZOMBIE_BANGLE_TORSO_1,
 			.Damage = MOB_BASE_DAMAGE * 1.0,
 			.MaxDamage = 0,
@@ -223,7 +225,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 1.0,
 			.MaxHealth = TORVAL_MOB_MAX_HEALTH * 1.0,
       .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 1.0,
+			.Bolts = TORVAL_MOB_BASE_BOLTS * 1.0,
 			.AttackRadius = ZOMBIE_MELEE_ATTACK_RADIUS,
 			.HitRadius = ZOMBIE_MELEE_HIT_RADIUS,
       .CollRadius = ZOMBIE_BASE_COLL_RADIUS * 1.0,
@@ -247,7 +249,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER | SPAWN_TYPE_NEAR_PLAYER,
 		.Name = "Swarmer",
 		.Config = {
-			.Xp = 5,
+			.Xp = 10 * TORVAL_MOB_XP_MULT,
 			.Bangles = 0,
 			.Damage = MOB_BASE_DAMAGE * 0.2,
 			.MaxDamage = 0,
@@ -258,7 +260,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Health = MOB_BASE_HEALTH * 0.35,
 			.MaxHealth = TORVAL_MOB_MAX_HEALTH * 0.5,
       .HealthScale = 1.0,
-			.Bolts = MOB_BASE_BOLTS * 0.25,
+			.Bolts = TORVAL_MOB_BASE_BOLTS * 0.5,
 			.AttackRadius = SWARMER_MELEE_ATTACK_RADIUS,
 			.HitRadius = SWARMER_MELEE_HIT_RADIUS,
       .CollRadius = SWARMER_BASE_COLL_RADIUS * 1.0,
@@ -272,7 +274,7 @@ const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct M
 
 //--------------------------------------------------------------------------
 SurvivalBakedConfig_t bakedConfig = {
-  .Difficulty = 1.5,
+  .Difficulty = 2.0,
   .SpawnDistanceFactor = 0.5,
   .BoltRankMultiplier = 1,
   .StackboxBaseCost = 250000,

@@ -128,7 +128,6 @@ void mapOnMobKilled(Moby* moby, int killedByPlayerId, int killedByWeaponId)
 //--------------------------------------------------------------------------
 int mapCanSpawnMobs(void)
 {
-  bakedConfig.SpawnDistanceFactor = 0.2;
   return 1;
 }
 
