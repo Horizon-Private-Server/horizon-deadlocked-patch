@@ -524,7 +524,7 @@ int main (void)
     // enable prestige if round % 25
     Moby* prestigeMachineMoby = MapConfig.State->PrestigeMachine;
     if (prestigeMachineMoby) {
-      int enabled = MapConfig.State->RoundEndTime && ((MapConfig.State->RoundNumber + 1) % 25) == 0;
+      int enabled = MapConfig.State->RoundEndTime && ((MapConfig.State->RoundNumber + 0) % 25) == 0;
         
       if (enabled) {
         if (prestigeMachineMoby->CollActive < 0) {

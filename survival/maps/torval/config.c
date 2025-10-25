@@ -18,6 +18,42 @@ const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct S
 // These must be ordered from least probable to most probable
 // SHOULD NEVER EXCEED MAX_MOB_SPAWN_PARAMS
 struct MobSpawnParams defaultSpawnParams[] = {
+  // reactor
+  [MOB_SPAWN_PARAM_REACTOR]
+	{
+		.Cost = REACTOR_RENDER_COST,
+    .MaxSpawnedAtOnce = 1,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
+		.MinRound = 16,
+		.CooldownTicks = 0,
+    .CooldownOffsetPerRoundFactor = 0,
+		.Probability = 0.0005,
+    .StatId = MOB_STAT_REACTOR,
+		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
+		.Name = "Reactor",
+		.Config = {
+			.Xp = 10000,
+      .SharedXp = 1,
+			.Bangles = REACTOR_BANGLE_SHOULDER_PLATES,
+			.Damage = MOB_BASE_DAMAGE * 1.2,
+			.MaxDamage = 0,
+      .DamageScale = 1.1,
+			.Speed = MOB_BASE_SPEED * 1.5,
+			.MaxSpeed = MOB_BASE_SPEED * 3.0,
+      .SpeedScale = 0.25,
+			.Health = MOB_BASE_HEALTH * 10.0,
+			.MaxHealth = TORVAL_MOB_MAX_HEALTH * 10.0,
+      .HealthScale = 1.05,
+			.Bolts = MOB_BASE_BOLTS * 50.0,
+			.AttackRadius = REACTOR_MELEE_ATTACK_RADIUS * 1.0,
+			.HitRadius = REACTOR_MELEE_HIT_RADIUS * 1.0,
+      .CollRadius = REACTOR_BASE_COLL_RADIUS * 1.0,
+			.ReactionTickCount = REACTOR_BASE_REACTION_TICKS * 0.35,
+			.AttackCooldownTickCount = REACTOR_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
+			.MobAttribute = 0,
+		}
+	},
   // king leviathan
   [MOB_SPAWN_PARAM_KING_LEVIATHAN]
   {
@@ -28,7 +64,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 		.MinRound = 21,
 		.CooldownTicks = 0,
     .CooldownOffsetPerRoundFactor = 0,
-		.Probability = 0.00025,
+		.Probability = 0.00050025,
     .StatId = MOB_STAT_LEVIATHAN,
 		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
 		.Name = "King Leviathan",
@@ -54,42 +90,6 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.MobAttribute = MOB_ATTRIBUTE_BOSS,
 		}
   },
-  // reactor
-  [MOB_SPAWN_PARAM_REACTOR]
-	{
-		.Cost = REACTOR_RENDER_COST,
-    .MaxSpawnedAtOnce = 1,
-    .MaxSpawnedPerRound = 0,
-    .SpecialRoundOnly = 0,
-		.MinRound = 16,
-		.CooldownTicks = 0,
-    .CooldownOffsetPerRoundFactor = 0,
-		.Probability = 0.00025,
-    .StatId = MOB_STAT_REACTOR,
-		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER,
-		.Name = "Reactor",
-		.Config = {
-			.Xp = 10000,
-      .SharedXp = 1,
-			.Bangles = REACTOR_BANGLE_SHOULDER_PLATES,
-			.Damage = MOB_BASE_DAMAGE * 1.2,
-			.MaxDamage = 0,
-      .DamageScale = 1.1,
-			.Speed = MOB_BASE_SPEED * 1.5,
-			.MaxSpeed = MOB_BASE_SPEED * 3.0,
-      .SpeedScale = 0.25,
-			.Health = MOB_BASE_HEALTH * 10.0,
-			.MaxHealth = 0,
-      .HealthScale = 1.05,
-			.Bolts = MOB_BASE_BOLTS * 50.0,
-			.AttackRadius = REACTOR_MELEE_ATTACK_RADIUS * 1.0,
-			.HitRadius = REACTOR_MELEE_HIT_RADIUS * 1.0,
-      .CollRadius = REACTOR_BASE_COLL_RADIUS * 1.0,
-			.ReactionTickCount = REACTOR_BASE_REACTION_TICKS * 0.35,
-			.AttackCooldownTickCount = REACTOR_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
-			.MobAttribute = 0,
-		}
-	},
   // executioner
 	[MOB_SPAWN_PARAM_EXECUTIONER]
 	{

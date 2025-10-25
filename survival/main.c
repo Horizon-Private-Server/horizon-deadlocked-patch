@@ -2626,7 +2626,7 @@ void setRoundStart(int skip)
   // send out
   message.RoundNumber = targetRound;
   message.GameTime = gameGetTime() + (skip ? 0 : ROUND_TRANSITION_DELAY_MS);
-  if (!skip && ((State.RoundIsSpecial && mapConfig->SpecialRoundParams[State.RoundSpecialIdx].UnlimitedPostRoundTime) || ((State.RoundNumber+2)%25)==0))
+  if (!skip && ((State.RoundIsSpecial && mapConfig->SpecialRoundParams[State.RoundSpecialIdx].UnlimitedPostRoundTime) || ((State.RoundNumber+1)%25)==0))
     message.GameTime = -1;
 
   netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_ROUND_START, sizeof(SurvivalRoundStartMessage_t), &message);
