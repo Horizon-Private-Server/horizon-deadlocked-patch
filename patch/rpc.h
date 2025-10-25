@@ -11,6 +11,7 @@
 
 #define NEWLIB_PORT_AWARE
 #include <io_common.h>
+#include <iox_stat.h>
 
 /* IRX Modules and elf loader */
 
@@ -37,6 +38,9 @@ int rpcUSBseek(int fd, int offset, int whence);
 int rpcUSBremove(char *filename);
 int rpcUSBgetstat(char *filename, struct stat * st);
 int rpcUSBmkdir(char *dirpath);
+int rpcUSBdopen(char *dirpath);
+int rpcUSBdclose(int fd);
+int rpcUSBdread(int fd, iox_dirent_t * dirent);
 int rpcUSBSync(int mode, int *cmd, int *result);
 int rpcUSBSyncNB(int mode, int *cmd, int *result);
 

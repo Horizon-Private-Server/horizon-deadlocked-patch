@@ -24,6 +24,7 @@
 #include <libdl/utils.h>
 #include <libdl/ui.h>
 #include "config.h"
+#include "common.h"
 #include "include/config.h"
 
 #define FREECAM_MOVE_SPEED                      (0.1)
@@ -64,7 +65,7 @@ struct PlayerFreecamData
     VECTOR SavedFreecamPosition;
     float SavedYaw;
     float SavedPitch;
-} FreecamData[2];
+} FreecamData[GAME_MAX_LOCALS];
 
 void clearFreecamData(struct PlayerFreecamData* data)
 {
@@ -215,7 +216,7 @@ void resetFreecam(void)
     }
   }
   
-  for (i = 0; i < 2; ++i) {
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
     if (FreecamData[i].Enabled) {
       clearFreecamData(&FreecamData[i]);
     }
@@ -232,10 +233,12 @@ void resetFreecam(void)
  */
 float padJoystickToFloat(char value)
 {
-  if (value < 0)
-    return ((u8)value - 128.0) / 128.0;
+  u8 deadzone = 0x10;
   
-  return (127.0 - value) / -127.0;
+  if (value < 0)
+    return clamp(((u8)value - (128.0 + deadzone)) / (128.0 - deadzone), 0, 1);
+  
+  return clamp(((127.0 - deadzone) - value) / (-127.0 + deadzone), -1, 0);
 }
 
 /*
@@ -288,31 +291,31 @@ void freecam(Player * currentPlayer)
     int row = 0;
 
     // hide show hud
-    gfxScreenSpaceText(5, SCREEN_HEIGHT - 5 - lineHeight*row, 1, 1, 0x80FFFFFF, "\x1c Toggle Controls", -1, 6);
+    gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1c Toggle Controls", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
     row++;
 
     // ignore character camera
     if (freecamData->IgnoreCharacterCamera) {
-      gfxScreenSpaceText(5, SCREEN_HEIGHT - 5 - lineHeight*row, 1, 1, 0x80FFFFFF, "\x1b Use Character Camera", -1, 6);
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1b Use Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
     } else {
-      gfxScreenSpaceText(5, SCREEN_HEIGHT - 5 - lineHeight*row, 1, 1, 0x80FFFFFF, "\x1b Ignore Character Camera", -1, 6);
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1b Ignore Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
     }
     row++;
 
     // control character
     if (freecamData->ControlCharacter) {
-      gfxScreenSpaceText(5, SCREEN_HEIGHT - 5 - lineHeight*row, 1, 1, 0x80FFFFFF, "\x1a Lock Character", -1, 6);
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1a Lock Character", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
     } else {
-      gfxScreenSpaceText(5, SCREEN_HEIGHT - 5 - lineHeight*row, 1, 1, 0x80FFFFFF, "\x1a Control Character", -1, 6);
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1a Control Character", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
     }
     row++;
 
     // animation locking
     if (freecamSettings.lockStateToggle) {
       if (freecamData->LockStateId < 0) {
-        gfxScreenSpaceText(5, SCREEN_HEIGHT - 5 - lineHeight*row, 1, 1, 0x80FFFFFF, "\x1d Lock Animation", -1, 6);
+        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1d Lock Animation", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
       } else {
-        gfxScreenSpaceText(5, SCREEN_HEIGHT - 5 - lineHeight*row, 1, 1, 0x80FFFFFF, "\x1d Release Animation", -1, 6);
+        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1d Release Animation", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
       }
     }
     row++;
@@ -490,15 +493,14 @@ void processFreecam(void)
     freecamInitialize();
 
   // Loop through every player
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
 	{
+    Player * player = playerGetFromSlot(i);
     if (!players[i])
       continue;
 
-		Player * player = players[i];
-
     // Next, we have to ensure the player is the local player and they are not dead
-    if (playerIsLocal(player) && player->LocalPlayerIndex < playerGetNumLocals()) 
+    if (!gameIsStartMenuOpen(i) && !isConfigMenuActive) 
     {
       // Grab player-specific spectate data
       freecamData = FreecamData + player->LocalPlayerIndex;
@@ -506,10 +508,6 @@ void processFreecam(void)
       // airwalk
       if (freecamSettings.airwalk)
         POKE_U32((u32)player + 0x2FC, 0);
-
-      // only process input when in game
-      if (gameIsStartMenuOpen() || isConfigMenuActive)
-        continue;
 
       if (!playerIsDead(player))
       {

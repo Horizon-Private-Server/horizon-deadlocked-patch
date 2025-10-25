@@ -10,6 +10,8 @@
 
 #ifndef _MESSAGEID_H_
 #define _MESSAGEID_H_
+#include "config.h"
+#include <libdl/math3d.h>
 
 
 #define PATCH_GAME_STATS_VERSION              (1)
@@ -236,6 +238,141 @@ enum CustomMessageId
     CUSTOM_MSG_ID_CLIENT_SET_CLIENT_TYPE = 41,
 
     /*
+     * Sent by the client to the server when the client has collected a horizon bolt.
+     */
+    CUSTOM_MSG_ID_CLIENT_PICKED_UP_HORIZON_BOLT = 42,
+
+    /*
+     * Sent by the client to the server when the client requests the current scavenger hunt settings.
+     */
+    CUSTOM_MSG_ID_CLIENT_REQUEST_SCAVENGER_HUNT_SETTINGS = 43,
+
+    /*
+     * Sent by the server to the client containing the current scavenger hunt settings.
+     */
+    CUSTOM_MSG_ID_SERVER_RESPONSE_SCAVENGER_HUNT_SETTINGS = 44,
+
+    /*
+     * Sent by the server to the client containing the name overrides for everyone in the lobby.
+     */
+    CUSTOM_MSG_ID_SERVER_SET_LOBBY_NAME_OVERRIDES = 45,
+
+    /*
+     * Sent by the client to the server when the client wishes to know the server datetime.
+     */
+    CUSTOM_MSG_ID_CLIENT_REQUEST_SERVER_DATE_TIME = 46,
+
+    /*
+     * Sent by the server to the client containing the server's current datetime.
+     */
+    CUSTOM_MSG_ID_SERVER_DATE_TIME_RESPONSE = 47,
+
+    /*
+     * Sent by the client to the server with the client's newly requested account name.
+     */
+    CUSTOM_MSG_ID_UPDATE_NAME_REQUEST = 48,
+
+    /*
+     * Sent by the server to the client containing the result of the update name request.
+     */
+    CUSTOM_MSG_ID_UPDATE_NAME_RESPONSE = 49,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_REQUEST_ANNOUNCEMENT_IMAGE = 50,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GET_RAIDS_BANK_INVENTORY_REQUEST = 51,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_INVENTORY_ITEM_REQUEST = 52,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GET_RAIDS_BANK_ACCOUNT_REQUEST = 53,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_UPDATE_RAIDS_BANK_ACCOUNT_REQUEST = 54,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST = 55,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_RESPONSE = 56,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GET_RAIDS_STORE_REQUEST = 57,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_BUY_STORE_ITEM_REQUEST = 58,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_GET_MAP_STATS_REQUEST = 59,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_SET_MAP_STATS_REQUEST = 60,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_SET_MISSION_COMPLETED_REQUEST = 61,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GET_RAIDS_BANK_EQUIPPED_INVENTORY_REQUEST = 62,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_RESET_ACCOUNT_REQUEST = 63,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_GET_RAIDS_CONTRACTS_REQUEST = 64,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_ACTION_CONTRACT_REQUEST = 65,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_UPDATE_CONTRACT_STATS_REQUEST = 66,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_UPDATE_MAP_METADATA_REQUEST = 67,
+
+    /*
+     * 
+     */
+    CUSTOM_MSG_ID_RAIDS_UPDATE_MAP_CONTRACT_RULES_REQUEST = 68,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -263,7 +400,23 @@ enum CustomDzoCommandId
   CUSTOM_DZO_CMD_ID_SND_DRAW_ROUND_RESULT = 2,
   CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_HUD = 3,
   CUSTOM_DZO_CMD_ID_SURVIVAL_DRAW_REVIVE_MSG = 4,
+  CUSTOM_DZO_CMD_ID_VOTE_TO_END = 5,
+  CUSTOM_DZO_CMD_ID_SURVIVAL_SPAWN_DAMAGE_BUBBLE = 6,
+  CUSTOM_DZO_CMD_ID_DRAW_QUICK_CHAT = 7,
+  CUSTOM_DZO_CMD_ID_DRAW_TEXT = 8,
+  CUSTOM_DZO_CMD_ID_DRAW_BOX = 9,
+  CUSTOM_DZO_CMD_ID_DRAW_SPRITE = 10,
+  CUSTOM_DZO_CMD_ID_DRAW_WS_TEXT = 11,
+  CUSTOM_DZO_CMD_ID_DRAW_WS_BOX = 12,
+  CUSTOM_DZO_CMD_ID_DRAW_WS_SPRITE = 13,
+  CUSTOM_DZO_CMD_ID_DRAW_TEXT_WINDOW = 14,
 };
+
+typedef struct SetMapOverrideResponse
+{
+  int MapVersion;
+  char MapFilename[64];
+} SetMapOverrideResponse_t;
 
 typedef struct ServerDownloadDataRequest
 {
@@ -271,6 +424,7 @@ typedef struct ServerDownloadDataRequest
     int TargetAddress;
     int TotalSize;
     int DataOffset;
+    short Chunk;
     short DataSize;
     char Data[1362];
 } ServerDownloadDataRequest_t;
@@ -280,6 +434,12 @@ typedef struct ClientDownloadDataResponse
     int Id;
     int BytesReceived;
 } ClientDownloadDataResponse_t;
+
+typedef struct ClientSetGameConfig
+{
+  PatchGameConfig_t GameConfig;
+  CustomMapDef_t CustomMap;
+} ClientSetGameConfig_t;
 
 typedef struct ClientInitiateMapDownloadRequest
 {
@@ -389,6 +549,16 @@ typedef struct SetGameStartTimeRequest
     int SecondsUntilStart;
 } SetGameStartTimeRequest_t;
 
+typedef struct UpdateNameRequest
+{
+  char Name[16];
+} UpdateNameRequest_t;
+
+typedef struct UpdateNameResponse
+{
+  char Success;
+} UpdateNameResponse_t;
+
 typedef struct ClientRequestPickUpFlag
 {
     int GameTime;
@@ -408,5 +578,116 @@ typedef struct ServerResponseBootElf
     u32 Size;
 } ServerResponseBootElf_t;
 
+typedef struct ClientSetClientTypeRequest
+{
+    int ClientType;
+    u8 mac[6];
+} ClientSetClientTypeRequest_t;
+
+struct PingRequest
+{
+  long Time;
+  int SourceClientId;
+  int ReturnedFromClientId;
+};
+
+typedef struct ScavengerHuntSettingsResponse
+{
+  int Enabled;
+  float SpawnFactor;
+} ScavengerHuntSettingsResponse_t;
+
+typedef struct ServerDateTimeMessage
+{
+  u16 Year;
+  u8 Month;
+  u8 Day;
+} ServerDateTimeMessage_t;
+
+typedef struct CustomDzoCommandDrawText
+{
+  float AnchorX;
+  float AnchorY;
+  float X;
+  float Y;
+  float Scale;
+  u32 Color;
+  int Alignment;
+  char Text[64];
+} CustomDzoCommandDrawText_t;
+
+typedef struct CustomDzoCommandDrawTextWindow
+{
+  float AnchorX;
+  float AnchorY;
+  float X;
+  float Y;
+  float TextX;
+  float TextY;
+  float Width;
+  float Height;
+  float Scale;
+  u32 Color;
+  char Alignment;
+  char Flags;
+  char Text[256];
+} CustomDzoCommandDrawTextWindow_t;
+
+typedef struct CustomDzoCommandDrawBox
+{
+  float AnchorX;
+  float AnchorY;
+  float X;
+  float Y;
+  float W;
+  float H;
+  u32 Color;
+  int Alignment;
+  char Stretch;
+} CustomDzoCommandDrawBox_t;
+
+typedef struct CustomDzoCommandDrawSprite
+{
+  float AnchorX;
+  float AnchorY;
+  float X;
+  float Y;
+  float W;
+  float H;
+  u32 Color;
+  int SpriteId;
+  int CustomSpriteId;
+  int Alignment;
+  char Stretch;
+} CustomDzoCommandDrawSprite_t;
+
+typedef struct CustomDzoCommandDrawWSText
+{
+  VECTOR Position;
+  float Scale;
+  u32 Color;
+  int Alignment;
+  char Text[64];
+} CustomDzoCommandDrawWSText_t;
+
+typedef struct CustomDzoCommandDrawWSBox
+{
+  VECTOR Position;
+  float W;
+  float H;
+  u32 Color;
+  int Alignment;
+} CustomDzoCommandDrawWSBox_t;
+
+typedef struct CustomDzoCommandDrawWSSprite
+{
+  VECTOR Position;
+  float W;
+  float H;
+  u32 Color;
+  int SpriteId;
+  int CustomSpriteId;
+  int Alignment;
+} CustomDzoCommandDrawWSSprite_t;
 
 #endif // _MESSAGEID_H_

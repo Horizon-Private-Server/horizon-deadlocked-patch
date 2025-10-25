@@ -40,21 +40,21 @@
 
 enum HalfTimeStates
 {
-	HT_WAITING,
-	HT_INTERMISSION,
-	HT_SWITCH,
-	HT_INTERMISSION2,
-	HT_COMPLETED
+  HT_WAITING,
+  HT_INTERMISSION,
+  HT_SWITCH,
+  HT_INTERMISSION2,
+  HT_COMPLETED
 };
 
 
 enum OvertimeStates
 {
-	OT_WAITING,
-	OT_INTERMISSION,
-	OT_SWITCH,
-	OT_INTERMISSION2,
-	OT_COMPLETED,
+  OT_WAITING,
+  OT_INTERMISSION,
+  OT_SWITCH,
+  OT_INTERMISSION2,
+  OT_COMPLETED,
   OT_GAMEOVER
 };
 
@@ -84,6 +84,8 @@ int OvertimeEnd = -1;
 Moby * CtfFlags[4] = {0,0,0,0};
 VECTOR CtfHtOtFreezePositions[GAME_MAX_PLAYERS];
 
+extern PatchStateContainer_t patchStateContainer;
+
 /*
  * NAME :		htReset
  * 
@@ -101,9 +103,38 @@ VECTOR CtfHtOtFreezePositions[GAME_MAX_PLAYERS];
 void htReset(void)
 {
   HalfTimeState = 0;
-	HalfTimeEnd = -1;
-	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  HalfTimeEnd = -1;
+  CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  patchStateContainer.HalfTimeState = 0;
   memset(CtfHtOtFreezePositions, 0, sizeof(CtfHtOtFreezePositions));
+}
+
+/*
+ * NAME :		htDestroyPlayerObjects
+ * 
+ * DESCRIPTION :
+ * 			Destroys all player owned/created mobys.
+ *        * Mines
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void htDestroyPlayerObjects(void)
+{
+  Moby* moby = mobyListGetStart();
+  while ((moby = mobyFindNextByOClass(moby, MOBY_ID_MINE_LAUNCHER_MINE)))
+  {
+    if (!mobyIsDestroyed(moby)) {
+      moby->State = 3; // destroy
+    }
+
+    ++moby;
+  }
 }
 
 /*
@@ -122,26 +153,26 @@ void htReset(void)
  */
 void getFlags(void)
 {
-	Moby * moby = mobyListGetStart();
-	Moby * mEnd = mobyListGetEnd();
+  Moby * moby = mobyListGetStart();
+  Moby * mEnd = mobyListGetEnd();
 
-	// reset
-	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  // reset
+  CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
 
-	// grab flags
-	while (moby < mEnd)
-	{
-		if (!mobyIsDestroyed(moby) &&
-		 (moby->OClass == MOBY_ID_BLUE_FLAG ||
-			moby->OClass == MOBY_ID_RED_FLAG ||
-			moby->OClass == MOBY_ID_GREEN_FLAG ||
-			moby->OClass == MOBY_ID_ORANGE_FLAG))
-		{
-			CtfFlags[*(u16*)(moby->PVar + 0x14)] = moby;
-		}
+  // grab flags
+  while (moby < mEnd)
+  {
+    if (!mobyIsDestroyed(moby) &&
+     (moby->OClass == MOBY_ID_BLUE_FLAG ||
+      moby->OClass == MOBY_ID_RED_FLAG ||
+      moby->OClass == MOBY_ID_GREEN_FLAG ||
+      moby->OClass == MOBY_ID_ORANGE_FLAG))
+    {
+      CtfFlags[*(u16*)(moby->PVar + 0x14)] = moby;
+    }
 
-		++moby;
-	}
+    ++moby;
+  }
 }
 
 /*
@@ -163,15 +194,18 @@ void htCtfBegin(void)
   int i;
   Player** players = playerGetAll();
 
-	// Make sure we have the flag mobies
-	getFlags();
+  // Make sure we have the flag mobies
+  getFlags();
 
-	// Indicate when the intermission should end
-	HalfTimeEnd = gameGetTime() + (TIME_SECOND * 5);
-	HalfTimeState = HT_INTERMISSION;
+  // destroy player objects
+  htDestroyPlayerObjects();
 
-	// Disable saving or pickup up flag
-	gameFlagSetPickupDistance(0);
+  // Indicate when the intermission should end
+  HalfTimeEnd = gameGetTime() + (TIME_SECOND * 3);
+  HalfTimeState = HT_INTERMISSION;
+
+  // Disable saving or pickup up flag
+  gameFlagSetPickupDistance(0);
 
   // Freeze players
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -181,9 +215,9 @@ void htCtfBegin(void)
     }
   }
 
-	// Show popup
-	uiShowPopup(0, "Halftime");
-	uiShowPopup(1, "Halftime");
+  // Show popup
+  uiShowPopup(0, "Halftime");
+  uiShowPopup(1, "Halftime");
 }
 
 
@@ -203,132 +237,123 @@ void htCtfBegin(void)
  */
 void htCtfSwitch(void)
 {
-	int i, j;
-	Player ** players = playerGetAll();
-	GameSettings* gameSettings = gameGetSettings();
-	Player * player;
-	Moby * moby;
-	ScoreboardItem * scoreboardItem;
-	VECTOR rVector, pVector;
-	u8 * teamCaps = (u8*)0x0036DC4C;
-	int teams = 0;
-	u8 teamChangeMap[4] = {0,1,2,3};
-	u8 backupTeamCaps[4];
-	int scoreboardItemCount = GAME_SCOREBOARD_ITEM_COUNT;
+  int i, j;
+  Player ** players = playerGetAll();
+  GameSettings* gameSettings = gameGetSettings();
+  Player * player;
+  Moby * moby;
+  ScoreboardItem * scoreboardItem;
+  VECTOR rVector, pVector;
+  u8 * teamCaps = (u8*)0x0036DC4C;
+  int teams = 0;
+  u8 teamChangeMap[4] = {0,1,2,3};
+  u8 backupTeamCaps[4];
+  int scoreboardItemCount = GAME_SCOREBOARD_ITEM_COUNT;
 
-	// 
-	memset(rVector, 0, sizeof(VECTOR));
+  // 
+  memset(rVector, 0, sizeof(VECTOR));
 
-	// backup
-	memcpy(backupTeamCaps, teamCaps, 4);
-	
-	// Determine teams
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		player = players[i];
-		if (!player)
-			continue;
-			
-		teams |= (1 << (player->Team+1));
-	}
+  // backup
+  memcpy(backupTeamCaps, teamCaps, 4);
+  
+  // Determine teams
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    player = players[i];
+    if (!player)
+      continue;
+      
+    teams |= (1 << (player->Team+1));
+  }
 
-	// If all four teams then just swap
-	if (teams == 0xF)
-	{
-		teamChangeMap[TEAM_BLUE] = TEAM_RED;
-		teamChangeMap[TEAM_RED] = TEAM_BLUE;
-		teamChangeMap[TEAM_GREEN] = TEAM_ORANGE;
-		teamChangeMap[TEAM_ORANGE] = TEAM_GREEN;
-	}
-	// Otherwise rotate the teams
-	else
-	{
-		for (i = 0; i < 4; ++i)
-		{
-			if (!(teams & (1 << (i+1))))
-				continue;
+  // If all four teams then just swap
+  if (teams == 0xF)
+  {
+    teamChangeMap[TEAM_BLUE] = TEAM_RED;
+    teamChangeMap[TEAM_RED] = TEAM_BLUE;
+    teamChangeMap[TEAM_GREEN] = TEAM_ORANGE;
+    teamChangeMap[TEAM_ORANGE] = TEAM_GREEN;
+  }
+  // Otherwise rotate the teams
+  else
+  {
+    for (i = 0; i < 4; ++i)
+    {
+      if (!(teams & (1 << (i+1))))
+        continue;
 
-			j = i;
-			do
-			{
-				++j;
-				if (j >= 4)
-					j = 0;
+      j = i;
+      do
+      {
+        ++j;
+        if (j >= 4)
+          j = 0;
 
-				if (!(teams & (1 << (j+1))))
-					continue;
+        if (!(teams & (1 << (j+1))))
+          continue;
 
-				teamChangeMap[i] = j;
-				break;
-			} while (j != i);
-		}
-	}
+        teamChangeMap[i] = j;
+        break;
+      } while (j != i);
+    }
+  }
 
-	// Switch player teams
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		player = players[i];
-		if (!player)
-			continue;
+  // Switch player teams
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    player = players[i];
+    if (!player)
+      continue;
 
-		if (playerIsLocal(player))
-		{
-			// Update local scoreboard
-			for (j = 0; j < scoreboardItemCount; ++j)
-			{
-				scoreboardItem = GAME_SCOREBOARD_ARRAY[j];
-				if (!scoreboardItem)
-					continue;
+    if (playerIsLocal(player))
+    {
+      // Update local scoreboard
+      for (j = 0; j < scoreboardItemCount; ++j)
+      {
+        scoreboardItem = GAME_SCOREBOARD_ARRAY[j];
+        if (!scoreboardItem)
+          continue;
 
-				// Swap
-				if (scoreboardItem->TeamId == teamChangeMap[player->Team])
-				{
-					ScoreboardItem * temp = GAME_SCOREBOARD_ARRAY[player->LocalPlayerIndex];
-					GAME_SCOREBOARD_ARRAY[player->LocalPlayerIndex] = scoreboardItem;
-					GAME_SCOREBOARD_ARRAY[j] = temp;
-					break;
-				}
-			}
-		}
+        // Swap
+        if (scoreboardItem->TeamId == teamChangeMap[player->Team])
+        {
+          ScoreboardItem * temp = GAME_SCOREBOARD_ARRAY[player->LocalPlayerIndex];
+          GAME_SCOREBOARD_ARRAY[player->LocalPlayerIndex] = scoreboardItem;
+          GAME_SCOREBOARD_ARRAY[j] = temp;
+          break;
+        }
+      }
+    }
 
-		// Kick from vehicle
-		if (player->Vehicle)
-			vehicleRemovePlayer(player->Vehicle, player);
+    // Kick from vehicle
+    if (player->Vehicle)
+      vehicleRemovePlayer(player->Vehicle, player);
 
-		// Change to new team
-		playerSetTeam(player, teamChangeMap[player->Team]);
+    // Change to new team
+    playerSetTeam(player, teamChangeMap[player->Team]);
 
-		// 
-		gameSettings->PlayerTeams[player->PlayerId] = player->Team;
-		
-		// Respawn
-		playerRespawn(player);
+    // 
+    gameSettings->PlayerTeams[player->PlayerId] = player->Team;
+    
+    // Respawn (first res patch)
+    POKE_U32(0x205e2d48, 0x24070001);
+    playerRespawn(player);
+    POKE_U32(0x205e2d48, 0x0000382d);
+  }
 
-		// Teleport player to base
-		moby = CtfFlags[player->Team];
-		if (moby)
-		{
-			vector_copy(pVector, (float*)moby->PVar);
-			float theta = (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU;
-			pVector[0] += cosf(theta) * 2.5;
-			pVector[1] += sinf(theta) * 2.5;
-			playerSetPosRot(player, pVector, rVector);
-		}
-	}
+  // Switch team scores
+  for (i = 0; i < 4; ++i)
+    teamCaps[i] = backupTeamCaps[teamChangeMap[i]];
 
-	// Switch team scores
-	for (i = 0; i < 4; ++i)
-		teamCaps[i] = backupTeamCaps[teamChangeMap[i]];
-
-	// reset flags
-	for (i = 0; i < 4; ++i)
-	{
-		if (CtfFlags[i])
-		{
-			*(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
-			vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
-		}
-	}
+  // reset flags
+  for (i = 0; i < 4; ++i)
+  {
+    if (CtfFlags[i])
+    {
+      *(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+      vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+    }
+  }
 }
 
 /*
@@ -347,8 +372,8 @@ void htCtfSwitch(void)
  */
 void htCtfEnd(void)
 {
-	// Enable flag pickup
-	gameFlagSetPickupDistance(2);
+  // Enable flag pickup
+  gameFlagSetPickupDistance(2);
 }
 
 
@@ -368,74 +393,76 @@ void htCtfEnd(void)
  */
 void htCtfTick(void)
 {
-	int i;
-	Player ** players = playerGetAll();
-	int gameTime = gameGetTime();
+  int i;
+  Player ** players = playerGetAll();
+  int gameTime = gameGetTime();
 
   // prevent pad input
   padResetInput(0);
   padResetInput(1);
   
-  // lock players to positions
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player && player->PlayerMoby && player->IsLocal) {
-      vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
-      vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
+  patchStateContainer.HalfTimeState = HalfTimeState;
+  switch (HalfTimeState)
+  {
+    case HT_INTERMISSION:
+    {
+      // lock players to positions
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+        Player* player = players[i];
+        if (player && player->PlayerMoby && player->IsLocal) {
+          vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
+          vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
+        }
+      }
+
+      if (gameTime > (HalfTimeEnd - (TIME_SECOND * 2)))
+        HalfTimeState = HT_SWITCH;
+      break;
+    }
+    case HT_SWITCH:
+    {
+      // Show popup
+      if (gameTime > (HalfTimeEnd - (TIME_SECOND * 2)))
+      {
+        uiShowPopup(0, "switching sides...");
+        uiShowPopup(1, "switching sides...");
+
+        htCtfSwitch();
+        HalfTimeState = HT_INTERMISSION2;
+      }
+      break;
+    }
+    case HT_INTERMISSION2:
+    {
+      // Drop held items and reset health
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        if (!players[i])
+          continue;
+
+        playerDropFlag(players[i], 1);
+        players[i]->Health = players[i]->MaxHealth;
+      }
+
+      // reset flags
+      for (i = 0; i < 4; ++i)
+      {
+        if (CtfFlags[i])
+        {
+          *(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+          vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+        }
+      }
+
+      if (gameTime > HalfTimeEnd)
+      {
+        htCtfEnd();
+        HalfTimeState = HT_COMPLETED;
+      }
+      break;
     }
   }
-
-	switch (HalfTimeState)
-	{
-		case HT_INTERMISSION:
-		{
-			if (gameTime > (HalfTimeEnd - (TIME_SECOND * 2)))
-				HalfTimeState = HT_SWITCH;
-			break;
-		}
-		case HT_SWITCH:
-		{
-			// Show popup
-			if (gameTime > (HalfTimeEnd - (TIME_SECOND * 2)))
-			{
-				uiShowPopup(0, "switching sides...");
-				uiShowPopup(1, "switching sides...");
-
-				htCtfSwitch();
-				HalfTimeState = HT_INTERMISSION2;
-			}
-			break;
-		}
-		case HT_INTERMISSION2:
-		{
-			// Drop held items
-			for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-			{
-				if (!players[i])
-					continue;
-
-				players[i]->HeldMoby = 0;
-			}
-
-			// reset flags
-			for (i = 0; i < 4; ++i)
-			{
-				if (CtfFlags[i])
-				{
-					*(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
-					vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
-				}
-			}
-
-			if (gameTime > HalfTimeEnd)
-			{
-				htCtfEnd();
-				HalfTimeState = HT_COMPLETED;
-			}
-			break;
-		}
-	}
-	
+  
 }
 
 /*
@@ -454,41 +481,41 @@ void htCtfTick(void)
  */
 void halftimeLogic(void)
 {
-	int timeLimit = gameGetRawTimeLimit();
-	int gameTime = gameGetTime();
-	GameSettings * gameSettings = gameGetSettings();
+  int timeLimit = gameGetRawTimeLimit();
+  int gameTime = gameGetTime();
+  GameSettings * gameSettings = gameGetSettings();
 
-	// Check we're in game and that it is compatible
-	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
-		return;
+  // Check we're in game and that it is compatible
+  if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF || !isInGame() || gameSettings->GameStartTime <= 0)
+    return;
 
-	// 
-	switch (HalfTimeState)
-	{
-		case HT_WAITING:
-		{
-			if (timeLimit <= 0)
-				break;
+  // 
+  switch (HalfTimeState)
+  {
+    case HT_WAITING:
+    {
+      if (timeLimit <= 0)
+        break;
 
-			// Trigger halfway through game
-			u32 gameHalfTime = gameSettings->GameStartTime + (timeLimit / 2);
-			if (gameTime > gameHalfTime)
-			{
-				htCtfBegin();
-				HalfTimeState = HT_INTERMISSION;
-			}
-			break;
-		}
-		case HT_COMPLETED:
-		{
-			break;
-		}
-		default:
-		{
-			htCtfTick();
-			break;
-		}
-	}
+      // Trigger halfway through game
+      u32 gameHalfTime = gameSettings->GameStartTime + (timeLimit / 2);
+      if (gameTime > gameHalfTime)
+      {
+        htCtfBegin();
+        HalfTimeState = HT_INTERMISSION;
+      }
+      break;
+    }
+    case HT_COMPLETED:
+    {
+      break;
+    }
+    default:
+    {
+      htCtfTick();
+      break;
+    }
+  }
 }
 
 
@@ -510,7 +537,8 @@ void otReset(void)
 {
   OvertimeState = 0;
   OvertimeEnd = -1;
-	CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
+  patchStateContainer.OverTimeState = 0;
   memset(CtfHtOtFreezePositions, 0, sizeof(CtfHtOtFreezePositions));
 }
 
@@ -533,15 +561,18 @@ void otCtfBegin(void)
   int i;
   Player** players = playerGetAll();
 
-	// Make sure we have the flag mobies
-	getFlags();
+  // Make sure we have the flag mobies
+  getFlags();
 
-	// Indicate when the intermission should end
-	OvertimeEnd = gameGetTime() + (TIME_SECOND * 5);
-	OvertimeState = OT_INTERMISSION;
+  // destroy player objects
+  htDestroyPlayerObjects();
 
-	// Disable saving or pickup up flag
-	gameFlagSetPickupDistance(0);
+  // Indicate when the intermission should end
+  OvertimeEnd = gameGetTime() + (TIME_SECOND * 3);
+  OvertimeState = OT_INTERMISSION;
+
+  // Disable saving or pickup up flag
+  gameFlagSetPickupDistance(0);
 
   // Freeze players
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -554,9 +585,9 @@ void otCtfBegin(void)
   // disable healthboxes
   cheatsDisableHealthboxes();
 
-	// Show popup
-	uiShowPopup(0, "Overtime");
-	uiShowPopup(1, "Overtime");
+  // Show popup
+  uiShowPopup(0, "Overtime");
+  uiShowPopup(1, "Overtime");
 }
 
 /*
@@ -586,34 +617,25 @@ void otCtfRespawnPlayers(void)
     if (!player)
       continue;
 
-		// Kick from vehicle
-		if (player->Vehicle)
-			vehicleRemovePlayer(player->Vehicle, player);
+    // Kick from vehicle
+    if (player->Vehicle)
+      vehicleRemovePlayer(player->Vehicle, player);
 
-		// Respawn
-		playerRespawn(player);
+    // Respawn (first res patch)
+    POKE_U32(0x205e2d48, 0x24070001);
+    playerRespawn(player);
+    POKE_U32(0x205e2d48, 0x0000382d);
+  }
 
-		// Teleport player to base
-		moby = CtfFlags[player->Team];
-		if (moby)
-		{
-			vector_copy(pVector, (float*)moby->PVar);
-			float theta = (player->PlayerId / (float)GAME_MAX_PLAYERS) * MATH_TAU;
-			pVector[0] += cosf(theta) * 2.5;
-			pVector[1] += sinf(theta) * 2.5;
-			playerSetPosRot(player, pVector, rVector);
-		}
-	}
-
-	// reset flags
-	for (i = 0; i < 4; ++i)
-	{
-		if (CtfFlags[i])
-		{
-			*(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
-			vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
-		}
-	}
+  // reset flags
+  for (i = 0; i < 4; ++i)
+  {
+    if (CtfFlags[i])
+    {
+      *(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+      vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+    }
+  }
 }
 
 /*
@@ -632,8 +654,8 @@ void otCtfRespawnPlayers(void)
  */
 void otCtfEnd(void)
 {
-	// Enable flag pickup
-	gameFlagSetPickupDistance(2);
+  // Enable flag pickup
+  gameFlagSetPickupDistance(2);
 
   // Enable survivor
   //GameOptions* go = gameGetOptions();
@@ -787,7 +809,7 @@ void otOnTimelimitReached(int reason)
     return;
   }
 
-  DPRINTF("ot game end called reason=%d\n", reason);
+  //DPRINTF("ot game end called reason=%d\n", reason);
 
   if (reason == 1) {
 
@@ -795,7 +817,7 @@ void otOnTimelimitReached(int reason)
     int bestScore = 0;
     int teamsWithBestScore = otGetScores(&bestScore, NULL);
 
-    DPRINTF("ot best score %d, teams with best score %d\n", bestScore, teamsWithBestScore);
+    //DPRINTF("ot best score %d, teams with best score %d\n", bestScore, teamsWithBestScore);
 
     if (teamsWithBestScore > 1) {
       otCtfBegin();
@@ -823,74 +845,76 @@ void otOnTimelimitReached(int reason)
  */
 void otCtfTick(void)
 {
-	int i;
-	Player ** players = playerGetAll();
-	int gameTime = gameGetTime();
+  int i;
+  Player ** players = playerGetAll();
+  int gameTime = gameGetTime();
 
   // prevent pad input
   padResetInput(0);
   padResetInput(1);
 
-  // lock players to positions
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player && player->PlayerMoby && player->IsLocal) {
-      vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
-      vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
-    }
-  }
+  patchStateContainer.OverTimeState = OvertimeState;
+  switch (OvertimeState)
+  {
+    case OT_INTERMISSION:
+    {
+      // lock players to positions
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+        Player* player = players[i];
+        if (player && player->PlayerMoby && player->IsLocal) {
+          vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
+          vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
+        }
+      }
 
-	switch (OvertimeState)
-	{
-		case OT_INTERMISSION:
-		{
-			if (gameTime > (OvertimeEnd - (TIME_SECOND * 2)))
-				OvertimeState = OT_SWITCH;
-			break;
-		}
-		case OT_SWITCH:
-		{
-			// Show popup
-			if (gameTime > (OvertimeEnd - (TIME_SECOND * 2)))
-			{
-				//uiShowPopup(0, "Survivor is on");
-				//uiShowPopup(1, "Survivor is on");
+      if (gameTime > (OvertimeEnd - (TIME_SECOND * 2)))
+        OvertimeState = OT_SWITCH;
+      break;
+    }
+    case OT_SWITCH:
+    {
+      // Show popup
+      if (gameTime > (OvertimeEnd - (TIME_SECOND * 2)))
+      {
+        //uiShowPopup(0, "Survivor is on");
+        //uiShowPopup(1, "Survivor is on");
 
         otCtfRespawnPlayers();
-				OvertimeState = OT_INTERMISSION2;
-			}
-			break;
-		}
-		case OT_INTERMISSION2:
-		{
-			// Drop held items
-			for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-			{
-				if (!players[i])
-					continue;
+        OvertimeState = OT_INTERMISSION2;
+      }
+      break;
+    }
+    case OT_INTERMISSION2:
+    {
+      // Drop held items
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        if (!players[i])
+          continue;
 
-				players[i]->HeldMoby = 0;
-			}
+        playerDropFlag(players[i], 1);
+        players[i]->Health = players[i]->MaxHealth;
+      }
 
-			// reset flags
-			for (i = 0; i < 4; ++i)
-			{
-				if (CtfFlags[i])
-				{
-					*(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
-					vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
-				}
-			}
+      // reset flags
+      for (i = 0; i < 4; ++i)
+      {
+        if (CtfFlags[i])
+        {
+          *(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+          vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+        }
+      }
 
-			if (gameTime > OvertimeEnd)
-			{
-				otCtfEnd();
-				OvertimeState = OT_COMPLETED;
-			}
-			break;
-		}
-	}
-	
+      if (gameTime > OvertimeEnd)
+      {
+        otCtfEnd();
+        OvertimeState = OT_COMPLETED;
+      }
+      break;
+    }
+  }
+  
 }
 
 /*
@@ -909,55 +933,55 @@ void otCtfTick(void)
  */
 void overtimeLogic(void)
 {
-	int timeLimit = gameGetRawTimeLimit();
-	int gameTime = gameGetTime();
-	GameSettings * gameSettings = gameGetSettings();
+  int timeLimit = gameGetRawTimeLimit();
+  int gameTime = gameGetTime();
+  GameSettings * gameSettings = gameGetSettings();
 
-	// Check we're in game and that it is compatible
-	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
-		return;
+  // Check we're in game and that it is compatible
+  if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF || !isInGame() || gameSettings->GameStartTime <= 0)
+    return;
 
-	// 
-	switch (OvertimeState)
-	{
-		case OT_WAITING:
-		{
+  // 
+  switch (OvertimeState)
+  {
+    case OT_WAITING:
+    {
       // no timelimit
-			if (timeLimit <= 0)
-				break;
+      if (timeLimit <= 0)
+        break;
 
       // hook when game ends due to timelimit
       HOOK_JAL(0x00620F54, &otOnTimelimitReached);
-			break;
-		}
-		case OT_COMPLETED:
-		{
+      break;
+    }
+    case OT_COMPLETED:
+    {
       // end game when we have a clear winner
       int winningTeam = otGetWinningTeam();
       if (winningTeam >= 0) {
         gameSetWinner(winningTeam, 1);
         internal_gameEnd(2);
         gameSetWinner(winningTeam, 1);
-        DPRINTF("ot game over %d\n", winningTeam);
+        //DPRINTF("ot game over %d\n", winningTeam);
         OvertimeState = OT_GAMEOVER;
       } else if (winningTeam == -2) {
         // draw
         internal_gameEnd(1);
         gameSetWinner(-1, 1);
-        DPRINTF("ot game over draw\n");
+        //DPRINTF("ot game over draw\n");
         OvertimeState = OT_GAMEOVER;
       }
 
-			break;
-		}
+      break;
+    }
     case OT_GAMEOVER:
     {
       break;
     }
-		default:
-		{
-			otCtfTick();
-			break;
-		}
-	}
+    default:
+    {
+      otCtfTick();
+      break;
+    }
+  }
 }

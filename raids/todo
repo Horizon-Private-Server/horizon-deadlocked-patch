@@ -1,0 +1,209 @@
+++Checkpoints
+NPC controller
+++Messages / Dialogue?
+++Level loader
+++Repeater (in controller, inc counter, N times)
+++Display if rules for pvar overlay
+++String date type (w/ variable size) for pvar overlay
+++Add time delay condition to controller
+++Add mob roam zone
+
+++hook up area mod to sniper beam, arb AoE
+hook up speed to viper shot speed, b6 speed, mine move speed, flail v10 quake speed?
+hook up wrench to inventory overrides
+++add filter tabs to inventory menu
+
+++remove V## from weapons
+++replace V in player proficiency w/ P
+++Add rarity (uncommon,common,rare,legendary)
+++Tie 'V10' to legendary
+++Tie weapon icon color to rarity
+++Add cost to travel to planet, configurable in Forge per difficulty
+++Add Spawner mob difficulty min/max (spawn only >= 1star and <= 3star)
+++Add favoriting to inventory
+Add X-Room w/ spawner
+Trading bolts
+++Label "You don't have the proficiency to wield this weapon"
+++Add difficulty (star) condition to controller
+++No respawn/revive mechanic
+++Add controller target to respawn dead players
+++Add difficulty filter to controller targets
++-Add health +/-/*/div/set target to controller
+
+++Add reload planet option
+++Add log toggles to specific mobys in Forge
+++Save and reapply equipped gadget ids on load
+++Kill all child mobs when spawner completes
+++Fix skin colors reseting on hop
+++Fix gates not syncing
+++Fix cosmetics/gadget overrides not syncing
+++Fix custom waiting for players not working on hop
+++Fix skillpoints not applying until inventory is opened
+++Fix NPS breaking player pos on hop
+Add version number to raids mode + maps, filter by version
+++Add ammo drops
+Add priority to nearby spawners (or configurable in forge?)
+
+++Hookup nanoleech
+++Hookup omega mods to mobs (acid, freeze, napalm, mini bomb)
+++Hookup loot drops
+
+++Weapon leveling
+
+++Auto despawn loot
+Increase XP/Bolts on higher difficulties
+Add difficulty stars to helga players online listing
+Add time on current mission to helga
+++Add vendor moby to buy ammo
+consider making ammo amods more likely w/ rarity?
+++Add holdable items (perks) that randomly drop as loot
+
+++Respawn all players should TP drowned to start/checkpoint
+++Ammo drops should only pickup by locals
+++Quick select is desynced
+
+++Add map code for badge effects
+++Add store (hub only)
+++Add account level max (99)
+++Add account level prestige (get mythic badge)
+++Add weapon proficiency prestige (get mythic weapon)
+++Add ability to create POI (star blips) in forge
+++Re-adjust mob speed/damage/behaviors
+Add raids mode and map version check (prevent loading map unless version matches)
+++Add hacker orb (SP)
+++Add damageable proxy moby
+Add pickup (hold) moby to controller targets (sets player held moby)
+++Fix mobs not despawning when on bad ground
+++Fix ammo drops only spawning for host
+++Have loot drops spawn regardless of who kills the mob
+++Fix leviathan laser invis
+++Add sound when pickup loot drop
+Add sound when level up
+++Add controller condition moby state changed, increased, decreased, changed to
+Add levelselect "tags" (Stealth, Puzzle, Wave Survival, Boss, Platformer)
+++Store level stats and show on levelselect (time player, # of completes & fails, drops earned, xp earned, bolts earned, times played)
+++Add mission complete rewards
+++Add draw text window to dzo
+++Add hacker orb stand (2401) to dzo
+++Change class mods to have up to 4 effects
+Add ammo crates
+++Only generate loot for items in quickselect
+++Change loot drop proficiency to random in range by difficulty, not by account prof +-
+++Remove "Got ammo"
+++Lower turret damage
+Fix stalker turret rotation desync
+++Fix leviathan laser desync
+++Rename explosive wrench to berserker
+++Remove MP help dialogue messages ("in deathmatch mode, get the specified number of kills to win!")
+++Fix forge auto texture clamp to account for multiple objects that use the same texture
+++Have player XP increase every time a weapon prof is leveled
+++Fix respawning resetting equipped weapons
+++Fix dzo quickselect
+++Have ranged attacks stop/pause when they hit their target?
+++Have vehicle health + damage scale
+Add spawn corn controller target
+
+++Add num player controller condition
+++Add collectibles
+++Add challenges
+++Add health % condition
+++Add player kills condition mob mask
+++Add safer guber create event, checks # of free events and caches events until more slots are freed
+++Add reaper
+Add bladeballs
+++Improve leviathan laser logic
+++Fix loadout not loading on map load
+++Sort raids maps by min account level
+++Fix leviathan strafe direction desync
+++Fix levelselect stars & map resetting on mapload
+
+Add moby collision (enabled/disabled) condition & target
+Add player hold moby condition & target
+Add proximity condition (player & moby)
+++Have hop loading finish after code has initialized
+++Add loading screen to hopper
+Fix music auto transition to exclude Mission Failed & Complete tracks
+++Disable inputs when in menus
+Add cooldown to button press interactions (vendor/store/skills)
+Add select cooldown to menus
+++NPS handle player on moving platform
+
+Add set player speed target
+Add set player ammo (per weapon) target (ie disables weapons)
+Add set player quad/shield target
+Remove auto broadcasting of state of misc mobys? Gate, mover, etc? Controller should broadcast iterate, to disable unless configured as client only, then desync is intentional?
+Controller target set gravity (per player possible?)
+Controller in general better way to condition on player(s) and then use the matched player(s) in the targets
+Controller disable/enable certain weapons/gadgets (aren't equippable)
+
+++Have mobs prefer targets in aggro zone, including even when already locked onto target
+
+Add Weapon Mods
+  Acid
+  Napalm
+  Minibomb
+  Freeze
+  Will O' Wisp
+  Alpha mod
+  Proficiency buff
+  
+Add Contracts
+  Cost money to buy
+  Only one active at a time
+  Involves beating missions / getting certain # of kills w/ weapon on mob
+  Reward is wep XP, bolts, boss fight?, or contract token (used to buy boss fight)
+  Is active contract shared across party?
+
+## 2/17/2025
+++Inventory - Migrate "equipped index" from int[] to copies of items (with UIDs)
+++Inventory - Query each tab, add pagination to navigate entire collection
+++Inventory - Unequip weapon on prestige
+++Catacrom - Reduce final waves from 10 to 6, improve overall difficulty scaling from wave 1 to wave 6
+++Catacrom - Add mission after activating bridge, before hack and destroy towers
+++Store - Remove mythics (remove legendaries?, lower prices?)
+++Level Select - Make negative cost planets inaccessible
+++Badge - Add more badge effects
+++Bolt Crank - Fix getting stuck when cranking is stopped by mob attacking
+
+## 6/15/2025
+Inventory - Add "weapon mod" items (alpha mod, omega mod, paint, upgrade?)
+++Level Select - Add open world / raids tabs
+Hub - Add gamba machine
+++Hub - Add upgrade machine
+++Hub - Add dev options to
+  - Reset account
+  - Level up equipped weapon proficiency
+  - Level up account
+  - Get bolts
+
+++ Weapon Upgrading
+ - Add 10 upgrade slots to each weapon
+ - If weapon is 10/10, player has option to upgrade to the next rarity, resetting upgrades back to 0. This would add a bunch of alpha mods to the weapon
+ - Each upgrade has a % chance to fail, losing 1 upgrade slot on the weapon and reverting up to 1 upgrade
+    5/10 -> fail -> 4/9 or 5/9
+ - The higher the rarity & the number of upgrades, the lower the rate of success
+    [Common] 5 => 6 [90% Success]
+    [Uncommon] 5 => 6 [84% Success]
+    [Rare] 5 => 6 [70% Success]
+    [Legendary] 5 => 6 [50% Success]
+    [Mythic] 5 => 6 [20% Success]
+
+Let you level up a weapon's proficiency by use (maybe 25% rate of normal xp gain)
+
+## 7/6/2025
+Fix triangle opening menus on exit of other menus
+Fix ammo vendor triangle swapping weapons
+Fix being able to damage vehicles
+Add quake attack to tremors (v10 flail)
+Add thorn attack to reapers
+Fix swamper lunge not lunging
+Fix level select insta-X taking you to Hub
+Organize level select with Planets Tab & Raids Tab
+Add moby/box that can be moved/dragged
+Add customizable "drop" items to maps
+ - Maps can create up to 8 different drops
+ - Maps can set their texture & name
+ - Maps can spawn at will via controller or mob death
+ - Maps can use drops as a payment mechanisms like via gates or controllers
+ - Maps can let users exchange drops for bolts (maybe XP or other too?, or would be op?)
+ - Add getting X number of drops to contracts?

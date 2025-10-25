@@ -4,9 +4,35 @@
 #include <libdl/moby.h>
 #include <libdl/math3d.h>
 
-Moby * ballSpawn(VECTOR position);
-void ballPickup(Moby * ball, Player * player);
-void ballThrow(Moby * ball);
-void ballUpdate(Moby * ball);
+#define BALL_MOBY_OCLASS          (MOBY_ID_BETA_BOX)
+
+void ballReset(Moby* mobyy, int resetType);
+int ballGetResetCounter(Moby* moby);
+int ballGetCarrierIdx(Moby* moby);
+void ballPickup(Moby * moby, int playerIdx, int resetCounter);
+void ballResendPickup(Moby * moby);
+void ballThrow(Moby * moby, float power);
+void ballUpdate(Moby * moby);
+void ballCreate(VECTOR position);
+void ballInitialize(void);
+
+typedef struct BallPVars
+{
+  VECTOR Velocity;
+  VECTOR SyncPosition;
+  VECTOR SyncVelocity;
+  Moby* VisualMoby;
+  int CarrierIdx;
+  int DieTime;
+  int SyncTicks;
+  int ResetCounter;
+} BallPVars_t;
+
+enum BallEventType {
+	BALL_EVENT_SPAWN,
+	BALL_EVENT_RESET,
+  BALL_EVENT_PICKUP,
+  BALL_EVENT_DROP,
+};
 
 #endif // _GRIDIRON_BALL_H_

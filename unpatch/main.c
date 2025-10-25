@@ -46,10 +46,17 @@ const int patches[][3] = {
 	{ 0, 0x00594CB8, 0x0C1C1FCA }, // menu loop hook
 	{ 0, 0x0015b290, 0x03E00008 }, // nwUpdate hook
 	{ 1, 0x004C3A94, 0x0C130C90 }, // draw hook
+	{ 1, 0x004A9A48, 0x0C130C90 }, // draw hook
 	{ 1, 0x004a84b0, 0x0C1661AC }, // update hook
+	{ 1, 0x004A9C10, 0x0C1661AC }, // update hook
+  { 1, 0x005281F0, 0x0100F809 }, // update pad RawPadInputCallback
 	{ 1, 0x004a84a8, 0x0C05873C }, // 
 	{ 0, 0x0075AC3C, 0x0C1DEE28 }, // get rank numbers
 	{ 0, 0x0075AC40, 0xC44C0124 }, // get rank numbers
+  { -1, 0x00138d7c, 0x0C04E138 }, // sceGsGetGParam
+  { 0, 0x0075B56C, 0x0C1D6CEA }, // extra locals lobby get player pad
+  { 0, 0x00764E48, 0x3C02004F }, // get vehicles enabled
+  { 0, 0x00764E4C, 0x00042100 }, // get vehicles enabled
 	// maploader
 	{ 0, 0x005CFB48, 0x0C058E10 }, // hookLoadAddr
 	{ 0, 0x00705554, 0x0C058E02 }, // hookLoadingScreenAddr
@@ -57,7 +64,8 @@ const int patches[][3] = {
 	{ 0, 0x005CF9B0, 0x0C058E4A }, // hookCheckAddr
 	{ -1, 0x00159B20, 0x0C056680 }, // hookTableAddr
 	{ 1, 0x00557580, 0x0C058E02 }, // hookMapAddr
-	{ 1, 0x0053F970, 0x0C058E02 }, // hookAudioAddr
+	{ 1, 0x0053F970, 0x0C058E02 }, // hookHudAddr
+  { 0, 0x005FEC74, 0x0C0560AA }, // hookSoundBankAddr
 	{ 0, 0x007055B4, 0x0C046A7B }, // hook loading screen map name strcpy
 	{ 0, 0x0070583C, 0x0C046A7B }, // hook loading screen map name strcpy
 	// comp
@@ -73,6 +81,13 @@ const int patches[][3] = {
 	{ 0, 0x0075a7ec, 0x0C1D6E80 }, // leave staging hook
 	{ 0, 0x00759448, 0x0C1C668A }, // enable Game Cancelled popup
 	{ 0, 0x0071C168, 0x03E00008 }, // reset get return to menu id
+  { 0, 0x00760d30, 0x0C1D866C }, // comp stats hook
+  { 0, 0x004EE888, 0x0077A678 }, // on get skill level hook
+  { 0, 0x004EE8E0, 0x0077A678 }, // on get skill level hook
+  { 0, 0x004EE7E8, 0x0077A678 }, // on get skill level hook
+  { 0, 0x0075AC48, 0x24507570 }, // staging skill level sprite id base
+  { 0, 0x0075ac68, 0x0062800A }, // staging skill level sprite id base
+  { 0, 0x00718700, 0x0C046A7B }, // update current nwinfo account name
 	// in game
 	{ 1, 0x005930B8, 0x02C3B020 }, // lod patch
 	{ 1, 0x005605D4, 0x0C15803E }, // start menu back callback
@@ -88,6 +103,18 @@ const int patches[][3] = {
   { 1, 0x004aea94, 0x3C030023 }, // SetFov patch
   { 1, 0x005282d8, 0x3C020022 }, // Pad_MappedPad patch
   { 1, 0x005282dc, 0x8C42E694 }, // Pad_MappedPad patch
+  { 1, 0x0060684c, 0x0C1833B0 }, // player sync wrench patch
+  { 1, 0x00608BC4, 0x0040F809 }, // player sync stop cboot state update
+  { 1, 0x0060CD44, 0x0040F809 }, // player sync stop cboot state update
+  { 1, 0x005f0900, 0x0C13EC06 }, // player sync hero trans anim
+  { 1, 0x006265a4, 0x0C189544 }, // ComputePoints patch
+  { 1, 0x005DFE30, 0x0C177CF4 }, // Hero GadgetEventHandler patch
+  { 1, 0x003bd854, 0x0C173876 }, // Hero Update Hook
+  { 1, 0x0061fa74, 0x0C139060 }, // Get Killfeed Msg String
+  { 1, 0x0061fa78, 0x8C440000 }, // Get Killfeed Msg String
+  { 1, 0x005F7E64, 0x0C12DF94 }, // GetHeroAimPos hook
+  { 1, 0x003fe018, 0x0C0FF7C2 }, // fusionShotUpdatePos hook
+  { 1, 0x003BCC68, 0x0C0EEE36 }, // healthbox orb radar blip hook
 	// spectator
 	{ 1, 0x0054F46C, 0x0C1734F4 }, // healthbar
 	{ 1, 0x0054f898, 0x0C1734F4 }, // healthbar
@@ -103,11 +130,14 @@ const int patches[][3] = {
 	//{ 1, 0x0060ed9c, 0x0C135C12 },
 	//{ 1, 0x004189ec, 0x0C105DF2 },
 	//{ 1, 0x005ce330, 0x0C173D64 },
+  // colors
+  { 0, 0x004C8A68, 0x802020E0 }, // color code 0E red
+  { 0, 0x004C8A6C, 0x80E0E040 }, // color code 0F aqua
 };
 
 const int clears[][2] = {
 	{ 0x000D0000, 0x00020000 }, // patch
-	{ 0x000F0000, 0x0000F000 }, // game mode
+	{ 0x000F2000, 0x0000E000 }, // game mode
 	{ 0x000CF000, 0x00000800 }, // module definitions
 	{ 0x000CFFD0, 0x00000020 }, // patch hash
 	{ 0x000CFFC0, 0x00000010 }, // patch pointers
@@ -121,7 +151,6 @@ int onServerDownloadDataRequest(void * connection, void * data)
 {
 	ServerDownloadDataRequest_t* request = (ServerDownloadDataRequest_t*)data;
 
-
 	// copy bytes to target
 	totalBytes = request->TotalSize;
 	bytesReceived += request->DataSize;
@@ -129,7 +158,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
 	DPRINTF("DOWNLOAD: {%d} %d/%d, writing %d to %08X\n", request->Id, bytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
 
 	// respond
-	if (connection)
+	if (connection && (!request->Chunk || bytesReceived >= request->TotalSize))
 	{
 		ClientDownloadDataResponse_t response;
 		response.Id = request->Id;
@@ -168,6 +197,10 @@ void onOnlineMenu(void)
 	// only show on main menu
 	//if (uiGetActive() != UI_ID_ONLINE_MAIN_MENU)
 	//	return;
+
+  // let the user read the EULA/Announcements without a big download bar appearing over it
+  if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_1) == uiGetActivePointer()) return;
+  if (uiGetPointer(UI_MENU_ID_ONLINE_AGREEMENT_PAGE_2) == uiGetActivePointer()) return;
 
 	gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, bgColorDownload);
 	gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, barBgColor);
@@ -238,6 +271,15 @@ int main (void)
 
 	// Hook menu loop
 	*(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
+
+  // reset when we lose connection
+  void* connection = netGetLobbyServerConnection();
+  if (totalBytes > 0 && !connection)
+  {
+    totalBytes = 0;
+    bytesReceived = 0;
+    DPRINTF("lost connection\n");
+  }
 
 	// disable pad on online main menu
   if (!netGetLobbyServerConnection()) {

@@ -1,5 +1,6 @@
 #include "include/game.h"
 #include <libdl/math3d.h>
+#include <libdl/utils.h>
 
 const int UPGRADE_COST[] = {
 	8000,			// v2
@@ -28,7 +29,7 @@ const float BOLT_TAX[] = {
 };
 
 // vanilla is 30 for each
-const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[] = {
+const char WEAPON_PICKUP_BASE_RESPAWN_TIMES[] = {
 	30, // VIPER
 	30, // MAGMA
 	30, // ARBITER
@@ -39,7 +40,7 @@ const short WEAPON_PICKUP_BASE_RESPAWN_TIMES[] = {
 	30, // SHIELD
 };
 
-const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[] = {
+const char WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[] = {
 	0, // 1 player
 	0, // 2 players
 	5, // 3 players
@@ -52,6 +53,13 @@ const short WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[] = {
 	24, // 10 players
 };
 
-SurvivalBakedConfig_t BakedConfig __attribute__((section(".config"))) = {
-	1.0
+const char ENABLED_ALPHA_MODS[] = {
+  ALPHA_MOD_SPEED,
+  ALPHA_MOD_AMMO,
+  ALPHA_MOD_IMPACT,
+  ALPHA_MOD_AREA,
+  ALPHA_MOD_JACKPOT,
+  ALPHA_MOD_XP
 };
+
+const int ENABLED_ALPHA_MODS_COUNT = COUNT_OF(ENABLED_ALPHA_MODS);

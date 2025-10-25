@@ -10,6 +10,7 @@
 
 #define MYSTERY_BOX_OCLASS                      (0x2635)
 #define MYSTERY_BOX_COST                        (10000)
+#define MYSTERY_BOX_COST_PER_VOX                (5000)
 #define MYSTERY_BOX_CYCLE_ITEMS_DURATION        (TIME_SECOND * 3)
 #define PLAYER_MYSTERY_BOX_COOLDOWN_TICKS       (30)
 
@@ -39,6 +40,10 @@ enum MysteryBoxItem {
 	MYSTERY_BOX_ITEM_INFINITE_AMMO,
 	MYSTERY_BOX_ITEM_RESET_GATE,
 	MYSTERY_BOX_ITEM_TEDDY_BEAR,
+  MYSTERY_BOX_ITEM_QUAD,
+  MYSTERY_BOX_ITEM_SHIELD,
+  MYSTERY_BOX_ITEM_EMP_HEALTH_GUN,
+  MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS,
   MYSTERY_BOX_ITEM_COUNT
 };
 
@@ -47,11 +52,15 @@ struct MysteryBoxPVar
   VECTOR SpawnpointPosition;
   VECTOR SpawnpointRotation;
   enum MysteryBoxItem Item;
+  enum MysteryBoxItem CycleItem;
   int Random;
   int ActivatedTime;
   int StateChangedAtTime;
+  int TicksSinceLastStateChanged;
   int ActivatedByPlayerId;
   int RoundHidden;
+  int ItemTexId;
+  int NumVoxPerPlayer[GAME_MAX_PLAYERS];
 };
 
 struct MysteryBoxItemWeight

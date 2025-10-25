@@ -29,6 +29,7 @@
 #include <libdl/net.h>
 #include <libdl/utils.h>
 #include "module.h"
+#include "common.h"
 #include "messageid.h"
 #include "include/game.h"
 
@@ -322,20 +323,18 @@ void drawRoundMessage(const char * message, float scale)
 	GameSettings * gameSettings = gameGetSettings();
 	char* rankStrings[] = { "1st", "2nd", "3rd" };
 	int fw = gfxGetFontWidth(message, -1, scale);
-	float x = 0.5;
-	float y = 0.16;
-	float p = 0.02;
+	float x = 0.5 * SCREEN_WIDTH;
+	float y = 0.16 * SCREEN_HEIGHT;
+	float p = 10;
 	float w = maxf(196.0, fw);
 	float h = 120.0;
 	int i;
 
 	// draw container
-	gfxScreenSpaceBox(x-(w/(SCREEN_WIDTH*2.0)), y, (w / SCREEN_WIDTH) + p, (h / SCREEN_HEIGHT) + p, 0x20ffffff);
+  gfxHelperDrawBox(x, y, 0, 0, w + p, h + p, 0x20FFFFFF, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
 
 	// draw message
-	y *= SCREEN_HEIGHT;
-	x *= SCREEN_WIDTH;
-	gfxScreenSpaceText(x, y + 5, scale, scale * 1.5, 0x80FFFFFF, message, -1, 1);
+  gfxHelperDrawText(x, y, 0, 5, scale, 0x80FFFFFF, message, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
 
 	// draw ranks
 	y += 24.0 * scale;
@@ -347,8 +346,8 @@ void drawRoundMessage(const char * message, float scale)
 		if (pId >= 0)
 		{
 			y += 18.0 * scale;
-			gfxScreenSpaceText(x-(w/2), y, scale, scale, 0x80FFFFFF, rankStrings[i-1], -1, 3);
-			gfxScreenSpaceText(x+(w/2), y, scale, scale, 0x80FFFFFF, gameSettings->PlayerNames[pId], -1, 5);
+      gfxHelperDrawText(x, y, -(w/2), 0, scale, 0x80FFFFFF, rankStrings[i-1], -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(x, y, (w/2), 0, scale, 0x80FFFFFF, gameSettings->PlayerNames[pId], -1, TEXT_ALIGN_MIDDLERIGHT, COMMON_DZO_DRAW_NORMAL);
 		}
 	}
 }
@@ -531,12 +530,13 @@ int whoKilledMeHook(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
   static int startDelay = 60 * 0.2;
 	static int waitingForClientsReady = 0;
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
+  PatchGameConfig_t* gameConfig = gameState->GameConfig;
 	Player ** players = playerGetAll();
 	int i;
 
@@ -618,7 +618,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
@@ -634,7 +634,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	SpleefState.IsHost = gameIsHost(localPlayer->Guber.Id.GID.HostId);
 
 	if (!Initialized)
-		initialize(gameConfig, gameState);
+		initialize(gameState);
 
 	int killsToWin = gameGetOptions()->GameFlags.MultiplayerGameFlags.KillsToWin;
 
@@ -797,7 +797,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	return;
 }
 
-void setLobbyGameOptions(void)
+void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
 	// deathmatch options
 	static char options[] = { 
@@ -828,6 +828,8 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = -1;
+
+  gameConfig->grRespawnOverride = 0;
 }
 
 /*
@@ -845,7 +847,7 @@ void setLobbyGameOptions(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
@@ -870,7 +872,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameState->GameConfig);
 			break;
 		}
 	}
@@ -891,7 +893,19 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-	setLobbyGameOptions();
+	setLobbyGameOptions(gameState->GameConfig);
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
+    case GAMEMODULE_GAME_UPDATE: break;
+  }
 }

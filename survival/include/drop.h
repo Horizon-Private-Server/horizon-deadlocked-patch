@@ -46,6 +46,7 @@ struct DropPVar {
 	enum DropType Type;
 	int DestroyAtTime;
 	int Team;
+  char HitGround;
 	char Owner;
 	char Destroyed;
 	struct PartInstance* Particles[4];
@@ -71,7 +72,7 @@ struct DropPickupEventArgs
 
 
 void dropTick(void);
-void dropInitialize(void);
+void dropInit(void);
 int dropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int team);
 int dropHandleEvent(Moby* moby, GuberEvent* event);
 

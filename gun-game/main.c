@@ -66,6 +66,13 @@ char GunGameWeaponIds[] =
 	WEAPON_SLOT_FUSION_RIFLE,
 	WEAPON_SLOT_MINE_LAUNCHER,
 	WEAPON_SLOT_OMNI_SHIELD,
+	WEAPON_SLOT_B6,
+	WEAPON_SLOT_MAGMA_CANNON,
+	WEAPON_SLOT_ARBITER,
+	WEAPON_SLOT_FLAIL,
+	WEAPON_SLOT_FUSION_RIFLE,
+	WEAPON_SLOT_MINE_LAUNCHER,
+	WEAPON_SLOT_OMNI_SHIELD,
 	WEAPON_SLOT_WRENCH,
 	-1
 };
@@ -73,7 +80,9 @@ char GunGameWeaponIds[] =
 /*
  * 
  */
-const int GUN_INDEX_END = 9;
+const int GUN_INDEX_END = sizeof(GunGameWeaponIds) - 1;
+const int GUN_INDEX_RANDOM_START = 1;
+const int GUN_INDEX_RANDOM_END = (sizeof(GunGameWeaponIds) - 1) - 1;
 
 /*
  * 
@@ -213,9 +222,7 @@ void setWeapon(Player * player, int weaponId)
 	GadgetBox* gBox = player->GadgetBox;
 	// Give
 	if (gBox->Gadgets[weaponId].Level < 0)
-	{
-		playerGiveWeapon(gBox, weaponId, 0);
-	}
+		playerGiveWeapon(gBox, weaponId, 0, 1);
 
 	// Set alpha mods
 	memcpy(&gBox->Gadgets[weaponId].AlphaMods, &WeaponModStates[weaponId].Alpha, 10 * sizeof(int));
@@ -444,8 +451,8 @@ void onPlayerKill(char * fragMsg)
 	((void (*)(char*))0x00621CF8)(fragMsg);
 
 	char weaponId = fragMsg[3];
-	char killedPlayerId = fragMsg[2];
-	char sourcePlayerId = fragMsg[0];
+	int killedPlayerId = fragMsg[2];
+	int sourcePlayerId = fragMsg[0];
 
 	if (sourcePlayerId >= 0 && killedPlayerId >= 0 && weaponId == WEAPON_ID_WRENCH) {
 		if (PlayerGunGameStates[killedPlayerId].GunIndex > 0) {
@@ -505,7 +512,7 @@ void updateGameState(PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
   static int startDelay = 60 * 0.2;
 	static int waitingForClientsReady = 0;
@@ -516,6 +523,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	u8 rngBuf[12];
 	GameSettings * gameSettings = gameGetSettings();
 	GameOptions * gameOptions = gameGetOptions();
+  PatchGameConfig_t* gameConfig = gameState->GameConfig;
 	Player ** players = playerGetAll();
 
   if (startDelay) {
@@ -552,7 +560,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 
 	// Randomize middle tier weapons
 	u32 seed = gameSettings->SpawnSeed;
-	j = 1;
+	j = GUN_INDEX_RANDOM_START;
 	while (seed)
 	{
 		// If lowest bit is set then swap with next id
@@ -567,8 +575,8 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 		++j;
 		
 		// Ensure id is within the randomize bounds
-		if (j > 5)
-			j = 1;
+		if (j >= (GUN_INDEX_RANDOM_END-1))
+			j = GUN_INDEX_RANDOM_START;
 
 		// Shift seed down
 		seed >>= 1;
@@ -635,7 +643,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int i = 0;
 	GameSettings * gameSettings = gameGetSettings();
@@ -646,7 +654,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 		return;
 
 	if (!Initialized) {
-		initialize(gameConfig, gameState);
+		initialize(gameState);
     return;
   }
 
@@ -744,6 +752,16 @@ void setLobbyGameOptions(void)
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 2;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
+  
+  // set everyone to their own team
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (gameSettings->PlayerClanTags[i] >= 0) {
+      gameSettings->PlayerTeams[i] = i;
+    }
+  }
 }
 
 void setEndGameScoreboard(void)
@@ -798,13 +816,16 @@ void setEndGameScoreboard(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
 
 	// 
 	updateGameState(gameState);
+
+  // disable ranking
+  gameSetIsGameRanked(0);
 
 	// scoreboard
 	switch (activeId)
@@ -844,7 +865,19 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(void)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
   setLobbyGameOptions();
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
+    case GAMEMODULE_GAME_UPDATE: break;
+  }
 }

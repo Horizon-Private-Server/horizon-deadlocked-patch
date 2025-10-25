@@ -303,7 +303,7 @@ void initialize(void)
 
   if (gameOptions) {
     // enable mini turret
-    gameOptions->WeaponFlags.UNK_09 = 1;
+    gameOptions->WeaponFlags.Nodes = 1;
   }
 }
 

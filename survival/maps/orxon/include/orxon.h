@@ -5,6 +5,8 @@
 #include "wraith.h"
 #include "surge.h"
 
+#define MAP_BASE_COMPLEXITY         (4000)
+
 // ordered from least to most probable
 // never more than MAX_MOB_SPAWN_PARAMS total spawn params
 enum MobSpawnParamIds {
@@ -13,8 +15,9 @@ enum MobSpawnParamIds {
 	MOB_SPAWN_PARAM_EXPLOSION,
 	MOB_SPAWN_PARAM_ACID,
 	MOB_SPAWN_PARAM_FREEZE,
-	MOB_SPAWN_PARAM_RUNNER,
+	MOB_SPAWN_PARAM_TREMOR,
 	MOB_SPAWN_PARAM_NORMAL,
+  MOB_SPAWN_PARAM_SWARMER,
 	MOB_SPAWN_PARAM_COUNT
 };
 

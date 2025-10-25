@@ -23,27 +23,25 @@ GuberEvent* demonbellCreateEvent(Moby* moby, u32 eventType);
 //--------------------------------------------------------------------------
 void demonbellPlayActivateSound(Moby* moby)
 {
-	BaseSoundDef.Index = 366;
-	soundPlay(&BaseSoundDef, 0, moby, 0, 0x400);
+  mobyPlaySoundByClass(0, 0, moby, 0x2751);
 }	
 
 //--------------------------------------------------------------------------
 void demonbellDestroy(Moby* moby)
 {
 	// create event
-	GuberEvent * guberEvent = demonbellCreateEvent(moby, DEMONBELL_EVENT_DESTROY);
+	demonbellCreateEvent(moby, DEMONBELL_EVENT_DESTROY);
 }
 
 //--------------------------------------------------------------------------
 void demonbellUpdate(Moby* moby)
 {
-	int i;
 	struct DemonBellPVar* pvars = (struct DemonBellPVar*)moby->PVar;
 	if (!pvars)
 		return;
 
   // force on
-  if (pvars->ForcedOn && moby->State != 1) {
+  if (pvars->ForcedOn) {
     pvars->HitAmount = 1;
     mobySetState(moby, 1, -1);
   }
@@ -80,7 +78,7 @@ void demonbellUpdate(Moby* moby)
           pvars->RecoverCooldownTicks = DEMONBELL_HIT_COOLDOWN_TICKS;
 
           // activate
-          if (pvars->HitAmount == 1 && gameAmIHost()) {
+          if (pvars->HitAmount >= 1 && gameAmIHost()) {
             GuberEvent * guberEvent = demonbellCreateEvent(moby, DEMONBELL_EVENT_ACTIVATE);
             Player* sourcePlayer = guberMobyGetPlayerDamager(colDamage->Damager);
             int activatedByPlayerId = -1;
@@ -131,7 +129,6 @@ GuberEvent* demonbellCreateEvent(Moby* moby, u32 eventType)
 int demonbellHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 {
 	VECTOR p;
-	int i;
   int id;
 
 	// read event
@@ -160,6 +157,7 @@ int demonbellHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
   // set id
   pvars->Id = id;
+  if (id >= State.DemonBellCount) State.DemonBellCount = id + 1;
 
 	// set team
 	Guber* guber = guberGetObjectByMoby(moby);
@@ -175,8 +173,6 @@ int demonbellHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int demonbellHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 {
-	char killedByPlayerId, weaponId;
-	int i;
 	struct DemonBellPVar* pvars = (struct DemonBellPVar*)moby->PVar;
 	if (!pvars)
 		return 0;
@@ -193,7 +189,6 @@ int demonbellHandleEvent_Activate(Moby* moby, GuberEvent* event)
 	if (!pvars)
 		return 0;
 
-
   guberEventRead(event, &activatedByPlayerId, 4);
 
   // increment demon bell stat
@@ -201,12 +196,16 @@ int demonbellHandleEvent_Activate(Moby* moby, GuberEvent* event)
     State.PlayerStates[activatedByPlayerId].State.TimesActivatedDemonBell += 1;
   }
 
+  // once activated, stay activated
+  pvars->ForcedOn = 1;
+
+  pvars->HitAmount = 1;
   pvars->RoundActivated = State.RoundNumber;
   State.RoundDemonBellCount += 1;
   mobySetState(moby, 1, -1);
   demonbellPlayActivateSound(moby);
-  pushSnack("Demon Bell Activated!", 120, 0);
-	DPRINTF("demonbell activated at %08X by %d\n", (u32)moby, activatedByPlayerId);
+  pushSnack("Spawn Rate Increased!", 120, 0);
+	DPRINTF("demonbell activated at %08X by %d (%d/%d)\n", (u32)moby, activatedByPlayerId, State.RoundDemonBellCount, State.DemonBellCount);
 	return 0;
 }
 
@@ -250,8 +249,6 @@ int demonbellHandleEvent(Moby* moby, GuberEvent* event)
 //--------------------------------------------------------------------------
 int demonbellCreate(VECTOR position, int id)
 {
-	GameSettings* gs = gameGetSettings();
-
 	// create guber object
 	GuberEvent * guberEvent = 0;
 	guberMobyCreateSpawned(DEMONBELL_MOBY_OCLASS, sizeof(struct DemonBellPVar), &guberEvent, NULL);
@@ -276,8 +273,6 @@ void demonbellOnRoundChanged(int roundNo)
   if (forcedOnCount > State.DemonBellCount)
     forcedOnCount = State.DemonBellCount;
 
-  State.RoundDemonBellCount = forcedOnCount;
-
   // force on
   Moby* m = mobyListGetStart();
   Moby* mEnd = mobyListGetEnd();
@@ -288,8 +283,9 @@ void demonbellOnRoundChanged(int roundNo)
       break;
 
     struct DemonBellPVar* pvars = (struct DemonBellPVar*)m->PVar;
-    if (pvars && pvars->Id < forcedOnCount) {
+    if (pvars && (pvars->Id < forcedOnCount || pvars->ForcedOn)) {
       pvars->ForcedOn = 1;
+      State.RoundDemonBellCount += 1;
     }
 
     ++m;

@@ -1,15 +1,37 @@
 #ifndef _PATCH_CONFIG_
 #define _PATCH_CONFIG_
 
+#include <libdl/gamesettings.h>
+
 /*
  * Fixed pointers to patch container for use by external modules.
  */
-#define PATCH_POINTERS			      ((void*)0x000CFFC0)
-#define PATCH_DZO_INTEROP_FUNCS	  (*(DzoInteropFunctions_t**)0x000CFFC8)
-#define PATCH_POINTERS_CLIENT     (*(u8*)(PATCH_POINTERS + 12))
-#define PATCH_POINTERS_SPECTATE   (*(u8*)(PATCH_POINTERS + 13))
-#define PATCH_POINTERS_PATCHMENU  (*(u8*)(PATCH_POINTERS + 14))
+#define PATCH_INTEROP             (*(PatchInterop_t**)0x000CFFC0)
+#define PATCH_DZO_INTEROP_FUNCS	  (*(DzoInteropFunctions_t**)0x000CFFC4)
+#define PATCH_POINTERS_SPECTATE   (*(u8*)(0x000CFFC0 + 8))
+#define PATCH_POINTERS_PATCHMENU  (*(u8*)(0x000CFFC0 + 9))
+#define PATCH_POINTERS_SCOREBOARD (*(u8*)(0x000CFFC0 + 10))
+#define PATCH_POINTERS_QUICKCHAT  (*(u8*)(0x000CFFC0 + 11))
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
+
+#define CMODE_SURVIVAL_VERSION    (3)
+#define CMODE_RAIDS_VERSION       (0)
+
+struct CustomMapDef;
+
+typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void * data);
+typedef void (*SetSpectateFunc_t)(int localPlayerIndex, int spectatePlayerOrDisable);
+typedef int (*GetCustomMapDefCountFunc_t)(void);
+typedef struct CustomMapDef* (*GetCustomMapDefFunc_t)(int index);
+typedef int (*ReadCustomMapExtraDataFunc_t)(char* mapFilename, void* buffer, int bufferSize, int customModeId);
+typedef void (*RefreshCustomMapDefsFunc_t)(void);
+typedef void (*HopToCustomMapFunc_t)(struct CustomMapDef* def);
+
+/*
+ * 			Function that reads the custom map extra data from the usb drive for the current game mode.
+ *      Returns 1 on success, 0 on failure.
+ */
+typedef int (*ReadExtraData_f)(void* dst, int len);
 
 typedef struct PatchConfig
 {
@@ -19,10 +41,10 @@ typedef struct PatchConfig
   char enableSingleplayerMusic;
   char levelOfDetail;
   char enablePlayerStateSync;
-  char enableAutoMaps;
+  char disableAimAssist;
   char enableFpsCounter;
   char disableCircleToHackerRay;
-  char playerAggTime;
+  char disableScavengerHunt;
   char disableCameraShake;
   char minimapScale;
   char minimapBigZoom;
@@ -31,6 +53,11 @@ typedef struct PatchConfig
   char playerFov;
   char preferredGameServer;
   char fixedCycleOrder;
+  char enableSingleTapChargeboot;
+  char enableInGameScoreboard;
+  char enableNPSLagComp;
+  char enableFastLoad;
+  char levelOfDetailMobs;
 
 #if TWEAKERS
   char characterTweakers[1 + 7*2];
@@ -57,6 +84,27 @@ enum PayloadContestMode
 	PAYLOAD_CONTEST_STOP
 };
 
+typedef struct UpdateGameStateRequest {
+	char TeamsEnabled;
+  char PADDING;
+  short Version;
+	int RoundNumber;
+	int TeamScores[GAME_MAX_PLAYERS];
+	char ClientIds[GAME_MAX_PLAYERS];
+	char Teams[GAME_MAX_PLAYERS];
+} UpdateGameStateRequest_t;
+
+typedef struct CustomGameModeStats
+{
+  u8 Payload[1024 * 6];
+} __attribute__((aligned(16))) CustomGameModeStats_t;
+
+typedef struct SetNameOverridesMessage
+{
+  int AccountIds[10];
+  char Names[10][16];
+} SetNameOverridesMessage_t;
+
 typedef struct PayloadConfig
 {
 	u8 contestMode;
@@ -70,9 +118,13 @@ typedef struct TrainingConfig
   u8 opt3;
 } TrainingConfig_t;
 
+typedef struct HNSConfig
+{
+  u8 hideStageTime;
+} HNSConfig_t;
+
 typedef struct PatchGameConfig
 {
-  char customMapId;
   char customModeId;
   char prWeatherId;
   char grNoPacks;
@@ -93,23 +145,80 @@ typedef struct PatchGameConfig
   char grCqPersistentCapture;
   char grCqDisableTurrets;
   char grCqDisableUpgrades;
+  char grNewPlayerSync;
+  char grLagjump;
+  char grNoFusionADS;
+  char grRespawnOverride;
+  char grFogOfWarRadar;
+  char grRadarShortDistance;
   char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;
   char prHeadbuttFriendlyFire;
   char prChargebootForever;
   char drFreecam;
+  char drNoRank;
+  char drLevelReload;
   SurvivalConfig_t survivalConfig;
   PayloadConfig_t payloadConfig;
   TrainingConfig_t trainingConfig;
+  HNSConfig_t hnsConfig;
 } PatchGameConfig_t;
 
-typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void * data);
+typedef struct PatchStateContainer
+{
+  PatchConfig_t* Config;
+  PatchGameConfig_t* GameConfig;
+  int UpdateGameState;
+  UpdateGameStateRequest_t GameStateUpdate;
+  int UpdateCustomGameStats;
+  CustomGameModeStats_t CustomGameStats;
+  GameSettings GameSettingsAtStart;
+  int CustomGameStatsSize;
+  int ClientsReadyMask;
+  int AllClientsReady;
+  int VoteToEndPassed;
+  int HalfTimeState;
+  int OverTimeState;
+  SetNameOverridesMessage_t LobbyNameOverrides;
+  int SelectedCustomMapId;
+  int SelectedCustomMapChanged;
+  ReadExtraData_f ReadExtraDataFunc;
+} PatchStateContainer_t;
+
+typedef struct PatchInterop
+{
+  PatchConfig_t* Config;
+  PatchGameConfig_t* GameConfig;
+  char Client;
+  char Month;
+  SetSpectateFunc_t SetSpectate;
+  char* MapLoaderFilename;
+  GetCustomMapDefCountFunc_t GetCustomMapDefCount;
+  GetCustomMapDefFunc_t GetCustomMapDef;
+  ReadCustomMapExtraDataFunc_t ReadCustomMapExtraData;
+  RefreshCustomMapDefsFunc_t RefreshCustomMapDefs;
+  HopToCustomMapFunc_t HopToCustomMap;
+  PatchStateContainer_t* PatchStateContainer;
+  int* ClientLatency;
+} PatchInterop_t;
 
 typedef struct DzoInteropFunctions
 {
   SendCustomCommandToClientFunc_t SendCustomCommandToClient;
 } DzoInteropFunctions_t;
+
+typedef struct CustomMapDef
+{
+  int Version;
+  int CustomModeExtraDataMask;
+  short ShrubMinRenderDistance;
+  short Subsort;
+  char BaseMapId;
+  char ForcedCustomModeId;
+  char Name[32];
+  char Filename[48];
+} CustomMapDef_t;
 
 enum CHARACTER_TWEAKER_ID
 {
@@ -133,59 +242,27 @@ enum CHARACTER_TWEAKER_ID
   CHARACTER_TWEAKER_COUNT
 };
 
-enum CUSTOM_MAP_ID
-{
-  CUSTOM_MAP_NONE = 0,
-  CUSTOM_MAP_ACE_HARDLIGHT_SUITE,
-  CUSTOM_MAP_ANNIHILATION_NATION,
-  CUSTOM_MAP_BAKISI_ISLES,
-  CUSTOM_MAP_BATTLEDOME_SP,
-  CUSTOM_MAP_BLACKWATER_CITY,
-  CUSTOM_MAP_BLACKWATER_DOCKS,
-  CUSTOM_MAP_CANAL_CITY,
-  CUSTOM_MAP_CONTAINMENT_SUITE,
-  CUSTOM_MAP_DARK_CATHEDRAL_INTERIOR,
-  CUSTOM_MAP_GHOST_HANGAR,
-  CUSTOM_MAP_GHOST_SHIP,
-  CUSTOM_MAP_HOVEN_GORGE,
-  CUSTOM_MAP_INFINITE_CLIMBER,
-  CUSTOM_MAP_KORGON_OUTPOST,
-  CUSTOM_MAP_LAUNCH_SITE,
-  CUSTOM_MAP_MARCADIA_PALACE,
-  CUSTOM_MAP_METROPOLIS_MP,
-  CUSTOM_MAP_MINING_FACILITY_SP,
-  CUSTOM_MAP_MOUNTAIN_PASS,
-  CUSTOM_MAP_SHAAR_SP,
-  CUSTOM_MAP_SNIVELAK,
-  CUSTOM_MAP_SPLEEF,
-  CUSTOM_MAP_TORVAL_LOST_FACTORY,
-  CUSTOM_MAP_TORVAL_SP,
-  CUSTOM_MAP_TYHRRANOSIS,
-
-  // Survival maps
-  CUSTOM_MAP_SURVIVAL_START,
-  CUSTOM_MAP_SURVIVAL_MINING_FACILITY = CUSTOM_MAP_SURVIVAL_START,
-  CUSTOM_MAP_SURVIVAL_END = CUSTOM_MAP_SURVIVAL_MINING_FACILITY,
-
-  // always at the end to indicate how many items there are
-  CUSTOM_MAP_COUNT
-};
-
 enum CUSTOM_MODE_ID
 {
   CUSTOM_MODE_NONE = 0,
+  CUSTOM_MODE_1000_KILLS,
   CUSTOM_MODE_GUN_GAME,
   CUSTOM_MODE_INFECTED,
   // CUSTOM_MODE_INFINITE_CLIMBER,
   CUSTOM_MODE_PAYLOAD,
   CUSTOM_MODE_SEARCH_AND_DESTROY,
   CUSTOM_MODE_SURVIVAL,
-  CUSTOM_MODE_1000_KILLS,
+  CUSTOM_MODE_TEAM_DEFENDER,
   CUSTOM_MODE_TRAINING,
+  //CUSTOM_MODE_BENCHMARK,
+  CUSTOM_MODE_HNS,
+  CUSTOM_MODE_GRIDIRON,
+  CUSTOM_MODE_TAG,
+  CUSTOM_MODE_RAIDS,
+  CUSTOM_MODE_OITC,
+  CUSTOM_MODE_OBSTACLE,
   
 #if DEV
-  CUSTOM_MODE_GRIDIRON,
-  CUSTOM_MODE_TEAM_DEFENDER,
   CUSTOM_MODE_ANIM_EXTRACTOR,
 #endif
 
@@ -197,7 +274,7 @@ enum TRAINING_TYPE
 {
 	TRAINING_TYPE_FUSION,
 	TRAINING_TYPE_CYCLE,
-	TRAINING_TYPE_B6,
+  TRAINING_TYPE_RUSH,
 	TRAINING_TYPE_MAX
 };
 
@@ -213,7 +290,8 @@ enum TRAINING_AGGRESSION
 enum CLIENT_TYPE
 {
   CLIENT_TYPE_NORMAL = 0,
-  CLIENT_TYPE_DZO = 1
+  CLIENT_TYPE_DZO = 1,
+  CLIENT_TYPE_PCSX2 = 2
 };
 
 #endif // _PATCH_CONFIG_

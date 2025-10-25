@@ -21,9 +21,9 @@ const char * QUEUE_LEAVE_REASONS[] = {
 
 const char * SELECT_QUEUE_TITLE = "SELECT QUEUE";
 const char * QUEUE_NAMES[] = {
-  "King of the Hill",
-  "Capture the Flag",
-  "FFA Deathmatch",
+  "1v1 Deathmatch",
+  "2v2 King of the Hill",
+  "3v3 Capture the Flag",
   "Cancel"
 };
 const int QUEUE_NAMES_SIZE = sizeof(QUEUE_NAMES)/sizeof(char*);
@@ -36,10 +36,33 @@ const char * SELECT_VOTE_NAMES[] = {
 const int SELECT_VOTE_NAMES_SIZE = sizeof(SELECT_VOTE_NAMES)/sizeof(char*);
 
 const char * QUEUE_SHORT_NAMES[] = {
-  "KOTH",
-  "CTF",
-  "FFA DM"
+  "1v1 DM",
+  "2v2 KOTH",
+  "3v3 CTF",
 };
+
+const char * COMP_RANK_NAMES[] = {
+  "Avng.",
+  "Crus.",
+  "Lib.",
+  "Mara.",
+  "Vindicat"
+};
+
+const char * COMP_DIVISION_NAMES[] = {
+  "",
+  "1",
+  "2",
+  "3",
+  "4"
+};
+
+const char * RANK_NAMES[] = {
+  "DM",
+  "KOTH",
+  "CTF"
+};
+const int RANK_NAMES_COUNT = COUNT_OF(RANK_NAMES);
 
 enum COMP_ERROR
 {
@@ -49,6 +72,7 @@ enum COMP_ERROR
 
 struct CompState {
   int Initialized;
+  int HasShownMapUpdatesRequiredPopup;
   int InQueue;
   int LastQueue;
   int LastSelectedQueue;
@@ -62,6 +86,7 @@ struct CompState {
   int HasLeaveRequestTicks;
   int TimeUntilGameStart;
   int TimeAllReady;
+  int NameChangeResult;
   ForceJoinGameRequest_t JoinRequest;
   ForceTeamsRequest_t TeamsRequest;
   enum COMP_ERROR ErrorId;
@@ -74,6 +99,9 @@ uiVTable18_func endGameScoreboard18Func = (uiVTable18_func)0x0073BA08;
 uiVTable18_func staging18Func = (uiVTable18_func)0x00759220;
 
 extern int initialized;
+extern int mapsRemoteGlobalVersion;
+extern int mapsLocalGlobalVersion;
+extern int actionState;
 
 int mapsDownloadingModules(void);
 void forceStartGame(void);
@@ -230,6 +258,18 @@ int onForceStartGameRequest(void * connection, void * data)
 }
 
 //------------------------------------------------------------------------------
+int onUpdateNameResponse(void * connection, void * data)
+{
+  UpdateNameResponse_t response;
+
+	// move message payload into local
+	memcpy(&response, data, sizeof(UpdateNameResponse_t));
+  CompState.NameChangeResult = response.Success + 1;
+
+	return sizeof(UpdateNameResponse_t);
+}
+
+//------------------------------------------------------------------------------
 void removeSnackAt(int index)
 {
   if (index >= SNACK_MAX_COUNT)
@@ -255,6 +295,23 @@ void addSnack(char * message)
 
   snackStack[index].TicksLeft = 60 * 5;
   strncpy(snackStack[index].Message, message, sizeof(snackStack[index].Message));
+}
+
+//------------------------------------------------------------------------------
+int getRankFromElo(int elo)
+{
+  if (elo < 1000) return 0;         // Avenger
+  else if (elo < 2000) return 1;    // Crusader
+  else if (elo < 3000) return 2;    // Liberator
+  else if (elo < 4000) return 3;    // Marauder
+  return 4;                         // Vindicator
+}
+
+//------------------------------------------------------------------------------
+int getDivisionFromElo(int elo)
+{
+  if (elo >= 4000) return 0; // max rank
+  return 1 + ((elo % 1000) / 250);
 }
 
 //------------------------------------------------------------------------------
@@ -311,6 +368,15 @@ void generateQueueText(char * dst)
 }
 
 //------------------------------------------------------------------------------
+int onGetSkillLevel(int elo, char* buf)
+{
+  int rank = getRankFromElo(elo);
+  int div = getDivisionFromElo(elo);
+
+  sprintf(buf, "%s %s", COMP_RANK_NAMES[rank], COMP_DIVISION_NAMES[div]);
+}
+
+//------------------------------------------------------------------------------
 int onLeaveStaging(void * ui, int a1)
 {
   cancelCurrentQueue();
@@ -340,6 +406,24 @@ void onJoinGame()
     return;
   
 
+}
+
+//------------------------------------------------------------------------------
+int beginAccountNameChangeRequest(void) {
+  UpdateNameRequest_t request;
+  void * connection = netGetLobbyServerConnection();
+
+  memset(&request, 0, sizeof(request));
+  strncpy(request.Name, (char*)0x0017225E, 16);
+  if (uiShowInputDialog("Change Name", request.Name, 15) == 1) {
+
+    // send queue request
+    if (connection) {
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_UPDATE_NAME_REQUEST, sizeof(UpdateNameRequest_t), &request);
+    }
+  }
+  
+  return -1;
 }
 
 //------------------------------------------------------------------------------
@@ -432,12 +516,20 @@ int onGetReturnToMenuId(UiMenu_t * menu)
 }
 
 //------------------------------------------------------------------------------
+void onCompStats(void * ui, int a1, int a2, int a3, int t0, int t1)
+{
+  ((void (*)(void*, int, int, int, int, int))0x007619b0)(ui, a1, a2, a3, t0, t1);
+}
+
+//------------------------------------------------------------------------------
 int onCompChatRoom(void * ui, int pad) {
+  char buf[256];
   u32 * uiElements = (u32*)((u32)ui + 0xB0);
 
   // handle queue and stats pad input
   // if this is 10, then we're in the keyboard
   // and ignore pad
+  //if (pad != 0) DPRINTF("%x\n", pad);
   int context = *(int*)((u32)ui + 0x230);
   if (context != 10) {
     if (pad == 8) {
@@ -448,7 +540,9 @@ int onCompChatRoom(void * ui, int pad) {
     } else if (pad == 6) {
       // open queue
       openQueueSelect();
-
+    } else if (pad == 11) {
+      // open name change prompt
+      beginAccountNameChangeRequest();
     } else if (context == 8 && pad == 7) {
       // prevent selecting user
       pad = 0;
@@ -459,7 +553,7 @@ int onCompChatRoom(void * ui, int pad) {
 	int result = chatRoom18Func(ui, pad);
 
   // rename clan room to CIRCLE QUEUE
-  sprintf((char*)(uiElements[11] + 0x60), "\x11 QUEUE");
+  sprintf((char*)(uiElements[11] + 0x60), "\x11 QUEUE \x14 CHANGE NAME");
 
   // rename select to stats
   sprintf((char*)(uiElements[12] + 0x60), "\x13 STATS");
@@ -472,6 +566,13 @@ int onCompChatRoom(void * ui, int pad) {
 
   // show select/stats at all times
   *(u32*)(uiElements[12] + 4) = 2;
+
+  // logout if maps aren't up to date
+  if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion && mapsRemoteGlobalVersion > 0) {
+    ((void (*)(int))0x007647B0)(0x23);
+    uiChangeMenu(UI_MENU_ID_ONLINE_PROFILE_SELECT);
+    return -1;
+  }
 
   return result;
 }
@@ -674,6 +775,16 @@ void runCompMenuLogic(void) {
     }
   }
 
+  if (!CompState.HasShownMapUpdatesRequiredPopup && !netDoIHaveNetError() && uiGetPointer(UI_MENU_ID_ONLINE_LOBBY) == uiGetActivePointer() && mapsLocalGlobalVersion != mapsRemoteGlobalVersion && mapsRemoteGlobalVersion > 0) {
+    uiShowOkDialog("Custom Maps", "You must install the latest custom maps to play on the Comp Server.");
+    CompState.HasShownMapUpdatesRequiredPopup = 1;
+  }
+
+  if (CompState.NameChangeResult && CompState.NameChangeResult == 1) {
+    uiShowOkDialog("Name Change", "An error occured. Either the name is not valid or the name is already taken.");
+    CompState.NameChangeResult = 0;
+  }
+
   // if at main menu, put player in clan room
   static int ticksWantingClanRoom = 0;
   if (!netDoIHaveNetError() && uiGetPointer(UI_MENU_ID_ONLINE_LOBBY) == uiGetActivePointer() && netGetLobbyServerConnection() && uiGetActive() == UI_ID_ONLINE_MAIN_MENU)
@@ -699,6 +810,7 @@ void runCompLogic(void) {
   void* connection = netGetLobbyServerConnection();
   if (!connection) {
     CompState.InQueue = 0;
+    CompState.HasShownMapUpdatesRequiredPopup = 0;
     return;
   }
 
@@ -726,6 +838,7 @@ void runCompLogic(void) {
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_FORCE_START_GAME_REQUEST, &onForceStartGameRequest);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_GAME_START_TIME_REQUEST, &onSetGameStartTimeRequest);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SHOW_SNACK_MESSAGE_REQUEST, &onShowSnackMessageRequest);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_UPDATE_NAME_RESPONSE, &onUpdateNameResponse);
   
   // refresh queue every 5 seconds
   int gameTime = gameGetTime();
@@ -750,7 +863,12 @@ void runCompLogic(void) {
     *(u32*)0x00763DC0 = 0x24020003; // disable changing team in staging
     *(u32*)0x0075a7ec = 0x0C000000 | ((u32)&onLeaveStaging / 4);
     *(u32*)0x00759448 = 0; // disable game cancelled popup when host leaves
+    POKE_U32(0x00718700, 0); // disable updating account name
+    POKE_U32(0x004EE888, &onGetSkillLevel); // change stats page skill level to use comp ranks
+    POKE_U32(0x004EE8E0, &onGetSkillLevel);
+    POKE_U32(0x004EE7E8, &onGetSkillLevel);
     HOOK_J(0x0071C168, &onGetReturnToMenuId); // force return to last menu never returns to main menu
+    HOOK_JAL(0x00760d30, &onCompStats);
     //POKE_U16(0x0072A004, (short)UI_MENU_ID_CLAN_ROOM); // change leave game return to menu to clan room
 
     // change clan room channel name to "Default"

@@ -7,9 +7,11 @@
 #include <libdl/gamesettings.h>
 #include <libdl/string.h>
 #include <libdl/game.h>
+#include <libdl/player.h>
 #include <libdl/map.h>
 #include <libdl/utils.h>
 #include "messageid.h"
+#include "module.h"
 #include "config.h"
 #include "include/config.h"
 
@@ -17,7 +19,6 @@
 #define LINE_HEIGHT_3_2     (0.075)
 #define DEFAULT_GAMEMODE    (0)
 #define CHARACTER_TWEAKER_RANGE (10)
-#define DZO_MAX_CMAPS       (10)
 
 // config
 extern PatchConfig_t config;
@@ -25,9 +26,16 @@ extern PatchConfig_t config;
 // game config
 extern PatchGameConfig_t gameConfig;
 extern PatchGameConfig_t gameConfigHostBackup;
+extern int selectedMapIdHostBackup;
+extern PatchStateContainer_t patchStateContainer;
+
+extern FreecamSettings_t freecamSettings;
 
 extern char aa_value;
 extern int redownloadCustomModeBinaries;
+extern int scavHuntEnabled;
+
+extern VoteToEndState_t voteToEndState;
 
 // 
 int isConfigMenuActive = 0;
@@ -36,12 +44,11 @@ int hasDevGameConfig = 0;
 u32 padPointer = 0;
 int preset = 0;
 
-char fixWeaponLagToggle = 1;
-
 //
 int dlBytesReceived = 0;
 int dlTotalBytes = 0;
 int dlIsActive = 0;
+int dlConnectionTimeout = 0;
 
 
 // constants
@@ -81,6 +88,8 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
 void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
+void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
+void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
@@ -89,21 +98,27 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
 void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateEnabledInMenusHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateDzoDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
-int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
-int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, char* value);
+int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value);
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -111,6 +126,7 @@ void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element,
 void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void voteToEndSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 #if MAPEDITOR
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -119,74 +135,82 @@ void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, 
 void tabDefaultStateHandler(TabElem_t* tab, int * state);
 void tabFreecamStateHandler(TabElem_t* tab, int * state);
 void tabGameSettingsStateHandler(TabElem_t* tab, int * state);
+void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state);
 void tabCustomMapStateHandler(TabElem_t* tab, int * state);
 
 // list select handlers
 void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
 void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
+
+#ifdef RELOADPATCH
+void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
+#endif
 
 #ifdef DEBUG
-void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
 void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element);
 #endif
 
 void navMenu(TabElem_t* tab, int direction, int loop);
 void navTab(int direction);
+void tabInput(TabElem_t* tab);
 
 int mapsGetInstallationResult(void);
 int mapsPromptEnableCustomMaps(void);
 int mapsDownloadingModules(void);
+void refreshCustomMapList(void);
+void sendClientVoteForEnd(void);
 
 // level of detail list item
 MenuElem_ListData_t dataLevelOfDetail = {
-    &config.levelOfDetail,
-    NULL,
+  .value = &config.levelOfDetail,
+  .stateHandler = NULL,
 #if DEBUG
-    4,
+  .count = 4,
 #else
-    3,
+  .count = 3,
 #endif
-    { "Potato", "Low", "Normal", "High" }
+  .items = { "Potato", "Low", "Normal", "High" }
+};
+
+// level of detail list item
+MenuElem_ListData_t dataMobLevelOfDetail = {
+  .value = &config.levelOfDetailMobs,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = { "Potato", "Low", "Normal", "High" }
 };
 
 // framelimiter list item
 MenuElem_ListData_t dataFramelimiter = {
-    &config.framelimiter,
-    NULL,
-    3,
-    { "On", "Auto", "Off" }
+  .value = &config.framelimiter,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = { "On", "Auto", "Off" }
 };
 
 // minimap scale list item
 MenuElem_ListData_t dataMinimapScale = {
-    &config.minimapScale,
-    NULL,
-    2,
-    { "Normal", "Half" }
+  .value = &config.minimapScale,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = { "Normal", "Half" }
 };
 
 // minimap expanded zoom
 MenuElem_RangeData_t dataMinimapBigZoom = {
-    .value = &config.minimapBigZoom,
-    .stateHandler = NULL,
-    .minValue = 0,
-    .maxValue = 10,
+  .value = &config.minimapBigZoom,
+  .stateHandler = NULL,
+  .minValue = 0,
+  .maxValue = 10,
 };
 
 // minimap shrunk zoom
 MenuElem_RangeData_t dataMinimapSmallZoom = {
-    .value = &config.minimapSmallZoom,
-    .stateHandler = NULL,
-    .minValue = 0,
-    .maxValue = 10,
-};
-
-// player aggregation time offset range item
-MenuElem_RangeData_t dataPlayerAggTime = {
-    .value = &config.playerAggTime,
-    .stateHandler = NULL,
-    .minValue = -5,
-    .maxValue = 5,
+  .value = &config.minimapSmallZoom,
+  .stateHandler = NULL,
+  .minValue = 0,
+  .maxValue = 10,
 };
 
 // game servers
@@ -202,10 +226,10 @@ MenuElem_ListData_t dataGameServers = {
 
 // player fov range item
 MenuElem_RangeData_t dataFieldOfView = {
-    .value = &config.playerFov,
-    .stateHandler = NULL,
-    .minValue = -5,
-    .maxValue = 5,
+  .value = &config.playerFov,
+  .stateHandler = NULL,
+  .minValue = -5,
+  .maxValue = 5,
 };
 
 // fixed cycle order
@@ -220,146 +244,175 @@ MenuElem_ListData_t dataFixedCycleOrder = {
   }
 };
 
+// deadzone
+// MenuElem_ListData_t dataDeadzone = {
+//   .value = &config.deadzone,
+//   .stateHandler = NULL,
+//   .count = 4,
+//   .items = {
+//     "37.5% (Default)",
+//     "25%",
+//     "12.5%",
+//     "6.25%"
+//   }
+// };
+
 // general tab menu items
 MenuElem_t menuElementsGeneral[] = {
-#ifdef DEBUG
+#ifdef RELOADPATCH
   { "Redownload patch", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadPatchSelectHandler },
+#endif
+#ifdef DEBUG
   { "Download boot elf", buttonActionHandler, menuStateAlwaysEnabledHandler, downloadBootElfSelectHandler },
 #endif
-  { "Install custom maps on login", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableAutoMaps },
-  { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers },
+  { "Vote to End", buttonActionHandler, menuStateHandler_VoteToEndStateHandler, voteToEndSelectHandler, "Vote to end the game. If a team/player is in the lead they will win." },
+  { "Refresh Maps", buttonActionHandler, menuStateEnabledInMenusHandler, gmRefreshMapsSelectHandler },
+#ifdef MAPBOOTELF
+  { "Boot Map Downloader", buttonActionHandler, menuStateHandler_BootMapDownloaderStateHandler, downloadMapUpdatesSelectHandler },
+#endif
+#if SCAVENGER_HUNT
+  { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateScavengerHuntEnabledHandler, &config.disableScavengerHunt, "If you see this option, there is a Horizon scavenger hunt active. Enabling this will spawn random Horizon bolts in game. Collect the most to win the hunt!" },
+#endif
+  { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers, "Which game server you'd like to use when creating a game." },
   { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
-  // { "Agg Time", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerAggTime },
-  { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements },
-  { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake },
-  { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay },
+  //{ "Alt USB Module Load (OPL USB)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.altModuleLoad, "Uses alternative method to load USB modules. May fix custom maps on OPL USB." },
+  { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements, "Enables Dallas commentary in all games." },
+  { "Camera Pulling", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableAimAssist, "Toggles code that pulls the camera towards nearby targets when aiming." },
+  { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake, "Toggles the camera shake caused by nearby explosions." },
+  // { "Deadzone", listActionHandler, menuStateAlwaysEnabledHandler, &dataDeadzone, "Joystick deadzones." },
+  { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay, "Moves hacker ray into the quickselect menu (secondary select)." },
+  { "Fast USB Load (EMU/DZO Only)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFastLoad, "Speeds up loading of custom maps for EMU and DZO clients." },
   { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
-  { "Fixed Cycle Order", listActionHandler, menuStateAlwaysEnabledHandler, &dataFixedCycleOrder },
-  { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter },
-  { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter },
-  { "Fusion Reticule", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule },
-  { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail },
-  { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale },
-  { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom },
-  { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom },
+  { "Fixed Cycle Order", listActionHandler, menuStateAlwaysEnabledHandler, &dataFixedCycleOrder, "If you have equipped the B6, Fusion, Magma the configured cycle order will be forced." },
+  { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter, "Toggles the in game FPS counter." },
+  { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter, "If Off (recommended), forces 60 FPS in all games. Otherwise games with 7+ people will run at 30 FPS." },
+  { "Fusion Reticle", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule, "Toggles the in game fusion reticle. Normally disabled in multiplayer this setting adds it back." },
+  { "In Game Scoreboard (L3)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableInGameScoreboard, "Toggles the in game scoreboard. Hold L3 to display." },
+  { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail, "Configures the level of detail of the scene. Lower this to reduce the graphics requirements on laggy maps/survival." },
+  { "Mob Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataMobLevelOfDetail, "Configures the level of detail of Mobs in Survival and Raids. Lower this to reduce the graphics requirements when lagging in survival and/or raids." },
+  { "Minimap Big Scale", listActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapScale, "Toggles between half and full screen expanded radar." },
+  { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom, "Tweaks the expanded radar zoom." },
+  { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom, "Tweaks the minimized radar zoom." },
+  // { "NPS Lag Compensation", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableNPSLagComp, "When New Player Sync is enabled, attempt to reduce latency of player movements." },
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
-  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic },
-  { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate },
-  { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
+  { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic, "Enables all music tracks in game. Use R3 + Right to skip a track in game." },
+  { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot, "Toggles tapping L2 once to chargeboot." },
+  { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate, "Toggles the custom spectate feature. Use \x13 when dead to spectate." },
+  // { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
 };
 
 #if TWEAKERS
 
 // character head size range item
 MenuElem_RangeData_t dataCharacterHead = {
-    .value = &config.characterTweakers[0],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[0],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character torso size range item
 MenuElem_RangeData_t dataCharacterTorso = {
-    .value = &config.characterTweakers[1],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[1],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character left arm size range item
 MenuElem_RangeData_t dataCharacterLeftArm = {
-    .value = &config.characterTweakers[2],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[2],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character right arm size range item
 MenuElem_RangeData_t dataCharacterRightArm = {
-    .value = &config.characterTweakers[3],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[3],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character left leg size range item
 MenuElem_RangeData_t dataCharacterLeftLeg = {
-    .value = &config.characterTweakers[4],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[4],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character right leg size range item
 MenuElem_RangeData_t dataCharacterRightLeg = {
-    .value = &config.characterTweakers[5],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[5],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character hips size range item
 MenuElem_RangeData_t dataCharacterHips = {
-    .value = &config.characterTweakers[7],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[7],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character head pos range item
 MenuElem_RangeData_t dataCharacterHeadPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_HEAD_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_HEAD_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character upper torso pos range item
 MenuElem_RangeData_t dataCharacterTorsoPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character lower torso pos range item
 MenuElem_RangeData_t dataCharacterHipsPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character left arm pos range item
 MenuElem_RangeData_t dataCharacterLeftArmPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character right arm pos range item
 MenuElem_RangeData_t dataCharacterRightArmPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character left leg pos range item
 MenuElem_RangeData_t dataCharacterLeftLegPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character right leg pos range item
 MenuElem_RangeData_t dataCharacterRightLegPos = {
-    .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_POS],
-    .stateHandler = NULL,
-    .minValue = -CHARACTER_TWEAKER_RANGE,
-    .maxValue = CHARACTER_TWEAKER_RANGE,
+  .value = &config.characterTweakers[CHARACTER_TWEAKER_RIGHT_POS],
+  .stateHandler = NULL,
+  .minValue = -CHARACTER_TWEAKER_RANGE,
+  .maxValue = CHARACTER_TWEAKER_RANGE,
 };
 
 // character tab menu items
@@ -383,8 +436,6 @@ MenuElem_t menuElementsCharacter[] = {
 
 #endif
 
-extern FreecamSettings_t freecamSettings;
-
 // character tab menu items
 MenuElem_t menuElementsFreecam[] = {
   { "Airwalk", toggleActionHandler, menuStateAlwaysEnabledHandler, &freecamSettings.airwalk },
@@ -394,135 +445,103 @@ MenuElem_t menuElementsFreecam[] = {
 
 // map override list item
 MenuElem_ListData_t dataCustomMaps = {
-    &gameConfig.customMapId,
-    menuStateHandler_SelectedMapOverride,
-    CUSTOM_MAP_COUNT,
-    {
-      "None",
-      "Ace Hardlight's Suite",
-      "Annihilation Nation",
-      "Bakisi Isles",
-      "Battledome SP",
-      "Blackwater City",
-      "Blackwater Docks",
-      "Canal City",
-      "Containment Suite",
-      "Dark Cathedral Interior",
-      "Ghost Hangar",
-      "Ghost Ship",
-      "Hoven Gorge",
-      "Infinite Climber",
-      "Korgon Outpost",
-      "Launch Site",
-      "Marcadia Palace",
-      "Metropolis MP",
-      "Mining Facility SP",
-      "Mountain Pass",
-      "Shaar SP",
-      "Snivelak",
-      "Spleef",
-      "Torval Lost Factory",
-      "Torval SP",
-      "Tyhrranosis",
-      // -- SURVIVAL MAPS --
-      [CUSTOM_MAP_SURVIVAL_MINING_FACILITY] "Orxon",
-    }
+  .value = &patchStateContainer.SelectedCustomMapId,
+  .stateHandler = menuStateHandler_SelectedMapOverride,
+  .count = 1,
+  .rows = 10,
+  .items = {
+    "None",
+    [MAX_CUSTOM_MAP_DEFINITIONS+1] NULL
+  }
 };
-
-// maps with their own exclusive gamemode
-char dataCustomMapsWithExclusiveGameMode[] = {
-  CUSTOM_MAP_SPLEEF,
-  CUSTOM_MAP_INFINITE_CLIMBER
-};
-const int dataCustomMapsWithExclusiveGameModeCount = sizeof(dataCustomMapsWithExclusiveGameMode)/sizeof(char);
 
 // gamemode override list item
-MenuElem_ListData_t dataCustomModes = {
-    &gameConfig.customModeId,
-    menuStateHandler_SelectedGameModeOverride,
-    CUSTOM_MODE_COUNT,
-    {
-      "None",
-      "Gun Game",
-      "Infected",
-      // "Infinite Climber",
-      "Payload",
-      "Search and Destroy",
-      "Survival",
-      "1000 Kills",
-      "Training",
-#if DEV
-      "Gridiron",
-      "Team Defenders",
-      "Anim Extractor",
+MenuElem_OrderedListData_t dataCustomModes = {
+  .value = &gameConfig.customModeId,
+  .stateHandler = menuStateHandler_SelectedGameModeOverride,
+#if RAIDS
+  .count = 15,
+#else
+  .count = 14,
 #endif
-    }
+  .items = {
+    { CUSTOM_MODE_NONE, "None" },
+    { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
+    //{ CUSTOM_MODE_BENCHMARK, "Benchmark" },
+    { CUSTOM_MODE_GRIDIRON, "DreadBall" },
+    { CUSTOM_MODE_GUN_GAME, "Gun Game" },
+    { CUSTOM_MODE_HNS, "Hide and Seek" },
+    { CUSTOM_MODE_INFECTED, "Infected" },
+    { CUSTOM_MODE_OBSTACLE, "Obstacle Course" },
+    { CUSTOM_MODE_OITC, "One in the Chamber" },
+    { CUSTOM_MODE_PAYLOAD, "Payload" },
+#if RAIDS
+    { CUSTOM_MODE_RAIDS, "Raids" },
+#endif
+    { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
+    { CUSTOM_MODE_TAG, "Tag" },
+    { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
+    { CUSTOM_MODE_TRAINING, "Training" },
+    { CUSTOM_MODE_SURVIVAL, "Zombie Survival" },
+#if DEV
+    { CUSTOM_MODE_ANIM_EXTRACTOR, "Anim Extractor" },
+#endif
+  }
 };
 
 // 
 const char* CustomModeShortNames[] = {
-  NULL,
-  NULL,
-  NULL,
-  //"Climber",
-  NULL,
-  "SND",
-  NULL,
-  NULL,
-  NULL,
+  [CUSTOM_MODE_NONE] NULL,
+  [CUSTOM_MODE_GUN_GAME] NULL,
+  [CUSTOM_MODE_HNS] NULL,
+  [CUSTOM_MODE_INFECTED] NULL,
+  [CUSTOM_MODE_PAYLOAD] NULL,
+  [CUSTOM_MODE_SEARCH_AND_DESTROY] "SND",
+  [CUSTOM_MODE_SURVIVAL] NULL,
+  [CUSTOM_MODE_1000_KILLS] NULL,
+  [CUSTOM_MODE_TRAINING] NULL,
+  [CUSTOM_MODE_TEAM_DEFENDER] NULL,
+  [CUSTOM_MODE_TAG] NULL,
+  [CUSTOM_MODE_RAIDS] "Raids",
+  [CUSTOM_MODE_OITC] NULL,
+  [CUSTOM_MODE_OBSTACLE] NULL,
+  //[CUSTOM_MODE_BENCHMARK] NULL,
+  [CUSTOM_MODE_GRIDIRON] NULL,
 #if DEV
-  NULL,
-  NULL,
-  NULL,
+  [CUSTOM_MODE_ANIM_EXTRACTOR] NULL,
 #endif
 };
 
-// survival difficulty
-/*
-MenuElem_ListData_t dataSurvivalDifficulty = {
-    &gameConfig.survivalConfig.difficulty,
-    NULL,
-    5,
-    {
-      "Couch Potato",
-      "Contestant",
-      "Gladiator",
-      "Hero",
-      "Exterminator"
-    }
-};
-*/
-
 // payload contest mode
 MenuElem_ListData_t dataPayloadContestMode = {
-    &gameConfig.payloadConfig.contestMode,
-    NULL,
-    3,
-    {
-      [PAYLOAD_CONTEST_OFF] "Off",
-      [PAYLOAD_CONTEST_SLOW] "Slow",
-      [PAYLOAD_CONTEST_STOP] "Stop"
-    }
+  .value = &gameConfig.payloadConfig.contestMode,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    [PAYLOAD_CONTEST_OFF] "Off",
+    [PAYLOAD_CONTEST_SLOW] "Slow",
+    [PAYLOAD_CONTEST_STOP] "Stop"
+  }
 };
 
 // training type
 MenuElem_ListData_t dataTrainingType = {
-    &gameConfig.trainingConfig.type,
-    NULL, //menuStateHandler_SelectedTrainingTypeOverride,
-    2,
-    {
-      "Fusion",
-      "Cycle",
-      "B6",
-    }
+  .value = &gameConfig.trainingConfig.type,
+  .stateHandler = NULL, //menuStateHandler_SelectedTrainingTypeOverride,
+  .count = TRAINING_TYPE_MAX,
+  .items = {
+    [TRAINING_TYPE_FUSION] "Fusion",
+    [TRAINING_TYPE_CYCLE] "Cycle",
+    [TRAINING_TYPE_RUSH] "Rushing",
+  }
 };
 
 // training variant
 MenuElem_ListData_t dataTrainingVariant = {
-  &gameConfig.trainingConfig.variant,
-  NULL,
-  2,
-  {
+  .value = &gameConfig.trainingConfig.variant,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
     "Ranked",
     "Endless"
   }
@@ -530,10 +549,10 @@ MenuElem_ListData_t dataTrainingVariant = {
 
 // training aggression
 MenuElem_ListData_t dataTrainingAggression = {
-  &gameConfig.trainingConfig.aggression,
-  menuStateHandler_SelectedTrainingAggressionOverride,
-  4,
-  {
+  .value = &gameConfig.trainingConfig.aggression,
+  .stateHandler = menuStateHandler_SelectedTrainingAggressionOverride,
+  .count = 4,
+  .items = {
     "Aggressive",
     "Aggressive No Damage",
     "Passive",
@@ -541,105 +560,174 @@ MenuElem_ListData_t dataTrainingAggression = {
   }
 };
 
+// payload contest mode
+MenuElem_ListData_t dataHnsHideDuration = {
+  .value = &gameConfig.hnsConfig.hideStageTime,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "30",
+    "60",
+    "90",
+    "120",
+  }
+};
+
 // player size list item
 MenuElem_ListData_t dataPlayerSize = {
-    &gameConfig.prPlayerSize,
-    NULL,
-    5,
-    {
-      "Normal",
-      "Large",
-      "Giant",
-      "Tiny",
-      "Small"
-    }
+  .value = &gameConfig.prPlayerSize,
+  .stateHandler = NULL,
+  .count = 5,
+  .items = {
+    "Normal",
+    "Large",
+    "Giant",
+    "Tiny",
+    "Small"
+  }
 };
 
 // headbutt damage list item
 MenuElem_ListData_t dataHeadbutt = {
-    &gameConfig.prHeadbutt,
-    NULL,
-    4,
-    {
-      "Off",
-      "Low Damage",
-      "Medium Damage",
-      "High Damage"
-    }
+  .value = &gameConfig.prHeadbutt,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "Off",
+    "Low Damage",
+    "Medium Damage",
+    "High Damage"
+  }
 };
 
 // weather override list item
 MenuElem_ListData_t dataWeather = {
-    &gameConfig.prWeatherId,
-    NULL,
-    17,
-    {
-      "None",
-      "Random",
-      "Dust Storm",
-      "Heavy Sand Storm",
-      "Light Snow",
-      "Blizzard",
-      "Heavy Rain",
-      "All Off",
-      "Green Mist",
-      "Meteor Lightning",
-      "Black Hole",
-      "Light Rain Lightning",
-      "Settling Smoke",
-      "Upper Atmosphere",
-      "Ghost Station",
-      "Embossed",
-      "Lightning Storm",
-    }
+  .value = &gameConfig.prWeatherId,
+  .stateHandler = NULL,
+  .count = 17,
+  .items = {
+    "None",
+    "Random",
+    "Dust Storm",
+    "Heavy Sand Storm",
+    "Light Snow",
+    "Blizzard",
+    "Heavy Rain",
+    "All Off",
+    "Green Mist",
+    "Meteor Lightning",
+    "Black Hole",
+    "Light Rain Lightning",
+    "Settling Smoke",
+    "Upper Atmosphere",
+    "Ghost Station",
+    "Embossed",
+    "Lightning Storm",
+  }
+};
+
+// radar short list item
+MenuElem_ListData_t dataRadarShortDistance = {
+  .value = &gameConfig.grRadarShortDistance,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "1x",
+    "2x",
+    "3x",
+    "4x"
+  }
 };
 
 // fusion reticule allow/disable list item
 MenuElem_ListData_t dataFusionReticule = {
-    &gameConfig.grNoSniperHelpers,
-    NULL,
-    2,
-    {
-      "Permitted",
-      "Disabled"
-    }
+  .value = &gameConfig.grNoSniperHelpers,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
+    "Permitted",
+    "Disabled"
+  }
+};
+
+// fusion scoping allow/disable list item
+MenuElem_ListData_t dataFusionScoping = {
+  .value = &gameConfig.grNoFusionADS,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
+    "Permitted",
+    "Disabled"
+  }
+};
+
+// healthbox list item
+MenuElem_ListData_t dataHealthBoxes = {
+  .value = &gameConfig.grNoHealthBoxes,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    "On",
+    "No Box",
+    "Off"
+  }
 };
 
 // vampire list item
 MenuElem_ListData_t dataVampire = {
-    &gameConfig.grVampire,
-    NULL,
-    4,
-    {
-      "Off",
-      "Quarter Heal",
-      "Half Heal",
-      "Full Heal",
-    }
+  .value = &gameConfig.grVampire,
+  .stateHandler = NULL,
+  .count = 4,
+  .items = {
+    "Off",
+    "Quarter Heal",
+    "Half Heal",
+    "Full Heal",
+  }
 };
 
 // v2s list item
 MenuElem_ListData_t dataV2s = {
-    &gameConfig.grV2s,
-    NULL,
-    3,
-    {
-      "On",
-      "Always",
-      "Off",
-    }
+  .value = &gameConfig.grV2s,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    "On",
+    "Always",
+    "Off",
+  }
+};
+
+// respawn override list item
+MenuElem_ListData_t dataRespawnOverride = {
+  .value = &gameConfig.grRespawnOverride,
+  .stateHandler = NULL,
+  .count = 11,
+  .items = {
+    "Off",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+  }
 };
 
 // presets list item
 MenuElem_ListData_t dataGameConfigPreset = {
-    &preset,
-    NULL,
-    3,
-    {
-      "None",
-      "Competitive",
-      "1v1",
-    }
+  .value = &preset,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    "None",
+    "Cycle",
+    "1v1",
+  }
 };
 
 // game settings tab menu items
@@ -647,66 +735,80 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
 
   // { "Game Settings", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps },
-  { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes },
-  { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset },
+  // { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
+  { "Gamemode override", gmOverrideListActionHandler, menuStateHandler_GameModeOverride, &dataCustomModes, "Change to one of the Horizon Custom Gamemodes." },
+  { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset, "Select one of the preconfigured game rule presets or manually set the custom game rules below." },
 
   // SURVIVAL SETTINGS
   // { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
 
   // PAYLOAD SETTINGS
-  { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode },
+  { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode, "Whether the payload will stop, slow, or move as normal when the defending team is near it." },
 
   // TRAINING SETTINGS
   { "Training Type", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingType },
-  { "Training Variant", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingVariant },
-  { "Bot Aggression", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingAggression },
+  { "Training Variant", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingVariant, "Switch between endless mode and a ranked 5 minute session. Leaderboards available in the Horizon discord." },
+  { "Bot Aggression", listActionHandler, menuStateHandler_TrainingSettingStateHandler, &dataTrainingAggression, "Configure bot behavior. Setting not configurable in ranked mode." },
+
+  // HNS SETTINGS
+  { "Hide Time", listActionHandler, menuStateHandler_HnsSettingStateHandler, &dataHnsHideDuration, "Time in seconds the hiders have to hide before the seekers can hunt for them." },
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Better flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags },
-  { "Better hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills },
-  { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime },
-  { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime },
-  { "CQ Save Capture Progress", toggleActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqPersistentCapture },
-  { "CQ Turrets", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableTurrets },
-  { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades },
-  { "Damage cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer },
-  { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit },
-  { "Fusion Reticule", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
-  { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars },
-  { "Healthboxes", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoHealthBoxes },
-  { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames },
-  { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s },
-  { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire },
-  { "Weapon packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks },
-  { "Weapon pickups", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPickups },
+  { "Better Flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags, "Moves flag and spawn locations on some vanilla maps to more enjoyable locations." },
+  { "Better Hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills, "Moves hill spawns on some vanilla maps to more enjoyable locations." },
+  { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime, "If a timelimit is set, each team will swap flag bases at half time." },
+  { "CTF Overtime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grOvertime, "If a timelimit is set, prevents the game from ending in a draw." },
+  { "CQ Save Capture Progress", toggleActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqPersistentCapture, "Stops nodes from unhacking themselves over time." },
+  { "CQ Turrets", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableTurrets, "Disables turrets around nodes." },
+  { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades, "Disables conquest node upgrades." },
+  { "Damage Cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer, "Disables the brief hit invincibility after taking damage." },
+  { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit, "Forces sniper shots that hit to register on every client. Can result in shots that appear to phase through walls." },
+  // { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
+  { "Fusion Scoping", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionScoping },
+  { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars, "Draws a healthbar above each player's nametag." },
+  { "Healthboxes", listActionHandler, menuStateHandler_SettingStateHandler, &dataHealthBoxes, "Whether health pickups are enabled, or if there is a box enclosure that must be broken first before picking up." },
+  { "Nametags", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoNames, "Disables in game nametags." },
+  { "New Player Sync", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNewPlayerSync, "Replaces the Insomniac player sync netcode with a better custom Horizon implementation. Reduces player teleporting, rubberbanding, and jittery movement. Known on rare occasions to freeze PS2s." },
+#if QUICKCHAT
+  { "Quick Chat", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grQuickChat, "Enables in game quick chat with the D-Pad." },
+#endif
+  { "Radar Short Distance", listActionHandler, menuStateHandler_SettingStateHandler, &dataRadarShortDistance, "When radar is Short, multiplies the distance that enemies will appear on the radar." },
+  { "Radar Short Shared", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFogOfWarRadar, "When radar is Short, enemies will appear on your radar when teammates are near them." },
+  { "Respawn Override", listActionHandler, menuStateAlwaysEnabledHandler, &dataRespawnOverride, "Overrides Create Game screen Respawn Time to the configured value (in seconds)." },
+  { "UYA Lagjump", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grLagjump, "Enables UYA-style lagjumping (R2 + X)." },
+  { "V2s", listActionHandler, menuStateHandler_SettingStateHandler, &dataV2s, "Configures V2 weapon upgrades to be disabled, on (default), or always on (spawn with v2 weapons)." },
+  { "Vampire", listActionHandler, menuStateHandler_SettingStateHandler, &dataVampire, "Earn health for each kill." },
+  { "Weapon Packs", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPacks, "Toggle in game weapon packs." },
+  { "Weapon Pickups", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPickups, "Toggle in game weapon pickups." },
 
   // PARTY RULES
   { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Chargeboot Forever", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prChargebootForever },
-  { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt },
-  { "Headbutt Friendly Fire", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbuttFriendlyFire },
-  { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prMirrorWorld },
-  { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize },
-  { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons },
-  { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather },
+  { "Chargeboot Forever", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prChargebootForever, "Double tap and hold L2 to chargeboot forever." },
+  { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt, "Deal damage by chargebooting into other players." },
+  { "Headbutt Friendly Fire", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbuttFriendlyFire, "Toggle dealing headbutt damage to teammates." },
+  { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prMirrorWorld, "Enables the mirror world cheat. Currently broken in DZO." },
+  { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize, "Changes the size of the player model." },
+  { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons, "Periodically equips the same random, enabled weapon for all players." },
+  { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather, "Enables the weather cheat code." },
 
   // DEV RULES
   { "Dev Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
-  { "Freecam", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drFreecam },
+  { "Freecam", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drFreecam, "Enables freecam mod. Use D-Pad Up and L1 to activate." },
+  { "Don't Save Stats", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drNoRank, "When enabled, stats like Rank, Kills, Deaths, etc will not be saved after this game." },
+  { "Reload Custom Map", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drLevelReload, "When enabled, pressing L1 + Up + Circle will reload the custom map." },
 };
 
-// custom map tab menu items
-MenuElem_t menuElementsCustomMap[] = {
-  { "", labelActionHandler, menuStateHandler_InstalledCustomMaps, (void*)LABELTYPE_HEADER },
-  { "To play on custom maps you must first go to", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "rac-horizon.com and download the maps.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "Then install the map files onto a USB drive", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "and insert it into your PS2.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "Finally install the custom maps modules here.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "Install custom map modules", buttonActionHandler, menuStateHandler_InstallCustomMaps, mapsSelectHandler },
-  //{ "Check for map updates", buttonActionHandler, menuStateHandler_CheckForUpdatesCustomMaps, downloadMapUpdatesSelectHandler },
+// game settings tab menu items
+MenuElem_t menuElementsGameSettingsHelp[] = {
+  { "", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
+  { "Please create a game to configure", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
+  { "the custom game settings.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
+};
+
+// game settings tab menu items
+MenuElem_t menuElementsGameSettingsCustomMaps[] = {
+  { "Map override", listVerticalActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
 };
 
 #if MAPEDITOR
@@ -716,13 +818,13 @@ extern int mapEditorRespawnState;
 
 // map editor enabled list item
 MenuElem_ListData_t dataMapEditor = {
-    &mapEditorState,
-    NULL,
-    2,
-    {
-      "Off",
-      "Spawn Points",
-    }
+  .value = &mapEditorState,
+  .stateHandler = NULL,
+  .count = 2,
+  .items = {
+    "Off",
+    "Spawn Points",
+  }
 };
 
 // map editor tab menu items
@@ -740,14 +842,14 @@ TabElem_t tabElements[] = {
   { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter)/sizeof(MenuElem_t) },
 #endif
   { "Game Settings", tabGameSettingsStateHandler, menuElementsGameSettings, sizeof(menuElementsGameSettings)/sizeof(MenuElem_t) },
-  { "Custom Maps", tabCustomMapStateHandler, menuElementsCustomMap, sizeof(menuElementsCustomMap)/sizeof(MenuElem_t) },
+  { "Game Settings", tabGameSettingsHelpStateHandler, menuElementsGameSettingsHelp, sizeof(menuElementsGameSettingsHelp)/sizeof(MenuElem_t) },
+  { "Custom Maps", tabGameSettingsStateHandler, menuElementsGameSettingsCustomMaps, sizeof(menuElementsGameSettingsCustomMaps)/sizeof(MenuElem_t) },
 #if MAPEDITOR
   { "Map Editor", tabDefaultStateHandler, menuElementsMapEditor, sizeof(menuElementsMapEditor)/sizeof(MenuElem_t) },
 #endif
 };
 
 const int tabsCount = sizeof(tabElements)/sizeof(TabElem_t);
-
 
 // 
 void tabDefaultStateHandler(TabElem_t* tab, int * state)
@@ -762,6 +864,20 @@ void tabFreecamStateHandler(TabElem_t* tab, int * state)
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
   else
     *state = ELEMENT_HIDDEN;
+}
+
+// 
+void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  refreshCustomMapList();
+  
+  // popup
+  if (isInMenus())
+  {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Found %d maps", customMapDefCount);
+    uiShowOkDialog("Custom Maps", buf);
+  }
 }
 
 // 
@@ -786,7 +902,7 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
   GameSettings * gameSettings = gameGetSettings();
   if (!gameSettings)
   {
-    *state = ELEMENT_VISIBLE;
+    *state = ELEMENT_HIDDEN;
   }
 #if !DEBUG
   // if game has started or not the host, disable editing
@@ -798,6 +914,29 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
   else
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+  }
+#endif
+
+}
+
+// 
+void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state)
+{
+
+#if COMP
+
+  *state = ELEMENT_HIDDEN;
+
+#else
+
+  GameSettings * gameSettings = gameGetSettings();
+  if (!gameSettings)
+  {
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+  }
+  else
+  {
+    *state = ELEMENT_HIDDEN;
   }
 #endif
 
@@ -816,7 +955,7 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state)
   }
 }
 
-#ifdef DEBUG
+#ifdef RELOADPATCH
 
 // 
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
@@ -830,12 +969,16 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
 }
 
+#endif
+
+#ifdef DEBUG
+
 // 
 void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   ClientRequestBootElf_t request;
   request.BootElfId = 1;
-  
+
   // close menu
   configMenuDisable();
 
@@ -882,21 +1025,32 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   preset = 0;
   memset(&gameConfig, 0, sizeof(gameConfig));
+  patchStateContainer.SelectedCustomMapId = 0;
 }
 
 // 
 void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
-  ClientRequestBootElf_t request;
-  request.BootElfId = 1;
-  
   // close menu
   configMenuDisable();
 
-  // send request
-  void * lobbyConnection = netGetLobbyServerConnection();
-  if (lobbyConnection)
-    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
+  // prompt
+  if (uiShowYesNoDialog("Are you sure?", "Launching the map downloader will exit the game.") == 1) {
+    ClientRequestBootElf_t request;
+    request.BootElfId = 0;
+    
+    // send request
+    void * lobbyConnection = netGetLobbyServerConnection();
+    if (lobbyConnection)
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
+  }
+}
+
+// 
+void voteToEndSelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  sendClientVoteForEnd();
+  configMenuDisable();
 }
 
 //------------------------------------------------------------------------------
@@ -918,18 +1072,43 @@ void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* sta
 }
 
 // 
+void menuStateEnabledInMenusHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (isInMenus()) *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
+  else *state = ELEMENT_HIDDEN;
+}
+
+// 
 void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
-  if (CLIENT_TYPE_DZO == PATCH_POINTERS_CLIENT)
+  if (CLIENT_TYPE_DZO == PATCH_INTEROP->Client)
     *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
   else
     *state = ELEMENT_HIDDEN;
 }
 
 // 
+void menuStateDzoDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (CLIENT_TYPE_DZO == PATCH_INTEROP->Client)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
+}
+
+// 
 void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (!scavHuntEnabled)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
 // 
@@ -976,7 +1155,7 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 }
 
 // 
-int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value)
+int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, char* value)
 {
   int i;
   if (!value)
@@ -987,79 +1166,141 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
 
   switch (gm)
   {
+    // case CUSTOM_MODE_BENCHMARK:
+    // {
+    //   for (i = 0; i < customMapDefCount; ++i) {
+    //     if (strcmp("benchmark", customMapDefs[i].Filename) == 0) {
+    //       if (v == (i+1)) return 1;
+          
+    //       *value = i+1;
+    //       return 0;
+    //     }
+    //   }
+      
+    //   *value = 0;
+    //   return 0;
+    // }
+    case CUSTOM_MODE_RAIDS:
+    {
+      // accept if selected map is raids
+      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[v-1].Filename, "raids_hub", sizeof(customMapDefs[v-1].Filename)) == 0)
+        return 1;
+
+      // force raids hub map
+      for (i = 0; i < customMapDefCount; ++i) {
+        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[i].Filename, "raids_hub", sizeof(customMapDefs[i].Filename)) == 0) {
+          *value = i+1;
+          return 0;
+        }
+      }
+
+      // reset
+      *value = 0;
+      return 0;
+    }
     case CUSTOM_MODE_SURVIVAL:
     {
 #if DEBUG
-      return 1;
+      //return 1;
 #endif
-      if (v >= CUSTOM_MAP_SURVIVAL_START && v <= CUSTOM_MAP_SURVIVAL_END)
+
+      // accept if selected map is survival
+      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL)
         return 1;
 
-      *value = CUSTOM_MAP_SURVIVAL_START;
+      // force first survival map
+      for (i = 0; i < customMapDefCount; ++i) {
+        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
+          *value = i+1;
+          return 0;
+        }
+      }
+
+      // reset
+      *value = 0;
+      return 0;
+    }
+    case CUSTOM_MODE_OBSTACLE:
+    {
+      #if DEBUG
+        //return 1;
+      #endif
+      
+      // accept if selected map is obstacle
+      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_OBSTACLE)
+        return 1;
+
+      // force first obstacle map
+      for (i = 0; i < customMapDefCount; ++i) {
+        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_OBSTACLE) {
+          *value = i+1;
+          return 0;
+        }
+      }
+
+      // reset
+      *value = 0;
       return 0;
     }
     case CUSTOM_MODE_SEARCH_AND_DESTROY:
     {
       // supported custom maps
-      switch (v)
-      {
-        case CUSTOM_MAP_BAKISI_ISLES:
-        case CUSTOM_MAP_CANAL_CITY:
-        case CUSTOM_MAP_GHOST_HANGAR:
-        case CUSTOM_MAP_GHOST_SHIP:
-        case CUSTOM_MAP_HOVEN_GORGE:
-        case CUSTOM_MAP_KORGON_OUTPOST:
-        case CUSTOM_MAP_METROPOLIS_MP:
-        case CUSTOM_MAP_MINING_FACILITY_SP:
-        case CUSTOM_MAP_SHAAR_SP:
-        case CUSTOM_MAP_SNIVELAK:
-        case CUSTOM_MAP_TORVAL_LOST_FACTORY:
-        case CUSTOM_MAP_TORVAL_SP:
-        case CUSTOM_MAP_TYHRRANOSIS:
-        case CUSTOM_MAP_NONE:
-          return 1;
-      }
+      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << CUSTOM_MODE_SEARCH_AND_DESTROY)) != 0)
+        return 1;
 
-      *value = CUSTOM_MAP_NONE;
+      if (v == 0) return 1;
+
+      *value = 0;
       return 0;
     }
     case CUSTOM_MODE_PAYLOAD:
     {
-      if (v == CUSTOM_MAP_SNIVELAK || v == CUSTOM_MAP_NONE)
+      // supported custom maps
+      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << CUSTOM_MODE_PAYLOAD)) != 0)
         return 1;
 
-      *value = CUSTOM_MAP_SNIVELAK;
+      if (v == 0) return 1;
+
+      *value = 0;
       return 0;
     }
     case CUSTOM_MODE_TRAINING:
     {
-      *value = CUSTOM_MAP_NONE;
+      // endless cycle supports custom maps
+      if ((gameConfig.trainingConfig.type == TRAINING_TYPE_CYCLE || gameConfig.trainingConfig.type == TRAINING_TYPE_RUSH) && gameConfig.trainingConfig.variant != 0) {
+        if (v && customMapDefs[v-1].ForcedCustomModeId) {
+          *value = 0;
+          return 0;
+        }
+
+        return 1;
+      }
+
+      *value = 0;
       return 0;
     }
     default:
     {
 #if DEBUG
-      return 1;
+      //return 1;
 #endif
 
       // hide maps with gamemode override
       if (gm > CUSTOM_MODE_NONE)
       {
-        for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
+        if (v && customMapDefs[v-1].ForcedCustomModeId && customMapDefs[v-1].ForcedCustomModeId != gm)
         {
-          if (v == dataCustomMapsWithExclusiveGameMode[i])
-          {
-            *value = CUSTOM_MAP_NONE;
-            return 0;
-          }
+          *value = 0;
+          return 0;
         }
       }
 
-      if (v < CUSTOM_MAP_SURVIVAL_START)
-        return 1;
-      
-      *value = CUSTOM_MAP_NONE;
-      return 0;
+      if (v && customMapDefs[v-1].ForcedCustomModeId > 0) {
+        *value = 0;
+        return 0;
+      }
+
+      return 1;
     }
   }
 }
@@ -1071,13 +1312,9 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 
   // hide gamemode for maps with exclusive gamemode
 #if !DEBUG
-  for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
-  {
-    if (gameConfig.customMapId == dataCustomMapsWithExclusiveGameMode[i])
-    {
-      *state = ELEMENT_HIDDEN;
-      return;
-    }
+  if (patchStateContainer.SelectedCustomMapId && customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId < 0) {
+    *state = ELEMENT_HIDDEN;
+    return;
   }
 #endif
 
@@ -1085,7 +1322,7 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
 }
 
 // 
-int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, char* value)
+int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value)
 {
   if (!value)
     return 0;
@@ -1102,7 +1339,10 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
       //case CUSTOM_MODE_INFINITE_CLIMBER:
       case CUSTOM_MODE_1000_KILLS:
       case CUSTOM_MODE_SURVIVAL:
+      case CUSTOM_MODE_RAIDS:
       case CUSTOM_MODE_PAYLOAD:
+      case CUSTOM_MODE_HNS:
+      case CUSTOM_MODE_TEAM_DEFENDER:
       {
         if (gs->GameRules == GAMERULE_DM)
           return 1;
@@ -1120,15 +1360,13 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
       }
       case CUSTOM_MODE_TRAINING:
       {
-        if (gs->GameRules == GAMERULE_DM || gs->GameRules == GAMERULE_KOTH)
+        if (gs->GameRules == GAMERULE_DM || gs->GameRules == GAMERULE_KOTH || gs->GameRules == GAMERULE_CTF)
           return 1;
 
         *value = CUSTOM_MODE_NONE;
         return 0;
       }
-#if DEV
       case CUSTOM_MODE_GRIDIRON:
-      case CUSTOM_MODE_TEAM_DEFENDER:
       {
         if (gs->GameRules == GAMERULE_CTF)
           return 1;
@@ -1136,7 +1374,14 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_ListData_t* listData, cha
         *value = CUSTOM_MODE_NONE;
         return 0;
       }
-#endif
+      case CUSTOM_MODE_TAG:
+      {
+        if (gs->GameRules == GAMERULE_KOTH)
+          return 1;
+          
+        *value = CUSTOM_MODE_NONE;
+        return 0;
+      }
     }
   }
 
@@ -1171,6 +1416,14 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
           return 1;
 
         *value = TRAINING_TYPE_CYCLE;
+        return 0;
+      }
+      case GAMERULE_CTF:
+      {
+        if (v == TRAINING_TYPE_RUSH)
+          return 1;
+
+        *value = TRAINING_TYPE_RUSH;
         return 0;
       }
     }
@@ -1219,6 +1472,17 @@ int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* lis
 
       return 1;
     }
+    case TRAINING_TYPE_RUSH:
+    {
+      // if ranked variant, force aggro
+      if (gameConfig.trainingConfig.variant == 0)
+      {
+        *value = TRAINING_AGGRESSION_AGGRO;
+        return 0;
+      }
+
+      return 1;
+    }
   }
 
   return 0;
@@ -1248,6 +1512,15 @@ void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* el
   GameSettings* gs = gameGetSettings();
 
   if (gameConfig.customModeId != CUSTOM_MODE_TRAINING)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  if (gameConfig.customModeId != CUSTOM_MODE_HNS)
     *state = ELEMENT_HIDDEN;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
@@ -1308,6 +1581,37 @@ void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, i
 {
   if (preset)
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+  int i = 0;
+  
+  if (isInGame()) {
+    Player* p = playerGetFromSlot(0);
+    if (p) {
+      *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
+      if (!voteToEndState.Votes[p->PlayerId]) *state |= ELEMENT_EDITABLE;
+      return;
+    }
+  }
+  
+  *state = ELEMENT_HIDDEN;
+}
+
+// 
+void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  GameSettings* gs = gameGetSettings();
+  int i = 0;
+  int hidden = CLIENT_TYPE_DZO == PATCH_INTEROP->Client || isInGame();
+  
+  if (hidden)
+    *state = ELEMENT_HIDDEN;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
@@ -1418,6 +1722,67 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
 }
 
 //------------------------------------------------------------------------------
+void drawListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, int drawIdx, int itemIdx, RECT* rect)
+{
+  RECT r;
+  memcpy(&r, rect, sizeof(r));
+  float yOff = drawIdx * LINE_HEIGHT;
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  int isSelectedIdx = (int)*listData->value == itemIdx;
+  float x,y;
+  float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
+  u32 color = colorLerp(colorText, 0, lerp);
+
+  // draw name
+  if (drawIdx == 0) {
+    x = (r.TopLeft[0] * SCREEN_WIDTH) + 5;
+    y = ((r.TopLeft[1] + r.BottomLeft[1]) * 0.5 * SCREEN_HEIGHT) + 5;
+    gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
+  }
+
+  // draw value
+  x = (r.TopRight[0] * SCREEN_WIDTH) - 5;
+  y = ((r.TopLeft[1] + yOff) * SCREEN_HEIGHT) + 5;
+  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT);
+}
+
+//------------------------------------------------------------------------------
+void drawOrderedListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_OrderedListData_t * listData, RECT* rect)
+{
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  int selectedIdx = (int)*listData->value;
+  if (selectedIdx < 0)
+    selectedIdx = 0;
+  
+  float x,y;
+  float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
+  u32 color = colorLerp(colorText, 0, lerp);
+
+  // draw name
+  x = (rect->TopLeft[0] * SCREEN_WIDTH) + 5;
+  y = (rect->TopLeft[1] * SCREEN_HEIGHT) + 5;
+  gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
+
+  // find name
+  int i;
+  for (i = 0; i < listData->count; ++i) {
+    if (listData->items[i].value == selectedIdx) break;
+  }
+
+  // invalid
+  if (i >= listData->count) return;
+
+  // draw value
+  x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
+  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[i].name, -1, 2);
+}
+
+//------------------------------------------------------------------------------
 void drawButtonMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
 {
   // get element state
@@ -1473,6 +1838,48 @@ void drawLabelMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
 }
 
 //------------------------------------------------------------------------------
+void listVerticalInput(TabElem_t* tab)
+{
+  int i;
+  if (!tab)
+    return;
+
+  MenuElem_t *currentElement = &tab->elements[tab->selectedMenuItemIdx];
+  int state = getMenuElementState(tab, currentElement);
+
+  // nav page down
+  if (padGetButtonUp(0, PAD_RIGHT) > 0)
+  {
+    for (i = 0; i < 5; ++i)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
+  }
+  // nav up
+  else if (padGetButtonUp(0, PAD_LEFT) > 0)
+  {
+    for (i = 0; i < 5; ++i)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
+  }
+  // nav select secondary
+  else if (padGetButtonDown(0, PAD_SQUARE) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT_SECONDARY, NULL);
+  }
+  // nav inc
+  else if (padGetButtonUp(0, PAD_DOWN) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
+  }
+  // nav dec
+  else if (padGetButtonUp(0, PAD_UP) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
+  }
+}
+
+//------------------------------------------------------------------------------
 void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
 {
   // get element state
@@ -1501,6 +1908,16 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     case ACTIONTYPE_DRAW:
     {
       drawButtonMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1538,6 +1955,16 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     case ACTIONTYPE_DRAW:
     {
       drawLabelMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1595,10 +2022,20 @@ void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
       drawRangeMenuElement(tab, element, rangeData, (RECT*)actionArg);
       break;
     }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
     case ACTIONTYPE_VALIDATE:
     {
       if (rangeData->stateHandler != NULL)
         rangeData->stateHandler(rangeData, rangeData->value);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1668,15 +2105,262 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
       drawListMenuElement(tab, element, listData, (RECT*)actionArg);
       break;
     }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
     case ACTIONTYPE_VALIDATE:
     {
       if (listData->stateHandler != NULL)
         listData->stateHandler(listData, listData->value);
       break;
     }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
+      break;
+    }
   }
 }
 
+//------------------------------------------------------------------------------
+void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+{
+  MenuElem_OrderedListData_t* listData = (MenuElem_OrderedListData_t*)element->userdata;
+  int itemCount = listData->count;
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  // do nothing if hidden
+  if ((state & ELEMENT_VISIBLE) == 0)
+    return;
+
+  switch (actionType)
+  {
+    case ACTIONTYPE_INCREMENT:
+    case ACTIONTYPE_SELECT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char value = *listData->value;
+
+      int index = 0;
+      for (index = 0; index < listData->count; ++index) {
+        if (listData->items[index].value == value) {
+          break;
+        }
+      }
+
+      int startIndex = index;
+      do
+      {
+        index += 1;
+        if (index >= listData->count)
+          index = 0;
+        char tValue = listData->items[index].value;
+        if (listData->items[index].name && (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue)))
+          break;
+      } while (index != startIndex);
+
+      *listData->value = listData->items[index].value;
+      break;
+    }
+    case ACTIONTYPE_DECREMENT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char value = *listData->value;
+
+      int index = 0;
+      for (index = 0; index < listData->count; ++index) {
+        if (listData->items[index].value == value) {
+          break;
+        }
+      }
+
+      int startIndex = index;
+      do
+      {
+        index -= 1;
+        if (index < 0)
+          index = listData->count - 1;
+        char tValue = listData->items[index].value;
+        if (listData->items[index].name && (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue)))
+          break;
+      } while (index != startIndex);
+
+      *listData->value = listData->items[index].value;
+      break;
+    }
+    case ACTIONTYPE_GETHEIGHT:
+    {
+      *(float*)actionArg = LINE_HEIGHT;
+      break;
+    }
+    case ACTIONTYPE_DRAW:
+    {
+      drawOrderedListMenuElement(tab, element, listData, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_VALIDATE:
+    {
+      if (listData->stateHandler != NULL)
+        listData->stateHandler(listData, listData->value);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
+      break;
+    }
+  }
+}
+
+int listFindNextValidValue(MenuElem_ListData_t* listData, int currentValue, int direction)
+{
+  char newValue = currentValue;
+
+  do
+  {
+    newValue += direction;
+    if (newValue < 0) newValue += listData->count;
+    if (newValue >= listData->count) newValue = 0;
+
+    char tValue = newValue;
+    if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
+      break;
+  } while (newValue != currentValue);
+
+  return newValue;
+}
+
+//------------------------------------------------------------------------------
+void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+{
+  MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
+  int itemCount = listData->count;
+  int itemsToDraw = (&tab->elements[tab->selectedMenuItemIdx] == element) ? (listData->rows ? listData->rows : 5) : 1;
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+
+  // do nothing if hidden
+  if ((state & ELEMENT_VISIBLE) == 0)
+    return;
+
+  switch (actionType)
+  {
+    case ACTIONTYPE_INCREMENT:
+    case ACTIONTYPE_SELECT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char newValue = *listData->value;
+
+      do
+      {
+        newValue += 1;
+        if (newValue >= itemCount)
+          newValue = 0;
+        char tValue = newValue;
+        if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
+          break;
+      } while (newValue != *listData->value);
+
+      *listData->value = newValue;
+      break;
+    }
+    case ACTIONTYPE_DECREMENT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0)
+        break;
+      char newValue = *listData->value;
+
+      do
+      {
+        newValue -= 1;
+        if (newValue < 0)
+          newValue = itemCount - 1;
+        char tValue = newValue;
+        if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
+          break;
+      } while (newValue != *listData->value);
+
+      *listData->value = newValue;
+      break;
+    }
+    case ACTIONTYPE_SELECT_SECONDARY:
+    {
+      *listData->value = 0;
+      break;
+    }
+    case ACTIONTYPE_GETHEIGHT:
+    {
+      *(float*)actionArg = LINE_HEIGHT * itemsToDraw;
+      break;
+    }
+    case ACTIONTYPE_DRAW:
+    {
+      int i;
+      int itemCount = listData->count;
+      int halfToDraw = itemsToDraw / 2;
+      int roll = 0;
+      int lastIdx = *listData->value;
+
+      // draw items up
+      for (i = 0; i < halfToDraw; ++i) {
+        lastIdx = listFindNextValidValue(listData, lastIdx, -1);
+        drawListVerticalMenuElement(tab, element, listData, halfToDraw - i - 1, lastIdx, (RECT*)actionArg);
+      }
+      
+      // draw selected item
+      lastIdx = *listData->value;
+      drawListVerticalMenuElement(tab, element, listData, halfToDraw, lastIdx, (RECT*)actionArg);
+      ++i;
+
+      // draw items down
+      for (; i < itemsToDraw; ++i) {
+        lastIdx = listFindNextValidValue(listData, lastIdx, 1);
+        drawListVerticalMenuElement(tab, element, listData, i, lastIdx, (RECT*)actionArg);
+      }
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      RECT r;
+      memcpy(&r, (RECT*)actionArg, sizeof(r));
+      float y = r.TopLeft[1] + (itemsToDraw / 2) * LINE_HEIGHT;
+
+      r.TopLeft[1] = y;
+      r.TopRight[1] = y;
+      r.BottomLeft[1] = y + LINE_HEIGHT;
+      r.BottomRight[1] = y + LINE_HEIGHT;
+
+      gfxScreenSpaceQuad(&r, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_VALIDATE:
+    {
+      if (listData->stateHandler != NULL)
+        listData->stateHandler(listData, listData->value);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      listVerticalInput(tab);
+      break;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
 {
   // update name to be based on current gamemode
@@ -1685,7 +2369,7 @@ void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int action
     snprintf(element->name, 40, "%s override", gameGetGameModeName(gs->GameRules));
 
   // pass to default list action handler
-  listActionHandler(tab, element, actionType, actionArg);
+  orderedListActionHandler(tab, element, actionType, actionArg);
 }
 
 //------------------------------------------------------------------------------
@@ -1719,6 +2403,16 @@ void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int action
     case ACTIONTYPE_DRAW:
     {
       drawToggleInvertedMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1755,6 +2449,16 @@ void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     case ACTIONTYPE_DRAW:
     {
       drawToggleMenuElement(tab, element, (RECT*)actionArg);
+      break;
+    }
+    case ACTIONTYPE_DRAW_HIGHLIGHT:
+    {
+      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      break;
+    }
+    case ACTIONTYPE_INPUT:
+    {
+      tabInput(tab);
       break;
     }
   }
@@ -1820,89 +2524,15 @@ void drawFrame(void)
   }
 }
 
-
 //------------------------------------------------------------------------------
-void drawTab(TabElem_t* tab)
+void tabInput(TabElem_t* tab)
 {
+  int i;
   if (!tab)
     return;
 
-  int i = 0, state = 0;
-  int menuElementRenderEnd = tab->menuOffset;
-  MenuElem_t * menuElements = tab->elements;
-	int menuElementsCount = tab->elementsCount;
-  MenuElem_t* currentElement;
-
-  float contentX = frameX + contentPaddingX;
-  float contentY = frameY + frameTitleH + tabBarH + contentPaddingY;
-  float contentW = frameW - (contentPaddingX * 2);
-  float contentH = frameH - frameTitleH - tabBarH - frameFooterH - (contentPaddingY * 2);
-  RECT drawRect = {
-    { contentX, contentY },
-    { contentX + contentW, contentY },
-    { contentX, contentY },
-    { contentX + contentW, contentY }
-  };
-
-  // draw items
-  for (i = tab->menuOffset; i < menuElementsCount; ++i)
-  {
-    currentElement = &menuElements[i];
-    float itemHeight = 0;
-    currentElement->handler(tab, currentElement, ACTIONTYPE_GETHEIGHT, &itemHeight);
-
-    // ensure item is within content bounds
-    if ((drawRect.BottomLeft[1] + itemHeight) > (contentY + contentH))
-      break;
-
-    // set rect to height
-    drawRect.BottomLeft[1] = drawRect.TopLeft[1] + itemHeight;
-    drawRect.BottomRight[1] = drawRect.TopRight[1] + itemHeight;
-
-    // draw selection
-    if (i == tab->selectedMenuItem) {
-      state = getMenuElementState(tab, currentElement);
-      if (state & ELEMENT_SELECTABLE) {
-        gfxScreenSpaceQuad(&drawRect, colorSelected, colorSelected, colorSelected, colorSelected);
-      }
-    }
-
-    // draw
-    currentElement->handler(tab, currentElement, ACTIONTYPE_DRAW, &drawRect);
-
-    // increment rect
-    drawRect.TopLeft[1] += itemHeight;
-    drawRect.TopRight[1] += itemHeight;
-
-    menuElementRenderEnd = i + 1;
-  }
-  
-  // draw scroll bar
-  if (tab->menuOffset > 0 || menuElementRenderEnd < menuElementsCount)
-  {
-    float scrollValue = tab->menuOffset / (float)(menuElementsCount - (menuElementRenderEnd-tab->menuOffset));
-    float scrollBarHeight = 0.05;
-    float contentRectHeight = contentH - scrollBarHeight;
-
-    gfxScreenSpaceBox(contentX + contentW, contentY + (scrollValue * contentRectHeight), 0.01, scrollBarHeight, colorRed);
-  }
-
-  // 
-  if (tab->selectedMenuItem >= menuElementRenderEnd)
-    ++tab->menuOffset;
-  if (tab->selectedMenuItem < tab->menuOffset)
-    tab->menuOffset = tab->selectedMenuItem;
-
-  // get selected element
-  if (tab->selectedMenuItem >= menuElementsCount)
-    return;
-
-  currentElement = &menuElements[tab->selectedMenuItem];
-  state = getMenuElementState(tab, currentElement);
-
-  // find next selectable item if hidden or not selectable
-  if ((state & ELEMENT_VISIBLE) == 0 || (state & ELEMENT_SELECTABLE) == 0)
-    navMenu(tab, 1, 1);
+  MenuElem_t *currentElement = &tab->elements[tab->selectedMenuItemIdx];
+  int state = getMenuElementState(tab, currentElement);
 
   // nav down
   if (padGetButtonUp(0, PAD_DOWN) > 0)
@@ -1950,6 +2580,130 @@ void drawTab(TabElem_t* tab)
     if (state & ELEMENT_EDITABLE)
       currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
   }
+}
+
+//------------------------------------------------------------------------------
+void drawTab(TabElem_t* tab)
+{
+  if (!tab)
+    return;
+
+  static int helpLastItemIdx = -1;
+  static int helpItemCooldown1 = 0;
+  static int helpItemCooldown2 = 0;
+  static float helpLastXOffset = 0;
+
+  int i = 0, state = 0;
+  int menuElementRenderEnd = tab->menuOffset;
+  MenuElem_t * menuElements = tab->elements;
+	int menuElementsCount = tab->elementsCount;
+  MenuElem_t* currentElement;
+
+  float contentX = frameX + contentPaddingX;
+  float contentY = frameY + frameTitleH + tabBarH + contentPaddingY;
+  float contentW = frameW - (contentPaddingX * 2);
+  float contentH = frameH - frameTitleH - tabBarH - frameFooterH - (contentPaddingY * 2);
+  RECT drawRect = {
+    { contentX, contentY },
+    { contentX + contentW, contentY },
+    { contentX, contentY },
+    { contentX + contentW, contentY }
+  };
+
+  // draw items
+  for (i = tab->menuOffset; i < menuElementsCount; ++i)
+  {
+    currentElement = &menuElements[i];
+    float itemHeight = 0;
+    currentElement->handler(tab, currentElement, ACTIONTYPE_GETHEIGHT, &itemHeight);
+
+    // ensure item is within content bounds
+    if ((drawRect.BottomLeft[1] + itemHeight) > (contentY + contentH))
+      break;
+
+    // set rect to height
+    drawRect.BottomLeft[1] = drawRect.TopLeft[1] + itemHeight;
+    drawRect.BottomRight[1] = drawRect.TopRight[1] + itemHeight;
+
+    // draw selection
+    if (i == tab->selectedMenuItemIdx) {
+      state = getMenuElementState(tab, currentElement);
+      if (state & ELEMENT_SELECTABLE) {
+        currentElement->handler(tab, currentElement, ACTIONTYPE_DRAW_HIGHLIGHT, &drawRect);
+
+        // draw help text
+        if (currentElement->help && strlen(currentElement->help) > 0) {
+
+          if (i != helpLastItemIdx) {
+            helpLastItemIdx = i;
+            helpLastXOffset = 0;
+            helpItemCooldown1 = 60 * 3;
+            helpItemCooldown2 = 60 * 6;
+          }
+
+          // draw background
+          gfxScreenSpaceBox(frameX, frameY + frameH - 1.0/SCREEN_HEIGHT, frameW, LINE_HEIGHT, 0x80000000);
+
+          // set scissor
+          gfxSetScissor(
+            frameX * SCREEN_WIDTH,
+            (frameX + frameW) * SCREEN_WIDTH,
+            (frameY + frameH) * SCREEN_HEIGHT,
+            (frameY + frameH + LINE_HEIGHT) * SCREEN_HEIGHT);
+          
+          // get width
+          float w = gfxGetFontWidth(currentElement->help, -1, 1) / (float)SCREEN_WIDTH;
+          if (helpItemCooldown1) --helpItemCooldown1;
+          else if ((helpLastXOffset + w + contentPaddingX*2) >= frameW) helpLastXOffset -= 0.002;
+          else if (helpItemCooldown2) --helpItemCooldown2;
+          else { helpItemCooldown1 = 60 * 3; helpItemCooldown2 = 60 * 6; helpLastXOffset = 0; }
+          gfxScreenSpaceText((frameX + contentPaddingX + helpLastXOffset) * SCREEN_WIDTH, (frameY + frameH) * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, currentElement->help, -1, 0);
+
+          // reset scissor
+          gfxSetScissor(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);
+        }
+      }
+    }
+
+    // draw
+    currentElement->handler(tab, currentElement, ACTIONTYPE_DRAW, &drawRect);
+
+    // increment rect
+    drawRect.TopLeft[1] += itemHeight;
+    drawRect.TopRight[1] += itemHeight;
+
+    menuElementRenderEnd = i + 1;
+  }
+  
+  // draw scroll bar
+  if (tab->menuOffset > 0 || menuElementRenderEnd < menuElementsCount)
+  {
+    float scrollValue = tab->menuOffset / (float)(menuElementsCount - (menuElementRenderEnd-tab->menuOffset));
+    float scrollBarHeight = 0.05;
+    float contentRectHeight = contentH - scrollBarHeight;
+
+    gfxScreenSpaceBox(contentX + contentW, contentY + (scrollValue * contentRectHeight), 0.01, scrollBarHeight, colorRed);
+  }
+
+  // 
+  if (tab->selectedMenuItemIdx >= menuElementRenderEnd)
+    ++tab->menuOffset;
+  if (tab->selectedMenuItemIdx < tab->menuOffset)
+    tab->menuOffset = tab->selectedMenuItemIdx;
+
+  // get selected element
+  if (tab->selectedMenuItemIdx >= menuElementsCount)
+    return;
+
+  currentElement = &menuElements[tab->selectedMenuItemIdx];
+  state = getMenuElementState(tab, currentElement);
+
+  // find next selectable item if hidden or not selectable
+  if ((state & ELEMENT_VISIBLE) == 0 || (state & ELEMENT_SELECTABLE) == 0)
+    navMenu(tab, 1, 1);
+
+  if (currentElement)
+    currentElement->handler(tab, currentElement, ACTIONTYPE_INPUT, NULL);
 }
 
 //------------------------------------------------------------------------------
@@ -2019,24 +2773,46 @@ void onConfigUpdate(void)
 {
   int i;
 
+  // reset when we lose connection
+  void* connection = netGetLobbyServerConnection();
+  if (dlTotalBytes > 0 && (!connection || !dlIsActive)) {
+    if (dlConnectionTimeout > 60 || !dlIsActive) {
+      dlTotalBytes = 0;
+      dlBytesReceived = 0;
+      dlIsActive = 0;
+      dlConnectionTimeout = 0;
+      DPRINTF("lost connection\n");
+    } else {
+      ++dlConnectionTimeout;
+    }
+  } else { dlConnectionTimeout = 0; }
+
   // in staging, update game info
   GameSettings * gameSettings = gameGetSettings();
-  if (gameSettings && gameSettings->GameLoadStartTime < 0 && netGetLobbyServerConnection())
+  if (isInMenus() && gameSettings && gameSettings->GameLoadStartTime < 0 && netGetLobbyServerConnection())
   {
     // 
     char * mapName = mapGetName(gameSettings->GameLevel);
     char * modeName = gameGetGameModeName(gameSettings->GameRules);
 
     // get map override name
-    if (gameConfig.customMapId > 0)
-      mapName = dataCustomMaps.items[(int)gameConfig.customMapId];
+    if (patchStateContainer.SelectedCustomMapId > 0 && dataCustomMaps.items[patchStateContainer.SelectedCustomMapId])
+      mapName = dataCustomMaps.items[patchStateContainer.SelectedCustomMapId];
+    else if (MapLoaderState.MapName[0])
+      mapName = MapLoaderState.MapName;
 
     // get mode override name
     if (gameConfig.customModeId > 0)
     {
       modeName = (char*)CustomModeShortNames[(int)gameConfig.customModeId];
-      if (!modeName)
-        modeName = dataCustomModes.items[(int)gameConfig.customModeId];
+      if (!modeName) {
+        for (i = 0; i < dataCustomModes.count; ++i) {
+          if (dataCustomModes.items[i].value == (int)gameConfig.customModeId) {
+            modeName = dataCustomModes.items[i].name;
+            break;
+          }
+        }
+      }
 
       // set map name to training type
       if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) {
@@ -2045,12 +2821,11 @@ void onConfigUpdate(void)
     }
 
     // override gamemode name with map if map has exclusive gamemode
-    for (i = 0; i < dataCustomMapsWithExclusiveGameModeCount; ++i)
+    if (patchStateContainer.SelectedCustomMapId)
     {
-      if (gameConfig.customMapId == dataCustomMapsWithExclusiveGameMode[i])
+      if (customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId < 0)
       {
         modeName = mapName;
-        break;
       }
     }
 
@@ -2074,30 +2849,30 @@ void onConfigUpdate(void)
 //------------------------------------------------------------------------------
 void navMenu(TabElem_t* tab, int direction, int loop)
 {
-  int newElement = tab->selectedMenuItem + direction;
+  int newElement = tab->selectedMenuItemIdx + direction;
   MenuElem_t *elem = NULL;
   int state = 0;
 
   // handle case where tab has no items
   if (tab->elementsCount == 0)
   {
-    tab->selectedMenuItem = 0;
+    tab->selectedMenuItemIdx = 0;
     tab->menuOffset = 0;
     return;
   }
 
-  while (newElement != tab->selectedMenuItem)
+  while (newElement != tab->selectedMenuItemIdx)
   {
     if (newElement >= tab->elementsCount)
     {
-      if (loop && tab->selectedMenuItem != 0)
+      if (loop && tab->selectedMenuItemIdx != 0)
         newElement = 0;
       else
         break;
     }
     else if (newElement < 0)
     {
-      if (loop && tab->selectedMenuItem != (tab->elementsCount - 1))
+      if (loop && tab->selectedMenuItemIdx != (tab->elementsCount - 1))
         newElement = tab->elementsCount - 1;
       else
         break;
@@ -2115,7 +2890,7 @@ void navMenu(TabElem_t* tab, int direction, int loop)
     }
 
     // set new tab
-    tab->selectedMenuItem = newElement;
+    tab->selectedMenuItemIdx = newElement;
     break;
   }
 }
@@ -2163,7 +2938,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
 	DPRINTF("DOWNLOAD: %d/%d, writing %d to %08X\n", dlBytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
   
 	// respond
-	if (connection)
+	if (connection && (!request->Chunk || dlBytesReceived >= request->TotalSize))
 	{
 		ClientDownloadDataResponse_t response;
 		response.Id = request->Id;
@@ -2196,7 +2971,6 @@ int onSetGameConfig(void * connection, void * data)
   memcpy(&config, data, sizeof(PatchGameConfig_t));
 
   // check for changes
-  int mapChanged = config.customMapId != gameConfig.customMapId;
   redownloadCustomModeBinaries |= config.customModeId != gameConfig.customModeId;
 
   // copy it over
@@ -2217,15 +2991,6 @@ void onConfigOnlineMenu(void)
   // draw download data box
 	if (dlTotalBytes > 0)
 	{
-    // reset when we lose connection
-    if (!netGetLobbyServerConnection() || !dlIsActive)
-    {
-      dlTotalBytes = 0;
-      dlBytesReceived = 0;
-      dlIsActive = 0;
-      DPRINTF("lost connection\n");
-    }
-
     gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, colorBlack);
     gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, colorContentBg);
     gfxScreenSpaceText(SCREEN_WIDTH * 0.4, SCREEN_HEIGHT * 0.4, 1, 1, colorText, "Downloading...", 11 + (gameGetTime()/240 % 4), 3);
@@ -2248,6 +3013,7 @@ void onConfigInitialize(void)
   // reset game configs
   memset(&gameConfigHostBackup, 0, sizeof(gameConfigHostBackup));
   memset(&gameConfig, 0, sizeof(gameConfig));
+  selectedMapIdHostBackup = 0;
 
   // set defaults
   //gameConfigHostBackup.survivalConfig.difficulty = 4;
@@ -2255,6 +3021,36 @@ void onConfigInitialize(void)
 #if DEFAULT_GAMEMODE > 0
   gameConfigHostBackup.customModeId = DEFAULT_GAMEMODE;
   gameConfig.customModeId = DEFAULT_GAMEMODE;
+#endif
+}
+
+//------------------------------------------------------------------------------
+void configSendGameConfig(void)
+{
+#if COMP
+  // disable changing game config in COMP mode
+  return;
+#else
+  DPRINTF("sending map %d=>%d %s=>%s\n", selectedMapIdHostBackup, patchStateContainer.SelectedCustomMapId, customMapDefs[selectedMapIdHostBackup-1].Filename, customMapDefs[patchStateContainer.SelectedCustomMapId-1].Filename);
+
+  // detect when new map selected
+  patchStateContainer.SelectedCustomMapChanged = isInMenus() && selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
+
+  // backup
+  memcpy(&gameConfigHostBackup, &gameConfig, sizeof(PatchGameConfig_t));
+  selectedMapIdHostBackup = patchStateContainer.SelectedCustomMapId;
+
+  // send
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (lobbyConnection) {
+    ClientSetGameConfig_t msg;
+
+    memset(&msg, 0, sizeof(msg));
+    if (patchStateContainer.SelectedCustomMapId > 0)
+      memcpy(&msg.CustomMap, &customMapDefs[patchStateContainer.SelectedCustomMapId-1], sizeof(msg.CustomMap));
+    memcpy(&msg.GameConfig, &gameConfig, sizeof(msg.GameConfig));
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(ClientSetGameConfig_t), &msg);
+  }
 #endif
 }
 
@@ -2285,13 +3081,7 @@ void configTrySendGameConfig(void)
       }
     }
 
-    // backup
-    memcpy(&gameConfigHostBackup, &gameConfig, sizeof(PatchGameConfig_t));
-
-    // send
-    void * lobbyConnection = netGetLobbyServerConnection();
-    if (lobbyConnection)
-      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(PatchGameConfig_t), &gameConfig);
+    configSendGameConfig();
   }
 #endif
 
@@ -2316,13 +3106,14 @@ void configMenuDisable(void)
     // force game config to preset
     switch (preset)
     {
-      case 1: // competitive
+      case 1: // cycle
       {
-        gameConfig.grNoHealthBoxes = 0;
+        gameConfig.grNoHealthBoxes = 1;
         gameConfig.grNoNames = 0;
         gameConfig.grV2s = 0;
         gameConfig.grVampire = 0;
-
+        gameConfig.grFogOfWarRadar = 1;
+        gameConfig.grRadarShortDistance = 1;
         gameConfig.grBetterFlags = 1;
         gameConfig.grBetterHills = 1;
         gameConfig.grFusionShotsAlwaysHit = 1;
@@ -2331,7 +3122,9 @@ void configMenuDisable(void)
         gameConfig.grNoInvTimer = 1;
         gameConfig.grNoPacks = 1;
         gameConfig.grNoPickups = 1;
+        //gameConfig.grQuickChat = 1;
         //gameConfig.grNoSniperHelpers = 1;
+        gameConfig.grNewPlayerSync = 1;
         gameConfig.grCqPersistentCapture = 1;
         gameConfig.grCqDisableTurrets = 1;
         gameConfig.grCqDisableUpgrades = 1;
@@ -2339,11 +3132,13 @@ void configMenuDisable(void)
       }
       case 2: // 1v1
       {
-        gameConfig.grNoHealthBoxes = 1;
+        gameConfig.grNoHealthBoxes = 2;
         gameConfig.grNoNames = 0;
         gameConfig.grV2s = 2;
         gameConfig.grVampire = 3;
+        gameConfig.grFogOfWarRadar = 0;
 
+        gameConfig.grNewPlayerSync = 1;
         gameConfig.grFusionShotsAlwaysHit = 1;
         gameConfig.grNoInvTimer = 1;
         gameConfig.grNoPacks = 1;
@@ -2371,4 +3166,11 @@ void configMenuEnable(void)
   tabElements[selectedTabItem].stateHandler(&tabElements[selectedTabItem], &state);
   if ((state & ELEMENT_SELECTABLE) == 0 || (state & ELEMENT_VISIBLE) == 0)
     selectedTabItem = 0;
+}
+
+
+//------------------------------------------------------------------------------
+int configHasDevRules(void)
+{
+  return gameConfig.drFreecam || gameConfig.drLevelReload || gameConfig.drNoRank;
 }

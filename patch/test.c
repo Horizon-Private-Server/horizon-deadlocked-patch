@@ -9,13 +9,48 @@
 #include <libdl/stdio.h>
 #include <libdl/string.h>
 #include <libdl/stdlib.h>
+#include <libdl/weapon.h>
+#include <libdl/random.h>
 #include <libdl/pad.h>
 #include <libdl/collision.h>
 #include <libdl/color.h>
+#include <libdl/moby.h>
 #include <libdl/utils.h>
 #include "messageid.h"
+#include "config.h"
+#include "common.h"
+#include "include/config.h"
 
 extern int isUnloading;
+extern PatchGameConfig_t gameConfig;
+extern MapLoaderState_t MapLoaderState;
+
+struct CubicLineEndPoint endpoints[2] = {
+  {
+    .iCoreRGBA = 0,
+    .iGlowRGBA = 0,
+    .bDisabled = 0,
+    .bFadeEnd = 0,
+    .iNumSkipPoints = 0,
+    .numEndPoints = 2,
+    .style = 0,
+    .vPos = { 0,0,0,0 },
+    .vTangent = { 0,0,1,0 },
+    .vTangentOccQuat = { 0,0,0,1 }
+  },
+  {
+    .iCoreRGBA = 0,
+    .iGlowRGBA = 0,
+    .bDisabled = 0,
+    .bFadeEnd = 0,
+    .iNumSkipPoints = 0,
+    .numEndPoints = 2,
+    .style = 0,
+    .vPos = { 0,0,0,0 },
+    .vTangent = { 0,0,1,0 },
+    .vTangentOccQuat = { 0,0,0,1 }
+  }
+};
 
 /*
 typedef struct BaseShotSpawnMessage
@@ -146,9 +181,21 @@ int frame = 0;
 float lastTime = 0;
 u32 currentFrameJointMatrixAddr = 0;
 
-void bp(void) {
+VECTOR b6ExplosionPositions[64];
+int b6ExplosionPositionCount = 0;
 
-}
+SoundDef baseSoundDef = {
+	0.0,	  // MinRange
+	45.0,	  // MaxRange
+	0,		  // MinVolume
+	1228,		// MaxVolume
+	-635,			// MinPitch
+	635,			// MaxPitch
+	0,			// Loop
+	0x10,		// Flags
+	0x17D,		// Index
+	3			  // Bank
+};
 
 void setActive(int v) {
   if (v == active)
@@ -527,7 +574,7 @@ void runAnimJointThing(void)
 }
 
 //--------------------------------------------------------------------------
-void drawEffectQuad(VECTOR position, int texId, float scale)
+void drawEffectQuad(VECTOR position, int texId, float scale, u32 color)
 {
 	struct QuadDef quad;
 	MATRIX m2;
@@ -537,9 +584,6 @@ void drawEffectQuad(VECTOR position, int texId, float scale)
 	VECTOR pBL = {0.5,0,-0.5,1};
 	VECTOR pBR = {-0.5,0,-0.5,1};
   
-	// determine color
-	u32 color = 0x80FFFFFF;
-
 	// set draw args
 	matrix_unit(m2);
 
@@ -740,9 +784,12 @@ void drawCBoot(Moby* moby)
       gfxScreenSpaceText(x, y, 1, 1, 0xFFFFFFFF, buf, -1, 4);
     }
 
-    drawEffectQuad(&m[12], i, 1);
+    drawEffectQuad(&m[12], i, 1, 0x80FFFFFF);
   }
 }
+
+VECTOR * drawColliderFrom = (VECTOR*)0x000A0000;
+VECTOR * drawColliderTo = (VECTOR*)0x000A0100;
 
 void drawCollider(Moby* moby)
 {
@@ -750,7 +797,12 @@ void drawCollider(Moby* moby)
   int i,j = 0;
   int x,y;
   char buf[12];
-  Player * p = playerGetFromSlot(0);
+  Player * p = playerGetAll()[moby->Bolts];
+
+  if (gfxWorldSpaceToScreenSpace(p->Ground.point, &x, &y)) {
+    gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
+  }
+  return;
 
   const int steps = 10 * 2;
   const float radius = 2;
@@ -758,7 +810,7 @@ void drawCollider(Moby* moby)
   for (i = 0; i < steps; ++i) {
     for (j = 0; j < steps; ++j) {
       float theta = (i / (float)steps) * MATH_TAU;
-      float omega = (j / (float)steps) * MATH_TAU;
+      float omega = (j / (float)steps) * MATH_TAU;  
 
       vector_copy(pos, p->PlayerPosition);
       pos[0] += radius * sinf(theta) * cosf(omega);
@@ -767,22 +819,46 @@ void drawCollider(Moby* moby)
 
       vector_add(t, p->PlayerPosition, o);
 
-      if (CollLine_Fix(pos, t, 1, NULL, 0)) {
+      if (CollLine_Fix(pos, t, COLLISION_FLAG_IGNORE_STATIC, NULL, 0)) {
         vector_copy(t, CollLine_Fix_GetHitPosition());
-        drawEffectQuad(t, 21, 0.1);
+        drawEffectQuad(t, 22, 0.05, 0x80FFFFFF);
+      }
+    }
+  }
+
+  if (0) {
+    VECTOR dt, offset;
+    for (j = 0; j < 4; ++j) {
+
+      u32 color = 0x800000FF;
+      if (j == 1) color = 0x8000FFFF;
+      if (j == 2) color = 0x80FF00FF;
+      if (j == 3) color = 0x80FF0000;
+
+      vector_subtract(dt, drawColliderTo[j], drawColliderFrom[j]);
+      for (i = 0; i < 20; ++i) {
+        float t = i / 20.0;
+        vector_scale(offset, dt, t);
+        vector_add(offset, offset, drawColliderFrom[j]);
+        drawEffectQuad(offset, 21, 0.1, color);
       }
 
+      if (CollLine_Fix(drawColliderFrom[j], drawColliderTo[j], 0, NULL, NULL)) {
+        drawEffectQuad(CollLine_Fix_GetHitPosition(), 21, 0.3, 0x8000FF00);
+        //DPRINTF("%08X\n", CollLine_Fix_GetHitMoby());
+      }
     }
-
   }
 }
+
+void drawPlayerCollider(void);
 
 renderCBootPUpdate(Moby* m)
 {
   gfxRegisterDrawFunction((void**)0x0022251C, &drawCollider, m);
 }
 
-void runRenderCboot(void)
+void runRenderCboot(int localPlayerIndex)
 {
   VECTOR off = {0,0,2,0};
 
@@ -799,23 +875,1027 @@ void runRenderCboot(void)
     m->Scale *= 0.1;
     m->PUpdate = &renderCBootPUpdate;
     m->CollActive = 0;
-    vector_add(m->Position, playerGetFromSlot(0)->PlayerPosition, off);
+    m->Bolts = localPlayerIndex;
+    vector_add(m->Position, playerGetAll()[localPlayerIndex]->PlayerPosition, off);
   }
 
   TestMoby->DrawDist = 0xFF;
   TestMoby->UpdateDist = 0xFF;
 }
 
+void drawB6Hits(void);
+
+drawB6Visualizer(void)
+{
+  int i;
+
+  for (i = 0; i < b6ExplosionPositionCount; ++i) {
+    drawEffectQuad(b6ExplosionPositions[i], 4, 0.2, 0x80FFFFFF);
+  }
+
+  drawB6Hits();
+}
+
+renderB6Visualizer(Moby* m)
+{
+  gfxRegisterDrawFunction((void**)0x0022251C, &drawB6Visualizer, m);
+}
+
+void runB6HitVisualizer(void)
+{
+  VECTOR off = {0,0,2,0};
+
+  if (isUnloading) {
+    if (TestMoby) {
+      mobyDestroy(TestMoby);
+      TestMoby = NULL;
+    }
+    return;
+  }
+
+  if (!TestMoby) {
+    Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
+    m->Scale *= 0.1;
+    m->PUpdate = &renderB6Visualizer;
+    m->CollActive = 0;
+    vector_add(m->Position, playerGetFromSlot(0)->PlayerPosition, off);
+  }
+
+  // 
+  TestMoby->DrawDist = 0xFF;
+  TestMoby->UpdateDist = 0xFF;
+
+  // check for b6
+  Moby* m = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+  while (m < mEnd)
+  {
+    if (!mobyIsDestroyed(m) && m->OClass == MOBY_ID_B6_BALL0 && m->State == 4) {
+      DPRINTF("%08X\n", (u32)m->PUpdate);
+      vector_copy(b6ExplosionPositions[b6ExplosionPositionCount], m->Position);
+      b6ExplosionPositionCount = (b6ExplosionPositionCount + 1) % 64;
+    }
+
+    ++m;
+  }
+}
+
+void drawPositionYaw(void)
+{
+  if (isInGame()) {
+    Player * p = playerGetFromSlot(0);
+
+    if (padGetButtonDown(0, PAD_UP) > 0) {
+      p->PlayerState = PLAYER_STATE_WAIT_FOR_RESURRECT;
+      p->timers.resurrectWait = 1;
+    }
+
+    if (p) {
+      char buf[64];
+      sprintf(buf, "%.2f %.2f %.2f   %.3f", p->PlayerPosition[0], p->PlayerPosition[1], p->PlayerPosition[2], p->PlayerRotation[2]);
+      gfxScreenSpaceText(15, SCREEN_HEIGHT - 40, 1, 1, 0x80FFFFFF, buf, -1, 0);
+    }
+  }
+}
+
+void sendFusionShot(void)
+{
+  if (padGetButton(0, PAD_DOWN) <= 0) return;
+  
+  Player* player = playerGetFromSlot(0);
+  void * connection = netGetDmeServerConnection();
+
+  VECTOR from={0,0,1,0};
+  VECTOR to;
+  vector_add(from, from, player->PlayerPosition);
+  vector_add(from, from, player->CameraDir);
+  vector_scale(to, player->CameraDir, 50);
+  vector_add(to, to, player->PlayerPosition);
+
+  struct tNW_GadgetEventMessage msg;
+  msg.PlayerIndex = player->PlayerId;
+  msg.GadgetId = WEAPON_ID_FUSION_RIFLE;
+  msg.GadgetEventType = 8;
+  msg.ActiveTime = gameGetTime() + (TIME_SECOND * 60);
+  msg.TargetUID = -1;
+  memcpy(msg.FiringLoc, from, 12);
+  memcpy(msg.TargetDir, to, 12);
+  netBroadcastMediusAppMessage(0, connection, 14, sizeof(msg), &msg);
+}
+
+struct LatencyPing
+{
+  int FromClientIdx;
+  int ToClientIdx;
+  long Ticks;
+};
+
+int runLatencyPing_OnRemotePing(void* connection, void* data)
+{
+  struct LatencyPing msg;
+  memcpy(&msg, data, sizeof(msg));
+
+  if (msg.FromClientIdx == gameGetMyClientId()) {
+    long dticks = timerGetSystemTime() - msg.Ticks;
+    int dms = dticks / SYSTEM_TIME_TICKS_PER_MS;
+    DPRINTF("RTT to CLIENT %d : %dms\n", msg.ToClientIdx, dms);
+  } else {
+    // send back
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, msg.FromClientIdx, 250, sizeof(msg), &msg);
+  }
+
+  return sizeof(struct LatencyPing);
+}
+
+void runLatencyPing(void)
+{
+  static int pingCooldownTicks[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+
+  netInstallCustomMsgHandler(250, &runLatencyPing_OnRemotePing);
+  void * connection = netGetDmeServerConnection();
+  if (!connection) return;
+
+  patchAggTime(5);
+  long ticks = timerGetSystemTime();
+  Player** players = playerGetAll();
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->pNetPlayer) continue;
+    if (pingCooldownTicks[i]) { pingCooldownTicks[i]--; continue; }
+
+    // send
+    struct LatencyPing msg;
+    msg.FromClientIdx = gameGetMyClientId();
+    msg.ToClientIdx = player->pNetPlayer->netClientIndex;
+    msg.Ticks = ticks;
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, msg.ToClientIdx, 250, sizeof(msg), &msg);
+
+    // reset cooldown
+    pingCooldownTicks[i] = 60;
+  }
+}
+
+int onSniperCollLineFix(VECTOR from, VECTOR to, int hitFlag, Moby* ignore, MobyColDamageIn* damageIn)
+{
+  static int idx = 0;
+  vector_copy(drawColliderFrom[idx], from);
+  vector_copy(drawColliderTo[idx], to);
+
+  //((void (*)(int))0x0059b700)(1);
+
+  int r = CollLine_Fix(from, to, hitFlag, ignore, damageIn);
+  vector_print(from);
+  printf(" ");
+  vector_print(to);
+  printf(" %d %08X %08X => %d (%08X)\n", hitFlag, ignore, damageIn, r, CollLine_Fix_GetHitMoby());
+
+  idx = idx + 1;
+  if (idx > 4) idx = 0;
+
+  return r;
+}
+
+void rotEffects(Player* player)
+{
+  if (player->PlayerState == PLAYER_STATE_CHARGE) {
+    //player->PlayerMoby->Rotation[1] += MATH_PI / 2;
+  }
+
+  ((void (*)(Player*))0x005d2388)(player);
+}
+
+void onSetMobyCollPill(Moby* moby, int index, VECTOR pos, float radius, float height)
+{
+  //((void (*)(Moby*, int, VECTOR, float, float))0x004F79A8)(moby, index, pos, radius, height);
+}
+
+void runLocalPlayerChargeboot(void)
+{
+  static VECTOR pos;
+  int pid = 1;
+
+  if (!isInGame()) return;
+  Player* player = playerGetAll()[pid];
+  if (!player || !player->PlayerMoby) return;
+
+  if (isUnloading) {
+    //POKE_U32(0x003FC66C, 0x0C12DF94);
+    //POKE_U32(0x005d6318, 0x0C13DE6A);
+    //POKE_U32(0x005D638C, 0x0C13DE6A);
+    //POKE_U32(0x005d6250, 0x0C1748E2);
+  } else {
+    //HOOK_JAL(0x003FC66C, &onSniperCollLineFix);
+    //HOOK_JAL(0x005d6318, &onSetMobyCollPill);
+    //HOOK_JAL(0x005D638C, &onSetMobyCollPill);
+    //HOOK_JAL(0x005d6250, &rotEffects);
+  }
+
+  if (0) {
+    VECTOR pfixed = { 352.42, 208.53, 107.75, 0 };
+    VECTOR dt;
+    vector_subtract(dt, pfixed, player->PlayerPosition);
+    if (player->PlayerState != PLAYER_STATE_CHARGE && vector_sqrmag(dt) > 0.1) {
+      playerSetPosRot(player, pfixed, player->PlayerRotation);
+    }
+  }
+
+  player->Health = 50;
+  if (player->PlayerState == PLAYER_STATE_CHARGE && player->timers.state <= 21) {
+    player->timers.state = 20;
+    vector_copy(player->PlayerPosition, pos);
+    vector_copy(player->PlayerMoby->Position, pos);
+    //player->Tweakers[0].rot[1] = -MATH_PI / 2;
+  } else {
+    vector_copy(pos, player->PlayerPosition);
+  }
+  
+  runRenderCboot(pid);
+}
+
+int runSendMonitor_Hook(void* a0, void* a1, int a2)
+{
+  u32 ra;
+  
+	// pointer to gameplay data is stored in $s1
+	asm volatile (
+		"move %0, $ra"
+		: : "r" (ra)
+	);
+
+
+  POKE_U32(0x01EA1270, 0x27BDFFE0);
+  POKE_U32(0x01EA1274, 0x0080482D);
+
+  int msgId = *(int*)((u32)a0 + 0x08);
+  int msgLen = *(int*)((u32)a0 + 0x38);
+  void* msgPtr = *(void**)((u32)a0 + 0x3C);
+  if (a2 == 2 && msgId == 15) {
+    
+    DPRINTF("SEND msgClass:%d msgId:%d msgLen:%d msgBuf:%08X ra:%08X\n", a2, msgId, msgLen, msgPtr, ra);
+  }
+  int result = ((int (*)(void*, void*, int))0x01ea1270)(a0, a1, a2);
+  
+  HOOK_J(0x01EA1270, &runSendMonitor_Hook);
+  POKE_U32(0x01EA1274, 0);
+
+  return result;
+}
+
+void runSendMonitor(void)
+{
+  if (isUnloading) {
+    POKE_U32(0x01EA1270, 0x27BDFFE0);
+    POKE_U32(0x01EA1274, 0x0080482D);
+    return;
+  }
+  
+  HOOK_J(0x01EA1270, &runSendMonitor_Hook);
+  POKE_U32(0x01EA1274, 0);
+}
+
+void playSound(Moby* moby, int id)
+{
+  static short sHandle = 0;
+
+  if (sHandle != 0) {
+    soundKillByHandle(sHandle);
+    sHandle = 0;
+  }
+
+	baseSoundDef.Index = id;
+	short sId = soundPlay(&baseSoundDef, 0, moby, 0, 0x400);
+  if (sId >= 0) {
+    sHandle = soundCreateHandle(sId);
+  }
+}
+
+void runDualViperNapalm(void)
+{
+  VECTOR offset = {0,0,-0.1,0};
+  Moby* m = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+
+  static int aaa = 386;
+
+  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+    --aaa;
+    DPRINTF("%d\n", aaa);
+    playSound(playerGetFromSlot(0)->PlayerMoby, aaa);
+  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+    ++aaa;
+    DPRINTF("%d\n", aaa);
+    playSound(playerGetFromSlot(0)->PlayerMoby, aaa);
+  }
+
+  return;
+
+  // disable napalm explosion
+  POKE_U32(0x00450FE4, 0);
+  POKE_U16(0x00450dfc, 2);
+
+  while (m < mEnd)
+  {
+    if (mobyIsDestroyed(m)) {
+      ++m;
+      continue;
+    }
+
+    int fire = 0;
+    int rate = 10;
+    switch (m->OClass)
+    {
+      case MOBY_ID_DUAL_VIPER_SHOT:
+      case MOBY_ID_ARBITER_ROCKET0:
+      case MOBY_ID_B6_BALL0:
+      {
+        rate = 5;
+        fire = 1;
+        break;
+      }
+      case MOBY_ID_HOLOSHIELD_SHOT:
+      case MOBY_ID_MINE_LAUNCHER_MINE:
+      {
+        rate = 10;
+        fire = 1;
+        break;
+      }
+      case MOBY_ID_FLAIL_HEAD:
+      {
+        rate = 3;
+
+        Moby* flail = m->PParent;
+        if (flail && flail->State == 2)
+          fire = 1;
+        break;
+      }
+    }
+
+    // napalm
+    if (fire) {
+      if (m->Mission >= rate) {
+        Player* player = guberMobyGetPlayerDamager(m);
+        if (player) {
+          Moby* napalm = ((Moby* (*)(u128 pos, u128 a1, u128 a2, Player* player, u32 t0, int t1, u32 t2, u32 t3))0x00450380)(
+            vector_read(m->Position),
+            0,
+            0,
+            player,
+            0x1801,
+            4,
+            0,
+            0
+          );
+
+          if (napalm && napalm->PVar) {
+            ((float*)napalm->PVar)[12] = 10;
+          }
+        }
+
+        m->Mission = 0;
+      } else {
+        m->Mission++;
+      }
+    }
+
+    ++m;
+  }
+}
+
+void runCubicLineDraw_PostDraw(void)
+{
+  u32 color = 0x80FFFFFF;
+  VECTOR delta, playerOffset = {0,0,1,0};
+
+  Player* player = playerGetFromSlot(0);
+  if (!player) return;
+
+  VECTOR target = {0,5,2,0};
+  vector_add(target, target, player->PlayerPosition);
+
+  endpoints[1].iGlowRGBA = endpoints[0].iGlowRGBA = endpoints[1].iCoreRGBA = endpoints[0].iCoreRGBA = color;
+  vector_add(endpoints[1].vPos, player->PlayerPosition, playerOffset);
+  vector_copy(endpoints[0].vPos, target);
+  gfxDrawCubicLine((void*)0x2225a8, endpoints, 2, (void*)0x383a68, 1);
+}
+
+void runCubicLineDraw_Update(Moby* moby)
+{
+	// register post draw function
+	gfxRegisterDrawFunction((void**)0x0022251C, &runCubicLineDraw_PostDraw, moby);
+}
+
+void runCubicLineDraw(void)
+{
+  if (isInGame()) {
+    Player* localPlayer = playerGetFromSlot(0);
+    VECTOR off = {0,0,-10,0};
+
+    if (!TestMoby) {
+      Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
+      m->Scale *= 0.1;
+    }
+
+    if (isUnloading && TestMoby) {
+      TestMoby->PUpdate = 0;
+    }
+    else if (TestMoby && localPlayer) {
+      TestMoby->DrawDist = 0xFF;
+      TestMoby->UpdateDist = 0xFF;
+      vector_add(TestMoby->Position, localPlayer->PlayerPosition, off);
+      TestMoby->PUpdate = &runCubicLineDraw_Update;
+    }
+  }
+}
+
+void runSceneSwitcher(void)
+{
+  int i;
+
+  if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+
+    // find map def
+    for (i = 0; i < customMapDefCount; ++i) {
+      if (strncmp(customMapDefs[i].Filename, "bakisi isles", sizeof(customMapDefs[i].Name)) == 0) {
+        break;
+      }
+    }
+
+    if (i >= customMapDefCount) return;
+
+    int mapId = customMapDefs[i].BaseMapId;
+
+
+    //POKE_U32(0x0021de80, 4);
+    POKE_U32(0x0021e6a4, 6);
+    POKE_U32(0x005A90F4, 0x24020001);
+    //POKE_U32(0x00220250, 1);
+
+    strncpy(MapLoaderState.MapName, customMapDefs[i].Name, sizeof(MapLoaderState.MapName));
+    strncpy(MapLoaderState.MapFileName, customMapDefs[i].Filename, sizeof(MapLoaderState.MapFileName));
+    MapLoaderState.Enabled = 1;
+    MapLoaderState.CheckState = 0;
+    MapLoaderState.MapId = mapId;
+    MapLoaderState.LoadingFd = -1;
+    MapLoaderState.LoadingFileSize = -1;
+
+    void** binPtrs = (void**)0x001dfbf0;
+    void** texPtrs = (void**)0x001dfc18;
+    void* buffer = *(void**)0x00240D78;
+    GameSettings* gs = gameGetSettings();
+  
+    // read onlinewad
+    void* onlineWadBuffer = *(u32*)0x0021dd90 - 0x7D0000;
+    int sectorOffset = *(u32*)0x001ce410 + *(u32*)0x001ce40c;
+    int sectorCount = *(u32*)0x001ce414;
+    ((void (*)(int))0x001634a8)(1); // fs::sync(1)
+    ((void (*)(int loadType, void* dest, int sectorOffset, int sectorCount, int t0, void* loadCompleteCallback, void* loadCompleteArgs))0x00163808)
+      (0, onlineWadBuffer, sectorOffset, sectorCount, 0, 0, 0); // fs::load()
+
+    // load player skins
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      if (gs->PlayerClients[i] < 0) continue;
+      int armorIdx = gs->PlayerSkins[i];
+      if (armorIdx <= 0) continue;
+
+      // parse armor table
+      void* armorDef = onlineWadBuffer + 0x250 + (0x28 * armorIdx);
+      void* armorMobyPtr = onlineWadBuffer + *(u32*)(armorDef + 0x4);
+      void* armorTexPtr = onlineWadBuffer + *(u32*)(armorDef + 0xc);
+
+      // decompress moby data
+      int len = ((int (*)(void* src, void* dst))0x004f5140)(armorMobyPtr, buffer);
+      binPtrs[i] = buffer;
+      buffer += (len + 0x3F) & 0xFFFFFFC0;
+
+      // decompress tex data
+      len = ((int (*)(void* src, void* dst))0x004f5140)(armorTexPtr, buffer);
+      texPtrs[i] = buffer;
+      buffer += (len + 0x3F) & 0xFFFFFFC0;
+    }
+
+    ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
+    DPRINTF("load %d %s\n", mapId, customMapDefs[i].Filename);
+  }
+}
+
+float runRngMarteCarloSim(float probability, int count)
+{
+  //printf("%.1f%% RNG %d... ", probability * 100, count);
+
+  int yes = 0;
+  int no = 0;
+  int i = 0;
+  while (i < count) {
+
+    float r = randRange(0, 1);
+    if (r < probability) {
+      ++yes;
+    } else {
+      ++no;
+    }
+
+    ++i;
+  }
+
+  float percentYes = yes / (float)count;
+  float percentNo = 1 - percentYes;
+  //printf("%.1f%%\n", percentYes * 100);
+  return percentYes;
+}
+
+void* myMobyProc(Moby* mobyInstances, void* mobyAnimPtr, int mobyCount, int flags)
+{
+  return ((void* (*)(Moby*, void*, int, int))0x004fec20)(mobyInstances, mobyAnimPtr, mobyCount, flags);
+  char backup[0x1d0];
+  memcpy(backup, (void*)0x0022CBC0, 0x1d0);
+
+
+  float* cameraPos = (float*)0x0022CD00;
+  float* cameraR = (float*)0x0022CD10;
+
+  // face down from player
+  //cameraPos[2] += 100;
+  //vector_write(cameraR, 0);
+  //cameraR[1] = MATH_PI/2;
+  
+  // recompute camera matrices
+  //((void (*)(void))0x004c0000)();
+
+  // force fov
+  float fov = *(float*)0x0023D4B0;
+  //*(float*)0x0023D4B0 = 1024;
+  //((void (*)(void))0x004c0d18)();
+  //((void (*)(int))0x004c2f98)(0);
+
+  // moby proc
+  int batchsize = 240;
+  int count = 240; //(mobyListGetEnd() - mobyListGetStart()); // / sizeof(Moby);
+  int i;
+  for (i = 0; i < count; i += batchsize) {
+    int cnt = count - i;
+    if (cnt > batchsize) cnt = batchsize;
+    printf("MobyProc(%08X, %08X, %d/%d, %d)", mobyInstances + i, mobyAnimPtr, cnt + i, count, flags);
+    ((void (*)(Moby*, int, int))0x004f8d08)(mobyInstances + i, cnt, flags);
+    mobyAnimPtr = *(void**)0x002227a8;
+    //mobyAnimPtr = ((void* (*)(Moby*, void*, int, int))0x004fec20)(mobyInstances + i, mobyAnimPtr, cnt, flags);
+    printf(" => %08X\n", mobyAnimPtr);
+  }
+  
+  //printf("MobyProc(%08X, %08X, %d (%d), %d) => %08X\n", mobyInstances, mobyAnimPtr, mobyCount, count, flags, mobyAnimPtr);
+
+  // force fov
+  //*(float*)0x0023D4B0 = fov;
+  //((void (*)(int))0x004c2f98)(0);
+
+  //23D4B0
+  memcpy((void*)0x0022CBC0, backup, 0x1d0);
+  return mobyAnimPtr;
+}
+
+void onBeforeDrawMobys(void)
+{
+  int count = 0;
+  Moby mobysToDraw[20] = {};
+
+  float* cameraPos = (float*)0x0022CD00;
+  float* cameraForw = (float*)0x0022CD30;
+
+  // collect mobys
+  int i;
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player || !player->PlayerMoby) continue;
+
+    Moby* moby = player->PlayerMoby;
+    if ((moby->ModeBits & 1) == 0) {
+      vector_add(moby->Position, cameraPos, cameraForw);
+      //memcpy(&mobysToDraw[count], moby, sizeof(Moby));
+      //mobysToDraw[count].PChain = moby;
+      //mobysToDraw[count].Position[2] += 2;
+      //count++;
+      //moby->ModeBits |= 1; // hide
+    }
+  }
+
+  if (count > 0) {
+
+    // draw
+    ((void (*)(void))0x004f8c00)(); // DrawMobysSetup
+    ((void (*)(void))0x004f8b78)(); // InitMobyClassDists
+    ((void (*)(void))0x004f8ba0)(); // StashMobyClassDists
+
+    printf("draw %d\n", count);
+    ((void (*)(Moby*, int, int))0x004f8d08)(mobysToDraw, count, 1);
+    
+    ((void (*)(void))0x004f8bd0)(); // RestoreMobyClassDists
+    ((void (*)(void))0x004f8da8)(); // DrawMobysCleanup
+  }
+
+  // draw mobys
+  ((void (*)(void))0x004f8e08)();
+
+  // unhide
+  for (i = 0; i < count; ++i) {
+    //mobysToDraw[i].PChain->ModeBits &= ~1;
+  }
+}
+
+void onAfterDrawMobys(void)
+{
+  return;
+  ((void (*)(void))0x004f8c00)(); // DrawMobysSetup
+  ((void (*)(void))0x004f8b78)(); // InitMobyClassDists
+  ((void (*)(void))0x004f8ba0)(); // StashMobyClassDists
+
+  Moby* moby = playerGetFromSlot(0)->PlayerMoby;
+  moby->Position[2] += 2;
+  ((void (*)(Moby*, int, int))0x004f8d08)(moby, 1, 0);
+  moby->Position[2] -= 2;
+  
+  ((void (*)(void))0x004f8bd0)(); // RestoreMobyClassDists
+  ((void (*)(void))0x004f8da8)(); // DrawMobysCleanup
+}
+
+long myTimebaseGetSystemTime(void)
+{
+  long systemTime = timerGetSystemTime();
+  long* hostTicks = (long*)(0x00090000 + 0x38);
+  
+  long time = *hostTicks;
+  if (time == 0)
+    return systemTime;
+
+  return time; // * SYSTEM_TIME_TICKS_PER_MS;
+}
+
+void myTimebaseGetLocalTimeMs(int* out)
+{
+  long* hostTicks = (long*)(0x00090000 + 0x38);
+
+  if (out) {
+    *out = (int)(*hostTicks / SYSTEM_TIME_TICKS_PER_MS);
+  }
+}
+
+int myTimebaseUpdate(void)
+{
+  u32 value = ((u32 (*)(void))0x01eabae8)();
+  u32* secs = (u32*)0x001b23e8;
+  u32* counts = (u32*)0x001b23ec;
+  u32* usecs = (u32*)0x001b23f0;
+  u32* lastValue = (u32*)0x001b23f4;
+  int dt = value - *lastValue;
+
+  long hostTicks = *(long*)(0x00090000 + 0x38);
+  long maxUsecs = 1000 * 1000;
+  
+  *secs = hostTicks / (SYSTEM_TIME_TICKS_PER_MS * 1000);
+  *usecs = ((hostTicks * 1000) / SYSTEM_TIME_TICKS_PER_MS) % maxUsecs;
+  *counts += dt;
+
+  *lastValue = value;
+  return 0;
+}
+
+void runFrameRateVariationTest(void)
+{
+  static int lastGameTime = 0;
+  static long lastSystemTime = 0;
+  static long lastHostTime = 0;
+  
+  int* globalTimebase = (int*)0x00168ba8;
+  int* gameTime = (int*)0x00172378;
+  long* hostMs = (long*)(0x00090000 + 0x38);
+
+  int gDt = gameGetTime() - lastGameTime;
+  long sDt = (timerGetSystemTime() - lastSystemTime) / SYSTEM_TIME_TICKS_PER_MS;
+  long hDt = (*hostMs - lastHostTime) / SYSTEM_TIME_TICKS_PER_MS;
+  int dt = (int)(hDt - sDt);
+
+  char buf[64];
+  snprintf(buf, sizeof(buf), "%.3f %d %lld %lld %d", gameGetTime()/1000.0, gDt, sDt, hDt, dt);
+  gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  
+  // always ignore timebase query
+  POKE_U32(0x01eabd60, 0x10000003);
+  //POKE_U32(0x0015B118, 0); // disable timebanditshack
+  if (padGetButton(0, PAD_CROSS)) {
+    POKE_U32(0x01eabd60, 0);
+  }
+
+  lastGameTime = gameGetTime();
+  lastSystemTime = timerGetSystemTime();
+  lastHostTime = *hostMs;
+
+  u32* secs = (u32*)0x001b23e8;
+  u32* usecs = (u32*)0x001b23f0;
+  snprintf(buf, sizeof(buf), "%lld %lld", *secs, *usecs);
+  gfxHelperDrawText(15, 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+
+  // hooks
+  //HOOK_JAL(0x0015acc8, &myTimebaseGetSystemTime);
+  //HOOK_JAL(0x0015ac6c, &myTimebaseGetSystemTime);
+  //HOOK_JAL(0x01eabc20, &myTimebaseGetLocalTimeMs);
+  //HOOK_JAL(0x01eab6c0, &myTimebaseUpdate);
+  //POKE_U32(0x01eab21c, 0x087AAC8A);
+  if (isUnloading) {
+    //POKE_U32(0x01eab6c0, 0x0C7AAEBE);
+    //POKE_U32(0x0015acc8, 0x0C04B8DC);
+    //POKE_U32(0x0015ac6c, 0x0C04B8DC);
+    //POKE_U32(0x01eabc20, 0x0C7AAC84);
+  }
+}
+
+//--------------------------------------------------------------------------
+static VECTOR bounceVels[GAME_MAX_PLAYERS] = {};
+static VECTOR lastGoodPos[GAME_MAX_PLAYERS] = {};
+static VECTOR lastGoodPos2[GAME_MAX_PLAYERS] = {};
+
+void onB6Explode(Moby* moby)
+{
+  const float MAX_DIST = 10;
+  const float POWER = 30;
+  const float RAMP = 2;
+
+  Player** players = playerGetAll();
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && playerIsConnected(player)) {
+      float dist = vector_distance(player->PlayerPosition, moby->Position);
+      if (dist < 10) {
+        
+        VECTOR thrust;
+        vector_subtract(thrust, player->PlayerPosition, moby->Position);
+        thrust[2] = 2;
+        vector_normalize(thrust, thrust);
+        vector_scale(thrust, thrust, POWER * powf((MAX_DIST - dist) / MAX_DIST, RAMP));
+        thrust[0] = thrust[1] = 0;
+        thrust[2] = POWER * powf((MAX_DIST - dist) / MAX_DIST, RAMP);
+        vector_add(bounceVels[i], bounceVels[i], thrust);
+        printf("hit %f ", dist); vector_print(thrust); printf("\n");
+      }
+    }
+  }
+}
+
+void bounceReflect(int i, VECTOR normal)
+{
+  VECTOR n;
+
+  vector_write(bounceVels[i], 0);
+  return;
+
+  float d = vector_innerproduct(bounceVels[i], normal);
+  if (d >= 0.1) {
+    // do nothing
+    // normal facing same dir of velocity
+  } else if (fabsf(d) < 0.1) {
+    //vector_write(bounceVels[i], 0);
+    vector_scale(bounceVels[i], bounceVels[i], 0.5);
+  } else {
+    vector_normalize(n, normal);
+    vector_reflect(bounceVels[i], bounceVels[i], n);
+    vector_scale(bounceVels[i], bounceVels[i], 0.9);
+  }
+}
+
+void playerOnPushedIntoWall(Player* player)
+{
+  if (!player || !player->SkinMoby || !player->PlayerMoby) return;
+  
+  int i = player->PlayerId;
+  printf("contact:%d\n", player->Coll.contact);
+  if (player->Coll.contact) {
+    bounceReflect(i, player->Coll.normal);
+  } else if (player->Ground.onGood) {
+    bounceReflect(i, player->Ground.normal);
+  }
+
+  // move player out of clipped wall
+  // using lastGoodPos doesn't always return us to before the clip
+  if (1) {
+    playerSetPosRot(player, lastGoodPos2[i], player->PlayerRotation);
+  }
+}
+
+void runBounce(void)
+{
+  int i;
+
+  // jump height min/max
+  //POKE_U16(0x006038E4, 0x4040);
+  //POKE_U16(0x0060391C, 0x4120);
+
+  // patch mobs pushing you into walls and killing you
+  POKE_U32(0x005e4188, 0);
+  POKE_U32(0x005e419c, 0);
+  HOOK_JAL(0x005e41bc, &playerOnPushedIntoWall);
+
+  VECTOR gravity = {0,0,-1 * MATH_DT,0};
+
+  // move speed 2x
+  Player** players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (player && playerIsConnected(player)) {
+      player->Speed = 1;
+
+      if (playerIsDead(player)) {
+        vector_write(bounceVels[i], 0);
+      }
+
+      if (player->IsLocal && padGetButtonDown(0, PAD_UP) > 0) {
+        VECTOR vup = {1,1,1,0};
+        vector_scale(vup, vup, 20);
+        vector_add(bounceVels[i], bounceVels[i], vup);
+      }
+
+      if (vector_sqrmag(bounceVels[i]) > 0.01) {
+        if (player->Coll.contact || player->Ground.onGood) {
+          vector_write(bounceVels[i], 0);
+        }
+
+        float* extVel = (float*)((u32)player + 0x130 + 0x10);
+        vector_scale(extVel, bounceVels[i], MATH_DT);
+        vector_add(bounceVels[i], bounceVels[i], gravity);
+        vector_scale(bounceVels[i], bounceVels[i], 0.99);
+
+      }
+
+      if (0 && vector_sqrmag(bounceVels[i]) > 0.01) {
+        float* extVel = (float*)((u32)player + 0x130 + 0x10);
+        
+        if (CollLine_Fix(lastGoodPos[i], player->PlayerPosition, COLLISION_FLAG_IGNORE_DYNAMIC, player->PlayerMoby, NULL) > 0) {
+          
+          bounceReflect(i, CollLine_Fix_GetHitNormal());
+
+          vector_copy(player->PlayerPosition, lastGoodPos2[i]);
+          vector_copy(player->PlayerMoby->Position, lastGoodPos2[i]);
+        } else {
+          vector_copy(lastGoodPos2[i], lastGoodPos[i]);
+          vector_copy(lastGoodPos[i], player->PlayerPosition);
+        }
+
+        if (player->Coll.contact) {
+          bounceReflect(i, player->Coll.normal);
+          //vector_normalize(n, bounceVels[i]);
+          //vector_add(player->PlayerPosition, player->PlayerPosition, n);
+          //vector_copy(player->PlayerMoby->Position, player->PlayerPosition);
+        } else if (player->Ground.onGood) {
+          bounceReflect(i, player->Ground.normal);
+        }
+
+        //vector_add(extVel, extVel, vels[i]);
+        vector_scale(extVel, bounceVels[i], MATH_DT);
+        vector_add(bounceVels[i], bounceVels[i], gravity);
+        vector_scale(bounceVels[i], bounceVels[i], 0.99);
+
+        if (!player->Ground.onGood) {
+          player->Ground.onGood = 0;
+          player->Ground.offAny = 1;
+          player->Ground.offGood = 1;
+          //vector_normalize(player->Ground.normal, player->Velocity);
+        }
+
+        //vector_print(vels[i]);
+        //printf("\n");
+        int targetState = PLAYER_STATE_GET_HIT;
+        //if (player->PlayerState != targetState)
+        //  playerGetVTable(player)->UpdateState(player, targetState, 0, 0, 0);
+      } else {
+        //vector_write(bounceVels[i], 0);
+      }
+    }
+  }
+
+  
+  // check for b6
+  Moby* m = mobyListGetStart();
+  Moby* mEnd = mobyListGetEnd();
+  while (m < mEnd)
+  {
+    if (!mobyIsDestroyed(m) && m->OClass == MOBY_ID_B6_BALL0 && m->State == 4) {
+      DPRINTF("%08X\n", (u32)m->PUpdate);
+      onB6Explode(m);
+    }
+
+    ++m;
+  }
+}
+
 void runTestLogic(void)
 {
-  //runHitmarkerLogic();
+  int i;
 
+  //runHitmarkerLogic();
+  //runDrawTex();
+  //runAllow4Locals();
+
+  //drawPositionYaw();
+  //gameConfig.grBetterFlags = 1;
+
+  // static float maxdt = 0;
+  // float target = 0.5;
+  // float result = runRngMarteCarloSim(target, 1000);
+  // float dt = fabsf(target - result);
+  // if (dt > 0.01) {
+  //   if (dt > maxdt) {
+  //     maxdt = dt;
+  //     DPRINTF("%f%%\n", maxdt * 100);
+  //   }
+  // }
+
+  //runFrameRateVariationTest();
   //runSystemTime();
   if (isInGame()) {
+    // if (padGetButtonDown(0, PAD_DOWN) > 0) {
+    //   Player* p = playerGetFromSlot(0);
+    //   VECTOR to = {5,5,5,0};
+    //   vector_add(to, to, p->PlayerPosition);
+    //   Moby* m = gfxDrawSimpleTwoPointLightning(
+    //     (void*)0x002225A0,
+    //     p->PlayerPosition,
+    //     to,
+    //     3000,
+    //     3,
+    //     1,
+    //     (void*)0x0,
+    //     NULL,
+    //     NULL,
+    //     0x80804020
+    //   );
+
+    //   DPRINTF("lightning moby %08X\n", m);
+    // }
+
+    //runBounce();
+
+    float* cameraPos = (float*)0x0022CD00;
+    int xOctant = (int)(cameraPos[0] * 0.25);
+    int yOctant = (int)(cameraPos[1] * 0.25);
+    int zOctant = (int)(cameraPos[2] * 0.25);
+
+    char strBuf[64];
+    snprintf(strBuf, sizeof(strBuf), "%d %d %d", xOctant*4, yOctant*4, zOctant*4);
+    gfxScreenSpaceText(10, SCREEN_HEIGHT-10, 1, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT);
+
+    // animate all mobys, always
+    // POKE_U32(0x004AEC08, 0x0C12BD0C);
+    // POKE_U32(0x004f8e54, 0x0C13FB08);
+    // if (isUnloading) {
+    //   POKE_U32(0x004f8e54, 0x0C13FB08);
+    //   POKE_U32(0x004f8e68, 0x03E00008);
+    //   POKE_U32(0x004c3448, 0x0C13E382);
+    // } else {
+    //   HOOK_JAL(0x004f8e54, &myMobyProc);
+    //   HOOK_J(0x004f8e68, &onAfterDrawMobys);
+    //   HOOK_JAL(0x004c3448, &onBeforeDrawMobys);
+    // }
+
+    //runCubicLineDraw();
+    //runDualViperNapalm();
+    //runLatencyPing();
+    //sendFusionShot();
     //runAnimJointThing();
     //runDrawQuad();
     //runCameraHeight();
-    runRenderCboot();
+    //runRenderCboot(0);
+    //runB6HitVisualizer();
+    //runLocalPlayerChargeboot();
+    //runSendMonitor();
+    //runSceneSwitcher();
+
+    // if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+    //   mapHopTo(&customMapDefs[0]);
+    // }
+
+    // if (padGetButtonDown(0, PAD_DOWN) > 0) {
+    //   Player* p = playerGetFromSlot(0);
+    //   VECTOR pos;
+    //   vector_scale(pos, p->CameraForward, 4);
+    //   vector_add(pos, pos, p->PlayerPosition);
+    //   pos[2] += 1;
+    //   u128 vPos = vector_read(pos); 
+    //   u32 clear = 0;
+    //   u32 red = 0x800000FF;
+    //   u32 green = 0x8000FF00;
+    //   u32 white = 0x80FFFFFF;
+    //   mobySpawnExplosion(vPos, 0,
+    //     0, 0, 0, 0, 0, 10, 1, 1, 0, 0, 1, 1,
+    //     0, 0, 
+    //     white, white, white, white, white, white, white, white, white,
+    //     0, 0, 0, 0, 1, 0, 0, 0);
+    // }
+
+    // for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    //   Player* p = playerGetFromSlot(i);
+    //   if (!p) continue;
+    //   if (p->Health < 50)
+    //     p->Health = 50;
+    // }
 
     if (padGetButton(0, PAD_L1 | PAD_CIRCLE) > 0) {
       *(float*)0x00347BD8 = 0.125;

@@ -7,15 +7,12 @@
 #define CMD_USBCLOSE		0x03
 #define CMD_USBREAD			0x04
 #define CMD_USBSEEK			0x05
-#define CMD_USBREMOVE   0x06
-#define CMD_USBGETSTAT  0x07
-#define CMD_USBMKDIR    0x08
-
-#define UNCACHED_SEG(x) \
-    ((void *)(((u32)(x)) | 0x20000000))
-
-#define IS_UNCACHED_SEG(x) \
-    (((u32)(x)) & 0x20000000)
+#define CMD_USBREMOVE		0x06
+#define CMD_USBGETSTAT	0x07
+#define CMD_USBMKDIR		0x08
+#define CMD_USBDOPEN		0x09
+#define CMD_USBDCLOSE		0x0A
+#define CMD_USBDREAD		0x0B
 
 #define RPCCLIENT_INITED (*(int*)0x000CFF00)
 
@@ -25,6 +22,7 @@ static int Rpc_Buffer[16] 			__attribute__((aligned(64)));
 static struct { 			// size = 256
 	int flags;
 	char filename[256];	// 0
+  u8 pad[12];
 } openParam __attribute__((aligned(64)));
 
 static struct { 		// size =
@@ -44,12 +42,14 @@ static struct { 		// size =
 	int fd;				// 0
 	void * buf;		// 4
 	int size;			// 
+  void * read;
 } readParam __attribute__((aligned(64)));
 
 static struct { 		// size =
 	int fd;				// 0
 	int offset;
 	int whence;
+  u8 pad[4];
 } seekParam __attribute__((aligned(64)));
 
 static struct { 			// size = 256
@@ -65,6 +65,21 @@ static struct { 			// size = 272
 static struct { 			// size = 256
 	char dirpath[256];	// 0
 } mkdirParam __attribute__((aligned(64)));
+
+static struct { 		// size =
+	char dirpath[256];	// 0
+} dopenParam __attribute__((aligned(64)));
+
+static struct { 		// size = 16
+	int fd;				// 0
+	u8 pad[12];
+} dcloseParam __attribute__((aligned(64)));
+
+static struct { 			// size = 16
+	int fd; // 0
+  iox_dirent_t * dirent;   // 4
+  char pad[8];
+} dreadParam __attribute__((aligned(64)));
 
 
 // stores command currently being executed on the iop
@@ -119,7 +134,7 @@ int rpcUSBopen(char *filename, int flags)
 			
 	// set global variables
 	if (filename)
-		memcpy(openParam.filename, filename, 1020);
+		memcpy(openParam.filename, filename, sizeof(openParam.filename));
 	else
 		return -2;	
 	
@@ -207,6 +222,7 @@ int rpcUSBread(int fd, void *buf, int size)
 	readParam.fd = fd;
 	readParam.buf = buf;
 	readParam.size = size;
+  readParam.read = Rpc_Buffer;
 
 	SifWriteBackDCache(buf, size);
 	 	
@@ -316,6 +332,74 @@ int rpcUSBmkdir(char *dirpath)
 }
 
 //--------------------------------------------------------------
+int rpcUSBdopen(char* dirpath)
+{
+	int ret = 0;
+
+	// check lib is inited
+	if (!RPCCLIENT_INITED)
+		return -1;
+			
+	// set global variables
+	if (dirpath)
+		memcpy(dopenParam.dirpath, dirpath, sizeof(dopenParam.dirpath));
+	else
+		return -2;	
+	
+	if((ret = SifCallRpc(rpcclient, CMD_USBDOPEN, SIF_RPC_M_NOWAIT, &dopenParam, sizeof(dopenParam), Rpc_Buffer, 4, 0, 0)) != 0) {
+		return ret;
+	}
+			
+	currentCmd = CMD_USBDOPEN;
+	
+	return 1;
+}
+
+//--------------------------------------------------------------
+int rpcUSBdclose(int fd)
+{
+	int ret = 0;
+
+	// check lib is inited
+	if (!RPCCLIENT_INITED)
+		return -1;
+			
+	// set global variables
+	dcloseParam.fd = fd;
+	 	
+	if((ret = SifCallRpc(rpcclient, CMD_USBDCLOSE, SIF_RPC_M_NOWAIT, &dcloseParam, sizeof(dcloseParam), Rpc_Buffer, 4, 0, 0)) != 0) {
+		return ret;
+	}
+			
+	currentCmd = CMD_USBDCLOSE;
+	
+	return 1;
+}
+
+//--------------------------------------------------------------
+int rpcUSBdread(int fd, iox_dirent_t * dirent)
+{
+	int ret = 0;
+
+	// check lib is inited
+	if (!RPCCLIENT_INITED)
+		return -1;
+			
+	SifWriteBackDCache(dirent, sizeof(iox_dirent_t));
+	 	
+	// set global variables
+  dreadParam.fd = fd;
+  dreadParam.dirent = dirent;
+	if((ret = SifCallRpc(rpcclient, CMD_USBDREAD, SIF_RPC_M_NOWAIT, &dreadParam, sizeof(dreadParam), Rpc_Buffer, 4, 0, 0)) != 0) {
+		return ret;
+	}
+			
+	currentCmd = CMD_USBDREAD;
+	
+	return ret;
+}
+
+//--------------------------------------------------------------
 int rpcUSBSync(int mode, int *cmd, int *result)
 {
 	int funcIsExecuting, i;
@@ -369,7 +453,11 @@ int rpcUSBSyncNB(int mode, int *cmd, int *result)
 	// get the current rpc cmd
 	if (cmd)
 		*cmd = currentCmd;
-	
+
+	// get result
+	if(result)
+		*result = *(int*)Rpc_Buffer;
+
 	// if function is still processing, return 0
 	if (funcIsExecuting == 1)
 		return 0;

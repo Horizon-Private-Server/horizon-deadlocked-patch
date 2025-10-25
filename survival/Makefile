@@ -1,13 +1,13 @@
 
 EE_ELF = survival-11184.elf
 EE_BIN = survival-11184.bin
-EE_OBJS = main.o mob.o upgrade.o drop.o utils.o config.o demonbell.o
+EE_OBJS = main.o mob.o utils.o config.o demonbell.o bubble.o stats.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
 EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
-# set to DEBUG or RELEASE
+# set to DEBUG or RELEASE or TEST
 BUILD_CONFIG := RELEASE
 
 # build flags
@@ -29,21 +29,75 @@ BUILD_CONFIG := RELEASE
 #		PRINT_MOB_COMPLEXITY	When enabled, draws "complexity" number as sum of drawn mobs
 
 ifeq ($(BUILD_CONFIG),DEBUG)
-EE_DEFS := -DDEBUG -DMOB_CORN -DDISABLE_SPAWNING -DBENCHMARK! -DMANUAL_DROP_SPAWN -DMANUAL_SPAWN -DDROPS -DUPGRADES -DDEMONBELL -DFIXEDTARGET! -DMOB_NO_DAMAGE -DMOB_NO_MOVE! -DPAYDAY  -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DSHARED_BOLTS -DLOG_STATS2! -DPRINT_MOB_COMPLEXITY!
+#EE_DEFS := -DDEBUG -DMOB_CORN
+#EE_DEFS += -DDEBUG_PERKS
+EE_DEFS += -DDROPS -DUPGRADES -DDEMONBELL -DSHARED_BOLTS -DSHARED_XP
+EE_DEFS += -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643
+#EE_DEFS += -DMANUAL_DROP_SPAWN
+#EE_DEFS += -DAUTOSTART
+#EE_DEFS += -DDISABLE_SPAWNING
+#EE_DEFS += -DMANUAL_SPAWN
+#EE_DEFS += -DDEBUG_SOUNDS
+#EE_DEFS += -DSTARTROUND=25
+#EE_DEFS += -DMOB_INVINCIBLE
+EE_DEFS += -DMOB_NO_DAMAGE
+#EE_DEFS += -DMOB_NO_MOVE
+#EE_DEFS += -DAUTOSTART
+#EE_DEFS += -DPAYDAY
+#EE_DEFS += -DBENCHMARK
+#EE_DEFS += -DPRINT_MOB_COMPLEXITY
+#EE_DEFS += -DFIXEDTARGET
+#EE_DEFS += -DJOINT_TEST
+#EE_DEFS += -DLOG_STATS
+#EE_DEFS += -DLOG_STATS2
+EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
+else ifeq ($(BUILD_CONFIG),TEST)
+EE_DEFS := -DRELEASE -DTEST -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643 -DDROPS1 -DUPGRADES -DDEMONBELL -DSHARED_BOLTS -DSHARED_XP
+EE_DEFS += -DSTARTROUND=25
+EE_DEFS += -DMOB_NO_DAMAGE
+#EE_DEFS += -DDISABLE_SPAWNING
+#EE_DEFS += -DMANUAL_SPAWN
+#EE_DEFS += -DMANUAL_DROP_SPAWN
+EE_DEFS += -DPAYDAY
+#EE_DEFS += -DDEBUG_PERKS
+EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
+#EE_DEFS += -DFIXEDTARGET
+#EE_DEFS += -DTRAILER
 else ifeq ($(BUILD_CONFIG),RELEASE)
-EE_DEFS := -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DSHARED_BOLTS -DDROPS -DUPGRADES -DDEMONBELL
+EE_DEFS := -DRELEASE -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643 -DDROPS -DUPGRADES -DDEMONBELL -DSHARED_BOLTS -DSHARED_XP
+EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
 endif
 
-.PHONY: maps
+.PHONY: all maps orxon mpass valix torval
 
-all: $(EE_BIN) maps clean copy
+all: mode maps clean
 
-maps:
+mode: $(EE_BIN) copy
+
+maps: orxon mpass veldin valix torval
+
+orxon: 
 	cd maps/orxon && $(MAKE)
 
-clean:
+mpass: 
+	cd maps/mpass && $(MAKE)
+
+veldin: 
+	cd maps/veldin && $(MAKE)
+
+valix: 
+	cd maps/valix && $(MAKE)
+
+torval: 
+	cd maps/torval && $(MAKE)
+
+clean: 
 	rm -f *.irx *.o
 	cd maps/orxon && $(MAKE) clean
+	cd maps/mpass && $(MAKE) clean
+	cd maps/veldin && $(MAKE) clean
+	cd maps/valix && $(MAKE) clean
+	cd maps/torval && $(MAKE) clean
  
 include $(CURDIR)/../Makefile.pref
 include $(CURDIR)/../Makefile.eeglobal

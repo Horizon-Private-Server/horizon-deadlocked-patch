@@ -3,6 +3,20 @@
 #ifndef SURVIVAL_UTILS_H
 #define SURVIVAL_UTILS_H
 
+#define SEQ_DIFF_U8(a, b) (((b - a + 128*3) % (128*2)) - 128)
+
+#if DEBUG
+  #define DEBUG_ONLY(s) s
+#else
+  #define DEBUG_ONLY(s) 
+#endif
+
+#if RELEASE
+  #define RELEASE_ONLY(s) s
+#else
+  #define RELEASE_ONLY(s) 
+#endif
+
 #include <tamtypes.h>
 #include <libdl/moby.h>
 #include <libdl/math.h>
@@ -14,8 +28,8 @@ void setFreeze(int isActive);
 void setDoublePoints(int isActive);
 void setDoubleXP(int isActive);
 void playerRevive(Player* player, int fromPlayerId);
-short playerGetWeaponAmmo(Player* player, int weaponId);
-int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod);
+int playerGetStackableCount(int playerId, int stackable);
+int playerHasBlessing(int playerId, int blessing);
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
 void playUpgradeSound(Player* player);
 void playPaidSound(Player* player);
@@ -36,5 +50,12 @@ void vectorProjectOnHorizontal(VECTOR output, VECTOR input0);
 float getSignedSlope(VECTOR forward, VECTOR normal);
 
 int mobyIsMob(Moby* moby);
+Player* mobyGetPlayer(Moby* moby);
+Moby* playerGetTargetMoby(Player* player);
+int localPlayerHasInput(void);
+
+void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
+
+int hasMapConfig(void);
 
 #endif // SURVIVAL_UTILS_H

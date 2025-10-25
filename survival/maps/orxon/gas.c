@@ -153,7 +153,6 @@ void drawGasQuad(VECTOR position, float yaw, float width, float height, u32 colo
 {
 	struct QuadDef quad;
 	MATRIX m2;
-	VECTOR t;
 	VECTOR pTL = {0.5,0,0.5,1};
 	VECTOR pTR = {-0.5,0,0.5,1};
 	VECTOR pBL = {0.5,0,-0.5,1};
@@ -229,12 +228,10 @@ void drawGasQuads(void)
 int gasTick(void)
 {
 	static int gasDamageTicker = GAS_DAMAGE_TICKRATE;
-	int i;
-	if (!isInGame())
-		return;
+	if (!isInGame()) return 0;
 
 	// draw gas mobies
-  gfxRegisterDrawFunction((void**)0x0022251C, &drawGasQuads, NULL);
+  gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)&drawGasQuads, NULL);
 
 	// handle player damage and fog
 	Player* p = playerGetFromSlot(0);

@@ -10,26 +10,10 @@
 #include <libdl/graphics.h>
 
 extern struct SurvivalState State;
+extern struct SurvivalMapConfig* mapConfig;
 
 /* 
- * Explosion sound def
- */
-SoundDef ExplosionSoundDef =
-{
-	0.0,	// MinRange
-	50.0,	// MaxRange
-	100,		// MinVolume
-	4000,		// MaxVolume
-	0,			// MinPitch
-	0,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x106,  // 0x123, 0x171, 
-	3			  // Bank
-};
-
-/* 
- * Explosion sound def
+ * upgrade sound def
  */
 SoundDef UpgradeSoundDef =
 {
@@ -72,7 +56,7 @@ Moby * spawnExplosion(VECTOR position, float size, u32 color)
 				0, 0, 0, 0, 2, 0x00080800, 0, color, color, color, color, color, color, color, color,
 				color, 0, 0, 0, 0);
 				
-	soundPlay(&ExplosionSoundDef, 0, moby, 0, 0x400);
+  mobyPlaySoundByClass(0, 0, moby, MOBY_ID_ARBITER_ROCKET0);
 
 	return moby;
 }
@@ -85,26 +69,6 @@ void playUpgradeSound(Player* player)
 void playPaidSound(Player* player)
 {
   soundPlay(&PaidSoundDef, 0, player->PlayerMoby, 0, 0x400);
-}
-
-int playerGetWeaponAlphaModCount(Player* player, int weaponId, int alphaMod)
-{
-	int i, c = 0;
-	if (!player)
-		return 0;
-	
-	GadgetBox* gBox = player->GadgetBox;
-	if (!gBox)
-		return 0;
-
-	// count
-	for (i = 0; i < 10; ++i)
-	{
-		if (gBox->Gadgets[weaponId].AlphaMods[i] == alphaMod)
-			++c;
-	}
-
-	return c;
 }
 
 int getWeaponIdFromOClass(short oclass)
@@ -162,7 +126,12 @@ u32 decTimerU32(u32* timeValue)
 //--------------------------------------------------------------------------
 u32 getXpForNextToken(int counter)
 {
-	return (u32)(250 * powf(1.05, counter));
+  //return 200 + (counter * 20 * powf(1.001, counter));
+
+  // clamp after first 50 tokens
+  if (counter > 50) return 3000;
+
+  return (u32)(250 * powf(1.05, counter));
 }
 
 //--------------------------------------------------------------------------
@@ -277,11 +246,122 @@ float getSignedSlope(VECTOR forward, VECTOR normal)
 //--------------------------------------------------------------------------
 int mobyIsMob(Moby* moby)
 {
-  if (!moby)
-    return;
+  if (!moby) return 0;
 
   return moby->OClass == ZOMBIE_MOBY_OCLASS
     || moby->OClass == EXECUTIONER_MOBY_OCLASS
+    || moby->OClass == EXECUTIONER2_MOBY_OCLASS
     || moby->OClass == TREMOR_MOBY_OCLASS
+    || moby->OClass == SWARMER_MOBY_OCLASS
+    || moby->OClass == SWARMER2_MOBY_OCLASS
+    || moby->OClass == REACTOR_MOBY_OCLASS
+    || moby->OClass == REAPER_MOBY_OCLASS
+    || moby->OClass == LEVIATHAN_MOBY_OCLASS
     ;
+}
+
+//--------------------------------------------------------------------------
+Player* mobyGetPlayer(Moby* moby)
+{
+  if (!moby) return 0;
+  
+  Player** players = playerGetAll();
+  int i;
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!player) continue;
+
+    if (player->PlayerMoby == moby) return player;
+    if (player->SkinMoby == moby) return player;
+  }
+
+  return NULL;
+}
+
+//--------------------------------------------------------------------------
+Moby* playerGetTargetMoby(Player* player)
+{
+  if (!player) return NULL;
+  return player->SkinMoby;
+}
+
+//--------------------------------------------------------------------------
+int localPlayerHasInput(void)
+{
+  Player* localPlayer = playerGetFromSlot(0);
+  if (!localPlayer) return 0;
+
+  return !localPlayer->timers.noInput && !gameIsStartMenuOpen(0) && !State.PlayerStates[localPlayer->PlayerId].IsInWeaponsMenu;
+}
+
+//--------------------------------------------------------------------------
+void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y)
+{
+  int localCount = playerGetNumLocals();
+
+  //
+  switch (localCount)
+  {
+    case 0: // 1 player
+    case 1: return;
+    case 2: // 2 players
+    {
+      // vertical split
+      *y *= 0.5;
+      if (localPlayerIndex == 1)
+        *y += 0.5 * SCREEN_HEIGHT;
+
+      break;
+    }
+    case 3: // 3 players
+    {
+      // player 1 on top
+      // player 2/3 horizontal split on bottom
+      *y *= 0.5;
+      if (localPlayerIndex > 0) {
+        *x *= 0.5;
+        *y += 0.5 * SCREEN_HEIGHT;
+        if (localPlayerIndex == 2)
+          *x += 0.5 * SCREEN_WIDTH;
+      }
+      break;
+    }
+    case 4: // 4 players
+    {
+      // player 1/2 horizontal split on top
+      // player 2/3 horizontal split on bottom
+      *x *= 0.5;
+      *y *= 0.5;
+      if ((localPlayerIndex % 2) == 1)
+        *x += 0.5 * SCREEN_WIDTH;
+      if ((localPlayerIndex / 2) == 1)
+        *y += 0.5 * SCREEN_HEIGHT;
+
+      break;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+int playerHasBlessing(int playerId, int blessing)
+{
+  int i;
+  for (i = 0; i < PLAYER_MAX_BLESSINGS; ++i) {
+    if (State.PlayerStates[playerId].State.ItemBlessings[i] == blessing) return 1;
+  }
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+int playerGetStackableCount(int playerId, int stackable)
+{
+  return State.PlayerStates[playerId].State.ItemStackable[stackable];
+}
+
+//--------------------------------------------------------------------------
+int hasMapConfig(void)
+{
+  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC && mapConfig->OnMobCreateFunc;
 }

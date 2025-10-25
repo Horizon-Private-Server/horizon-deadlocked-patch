@@ -17,6 +17,7 @@ SECTIONS {
 	.text 0x000F0000: {
 		_ftext = . ;
 		*(.text)
+		KEEP(*(.config))
 		*(.text.*)
 		*(.gnu.linkonce.t*)
 		QUAD(0)
@@ -47,8 +48,6 @@ SECTIONS {
 		*(.sdata)
 		*(.sdata.*)
 		*(.gnu.linkonce.s*)
-		*(.scommon)
-		*(.scommon.*)
 	}
 
 	_end = . ;

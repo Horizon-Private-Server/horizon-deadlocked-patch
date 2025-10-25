@@ -15,7 +15,17 @@ all:
 	$(MAKE) -C survival
 	$(MAKE) -C payload
 	$(MAKE) -C training
+	$(MAKE) -C benchmark
+	$(MAKE) -C team-defender
+	$(MAKE) -C thousand-kills
 	$(MAKE) -C mapdownloader
+	$(MAKE) -C anim-extractor
+	$(MAKE) -C elfloader
+	$(MAKE) -C tag
+	$(MAKE) -C hns
+	$(MAKE) -C one-in-the-chamber
+	$(MAKE) -C obstacle-course
+	$(MAKE) -C usbserv
 	
 clean:
 	$(MAKE) -C patch clean
@@ -32,5 +42,15 @@ clean:
 	$(MAKE) -C survival clean
 	$(MAKE) -C payload clean
 	$(MAKE) -C training clean
+	$(MAKE) -C benchmark clean
+	$(MAKE) -C team-defender clean
+	$(MAKE) -C thousand-kills clean
 	$(MAKE) -C mapdownloader clean
+	$(MAKE) -C anim-extractor clean
+	$(MAKE) -C elfloader clean
+	$(MAKE) -C tag clean
+	$(MAKE) -C hns clean
+	$(MAKE) -C one-in-the-chamber clean
+	$(MAKE) -C obstacle-course clean
+	$(MAKE) -C usbserv clean
 

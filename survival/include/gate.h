@@ -19,6 +19,7 @@ struct GatePVar
   VECTOR From;
   VECTOR To;
   float Height;
+  float Length;
   float Opacity;
   int Cost;
   int Dirty;

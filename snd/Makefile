@@ -1,7 +1,7 @@
 
 EE_ELF = snd-11184.elf
 EE_BIN = snd-11184.bin
-EE_OBJS = main.o
+EE_OBJS = common.o main.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common -I../libdl/include

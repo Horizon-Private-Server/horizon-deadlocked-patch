@@ -34,6 +34,7 @@
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
+#include "common.h"
 #include "include/game.h"
 #include "include/utils.h"
 #include "include/bezier.h"
@@ -53,6 +54,7 @@ void initializeScoreboard(void);
 int payloadDestroyedMobiesCount = 0;
 Moby* payloadDestroyedMobies[PAYLOAD_MAX_DESTROYED_MOBIES];
 short payloadDestroyedMobiesDrawDist[PAYLOAD_MAX_DESTROYED_MOBIES];
+Moby* payloadElectricityMobies[GAME_MAX_PLAYERS];
 
 // 
 struct PayloadMapConfig Config __attribute__((section(".config"))) = {
@@ -354,7 +356,7 @@ void onSetRoundComplete(int gameTime, enum RoundOutcome outcome, int roundDurati
 
 	// draw win/lose popup
 	if (!isGameOver) {
-		for (i = 0; i < 2; ++i)
+		for (i = 0; i < GAME_MAX_LOCALS; ++i)
 		{
 			Player * p = playerGetFromSlot(i);
 			if (p) {
@@ -708,9 +710,9 @@ void payloadExplode(Moby* payload, struct PayloadMobyPVar* pvar)
 //--------------------------------------------------------------------------
 void payloadPostDraw(Moby* payload)
 {
-	int i;
+	int i,j;
 	Player** players = playerGetAll();
-	VECTOR delta, playerOffset = {0,0,1,0};
+	VECTOR delta, playerOffset = {0,0,0.125,0};
 	if (!payload)
 		return;
 
@@ -718,27 +720,74 @@ void payloadPostDraw(Moby* payload)
 	if (!pvar)
 		return;
 
-	if (State.RoundEndTime || State.GameOver || pvar->State >= PAYLOAD_STATE_DELIVERED)
-		return;
-	
+  int roundOrGameOver = State.RoundEndTime || State.GameOver || pvar->State >= PAYLOAD_STATE_DELIVERED;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * player = players[i];
 		if (player && !playerIsDead(player)) {
 
-			// skip if player is defending and contesting is off
-			if (!State.PlayerStates[i].IsAttacking && State.ContestMode == PAYLOAD_CONTEST_OFF)
-				continue;
+      // spawn moby if not already created
+      Moby* electricityMoby = payloadElectricityMobies[i];
+      if (!electricityMoby || mobyIsDestroyed(electricityMoby) || electricityMoby->OClass != 0x2018) {
+        electricityMoby = payloadElectricityMobies[i] = gfxDrawSimpleTwoPointLightning(
+          (void*)0x002225A0,
+          player->PlayerPosition,
+          payload->Position,
+          3000,
+          1,
+          0,
+          (void*)0x00383C98,
+          player->PlayerMoby,
+          payload,
+          0x80804020
+        );
 
-			if (State.PlayerStates[i].IsNearPayload) {
+        // init pvars
+        if (electricityMoby && electricityMoby->PVar) {
+          POKE_U32(electricityMoby->PVar + 0x40, 1); // disable cyclic flashing
+          vector_copy(electricityMoby->PVar + 0x20, playerOffset);
+          vector_write(electricityMoby->PVar + 0x30, 0);
+        }
+
+        DPRINTF("ELECMOBY %d %08X\n", i, (u32)electricityMoby);
+      }
+
+      if (!electricityMoby || !electricityMoby->PVar) continue;
+      u32* electricityMobyColor = (u32*)(electricityMoby->PVar + 0x1C);
+      u32 targetColor = 0;
+
+      // update life such that it never dies
+      *(short*)(electricityMoby->PVar + 0x02) = 3000;
+
+			// skip if player is defending and contesting is off
+      if (roundOrGameOver) {
+        targetColor = 0; // hide if round/game is over
+      } else if (!State.PlayerStates[i].IsAttacking && State.ContestMode == PAYLOAD_CONTEST_OFF) {
+        targetColor = 0;
+      } else if (State.PlayerStates[i].IsNearPayload) {
 				vector_subtract(delta, player->PlayerPosition, pvar->PathPosition);
 				float dist = vector_length(delta);
 				float t = clamp(((dist / PAYLOAD_PLAYER_RADIUS) - 0.8) * (1 / 0.2), 0, 1);
-				u32 color = colorLerp(TEAM_COLORS[player->Team], 0x40ffffff, t);
-				endpoints[1].iGlowRGBA = endpoints[0].iGlowRGBA = endpoints[1].iCoreRGBA = endpoints[0].iCoreRGBA = color;
-				vector_add(endpoints[1].vPos, player->PlayerPosition, playerOffset);
-				vector_copy(endpoints[0].vPos, payload->Position);
-				gfxDrawCubicLine((void*)0x2225a8, endpoints, 2, (void*)0x383a68, 1);
+				targetColor = colorLerp(TEAM_COLORS[player->Team], 0x40ffffff, t);
 			}
+
+      // apply color if changed
+      if (targetColor != *electricityMobyColor) {
+        *electricityMobyColor = targetColor;
+        
+        CubicLineEndPoint** endpoints = (CubicLineEndPoint**)(electricityMoby->PVar + 0x50);
+        for (j = 0; j < 32; ++j) {
+          if (!endpoints[j]) break;
+
+          CubicLineEndPoint* endpoint = (CubicLineEndPoint*)endpoints[j];
+          int numPoints = endpoint->numEndPoints;
+          int k;
+          for (k = 0; k < numPoints; ++k) {
+            endpoint->iCoreRGBA = targetColor;
+            endpoint->iGlowRGBA = targetColor;
+            ++endpoint;
+          }
+        }
+      }
 		}
 	}
 }
@@ -1087,25 +1136,27 @@ void processPlayer(int pIndex)
   if (shouldDrawHud()) {
     // draw payload moving icon
     if (pvar->State == PAYLOAD_STATE_MOVING_FORWARD) {
-      gfxDrawSprite(370, 16, 16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
+      gfxHelperDrawSprite(370, 16, 0, 0, 16, 16, 32, 32, 52, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     } else if (pvar->State == PAYLOAD_STATE_MOVING_BACKWARD) {
-      gfxDrawSprite(370 + 16, 16, -16, 16, 0, 0, 32, 32, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), gfxGetFrameTex(52));
+      gfxHelperDrawSprite(370, 16, 16, 0, -16, 16, 32, 32, 52, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     }
 
     // number of attacking players near payload
     if (pvar->AttackerNearCount) {
       sprintf(strBuf, "x%d", pvar->AttackerNearCount);
       u32 color = colorLerp(TEAM_COLORS[State.Teams[1].TeamId], 0x80E0E0E0, pulseTime);
-      gfxDrawSprite(395, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
-      gfxScreenSpaceText(395 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
+      
+      gfxHelperDrawSprite(370, 16, 25, 0, 16, 16, 32, 32, 16, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(370, 16 + 12, 25 + 10, 0, 0.7, color, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     }
 
     // number of defending players near payload
     if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->DefenderNearCount) {
       sprintf(strBuf, "x%d", pvar->DefenderNearCount);
       u32 color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], 0x80E0E0E0, pulseTime);
-      gfxDrawSprite(420, 16, 16, 16, 0, 0, 32, 32, color, gfxGetFrameTex(16));
-      gfxScreenSpaceText(420 + 10, 16 + 12, 0.7, 0.7, color, strBuf, -1, 0);
+
+      gfxHelperDrawSprite(370, 16, 50, 0, 16, 16, 32, 32, 16, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(370, 16 + 12, 50 + 10, 0, 0.7, color, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
     }
   }
 
@@ -1141,40 +1192,37 @@ void processPlayer(int pIndex)
 
 		// draw world space icon if obstructed
 		if (CollLine_Fix(player->CameraPos, payload->Position, 2, payload, 0)) {
+      u32 color = 0x80E0E0E0;
+      switch (pvar->State)
+      {
+        case PAYLOAD_STATE_MOVING_FORWARD:
+        {
+          color = TEAM_COLORS[State.Teams[1].TeamId] + 0x40000000;
+          break;
+        }
+        case PAYLOAD_STATE_MOVING_BACKWARD:
+        {
+          color = TEAM_COLORS[State.Teams[0].TeamId] + 0x40000000;
+          break;
+        }
+      }
+
+      // if contesting set color as average of two team colors
+      if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->AttackerNearCount && pvar->DefenderNearCount) {
+        color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], TEAM_COLORS[State.Teams[1].TeamId], 0.5);
+      }
+
 			vector_copy(t, payload->Position);
 			t[2] += 4;
-			if (gfxWorldSpaceToScreenSpace(t, &x, &y))
-			{
-				u32 color = 0x80E0E0E0;
-				switch (pvar->State)
-				{
-					case PAYLOAD_STATE_MOVING_FORWARD:
-					{
-						color = TEAM_COLORS[State.Teams[1].TeamId] + 0x40000000;
-						break;
-					}
-					case PAYLOAD_STATE_MOVING_BACKWARD:
-					{
-						color = TEAM_COLORS[State.Teams[0].TeamId] + 0x40000000;
-						break;
-					}
-				}
-
-				// if contesting set color as average of two team colors
-				if (State.ContestMode != PAYLOAD_CONTEST_OFF && pvar->AttackerNearCount && pvar->DefenderNearCount) {
-					color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], TEAM_COLORS[State.Teams[1].TeamId], 0.5);
-				}
-
-				gfxDrawSprite(x-12, y-12, 24, 24, 0, 0, 32, 32, colorLerp(0x80808080, color, 0.5 + (pulseTime*0.5)), gfxGetFrameTex(81));
-			}
+      gfxHelperDrawSprite_WS(t, 24, 24, 32, 32, 81, colorLerp(0x80808080, color, 0.5 + (pulseTime*0.5)), TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 		}
 
 		// draw bomb site icon
 		vector_copy(t, Config.Path[Config.PathVertexCount-1].ControlPoint);
 		t[2] += 1;
-		if (CollLine_Fix(player->CameraPos, t, 2, NULL, 0) == 0 && gfxWorldSpaceToScreenSpace(t, &x, &y)) {
+		if (CollLine_Fix(player->CameraPos, t, 2, NULL, 0) == 0) {
 			float opacity = powf(clamp((pvar->Distance / State.PathLength) - 0.5, 0, 0.5) * 2, 3);
-			gfxDrawSprite(x-8, y-8, 16, 16, 0, 0, 32, 32, colorLerp(0x00808080, 0x80FFFFFF, opacity), gfxGetFrameTex(10));
+      gfxHelperDrawSprite_WS(t, 16, 16, 32, 32, 10, colorLerp(0x80808080, 0x80FFFFFF, opacity), TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 		}
 		
 		// play electricity sound if near
@@ -1234,8 +1282,8 @@ void processPlayer(int pIndex)
 
 		// 
     if (shouldDrawHud()) {
-		  gfxScreenSpaceText(452+1, 16+1, 1, 1, 0x80000000, strBuf, -1, 0);
-		  gfxScreenSpaceText(452, 16, 1, 1, 0x80FFFFFF, strBuf, -1, 0);
+      gfxHelperDrawText(470, 16, 1, 1, 1, 0x80000000, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(470, 16, 0, 0, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
     }
 
 		// draw end round timer
@@ -1252,7 +1300,7 @@ void processPlayer(int pIndex)
 
 			// draw timer
 			sprintf(strBuf, "%d", secondsLeftInt);
-			gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT * 0.15, scale, scale, color, strBuf, -1, 4);
+      gfxHelperDrawText(SCREEN_WIDTH/2, SCREEN_HEIGHT * 0.15, 0, 0, scale, color, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
 			// tick timer
 			if (secondsLeftInt != State.TimerLastPlaySoundSecond)
@@ -1267,11 +1315,12 @@ void processPlayer(int pIndex)
 	if (player->LocalPlayerIndex == 0 && shouldDrawHud()) {
 		const float height = 250.0;
 		const float x = 470.0;
+		const float dx = x - SCREEN_WIDTH;
 		const float y = 50.0;
 
 		// background
-		gfxPixelSpaceBox(x, y, 10.0, height, 0x80808080);
-		gfxPixelSpaceBox(x+2, y+2, 6.0, height-4, 0x80404040);
+    gfxHelperDrawBox(SCREEN_WIDTH, y, dx + 0, 0, 10, height, 0x80808080, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawBox(SCREEN_WIDTH, y, dx + 2, 2, 10-4, height-4, 0x80808080, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 
 		// progress
 		for (i = 0; i < 2; ++i) {
@@ -1281,15 +1330,15 @@ void processPlayer(int pIndex)
 			float h = floorf((height-4.0) * t);
 			float yPos = ((height-4.0) + y + 2.0 - h);
 			u32 color = TEAM_COLORS[State.Teams[i].TeamId] + 0x40000000;
-			gfxPixelSpaceBox(x + 2, yPos, 6.0, h, color);
+      gfxHelperDrawBox(SCREEN_WIDTH, yPos, dx + 2, 0, 10-4, h, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 
 			// marker
 			if (i == 0 && State.RoundNumber > 0) {
-				gfxPixelSpaceBox(x, yPos, 10.0, 2.0, color);
+        gfxHelperDrawBox(SCREEN_WIDTH, yPos, dx + 0, 0, 10, 2, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 			}
 
 			// draw marker icons
-			gfxDrawSprite(x + 20, yPos - 6, 12, 12, 0, 0, 32, 32, color, gfxGetFrameTex(42));
+      gfxHelperDrawSprite(SCREEN_WIDTH, yPos, dx + 20, -6, 12, 12, 32, 32, 42, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 		}
 	}
 
@@ -1544,7 +1593,7 @@ void resetRoundState(void)
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
   static int startDelay = 60 * 0.2;
 	static int waitingForClientsReady = 0;
@@ -1555,7 +1604,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	int i;
 
 	// set payload moby to NULL
-	State.PayloadMoby = NULL;
+  memset(&State, 0, sizeof(State));
 
 	// Disable normal game ending
 	*(u32*)0x006219B8 = 0;	// survivor (8)
@@ -1603,32 +1652,6 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	payloadSoundDef.Index = Config.PayloadMoveSoundId;
 	playerElectricitySoundDef.Index = Config.PayloadElectricityEnterSoundId;
 	playerElectricitySoundEndDef.Index = Config.PayloadElectricityExitSoundId;
-
-	// spawn boxes to bridge gap
-	Moby* m = mobySpawn(MOBY_ID_BETA_BOX, 0);
-	m->Position[0] = 177.6;
-	m->Position[2] = 94.36;
-	m->Position[1] = 474.28;
-	m->Rotation[2] = (-17.483 * MATH_PI) / 180.0;
-	m->DrawDist = 0xFF;
-	m->UpdateDist = 0xFF;
-	m->Scale *= 15.21;
-	m = mobySpawn(MOBY_ID_BETA_BOX, 0);
-	m->Position[0] = 190.68;
-	m->Position[2] = 94.36;
-	m->Position[1] = 470.16;
-	m->Rotation[2] = (-17.483 * MATH_PI) / 180.0;
-	m->DrawDist = 0xFF;
-	m->UpdateDist = 0xFF;
-	m->Scale *= 15.21;
-	m = mobySpawn(MOBY_ID_BETA_BOX, 0);
-	m->Position[0] = 204.09;
-	m->Position[2] = 94.36;
-	m->Position[1] = 465.94;
-	m->Rotation[2] = (-17.483 * MATH_PI) / 180.0;
-	m->DrawDist = 0xFF;
-	m->UpdateDist = 0xFF;
-	m->Scale *= 15.21;
 
 	// calculate length of path and segments
 	State.PathLength = 0;
@@ -1719,7 +1742,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
 	State.GameOver = 0;
 	State.RoundLimit = 2;
 	State.RoundNumber = 0;
-	State.ContestMode = (enum PayloadContestMode)gameConfig->payloadConfig.contestMode;
+	State.ContestMode = (enum PayloadContestMode)gameState->GameConfig->payloadConfig.contestMode;
 	if (gameData->TimeEnd > 0)
 		State.RoundDuration = gameData->TimeEnd / 2;
 	else

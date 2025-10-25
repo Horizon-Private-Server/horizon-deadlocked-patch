@@ -186,7 +186,7 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 
 	// Some models are buggy when spawned from a beta box template, so spawn them the old way.
 	// On the other hand, some models can only be spawned using a beta box template.
-	if(def->SpawnNormal) {
+	if(def->SpawnNormal || 1) {
 		// Spawn box so we know the correct model and collision pointers
 		sourceBox = spawnWithPVars(def->OClass);
 		if (!sourceBox)
@@ -204,7 +204,8 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 			return 0;
 		}
 
-		sourceBox->OClass = def->OClass;
+		//sourceBox->OClass = def->OClass;
+		sourceBox->Bolts = def->OClass; // store oclass so dzo client knows which moby this is
 		sourceBox->PClass = mobyClass;
 		sourceBox->CollData = *(int*) ((u32)mobyClass + 0x10);
 		sourceBox->MClass = *(u8*)(0x0024a110 + def->OClass);
@@ -224,6 +225,7 @@ Moby * spawn(MobyDef* def, VECTOR position, VECTOR rotation, float scale)
 	sourceBox->State = 0;
 	sourceBox->ModeBits = 0x0050;
 	sourceBox->GlowRGBA = 0x808C8C8C;
+  sourceBox->PUpdate = NULL;
 
 
  	sourceBox->Scale = (float)0.11 * scale * def->ObjectScale;
@@ -441,7 +443,7 @@ void updateGameState(PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t* gameState)
 {
   static int startDelay = 60 * 0.2;
 	static int waitingForClientsReady = 0;
@@ -592,7 +594,7 @@ void initialize(PatchGameConfig_t* gameConfig, PatchStateContainer_t* gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	GameSettings * gameSettings = gameGetSettings();
 	Player ** players = playerGetAll();
@@ -608,7 +610,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	State.IsHost = gameAmIHost();
 
 	if (!Initialized) {
-		initialize(gameConfig, gameState);
+		initialize(gameState);
 		return;
 	}
 
@@ -692,7 +694,7 @@ void gameStart(struct GameModule * module, PatchConfig_t * config, PatchGameConf
 	}
 }
 
-void setLobbyGameOptions(void)
+void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
 	// deathmatch options
 	static char options[] = { 
@@ -727,6 +729,8 @@ void setLobbyGameOptions(void)
   gameOptions->WeaponFlags.B6 = 0;
   gameOptions->WeaponFlags.Holoshield = 0;
   gameOptions->WeaponFlags.Flail = 1;
+
+  gameConfig->grRespawnOverride = 0;
 }
 
 /*
@@ -744,7 +748,7 @@ void setLobbyGameOptions(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
@@ -752,6 +756,9 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 	// set time ended
 	if (Initialized && State.StartTime && !State.EndTime)
 		State.EndTime = gameGetTime();
+
+  // disable ranking
+  gameSetIsGameRanked(0);
 
 	// 
 	updateGameState(gameState);
@@ -773,7 +780,7 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
 		}
 		case UI_ID_GAME_LOBBY:
 		{
-			setLobbyGameOptions();
+			setLobbyGameOptions(gameState->GameConfig);
 			break;
 		}
 	}
@@ -794,7 +801,19 @@ void lobbyStart(struct GameModule * module, PatchConfig_t * config, PatchGameCon
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(void)
+void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
-  setLobbyGameOptions();
+  setLobbyGameOptions(gameState->GameConfig);
+}
+
+//--------------------------------------------------------------------------
+void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+{
+  switch (context)
+  {
+    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
+    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
+    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
+    case GAMEMODULE_GAME_UPDATE: break;
+  }
 }

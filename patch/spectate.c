@@ -60,7 +60,7 @@ struct PlayerSpectateData
     VECTOR LastCameraPos;
     float LastCameraYaw;
     float LastCameraPitch;
-} SpectateData[2];
+} SpectateData[GAME_MAX_LOCALS];
 
 
 /*
@@ -193,7 +193,8 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
 
     currentPlayer->CameraPitchMin = playerToSpectate->CameraPitchMin;
     currentPlayer->CameraPitchMax = playerToSpectate->CameraPitchMax;
-    currentPlayer->CameraOffset[0] = -6;
+    //currentPlayer->CameraOffset[0] = -6;
+    vector_copy(currentPlayer->CameraOffset, playerToSpectate->CameraOffset);
 
     if (playerToSpectate->Vehicle)
     {
@@ -285,13 +286,32 @@ void spectate(Player * currentPlayer, Player * playerToSpectate)
         // Interpolate camera towards target player
         vector_lerp(spectateData->LastCameraPos, spectateData->LastCameraPos, playerToSpectate->CameraPos, 1 - powf(MATH_E, -CAMERA_POSITION_SHARPNESS * MATH_DT));
         vector_copy(currentPlayer->CameraPos, spectateData->LastCameraPos);
+
     }
+}
+
+int canSpectatePlayer(int currentPlayerIndex, int spectatePlayerIndex)
+{
+  Player ** players = playerGetAll();
+  int teamOnly = gameConfig.customModeId == CUSTOM_MODE_SEARCH_AND_DESTROY || gameConfig.customModeId == CUSTOM_MODE_INFECTED;
+  int enemyOnly = gameConfig.customModeId == CUSTOM_MODE_HNS;
+  
+  // skip self
+  if (spectatePlayerIndex == currentPlayerIndex)
+    return 0;
+  // skip enemy team
+  if (teamOnly && players[spectatePlayerIndex] && players[spectatePlayerIndex]->Team != players[currentPlayerIndex]->Team)
+    return 0;
+  // skip friendly team
+  if (enemyOnly && players[spectatePlayerIndex] && players[spectatePlayerIndex]->Team == players[currentPlayerIndex]->Team)
+    return 0;
+
+  return 1;
 }
 
 int findNextPlayerIndex(int currentPlayerIndex, int currentSpectateIndex, int direction)
 {
     Player ** players = playerGetAll();
-    int teamOnly = gameConfig.customModeId == CUSTOM_MODE_SEARCH_AND_DESTROY || gameConfig.customModeId == CUSTOM_MODE_INFECTED;
     int newIndex = currentSpectateIndex;
 
     do 
@@ -303,22 +323,45 @@ int findNextPlayerIndex(int currentPlayerIndex, int currentSpectateIndex, int di
             newIndex = GAME_MAX_PLAYERS-1;
         else if (newIndex >= GAME_MAX_PLAYERS)
             newIndex = 0;
+
         // Fail if the only player is us
         if(newIndex == currentPlayerIndex && newIndex == currentSpectateIndex)
             return -1;
+
         // prevent infinite loop
         if (newIndex == currentSpectateIndex)
             return players[currentSpectateIndex] ? currentSpectateIndex : -1;
-        // skip self
-        if (newIndex == currentPlayerIndex)
-            goto loop;
-        // skip enemy team
-        if (teamOnly && players[newIndex] && players[newIndex]->Team != players[currentPlayerIndex]->Team)
+        
+        if (!canSpectatePlayer(currentPlayerIndex, newIndex))
             goto loop;
     }
     while(!players[newIndex]);
     
     return newIndex;
+}
+
+void spectateSetSpectate(int localPlayerIndex, int playerToSpectateOrDisable)
+{
+  Player ** players = playerGetAll();
+  Player* player = playerGetFromSlot(localPlayerIndex);
+  struct PlayerSpectateData * spectateData = &SpectateData[localPlayerIndex];
+  if (!player) return;
+
+  if (playerToSpectateOrDisable < 0)
+  {
+    disableSpectate(player, spectateData);
+  }
+  else
+  {
+    int spectateIndex = playerToSpectateOrDisable;
+    if (!canSpectatePlayer(player->PlayerId, spectateIndex))
+      spectateIndex = findNextPlayerIndex(player->PlayerId, spectateIndex, 1);
+    if (spectateIndex < 0) return;
+
+    enableSpectate(player, spectateData);
+    spectateData->Index = spectateIndex;
+    vector_copy(spectateData->LastCameraPos, players[spectateIndex]->CameraPos);
+  }
 }
 
 void initialize(void)
@@ -339,7 +382,8 @@ void processSpectate(void)
     // First, we have to ensure we are in-game
 	  if (!gameSettings || !isInGame()) 
     {
-      SpectateData->Enabled = 0;
+      SpectateData[0].Enabled = 0;
+      SpectateData[1].Enabled = 0;
       Initialized = 0;
       return;
     }
@@ -356,8 +400,7 @@ void processSpectate(void)
     // Loop through every player
     for (i = 0; i < GAME_MAX_PLAYERS; ++i)
 	  {
-      if (!players[i])
-      continue;
+      if (!players[i]) continue;
 
       Player * player = players[i];
 
@@ -369,8 +412,15 @@ void processSpectate(void)
         spectateIndex = spectateData->Index;
 
         // If dead
-        if (playerIsDead(player))
+        if (playerIsDead(player) || (gameConfig.customModeId == CUSTOM_MODE_HNS && player->Team == TEAM_BLUE && spectateData->Enabled))
         {
+          // hns allows spectating while alive
+          // disable input
+          if (gameConfig.customModeId == CUSTOM_MODE_HNS) {
+            player->timers.noInput = 10;
+            player->timers.noCamInputTimer = 10;
+          }
+
           if (!spectateData->Enabled)
           {
             // Show help message when player dies
@@ -381,7 +431,7 @@ void processSpectate(void)
             }
 
             // When the player presses square and spectate isn't already enabled. Try to enable it.
-            if (playerPadGetButtonDown(player, PAD_SQUARE) > 0) 
+            if (playerPadGetButtonDown(player, PAD_SQUARE) > 0 && (gameConfig.customModeId != CUSTOM_MODE_HNS || player->Team == TEAM_BLUE)) 
             {
               // First check if there is a player to spectate
               spectateIndex = findNextPlayerIndex(i, spectateIndex, 1);

@@ -16,30 +16,16 @@
 #ifndef _MODULE_H_
 #define _MODULE_H_
 
-
 #include <tamtypes.h>
 #include <libdl/gamesettings.h>
 #include "config.h"
+#include "messageid.h"
+
+#define EXTRA_CODE_SEG_PTR                      ((void*)0x01B80000)
 
 // Forward declarations
 struct GameModule;
 struct PatchStateContainer;
-
-/*
- * NAME :		ModuleStart
- * 
- * DESCRIPTION :
- * 			Defines the function pointer for all module entrypoints.
- *          Modules will provide a pointer to their entrypoint that will match
- *          this type.
- * 
- * NOTES :
- * 
- * 
- * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
- */
-typedef void (*ModuleStart)(struct GameModule * module, PatchConfig_t * config, PatchGameConfig_t * gameConfig, struct PatchStateContainer * gameState);
-
 
 /*
  * NAME :		GameModuleState
@@ -73,6 +59,42 @@ typedef enum GameModuleState
     GAMEMODULE_ALWAYS_ON
 } GameModuleState;
 
+/*
+ * NAME :		GameModuleContext
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+typedef enum GameModuleContext
+{
+    GAMEMODULE_LOBBY,
+    GAMEMODULE_LOAD,
+    GAMEMODULE_GAME_FRAME,
+    GAMEMODULE_GAME_UPDATE,
+    GAMEMODULE_SCENE_LOADING,
+    GAMEMODULE_UNKNOWN
+} GameModuleContext;
+
+/*
+ * NAME :		ModuleStart
+ * 
+ * DESCRIPTION :
+ * 			Defines the function pointer for all module entrypoints.
+ *          Modules will provide a pointer to their entrypoint that will match
+ *          this type.
+ * 
+ * NOTES :
+ * 
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+typedef void (*ModuleStart)(struct GameModule * module, struct PatchStateContainer * patchStateContainer, enum GameModuleContext context);
+
 
 /*
  * NAME :		GameModule
@@ -99,9 +121,9 @@ typedef struct GameModule
     char ModeId;
 
     /*
-     * Respective custom map id.
+     * Argument 2, can be anything related to the custom mode.
      */
-    char MapId;
+    char Arg2;
 
     /*
      * Argument 3, can be anything related to the custom mode.
@@ -109,49 +131,12 @@ typedef struct GameModule
     char Arg3;
 
     /*
-     * Entrypoint of module to be invoked when in game.
+     * Entrypoint of module to be invoked by the patch.
      */
-    ModuleStart GameEntrypoint;
-
-    /*
-     * Entrypoint of module to be invoked when in staging or menus.
-     */
-    ModuleStart LobbyEntrypoint;
-
-    /*
-     * Entrypoint of module to be invoked just before the level loads the map but after the map is read from the disc.
-     */
-    ModuleStart LoadEntrypoint;
+    ModuleStart Entrypoint;
 
 } GameModule;
 
-
-typedef struct UpdateGameStateRequest {
-	char TeamsEnabled;
-  char PADDING;
-  short Version;
-	int RoundNumber;
-	int TeamScores[GAME_MAX_PLAYERS];
-	char ClientIds[GAME_MAX_PLAYERS];
-	char Teams[GAME_MAX_PLAYERS];
-} UpdateGameStateRequest_t;
-
-typedef struct CustomGameModeStats
-{
-  u8 Payload[1024 * 6];
-} __attribute__((aligned(16))) CustomGameModeStats_t;
-
-typedef struct PatchStateContainer
-{
-    int UpdateGameState;
-    UpdateGameStateRequest_t GameStateUpdate;
-    int UpdateCustomGameStats;
-    CustomGameModeStats_t CustomGameStats;
-    GameSettings GameSettingsAtStart;
-    int CustomGameStatsSize;
-    int ClientsReadyMask;
-    int AllClientsReady;
-} PatchStateContainer_t;
 
 
 #endif // _MODULE_H_
