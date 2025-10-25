@@ -141,7 +141,7 @@ void reaperPostDraw(Moby* moby)
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
-  mobPostDrawQuad(moby, 127, color, 1);
+  mobPostDrawQuad(moby, 127, color, REAPER_SUBSKELETON_HEAD);
 }
 
 //--------------------------------------------------------------------------

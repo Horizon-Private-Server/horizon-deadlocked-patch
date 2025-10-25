@@ -18,17 +18,53 @@ const int specialRoundParamsCount = sizeof(specialRoundParams) / sizeof(struct S
 // These must be ordered from least probable to most probable
 // SHOULD NEVER EXCEED MAX_MOB_SPAWN_PARAMS
 struct MobSpawnParams defaultSpawnParams[] = {
+  // king leviathan
+  [MOB_SPAWN_PARAM_KING_LEVIATHAN]
+  {
+		.Cost = LEVIATHAN_RENDER_COST,
+    .MaxSpawnedAtOnce = 1,
+    .MaxSpawnedPerRound = 0,
+    .SpecialRoundOnly = 0,
+		.MinRound = 21,
+		.CooldownTicks = 0,
+    .CooldownOffsetPerRoundFactor = 0,
+		.Probability = 0.00025,
+    .StatId = MOB_STAT_LEVIATHAN,
+		.SpawnType = SPAWN_TYPE_DEFAULT_RANDOM,
+		.Name = "King Leviathan",
+		.Config = {
+			.Xp = 10000,
+      .SharedXp = 1,
+			.Bolts = MOB_BASE_BOLTS * 50.0,
+			.Bangles = 0x1FFF,
+			.Damage = MOB_BASE_DAMAGE * 1.0,
+			.MaxDamage = 0,
+      .DamageScale = 1.1,
+			.Speed = MOB_BASE_SPEED * 1.5,
+			.MaxSpeed = MOB_BASE_SPEED * 4.0,
+      .SpeedScale = 0.2,
+			.Health = MOB_BASE_HEALTH * 20.0,
+			.MaxHealth = TORVAL_MOB_MAX_HEALTH * 10.0,
+      .HealthScale = 1.1,
+			.AttackRadius = LEVIATHAN_MELEE_ATTACK_RADIUS * 1.5,
+			.HitRadius = LEVIATHAN_MELEE_HIT_RADIUS * 1.5,
+      .CollRadius = LEVIATHAN_BASE_COLL_RADIUS * 2.0,
+			.ReactionTickCount = LEVIATHAN_BASE_REACTION_TICKS * 1.0,
+			.AttackCooldownTickCount = LEVIATHAN_BASE_ATTACK_COOLDOWN_TICKS * 1.0,
+			.MobAttribute = MOB_ATTRIBUTE_BOSS,
+		}
+  },
   // reactor
   [MOB_SPAWN_PARAM_REACTOR]
 	{
 		.Cost = REACTOR_RENDER_COST,
     .MaxSpawnedAtOnce = 1,
-    .MaxSpawnedPerRound = 1,
+    .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
 		.MinRound = 16,
 		.CooldownTicks = 0,
     .CooldownOffsetPerRoundFactor = 0,
-		.Probability = 0.001,
+		.Probability = 0.00025,
     .StatId = MOB_STAT_REACTOR,
 		.SpawnType = SPAWN_TYPE_SEMI_NEAR_PLAYER,
 		.Name = "Reactor",
@@ -36,11 +72,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
 			.Xp = 10000,
       .SharedXp = 1,
 			.Bangles = REACTOR_BANGLE_SHOULDER_PLATES,
-			.Damage = MOB_BASE_DAMAGE * 1.0,
+			.Damage = MOB_BASE_DAMAGE * 1.2,
 			.MaxDamage = 0,
-      .DamageScale = 2.0,
+      .DamageScale = 1.1,
 			.Speed = MOB_BASE_SPEED * 1.5,
-			.MaxSpeed = MOB_BASE_SPEED * 5.0,
+			.MaxSpeed = MOB_BASE_SPEED * 3.0,
       .SpeedScale = 0.25,
 			.Health = MOB_BASE_HEALTH * 10.0,
 			.MaxHealth = 0,
@@ -275,6 +311,7 @@ u32 MobPrimaryColors[] = {
 	[MOB_SPAWN_PARAM_REAPER]  0x00464443,
 	[MOB_SPAWN_PARAM_LEVIATHAN]	0x00464443,
 	[MOB_SPAWN_PARAM_REACTOR]	0x00464443,
+	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x00464443,
 };
 
 u32 MobSecondaryColors[] = {
@@ -284,15 +321,17 @@ u32 MobSecondaryColors[] = {
 	[MOB_SPAWN_PARAM_REAPER]	0x80FF2020,
 	[MOB_SPAWN_PARAM_LEVIATHAN]	0x80FF2020,
 	[MOB_SPAWN_PARAM_REACTOR]	0x8020C020,
+	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x80FF2020,
 };
 
 u32 MobLODColors[] = {
 	[MOB_SPAWN_PARAM_SWARMER] 0x00808080,
 	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
-	[MOB_SPAWN_PARAM_EXECUTIONER] 	0x00808080,
-	[MOB_SPAWN_PARAM_REAPER]	0x00808080,
-	[MOB_SPAWN_PARAM_LEVIATHAN]	0x00808080,
-	[MOB_SPAWN_PARAM_REACTOR]	0x00808080,
+	[MOB_SPAWN_PARAM_EXECUTIONER] 	0x000000FF,
+	[MOB_SPAWN_PARAM_REAPER]	0x00202020,
+	[MOB_SPAWN_PARAM_LEVIATHAN]	0x0080FF80,
+	[MOB_SPAWN_PARAM_REACTOR]	0x00FF0000,
+	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x0000FF00,
 };
 
 //--------------------------------------------------------------------------

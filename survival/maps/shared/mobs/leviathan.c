@@ -233,7 +233,8 @@ void leviathanPostDraw(Moby* moby)
   if (!moby || !moby->PVar)
     return;
     
-  u32 color = LEVIATHAN_LOD_COLOR | (moby->Opacity << 24);
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
   mobPostDrawQuad(moby, 127, color, LEVIATHAN_SUBSKELETON_JOINT_BODY);
 }
 

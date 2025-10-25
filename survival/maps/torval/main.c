@@ -194,6 +194,7 @@ int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
   switch (spawnParamsIdx)
   {
     case MOB_SPAWN_PARAM_LEVIATHAN:
+    case MOB_SPAWN_PARAM_KING_LEVIATHAN:
     {
       return leviathanCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
     }
