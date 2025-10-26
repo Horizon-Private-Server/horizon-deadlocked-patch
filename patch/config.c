@@ -158,6 +158,7 @@ void tabInput(TabElem_t* tab);
 int mapsGetInstallationResult(void);
 int mapsPromptEnableCustomMaps(void);
 int mapsDownloadingModules(void);
+int mapReadCustomMapAuthorDescription(char* mapFilename, char dstAuthor[32], char dstDescription[256]);
 void refreshCustomMapList(void);
 void sendClientVoteForEnd(void);
 
@@ -807,8 +808,10 @@ MenuElem_t menuElementsGameSettingsHelp[] = {
 };
 
 // game settings tab menu items
+char mapOverrideDynamicHelp[256] = {};
+char mapOverrideDefaultHelp[] = "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack.";
 MenuElem_t menuElementsGameSettingsCustomMaps[] = {
-  { "Map override", listVerticalActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
+  { "Map override", listVerticalActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, mapOverrideDynamicHelp },
 };
 
 #if MAPEDITOR
@@ -1161,8 +1164,26 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
   if (!value)
     return 0;
 
+  char author[32];
+  char description[256];
   char gm = gameConfig.customModeId;
   char v = *value;
+  char currentValue = *listData->value;
+
+  static int lastValue = -1;
+  if (lastValue != currentValue) {
+    lastValue = currentValue;
+    strncpy(mapOverrideDynamicHelp, mapOverrideDefaultHelp, sizeof(mapOverrideDynamicHelp));
+    if (currentValue && mapReadCustomMapAuthorDescription(customMapDefs[currentValue-1].Filename, author, description)) {
+      if (author[0] && description[0]) {
+        snprintf(mapOverrideDynamicHelp, sizeof(mapOverrideDynamicHelp), "By %s: %s", author, description);
+      } else if (author[0]) {
+        snprintf(mapOverrideDynamicHelp, sizeof(mapOverrideDynamicHelp), "By %s", author);
+      } else if (description[0]) {
+        snprintf(mapOverrideDynamicHelp, sizeof(mapOverrideDynamicHelp), "%s", description);
+      }
+    }
+  }
 
   switch (gm)
   {

@@ -1884,9 +1884,33 @@ void runMapLoader(void)
 }
 
 //------------------------------------------------------------------------------
+int mapReadCustomMapAuthorDescription(char* mapFilename, char dstAuthor[32], char dstDescription[256])
+{
+  //
+  if (mapFilename && mapFilename[0]) {
+    char buffer[sizeof(CustomMapVersionFileDef_t) + 32 + 256];
+    char filepath[256];
+    snprintf(filepath, sizeof(filepath), fVersion, getMapPathPrefix(), mapFilename);
+
+    int read = readFile(filepath, buffer, 0, sizeof(buffer));
+    if (read < sizeof(buffer)) {
+      return 0;
+    }
+
+    CustomMapVersionFileDef_t customMapVersion;
+    memcpy(dstAuthor, buffer + sizeof(CustomMapVersionFileDef_t), 32);
+    memcpy(dstDescription, buffer + sizeof(CustomMapVersionFileDef_t) + 32, 256);
+    return 1;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int customModeId)
 {
   #define READ_CUSTOM_MAP_EXDATA_LEN (2048)
+  #define READ_CUSTOM_MAP_EXDATA_OFF (0x150)
 
   //
   if (mapFilename && mapFilename[0] && customModeId > 0) {
@@ -1904,10 +1928,10 @@ int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int cust
 
     int i;
     for (i = 0; i < customMapVersion.ExtraDataCount; ++i) {
-      short modeId = *(short*)((u32)buffer + 0x30 + 8*i);
+      short modeId = *(short*)((u32)buffer + READ_CUSTOM_MAP_EXDATA_OFF + 8*i);
       if (modeId == customModeId) {
-        short extraDataLen = *(short*)((u32)buffer + 0x32 + 8*i);
-        int extraDataOffset = *(int*)((u32)buffer + 0x34 + 8*i);
+        short extraDataLen = *(short*)((u32)buffer + (READ_CUSTOM_MAP_EXDATA_OFF + 2) + 8*i);
+        int extraDataOffset = *(int*)((u32)buffer + (READ_CUSTOM_MAP_EXDATA_OFF + 4) + 8*i);
         int readLen = (extraDataLen < dstLen) ? extraDataLen : dstLen;
         
         // check if we already read data
