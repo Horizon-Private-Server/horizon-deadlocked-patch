@@ -2917,8 +2917,10 @@ void onConfigUpdate(void)
   if (isUnloading) configUnload();
 
   // if in game we lost our allocs
-  if (isInGame()) {
+  if (!isConfigMenuActive && mapOverrideSelectedMapThumbnail) {
+    free(mapOverrideSelectedMapThumbnail);
     mapOverrideSelectedMapThumbnail = NULL;
+    mapOverrideSelectedMapHasThumbnail = 0;
   }
 
   // in staging, update game info
@@ -3294,6 +3296,9 @@ void configMenuEnable(void)
 {
   // enable
   isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 1;
+
+  // reset selected map idx
+  mapOverrideLastSelectedMapIdx = 0;
 
   // return to first tab if current is hidden
   int state = 0;
