@@ -9,16 +9,20 @@
 #include <libdl/game.h>
 #include <libdl/player.h>
 #include <libdl/map.h>
+#include <libdl/stdlib.h>
 #include <libdl/utils.h>
 #include "messageid.h"
 #include "module.h"
 #include "config.h"
+#include "common.h"
 #include "include/config.h"
 
 #define LINE_HEIGHT         (0.05)
 #define LINE_HEIGHT_3_2     (0.075)
 #define DEFAULT_GAMEMODE    (0)
 #define CHARACTER_TWEAKER_RANGE (10)
+#define THUMBNAIL_SIZE      (9248)
+#define TPS                 (60)
 
 // config
 extern PatchConfig_t config;
@@ -34,6 +38,7 @@ extern FreecamSettings_t freecamSettings;
 extern char aa_value;
 extern int redownloadCustomModeBinaries;
 extern int scavHuntEnabled;
+extern int isUnloading;
 
 extern VoteToEndState_t voteToEndState;
 
@@ -159,6 +164,7 @@ int mapsGetInstallationResult(void);
 int mapsPromptEnableCustomMaps(void);
 int mapsDownloadingModules(void);
 int mapReadCustomMapAuthorDescription(char* mapFilename, char dstAuthor[32], char dstDescription[256]);
+int mapReadCustomMapThumbnail(char* mapFilename, char *buf, int bufSize);
 void refreshCustomMapList(void);
 void sendClientVoteForEnd(void);
 
@@ -808,10 +814,14 @@ MenuElem_t menuElementsGameSettingsHelp[] = {
 };
 
 // game settings tab menu items
-char mapOverrideDynamicHelp[256] = {};
-char mapOverrideDefaultHelp[] = "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack.";
+char* mapOverrideSelectedMapThumbnail = NULL;
+int mapOverrideSelectedMapHasThumbnail = 0;
+char mapOverrideSelectedMapAuthor[32] = {};
+char mapOverrideSelectedMapDesc[256] = {};
+int mapOverrideSelectedMapTicks = 0;
+int mapOverrideLastSelectedMapIdx = 0;
 MenuElem_t menuElementsGameSettingsCustomMaps[] = {
-  { "Map override", listVerticalActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, mapOverrideDynamicHelp },
+  { "Map override", listVerticalActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
 };
 
 #if MAPEDITOR
@@ -1164,26 +1174,8 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
   if (!value)
     return 0;
 
-  char author[32];
-  char description[256];
   char gm = gameConfig.customModeId;
   char v = *value;
-  char currentValue = *listData->value;
-
-  static int lastValue = -1;
-  if (lastValue != currentValue) {
-    lastValue = currentValue;
-    strncpy(mapOverrideDynamicHelp, mapOverrideDefaultHelp, sizeof(mapOverrideDynamicHelp));
-    if (currentValue && mapReadCustomMapAuthorDescription(customMapDefs[currentValue-1].Filename, author, description)) {
-      if (author[0] && description[0]) {
-        snprintf(mapOverrideDynamicHelp, sizeof(mapOverrideDynamicHelp), "By %s: %s", author, description);
-      } else if (author[0]) {
-        snprintf(mapOverrideDynamicHelp, sizeof(mapOverrideDynamicHelp), "By %s", author);
-      } else if (description[0]) {
-        snprintf(mapOverrideDynamicHelp, sizeof(mapOverrideDynamicHelp), "%s", description);
-      }
-    }
-  }
 
   switch (gm)
   {
@@ -1758,7 +1750,7 @@ void drawListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_L
   u32 color = colorLerp(colorText, 0, lerp);
 
   // draw name
-  if (drawIdx == 0) {
+  if (drawIdx == 0 && 0) {
     x = (r.TopLeft[0] * SCREEN_WIDTH) + 5;
     y = ((r.TopLeft[1] + r.BottomLeft[1]) * 0.5 * SCREEN_HEIGHT) + 5;
     gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
@@ -1768,6 +1760,92 @@ void drawListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_L
   x = (r.TopRight[0] * SCREEN_WIDTH) - 5;
   y = ((r.TopLeft[1] + yOff) * SCREEN_HEIGHT) + 5;
   gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT);
+}
+
+//------------------------------------------------------------------------------
+void drawListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, RECT* rect)
+{
+  RECT r;
+  memcpy(&r, rect, sizeof(r));
+
+  // get element state
+  int state = getMenuElementState(tab, element);
+  int selIdx = (int)*listData->value;
+
+  float x,y,w,h;
+  float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
+  u32 color = colorLerp(colorText, 0, lerp);
+
+  // get info
+  if (selIdx > 0 && mapOverrideLastSelectedMapIdx != selIdx) {
+    mapOverrideLastSelectedMapIdx = selIdx;
+    mapOverrideSelectedMapTicks = 0;
+
+    // read author/description
+    if (!mapReadCustomMapAuthorDescription(customMapDefs[selIdx-1].Filename, mapOverrideSelectedMapAuthor, mapOverrideSelectedMapDesc)) {
+      mapOverrideSelectedMapAuthor[0] = 0;
+      mapOverrideSelectedMapDesc[0] = 0;
+    }
+
+    // alloc thumbnail -- only in menus
+    if (!mapOverrideSelectedMapThumbnail && isInMenus()) {
+      mapOverrideSelectedMapThumbnail = malloc(THUMBNAIL_SIZE);
+    }
+
+    // try read thumbnail
+    mapOverrideSelectedMapHasThumbnail = 0;
+    if (mapOverrideSelectedMapThumbnail && mapReadCustomMapThumbnail(customMapDefs[selIdx-1].Filename, mapOverrideSelectedMapThumbnail, THUMBNAIL_SIZE) == THUMBNAIL_SIZE) {
+      mapOverrideSelectedMapHasThumbnail = 1;
+    }
+  }
+
+  // draw info
+  u32 infoBgColor = 0x80282828;
+  gfxScreenSpaceQuad(&r, infoBgColor, infoBgColor, infoBgColor, infoBgColor);
+
+  // draw thumb
+  if (mapOverrideSelectedMapHasThumbnail && mapOverrideSelectedMapThumbnail) {
+    u16 ulog = 7;
+    u16 vlog = 6;
+    int r1 = gfxLoadPalToGs(mapOverrideSelectedMapThumbnail + 0x020, 0x13);
+    int r2 = gfxLoadTexToGs(mapOverrideSelectedMapThumbnail + 0x420, ulog, vlog, 0x13);
+    u64 t = gfxConstructEffectTex(r2, r1, ulog, vlog, 0x13);
+      
+    x = (r.TopLeft[0] * SCREEN_WIDTH) - 0;
+    y = ((r.TopLeft[1] + 0) * SCREEN_HEIGHT) + 0;
+    w = (r.TopRight[0] - r.TopLeft[0]) * SCREEN_WIDTH;
+    h = w * 0.5;
+
+    gfxSetupGifPaging(0);
+    gfxDrawSprite(x, y, w, h, 0, 0, 1 << ulog, 1 << vlog, 0x80808080, t);
+    gfxDoGifPaging();
+  }
+  
+  // draw description
+  if (mapOverrideSelectedMapDesc[0]) {
+    mapOverrideSelectedMapTicks += 1;
+    w = (r.TopRight[0] - r.TopLeft[0]) * SCREEN_WIDTH;
+    h = (r.BottomLeft[1] - r.TopLeft[1] - LINE_HEIGHT) * SCREEN_HEIGHT - w*0.5;
+    x = (r.TopLeft[0] * SCREEN_WIDTH) - 0;
+    y = ((r.TopLeft[1] + 0) * SCREEN_HEIGHT) + w*0.5;
+    gfxSetScissor(x, x + w, y, y + h);
+    y -= (int)minf(64, maxf(0, (mapOverrideSelectedMapTicks%(7*TPS) - 3*TPS) * 0.5));
+    gfxHelperDrawTextWindow(x, y, 0, 0, w, SCREEN_HEIGHT, 5, 5
+      , 0.9, color
+      , mapOverrideSelectedMapDesc, -1
+      , TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NONE);
+    gfxSetScissor(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);
+  }
+    
+  // draw author
+  if (mapOverrideSelectedMapAuthor[0]) {
+    x = (r.BottomLeft[0] * SCREEN_WIDTH) + 5;
+    y = ((r.BottomLeft[1] + 0) * SCREEN_HEIGHT) - 2;
+    char authorBuf[40];
+    snprintf(authorBuf, sizeof(authorBuf), "by %s", mapOverrideSelectedMapAuthor);
+    gfxScreenSpaceBox(r.BottomLeft[0], r.BottomLeft[1] - LINE_HEIGHT, r.BottomRight[0] - r.BottomLeft[0], LINE_HEIGHT, 0x80181818);
+    gfxScreenSpaceText(x, y, 1, 1, color, authorBuf, -1, TEXT_ALIGN_BOTTOMLEFT);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -2334,23 +2412,37 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
       int halfToDraw = itemsToDraw / 2;
       int roll = 0;
       int lastIdx = *listData->value;
+      RECT rectLeft, rectRight;
+
+      // create map list rect
+      memcpy(&rectLeft, (RECT*)actionArg, sizeof(rectLeft));
+      rectLeft.TopRight[0] *= 0.5;
+      rectLeft.BottomRight[0] *= 0.5;
+      
+      // create map info rect
+      memcpy(&rectRight, (RECT*)actionArg, sizeof(rectRight));
+      rectRight.TopLeft[0] = rectLeft.TopRight[0];
+      rectRight.BottomLeft[0] = rectLeft.BottomRight[0];
 
       // draw items up
       for (i = 0; i < halfToDraw; ++i) {
         lastIdx = listFindNextValidValue(listData, lastIdx, -1);
-        drawListVerticalMenuElement(tab, element, listData, halfToDraw - i - 1, lastIdx, (RECT*)actionArg);
+        drawListVerticalMenuElement(tab, element, listData, halfToDraw - i - 1, lastIdx, &rectRight);
       }
       
       // draw selected item
       lastIdx = *listData->value;
-      drawListVerticalMenuElement(tab, element, listData, halfToDraw, lastIdx, (RECT*)actionArg);
+      drawListVerticalMenuElement(tab, element, listData, halfToDraw, lastIdx, &rectRight);
       ++i;
 
       // draw items down
       for (; i < itemsToDraw; ++i) {
         lastIdx = listFindNextValidValue(listData, lastIdx, 1);
-        drawListVerticalMenuElement(tab, element, listData, i, lastIdx, (RECT*)actionArg);
+        drawListVerticalMenuElement(tab, element, listData, i, lastIdx, &rectRight);
       }
+
+      // draw info box
+      drawListVerticalMenuElementInfo(tab, element, listData, &rectLeft);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
@@ -2363,6 +2455,8 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
       r.TopRight[1] = y;
       r.BottomLeft[1] = y + LINE_HEIGHT;
       r.BottomRight[1] = y + LINE_HEIGHT;
+      r.TopLeft[0] = r.TopRight[0] * 0.5;
+      r.BottomLeft[0] = r.BottomRight[0] * 0.5;
 
       gfxScreenSpaceQuad(&r, colorSelected, colorSelected, colorSelected, colorSelected);
       break;
@@ -2728,6 +2822,17 @@ void drawTab(TabElem_t* tab)
 }
 
 //------------------------------------------------------------------------------
+void configUnload(void)
+{
+  // unload thumbnail
+  if (mapOverrideSelectedMapThumbnail) {
+    free(mapOverrideSelectedMapThumbnail);
+    mapOverrideSelectedMapThumbnail = NULL;
+    mapOverrideSelectedMapHasThumbnail = 0;
+  }
+}
+
+//------------------------------------------------------------------------------
 void onMenuUpdate(int inGame)
 {
   char buf[16];
@@ -2807,6 +2912,14 @@ void onConfigUpdate(void)
       ++dlConnectionTimeout;
     }
   } else { dlConnectionTimeout = 0; }
+
+  // check for unload
+  if (isUnloading) configUnload();
+
+  // if in game we lost our allocs
+  if (isInGame()) {
+    mapOverrideSelectedMapThumbnail = NULL;
+  }
 
   // in staging, update game info
   GameSettings * gameSettings = gameGetSettings();

@@ -108,6 +108,7 @@ char * fWad = "%sdl/%s.wad";
 char * fSound = "%sdl/%s.sound";
 char * fBg = "%sdl/%s.bg";
 char * fMap = "%sdl/%s.map";
+char * fThumb = "%sdl/%s.thumb";
 char * fCode = "%sdl/%s.code";
 char * fVersion = "%sdl/%s.version";
 char * fGlobalVersion = "%sdl/version";
@@ -1901,6 +1902,20 @@ int mapReadCustomMapAuthorDescription(char* mapFilename, char dstAuthor[32], cha
     memcpy(dstAuthor, buffer + sizeof(CustomMapVersionFileDef_t), 32);
     memcpy(dstDescription, buffer + sizeof(CustomMapVersionFileDef_t) + 32, 256);
     return 1;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+int mapReadCustomMapThumbnail(char* mapFilename, char *buf, int bufSize)
+{
+  //
+  if (mapFilename && mapFilename[0]) {
+    char filepath[256];
+    snprintf(filepath, sizeof(filepath), fThumb, getMapPathPrefix(), mapFilename);
+
+    return readFile(filepath, buf, 0, bufSize);
   }
 
   return 0;
