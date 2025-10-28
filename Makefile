@@ -28,6 +28,7 @@ all:
 	$(MAKE) -C usbserv
 	
 clean:
+	rm -rf bin/
 	$(MAKE) -C patch clean
 	$(MAKE) -C unpatch clean
 	$(MAKE) -C spleef clean

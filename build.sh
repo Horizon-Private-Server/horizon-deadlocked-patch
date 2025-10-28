@@ -1,12 +1,8 @@
 #!/bin/bash
 set -e
 
-# Check if bin directory exists, if not create it, otherwise clear its contents
-if [ -d bin ]; then
-  # Directory exists, so delete all files inside it
-  rm -rf bin/*
-else
-  # Directory doesn't exist, so create it
+# Check if bin directory exists, if not create it
+if [ ! -d bin ]; then
   mkdir bin
 fi
 

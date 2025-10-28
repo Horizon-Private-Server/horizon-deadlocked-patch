@@ -1,5 +1,4 @@
 # remove current and create new bin directory for horizon-deadlocked-patch/
-Remove-Item -Recurse -Force ./bin
 mkdir ./bin
 
 # run docker and run "docker-init.sh"
