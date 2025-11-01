@@ -549,10 +549,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 	}
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     gameState->CustomGameStatsSize = sizeof(struct CGMGameData);
-		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats.Payload;
+		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats->Payload;
 		sGameData->Rounds = 0;
 		sGameData->Version = 0x00000001;
 
@@ -581,6 +581,17 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
     if (gameSettings->PlayerClients[i] >= 0) {
       gameSettings->PlayerTeams[i] = i;
     }
+  }
+	
+  // force koth
+  if (gameSettings->GameRules != GAMERULE_KOTH) {
+    gameSettings->GameRules = GAMERULE_KOTH;
+    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 1;
+    if (gameOptions->GameFlags.MultiplayerGameFlags.Timelimit == 0)
+      gameOptions->GameFlags.MultiplayerGameFlags.HillTimeToWin = 5;
+	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 2; // CTF SPAWNS
   }
 	
 	// apply options

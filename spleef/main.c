@@ -364,10 +364,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 	}
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     gameState->CustomGameStatsSize = sizeof(struct SpleefGameData);
-		struct SpleefGameData* sGameData = (struct SpleefGameData*)gameState->CustomGameStats.Payload;
+		struct SpleefGameData* sGameData = (struct SpleefGameData*)gameState->CustomGameStats->Payload;
 		sGameData->Rounds = SpleefState.RoundNumber+1;
 		DPRINTF("spleef ran for %d rounds\n", sGameData->Rounds);
 		sGameData->Version = 0x00000001;
@@ -799,24 +799,23 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
-	// deathmatch options
-	static char options[] = { 
-		0, 0, 			// 0x06 - 0x08
-		0, 0, 0, 0, 	// 0x08 - 0x0C
-		1, 1, 1, 0,  	// 0x0C - 0x10
-		0, 1, 0, 0,		// 0x10 - 0x14
-		-1, -1, 0, 1,	// 0x14 - 0x18
-	};
-
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
 	GameSettings* gameSettings = gameGetSettings();
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 		
-	// apply options
-	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
-
+  // force deathmatch
+  if (gameSettings->GameRules != GAMERULE_DM) {
+    gameSettings->GameRules = GAMERULE_DM;
+    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 15;
+    gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
+	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
+  }
+	
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;

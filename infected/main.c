@@ -15,8 +15,6 @@
 
 #include <libdl/stdio.h>
 #include <libdl/time.h>
-#include "module.h"
-#include "include/game.h"
 #include <libdl/game.h>
 #include <libdl/gamesettings.h>
 #include <libdl/graphics.h>
@@ -25,6 +23,9 @@
 #include <libdl/ui.h>
 #include <libdl/string.h>
 #include <libdl/utils.h>
+#include <libdl/sha1.h>
+#include "module.h"
+#include "include/game.h"
 
 
 void initializeScoreboard(void);
@@ -217,6 +218,8 @@ Player * getRandomSurvivor(u32 seed)
 {
 	Player ** playerObjects = playerGetAll();
 
+	sha1((void*)&seed, 4, (void*)&seed, 4);
+
 	int value = (seed % GAME_MAX_PLAYERS) + 1;
 	int i = 0;
 	int counter = 0;
@@ -288,10 +291,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 	int i,j;
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     gameState->CustomGameStatsSize = sizeof(struct InfectedGameData);
-		struct InfectedGameData* sGameData = (struct InfectedGameData*)gameState->CustomGameStats.Payload;
+		struct InfectedGameData* sGameData = (struct InfectedGameData*)gameState->CustomGameStats->Payload;
 		sGameData->Version = 0x00000001;
 
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -420,7 +423,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 			// Infect first player after 10 seconds
 			if ((gameGetTime() - gameSettings->GameStartTime) > (10 * TIME_SECOND))
 			{
-				Player * survivor = getRandomSurvivor(gameSettings->GameStartTime);
+				Player * survivor = getRandomSurvivor(gameSettings->GameLoadStartTime);
 				if (survivor)
 				{
 					infect(survivor->PlayerId);
@@ -437,33 +440,49 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
 {
   int i;
 
-	// deathmatch options
-	static char options[] = { 
-		0, 0, 			  // 0x06 - 0x08
-		0, 0, 0, 0, 	// 0x08 - 0x0C
-		1, 1, 1, 0,  	// 0x0C - 0x10
-		0, 1, 0, 0,		// 0x10 - 0x14
-		-1, -1, 0, 1,	// 0x14 - 0x18
-	};
-
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
 	GameSettings* gameSettings = gameGetSettings();
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 		
+  // force deathmatch
+  if (gameSettings->GameRules != GAMERULE_DM) {
+    gameSettings->GameRules = GAMERULE_DM;
+    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
+  }
+	
 	// apply options
-	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)options, sizeof(options)/sizeof(char));
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Lockdown = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 5;
+  gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Puma = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 0;
   gameState->GameConfig->grNoPickups = 0;
+
+  // disable vehicles unless custom map made for infected
+  // then we trust the mapmaker to disable vehicles in the map if they want
+  if (gameState->SelectedCustomMapId) {
+    CustomMapDef_t* def = PATCH_INTEROP->GetCustomMapDef(gameState->SelectedCustomMapId-1);
+    if (def && def->ForcedCustomModeId == CUSTOM_MODE_INFECTED) {
+      gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 1;
+      gameOptions->GameFlags.MultiplayerGameFlags.Puma = 1;
+      gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 1;
+      gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 1;
+      gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 1;
+    }
+  }
 
   // set everyone to blue
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {

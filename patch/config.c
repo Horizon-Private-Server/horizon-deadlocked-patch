@@ -48,6 +48,8 @@ int selectedTabItem = 0;
 int hasDevGameConfig = 0;
 u32 padPointer = 0;
 int preset = 0;
+char footerCanSelect = 0;
+char footerCanFilter = 0;
 
 //
 int dlBytesReceived = 0;
@@ -57,7 +59,11 @@ int dlConnectionTimeout = 0;
 
 
 // constants
-const char footerText[] = "\x14 \x15 TAB     \x10 SELECT     \x12 BACK";
+const char footerTextGap[] = "     ";
+const char footerTextBack[] = "\x12 BACK";
+const char footerTextSelect[] = "\x10 SELECT";
+const char footerTextTab[] = "\x14 \x15 TAB";
+const char footerTextFilter[] = "\x13 FILTER";
 
 // menu display properties
 const u32 colorBlack = 0x80000000;
@@ -87,13 +93,14 @@ const float tabBarPaddingX = 0.005;
 //
 void configMenuDisable(void);
 void configMenuEnable(void);
+void configTrySendGameConfig(void);
 
 // action handlers
 void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
+void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
 void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
@@ -114,6 +121,7 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_MapsListVerticalStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
 int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value);
@@ -451,8 +459,10 @@ MenuElem_t menuElementsFreecam[] = {
 };
 
 // map override list item
+char dataCustomMapsStagingValue = 0;
 MenuElem_ListData_t dataCustomMaps = {
   .value = &patchStateContainer.SelectedCustomMapId,
+  .stagingValue = &dataCustomMapsStagingValue,
   .stateHandler = menuStateHandler_SelectedMapOverride,
   .count = 1,
   .rows = 10,
@@ -500,7 +510,7 @@ MenuElem_OrderedListData_t dataCustomModes = {
 const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_NONE] NULL,
   [CUSTOM_MODE_GUN_GAME] NULL,
-  [CUSTOM_MODE_HNS] NULL,
+  [CUSTOM_MODE_HNS] "HnS",
   [CUSTOM_MODE_INFECTED] NULL,
   [CUSTOM_MODE_PAYLOAD] NULL,
   [CUSTOM_MODE_SEARCH_AND_DESTROY] "SND",
@@ -514,6 +524,29 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_OBSTACLE] NULL,
   //[CUSTOM_MODE_BENCHMARK] NULL,
   [CUSTOM_MODE_GRIDIRON] NULL,
+#if DEV
+  [CUSTOM_MODE_ANIM_EXTRACTOR] NULL,
+#endif
+};
+
+// 
+const char* CustomModeMapAttributeNames[] = {
+  [CUSTOM_MODE_NONE] NULL,
+  [CUSTOM_MODE_GUN_GAME] "GUN GAME",
+  [CUSTOM_MODE_HNS] "HNS",
+  [CUSTOM_MODE_INFECTED] "INFECTED",
+  [CUSTOM_MODE_PAYLOAD] "PAYLOAD",
+  [CUSTOM_MODE_SEARCH_AND_DESTROY] "SND",
+  [CUSTOM_MODE_SURVIVAL] "SURVIVAL",
+  [CUSTOM_MODE_1000_KILLS] "1K",
+  [CUSTOM_MODE_TRAINING] NULL,
+  [CUSTOM_MODE_TEAM_DEFENDER] "TEAM DEF",
+  [CUSTOM_MODE_TAG] "TAG",
+  [CUSTOM_MODE_RAIDS] "RAIDS",
+  [CUSTOM_MODE_OITC] "OITC",
+  [CUSTOM_MODE_OBSTACLE] "OC",
+  //[CUSTOM_MODE_BENCHMARK] NULL,
+  [CUSTOM_MODE_GRIDIRON] "DREADBALL",
 #if DEV
   [CUSTOM_MODE_ANIM_EXTRACTOR] NULL,
 #endif
@@ -821,7 +854,7 @@ char mapOverrideSelectedMapDesc[256] = {};
 int mapOverrideSelectedMapTicks = 0;
 int mapOverrideLastSelectedMapIdx = 0;
 MenuElem_t menuElementsGameSettingsCustomMaps[] = {
-  { "Map override", listVerticalActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
+  { "Map override", mapsListVerticalActionHandler, menuStateHandler_MapsListVerticalStateHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
 };
 
 #if MAPEDITOR
@@ -864,13 +897,49 @@ TabElem_t tabElements[] = {
 
 const int tabsCount = sizeof(tabElements)/sizeof(TabElem_t);
 
-// 
+//------------------------------------------------------------------------------
+char* getCustomModeName(int modeId, int type)
+{
+  if (modeId <= 0) return "None";
+
+  char* modeName = type > 1 ? (char*)CustomModeMapAttributeNames[modeId] : NULL;
+  if (!modeName && type > 0) modeName = (char*)CustomModeShortNames[modeId];
+  if (!modeName) {
+    int i;
+    for (i = 0; i < dataCustomModes.count; ++i) {
+      if (dataCustomModes.items[i].value == modeId) {
+        modeName = dataCustomModes.items[i].name;
+        break;
+      }
+    }
+  }
+
+  return modeName;
+}
+
+//------------------------------------------------------------------------------
+int getCustomMapMode(int mapIdx)
+{
+  if (mapIdx <= 0) return 0;
+
+  return customMapDefs[mapIdx - 1].ForcedCustomModeId;
+}
+
+//------------------------------------------------------------------------------
+char* getCustomMapName(int mapIdx)
+{
+  if (mapIdx <= 0) return "None";
+
+  return customMapDefs[mapIdx - 1].Name;
+}
+
+//------------------------------------------------------------------------------
 void tabDefaultStateHandler(TabElem_t* tab, int * state)
 {
   *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
+//------------------------------------------------------------------------------
 void tabFreecamStateHandler(TabElem_t* tab, int * state)
 {
   if (gameConfig.drFreecam && isInGame())
@@ -879,7 +948,7 @@ void tabFreecamStateHandler(TabElem_t* tab, int * state)
     *state = ELEMENT_HIDDEN;
 }
 
-// 
+//------------------------------------------------------------------------------
 void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   refreshCustomMapList();
@@ -893,7 +962,7 @@ void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
   }
 }
 
-// 
+//------------------------------------------------------------------------------
 void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
 {
 
@@ -926,13 +995,13 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
 #endif
   else
   {
-    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_FILTERABLE;
   }
 #endif
 
 }
 
-// 
+//------------------------------------------------------------------------------
 void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state)
 {
 
@@ -955,7 +1024,7 @@ void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state)
 
 }
 
-// 
+//------------------------------------------------------------------------------
 void tabCustomMapStateHandler(TabElem_t* tab, int * state)
 {
   if (isInGame())
@@ -970,7 +1039,7 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state)
 
 #ifdef RELOADPATCH
 
-// 
+//------------------------------------------------------------------------------
 void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   // close menu
@@ -986,7 +1055,7 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
 
 #ifdef DEBUG
 
-// 
+//------------------------------------------------------------------------------
 void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   ClientRequestBootElf_t request;
@@ -1005,7 +1074,7 @@ void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
 
 #ifdef MAPEDITOR
 
-// 
+//------------------------------------------------------------------------------
 void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   if (mapEditorState == 1)
@@ -1016,7 +1085,7 @@ void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, 
 
 #endif
 
-// 
+//------------------------------------------------------------------------------
 void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   // 
@@ -1033,7 +1102,7 @@ void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
   }
 }
 
-// 
+//------------------------------------------------------------------------------
 void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   preset = 0;
@@ -1041,7 +1110,7 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
   patchStateContainer.SelectedCustomMapId = 0;
 }
 
-// 
+//------------------------------------------------------------------------------
 void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   // close menu
@@ -1059,7 +1128,7 @@ void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element)
   }
 }
 
-// 
+//------------------------------------------------------------------------------
 void voteToEndSelectHandler(TabElem_t* tab, MenuElem_t* element)
 {
   sendClientVoteForEnd();
@@ -1177,6 +1246,10 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
   char gm = gameConfig.customModeId;
   char v = *value;
 
+  // if no override selected, let user see all maps
+  if (!gm) return 1;
+
+  // otherwise filter by game mode
   switch (gm)
   {
     // case CUSTOM_MODE_BENCHMARK:
@@ -1308,7 +1381,8 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
         }
       }
 
-      if (v && customMapDefs[v-1].ForcedCustomModeId > 0) {
+      // hide unless forced mode is negative (benchmark, spleef) or selected mode matches map
+      if (v && customMapDefs[v-1].ForcedCustomModeId > 0 && customMapDefs[v-1].ForcedCustomModeId != gm) {
         *value = 0;
         return 0;
       }
@@ -1347,49 +1421,10 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listDa
   {
     switch (v)
     {
-      case CUSTOM_MODE_INFECTED:
-      case CUSTOM_MODE_GUN_GAME:
-      //case CUSTOM_MODE_INFINITE_CLIMBER:
+      // DM ONLY
       case CUSTOM_MODE_1000_KILLS:
-      case CUSTOM_MODE_SURVIVAL:
-      case CUSTOM_MODE_RAIDS:
-      case CUSTOM_MODE_PAYLOAD:
-      case CUSTOM_MODE_HNS:
-      case CUSTOM_MODE_TEAM_DEFENDER:
       {
         if (gs->GameRules == GAMERULE_DM)
-          return 1;
-        
-        *value = CUSTOM_MODE_NONE;
-        return 0;
-      }
-      case CUSTOM_MODE_SEARCH_AND_DESTROY:
-      {
-        if (gs->GameRules == GAMERULE_CQ)
-          return 1;
-
-        *value = CUSTOM_MODE_NONE;
-        return 0;
-      }
-      case CUSTOM_MODE_TRAINING:
-      {
-        if (gs->GameRules == GAMERULE_DM || gs->GameRules == GAMERULE_KOTH || gs->GameRules == GAMERULE_CTF)
-          return 1;
-
-        *value = CUSTOM_MODE_NONE;
-        return 0;
-      }
-      case CUSTOM_MODE_GRIDIRON:
-      {
-        if (gs->GameRules == GAMERULE_CTF)
-          return 1;
-          
-        *value = CUSTOM_MODE_NONE;
-        return 0;
-      }
-      case CUSTOM_MODE_TAG:
-      {
-        if (gs->GameRules == GAMERULE_KOTH)
           return 1;
           
         *value = CUSTOM_MODE_NONE;
@@ -1629,6 +1664,13 @@ void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* 
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
+//
+void menuStateHandler_MapsListVerticalStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE | ELEMENT_FILTERABLE;
+}
+
+//------------------------------------------------------------------------------
 int getMenuElementState(TabElem_t* tab, MenuElem_t* element)
 {
   // get tab and element state
@@ -1715,8 +1757,9 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
 {
   // get element state
   int state = getMenuElementState(tab, element);
+  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
 
-  int selectedIdx = (int)*listData->value;
+  int selectedIdx = (int)*activeValue;
   if (selectedIdx < 0)
     selectedIdx = 0;
   
@@ -1735,16 +1778,18 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
 }
 
 //------------------------------------------------------------------------------
-void drawListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, int drawIdx, int itemIdx, RECT* rect)
+void drawMapsListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, int drawIdx, int itemIdx, RECT* rect)
 {
+  char buf[64];
   RECT r;
   memcpy(&r, rect, sizeof(r));
   float yOff = drawIdx * LINE_HEIGHT;
+  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
 
-  int isSelectedIdx = (int)*listData->value == itemIdx;
+  int isSelectedIdx = (int)*activeValue == itemIdx;
   float x,y;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
@@ -1759,42 +1804,48 @@ void drawListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_L
   // draw value
   x = (r.TopRight[0] * SCREEN_WIDTH) - 5;
   y = ((r.TopLeft[1] + yOff) * SCREEN_HEIGHT) + 5;
-  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT);
+  float w = gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT) - x;
+  
+  if (itemIdx > 0 && customMapDefs[itemIdx-1].ForcedCustomModeId > 0) {
+    snprintf(buf, sizeof(buf), "[\x09%s\x08]", getCustomModeName(customMapDefs[itemIdx-1].ForcedCustomModeId, 2));
+    gfxScreenSpaceText(x - w - 10, y + 7, 0.8, 0.8, color, buf, -1, TEXT_ALIGN_MIDDLERIGHT);
+  }
 }
 
 //------------------------------------------------------------------------------
-void drawListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, RECT* rect)
+void drawMapsListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, RECT* rect)
 {
   RECT r;
   memcpy(&r, rect, sizeof(r));
+  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
-  int selIdx = (int)*listData->value;
+  int selIdx = (int)*activeValue;
 
   float x,y,w,h;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
 
   // get info
-  if (selIdx > 0 && mapOverrideLastSelectedMapIdx != selIdx) {
+  if (mapOverrideLastSelectedMapIdx != selIdx) {
     mapOverrideLastSelectedMapIdx = selIdx;
     mapOverrideSelectedMapTicks = 0;
 
     // read author/description
-    if (!mapReadCustomMapAuthorDescription(customMapDefs[selIdx-1].Filename, mapOverrideSelectedMapAuthor, mapOverrideSelectedMapDesc)) {
+    if (selIdx <= 0 || !mapReadCustomMapAuthorDescription(customMapDefs[selIdx-1].Filename, mapOverrideSelectedMapAuthor, mapOverrideSelectedMapDesc)) {
       mapOverrideSelectedMapAuthor[0] = 0;
       mapOverrideSelectedMapDesc[0] = 0;
     }
 
     // alloc thumbnail -- only in menus
-    if (!mapOverrideSelectedMapThumbnail && isInMenus()) {
+    if (selIdx > 0 && !mapOverrideSelectedMapThumbnail && isInMenus()) {
       mapOverrideSelectedMapThumbnail = malloc(THUMBNAIL_SIZE);
     }
 
     // try read thumbnail
     mapOverrideSelectedMapHasThumbnail = 0;
-    if (mapOverrideSelectedMapThumbnail && mapReadCustomMapThumbnail(customMapDefs[selIdx-1].Filename, mapOverrideSelectedMapThumbnail, THUMBNAIL_SIZE) == THUMBNAIL_SIZE) {
+    if (selIdx > 0 && mapOverrideSelectedMapThumbnail && mapReadCustomMapThumbnail(customMapDefs[selIdx-1].Filename, mapOverrideSelectedMapThumbnail, THUMBNAIL_SIZE) == THUMBNAIL_SIZE) {
       mapOverrideSelectedMapHasThumbnail = 1;
     }
   }
@@ -1937,7 +1988,7 @@ void drawLabelMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
 }
 
 //------------------------------------------------------------------------------
-void listVerticalInput(TabElem_t* tab)
+void mapsListVerticalInput(TabElem_t* tab)
 {
   int i;
   if (!tab)
@@ -1958,6 +2009,12 @@ void listVerticalInput(TabElem_t* tab)
     for (i = 0; i < 5; ++i)
       currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
   }
+  // nav select
+  else if (padGetButtonDown(0, PAD_CROSS) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT, NULL);
+  }
   // nav select secondary
   else if (padGetButtonDown(0, PAD_SQUARE) > 0)
   {
@@ -1967,14 +2024,12 @@ void listVerticalInput(TabElem_t* tab)
   // nav inc
   else if (padGetButtonUp(0, PAD_DOWN) > 0)
   {
-    if (state & ELEMENT_EDITABLE)
-      currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
+    currentElement->handler(tab, currentElement, ACTIONTYPE_INCREMENT, NULL);
   }
   // nav dec
   else if (padGetButtonUp(0, PAD_UP) > 0)
   {
-    if (state & ELEMENT_EDITABLE)
-      currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
+    currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
   }
 }
 
@@ -1992,11 +2047,15 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
   {
     case ACTIONTYPE_SELECT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
+      }
 
-      if (element->userdata)
+      if (element->userdata) {
+        uiPlaySound(UI_SOUND_ID_SELECT, 0);
         ((ButtonSelectHandler)element->userdata)(tab, element);
+      }
       break;
     }
     case ACTIONTYPE_GETHEIGHT:
@@ -2086,12 +2145,16 @@ void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     case ACTIONTYPE_INCREMENT:
     case ACTIONTYPE_SELECT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
+      }
+
       char newValue = *rangeData->value + 1;
       if (newValue > rangeData->maxValue)
         newValue = rangeData->minValue;
 
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
       *rangeData->value = newValue;
       break;
     }
@@ -2102,12 +2165,16 @@ void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     }
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
+      }
+
       char newValue = *rangeData->value - 1;
       if (newValue < rangeData->minValue)
         newValue = rangeData->maxValue;
 
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
       *rangeData->value = newValue;
       break;
     }
@@ -2145,6 +2212,7 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
 {
   MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
   int itemCount = listData->count;
+  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2153,14 +2221,40 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
   if ((state & ELEMENT_VISIBLE) == 0)
     return;
 
+  // save staging value
+  if (actionType == ACTIONTYPE_SELECT && listData->stagingValue)
+  {
+    if ((state & ELEMENT_EDITABLE) == 0) {
+      uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+      return;
+    }
+
+    // save
+    uiPlaySound(UI_SOUND_ID_SELECT, 0);
+    *listData->value = *listData->stagingValue;
+    configTrySendGameConfig();
+    return;
+  }
+
   switch (actionType)
   {
-    case ACTIONTYPE_INCREMENT:
-    case ACTIONTYPE_SELECT:
+    case ACTIONTYPE_INIT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      // reset staging value
+      if (listData->stagingValue)
+        *listData->stagingValue = *listData->value;
+
+      break;
+    }
+    case ACTIONTYPE_SELECT:
+    case ACTIONTYPE_INCREMENT:
+    {
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
-      char newValue = *listData->value;
+      }
+
+      char newValue = *activeValue;
 
       do
       {
@@ -2170,16 +2264,20 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
         char tValue = newValue;
         if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
           break;
-      } while (newValue != *listData->value);
+      } while (newValue != *activeValue);
 
-      *listData->value = newValue;
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      *activeValue = newValue;
       break;
     }
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
-      char newValue = *listData->value;
+      }
+
+      char newValue = *activeValue;
 
       do
       {
@@ -2189,9 +2287,10 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
         char tValue = newValue;
         if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
           break;
-      } while (newValue != *listData->value);
+      } while (newValue != *activeValue);
 
-      *listData->value = newValue;
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      *activeValue = newValue;
       break;
     }
     case ACTIONTYPE_GETHEIGHT:
@@ -2212,7 +2311,7 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     case ACTIONTYPE_VALIDATE:
     {
       if (listData->stateHandler != NULL)
-        listData->stateHandler(listData, listData->value);
+        listData->stateHandler(listData, activeValue);
       break;
     }
     case ACTIONTYPE_INPUT:
@@ -2228,6 +2327,7 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
 {
   MenuElem_OrderedListData_t* listData = (MenuElem_OrderedListData_t*)element->userdata;
   int itemCount = listData->count;
+  char* activeValue = listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2241,9 +2341,12 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
     case ACTIONTYPE_INCREMENT:
     case ACTIONTYPE_SELECT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
-        break;
-      char value = *listData->value;
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        return;
+      }
+
+      char value = *activeValue;
 
       int index = 0;
       for (index = 0; index < listData->count; ++index) {
@@ -2263,14 +2366,18 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
           break;
       } while (index != startIndex);
 
-      *listData->value = listData->items[index].value;
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      *activeValue = listData->items[index].value;
       break;
     }
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
-        break;
-      char value = *listData->value;
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        return;
+      }
+
+      char value = *activeValue;
 
       int index = 0;
       for (index = 0; index < listData->count; ++index) {
@@ -2290,7 +2397,8 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
           break;
       } while (index != startIndex);
 
-      *listData->value = listData->items[index].value;
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      *activeValue = listData->items[index].value;
       break;
     }
     case ACTIONTYPE_GETHEIGHT:
@@ -2311,7 +2419,7 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
     case ACTIONTYPE_VALIDATE:
     {
       if (listData->stateHandler != NULL)
-        listData->stateHandler(listData, listData->value);
+        listData->stateHandler(listData, activeValue);
       break;
     }
     case ACTIONTYPE_INPUT:
@@ -2322,6 +2430,7 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
   }
 }
 
+//------------------------------------------------------------------------------
 int listFindNextValidValue(MenuElem_ListData_t* listData, int currentValue, int direction)
 {
   char newValue = currentValue;
@@ -2341,9 +2450,11 @@ int listFindNextValidValue(MenuElem_ListData_t* listData, int currentValue, int 
 }
 
 //------------------------------------------------------------------------------
-void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
 {
+  char buf[128];
   MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
+  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
   int itemCount = listData->count;
   int itemsToDraw = (&tab->elements[tab->selectedMenuItemIdx] == element) ? (listData->rows ? listData->rows : 5) : 1;
 
@@ -2356,12 +2467,54 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
 
   switch (actionType)
   {
-    case ACTIONTYPE_INCREMENT:
+    case ACTIONTYPE_INIT:
+    {
+      // reset staging value
+      if (listData->stagingValue)
+        *listData->stagingValue = *listData->value;
+
+      break;
+    }
     case ACTIONTYPE_SELECT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
-      char newValue = *listData->value;
+      }
+
+      // must have staging value to apply
+      if (!listData->stagingValue) break;
+
+      //
+      uiPlaySound(UI_SOUND_ID_SELECT, 0);
+
+      // if map changes mode prompt user
+      int forcedModeId = getCustomMapMode(*activeValue);
+      if (forcedModeId != 0 && forcedModeId != gameConfig.customModeId) {
+        snprintf(buf, sizeof(buf), "%s will overwrite the current custom game mode.", getCustomMapName(*activeValue), getCustomModeName(gameConfig.customModeId, 0));
+        
+        uiPlaySound(UI_SOUND_ID_OPEN_SUBMENU_2, 0);
+        padEnableInput();
+        int dialogResult = uiShowYesNoDialog("Switch Game Mode?", buf);
+        padDisableInput();
+        uiPlaySound(UI_SOUND_ID_CLOSE_MENU_DECLINE, 0);
+        if (dialogResult != 1) break;
+      }
+
+      // save
+      uiPlaySound(UI_SOUND_ID_CLOSE_MENU_ACCEPT, 0);
+      *listData->value = *listData->stagingValue;
+      configTrySendGameConfig();
+      break;
+    }
+    case ACTIONTYPE_INCREMENT:
+    {
+      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        break;
+      }
+
+      char newValue = *activeValue;
 
       do
       {
@@ -2371,16 +2524,20 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
         char tValue = newValue;
         if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
           break;
-      } while (newValue != *listData->value);
+      } while (newValue != *activeValue);
 
-      *listData->value = newValue;
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      *activeValue = newValue;
       break;
     }
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
-      char newValue = *listData->value;
+      }
+      
+      char newValue = *activeValue;
 
       do
       {
@@ -2390,14 +2547,15 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
         char tValue = newValue;
         if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
           break;
-      } while (newValue != *listData->value);
+      } while (newValue != *activeValue);
 
-      *listData->value = newValue;
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      *activeValue = newValue;
       break;
     }
     case ACTIONTYPE_SELECT_SECONDARY:
     {
-      *listData->value = 0;
+      *activeValue = 0;
       break;
     }
     case ACTIONTYPE_GETHEIGHT:
@@ -2411,7 +2569,7 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
       int itemCount = listData->count;
       int halfToDraw = itemsToDraw / 2;
       int roll = 0;
-      int lastIdx = *listData->value;
+      int lastIdx = *activeValue;
       RECT rectLeft, rectRight;
 
       // create map list rect
@@ -2427,22 +2585,22 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
       // draw items up
       for (i = 0; i < halfToDraw; ++i) {
         lastIdx = listFindNextValidValue(listData, lastIdx, -1);
-        drawListVerticalMenuElement(tab, element, listData, halfToDraw - i - 1, lastIdx, &rectRight);
+        drawMapsListVerticalMenuElement(tab, element, listData, halfToDraw - i - 1, lastIdx, &rectRight);
       }
       
       // draw selected item
-      lastIdx = *listData->value;
-      drawListVerticalMenuElement(tab, element, listData, halfToDraw, lastIdx, &rectRight);
+      lastIdx = *activeValue;
+      drawMapsListVerticalMenuElement(tab, element, listData, halfToDraw, lastIdx, &rectRight);
       ++i;
 
       // draw items down
       for (; i < itemsToDraw; ++i) {
         lastIdx = listFindNextValidValue(listData, lastIdx, 1);
-        drawListVerticalMenuElement(tab, element, listData, i, lastIdx, &rectRight);
+        drawMapsListVerticalMenuElement(tab, element, listData, i, lastIdx, &rectRight);
       }
 
       // draw info box
-      drawListVerticalMenuElementInfo(tab, element, listData, &rectLeft);
+      drawMapsListVerticalMenuElementInfo(tab, element, listData, &rectLeft);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
@@ -2464,12 +2622,12 @@ void listVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTy
     case ACTIONTYPE_VALIDATE:
     {
       if (listData->stateHandler != NULL)
-        listData->stateHandler(listData, listData->value);
+        listData->stateHandler(listData, activeValue);
       break;
     }
     case ACTIONTYPE_INPUT:
     {
-      listVerticalInput(tab);
+      mapsListVerticalInput(tab);
       break;
     }
   }
@@ -2480,8 +2638,8 @@ void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int action
 {
   // update name to be based on current gamemode
   GameSettings* gs = gameGetSettings();
-  if (gs && actionType == ACTIONTYPE_DRAW)
-    snprintf(element->name, 40, "%s override", gameGetGameModeName(gs->GameRules));
+  //if (gs && actionType == ACTIONTYPE_DRAW)
+  //  snprintf(element->name, 40, "%s override", gameGetGameModeName(gs->GameRules));
 
   // pass to default list action handler
   orderedListActionHandler(tab, element, actionType, actionArg);
@@ -2503,10 +2661,13 @@ void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int action
     case ACTIONTYPE_SELECT:
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
+      }
 
       // toggle
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
       *(char*)element->userdata = !(*(char*)element->userdata);
       break;
     }
@@ -2549,10 +2710,13 @@ void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     case ACTIONTYPE_SELECT:
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0)
+      if ((state & ELEMENT_EDITABLE) == 0) {
+        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
+      }
 
       // toggle
+      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
       *(char*)element->userdata = !(*(char*)element->userdata);
       break;
     }
@@ -2582,6 +2746,7 @@ void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
 //------------------------------------------------------------------------------
 void drawFrame(void)
 {
+  char buf[128];
   int i;
   TabElem_t * tab = NULL;
   int state = 0;
@@ -2601,7 +2766,19 @@ void drawFrame(void)
   gfxScreenSpaceBox(frameX, frameY + frameH - frameFooterH, frameW, frameFooterH, colorRed);
 
   // footer
-  gfxScreenSpaceText(((frameX + frameW) * SCREEN_WIDTH) - 5, (frameY + frameH) * SCREEN_HEIGHT - 5, 1, 1, colorText, footerText, -1, 8);
+  buf[0] = 0;
+  strcat(buf, footerTextTab);
+  if (footerCanFilter) {
+    strcat(buf, footerTextGap);
+    strcat(buf, footerTextFilter);
+  }
+  if (footerCanSelect) {
+    strcat(buf, footerTextGap);
+    strcat(buf, footerTextSelect);
+  }
+  strcat(buf, footerTextGap);
+  strcat(buf, footerTextBack);
+  gfxScreenSpaceText(((frameX + frameW) * SCREEN_WIDTH) - 5, (frameY + frameH) * SCREEN_HEIGHT - 5, 1, 1, colorText, buf, -1, 8);
 
   // content bg
   gfxScreenSpaceBox(frameX + contentPaddingX, frameY + frameTitleH + tabBarH + contentPaddingY, frameW - (contentPaddingX*2), frameH - frameTitleH - tabBarH - frameFooterH - (contentPaddingY * 2), colorContentBg);
@@ -2743,6 +2920,8 @@ void drawTab(TabElem_t* tab)
     // draw selection
     if (i == tab->selectedMenuItemIdx) {
       state = getMenuElementState(tab, currentElement);
+      footerCanSelect = state & ELEMENT_EDITABLE;
+      //footerCanFilter = state & ELEMENT_FILTERABLE;
       if (state & ELEMENT_SELECTABLE) {
         currentElement->handler(tab, currentElement, ACTIONTYPE_DRAW_HIGHLIGHT, &drawRect);
 
@@ -2940,15 +3119,7 @@ void onConfigUpdate(void)
     // get mode override name
     if (gameConfig.customModeId > 0)
     {
-      modeName = (char*)CustomModeShortNames[(int)gameConfig.customModeId];
-      if (!modeName) {
-        for (i = 0; i < dataCustomModes.count; ++i) {
-          if (dataCustomModes.items[i].value == (int)gameConfig.customModeId) {
-            modeName = dataCustomModes.items[i].name;
-            break;
-          }
-        }
-      }
+      modeName = getCustomModeName(gameConfig.customModeId, 1);
 
       // set map name to training type
       if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) {
@@ -3027,6 +3198,7 @@ void navMenu(TabElem_t* tab, int direction, int loop)
 
     // set new tab
     tab->selectedMenuItemIdx = newElement;
+    uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
     break;
   }
 }
@@ -3057,6 +3229,7 @@ void navTab(int direction)
 
     // set new tab
     selectedTabItem = newTab;
+    uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
     break;
   }
 }
@@ -3305,6 +3478,15 @@ void configMenuEnable(void)
   tabElements[selectedTabItem].stateHandler(&tabElements[selectedTabItem], &state);
   if ((state & ELEMENT_SELECTABLE) == 0 || (state & ELEMENT_VISIBLE) == 0)
     selectedTabItem = 0;
+
+  // reset staging values
+  int t;
+  for (t = 0; t < tabsCount; ++t) {
+    int e;
+    for (e = 0; e < tabElements[t].elementsCount; ++e) {
+      tabElements[t].elements[e].handler(&tabElements[t], &tabElements[t].elements[e], ACTIONTYPE_INIT, NULL);
+    }
+  }
 }
 
 

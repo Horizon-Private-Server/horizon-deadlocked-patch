@@ -26,6 +26,7 @@
 #include <libdl/game.h>
 #include <libdl/string.h>
 #include <libdl/collision.h>
+#include <libdl/stdlib.h>
 #include <libdl/stdio.h>
 #include <libdl/gamesettings.h>
 #include <libdl/radar.h>
@@ -174,6 +175,7 @@ int lastRespawnTime = 5;
 int lastCrazyMode = 0;
 int lastClientType = -1;
 int lastAccountId = -1;
+float lastFov = 0;
 int hasShownSurvivalPrestigeMessage = 0;
 int hasPendingLobbyNameOverrides = 0;
 char mapOverrideResponse = 1;
@@ -1518,11 +1520,11 @@ void patchAggTime(int aggTimeMs)
  */
 void writeFov(int cameraIdx, int a1, int a2, u32 ra, float fov, float f13, float f14, float f15)
 {
-  static float lastFov = 0;
-
   GameCamera* camera = cameraGetGameCamera(cameraIdx);
-  if (!camera)
+  if (!camera) {
+    lastFov = 0;
     return;
+  }
   
   // save last fov
   // or reuse last if fov passed is 0
@@ -1610,8 +1612,9 @@ void initFovHook(int cameraIdx)
 void patchFov(void)
 {
   static int ingame = 0;
-  static int lastFov = 0;
+  static int lastConfigFov = 0;
   if (!isInGame()) {
+    lastFov = 0;
     ingame = 0;
     return;
   }
@@ -1619,17 +1622,16 @@ void patchFov(void)
   // replace SetFov function
   HOOK_J(0x004AEA90, &writeFov);
   POKE_U32(0x004AEA94, 0x03E0382D);
-  
   HOOK_JAL(0x004B25C0, &initFovHook);
 
   // initialize fov at start of game
-  if (!ingame || lastFov != config.playerFov) {
+  if (!ingame || lastConfigFov != config.playerFov) {
     GameCamera* camera = cameraGetGameCamera(0);
     if (!camera)
       return;
 
     writeFov(0, 0, 3, 0, 0, 0.05, 0.2, 0);
-    lastFov = config.playerFov;
+    lastConfigFov = config.playerFov;
     ingame = 1;
   }
 }
@@ -3603,6 +3605,12 @@ int runSendGameUpdate(void)
   {
     lastGameUpdate = -GAME_UPDATE_SENDRATE;
     newGame = 1;
+    
+    // free custom game stats
+    if (patchStateContainer.CustomGameStats) {
+      free(patchStateContainer.CustomGameStats);
+      patchStateContainer.CustomGameStats = NULL;
+    }
     return 0;
   }
 
@@ -3625,7 +3633,7 @@ int runSendGameUpdate(void)
   if (newGame)
   {
     memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
-    memset(patchStateContainer.CustomGameStats.Payload, 0, sizeof(patchStateContainer.CustomGameStats.Payload));
+    //memset(patchStateContainer.CustomGameStats.Payload, 0, sizeof(patchStateContainer.CustomGameStats.Payload));
     newGame = 0;
   }
 
@@ -3635,6 +3643,13 @@ int runSendGameUpdate(void)
   // 
   if (isInGame())
   {
+    // make room for custom game stats
+    if (!patchStateContainer.CustomGameStats) {
+      patchStateContainer.CustomGameStats = malloc(sizeof(CustomGameModeStats_t));
+      if (patchStateContainer.CustomGameStats)
+        memset(patchStateContainer.CustomGameStats, 0, sizeof(CustomGameModeStats_t));
+    }
+
     memset(patchStateContainer.GameStateUpdate.TeamScores, 0, sizeof(patchStateContainer.GameStateUpdate.TeamScores));
 
     if (gameSettings->GameRules == GAMERULE_JUGGY) {
@@ -4103,7 +4118,7 @@ void sendGameData(void)
   GameSettings* gameSettings = gameGetSettings();
   GameData* gameData = gameGetData();
   short offset = 0;
-  int hasCustomGameData = patchStateContainer.CustomGameStatsSize > 0;
+  int hasCustomGameData = patchStateContainer.CustomGameStatsSize > 0 && patchStateContainer.CustomGameStats != NULL;
   int header[] = {
     0x1337C0DE,
     PATCH_GAME_STATS_VERSION
@@ -4113,7 +4128,7 @@ void sendGameData(void)
   if (!gameSettings)
     return;
   
-  DPRINTF("sending stats... ");
+  DPRINTF("sending stats... (has cgm %d) ", hasCustomGameData);
   offset += sendGameDataBlock(offset, 0, header, sizeof(header));
   offset += sendGameDataBlock(offset, 0, gameData, sizeof(GameData)); uiRunCallbacks();
   offset += sendGameDataBlock(offset, 0, &patchStateContainer.GameSettingsAtStart, sizeof(GameSettings)); uiRunCallbacks();
@@ -4122,7 +4137,7 @@ void sendGameData(void)
   offset += sendGameDataBlock(offset, !hasCustomGameData, &patchStateContainer.GameStateUpdate, sizeof(UpdateGameStateRequest_t));
   if (hasCustomGameData) {
     uiRunCallbacks();
-    offset += sendGameDataBlock(offset, 1, &patchStateContainer.CustomGameStats, patchStateContainer.CustomGameStatsSize);
+    offset += sendGameDataBlock(offset, 1, patchStateContainer.CustomGameStats, patchStateContainer.CustomGameStatsSize);
   }
   
   DPRINTF("done.\n");
@@ -5435,7 +5450,7 @@ void onOnlineMenu(void)
 #endif
 
   // banner
-  bannerDraw();
+  //bannerDraw();
 
   // settings
   onConfigOnlineMenu();
@@ -5618,7 +5633,7 @@ int main (void)
   }
 
   // banner
-  bannerTick();
+  //bannerTick();
 
   // Run map loader
   runMapLoader();

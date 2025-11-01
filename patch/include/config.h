@@ -31,7 +31,8 @@ enum ActionType
   ACTIONTYPE_DECREMENT,
   ACTIONTYPE_VALIDATE,
   ACTIONTYPE_DRAW_HIGHLIGHT,
-  ACTIONTYPE_INPUT
+  ACTIONTYPE_INPUT,
+  ACTIONTYPE_INIT
 };
 
 enum ElementState
@@ -40,6 +41,7 @@ enum ElementState
   ELEMENT_VISIBLE = (1 << 0),
   ELEMENT_EDITABLE = (1 << 1),
   ELEMENT_SELECTABLE = (1 << 2),
+  ELEMENT_FILTERABLE = (1 << 3)
 };
 
 enum LabelType
@@ -74,6 +76,7 @@ typedef struct MenuElem
 typedef struct MenuElem_ListData
 {
   char * value;
+  char * stagingValue;
   MenuElementListStateHandler stateHandler;
   int count;
   int rows;

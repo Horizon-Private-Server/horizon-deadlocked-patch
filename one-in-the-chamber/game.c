@@ -205,11 +205,11 @@ void updateGameState(PatchStateContainer_t * gameState)
 	}
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     GameData* gameData = gameGetData();
     gameState->CustomGameStatsSize = sizeof(struct CGMGameData);
-		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats.Payload;
+		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats->Payload;
 		sGameData->Rounds = 0;
 		sGameData->Version = 0x00000001;
 
@@ -226,6 +226,9 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
 	GameSettings* gameSettings = gameGetSettings();
+
+  printf("GAMEOPTIONS %08X\n", gameOptions);
+
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 
@@ -236,6 +239,17 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
   //    gameSettings->PlayerTeams[i] = i;
   //  }
   //}
+
+  // force deathmatch
+  if (gameSettings->GameRules != GAMERULE_DM) {
+    gameSettings->GameRules = GAMERULE_DM;
+    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = (int)maxf(5, gameOptions->GameFlags.MultiplayerGameFlags.Timelimit);
+	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
+  }
 	
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;

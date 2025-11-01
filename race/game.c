@@ -611,10 +611,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 	}
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     gameState->CustomGameStatsSize = sizeof(struct RaceGameData);
-		struct RaceGameData* sGameData = (struct RaceGameData*)gameState->CustomGameStats.Payload;
+		struct RaceGameData* sGameData = (struct RaceGameData*)gameState->CustomGameStats->Payload;
 		sGameData->Version = 0x00000001;
 
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)

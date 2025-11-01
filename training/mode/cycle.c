@@ -703,9 +703,9 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.Homenodes = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_12 = 0; // CTF
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_13 = 1; // KOTH
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_25 = 3; // NORMAL SPAWNS
+	gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0; // CTF
+	gameOptions->GameFlags.MultiplayerGameFlags.Hills = 1; // KOTH
+	gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = endless ? 0 : TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;

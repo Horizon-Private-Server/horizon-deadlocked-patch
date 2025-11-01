@@ -1,6 +1,9 @@
 
 all: base
 
+stats:
+	$(MAKE) -f Makefile.base stats
+
 comp:
 	$(MAKE) -f Makefile.comp
 

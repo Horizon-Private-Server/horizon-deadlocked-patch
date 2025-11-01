@@ -893,9 +893,9 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.CrazyMode = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.FlagReturn = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.FlagVehicleCarry = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_12 = 1; // CTF
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_13 = 0; // KOTH
-	gameOptions->GameFlags.MultiplayerGameFlags.UNK_25 = 2; // CTF SPAWNS
+	gameOptions->GameFlags.MultiplayerGameFlags.Flags = 1; // CTF
+	gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0; // KOTH
+	gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 2; // CTF SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = endless ? 0 : TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;

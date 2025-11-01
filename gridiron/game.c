@@ -688,10 +688,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 	}
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     gameState->CustomGameStatsSize = sizeof(struct CGMGameData);
-		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats.Payload;
+		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats->Payload;
 		sGameData->Version = 0x00000001;
 
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -718,6 +718,17 @@ void setLobbyGameOptions(void)
 	GameSettings* gameSettings = gameGetSettings();
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0 || set)
 		return;
+	
+  // force ctf
+  if (gameSettings->GameRules != GAMERULE_CTF) {
+    gameSettings->GameRules = GAMERULE_CTF;
+    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 1;
+    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = (int)maxf(10, gameOptions->GameFlags.MultiplayerGameFlags.Timelimit);
+    gameOptions->GameFlags.MultiplayerGameFlags.CapsToWin = 0;
+	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 2; // CTF SPAWNS
+  }
 	
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;

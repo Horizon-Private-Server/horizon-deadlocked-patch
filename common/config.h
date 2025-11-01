@@ -97,7 +97,7 @@ typedef struct UpdateGameStateRequest {
 typedef struct CustomGameModeStats
 {
   u8 Payload[1024 * 6];
-} __attribute__((aligned(16))) CustomGameModeStats_t;
+} /*__attribute__((aligned(16)))*/ CustomGameModeStats_t;
 
 typedef struct SetNameOverridesMessage
 {
@@ -172,7 +172,7 @@ typedef struct PatchStateContainer
   int UpdateGameState;
   UpdateGameStateRequest_t GameStateUpdate;
   int UpdateCustomGameStats;
-  CustomGameModeStats_t CustomGameStats;
+  CustomGameModeStats_t* CustomGameStats;
   GameSettings GameSettingsAtStart;
   int CustomGameStatsSize;
   int ClientsReadyMask;

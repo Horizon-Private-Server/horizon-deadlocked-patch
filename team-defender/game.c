@@ -487,10 +487,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 	}
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     gameState->CustomGameStatsSize = sizeof(struct CGMGameData);
-		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats.Payload;
+		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats->Payload;
 		sGameData->Version = 0x00000001;
 
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -512,6 +512,15 @@ void setLobbyGameOptions(void)
 	GameSettings* gameSettings = gameGetSettings();
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0 || set)
 		return;
+	
+  // force deathmatch
+  if (gameSettings->GameRules != GAMERULE_DM) {
+    gameSettings->GameRules = GAMERULE_DM;
+    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
+  }
 	
 	// apply options
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;

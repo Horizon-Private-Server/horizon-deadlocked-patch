@@ -1302,10 +1302,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 	}
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     gameState->CustomGameStatsSize = sizeof(struct SNDGameData);
-		struct SNDGameData* sGameData = (struct SNDGameData*)gameState->CustomGameStats.Payload;
+		struct SNDGameData* sGameData = (struct SNDGameData*)gameState->CustomGameStats->Payload;
 		
 		sGameData->Version = 2;
 		memcpy(sGameData->RoundWinner, SNDState.RoundWinner, sizeof(SNDState.RoundWinner));
@@ -1836,20 +1836,20 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 {
-	// conquest homenodes options
-	static char cqOptions[] = { 
-		1, 1, 			// 0x06 - 0x08
-		0, 1, 1, 0, 	// 0x08 - 0x0C
-		0, 0, 0, 0,  	// 0x0C - 0x10
-		0, 0, 0, 0,		// 0x10 - 0x14
-		-1, -1, 1, 1,	// 0x14 - 0x18
-	};
-
 	// set game options
 	GameOptions * gameOptions = gameGetOptions();
 	GameSettings* gameSettings = gameGetSettings();
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
+	
+  // force cq
+  if (gameSettings->GameRules != GAMERULE_CQ) {
+    gameSettings->GameRules = GAMERULE_CQ;
+    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 1;
+    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 0; // CQ SPAWNS
+  }
 	
   // disable healthboxes
   gameConfig->grNoHealthBoxes = 2;
@@ -1858,12 +1858,12 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
   gameConfig->grCqPersistentCapture = 0;
   gameConfig->grRespawnOverride = 0;
 
-	// set to conquest homenodes
-	memcpy((void*)&gameOptions->GameFlags.Raw[6], (void*)cqOptions, sizeof(cqOptions)/sizeof(char));
-
 	// force hacker orbs
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Homenodes = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.UNK_11 = 0; // upgrades/teleporters
 
+	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = -1;

@@ -151,11 +151,11 @@ void updateGameState(PatchStateContainer_t * gameState)
 	}
 
 	// stats
-	if (gameState->UpdateCustomGameStats)
+	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
 	{
     GameData* gameData = gameGetData();
     gameState->CustomGameStatsSize = sizeof(struct CGMGameData);
-		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats.Payload;
+		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats->Payload;
 		sGameData->Rounds = 0;
 		sGameData->Version = 0x00000001;
 

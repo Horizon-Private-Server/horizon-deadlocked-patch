@@ -1,6 +1,6 @@
 EE_ELF ?= patch-11184.elf
 EE_BIN ?= patch-11184.bin
-EE_OBJS += common.o main.o spectate.o maploader.o banner.o rpc.o config.o functions.o mapeditor.o scoreboard.o gamerules.o halftime.o freecam.o playersync.o extralocals.o macaddrs.o spmusic.o
+EE_OBJS += common.o main.o spectate.o maploader.o rpc.o config.o functions.o mapeditor.o scoreboard.o gamerules.o halftime.o freecam.o playersync.o extralocals.o macaddrs.o spmusic.o
 EE_LIBS += -ldl
 
 EE_INCS := -I../common -I../libdl/include
@@ -38,6 +38,12 @@ ifneq (,$(findstring -DQUICKCHAT,$(EE_DEFS)))
 endif
 
 all: $(EE_BIN) clean copy
+
+# print out size stats
+stats:
+	@echo "modules:"
+	@nm --print-size --size-sort --reverse $(EE_ELF) | head -20
+	@nm -n $(EE_ELF) | grep -E '_end'
 
 clean:
 	rm -f *.irx *.o
