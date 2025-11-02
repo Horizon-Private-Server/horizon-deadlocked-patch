@@ -1,5 +1,5 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o config.o path.o bigalpath.o bigal.o statue.o ../shared/blessings.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/bankbox.o ../shared/mobs/mob.o 
+EE_OBJS = main.o config.o path.o bigalpath.o bigal.o statue.o gambits.o ../shared/blessings.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/bankbox.o ../shared/mobs/mob.o 
 EE_ELF = mpass.elf
 EE_BIN = mpass.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
@@ -23,7 +23,7 @@ all: setup $(EE_BIN) clean
 	# payload and definition
 	cp $(CURDIR)/mpass.bin "$(CURDIR)/bin/survival mpass.code"
 
-	# if [ -d "/out" ]; then cp -r $(CURDIR)/bin/* /out/; fi
+	if [ -d "/out/survival_mpass/build/dl" ]; then cp -r $(CURDIR)/bin/* /out/survival_mpass/build/dl; fi
 	
 setup:
 	mkdir -p $(CURDIR)/bin

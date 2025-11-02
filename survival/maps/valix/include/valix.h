@@ -16,4 +16,20 @@ enum MobSpawnParamIds {
   MOB_SPAWN_PARAM_COUNT
 };
 
+enum GambitIds {
+  GAMBIT_ID_NONE = 0,
+  GAMBIT_ID_EASY_MODE,
+  GAMBIT_ID_IMPOSSIBLE_MODE,
+  GAMBIT_ID_JUMP_PADS_ALWAYS_ACTIVE,
+  GAMBIT_ID_RANDOMIZE_JUMP_PADS,
+  GAMBIT_ID_HOVERBOOTS,
+  GAMBIT_ID_ARBITER_ONLY,
+  GAMBIT_ID_MAGMA_CANNON_ONLY,
+  GAMBIT_ID_MINES_ONLY,
+};
+
+void gambitsOnRoundComplete(int roundNo);
+void gambitsTick(void);
+void gambitsInit(void);
+
 #endif // _SURVIVAL_VALIX_H_

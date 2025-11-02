@@ -157,6 +157,16 @@ void mboxPlayRespawnSound(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+int mboxGetCost(Moby* moby, int playerId)
+{
+  if (!moby || !moby->PVar)
+    return 0;
+    
+  struct MysteryBoxPVar* pvars = (struct MysteryBoxPVar*)moby->PVar;
+  return pvars->BoltCostMultiplier * (MYSTERY_BOX_COST + (MYSTERY_BOX_COST_PER_VOX * pvars->NumVoxPerPlayer[playerId]));
+}
+
+//--------------------------------------------------------------------------
 int mboxGetAlphaMod(Moby* moby)
 {
   if (!moby || !moby->PVar)
@@ -672,7 +682,7 @@ void mboxUpdate(Moby* moby)
 
       // find local players to activate
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        int cost = MYSTERY_BOX_COST + (MYSTERY_BOX_COST_PER_VOX * pvars->NumVoxPerPlayer[i]);
+        int cost = mboxGetCost(moby, i);
         snprintf(buf, sizeof(buf), "\x11 Open [\x0E%'d\x08]", cost);
 
         if (tryPlayerInteract(moby, players[i], buf, NULL, cost, 0, PLAYER_MYSTERY_BOX_COOLDOWN_TICKS, 9, PAD_CIRCLE)) {
@@ -715,6 +725,9 @@ int mboxHandleEvent_Spawned(Moby* moby, GuberEvent* event)
 
 	// indicate to survival mode that we can damage players
   moby->Bolts = -1;
+
+  // init pvars
+  pvars->BoltCostMultiplier = 1;
 
   // update mode reference
   if (MapConfig.State) MapConfig.State->MysteryBoxMoby = moby;
@@ -773,7 +786,7 @@ int mboxHandleEvent_Activate(Moby* moby, GuberEvent* event)
 
     // charge player
     if (MapConfig.State) {
-      int cost = MYSTERY_BOX_COST + (MYSTERY_BOX_COST_PER_VOX * pvars->NumVoxPerPlayer[activatedByPlayerId]);
+      int cost = mboxGetCost(moby, activatedByPlayerId);
       MapConfig.State->PlayerStates[activatedByPlayerId].State.Bolts -= cost;
     }
 

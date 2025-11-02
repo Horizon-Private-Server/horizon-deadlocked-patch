@@ -834,6 +834,7 @@ void initialize(void)
   dropInit();
   sboxInit();
   stackableInit();
+  gambitsInit();
   //moverInit();
   //controllerInit();
   //messagerInit();
@@ -908,6 +909,7 @@ int main (void)
   upgradeTick();
   dropTick();
   stackableTick();
+  gambitsTick();
   mapReturnPlayersToMap();
   mapCheckForBossFightStateChange();
   mapOnBossFight();
@@ -929,6 +931,13 @@ int main (void)
     while (vendorMoby && vendorMoby->OClass == MOBY_ID_WEAPON_VENDOR) {
       addBlip(vendorMoby, 4, TEAM_GREEN, 31);
       ++vendorMoby;
+    }
+    
+    // track round competions
+    static int lastRoundCompleted = 0;
+    if (MapConfig.State->RoundEndTime && lastRoundCompleted != MapConfig.State->RoundNumber) {
+      lastRoundCompleted = MapConfig.State->RoundNumber;
+      gambitsOnRoundComplete(lastRoundCompleted);
     }
   }
 

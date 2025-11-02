@@ -1,5 +1,5 @@
 EE_LIBS = -ldl
-EE_OBJS = common.o main.o config.o path.o hackerorb.o ../shared/stackables.o ../shared/upgrade.o ../shared/drop.o ../shared/stackbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
+EE_OBJS = common.o main.o config.o path.o gambits.o hackerorb.o ../shared/stackables.o ../shared/upgrade.o ../shared/drop.o ../shared/stackbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
 EE_ELF = torval.elf
 EE_BIN = torval.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude

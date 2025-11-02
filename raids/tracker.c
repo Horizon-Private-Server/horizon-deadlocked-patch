@@ -50,7 +50,7 @@ void trackerDraw(void)
   char strBuf[64];
   Window_t drawWindow;
 
-  windowCreate(&drawWindow, 10, SCREEN_HEIGHT-10, 0, 0, 200, 60, TEXT_ALIGN_BOTTOMLEFT);
+  windowCreate(&drawWindow, 10, SCREEN_HEIGHT-10, 0, 0, 200, 60, TEXT_ALIGN_BOTTOMLEFT, 1);
   //windowFill(&drawWindow, 0x40000000);
 
   // time

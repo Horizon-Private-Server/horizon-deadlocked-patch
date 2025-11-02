@@ -70,9 +70,9 @@ const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
   [UPGRADE_HEALTH] "\x11 Health Upgrade (%d)",
   [UPGRADE_SPEED] "\x11 Speed Upgrade (%d)",
   [UPGRADE_DAMAGE] "\x11 Damage Upgrade (%d)",
-  [UPGRADE_MEDIC] "\x11 Revive Discount (%d)",
-  [UPGRADE_VENDOR] "\x11 Vendor Discount (%d)",
-  [UPGRADE_PICKUPS] "\x11 Increase Powerup Duration (%d)",
+  //[UPGRADE_MEDIC] "\x11 Revive Discount (%d)",
+  //[UPGRADE_VENDOR] "\x11 Vendor Discount (%d)",
+  //[UPGRADE_PICKUPS] "\x11 Increase Powerup Duration (%d)",
   [UPGRADE_CRIT] "\x11 Critical Hit Upgrade (%d)",
 };
 
@@ -1899,7 +1899,7 @@ void playerRewardXp(int playerId, int weaponId, int xp)
   // handle weapon xp
   if (weaponId > 1) {
     int xpCount = playerGetWeaponAlphaModCount(player->GadgetBox, weaponId, ALPHA_MOD_XP);
-    pState->State.XP += xpCount * XP_ALPHAMOD_XP;
+    pState->State.XP += xpCount * XP_ALPHAMOD_XP * mapConfig->BakedConfig->XpMultiplier;
   }
 
   // give tokens
@@ -2253,7 +2253,7 @@ void processPlayer(int pIndex) {
     }
 
     // handle prestige logic
-    if (State.PrestigeMachine && State.PrestigeMachine->Drawn) {
+    if (State.PrestigeMachine && State.PrestigeMachine->Drawn && State.PrestigeMachine->DrawDist > 0) {
 
       // check distance
       vector_subtract(t, player->PlayerPosition, State.PrestigeMachine->Position);
@@ -2464,17 +2464,17 @@ void processPlayer(int pIndex) {
 //--------------------------------------------------------------------------
 int getRoundBonus(int roundNumber, int numPlayers)
 {
-  int multiplier = State.RoundIsSpecial ? ROUND_SPECIAL_BONUS_MULTIPLIER : 1;
+  float multiplier = State.RoundIsSpecial ? ROUND_SPECIAL_BONUS_MULTIPLIER : 1;
   int bonus = State.RoundNumber * ROUND_BASE_BOLT_BONUS * numPlayers;
   if (bonus > ROUND_MAX_BOLT_BONUS)
-    return ROUND_MAX_BOLT_BONUS * multiplier;
+    return ROUND_MAX_BOLT_BONUS * multiplier * mapConfig->BakedConfig->BoltMultiplier;
 
   // give a round bonus for using the demon bells
   if (State.DemonBellCount > 0 && State.RoundDemonBellCount > 0) {
     multiplier += State.RoundDemonBellCount / (float)State.DemonBellCount;
   }
 
-  return bonus * multiplier;
+  return bonus * multiplier * mapConfig->BakedConfig->BoltMultiplier;
 }
 
 //--------------------------------------------------------------------------

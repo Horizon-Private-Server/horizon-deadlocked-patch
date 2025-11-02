@@ -198,6 +198,7 @@ void initialize(void)
   upgradeInit();
   dropInit();
   bboxInit();
+  gambitsInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
   // only have gate collision on when processing players
@@ -265,10 +266,18 @@ int main (void)
   pathTick();
   upgradeTick();
   dropTick();
+  gambitsTick();
   mapReturnPlayersToMap();
 
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;
+    
+    // track round competions
+    static int lastRoundCompleted = 0;
+    if (MapConfig.State->RoundEndTime && lastRoundCompleted != MapConfig.State->RoundNumber) {
+      lastRoundCompleted = MapConfig.State->RoundNumber;
+      gambitsOnRoundComplete(lastRoundCompleted);
+    }
   }
   
   // disable jump pad effect

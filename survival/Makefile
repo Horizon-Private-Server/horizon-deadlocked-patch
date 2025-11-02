@@ -53,7 +53,7 @@ EE_DEFS += -DMOB_NO_DAMAGE
 EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
 else ifeq ($(BUILD_CONFIG),TEST)
 EE_DEFS := -DRELEASE -DTEST -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643 -DDROPS1 -DUPGRADES -DDEMONBELL -DSHARED_BOLTS -DSHARED_XP
-EE_DEFS += -DSTARTROUND=25
+#EE_DEFS += -DSTARTROUND=50
 EE_DEFS += -DMOB_NO_DAMAGE
 #EE_DEFS += -DDISABLE_SPAWNING
 #EE_DEFS += -DMANUAL_SPAWN
@@ -90,6 +90,12 @@ valix:
 
 torval: 
 	cd maps/torval && $(MAKE)
+
+# print out size stats
+stats:
+	@echo "modules:"
+	@nm --print-size --size-sort --reverse $(EE_ELF) | head -20
+	@nm -n --print-size $(EE_ELF) | tail -1
 
 clean: 
 	rm -f *.irx *.o

@@ -14,7 +14,7 @@
 #define PATCH_POINTERS_QUICKCHAT  (*(u8*)(0x000CFFC0 + 11))
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
-#define CMODE_SURVIVAL_VERSION    (3)
+#define CMODE_SURVIVAL_VERSION    (4)
 #define CMODE_RAIDS_VERSION       (0)
 
 struct CustomMapDef;
@@ -66,7 +66,7 @@ typedef struct PatchConfig
 
 typedef struct SurvivalConfig
 {
-	//u8 difficulty;
+	u8 gambit;
 } SurvivalConfig_t;
 
 enum FixedCycleOrderMode
@@ -159,10 +159,10 @@ typedef struct PatchGameConfig
   char drFreecam;
   char drNoRank;
   char drLevelReload;
-  SurvivalConfig_t survivalConfig;
   PayloadConfig_t payloadConfig;
   TrainingConfig_t trainingConfig;
   HNSConfig_t hnsConfig;
+  SurvivalConfig_t survivalConfig;
 } PatchGameConfig_t;
 
 typedef struct PatchStateContainer

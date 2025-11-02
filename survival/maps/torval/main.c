@@ -163,8 +163,8 @@ void mobForceIntoMapBounds(Moby* moby)
     return;
     
   int i;
-  VECTOR min = { 200, 260, 0, 0 };
-  VECTOR max = { 400, 500, 200, 0 };
+  VECTOR min = { 200, 260, 80, 0 };
+  VECTOR max = { 500, 500, 200, 0 };
 	struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
   for (i = 0; i < 3; ++i) {
@@ -440,6 +440,7 @@ void initialize(void)
   dropInit();
   sboxInit();
   stackableInit();
+  gambitsInit();
   //moverInit();
   //controllerInit();
   //messagerInit();
@@ -503,6 +504,7 @@ int main (void)
   upgradeTick();
   dropTick();
   stackableTick();
+  gambitsTick();
   mapReturnPlayersToMap();
   //updateBossMeter();
 
@@ -518,6 +520,13 @@ int main (void)
     while (vendorMoby && vendorMoby->OClass == MOBY_ID_WEAPON_VENDOR) {
       addBlip(vendorMoby, 4, TEAM_GREEN, 31);
       ++vendorMoby;
+    }
+
+    // track round competions
+    static int lastRoundCompleted = 0;
+    if (MapConfig.State->RoundEndTime && lastRoundCompleted != MapConfig.State->RoundNumber) {
+      lastRoundCompleted = MapConfig.State->RoundNumber;
+      gambitsOnRoundComplete(lastRoundCompleted);
     }
       
     // enable prestige if round % 25

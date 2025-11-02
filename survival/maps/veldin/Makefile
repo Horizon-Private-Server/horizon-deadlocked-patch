@@ -1,5 +1,5 @@
 EE_LIBS = -ldl
-EE_OBJS = main.o config.o path.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/bankbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
+EE_OBJS = main.o config.o path.o gambits.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/bankbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
 EE_ELF = veldin.elf
 EE_BIN = veldin.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
@@ -23,8 +23,7 @@ all: setup $(EE_BIN) clean
 	# payload and definition
 	cp $(CURDIR)/veldin.bin "$(CURDIR)/bin/survival veldin.code"
 
-	# if [ -d "/out" ]; then cp -r $(CURDIR)/bin/* /out/; fi
-	
+	if [ -d "/out/survival_veldin/build/dl" ]; then cp -r $(CURDIR)/bin/* /out/survival_veldin/build/dl; fi
 	
 setup:
 	mkdir -p $(CURDIR)/bin

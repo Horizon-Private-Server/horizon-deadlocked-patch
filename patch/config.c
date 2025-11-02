@@ -15,6 +15,7 @@
 #include "module.h"
 #include "config.h"
 #include "common.h"
+#include "window.h"
 #include "include/config.h"
 
 #define LINE_HEIGHT         (0.05)
@@ -23,6 +24,9 @@
 #define CHARACTER_TWEAKER_RANGE (10)
 #define THUMBNAIL_SIZE      (9248)
 #define TPS                 (60)
+#define MAX_SURV_GAMBITS    (10)
+
+typedef void (*FooterExtraCallbackFunc_t)(void);
 
 // config
 extern PatchConfig_t config;
@@ -57,13 +61,14 @@ int dlTotalBytes = 0;
 int dlIsActive = 0;
 int dlConnectionTimeout = 0;
 
-
 // constants
 const char footerTextGap[] = "     ";
 const char footerTextBack[] = "\x12 BACK";
 const char footerTextSelect[] = "\x10 SELECT";
 const char footerTextTab[] = "\x14 \x15 TAB";
 const char footerTextFilter[] = "\x13 FILTER";
+char footerTextExtra[32] = {0};
+FooterExtraCallbackFunc_t footerCallback;
 
 // menu display properties
 const u32 colorBlack = 0x80000000;
@@ -89,6 +94,16 @@ const float contentPaddingX = 0.01;
 const float contentPaddingY = 0;
 const float tabBarH = 0.075;
 const float tabBarPaddingX = 0.005;
+
+// dynamic popup
+struct {
+  char Enabled;
+  char SelectionIdx;
+  char DrawIdx;
+  int LineItemCount;
+  char* LineItems;
+  char Title[64];
+} DynamicPageState;
 
 //
 void configMenuDisable(void);
@@ -123,10 +138,11 @@ void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element,
 void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_MapsListVerticalStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
-int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, char* value);
+int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char* value);
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -173,6 +189,7 @@ int mapsPromptEnableCustomMaps(void);
 int mapsDownloadingModules(void);
 int mapReadCustomMapAuthorDescription(char* mapFilename, char dstAuthor[32], char dstDescription[256]);
 int mapReadCustomMapThumbnail(char* mapFilename, char *buf, int bufSize);
+int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int customModeId);
 void refreshCustomMapList(void);
 void sendClientVoteForEnd(void);
 
@@ -552,6 +569,19 @@ const char* CustomModeMapAttributeNames[] = {
 #endif
 };
 
+// survival gambit
+char dataSurvivalGambitDesc[128];
+char dataSurvivalGambitNames[MAX_SURV_GAMBITS][32];
+MenuElem_ListData_t dataSurvivalGambit = {
+  .value = &gameConfig.survivalConfig.gambit,
+  .stateHandler = &menuStateHandler_SelectedSurvivalGambit,
+  .count = 1,
+  .items = {
+    "None",
+    [MAX_SURV_GAMBITS+1] NULL
+  }
+};
+
 // payload contest mode
 MenuElem_ListData_t dataPayloadContestMode = {
   .value = &gameConfig.payloadConfig.contestMode,
@@ -614,18 +644,18 @@ MenuElem_ListData_t dataHnsHideDuration = {
 };
 
 // player size list item
-MenuElem_ListData_t dataPlayerSize = {
-  .value = &gameConfig.prPlayerSize,
-  .stateHandler = NULL,
-  .count = 5,
-  .items = {
-    "Normal",
-    "Large",
-    "Giant",
-    "Tiny",
-    "Small"
-  }
-};
+// MenuElem_ListData_t dataPlayerSize = {
+//   .value = &gameConfig.prPlayerSize,
+//   .stateHandler = NULL,
+//   .count = 5,
+//   .items = {
+//     "Normal",
+//     "Large",
+//     "Giant",
+//     "Tiny",
+//     "Small"
+//   }
+// };
 
 // headbutt damage list item
 MenuElem_ListData_t dataHeadbutt = {
@@ -641,30 +671,30 @@ MenuElem_ListData_t dataHeadbutt = {
 };
 
 // weather override list item
-MenuElem_ListData_t dataWeather = {
-  .value = &gameConfig.prWeatherId,
-  .stateHandler = NULL,
-  .count = 17,
-  .items = {
-    "None",
-    "Random",
-    "Dust Storm",
-    "Heavy Sand Storm",
-    "Light Snow",
-    "Blizzard",
-    "Heavy Rain",
-    "All Off",
-    "Green Mist",
-    "Meteor Lightning",
-    "Black Hole",
-    "Light Rain Lightning",
-    "Settling Smoke",
-    "Upper Atmosphere",
-    "Ghost Station",
-    "Embossed",
-    "Lightning Storm",
-  }
-};
+// MenuElem_ListData_t dataWeather = {
+//   .value = &gameConfig.prWeatherId,
+//   .stateHandler = NULL,
+//   .count = 17,
+//   .items = {
+//     "None",
+//     "Random",
+//     "Dust Storm",
+//     "Heavy Sand Storm",
+//     "Light Snow",
+//     "Blizzard",
+//     "Heavy Rain",
+//     "All Off",
+//     "Green Mist",
+//     "Meteor Lightning",
+//     "Black Hole",
+//     "Light Rain Lightning",
+//     "Settling Smoke",
+//     "Upper Atmosphere",
+//     "Ghost Station",
+//     "Embossed",
+//     "Lightning Storm",
+//   }
+// };
 
 // radar short list item
 MenuElem_ListData_t dataRadarShortDistance = {
@@ -780,7 +810,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Preset", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameConfigPreset, "Select one of the preconfigured game rule presets or manually set the custom game rules below." },
 
   // SURVIVAL SETTINGS
-  // { "Difficulty", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalDifficulty },
+  { "Gambit", listActionHandler, menuStateHandler_SurvivalSettingStateHandler, &dataSurvivalGambit, dataSurvivalGambitDesc },
 
   // PAYLOAD SETTINGS
   { "Payload Contesting", listActionHandler, menuStateHandler_PayloadSettingStateHandler, &dataPayloadContestMode, "Whether the payload will stop, slow, or move as normal when the defending team is near it." },
@@ -828,9 +858,9 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt, "Deal damage by chargebooting into other players." },
   { "Headbutt Friendly Fire", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbuttFriendlyFire, "Toggle dealing headbutt damage to teammates." },
   { "Mirror World", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prMirrorWorld, "Enables the mirror world cheat. Currently broken in DZO." },
-  { "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize, "Changes the size of the player model." },
+  //{ "Player Size", listActionHandler, menuStateAlwaysEnabledHandler, &dataPlayerSize, "Changes the size of the player model." },
   { "Rotate Weapons", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prRotatingWeapons, "Periodically equips the same random, enabled weapon for all players." },
-  { "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather, "Enables the weather cheat code." },
+  //{ "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather, "Enables the weather cheat code." },
 
   // DEV RULES
   { "Dev Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -889,7 +919,7 @@ TabElem_t tabElements[] = {
 #endif
   { "Game Settings", tabGameSettingsStateHandler, menuElementsGameSettings, sizeof(menuElementsGameSettings)/sizeof(MenuElem_t) },
   { "Game Settings", tabGameSettingsHelpStateHandler, menuElementsGameSettingsHelp, sizeof(menuElementsGameSettingsHelp)/sizeof(MenuElem_t) },
-  { "Custom Maps", tabGameSettingsStateHandler, menuElementsGameSettingsCustomMaps, sizeof(menuElementsGameSettingsCustomMaps)/sizeof(MenuElem_t) },
+  { "Custom Maps", tabCustomMapStateHandler, menuElementsGameSettingsCustomMaps, sizeof(menuElementsGameSettingsCustomMaps)/sizeof(MenuElem_t) },
 #if MAPEDITOR
   { "Map Editor", tabDefaultStateHandler, menuElementsMapEditor, sizeof(menuElementsMapEditor)/sizeof(MenuElem_t) },
 #endif
@@ -931,6 +961,79 @@ char* getCustomMapName(int mapIdx)
   if (mapIdx <= 0) return "None";
 
   return customMapDefs[mapIdx - 1].Name;
+}
+
+//------------------------------------------------------------------------------
+void dynamicPageEnableForSurvivalMap(int mapIdx)
+{
+  dynamicPageDisable();
+
+  // no map
+  if (mapIdx <= 0) return;
+
+  // no connection
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (!lobbyConnection) return;
+
+  // alloc
+  DynamicPageState.LineItems = malloc(1024);
+
+  // init
+  strncpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
+  DynamicPageState.Enabled = 1;
+  DynamicPageState.SelectionIdx = 0;
+  DynamicPageState.DrawIdx = 0;
+
+  char exDataBuf[1024];
+  if (mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, exDataBuf, sizeof(exDataBuf), CUSTOM_MODE_SURVIVAL) > 4) {
+
+    int gambitCount = minf(MAX_SURV_GAMBITS, *(int*)(exDataBuf + 4));
+    char* gambits = (char*)(exDataBuf + 8);
+
+    // send latest map data to server first
+    UpdateCustomMapSurvivalDataRequest_t msgMapData = {
+      .GambitCount = gambitCount,
+    };
+    strncpy(msgMapData.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msgMapData.MapFilename));
+    strncpy(msgMapData.MapName, customMapDefs[mapIdx-1].Name, sizeof(msgMapData.MapName));
+    int i;
+    for (i = 0; i < gambitCount; ++i) {
+      strncpy(msgMapData.Gambits[i], gambits, sizeof(msgMapData.Gambits[i]));
+      gambits += strlen(gambits) + 1;
+      gambits += strlen(gambits) + 1;
+    }
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_UPDATE_CUSTOM_MAP_SURVIVAL_DATA_REQUEST, sizeof(msgMapData), &msgMapData);
+  }
+
+  // send request to server
+  GetDynamicPageContentRequest_t msg = {
+    .Type = 1, // survival map stats
+    .StateAddress = &DynamicPageState.Enabled,
+    .LineItemsCountAddress = &DynamicPageState.LineItemCount,
+    .LineItemsAddress = DynamicPageState.LineItems
+  };
+  strncpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_DYNAMIC_PAGE_CONTENT, sizeof(msg), &msg);
+}
+
+//------------------------------------------------------------------------------
+void dynamicPageEnableForCurrentSurvivalMap(void)
+{
+  if (getCustomMapMode(*dataCustomMaps.value) != CUSTOM_MODE_SURVIVAL) return;
+
+  dynamicPageEnableForSurvivalMap(*dataCustomMaps.value);
+}
+
+//------------------------------------------------------------------------------
+void dynamicPageDisable(void)
+{
+  DynamicPageState.Enabled = 0;
+
+  // free
+  if (DynamicPageState.LineItems) {
+    free(DynamicPageState.LineItems);
+    DynamicPageState.LineItems = NULL;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -999,6 +1102,15 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
   }
 #endif
 
+  // only for selected tab
+  if (&tabElements[selectedTabItem] != tab) return;
+
+  // add survival stats footer interaction
+  int mapIdx = *dataCustomMaps.value;
+  if (mapIdx && customMapDefs[mapIdx-1].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
+    snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
+    footerCallback = &dynamicPageEnableForCurrentSurvivalMap;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1237,7 +1349,7 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 }
 
 // 
-int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, char* value)
+int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value)
 {
   int i;
   if (!value)
@@ -1245,6 +1357,12 @@ int menuStateHandler_SelectedMapOverride(MenuElem_OrderedListData_t* listData, c
 
   char gm = gameConfig.customModeId;
   char v = *value;
+  char selIdx = *(listData->stagingValue ? listData->stagingValue : listData->value);
+
+  if (selIdx && customMapDefs[selIdx-1].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
+    snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
+    footerCallback = NULL;
+  }
 
   // if no override selected, let user see all maps
   if (!gm) return 1;
@@ -1534,6 +1652,45 @@ int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* lis
   }
 
   return 0;
+}
+
+// 
+int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char* value)
+{
+  if (isInGame()) return 1;
+
+  char buf[1024];
+  int mapIdx = *dataCustomMaps.value;
+  int selIdx = *value;
+  strncpy(dataSurvivalGambitDesc, "Choose a gambit to tweak the selected map's gameplay mechanics.", sizeof(dataSurvivalGambitDesc));
+  if (getCustomMapMode(mapIdx) != CUSTOM_MODE_SURVIVAL) return 0;
+
+  int exDataLen = mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, buf, sizeof(buf), CUSTOM_MODE_SURVIVAL);
+  if (exDataLen < 8)
+    return 0;
+
+  int gambitCount = minf(MAX_SURV_GAMBITS, *(int*)(buf + 4));
+  char* gambits = (char*)(buf + 8);
+
+  int i;
+  for (i = 0; i < gambitCount; ++i) {
+    snprintf(dataSurvivalGambitNames[i], sizeof(dataSurvivalGambitNames[i]), "%s", gambits);
+    dataSurvivalGambit.items[i+1] = dataSurvivalGambitNames[i];
+    gambits += strlen(gambits)+1;
+    
+    // update help text
+    if ((i+1) == selIdx)
+      strncpy(dataSurvivalGambitDesc, gambits, sizeof(dataSurvivalGambitDesc));
+      
+    gambits += strlen(gambits)+1;
+  }
+
+  // reset to 0
+  if (selIdx >= gambitCount)
+    *value = 0;
+
+  dataSurvivalGambit.count = gambitCount + 1;
+  return 1;
 }
 
 // 
@@ -2021,6 +2178,12 @@ void mapsListVerticalInput(TabElem_t* tab)
     if (state & ELEMENT_EDITABLE)
       currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT_SECONDARY, NULL);
   }
+  // nav select tertiary
+  else if (padGetButtonDown(0, PAD_CIRCLE) > 0)
+  {
+    if (state & ELEMENT_EDITABLE)
+      dynamicPageEnableForSurvivalMap(*dataCustomMaps.stagingValue);
+  }
   // nav inc
   else if (padGetButtonUp(0, PAD_DOWN) > 0)
   {
@@ -2249,7 +2412,7 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     case ACTIONTYPE_SELECT:
     case ACTIONTYPE_INCREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0) {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -2272,7 +2435,7 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     }
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0) {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -2744,6 +2907,94 @@ void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
 }
 
 //------------------------------------------------------------------------------
+void drawDynamicPage(void)
+{
+  char *line = DynamicPageState.LineItems;
+  char buf[128];
+  const float lineHeight = 20;
+  int i;
+  Window_t drawWindow;
+
+  // draw frame
+  windowCreate(&drawWindow, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 300, 200, TEXT_ALIGN_MIDDLECENTER, 0);
+  windowFill(&drawWindow, colorBg);
+  windowBorder(&drawWindow, colorRed, 0, 30, 0, 20);
+
+  // draw title
+  Window_t drawWindowTitle;
+  windowCreateFrom(&drawWindowTitle, &drawWindow, 5, 5, drawWindow.Width, 20, TEXT_ALIGN_TOPCENTER);
+  windowDrawText(&drawWindowTitle, TEXT_ALIGN_TOPCENTER, 0, 0, 1, colorText, DynamicPageState.Title, -1, TEXT_ALIGN_TOPCENTER);
+
+  // draw content
+  Window_t drawWindowContent;
+  windowCreateFrom(&drawWindowContent, &drawWindow, 5, 30, drawWindow.Width - 10, drawWindow.Height - 50 - 5, TEXT_ALIGN_TOPLEFT);
+  windowFill(&drawWindowContent, colorContentBg);
+  windowSetScissor(&drawWindowContent);
+
+  if (DynamicPageState.Enabled == 1)
+  {
+    // draw loading
+    windowDrawText(&drawWindowContent, TEXT_ALIGN_MIDDLECENTER, 0, 0, 1, colorText, "Loading...", 7 + (gameGetTime()/1000)%4, TEXT_ALIGN_MIDDLECENTER);
+  }
+  else
+  {
+    // draw line content
+    int maxRows = (drawWindowContent.Height / lineHeight) - 1;
+    int drawFrom = DynamicPageState.DrawIdx;
+    if ((DynamicPageState.SelectionIdx - DynamicPageState.DrawIdx) > maxRows) DynamicPageState.DrawIdx = DynamicPageState.SelectionIdx - maxRows;
+    else if ((DynamicPageState.DrawIdx - DynamicPageState.SelectionIdx) > 0) DynamicPageState.DrawIdx = DynamicPageState.SelectionIdx;
+    for (i = 0; i < DynamicPageState.LineItemCount; ++i) {
+      Window_t drawWindowContentLine;
+      windowCreateFrom(&drawWindowContentLine, &drawWindowContent, 0, lineHeight*(i-drawFrom), drawWindowContent.Width, lineHeight, TEXT_ALIGN_TOPLEFT);
+
+      if (i == DynamicPageState.SelectionIdx) {
+        windowFill(&drawWindowContentLine, colorSelected);
+      }
+
+      if (line) {
+        windowDrawText(&drawWindowContentLine, TEXT_ALIGN_TOPLEFT, 2, 0, 1, colorText, line, -1, TEXT_ALIGN_TOPLEFT);
+        line += strlen(line) + 1;
+        windowDrawText(&drawWindowContentLine, TEXT_ALIGN_TOPRIGHT, -2, 0, 1, colorText, line, -1, TEXT_ALIGN_TOPRIGHT);
+        line += strlen(line) + 1;
+      }
+    }
+
+    windowSetScissor(&drawWindow);
+    gfxSetupGifPaging(0);
+    if (drawFrom > 0) {
+      float x,y;
+      windowResolve(&x, &y, &drawWindowContent, 0, 0, TEXT_ALIGN_TOPCENTER);
+      gfxDrawSprite(drawWindowContent.AnchorPoint[0] + x - 8, drawWindowContent.AnchorPoint[1] + y - 10, 16, 16, 0, 0, 32, 32, colorText, gfxGetFrameTex(74));
+    }
+    if ((drawFrom + maxRows) < (DynamicPageState.LineItemCount-1)) {
+      float x,y;
+      windowResolve(&x, &y, &drawWindowContent, 0, 0, TEXT_ALIGN_BOTTOMCENTER);
+      gfxDrawSprite(drawWindowContent.AnchorPoint[0] + x - 8, drawWindowContent.AnchorPoint[1] + y + 10, 16, -16, 0, 0, 32, 32, colorText, gfxGetFrameTex(74));
+    }
+    gfxDoGifPaging();
+
+    // nav
+    if (padGetButtonDown(0, PAD_UP) > 0 && DynamicPageState.SelectionIdx > 0) {
+      --DynamicPageState.SelectionIdx;
+    } else if (padGetButtonDown(0, PAD_DOWN) > 0 && DynamicPageState.SelectionIdx < (DynamicPageState.LineItemCount-1)) {
+      ++DynamicPageState.SelectionIdx;
+    } else if (padGetButtonDown(0, PAD_LEFT) > 0 && DynamicPageState.SelectionIdx > 0) {
+      DynamicPageState.SelectionIdx = clamp(DynamicPageState.SelectionIdx - 5, 0, DynamicPageState.LineItemCount-1);
+    } else if (padGetButtonDown(0, PAD_RIGHT) > 0 && DynamicPageState.SelectionIdx < (DynamicPageState.LineItemCount-1)) {
+      DynamicPageState.SelectionIdx = clamp(DynamicPageState.SelectionIdx + 5, 0, DynamicPageState.LineItemCount-1);
+    }
+  }
+
+  // footer
+  snprintf(buf, sizeof(buf), "%s", footerTextBack);
+  windowDrawText(&drawWindow, TEXT_ALIGN_BOTTOMRIGHT, -5, -2, 1, colorText, buf, -1, TEXT_ALIGN_BOTTOMRIGHT);
+
+  // final border
+  gfxSetScissor(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);
+  windowBorder(&drawWindow, colorRed, 1, 1, 1, 1);
+}
+
+//------------------------------------------------------------------------------
 void drawFrame(void)
 {
   char buf[128];
@@ -2761,24 +3012,6 @@ void drawFrame(void)
 
   // title
   gfxScreenSpaceText(0.5 * SCREEN_WIDTH, (frameY + frameTitleH * 0.5) * SCREEN_HEIGHT, 1, 1, colorText, "Patch Config", -1, 4);
-
-  // footer bg
-  gfxScreenSpaceBox(frameX, frameY + frameH - frameFooterH, frameW, frameFooterH, colorRed);
-
-  // footer
-  buf[0] = 0;
-  strcat(buf, footerTextTab);
-  if (footerCanFilter) {
-    strcat(buf, footerTextGap);
-    strcat(buf, footerTextFilter);
-  }
-  if (footerCanSelect) {
-    strcat(buf, footerTextGap);
-    strcat(buf, footerTextSelect);
-  }
-  strcat(buf, footerTextGap);
-  strcat(buf, footerTextBack);
-  gfxScreenSpaceText(((frameX + frameW) * SCREEN_WIDTH) - 5, (frameY + frameH) * SCREEN_HEIGHT - 5, 1, 1, colorText, buf, -1, 8);
 
   // content bg
   gfxScreenSpaceBox(frameX + contentPaddingX, frameY + frameTitleH + tabBarH + contentPaddingY, frameW - (contentPaddingX*2), frameH - frameTitleH - tabBarH - frameFooterH - (contentPaddingY * 2), colorContentBg);
@@ -2814,6 +3047,34 @@ void drawFrame(void)
       tabX += pWidth - tabBarPaddingX;
     }
   }
+}
+
+//------------------------------------------------------------------------------
+void drawFooter(void)
+{
+  char buf[128];
+
+  // footer bg
+  gfxScreenSpaceBox(frameX, frameY + frameH - frameFooterH, frameW, frameFooterH, colorRed);
+
+  // footer
+  buf[0] = 0;
+  strcat(buf, footerTextTab);
+  if (footerCanFilter) {
+    strcat(buf, footerTextGap);
+    strcat(buf, footerTextFilter);
+  }
+  if (footerCanSelect) {
+    strcat(buf, footerTextGap);
+    strcat(buf, footerTextSelect);
+  }
+  if (footerTextExtra[0]) {
+    strcat(buf, footerTextGap);
+    strcat(buf, footerTextExtra);
+  }
+  strcat(buf, footerTextGap);
+  strcat(buf, footerTextBack);
+  gfxScreenSpaceText(((frameX + frameW) * SCREEN_WIDTH) - 5, (frameY + frameH) * SCREEN_HEIGHT - 5, 1, 1, colorText, buf, -1, 8);
 }
 
 //------------------------------------------------------------------------------
@@ -2871,6 +3132,11 @@ void tabInput(TabElem_t* tab)
   {
     if (state & ELEMENT_EDITABLE)
       currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
+  }
+  // nav select tertiary
+  else if (footerCallback && padGetButtonDown(0, PAD_CIRCLE) > 0)
+  {
+    footerCallback();
   }
 }
 
@@ -3016,44 +3282,62 @@ void onMenuUpdate(int inGame)
 {
   char buf[16];
   TabElem_t* tab = &tabElements[selectedTabItem];
+  footerTextExtra[0] = 0;
+  footerCallback = NULL;
 
   if (isConfigMenuActive)
   {
     // prevent pad from affecting menus
     padDisableInput();
 
-    // draw
-    if (padGetButton(0, PAD_L3) <= 0)
+    if (DynamicPageState.Enabled)
     {
-      // draw frame
-      drawFrame();
-
-      // draw tab
-      drawTab(tab);
-
-      // draw ping overlay
-      if (gameGetSettings())
+      drawDynamicPage();
+      
+      // close
+      if (DynamicPageState.Enabled == 3 || padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
       {
-        int ping = gameGetPing();
-        sprintf(buf, "ping %d", ping);
-        gfxScreenSpaceText(0.88 * SCREEN_WIDTH, 0.15 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, buf, -1, 2);
+        dynamicPageDisable();
       }
     }
+    else
+    {
+      // draw
+      if (padGetButton(0, PAD_L3) <= 0)
+      {
+        // draw frame
+        drawFrame();
 
-    // nav tab right
-    if (padGetButtonUp(0, PAD_R1) > 0)
-    {
-      navTab(1);
-    }
-    // nav tab left
-    else if (padGetButtonUp(0, PAD_L1) > 0)
-    {
-      navTab(-1);
-    }
-    // close
-    else if (padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
-    {
-      configMenuDisable();
+        // draw tab
+        drawTab(tab);
+
+        // draw footer
+        drawFooter();
+
+        // draw ping overlay
+        if (gameGetSettings())
+        {
+          int ping = gameGetPing();
+          sprintf(buf, "ping %d", ping);
+          gfxScreenSpaceText(0.88 * SCREEN_WIDTH, 0.15 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, buf, -1, 2);
+        }
+      }
+
+      // nav tab right
+      if (padGetButtonUp(0, PAD_R1) > 0)
+      {
+        navTab(1);
+      }
+      // nav tab left
+      else if (padGetButtonUp(0, PAD_L1) > 0)
+      {
+        navTab(-1);
+      }
+      // close
+      else if (padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
+      {
+        configMenuDisable();
+      }
     }
   }
   else if (!inGame && !mapsDownloadingModules() && netGetLobbyServerConnection())
@@ -3403,6 +3687,9 @@ void configMenuDisable(void)
     return;
   
   isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 0;
+
+  // disable dynamic popup
+  dynamicPageDisable();
 
   // send config to server for saving
   void * lobbyConnection = netGetLobbyServerConnection();

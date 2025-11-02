@@ -499,6 +499,7 @@ void initialize(void)
   upgradeInit();
   dropInit();
   bboxInit();
+  gambitsInit();
   blessingsInit();
   MapConfig.OnMobCreateFunc = &createMob;
 
@@ -584,6 +585,7 @@ int main (void)
   pathTick();
   upgradeTick();
   dropTick();
+  gambitsTick();
   blessingsTick();
   updateUnlockedBlessingSlots();
   updateBossMeter();
@@ -593,6 +595,13 @@ int main (void)
 
   if (MapConfig.State) {
     MapConfig.State->MapBaseComplexity = MAP_BASE_COMPLEXITY;
+
+    // track round competions
+    static int lastRoundCompleted = 0;
+    if (MapConfig.State->RoundEndTime && lastRoundCompleted != MapConfig.State->RoundNumber) {
+      lastRoundCompleted = MapConfig.State->RoundNumber;
+      gambitsOnRoundComplete(lastRoundCompleted);
+    }
   }
 
 #if DEBUG

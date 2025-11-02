@@ -66,13 +66,13 @@ enum BETTER_HILL_PTS
 	//VALIX_01 = 24,
 	VALIX_13 = 12,
 	VALIX_16 = 13,
-	MF_20 = 14,
-	MF_22 = 15,
-	MF_24 = 16,
-	GS_20 = 17,
-	GS_21 = 18,
-	GS_22 = 19,
-	GS_23 = 20,
+	//MF_20 = 14,
+	//MF_22 = 15,
+	//MF_24 = 16,
+	//GS_20 = 17,
+	//GS_21 = 18,
+	//GS_22 = 19,
+	//GS_23 = 20,
 	TEMPUS_16 = 21,
 	TEMPUS_17 = 22,
 	TEMPUS_18 = 23
@@ -190,25 +190,25 @@ SpawnPoint BetterHillPoints[] = {
 	{ { 8.660254, 5, 0, 0, -5, 8.660254, 0, 0, 0, 0, 10, 0, 351.16696, 400.823, 324.90625, 0 }, { 0.08660254, 0.05, 0, 0, -0.05, 0.08660254, 0, 0, 0, 0, 0.1, 0, 351.16696, 400.823, 324.90625, 0 } },
 
 	// MF ID 20 (0x14)
-	{ { 8, 0, 0, 0, 0, 14, 0, 0, 0, 0, 5, 0, 444.0099, 600.22675, 428.04242, 0 }, { 0.125, 0, 0, 0, 0, 0.071428575, 0, 0, 0, 0, 0.2, 0, 444.0099, 600.22675, 428.04242, 0 } },
+	//{ { 8, 0, 0, 0, 0, 14, 0, 0, 0, 0, 5, 0, 444.0099, 600.22675, 428.04242, 0 }, { 0.125, 0, 0, 0, 0, 0.071428575, 0, 0, 0, 0, 0.2, 0, 444.0099, 600.22675, 428.04242, 0 } },
 	
 	// MF ID 22 (0x16)
-	{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 410.27823, 598.204, 434.209, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 410.27823, 598.204, 434.209, 0 } },
+	//{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 410.27823, 598.204, 434.209, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 410.27823, 598.204, 434.209, 0 } },
 
 	// MF ID 22 (0x18)
-	{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 356.82983, 653.3447, 428.36734, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 356.82983, 653.3447, 428.36734, 0 } },
+	//{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 356.82983, 653.3447, 428.36734, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 356.82983, 653.3447, 428.36734, 0 } },
 
 	// GC ID 0x20
-	{ { 7, 0, 0, 0, 0, 7, 0, 0, 0, 0, 7, 0, 636.95593, 401.78497, 102.765625, 0 }, { 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 636.95593, 401.78497, 102.765625, 0 } },
+	//{ { 7, 0, 0, 0, 0, 7, 0, 0, 0, 0, 7, 0, 636.95593, 401.78497, 102.765625, 0 }, { 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 636.95593, 401.78497, 102.765625, 0 } },
 
 	// GC ID 0x21
-	{ { 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 728.6185, 563.659, 101.578125, 1 }, { 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 728.6185, 563.659, 101.578125, 1 } },
+	//{ { 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 728.6185, 563.659, 101.578125, 1 }, { 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 728.6185, 563.659, 101.578125, 1 } },
 
 	// GC ID 22
-	{ { 6.7093644, 4.3571124, 0, 0, -4.9017515, 7.548035, 0, 0, 0, 0, 8, 0, 586.91223, 541.42474, 102.828125, 0 }, { 0.10483382, 0.06807988, 0, 0, -0.060515452, 0.09318562, 0, 0, 0, 0, 0.125, 0, 586.91223, 541.42474, 102.828125, 0 } },
+	//{ { 6.7093644, 4.3571124, 0, 0, -4.9017515, 7.548035, 0, 0, 0, 0, 8, 0, 586.91223, 541.42474, 102.828125, 0 }, { 0.10483382, 0.06807988, 0, 0, -0.060515452, 0.09318562, 0, 0, 0, 0, 0.125, 0, 586.91223, 541.42474, 102.828125, 0 } },
 
 	// GC ID 23 (0x17)
-	{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 637.3847, 522.3367, 103, 1 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 637.3847, 522.3367, 103, 1 } },
+	//{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 637.3847, 522.3367, 103, 1 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 637.3847, 522.3367, 103, 1 } },
 
 	// TEMPUS ID 16
 	{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 530.847, 538.41187, 100.375, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 530.847, 538.41187, 100.375, 0 } },
@@ -1304,13 +1304,13 @@ void betterHillsLogic(void)
 			spawnPointSet(&BetterHillPoints[VALIX_16], 0x10);
 			break;
 		}
-		case MAP_ID_MF:
-		{
-			spawnPointSet(&BetterHillPoints[MF_20], 0x14);
-			spawnPointSet(&BetterHillPoints[MF_22], 0x16);
-			spawnPointSet(&BetterHillPoints[MF_24], 0x18);
-			break;
-		}
+		// case MAP_ID_MF:
+		// {
+		// 	spawnPointSet(&BetterHillPoints[MF_20], 0x14);
+		// 	spawnPointSet(&BetterHillPoints[MF_22], 0x16);
+		// 	spawnPointSet(&BetterHillPoints[MF_24], 0x18);
+		// 	break;
+		// }
 		case MAP_ID_TEMPUS:
 		{
 			spawnPointSet(&BetterHillPoints[TEMPUS_16], 0x10);
@@ -1323,14 +1323,14 @@ void betterHillsLogic(void)
 			spawnPointSet(&BetterHillPoints[MARAXUS_13], 0x13);
 			break;
 		}
-		case MAP_ID_GS:
-		{
-			spawnPointSet(&BetterHillPoints[GS_20], 0x14);
-			spawnPointSet(&BetterHillPoints[GS_21], 0x15);
-			spawnPointSet(&BetterHillPoints[GS_22], 0x16);
-			spawnPointSet(&BetterHillPoints[GS_23], 0x17);
-			break;
-		}
+		// case MAP_ID_GS:
+		// {
+		// 	spawnPointSet(&BetterHillPoints[GS_20], 0x14);
+		// 	spawnPointSet(&BetterHillPoints[GS_21], 0x15);
+		// 	spawnPointSet(&BetterHillPoints[GS_22], 0x16);
+		// 	spawnPointSet(&BetterHillPoints[GS_23], 0x17);
+		// 	break;
+		// }
 		case MAP_ID_TORVAL:
 		{
 			spawnPointSet(&BetterHillPoints[TORVAL_13], 0x13);
@@ -1974,26 +1974,26 @@ void grGameStart(void)
 		// 
 		grInitialize();
 
-		// convert weather id to game value
-		WeatherOverrideId = gameConfig.prWeatherId;
+		// // convert weather id to game value
+		// WeatherOverrideId = gameConfig.prWeatherId;
 
-		// random weather
-		if (WeatherOverrideId == 1)
-		{
-			sha1(&gameSettings->GameLoadStartTime, 4, &WeatherOverrideId, 4);
-			WeatherOverrideId = 1 + (WeatherOverrideId % 16);
-			if (WeatherOverrideId == 8)
-				WeatherOverrideId = 9;
-			else if (WeatherOverrideId == 15)
-				WeatherOverrideId = 16;
-		}
-		// shift down weather (so that the list value is equivalent to game value)
-		else if (WeatherOverrideId > 1 && WeatherOverrideId < 9)
-			--WeatherOverrideId;
+		// // random weather
+		// if (WeatherOverrideId == 1)
+		// {
+		// 	sha1(&gameSettings->GameLoadStartTime, 4, &WeatherOverrideId, 4);
+		// 	WeatherOverrideId = 1 + (WeatherOverrideId % 16);
+		// 	if (WeatherOverrideId == 8)
+		// 		WeatherOverrideId = 9;
+		// 	else if (WeatherOverrideId == 15)
+		// 		WeatherOverrideId = 16;
+		// }
+		// // shift down weather (so that the list value is equivalent to game value)
+		// else if (WeatherOverrideId > 1 && WeatherOverrideId < 9)
+		// 	--WeatherOverrideId;
 	}
 
 	// Apply weather
-	cheatsApplyWeather(WeatherOverrideId);
+	// cheatsApplyWeather(WeatherOverrideId);
 
 	if (gameConfig.grNoPacks)
 		cheatsApplyNoPacks();
@@ -2003,8 +2003,8 @@ void grGameStart(void)
 	else if (gameConfig.grV2s == 1)
 		alwaysV2sLogic();
 
-	if (gameConfig.prMirrorWorld)
-		cheatsApplyMirrorWorld(1);
+	// if (gameConfig.prMirrorWorld)
+	// 	cheatsApplyMirrorWorld(1);
 
 	if (gameConfig.grNoHealthBoxes == 2 && !HasDisabledHealthboxes)
 		HasDisabledHealthboxes = cheatsDisableHealthboxes();
@@ -2034,8 +2034,8 @@ void grGameStart(void)
 	if (gameConfig.grNoInvTimer)
 		invTimerLogic();
 
-	if (gameConfig.prPlayerSize)
-		playerSizeLogic();
+	// if (gameConfig.prPlayerSize)
+	// 	playerSizeLogic();
 
 	if (gameConfig.prRotatingWeapons)
 		rotatingWeaponsLogic();

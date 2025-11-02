@@ -399,6 +399,8 @@ const int defaultSpawnParamsCount = sizeof(defaultSpawnParams) / sizeof(struct M
 //--------------------------------------------------------------------------
 SurvivalBakedConfig_t bakedConfig = {
   .Difficulty = 1.5,
+  .BoltMultiplier = 1.0,
+  .XpMultiplier = 1.0,
   .SpawnDistanceFactor = 0.5,
   .BoltRankMultiplier = 1,
   .StackboxBaseCost = 500000,

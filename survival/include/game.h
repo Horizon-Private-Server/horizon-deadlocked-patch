@@ -29,6 +29,7 @@
 
 #define STATUE_MOBY_OCLASS                    (0x2402)
 #define BIGAL_MOBY_OCLASS                     (0x2124)
+#define VENDOR_MOBY_OCLASS                    (0x263A)
 
 #define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
 
@@ -163,7 +164,7 @@
 #define ITEM_STACKABLE_EXPLODINGENEMIES_RADIUS          (5.0)
 
 
-#define SNACK_ITEM_MAX_COUNT                  (12)
+#define SNACK_ITEM_MAX_COUNT                  (8)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
 
 #define MAX_MOB_SPAWN_PARAMS                  (10)
@@ -303,6 +304,8 @@ typedef struct SurvivalBakedSpawnpoint
 typedef struct SurvivalBakedConfig
 {
   float Difficulty;
+  float BoltMultiplier;
+  float XpMultiplier;
   float SpawnDistanceFactor;
   int BoltRankMultiplier;
   SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];

@@ -467,3 +467,99 @@ void mapApplyFixes(void)
 {
   HOOK_JAL(0x0061c3ec, &mapOnGuberEventCreateMoby);
 }
+
+//--------------------------------------------------------------------------
+void mapPrintGambit(int gambit)
+{
+  char gambitName[32];
+  if (!gambit) return;
+  
+  // read ex data
+  char exDataBuf[1024];
+  if (PATCH_INTEROP->ReadCustomMapExtraData(PATCH_INTEROP->MapLoaderFilename, exDataBuf, sizeof(exDataBuf), CUSTOM_MODE_SURVIVAL) > 8) {
+    int gambitCount = *(int*)(exDataBuf + 4);
+    char* gambits = (char*)(exDataBuf + 8);
+
+    int i;
+    for (i = 0; i < gambitCount; ++i) {
+      if ((i+1) == gambit) {
+        strncpy(gambitName, gambits, sizeof(gambitName));
+        break;
+      }
+
+      gambits += strlen(gambits) + 1;
+      gambits += strlen(gambits) + 1;
+    }
+  }
+
+  // show user
+  snprintf(exDataBuf, sizeof(exDataBuf), "Gambit \x0E%s\x08 Active", gambitName);
+  pushSnack(0, exDataBuf, TPS * 10);
+  pushSnack(1, exDataBuf, TPS * 10);
+}
+
+//--------------------------------------------------------------------------
+void mapSendSendGambitCompletedMessage(int gambit)
+{
+  if (!gambit) return;
+  
+  void* lobbyConnection = netGetLobbyServerConnection();
+  if (!lobbyConnection) return;
+
+  UpdateSurvivalGambitCompletedRequest_t msg = {
+    .GambitIdx = gambit
+  };
+
+  // read ex data
+  char exDataBuf[1024];
+  if (PATCH_INTEROP->ReadCustomMapExtraData(PATCH_INTEROP->MapLoaderFilename, exDataBuf, sizeof(exDataBuf), CUSTOM_MODE_SURVIVAL) > 8) {
+    int gambitCount = *(int*)(exDataBuf + 4);
+    char* gambits = (char*)(exDataBuf + 8);
+
+    int i;
+    for (i = 0; i < gambitCount; ++i) {
+      if ((i+1) == gambit) {
+        strncpy(msg.GambitName, gambits, sizeof(msg.GambitName));
+        break;
+      }
+
+      gambits += strlen(gambits) + 1;
+      gambits += strlen(gambits) + 1;
+    }
+  }
+
+  // send request to server
+  strncpy(msg.MapFilename, PATCH_INTEROP->MapLoaderFilename, sizeof(msg.MapFilename));
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_UPDATE_SURVIVAL_GAMBIT_COMPLETED_REQUEST, sizeof(msg), &msg);
+
+  // show user
+  snprintf(exDataBuf, sizeof(exDataBuf), "Completed Gambit %s!", msg.GambitName);
+  pushSnack(0, exDataBuf, TPS * 10);
+  pushSnack(1, exDataBuf, TPS * 10);
+}
+
+//--------------------------------------------------------------------------
+void mapEnforceSingleWeaponRestriction(int weaponId)
+{
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* player = playerGetFromSlot(i);
+    if (!playerIsValid(player)) continue;
+
+    playerSetLocalEquipslot(i, 0, weaponId);
+    playerSetLocalEquipslot(i, 1, 0);
+    playerSetLocalEquipslot(i, 2, 0);
+    
+    int s;
+    for (s = WEAPON_SLOT_VIPERS; s < WEAPON_SLOT_COUNT; ++s) {
+      int gadget = weaponSlotToId(s);
+      if (gadget == weaponId) continue;
+
+      player->GadgetBox->Gadgets[gadget].Level = -1;
+      player->GadgetBox->Gadgets[gadget].Ammo = 0;
+      if (player->WeaponHeldId == gadget) {
+        player->ChangeWeaponHeldId = weaponId;
+      }
+    }
+  }
+}

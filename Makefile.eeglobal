@@ -32,6 +32,9 @@ EE_CXX_COMPILE = $(EE_CXX) $(EE_CXXFLAGS) $(EE_INCS)
 common.o : /src/common/common.c
 	$(EE_CC) $(EE_CFLAGS) $(EE_DEFS) $(EE_INCS) $(EE_LDFLAGS) -c $< -o $@
 
+window.o : /src/common/window.c
+	$(EE_CC) $(EE_CFLAGS) $(EE_DEFS) $(EE_INCS) $(EE_LDFLAGS) -c $< -o $@
+
 %.o : %.c
 	$(EE_CC) $(EE_CFLAGS) $(EE_DEFS) $(EE_INCS) $(EE_LDFLAGS) -c $< -o $@
 

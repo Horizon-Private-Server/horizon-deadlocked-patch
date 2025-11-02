@@ -1114,8 +1114,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
   if (pvars->VTable && pvars->VTable->OnDestroy)
     pvars->VTable->OnDestroy(moby, killedByPlayerId, weaponId);
   
-  int bolts = pvars->MobVars.Config.Bolts;
-  int xp = pvars->MobVars.Config.Xp;
+  int bolts = pvars->MobVars.Config.Bolts * mapConfig->BakedConfig->BoltMultiplier;
+  int xp = (int)pvars->MobVars.Config.Xp * mapConfig->BakedConfig->XpMultiplier;
 
 #if DROPS
   if (mapConfig && mapConfig->CreateMobDropFunc && (!State.RoundIsSpecial || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops)) {
@@ -1189,8 +1189,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     if (weaponId > 1 && killedByPlayer) {
       int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
 
-      pState->State.Bolts += jackpotCount * JACKPOT_BOLTS;
-      pState->State.TotalBolts += jackpotCount * JACKPOT_BOLTS;
+      pState->State.Bolts += jackpotCount * JACKPOT_BOLTS * mapConfig->BakedConfig->BoltMultiplier;
+      pState->State.TotalBolts += (int)(jackpotCount * JACKPOT_BOLTS * mapConfig->BakedConfig->BoltMultiplier);
     }
 
     // handle stats

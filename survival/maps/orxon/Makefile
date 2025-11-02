@@ -1,5 +1,5 @@
 EE_LIBS = -ldl
-EE_OBJS = common.o main.o config.o path.o ../shared/stackables.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/bankbox.o ../shared/stackbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
+EE_OBJS = common.o main.o config.o path.o gambits.o ../shared/stackables.o ../shared/upgrade.o ../shared/drop.o ../shared/gate.o ../shared/bankbox.o ../shared/stackbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
 EE_ELF = orxon.elf
 EE_BIN = orxon.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude
@@ -23,7 +23,7 @@ all: setup $(EE_BIN) clean
 	# payload and definition
 	cp $(CURDIR)/orxon.bin "$(CURDIR)/bin/survival v2 mf.code"
 
-	# if [ -d "/out" ]; then cp -r $(CURDIR)/bin/* /out/; fi
+	if [ -d "/out/survival_orxon/build/dl" ]; then cp -r $(CURDIR)/bin/* /out/survival_orxon/build/dl; fi
 	
 setup:
 	mkdir -p $(CURDIR)/bin

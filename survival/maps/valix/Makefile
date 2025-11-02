@@ -1,5 +1,5 @@
 EE_LIBS = -ldl
-EE_OBJS = common.o main.o config.o path.o soulcollector.o hackerorb.o ../shared/stackables.o ../shared/upgrade.o ../shared/drop.o ../shared/stackbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
+EE_OBJS = common.o main.o config.o path.o soulcollector.o hackerorb.o gambits.o ../shared/stackables.o ../shared/upgrade.o ../shared/drop.o ../shared/stackbox.o ../shared/mysterybox.o ../shared/pathfind.o ../shared/maputils.o ../shared/mobs/mob.o
 EE_ELF = valix.elf
 EE_BIN = valix.bin
 EE_INCS := -I../../../common -I../../include -I../shared/include -Iinclude

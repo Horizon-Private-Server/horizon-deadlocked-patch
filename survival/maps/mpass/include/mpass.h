@@ -20,4 +20,20 @@ enum MobSpawnParamIds {
 	MOB_SPAWN_PARAM_COUNT
 };
 
+enum GambitIds {
+  GAMBIT_ID_NONE = 0,
+  GAMBIT_ID_EASY_MODE,
+  GAMBIT_ID_IMPOSSIBLE_MODE,
+  GAMBIT_ID_NO_SPEED,
+  GAMBIT_ID_NO_VENDOR,
+  GAMBIT_ID_MINES_ONLY,
+  GAMBIT_ID_ARBITER_ONLY,
+  GAMBIT_ID_FLAIL_ONLY
+};
+
+enum GambitIds gambitsGetActive(void);
+void gambitsOnRoundComplete(int roundNo);
+void gambitsTick(void);
+void gambitsInit(void);
+
 #endif // _SURVIVAL_MPASS_H_

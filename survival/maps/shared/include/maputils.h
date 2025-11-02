@@ -53,4 +53,8 @@ int bakedSpawnGetFirst(int bakedSpawnType, VECTOR outPos, VECTOR outRot);
 
 void mapApplyFixes(void);
 
+void mapPrintGambit(int gambit);
+void mapSendSendGambitCompletedMessage(int gambit);
+void mapEnforceSingleWeaponRestriction(int weaponId);
+
 #endif // SURVIVAL_MAP_UTILS_H

@@ -784,7 +784,7 @@ float swarmerGetDodgeProbability(Moby* moby)
   if (MapConfig.State) roundNo = MapConfig.State->RoundNumber;
 
   float factor = clamp(powf(roundNo / 100.0, 2), 0, 1);
-  return lerpf(0.03, 0.25, factor);
+  return lerpf(0.001, 0.01, factor);
 }
 
 //--------------------------------------------------------------------------
