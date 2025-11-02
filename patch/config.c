@@ -1139,13 +1139,16 @@ void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state)
 //------------------------------------------------------------------------------
 void tabCustomMapStateHandler(TabElem_t* tab, int * state)
 {
-  if (isInGame())
+  GameSettings * gameSettings = gameGetSettings();
+
+  // if game has started or not the host, disable editing
+  if (!gameSettings || gameSettings->GameLoadStartTime > 0 || *(u8*)0x00172170 != 0)
   {
-    *state = ELEMENT_VISIBLE;
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
   }
   else
   {
-    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_FILTERABLE;
   }
 }
 
