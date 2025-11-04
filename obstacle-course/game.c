@@ -219,7 +219,6 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
   gameState->GameConfig->drFreecam = 0;
   //gameState->GameConfig->drLevelReload = 0;
   gameState->GameConfig->prChargebootForever = 0;
-  gameState->GameConfig->prPlayerSize = 0;
   gameState->GameConfig->prRotatingWeapons = 0;
   gameState->GameConfig->prHeadbutt = 0;
 }

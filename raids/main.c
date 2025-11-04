@@ -1300,7 +1300,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grHealthBars = 1;
     gameConfig->prChargebootForever = 0;
     gameConfig->prHeadbutt = 0;
-    gameConfig->prPlayerSize = 0;
+	  gameConfig->grInstantDeath = 0;
     gameConfig->grCqPersistentCapture = 0;
     gameConfig->grCqDisableTurrets = 0;
     gameConfig->grCqDisableUpgrades = 0;

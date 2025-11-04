@@ -539,138 +539,138 @@ void playerSizeScaleMoby(Moby* moby, float scale)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void playerSizeLogic(void)
-{
-	int i, j;
-	Player** players = playerGetAll();
-	float size, cameraHeight, tpHeight, moveSpeed = 1;
+// void playerSizeLogic(void)
+// {
+// 	int i, j;
+// 	Player** players = playerGetAll();
+// 	float size, cameraHeight, tpHeight, moveSpeed = 1;
 	
-	switch (gameConfig.prPlayerSize)
-	{
-		case 1: size = 1.5; cameraHeight = 0.75; tpHeight = 3; moveSpeed = 1.5; break; // large
-		case 2: size = 3; cameraHeight = 2.5; tpHeight = 5; moveSpeed = 3; break; // giant
-		case 3: size = 0.2; cameraHeight = -0.80; tpHeight = 0.3; moveSpeed = 0.5; break; // tiny
-		case 4: size = 0.666; cameraHeight = -0.25; tpHeight = 1.25; moveSpeed = 0.75; break; // small
-	}
+// 	switch (gameConfig.prPlayerSize)
+// 	{
+// 		case 1: size = 1.5; cameraHeight = 0.75; tpHeight = 3; moveSpeed = 1.5; break; // large
+// 		case 2: size = 3; cameraHeight = 2.5; tpHeight = 5; moveSpeed = 3; break; // giant
+// 		case 3: size = 0.2; cameraHeight = -0.80; tpHeight = 0.3; moveSpeed = 0.5; break; // tiny
+// 		case 4: size = 0.666; cameraHeight = -0.25; tpHeight = 1.25; moveSpeed = 0.75; break; // small
+// 	}
 
-	// disable fixed player scale
-	//*(u32*)0x005D1580 = 0;
+// 	// disable fixed player scale
+// 	//*(u32*)0x005D1580 = 0;
 
-	//
-	float m = 1024 * size;
-	asm (".set noreorder;");
-	*(u16*)0x004f79fc = *(u16*)((u32)&m + 2);
+// 	//
+// 	float m = 1024 * size;
+// 	asm (".set noreorder;");
+// 	*(u16*)0x004f79fc = *(u16*)((u32)&m + 2);
 
-	// chargeboot distance
-	m = 6 * size;
-	asm (".set noreorder;");
-	*(u16*)0x0049A688 = *(u16*)((u32)&m + 2);
+// 	// chargeboot distance
+// 	m = 6 * size;
+// 	asm (".set noreorder;");
+// 	*(u16*)0x0049A688 = *(u16*)((u32)&m + 2);
 
-	// chargeboot height
-	m = tpHeight;
-	asm (".set noreorder;");
-	*(u16*)0x0049A6B4 = *(u16*)((u32)&m + 2);
+// 	// chargeboot height
+// 	m = tpHeight;
+// 	asm (".set noreorder;");
+// 	*(u16*)0x0049A6B4 = *(u16*)((u32)&m + 2);
 
-	// chargeboot look at height
-	m = tpHeight;
-	asm (".set noreorder;");
-	*(u16*)0x0049a658 = *(u16*)((u32)&m + 2);
+// 	// chargeboot look at height
+// 	m = tpHeight;
+// 	asm (".set noreorder;");
+// 	*(u16*)0x0049a658 = *(u16*)((u32)&m + 2);
 
-	// third person distance and height
-	*(float*)0x002391FC = 4 * size;
-	*(float*)0x00239200 = tpHeight;
-	*(float*)0x00239180 = tpHeight + 0.5;
+// 	// third person distance and height
+// 	*(float*)0x002391FC = 4 * size;
+// 	*(float*)0x00239200 = tpHeight;
+// 	*(float*)0x00239180 = tpHeight + 0.5;
 
-	// change velocity dampening function's radius
-	// to original so new radius doesn't affect movement physics
-	//*(u16*)0x005E72C4 = 0x238;
-	//*(u16*)0x005E72C8 = 0x23C;
+// 	// change velocity dampening function's radius
+// 	// to original so new radius doesn't affect movement physics
+// 	//*(u16*)0x005E72C4 = 0x238;
+// 	//*(u16*)0x005E72C8 = 0x23C;
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		Player * player = players[i];
-		if (player) {
+// 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+// 	{
+// 		Player * player = players[i];
+// 		if (player) {
 
-			// write original radius and radius squared
-			//*(float*)((u32)player + 0x238) = 0.45;
-			//*(float*)((u32)player + 0x23C) = 0.45 * 0.45;
+// 			// write original radius and radius squared
+// 			//*(float*)((u32)player + 0x238) = 0.45;
+// 			//*(float*)((u32)player + 0x23C) = 0.45 * 0.45;
 
-			// speed
-			//player->Speed = size;
+// 			// speed
+// 			//player->Speed = size;
 
-			// update collision size
-			//player->PlayerConstants->colRadius = 0.45 * size;
-			//player->PlayerConstants->colTop = 1.05 * size;
-			//player->PlayerConstants->colBot = 0.70 * size;
-			//player->PlayerConstants->colBotFall = 0.50 * size;
+// 			// update collision size
+// 			//player->PlayerConstants->colRadius = 0.45 * size;
+// 			//player->PlayerConstants->colTop = 1.05 * size;
+// 			//player->PlayerConstants->colBot = 0.70 * size;
+// 			//player->PlayerConstants->colBotFall = 0.50 * size;
 
-			if (player->PlayerMoby)
-				player->PlayerMoby->Scale = 0.25 * size;
+// 			if (player->PlayerMoby)
+// 				player->PlayerMoby->Scale = 0.25 * size;
 
-			// update camera
-			player->CameraOffset[0] = -6 * size;
-			player->CameraOffset[2] = cameraHeight;
-			player->CameraElevation = 2 + cameraHeight;
-		}
-	}
+// 			// update camera
+// 			player->CameraOffset[0] = -6 * size;
+// 			player->CameraOffset[2] = cameraHeight;
+// 			player->CameraElevation = 2 + cameraHeight;
+// 		}
+// 	}
 
-	Moby* moby = mobyListGetStart();
-	Moby* mEnd = mobyListGetEnd();
-	while (moby < mEnd)
-	{
-		if (!mobyIsDestroyed(moby)) {
-			switch (moby->OClass)
-			{
-				case MOBY_ID_WRENCH:
-				case MOBY_ID_DUAL_VIPERS:
-				case MOBY_ID_ARBITER:
-				case MOBY_ID_THE_ARBITER:
-				case MOBY_ID_MAGMA_CANNON:
-				case MOBY_ID_FLAIL:
-				case MOBY_ID_FLAIL_HEAD:
-				case MOBY_ID_B6_OBLITERATOR:
-				case MOBY_ID_HOLOSHIELD_LAUNCHER:
-				case MOBY_ID_HOLOSHIELD_SHOT:
-				case MOBY_ID_MINE_LAUNCHER:
-				case MOBY_ID_MINE_LAUNCHER_MINE:
-				case MOBY_ID_FUSION_RIFLE:
-				case MOBY_ID_CHARGE_BOOTS_PLAYER_EQUIP_VERSION:
-				case MOBY_ID_HOVERBIKE:
-				case MOBY_ID_HOVERSHIP:
-				case MOBY_ID_LANDSTALKER:
-				case MOBY_ID_LANDSTALKER_LEG:
-				case MOBY_ID_LANDSTALKER_MID:
-				case MOBY_ID_PUMA:
-				case MOBY_ID_PUMA_TIRE:
-				case MOBY_ID_PLAYER_TURRET:
-				case MOBY_ID_NODE_BASE:
-				case MOBY_ID_CONQUEST_NODE_TURRET:
-				case MOBY_ID_CONQUEST_POWER_TURRET:
-				case MOBY_ID_CONQUEST_ROCKET_TURRET:
-				case MOBY_ID_CONQUEST_TURRET_HOLDER_TRIANGLE_THING:
-				case MOBY_ID_HACKER_ORB:
-				case MOBY_ID_HACKER_ORB_HOLDER:
-				case MOBY_ID_HEALTH_ORB_MULT:
-				case MOBY_ID_HEALTH_BOX_MULT:
-				case MOBY_ID_HEALTH_PAD0:
-				case MOBY_ID_HEALTH_PAD1:
-				case MOBY_ID_BLUE_TEAM_HEALTH_PAD:
-				case MOBY_ID_PICKUP_PAD:
-				case MOBY_ID_WEAPON_PICKUP:
-				case MOBY_ID_CHARGEBOOTS_PICKUP_MODEL:
-				case MOBY_ID_WEAPON_PACK:
-				case MOBY_ID_RED_FLAG:
-				case MOBY_ID_BLUE_FLAG:
-				case MOBY_ID_GREEN_FLAG:
-				case MOBY_ID_ORANGE_FLAG:
-					playerSizeScaleMoby(moby, size);
-					break;
-			}
-		}
+// 	Moby* moby = mobyListGetStart();
+// 	Moby* mEnd = mobyListGetEnd();
+// 	while (moby < mEnd)
+// 	{
+// 		if (!mobyIsDestroyed(moby)) {
+// 			switch (moby->OClass)
+// 			{
+// 				case MOBY_ID_WRENCH:
+// 				case MOBY_ID_DUAL_VIPERS:
+// 				case MOBY_ID_ARBITER:
+// 				case MOBY_ID_THE_ARBITER:
+// 				case MOBY_ID_MAGMA_CANNON:
+// 				case MOBY_ID_FLAIL:
+// 				case MOBY_ID_FLAIL_HEAD:
+// 				case MOBY_ID_B6_OBLITERATOR:
+// 				case MOBY_ID_HOLOSHIELD_LAUNCHER:
+// 				case MOBY_ID_HOLOSHIELD_SHOT:
+// 				case MOBY_ID_MINE_LAUNCHER:
+// 				case MOBY_ID_MINE_LAUNCHER_MINE:
+// 				case MOBY_ID_FUSION_RIFLE:
+// 				case MOBY_ID_CHARGE_BOOTS_PLAYER_EQUIP_VERSION:
+// 				case MOBY_ID_HOVERBIKE:
+// 				case MOBY_ID_HOVERSHIP:
+// 				case MOBY_ID_LANDSTALKER:
+// 				case MOBY_ID_LANDSTALKER_LEG:
+// 				case MOBY_ID_LANDSTALKER_MID:
+// 				case MOBY_ID_PUMA:
+// 				case MOBY_ID_PUMA_TIRE:
+// 				case MOBY_ID_PLAYER_TURRET:
+// 				case MOBY_ID_NODE_BASE:
+// 				case MOBY_ID_CONQUEST_NODE_TURRET:
+// 				case MOBY_ID_CONQUEST_POWER_TURRET:
+// 				case MOBY_ID_CONQUEST_ROCKET_TURRET:
+// 				case MOBY_ID_CONQUEST_TURRET_HOLDER_TRIANGLE_THING:
+// 				case MOBY_ID_HACKER_ORB:
+// 				case MOBY_ID_HACKER_ORB_HOLDER:
+// 				case MOBY_ID_HEALTH_ORB_MULT:
+// 				case MOBY_ID_HEALTH_BOX_MULT:
+// 				case MOBY_ID_HEALTH_PAD0:
+// 				case MOBY_ID_HEALTH_PAD1:
+// 				case MOBY_ID_BLUE_TEAM_HEALTH_PAD:
+// 				case MOBY_ID_PICKUP_PAD:
+// 				case MOBY_ID_WEAPON_PICKUP:
+// 				case MOBY_ID_CHARGEBOOTS_PICKUP_MODEL:
+// 				case MOBY_ID_WEAPON_PACK:
+// 				case MOBY_ID_RED_FLAG:
+// 				case MOBY_ID_BLUE_FLAG:
+// 				case MOBY_ID_GREEN_FLAG:
+// 				case MOBY_ID_ORANGE_FLAG:
+// 					playerSizeScaleMoby(moby, size);
+// 					break;
+// 			}
+// 		}
 
-		++moby;
-	}
-}
+// 		++moby;
+// 	}
+// }
 
 /*
  * NAME :		headbuttDamage
@@ -902,6 +902,63 @@ void fusionShotsAlwaysHitLogic(void)
 {
 	HOOK_JAL(0x003FC66C, &fusionShotsAlwaysHitLogic_Hook);
 	POKE_U32(0x003FC670, 0x0240302D);
+}
+
+/*
+ * NAME :		instantDeathLogic
+ * 
+ * DESCRIPTION :
+ * 			Finds when a local player dies and instantly calls Hero::Death().
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void instantDeathLogic(void)
+{
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* player = playerGetFromSlot(i);
+    if (!playerIsValid(player)) continue;
+
+    // instantly call Hero::Death on death, so that the killer can get their ammo point immediately
+    // does break the animation on the local players screen
+    if (player->IsLocal && player->Health <= 0 && *(char*)((u32)player + 0x2ed7) == 0) {
+      ((void (*)(Player*))0x005e2188)(player);
+    }
+  }
+}
+
+/*
+ * NAME :		noSpawnImmunityLogic
+ * 
+ * DESCRIPTION :
+ * 			Forces a player's invincibilityTimer to 0, always.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void noSpawnImmunityLogic(void)
+{
+  Player** players = playerGetAll();
+  
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!playerIsValid(player)) continue;
+      
+    // disable respawn invincibility
+    player->timers.invincibilityTimer = 0;
+  }
 }
 
 /*
@@ -2064,6 +2121,12 @@ void grGameStart(void)
   if (gameConfig.grRadarShortDistance)
     radarSetShortDistance();
 
+  if (gameConfig.grNoSpawnImmunity)
+    noSpawnImmunityLogic();
+
+  if (gameConfig.grInstantDeath)
+    instantDeathLogic();
+
   if (gameConfig.grNoFusionADS && isInGame()) {
     POKE_U16(0x00528320, 0x000F);
     POKE_U16(0x00528326, 0);
@@ -2111,7 +2174,7 @@ void grLobbyStart(void)
 	FirstPass = 1;
 
 	// Reset mirror world in lobby
-	cheatsApplyMirrorWorld(0);
+	//cheatsApplyMirrorWorld(0);
 }
 
 

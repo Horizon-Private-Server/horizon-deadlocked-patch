@@ -15,6 +15,7 @@ extern struct MysteryBoxItemWeight MysteryBoxItemProbabilities[];
 extern const int MysteryBoxItemProbabilitiesCount;
 extern struct MobSpawnParams defaultSpawnParams[];
 extern const int defaultSpawnParamsCount;
+extern char MysteryBoxRespawnImmediately;
 
 struct {
   char FinishedSetup;
@@ -135,6 +136,9 @@ void gambitsSetup(void)
     }
     case GAMBIT_ID_NO_VENDOR:
     {
+      // mysterybox respawns immediately
+      MysteryBoxRespawnImmediately = 1;
+
       Moby* m = mStart;
       while ((m = mobyFindNextByOClass(m, VENDOR_MOBY_OCLASS))) {
         m->DrawDist = 0;

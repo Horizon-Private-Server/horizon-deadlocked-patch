@@ -129,7 +129,8 @@ typedef struct PatchGameConfig
   char prWeatherId;
   char grNoPacks;
   char grV2s;
-  char prMirrorWorld;
+  char grNoSpawnImmunity;
+  //char prMirrorWorld;
   char grNoHealthBoxes;
   char grVampire;
   char grHalfTime;
@@ -151,7 +152,8 @@ typedef struct PatchGameConfig
   char grRespawnOverride;
   char grFogOfWarRadar;
   char grRadarShortDistance;
-  char prPlayerSize;
+  char grInstantDeath;
+  //char prPlayerSize;
   char prRotatingWeapons;
   char prHeadbutt;
   char prHeadbuttFriendlyFire;

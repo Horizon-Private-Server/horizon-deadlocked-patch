@@ -870,7 +870,7 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameConfig->grBetterHills = 1;
 	gameConfig->grHalfTime = 0;
 	gameConfig->grOvertime = 0;
-	gameConfig->prPlayerSize = 0;
+	gameConfig->grNoSpawnImmunity = 1;
 	gameConfig->prRotatingWeapons = 0;
 
 	// teams

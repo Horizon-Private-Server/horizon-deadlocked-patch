@@ -144,6 +144,8 @@ extern struct MysteryBoxItemWeight MysteryBoxItemProbabilitiesLucky[];
 extern const int MysteryBoxItemProbabilitiesCount;
 extern const int MysteryBoxItemProbabilitiesLuckyCount;
 
+char MysteryBoxRespawnImmediately = 0;
+
 //--------------------------------------------------------------------------
 void mboxPlayOpenSound(Moby* moby)
 {
@@ -697,7 +699,7 @@ void mboxUpdate(Moby* moby)
       moby->DrawDist = 0;
       moby->CollActive = -1;
 
-      if (MapConfig.State && MapConfig.State->RoundNumber != pvars->RoundHidden) {
+      if (MapConfig.State && (MysteryBoxRespawnImmediately || MapConfig.State->RoundNumber != pvars->RoundHidden)) {
         vector_copy(moby->Position, pvars->SpawnpointPosition);
         vector_copy(moby->Rotation, pvars->SpawnpointRotation);
         mobySetState(moby, MYSTERY_BOX_STATE_IDLE, -1);

@@ -543,7 +543,7 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameConfig->grNoInvTimer = 1;
 	gameConfig->grV2s = 0;
 	gameConfig->grVampire = 0;
-	gameConfig->prPlayerSize = 0;
+	gameConfig->grNoSpawnImmunity = 1;
 	gameConfig->prRotatingWeapons = 0;
 
 	// apply options
