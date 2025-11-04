@@ -1689,7 +1689,7 @@ int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char*
   }
 
   // reset to 0
-  if (selIdx >= gambitCount)
+  if (selIdx > gambitCount)
     *value = 0;
 
   dataSurvivalGambit.count = gambitCount + 1;

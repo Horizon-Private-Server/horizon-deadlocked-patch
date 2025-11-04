@@ -38,6 +38,15 @@ void gambitsSetupSingleWeaponRestriction(int weaponId)
 }
 
 //--------------------------------------------------------------------------
+void gambitsDropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int team)
+{
+  // intercept health drops
+  if (gambitsGetActive() == GAMBIT_ID_IMPOSSIBLE_MODE && dropType == DROP_HEALTH) return;
+
+  dropCreate(position, dropType, destroyAtTime, team);
+}
+
+//--------------------------------------------------------------------------
 void gambitsOnRoundComplete(int roundNo)
 {
   int gambit = gambitsGetActive();
@@ -103,6 +112,7 @@ void gambitsSetup(void)
         }
       }
 
+      MapConfig.CreateMobDropFunc = &gambitsDropCreate;
       GambitsState.FinishedSetup = 1;
       break;
     }
@@ -229,29 +239,6 @@ void gambitsTick(void)
 
   switch (gambit)
   {
-    case GAMBIT_ID_WEAPON_LIFE:
-    {
-      int i;
-      for (i = 0; i < GAME_MAX_LOCALS; ++i) { 
-        Player* player = playerGetFromSlot(i);
-        if (!playerIsValid(player)) continue;
-
-        MobyColDamage* colDamage = mobyGetDamage(player->PlayerMoby, -1, 0);
-        if (!colDamage || colDamage->DamageHp >= 100000000 || colDamage->DamageHp <= 0) continue;
-
-        if (player->timers.postHitInvinc == 0) {
-          int weaponId = player->WeaponHeldId;
-          int weaponLevel = player->GadgetBox->Gadgets[weaponId].Level;
-          if (weaponLevel > 0) {
-            player->GadgetBox->Gadgets[weaponId].Level--;
-            colDamage->DamageHp = 0;
-          } else {
-            colDamage->DamageHp = 100000000;
-          }
-        }
-      }
-      break;
-    }
     case GAMBIT_ID_IMPOSSIBLE_MODE:
     case GAMBIT_ID_VAMPIRE:
     {
@@ -298,8 +285,26 @@ void gambitsTick(void)
 }
 
 //--------------------------------------------------------------------------
+void gambitsHookAfterDecHitPoints(Player* player)
+{
+  if (!player->IsLocal) return;
+  if (gambitsGetActive() != GAMBIT_ID_WEAPON_LIFE) return;
+
+  int weaponId = player->WeaponHeldId;
+  int weaponLevel = player->GadgetBox->Gadgets[weaponId].Level;
+  if (weaponLevel > 0) {
+    player->GadgetBox->Gadgets[weaponId].Level--;
+    playerSetHealth(player, player->MaxHealth);
+  } else {
+    playerSetHealth(player, 0);
+  }
+}
+
+//--------------------------------------------------------------------------
 void gambitsInit(void)
 {
+  HOOK_J_OP(0x005d1138, &gambitsHookAfterDecHitPoints, 0x00A02021);
+
   memset(&GambitsState, 0, sizeof(GambitsState));
   gambitsSetup();
 }

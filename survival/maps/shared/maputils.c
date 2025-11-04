@@ -539,27 +539,39 @@ void mapSendSendGambitCompletedMessage(int gambit)
 }
 
 //--------------------------------------------------------------------------
-void mapEnforceSingleWeaponRestriction(int weaponId)
+void mapLocalPlayerEnforceSingleWeaponRestriction(int localPlayerIdx, int weaponId, int hard)
 {
-  int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* player = playerGetFromSlot(i);
-    if (!playerIsValid(player)) continue;
+  Player* player = playerGetFromSlot(localPlayerIdx);
+  if (!playerIsValid(player)) return;
 
-    playerSetLocalEquipslot(i, 0, weaponId);
-    playerSetLocalEquipslot(i, 1, 0);
-    playerSetLocalEquipslot(i, 2, 0);
-    
-    int s;
-    for (s = WEAPON_SLOT_VIPERS; s < WEAPON_SLOT_COUNT; ++s) {
-      int gadget = weaponSlotToId(s);
-      if (gadget == weaponId) continue;
+  playerSetLocalEquipslot(localPlayerIdx, 0, weaponId);
+  playerSetLocalEquipslot(localPlayerIdx, 1, 0);
+  playerSetLocalEquipslot(localPlayerIdx, 2, 0);
+  
+  int s;
+  for (s = WEAPON_SLOT_VIPERS; s < WEAPON_SLOT_COUNT; ++s) {
+    int gadget = weaponSlotToId(s);
+    if (gadget == weaponId) {
+      if (player->GadgetBox->Gadgets[gadget].Level < 0)
+        playerGiveWeapon(player->GadgetBox, gadget, 0, 1);
+    } else {
+      if (hard) {
+        player->GadgetBox->Gadgets[gadget].Level = -1;
+        player->GadgetBox->Gadgets[gadget].Ammo = 0;
+      }
 
-      player->GadgetBox->Gadgets[gadget].Level = -1;
-      player->GadgetBox->Gadgets[gadget].Ammo = 0;
       if (player->WeaponHeldId == gadget) {
         player->ChangeWeaponHeldId = weaponId;
       }
     }
+  }
+}
+
+//--------------------------------------------------------------------------
+void mapEnforceSingleWeaponRestriction(int weaponId)
+{
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    mapLocalPlayerEnforceSingleWeaponRestriction(i, weaponId, 1);
   }
 }

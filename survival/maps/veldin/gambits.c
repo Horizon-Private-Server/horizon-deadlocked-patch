@@ -2,6 +2,7 @@
 #include <libdl/net.h>
 #include <libdl/moby.h>
 #include <libdl/random.h>
+#include <libdl/ui.h>
 #include <libdl/stdio.h>
 #include "../../../include/game.h"
 #include "../../../include/mob.h"
@@ -19,6 +20,7 @@ extern const int defaultSpawnParamsCount;
 struct {
   char FinishedSetup;
   char PrintedGambit;
+  char RandomWeapon[GAME_MAX_LOCALS];
 } GambitsState;
 
 //--------------------------------------------------------------------------
@@ -40,10 +42,47 @@ void gambitsSetupSingleWeaponRestriction(int weaponId)
 }
 
 //--------------------------------------------------------------------------
+void gambitRandomizeWeapon(void)
+{
+  char buf[64];
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    int weaponId = weaponSlotToId(randRangeInt(WEAPON_SLOT_VIPERS, WEAPON_SLOT_COUNT-1));
+    GambitsState.RandomWeapon[i] = weaponId;
+
+    Player* player = playerGetFromSlot(i);
+    if (!playerIsValid(player)) continue;
+
+    // give max ammo
+    if (player->GadgetBox->Gadgets[weaponId].Level < 0)
+      playerGiveWeapon(player->GadgetBox, weaponId, 0, 1);
+    else
+      player->GadgetBox->Gadgets[weaponId].Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, weaponId);
+
+    snprintf(buf, sizeof(buf), "New Weapon \x0E%s\x08", uiMsgString(weaponGetDef(weaponId, 0)->basicQSTag));
+    pushSnack(i, buf, TPS * 3);
+  }
+}
+
+//--------------------------------------------------------------------------
+void gambitsDropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int team)
+{
+  // intercept health drops
+  if (gambitsGetActive() == GAMBIT_ID_IMPOSSIBLE_MODE && dropType == DROP_HEALTH) return;
+
+  dropCreate(position, dropType, destroyAtTime, team);
+}
+
+//--------------------------------------------------------------------------
 void gambitsOnRoundComplete(int roundNo)
 {
   int gambit = gambitsGetActive();
   if (!gambit) return;
+
+  // randomize weapons
+  if (gambit == GAMBIT_ID_RANDOM_WEAPON) {
+    gambitRandomizeWeapon();
+  }
 
   // mark complete after X rounds
   if (roundNo == 50) {
@@ -53,6 +92,7 @@ void gambitsOnRoundComplete(int roundNo)
       case GAMBIT_ID_VIPERS_ONLY:
       case GAMBIT_ID_FUSION_ONLY:
       case GAMBIT_ID_HOLOS_ONLY:
+      case GAMBIT_ID_RANDOM_WEAPON:
         mapSendSendGambitCompletedMessage(gambit);
         break;
     }
@@ -102,6 +142,8 @@ void gambitsSetup(void)
           MysteryBoxItemProbabilities[i].Probability = 0;
         }
       }
+
+      MapConfig.CreateMobDropFunc = &gambitsDropCreate;
       GambitsState.FinishedSetup = 1;
       break;
     }
@@ -114,6 +156,11 @@ void gambitsSetup(void)
       }
 
       bakedConfig.BoltMultiplier = 0;
+      GambitsState.FinishedSetup = 1;
+      break;
+    }
+    case GAMBIT_ID_RANDOM_WEAPON:
+    {
       GambitsState.FinishedSetup = 1;
       break;
     }
@@ -193,6 +240,16 @@ void gambitsTick(void)
           MapConfig.State->PlayerStates[i].ReviveCooldownTicks = 0;
       }
 
+      break;
+    }
+    case GAMBIT_ID_RANDOM_WEAPON:
+    {
+      int i;
+      for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+        if (GambitsState.RandomWeapon[i]) {
+          mapLocalPlayerEnforceSingleWeaponRestriction(i, GambitsState.RandomWeapon[i], 0);
+        }
+      }
       break;
     }
     case GAMBIT_ID_VIPERS_ONLY:

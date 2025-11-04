@@ -55,6 +55,7 @@ void mapApplyFixes(void);
 
 void mapPrintGambit(int gambit);
 void mapSendSendGambitCompletedMessage(int gambit);
+void mapLocalPlayerEnforceSingleWeaponRestriction(int localPlayerIdx, int weaponId, int hard);
 void mapEnforceSingleWeaponRestriction(int weaponId);
 
 #endif // SURVIVAL_MAP_UTILS_H

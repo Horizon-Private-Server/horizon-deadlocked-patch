@@ -40,6 +40,15 @@ void gambitsSetupSingleWeaponRestriction(int weaponId)
 }
 
 //--------------------------------------------------------------------------
+void gambitsDropCreate(VECTOR position, enum DropType dropType, int destroyAtTime, int team)
+{
+  // intercept health drops
+  if (gambitsGetActive() == GAMBIT_ID_IMPOSSIBLE_MODE && dropType == DROP_HEALTH) return;
+
+  dropCreate(position, dropType, destroyAtTime, team);
+}
+
+//--------------------------------------------------------------------------
 void gambitsOnRoundComplete(int roundNo)
 {
   int gambit = gambitsGetActive();
@@ -102,6 +111,8 @@ void gambitsSetup(void)
           MysteryBoxItemProbabilities[i].Probability = 0;
         }
       }
+      
+      MapConfig.CreateMobDropFunc = &gambitsDropCreate;
       GambitsState.FinishedSetup = 1;
       break;
     }
