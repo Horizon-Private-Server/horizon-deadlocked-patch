@@ -169,7 +169,7 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   setLobbyGameOptions(gameState);
   
   Initialized = 0;
-  //memset(&State, 0, sizeof(State));
+  memset(State.PlayerStates, 0, sizeof(State.PlayerStates));
   State.StartDelay = 0.2 * TPS;
   State.WaitingForClientsReady = 0;
   initialize(gameState);
