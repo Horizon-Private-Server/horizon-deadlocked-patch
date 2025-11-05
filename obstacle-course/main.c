@@ -34,6 +34,7 @@
 #include "include/utils.h"
 
 int Initialized = 0;
+int Restart = 0;
 struct CGMState State;
 
 void processPlayer(int pIndex);
@@ -58,8 +59,9 @@ void gameUpdateTick(struct GameModule * module, PatchStateContainer_t * gameStat
 	updateGameState(gameState);
 
 	// Ensure in game
-	if (!gameSettings || !isInGame())
+	if (!gameSettings || !isInGame()) {
 		return;
+  }
 
 	// determine if host
 	State.IsHost = gameAmIHost();
@@ -89,6 +91,11 @@ void gameUpdateTick(struct GameModule * module, PatchStateContainer_t * gameStat
     State.GameOver = -1;
   }
 
+  // check for restart
+  if (padGetButtonDown(0, PAD_SQUARE | PAD_L1 | PAD_R2 | PAD_L3) > 0) {
+    Restart = 1;
+  }
+
 	dlPostUpdate();
 }
 
@@ -99,16 +106,38 @@ void gameFrameTick(struct GameModule * module, PatchStateContainer_t * gameState
 		return;
 
   // init game start time
-  if (!State.HasFirstFrame)
-  {
+  if (!State.HasFirstFrame) {
     State.HasFirstFrame = 1;
     State.InitializedTime = gameGetTime();
+    
+    // init restart str
+    char* a = uiMsgString(0x2400 - 4);
+    strncpy(a, "Full Restart \x13 + \x14 + L3 + \x17", 64);
+  }
+
+  // reload save
+  if (!State.HasLoadedLast) {
+    checkpointLoadSaved();
+  }
+
+  // show restart combo
+  if (State.ShowRestartComboTicks > 0) {
+    --State.ShowRestartComboTicks;
+
+    printf("%d %d\n", gameGetTime(), hasGameCodeSeg());
+    uiShowLowerPopup(0, 0x2400 - 4);
+  }
+
+  // restart
+  if (Restart) {
+    Restart = 0;
+    State.ShowRestartComboTicks = 0;
+    tryFullRestart();
   }
 
   // invoke custom mode frame update logic
 	if (!State.GameOver)
 		frameTick();
-
 }
 
 //--------------------------------------------------------------------------
@@ -140,11 +169,16 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
   setLobbyGameOptions(gameState);
   
-	if (!Initialized)
-		initialize(gameState);
+  Initialized = 0;
+  memset(&State, 0, sizeof(State));
+  State.StartDelay = 0.2 * TPS;
+  State.WaitingForClientsReady = 0;
+  initialize(gameState);
 
   // reset start time on load
   State.HasFirstFrame = 0;
+  State.HasLoadedLast = 0;
+  State.ShowRestartComboTicks = TPS * 6;
 }
 
 //--------------------------------------------------------------------------

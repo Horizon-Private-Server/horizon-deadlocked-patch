@@ -56,6 +56,7 @@ void gambitsOnRoundComplete(int roundNo)
   if (roundNo == 50) {
     switch (gambit)
     {
+      case GAMBIT_ID_IMPOSSIBLE_MODE:
       case GAMBIT_ID_BIG_MOBS_ONLY:
       case GAMBIT_ID_WEAPON_LIFE:
       case GAMBIT_ID_VAMPIRE:
@@ -69,7 +70,6 @@ void gambitsOnRoundComplete(int roundNo)
     switch (gambit)
     {
       case GAMBIT_ID_EASY_MODE:
-      case GAMBIT_ID_IMPOSSIBLE_MODE:
         mapSendSendGambitCompletedMessage(gambit);
         break;
     }
@@ -101,6 +101,11 @@ void gambitsSetup(void)
       bakedConfig.Difficulty *= 2;
       bakedConfig.BoltMultiplier = 0.5;
       bakedConfig.XpMultiplier = 0.5;
+
+      // reduce mob health scale
+      for (i = 0; i < defaultSpawnParamsCount; ++i) {
+        defaultSpawnParams[i].Config.HealthScale *= 0.5;
+      }
 
       // disable revive items from mystery box
       for (i = 0; i < MysteryBoxItemProbabilitiesCount; ++i) {

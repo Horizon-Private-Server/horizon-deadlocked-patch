@@ -132,6 +132,7 @@ int readLocalGlobalVersion(void);
 
 extern int mapsRemoteGlobalVersion;
 extern int mapsLocalGlobalVersion;
+extern int mapsIsInLevelHop;
 
 void resetFreecam(void);
 void processFreecam(void);
@@ -2552,7 +2553,9 @@ void runHealthPickupFix(void)
 void onMobyUpdate(Moby* moby)
 {
   playerSyncTick();
-  processGameModulesUpdate();
+
+  if (!mapsIsInLevelHop)
+    processGameModulesUpdate();
 
   ((void (*)(Moby*))0x003BD5A8)(moby);
 

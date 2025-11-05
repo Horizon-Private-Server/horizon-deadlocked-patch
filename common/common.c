@@ -288,3 +288,33 @@ void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth
     }
   }
 }
+
+//------------------------------------------------------------------------------
+int intArrayContains(int* list, int count, int value)
+{
+	int i;
+
+	for (i = 0; i < count; ++i)
+		if (list[i] == value)
+			return 1;
+
+	return 0;
+}
+
+//------------------------------------------------------------------------------
+int charArrayContains(char* list, int count, char value)
+{
+	int i;
+
+	for (i = 0; i < count; ++i)
+		if (list[i] == value)
+			return 1;
+
+	return 0;
+}
+
+//------------------------------------------------------------------------------
+int libcRand(void)
+{
+  return ((int (*)(void))0x001633d0)();
+}

@@ -27,7 +27,8 @@
 void onPlayerReachedEnd(PlayerReachedEndMessage_t* msg)
 {
   // mark completed
-  State.PlayerStates[msg->PlayerId].TimeCompleted = msg->Time;
+  State.PlayerStates[msg->PlayerId].TimeCompleted = gameGetTime();
+  State.PlayerStates[msg->PlayerId].TotalTicks = msg->Ticks;
 }
 
 //--------------------------------------------------------------------------
@@ -40,12 +41,12 @@ int onPlayerReachedEndRemote(void * connection, void * data)
 }
 
 //--------------------------------------------------------------------------
-void sendPlayerReachedEnd(int playerId, int time)
+void sendPlayerReachedEnd(int playerId, u64 ticks)
 {
 	// send out
 	PlayerReachedEndMessage_t msg;
 	msg.PlayerId = playerId;
-	msg.Time = gameGetTime();
+	msg.Ticks = ticks;
 	netBroadcastCustomAppMessage(0, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_REACHED_END, sizeof(msg), &msg);
   onPlayerReachedEnd(&msg);
 }

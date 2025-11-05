@@ -169,9 +169,3 @@ int spawnGetRandomPlayerPoint(VECTOR out) {
 
 	return 0;
 }
-
-//--------------------------------------------------------------------------
-int libcRand(void)
-{
-  return ((int (*)(void))0x001633d0)();
-}

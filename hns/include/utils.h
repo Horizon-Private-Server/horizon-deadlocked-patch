@@ -19,6 +19,5 @@ int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist);
 int spawnGetRandomPlayerPoint(VECTOR out);
 void patchVoidFallCameraBug(Player* player);
 void unpatchVoidFallCameraBug(Player* player);
-int libcRand(void);
 
 #endif // HNS_UTILS_H

@@ -148,4 +148,9 @@ void gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, flo
 void gfxHelperDrawSprite(float x, float y, float offsetX, float offsetY, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
 void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
 
+//------------------------------------------------------------------------------
+int intArrayContains(int* list, int count, int value);
+int charArrayContains(char* list, int count, char value);
+int libcRand(void);
+
 #endif // _PATCH_COMMON_

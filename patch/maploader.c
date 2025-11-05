@@ -49,6 +49,7 @@ int usbSrvModuleSize = 0;
 
 int mapsRemoteGlobalVersion = -2;
 int mapsLocalGlobalVersion = -1;
+int mapsIsInLevelHop = 0;
 
 // patch config
 extern PatchConfig_t config;
@@ -201,10 +202,9 @@ void mapHopToLoadingOnlineWadDraw(int a0)
 //------------------------------------------------------------------------------
 void mapHopTo(CustomMapDef_t* def)
 {
-  static int inHopTo = 0;
-  if (inHopTo) return;
+  if (mapsIsInLevelHop) return;
 
-  inHopTo = 1;
+  mapsIsInLevelHop = 1;
   int mapId = def->BaseMapId;
 
   HOOK_J_OP(0x004e4180, &mapHopGetMsgString, 0);
@@ -337,7 +337,7 @@ void mapHopTo(CustomMapDef_t* def)
     }
   }
 
-  inHopTo = 0;
+  mapsIsInLevelHop = 0;
 }
 
 //------------------------------------------------------------------------------

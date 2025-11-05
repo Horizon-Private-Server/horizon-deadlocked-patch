@@ -38,8 +38,92 @@
 #include "include/game.h"
 #include "include/utils.h"
 
+struct ServerConfig ServerConfig __attribute__((section(".config"))) = {
+  .LastCheckpointUid = 0
+};
+
 extern int Initialized;
 struct ObstacleMapConfig* mapConfig = (struct ObstacleMapConfig*)(EXTRA_CODE_SEG_PTR + 0x10);
+
+//--------------------------------------------------------------------------
+void tryFullRestart(void)
+{
+  if (hasGameCodeSeg() && PATCH_INTEROP && PATCH_INTEROP->PatchStateContainer && PATCH_INTEROP->PatchStateContainer->SelectedCustomMapId > 0) {
+    PatchStateContainer_t* patchStateContainer = PATCH_INTEROP->PatchStateContainer;
+    CustomMapDef_t* map = PATCH_INTEROP->GetCustomMapDef(patchStateContainer->SelectedCustomMapId - 1);
+    DPRINTF("sel map %d => %s\n", patchStateContainer->SelectedCustomMapId, map->Filename);
+
+    ServerConfig.LastCheckpointUid = 0;
+
+    // send to server
+    void* lobbyConnection = netGetLobbyServerConnection();
+    if (lobbyConnection) {
+      SetPlayerSavedCheckpointRequest_t msg;
+      msg.CheckpointUid = 0;
+      msg.CheckpointTicks = 0;
+      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_CLIENT_SET_LAST_CHECKPOINT, sizeof(msg), &msg);
+    }
+
+    PATCH_INTEROP->HopToCustomMap(map);
+  }
+}
+
+//--------------------------------------------------------------------------
+int checkpointSetActive(Moby* checkpointManagerMoby, Moby* checkpointMoby)
+{
+  if (!checkpointManagerMoby) return 0;
+
+  struct CheckpointManagerPVar* pvars = (struct CheckpointManagerPVar*)checkpointManagerMoby->PVar;
+
+  // get index of checkpoint
+  int idx = 0;
+  for (idx = 0; idx < CHECKPOINT_MAX_CHECKPOINTS; ++idx) {
+    if (pvars->CheckpointMobys[idx] == checkpointMoby) {
+      break;
+    }
+  }
+
+  if (idx >= CHECKPOINT_MAX_CHECKPOINTS) return 0;
+  if (checkpointManagerMoby->State == idx) return 1;
+
+  //DLOG_MNGR(checkpointManagerMoby, "Activate checkpoint %08X => %d\n", (u32)checkpointMoby, idx);
+  //DLOG_CHPT(checkpointMoby, "Activate checkpoint %08X => %d\n", (u32)checkpointMoby, idx);
+  uiShowPopup(0, "Loaded Last Checkpoint");
+  
+  // update checkpoint locally
+  mobySetState(checkpointManagerMoby, idx, -1);
+  ((void (*)(Moby*))checkpointManagerMoby->PUpdate)(checkpointManagerMoby);
+  ((void (*)(Moby*))checkpointMoby->PUpdate)(checkpointMoby);
+
+  return 1;
+}
+
+//--------------------------------------------------------------------------
+void checkpointLoadSaved(void)
+{
+  // find checkpoint manager
+  if (ServerConfig.LastCheckpointUid > 0) {
+    Moby* mCheckpoint = mobyFindByUID(ServerConfig.LastCheckpointUid);
+    Moby* mCheckpointManager = mobyFindNextByOClass(mobyListGetStart(), 0x4007);
+    DPRINTF("found checkpoint %08X with uid %d\n", mCheckpoint, ServerConfig.LastCheckpointUid);
+    DPRINTF("found checkpoint manager %08X\n", mCheckpointManager);
+    if (mCheckpointManager && mCheckpoint && mCheckpoint->OClass == 0x4008) {
+      if (!checkpointSetActive(mCheckpointManager, mCheckpoint)) return;
+
+      int i;
+      for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+        Player* player = playerGetFromSlot(i);
+        if (!playerIsValid(player)) continue;
+        
+        playerRespawn(player);
+        State.LocalPlayerState->TotalTicks = ServerConfig.CheckpointTicks;
+        State.HasLoadedLast = 1;
+      }
+    }
+  } else {
+    State.HasLoadedLast = 1;
+  }
+}
 
 //--------------------------------------------------------------------------
 void onReachedEnd(void)
@@ -47,9 +131,39 @@ void onReachedEnd(void)
   if (!State.LocalPlayerState) return;
   if (State.LocalPlayerState->TimeCompleted) return;
 
+  DPRINTF("set complete\n");
   int pidx = State.LocalPlayerState->PlayerIndex;
   uiShowPopup(0, "Obstacle Course Complete!");
-  sendPlayerReachedEnd(pidx, gameGetTime());
+  sendPlayerReachedEnd(pidx, State.LocalPlayerState->TotalTicks);
+
+	// send to server
+  void* lobbyConnection = netGetLobbyServerConnection();
+  if (!lobbyConnection) return;
+
+  SetPlayerCompleteTimeRequest_t msg;
+  msg.TotalTicks = State.LocalPlayerState->TotalTicks;
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_CLIENT_SET_COMPLETE_TIME, sizeof(msg), &msg);
+}
+
+//--------------------------------------------------------------------------
+void onReachedCheckpoint(Moby* checkpoint)
+{
+  if (!checkpoint) return;
+  if (!State.LocalPlayerState) return;
+  if (State.LocalPlayerState->TimeCompleted) return;
+
+  DPRINTF("save checkpoint %d\n", checkpoint->UID);
+  ServerConfig.LastCheckpointUid = checkpoint->UID;
+  ServerConfig.CheckpointTicks = State.LocalPlayerState->TotalTicks;
+
+	// send to server
+  void* lobbyConnection = netGetLobbyServerConnection();
+  if (!lobbyConnection) return;
+
+  SetPlayerSavedCheckpointRequest_t msg;
+  msg.CheckpointUid = checkpoint->UID;
+  msg.CheckpointTicks = State.LocalPlayerState->TotalTicks;
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_CLIENT_SET_LAST_CHECKPOINT, sizeof(msg), &msg);
 }
 
 //--------------------------------------------------------------------------
@@ -66,11 +180,24 @@ void drawTimer(int time, u32 color)
 //--------------------------------------------------------------------------
 void frameTick(void)
 {
+  if (!State.LocalPlayerState) return;
+
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (!State.PlayerStates[i].TimeCompleted) {
+      ++State.PlayerStates[i].TotalTicks;
+    }
+  }
+
+  int ms = (double)State.LocalPlayerState->TotalTicks * 16.66666666;
+
   // draw timer
   if (State.LocalPlayerState && State.LocalPlayerState->TimeCompleted) {
-    drawTimer(State.LocalPlayerState->TimeCompleted - State.InitializedTime, 0x8000E000);
+    //drawTimer(State.LocalPlayerState->TimeCompleted - State.InitializedTime, 0x8000E000);
+    drawTimer(ms, 0x8000E000);
   } else {
-    drawTimer(gameGetTime() - State.InitializedTime, 0x80E0E0E0);
+    //drawTimer(gameGetTime() - State.InitializedTime, 0x80E0E0E0);
+    drawTimer(ms, 0x80E0E0E0);
   }
 }
 
@@ -83,9 +210,6 @@ void gameTick(void)
 //--------------------------------------------------------------------------
 void initialize(PatchStateContainer_t* gameState)
 {
-  static int startDelay = 60 * 0.2;
-	static int waitingForClientsReady = 0;
-
 	GameSettings* gameSettings = gameGetSettings();
 	Player** players = playerGetAll();
 	GameData* gameData = gameGetData();
@@ -100,24 +224,8 @@ void initialize(PatchStateContainer_t* gameState)
   POKE_U32(0x00387550, 8);
   POKE_U32(0x00386F30, 8);
 
-  if (startDelay) {
-    --startDelay;
-    return;
-  }
-  
-  // wait for all clients to be ready
-  // or for 5 seconds
-  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
-    uiShowPopup(0, "Waiting For Players...");
-    ++waitingForClientsReady;
-    return;
-  }
-
-  // hide waiting for players popup
-  hudHidePopup();
-
 	// initialize player states
-	State.LocalPlayerState = NULL;
+	//State.LocalPlayerState = NULL;
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
 		Player * p = players[i];
 		State.PlayerStates[i].PlayerIndex = i;
@@ -128,8 +236,25 @@ void initialize(PatchStateContainer_t* gameState)
 		}
 	}
 
+  if (State.StartDelay) {
+    --State.StartDelay;
+    return;
+  }
+  
+  // wait for all clients to be ready
+  // or for 5 seconds
+  if (!gameState->AllClientsReady && State.WaitingForClientsReady < (5 * 60)) {
+    uiShowPopup(0, "Waiting For Players...");
+    ++State.WaitingForClientsReady;
+    return;
+  }
+
+  // hide waiting for players popup
+  hudHidePopup();
+
   if (mapConfig) {
     mapConfig->SetLocalPlayerReachedEnd = &onReachedEnd;
+    mapConfig->SetLocalPlayerReachedCheckpoint = &onReachedCheckpoint;
   }
 
 	// initialize state
@@ -208,6 +333,9 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
 	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = State.MapData.Vehicles;
 	gameOptions->GameFlags.MultiplayerGameFlags.Hovership = State.MapData.Vehicles;
 	gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = State.MapData.Vehicles;
+  gameOptions->GameFlags.MultiplayerGameFlags.Nodes = State.MapData.GameRule == GAMERULE_CQ;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hills = State.MapData.GameRule == GAMERULE_KOTH;
+  gameOptions->GameFlags.MultiplayerGameFlags.Flags = State.MapData.GameRule == GAMERULE_CTF;
   gameOptions->WeaponFlags.Raw = State.MapData.GadgetsMask;
 
   // prevent players from healing & from getting ammo

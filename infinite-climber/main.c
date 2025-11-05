@@ -37,6 +37,7 @@
 #define MAX_MAP_MOBY_DEFS		(20)
 #define MAX_WATER_RATE			(0.02)
 #define MAX_SPAWN_RATE			(TIME_SECOND * 1.1)
+#define MAX_WATER_HEIGHT    (1000)
 
 
 /*
@@ -325,6 +326,10 @@ void onReceiveSpawn(u32 seed, int gameTime)
 		if (!chain->Active)
 			continue;
 
+    // stop
+    if (chain->CurrentPosition[2] >= MAX_WATER_HEIGHT)
+      continue;
+
 		// Generate new random parameters
 		float scale =  RandomRange(1, 2);
 		rot[0] = RandomRange(-0.3, 0.3);
@@ -576,6 +581,11 @@ void initialize(PatchStateContainer_t* gameState)
 	*(u32*)0x005E07C8 = 0x0C000000 | ((u32)&whoKilledMeHook >> 2);
 	*(u32*)0x005E11B0 = *(u32*)0x005E07C8;
 
+  // disable targeting players
+  *(u32*)0x005F8A80 = 0x10A20002;
+  *(u32*)0x005F8A84 = 0x0000102D;
+  *(u32*)0x005F8A88 = 0x24440001;
+
 	Initialized = 1;
 }
 
@@ -702,13 +712,21 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 		
+  // force ffa
+  int i;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    if (gameSettings->PlayerClients[i] >= 0) {
+      gameSettings->PlayerTeams[i] = i;
+    }
+  }
+	
   // force deathmatch
   if (gameSettings->GameRules != GAMERULE_DM) {
     gameSettings->GameRules = GAMERULE_DM;
     gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
     gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
     gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
-    gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = (int)maxf(5, gameOptions->GameFlags.MultiplayerGameFlags.Timelimit);
+    gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
 	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
   }
 	

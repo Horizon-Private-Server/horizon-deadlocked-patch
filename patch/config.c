@@ -10,6 +10,7 @@
 #include <libdl/player.h>
 #include <libdl/map.h>
 #include <libdl/stdlib.h>
+#include <libdl/random.h>
 #include <libdl/utils.h>
 #include "messageid.h"
 #include "module.h"
@@ -69,6 +70,13 @@ const char footerTextTab[] = "\x14 \x15 TAB";
 const char footerTextFilter[] = "\x13 FILTER";
 char footerTextExtra[32] = {0};
 FooterExtraCallbackFunc_t footerCallback;
+
+// modes with footer ex stats
+const char modesWithDynamicStatsPage[] = {
+  CUSTOM_MODE_SURVIVAL,
+  CUSTOM_MODE_OBSTACLE
+};
+const int modesWithDynamicStatsPageCount = sizeof(modesWithDynamicStatsPage);
 
 // menu display properties
 const u32 colorBlack = 0x80000000;
@@ -170,6 +178,7 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state);
 // list select handlers
 void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
 void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element);
 void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
 
 #ifdef RELOADPATCH
@@ -537,7 +546,7 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
   [CUSTOM_MODE_TAG] NULL,
   [CUSTOM_MODE_RAIDS] "Raids",
-  [CUSTOM_MODE_OITC] NULL,
+  [CUSTOM_MODE_OITC] "OITC",
   [CUSTOM_MODE_OBSTACLE] NULL,
   //[CUSTOM_MODE_BENCHMARK] NULL,
   [CUSTOM_MODE_GRIDIRON] NULL,
@@ -803,6 +812,7 @@ MenuElem_ListData_t dataGameConfigPreset = {
 // game settings tab menu items
 MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
+  { "Random Party Settings", buttonActionHandler, menuStateAlwaysEnabledHandler, gmRandomPartySelectHandler },
 
   // { "Game Settings", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
   // { "Map override", listActionHandler, menuStateAlwaysEnabledHandler, &dataCustomMaps, "Play on any of the custom maps from the Horizon Map Pack. Visit https://rac-horizon.com to download the map pack." },
@@ -932,6 +942,7 @@ const int tabsCount = sizeof(tabElements)/sizeof(TabElem_t);
 //------------------------------------------------------------------------------
 char* getCustomModeName(int modeId, int type)
 {
+  if (modeId < 0 && type == 2) return "MODE";
   if (modeId <= 0) return "None";
 
   char* modeName = type > 1 ? (char*)CustomModeMapAttributeNames[modeId] : NULL;
@@ -966,7 +977,7 @@ char* getCustomMapName(int mapIdx)
 }
 
 //------------------------------------------------------------------------------
-void dynamicPageEnableForSurvivalMap(int mapIdx)
+void dynamicPageEnable(int mapIdx, int type)
 {
   dynamicPageDisable();
 
@@ -979,6 +990,33 @@ void dynamicPageEnableForSurvivalMap(int mapIdx)
 
   // alloc
   DynamicPageState.LineItems = malloc(1024);
+
+  // init
+  strncpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
+  DynamicPageState.Enabled = 1;
+  DynamicPageState.SelectionIdx = 0;
+  DynamicPageState.DrawIdx = 0;
+
+  // send request to server
+  GetDynamicPageContentRequest_t msg = {
+    .Type = type,
+    .StateAddress = &DynamicPageState.Enabled,
+    .LineItemsCountAddress = &DynamicPageState.LineItemCount,
+    .LineItemsAddress = DynamicPageState.LineItems
+  };
+  strncpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_DYNAMIC_PAGE_CONTENT, sizeof(msg), &msg);
+}
+
+//------------------------------------------------------------------------------
+void dynamicPagePrepareForSurvivalMap(int mapIdx)
+{
+  // no map
+  if (mapIdx <= 0) return;
+
+  // no connection
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (!lobbyConnection) return;
 
   // init
   strncpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
@@ -1006,24 +1044,29 @@ void dynamicPageEnableForSurvivalMap(int mapIdx)
     }
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_UPDATE_CUSTOM_MAP_SURVIVAL_DATA_REQUEST, sizeof(msgMapData), &msgMapData);
   }
-
-  // send request to server
-  GetDynamicPageContentRequest_t msg = {
-    .Type = 1, // survival map stats
-    .StateAddress = &DynamicPageState.Enabled,
-    .LineItemsCountAddress = &DynamicPageState.LineItemCount,
-    .LineItemsAddress = DynamicPageState.LineItems
-  };
-  strncpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
-  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_DYNAMIC_PAGE_CONTENT, sizeof(msg), &msg);
 }
 
 //------------------------------------------------------------------------------
-void dynamicPageEnableForCurrentSurvivalMap(void)
+void dynamicPageEnableForCurrentMap(void)
 {
-  if (getCustomMapMode(*dataCustomMaps.value) != CUSTOM_MODE_SURVIVAL) return;
+  int mapIdx = *dataCustomMaps.value;
+  if (tabElements[selectedTabItem].elements == menuElementsGameSettingsCustomMaps)
+    mapIdx = *dataCustomMaps.stagingValue;
 
-  dynamicPageEnableForSurvivalMap(*dataCustomMaps.value);
+  switch (getCustomMapMode(mapIdx))
+  {
+    case CUSTOM_MODE_SURVIVAL:
+    {
+      dynamicPagePrepareForSurvivalMap(mapIdx);
+      dynamicPageEnable(mapIdx, 1);
+      break;
+    }
+    case CUSTOM_MODE_OBSTACLE:
+    {
+      dynamicPageEnable(mapIdx, 2);
+      break;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1107,11 +1150,13 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
   // only for selected tab
   if (&tabElements[selectedTabItem] != tab) return;
 
-  // add survival stats footer interaction
+  // add stats footer interaction
   int mapIdx = *dataCustomMaps.value;
-  if (mapIdx && customMapDefs[mapIdx-1].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
+  if (mapIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, customMapDefs[mapIdx-1].ForcedCustomModeId)) {
     snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
-    footerCallback = &dynamicPageEnableForCurrentSurvivalMap;
+    footerCallback = &dynamicPageEnableForCurrentMap;
+  } else {
+    footerTextExtra[0] = 0;
   }
 }
 
@@ -1151,6 +1196,13 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state)
   else
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_FILTERABLE;
+  }
+
+  // add stats footer interaction
+  int mapIdx = *dataCustomMaps.stagingValue;
+  if (mapIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, customMapDefs[mapIdx-1].ForcedCustomModeId)) {
+    snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
+    footerCallback = &dynamicPageEnableForCurrentMap;
   }
 }
 
@@ -1225,6 +1277,69 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
   preset = 0;
   memset(&gameConfig, 0, sizeof(gameConfig));
   patchStateContainer.SelectedCustomMapId = 0;
+}
+
+//------------------------------------------------------------------------------
+void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
+{
+  const char validPartyModes[] = {
+    CUSTOM_MODE_NONE,
+    CUSTOM_MODE_OITC,
+    CUSTOM_MODE_INFECTED,
+    CUSTOM_MODE_GUN_GAME,
+    -4, // climber
+    -2, // spleef
+  };
+
+  const char weightedPartyModes[] = {
+    CUSTOM_MODE_OITC,
+    CUSTOM_MODE_OITC,
+    CUSTOM_MODE_INFECTED,
+    CUSTOM_MODE_INFECTED,
+    CUSTOM_MODE_GUN_GAME,
+    CUSTOM_MODE_GUN_GAME,
+    -4, // climber
+    -4, // climber
+    -2, // spleef
+  };
+
+  int retry = 0;
+  while (retry < 5) {
+
+    int map = libcRand() % (customMapDefCount + 1);
+    int mode = weightedPartyModes[libcRand() % sizeof(weightedPartyModes)];
+
+    // if mode has dedicate map select that map
+    if (mode < 0) {
+      int i;
+      for (i = 0; i < customMapDefCount; ++i) {
+        if (customMapDefs[i].ForcedCustomModeId == mode) {
+          map = i + 1;
+          break;
+        }
+      }
+    }
+
+    // pick random map
+    int mapMode = getCustomMapMode(map);
+
+    // make sure we support the respective mode
+    if (!charArrayContains(validPartyModes, sizeof(validPartyModes), mapMode)) {
+      ++retry;
+      continue;
+    }
+
+    if (mapMode) mode = mapMode;
+
+    // set map and mode
+    *dataCustomMaps.value = map;
+    *dataCustomMaps.stagingValue = map;
+    *dataCustomModes.value = mode;
+
+    // idk randomize the rest
+
+    break;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1363,11 +1478,6 @@ int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* va
   char gm = gameConfig.customModeId;
   char v = *value;
   char selIdx = *(listData->stagingValue ? listData->stagingValue : listData->value);
-
-  if (selIdx && customMapDefs[selIdx-1].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
-    snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
-    footerCallback = NULL;
-  }
 
   // if no override selected, let user see all maps
   if (!gm) return 1;
@@ -1968,8 +2078,9 @@ void drawMapsListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuEl
   y = ((r.TopLeft[1] + yOff) * SCREEN_HEIGHT) + 5;
   float w = gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT) - x;
   
-  if (itemIdx > 0 && customMapDefs[itemIdx-1].ForcedCustomModeId > 0) {
-    snprintf(buf, sizeof(buf), "[\x09%s\x08]", getCustomModeName(customMapDefs[itemIdx-1].ForcedCustomModeId, 2));
+  int modeId = getCustomMapMode(itemIdx);
+  if (modeId != 0) {
+    snprintf(buf, sizeof(buf), "[\x09%s\x08]", getCustomModeName(modeId, 2));
     gfxScreenSpaceText(x - w - 10, y + 7, 0.8, 0.8, color, buf, -1, TEXT_ALIGN_MIDDLERIGHT);
   }
 }
@@ -2183,12 +2294,6 @@ void mapsListVerticalInput(TabElem_t* tab)
     if (state & ELEMENT_EDITABLE)
       currentElement->handler(tab, currentElement, ACTIONTYPE_SELECT_SECONDARY, NULL);
   }
-  // nav select tertiary
-  else if (padGetButtonDown(0, PAD_CIRCLE) > 0)
-  {
-    if (state & ELEMENT_EDITABLE)
-      dynamicPageEnableForSurvivalMap(*dataCustomMaps.stagingValue);
-  }
   // nav inc
   else if (padGetButtonUp(0, PAD_DOWN) > 0)
   {
@@ -2198,6 +2303,11 @@ void mapsListVerticalInput(TabElem_t* tab)
   else if (padGetButtonUp(0, PAD_UP) > 0)
   {
     currentElement->handler(tab, currentElement, ACTIONTYPE_DECREMENT, NULL);
+  }
+  // nav select tertiary
+  else if (footerCallback && padGetButtonDown(0, PAD_CIRCLE) > 0)
+  {
+    footerCallback();
   }
 }
 
@@ -2228,7 +2338,7 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     }
     case ACTIONTYPE_GETHEIGHT:
     {
-      *(float*)actionArg = LINE_HEIGHT * 2;
+      *(float*)actionArg = LINE_HEIGHT * 1;
       break;
     }
     case ACTIONTYPE_DRAW:
@@ -2921,7 +3031,7 @@ void drawDynamicPage(void)
   Window_t drawWindow;
 
   // draw frame
-  windowCreate(&drawWindow, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 300, 200, TEXT_ALIGN_MIDDLECENTER, 0);
+  windowCreate(&drawWindow, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 350, 300, TEXT_ALIGN_MIDDLECENTER, 0);
   windowFill(&drawWindow, colorBg);
   windowBorder(&drawWindow, colorRed, 0, 30, 0, 20);
 
