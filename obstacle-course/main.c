@@ -124,7 +124,6 @@ void gameFrameTick(struct GameModule * module, PatchStateContainer_t * gameState
   if (State.ShowRestartComboTicks > 0) {
     --State.ShowRestartComboTicks;
 
-    printf("%d %d\n", gameGetTime(), hasGameCodeSeg());
     uiShowLowerPopup(0, 0x2400 - 4);
   }
 

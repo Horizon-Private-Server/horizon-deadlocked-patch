@@ -38,6 +38,10 @@
 #define USB_FS_MODULE_PTR												(*(void**)0x000CFFF8)
 #define USB_SRV_MODULE_PTR											(*(void**)0x000CFFFC)
 
+#define READ_CUSTOM_MAP_EXDATA_LEN              (2048)
+#define READ_CUSTOM_MAP_EXDATA_OFF              (0x150)
+#define READ_CUSTOM_MAP_FILENAME_LEN            (sizeof(MapLoaderState.MapFileName))
+
 void hook(void);
 void loadModules(void);
 
@@ -64,11 +68,14 @@ extern PatchStateContainer_t patchStateContainer;
 extern struct MenuElem_OrderedListData dataCustomModes;
 
 // map overrides
-extern struct MenuElem_ListData dataCustomMaps;
+extern struct MenuElem_VerticalListData dataCustomMaps;
 
 // custom map defs
 CustomMapDef_t *customMapDefs = NULL;
 int customMapDefCount = 0;
+char *customMapExDataBuf = NULL;
+int customMapExDataBufModeId = 0;
+int customMapExDataBufReadLen = 0;
 
 extern u32 colorBlack;
 extern u32 colorBg;
@@ -1812,9 +1819,16 @@ void runMapLoader(void)
 		++DownloadState.Ticks;
 #endif
 
-  if (isUnloading && customMapDefs) {
-    free(customMapDefs);
-    customMapDefs = NULL;
+  if (isUnloading) {
+    if (customMapDefs) {
+      free(customMapDefs);
+      customMapDefs = NULL;
+    }
+
+    if (customMapExDataBuf) {
+      free(customMapExDataBuf);
+      customMapExDataBuf = NULL;
+    }
   }
 
 	// 
@@ -1825,6 +1839,11 @@ void runMapLoader(void)
 		// set map loader defaults
 		MapLoaderState.Enabled = 0;
 		MapLoaderState.CheckState = 0;
+
+    if (!customMapExDataBuf) {
+      customMapExDataBuf = malloc(READ_CUSTOM_MAP_EXDATA_LEN);
+      memset(customMapExDataBuf, 0, READ_CUSTOM_MAP_EXDATA_LEN);
+    }
 
     if (!customMapDefs) {
       customMapDefs = malloc(sizeof(CustomMapDef_t) * MAX_CUSTOM_MAP_DEFINITIONS);
@@ -1924,10 +1943,18 @@ int mapReadCustomMapThumbnail(char* mapFilename, char *buf, int bufSize)
 //------------------------------------------------------------------------------
 int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int customModeId)
 {
-  #define READ_CUSTOM_MAP_EXDATA_LEN (2048)
-  #define READ_CUSTOM_MAP_EXDATA_OFF (0x150)
+  if (!customMapExDataBuf) return 0;
+  
+  char* cacheBuf = customMapExDataBuf + READ_CUSTOM_MAP_FILENAME_LEN;
+  char* cacheBufFilename = customMapExDataBuf;
 
-  //
+  // reuse cached version if same request
+  if (customMapExDataBufReadLen > 0 && customMapExDataBufModeId == customModeId && strncmp(cacheBufFilename, mapFilename, READ_CUSTOM_MAP_FILENAME_LEN) == 0) {
+    int copyLen = (int)minf(customMapExDataBufReadLen, dstLen);
+    memcpy(dst, cacheBuf, copyLen);
+    return copyLen;
+  }
+  
   if (mapFilename && mapFilename[0] && customModeId > 0) {
     char buffer[READ_CUSTOM_MAP_EXDATA_LEN];
     char filepath[256];
@@ -1947,17 +1974,27 @@ int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int cust
       if (modeId == customModeId) {
         short extraDataLen = *(short*)((u32)buffer + (READ_CUSTOM_MAP_EXDATA_OFF + 2) + 8*i);
         int extraDataOffset = *(int*)((u32)buffer + (READ_CUSTOM_MAP_EXDATA_OFF + 4) + 8*i);
-        int readLen = (extraDataLen < dstLen) ? extraDataLen : dstLen;
+        //int readLen = (extraDataLen < dstLen) ? extraDataLen : dstLen;
+        int bufSize = READ_CUSTOM_MAP_EXDATA_LEN - READ_CUSTOM_MAP_FILENAME_LEN;
+        int readLen = (int)minf(extraDataLen, bufSize); // (extraDataLen < bufSize) ? extraDataLen : bufSize;
+        customMapExDataBufReadLen = 0;
         
         // check if we already read data
         if ((extraDataOffset+extraDataLen) < READ_CUSTOM_MAP_EXDATA_LEN) {
-          memcpy(dst, &buffer[extraDataOffset], readLen);
-        } else if (readFile(filepath, dst, extraDataOffset, readLen) != readLen) {
+          memcpy(cacheBuf, &buffer[extraDataOffset], readLen);
+        } else if (readFile(filepath, cacheBuf, extraDataOffset, readLen) != readLen) {
           return 0;
         }
 
         DPRINTF("read %d bytes for extra data\n", read);
-        return readLen;
+
+        // save for next time
+        int copyLen = (int)minf(dstLen, readLen);
+        memcpy(dst, cacheBuf, copyLen);
+        strncpy(cacheBufFilename, mapFilename, READ_CUSTOM_MAP_FILENAME_LEN);
+        customMapExDataBufModeId = customModeId;
+        customMapExDataBufReadLen = readLen;
+        return copyLen;
       }
     }
   }

@@ -44,6 +44,7 @@ extern char aa_value;
 extern int redownloadCustomModeBinaries;
 extern int scavHuntEnabled;
 extern int isUnloading;
+extern char checkForMapLastStates[GAME_MAX_PLAYERS];
 
 extern VoteToEndState_t voteToEndState;
 
@@ -146,7 +147,7 @@ void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element,
 void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_MapsListVerticalStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 
-int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, char* value);
 int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value);
@@ -486,10 +487,10 @@ MenuElem_t menuElementsFreecam[] = {
 
 // map override list item
 char dataCustomMapsStagingValue = 0;
-MenuElem_ListData_t dataCustomMaps = {
+MenuElem_VerticalListData_t dataCustomMaps = {
   .value = &patchStateContainer.SelectedCustomMapId,
   .stagingValue = &dataCustomMapsStagingValue,
-  .stateHandler = menuStateHandler_SelectedMapOverride,
+  .stateHandler = &menuStateHandler_SelectedMapOverride,
   .count = 1,
   .rows = 10,
   .items = {
@@ -584,7 +585,7 @@ char dataSurvivalGambitNames[MAX_SURV_GAMBITS][32];
 MenuElem_ListData_t dataSurvivalGambit = {
   .value = &gameConfig.survivalConfig.gambit,
   .stateHandler = &menuStateHandler_SelectedSurvivalGambit,
-  .count = 1,
+  .count = 2, // leave room to navigate and load on demand
   .items = {
     "None",
     [MAX_SURV_GAMBITS+1] NULL
@@ -977,6 +978,44 @@ char* getCustomMapName(int mapIdx)
 }
 
 //------------------------------------------------------------------------------
+void survivalSendMapData(int mapIdx, char* exDataBuf)
+{
+  char buf[1024];
+  char* exData = (char*)buf;
+
+  // no map
+  if (mapIdx <= 0) return;
+
+  // no connection
+  void * lobbyConnection = netGetLobbyServerConnection();
+  if (!lobbyConnection) return;
+
+  // read use/extra data
+  if (exDataBuf) {
+    exData = exDataBuf;
+  } else if (mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, buf, sizeof(buf), CUSTOM_MODE_SURVIVAL) <= 4) {
+    return;
+  }
+
+  int gambitCount = minf(MAX_SURV_GAMBITS, *(int*)(exData + 4));
+  char* gambits = (char*)(exData + 8);
+
+  // send latest map data to server first
+  UpdateCustomMapSurvivalDataRequest_t msgMapData = {
+    .GambitCount = gambitCount,
+  };
+  strncpy(msgMapData.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msgMapData.MapFilename));
+  strncpy(msgMapData.MapName, customMapDefs[mapIdx-1].Name, sizeof(msgMapData.MapName));
+  int i;
+  for (i = 0; i < gambitCount; ++i) {
+    strncpy(msgMapData.Gambits[i], gambits, sizeof(msgMapData.Gambits[i]));
+    gambits += strlen(gambits) + 1;
+    gambits += strlen(gambits) + 1;
+  }
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_UPDATE_CUSTOM_MAP_SURVIVAL_DATA_REQUEST, sizeof(msgMapData), &msgMapData);
+}
+
+//------------------------------------------------------------------------------
 void dynamicPageEnable(int mapIdx, int type)
 {
   dynamicPageDisable();
@@ -987,6 +1026,12 @@ void dynamicPageEnable(int mapIdx, int type)
   // no connection
   void * lobbyConnection = netGetLobbyServerConnection();
   if (!lobbyConnection) return;
+
+  // init
+  strncpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
+  DynamicPageState.Enabled = 1;
+  DynamicPageState.SelectionIdx = 0;
+  DynamicPageState.DrawIdx = 0;
 
   // alloc
   DynamicPageState.LineItems = malloc(1024);
@@ -1009,44 +1054,6 @@ void dynamicPageEnable(int mapIdx, int type)
 }
 
 //------------------------------------------------------------------------------
-void dynamicPagePrepareForSurvivalMap(int mapIdx)
-{
-  // no map
-  if (mapIdx <= 0) return;
-
-  // no connection
-  void * lobbyConnection = netGetLobbyServerConnection();
-  if (!lobbyConnection) return;
-
-  // init
-  strncpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
-  DynamicPageState.Enabled = 1;
-  DynamicPageState.SelectionIdx = 0;
-  DynamicPageState.DrawIdx = 0;
-
-  char exDataBuf[1024];
-  if (mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, exDataBuf, sizeof(exDataBuf), CUSTOM_MODE_SURVIVAL) > 4) {
-
-    int gambitCount = minf(MAX_SURV_GAMBITS, *(int*)(exDataBuf + 4));
-    char* gambits = (char*)(exDataBuf + 8);
-
-    // send latest map data to server first
-    UpdateCustomMapSurvivalDataRequest_t msgMapData = {
-      .GambitCount = gambitCount,
-    };
-    strncpy(msgMapData.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msgMapData.MapFilename));
-    strncpy(msgMapData.MapName, customMapDefs[mapIdx-1].Name, sizeof(msgMapData.MapName));
-    int i;
-    for (i = 0; i < gambitCount; ++i) {
-      strncpy(msgMapData.Gambits[i], gambits, sizeof(msgMapData.Gambits[i]));
-      gambits += strlen(gambits) + 1;
-      gambits += strlen(gambits) + 1;
-    }
-    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_UPDATE_CUSTOM_MAP_SURVIVAL_DATA_REQUEST, sizeof(msgMapData), &msgMapData);
-  }
-}
-
-//------------------------------------------------------------------------------
 void dynamicPageEnableForCurrentMap(void)
 {
   int mapIdx = *dataCustomMaps.value;
@@ -1057,7 +1064,7 @@ void dynamicPageEnableForCurrentMap(void)
   {
     case CUSTOM_MODE_SURVIVAL:
     {
-      dynamicPagePrepareForSurvivalMap(mapIdx);
+      survivalSendMapData(mapIdx, NULL);
       dynamicPageEnable(mapIdx, 1);
       break;
     }
@@ -1469,7 +1476,7 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
 }
 
 // 
-int menuStateHandler_SelectedMapOverride(MenuElem_ListData_t* listData, char* value)
+int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, char* value)
 {
   int i;
   if (!value)
@@ -1784,6 +1791,12 @@ int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char*
   if (exDataLen < 8)
     return 0;
 
+  // send to server
+  if (!isInGame()) {
+    survivalSendMapData(selIdx, buf);
+  }
+
+  // parse
   int gambitCount = minf(MAX_SURV_GAMBITS, *(int*)(buf + 4));
   char* gambits = (char*)(buf + 8);
 
@@ -2029,7 +2042,7 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
 {
   // get element state
   int state = getMenuElementState(tab, element);
-  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
+  char* activeValue = listData->value;
 
   int selectedIdx = (int)*activeValue;
   if (selectedIdx < 0)
@@ -2045,12 +2058,14 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
   gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
 
   // draw value
-  x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
-  gfxScreenSpaceText(x, y, 1, 1, color, listData->items[selectedIdx], -1, 2);
+  if (listData->items[selectedIdx]) {
+    x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
+    gfxScreenSpaceText(x, y, 1, 1, color, listData->items[selectedIdx], -1, 2);
+  }
 }
 
 //------------------------------------------------------------------------------
-void drawMapsListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, int drawIdx, int itemIdx, RECT* rect)
+void drawMapsListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_VerticalListData_t * listData, int drawIdx, int itemIdx, RECT* rect)
 {
   char buf[64];
   RECT r;
@@ -2076,8 +2091,11 @@ void drawMapsListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuEl
   // draw value
   x = (r.TopRight[0] * SCREEN_WIDTH) - 5;
   y = ((r.TopLeft[1] + yOff) * SCREEN_HEIGHT) + 5;
-  float w = gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT) - x;
-  
+  float w = 0;
+  if (listData->items[itemIdx]) {
+    w = gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT) - x;
+  }
+
   int modeId = getCustomMapMode(itemIdx);
   if (modeId != 0) {
     snprintf(buf, sizeof(buf), "[\x09%s\x08]", getCustomModeName(modeId, 2));
@@ -2086,7 +2104,7 @@ void drawMapsListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuEl
 }
 
 //------------------------------------------------------------------------------
-void drawMapsListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, RECT* rect)
+void drawMapsListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, MenuElem_VerticalListData_t * listData, RECT* rect)
 {
   RECT r;
   memcpy(&r, rect, sizeof(r));
@@ -2490,7 +2508,7 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
 {
   MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
   int itemCount = listData->count;
-  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
+  char* activeValue = listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2499,35 +2517,20 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
   if ((state & ELEMENT_VISIBLE) == 0)
     return;
 
-  // save staging value
-  if (actionType == ACTIONTYPE_SELECT && listData->stagingValue)
-  {
-    if ((state & ELEMENT_EDITABLE) == 0) {
-      uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
-      return;
-    }
-
-    // save
-    uiPlaySound(UI_SOUND_ID_SELECT, 0);
-    *listData->value = *listData->stagingValue;
-    configTrySendGameConfig();
-    return;
-  }
-
   switch (actionType)
   {
     case ACTIONTYPE_INIT:
     {
-      // reset staging value
-      if (listData->stagingValue)
-        *listData->stagingValue = *listData->value;
-
+      // init state handler
+      char ignore = *listData->value;
+      if (listData->stateHandler != NULL)
+        listData->stateHandler(listData, &ignore);
       break;
     }
     case ACTIONTYPE_SELECT:
     case ACTIONTYPE_INCREMENT:
     {
-      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0) {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -2550,7 +2553,7 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     }
     case ACTIONTYPE_DECREMENT:
     {
-      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0) {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -2709,7 +2712,7 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
 }
 
 //------------------------------------------------------------------------------
-int listFindNextValidValue(MenuElem_ListData_t* listData, int currentValue, int direction)
+int verticalListFindNextValidValue(MenuElem_VerticalListData_t* listData, int currentValue, int direction)
 {
   char newValue = currentValue;
 
@@ -2731,7 +2734,7 @@ int listFindNextValidValue(MenuElem_ListData_t* listData, int currentValue, int 
 void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
 {
   char buf[128];
-  MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
+  MenuElem_VerticalListData_t* listData = (MenuElem_VerticalListData_t*)element->userdata;
   char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
   int itemCount = listData->count;
   int itemsToDraw = (&tab->elements[tab->selectedMenuItemIdx] == element) ? (listData->rows ? listData->rows : 5) : 1;
@@ -2769,7 +2772,7 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
       // if map changes mode prompt user
       int forcedModeId = getCustomMapMode(*activeValue);
       if (forcedModeId != 0 && forcedModeId != gameConfig.customModeId) {
-        snprintf(buf, sizeof(buf), "%s will overwrite the current custom game mode.", getCustomMapName(*activeValue), getCustomModeName(gameConfig.customModeId, 0));
+        snprintf(buf, sizeof(buf), "%s will overwrite the current custom game mode.", getCustomMapName(*activeValue));
         
         uiPlaySound(UI_SOUND_ID_OPEN_SUBMENU_2, 0);
         padEnableInput();
@@ -2862,7 +2865,7 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
 
       // draw items up
       for (i = 0; i < halfToDraw; ++i) {
-        lastIdx = listFindNextValidValue(listData, lastIdx, -1);
+        lastIdx = verticalListFindNextValidValue(listData, lastIdx, -1);
         drawMapsListVerticalMenuElement(tab, element, listData, halfToDraw - i - 1, lastIdx, &rectRight);
       }
       
@@ -2873,7 +2876,7 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
 
       // draw items down
       for (; i < itemsToDraw; ++i) {
-        lastIdx = listFindNextValidValue(listData, lastIdx, 1);
+        lastIdx = verticalListFindNextValidValue(listData, lastIdx, 1);
         drawMapsListVerticalMenuElement(tab, element, listData, i, lastIdx, &rectRight);
       }
 
@@ -3683,7 +3686,9 @@ int onSetGameConfig(void * connection, void * data)
 
   // copy it over
   memcpy(&gameConfig, data, sizeof(PatchGameConfig_t));
-
+  
+  // reset last states
+  memset(checkForMapLastStates, 0, sizeof(checkForMapLastStates));
   return sizeof(PatchGameConfig_t);
 }
 

@@ -60,6 +60,7 @@ typedef void (*ActionHandler)(struct TabElem* tab, struct MenuElem* element, int
 typedef void (*ButtonSelectHandler)(struct TabElem* tab, struct MenuElem* element);
 typedef void (*MenuElementStateHandler)(struct TabElem* tab, struct MenuElem* element, int * state);
 typedef int (*MenuElementListStateHandler)(struct MenuElem_ListData* listData, char* value);
+typedef int (*MenuElementVerticalListStateHandler)(struct MenuElem_VerticalListData* listData, char* value);
 typedef int (*MenuElementOrderedListStateHandler)(struct MenuElem_OrderedListData* listData, char* value);
 typedef int (*MenuElementRangeStateHandler)(struct MenuElem_RangeData* listData, char* value);
 typedef void (*TabStateHandler)(struct TabElem* tab, int * state);
@@ -76,7 +77,6 @@ typedef struct MenuElem
 typedef struct MenuElem_ListData
 {
   char * value;
-  char * stagingValue;
   MenuElementListStateHandler stateHandler;
   int count;
   int rows;
@@ -96,6 +96,16 @@ typedef struct MenuElem_OrderedListData
   int count;
   MenuElem_OrderedListDataItem_t items[];
 } MenuElem_OrderedListData_t;
+
+typedef struct MenuElem_VerticalListData
+{
+  char * value;
+  char * stagingValue;
+  MenuElementVerticalListStateHandler stateHandler;
+  int count;
+  int rows;
+  char * items[];
+} MenuElem_VerticalListData_t;
 
 typedef struct MenuElem_RangeData
 {
@@ -217,6 +227,7 @@ typedef struct PlayerSyncStateUpdatePacked
 extern int isConfigMenuActive;
 extern CustomMapDef_t *customMapDefs;
 extern int customMapDefCount;
+extern char *customMapExDataBuf;
 extern MapLoaderState_t MapLoaderState;
 
 extern u32 SONY_MAC_ADDRESSES[];

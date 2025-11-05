@@ -184,6 +184,7 @@ char showNeedLatestMapsPopup = 0;
 char showModeNeedsCustomMapPopup = 0;
 char showNoMapPopup = 0;
 char showMiscPopup = 0;
+char checkForMapLastStates[GAME_MAX_PLAYERS];
 char miscPopupTitle[32];
 char miscPopupBody[64];
 const char * patchConfigStr = "PATCH CONFIG";
@@ -4351,8 +4352,10 @@ void runCheckGameMapInstalled(void)
 {
   int i;
   GameSettings* gs = gameGetSettings();
-  if (!gs || !isInMenus())
+  if (!gs || !isInMenus()) {
+    memset(checkForMapLastStates, 0, sizeof(checkForMapLastStates));
     return;
+  }
 
   // install start game hook
   if (*(u32*)0x00759580 == 0x0C1D5D98)
@@ -4363,27 +4366,35 @@ void runCheckGameMapInstalled(void)
   int modeRequiresCustomMap = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS || gameConfig.customModeId == CUSTOM_MODE_OBSTACLE;
   for (i = 1; i < GAME_MAX_PLAYERS; ++i)
   {
-    if (gs->PlayerClients[i] == clientId && gs->PlayerStates[i] == 6)
+    if (gs->PlayerClients[i] == clientId && checkForMapLastStates[i] != gs->PlayerStates[i])
     {
-      // need map
-      if (mapOverrideResponse < 0)
-      {
-        gameSetClientState(i, 0);
-        showNoMapPopup = 1;
-        netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
-      } else if (modeRequiresCustomMap && !patchStateContainer.SelectedCustomMapId) {
-        gameSetClientState(i, 0);
-        showModeNeedsCustomMapPopup = 1;
-      } else if (modeRequiresLatestMaps) {
-        
-        int modeVersion = 0;
-        mapReadCurrentCustomMapExtraData(&modeVersion, 4);
-        int fail = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && modeVersion != CMODE_SURVIVAL_VERSION
-                || gameConfig.customModeId == CUSTOM_MODE_RAIDS && modeVersion != CMODE_RAIDS_VERSION;
+      checkForMapLastStates[i] = gs->PlayerStates[i];
 
-        if (fail) {
-          showNeedLatestMapsPopup = 1;
+      if (gs->PlayerStates[i] == 6) {
+        if (mapOverrideResponse < 0)
+        {
+          // need map
           gameSetClientState(i, 0);
+          showNoMapPopup = 1;
+          netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_REQUEST_MAP_OVERRIDE, 0, NULL);
+        } else if (modeRequiresCustomMap && !patchStateContainer.SelectedCustomMapId) {
+          // need map
+          gameSetClientState(i, 0);
+          showModeNeedsCustomMapPopup = 1;
+        } else if (modeRequiresLatestMaps) {
+          
+          // old version of map
+          int modeVersion = 0;
+          mapReadCurrentCustomMapExtraData(&modeVersion, 4);
+          int fail = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL && modeVersion != CMODE_SURVIVAL_VERSION
+                  || gameConfig.customModeId == CUSTOM_MODE_RAIDS && modeVersion != CMODE_RAIDS_VERSION;
+
+          if (fail) {
+            showNeedLatestMapsPopup = 1;
+            gameSetClientState(i, 0);
+          } else {
+            
+          }
         }
       }
     }

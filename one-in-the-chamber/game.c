@@ -227,8 +227,6 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
 	GameOptions * gameOptions = gameGetOptions();
 	GameSettings* gameSettings = gameGetSettings();
 
-  printf("GAMEOPTIONS %08X\n", gameOptions);
-
 	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0)
 		return;
 
