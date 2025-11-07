@@ -25,6 +25,7 @@ all:
 	$(MAKE) -C hns
 	$(MAKE) -C one-in-the-chamber
 	$(MAKE) -C obstacle-course
+	$(MAKE) -C collectathon
 	$(MAKE) -C usbserv
 	
 clean:
@@ -53,5 +54,6 @@ clean:
 	$(MAKE) -C hns clean
 	$(MAKE) -C one-in-the-chamber clean
 	$(MAKE) -C obstacle-course clean
+	$(MAKE) -C collectathon clean
 	$(MAKE) -C usbserv clean
 

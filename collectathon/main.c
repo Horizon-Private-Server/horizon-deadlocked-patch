@@ -2,7 +2,7 @@
  * FILENAME :		main.c
  * 
  * DESCRIPTION :
- * 		OBSTACLE COURSE.
+ * 		COLLECTATHON.
  * 		
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
@@ -73,28 +73,8 @@ void gameUpdateTick(struct GameModule * module, PatchStateContainer_t * gameStat
 		return;
 	}
 
-  if (!State.GameOver)
-  {
-		// end if all but one team left
-		// int teamsLeft = getTeamCount();
-		// if (teamsLeft <= 1 && teamsLeft < teamsAtStart) {
-    //   State.GameOver = 9; // enemies left
-    // }
-
-    // invoke custom mode game update logic
-    gameTick();
-  }
-  else if (State.GameOver > 0)
-  {
-    gameSetWinner(State.WinningTeam, 1);
-    gameEnd(State.GameOver);
-    State.GameOver = -1;
-  }
-
-  // check for restart
-  if (padGetButtonDown(0, PAD_SQUARE | PAD_L1 | PAD_R2 | PAD_L3) > 0) {
-    Restart = 1;
-  }
+  // invoke custom mode game update logic
+  gameTick();
 
 	dlPostUpdate();
 }
@@ -109,34 +89,10 @@ void gameFrameTick(struct GameModule * module, PatchStateContainer_t * gameState
   if (!State.HasFirstFrame) {
     State.HasFirstFrame = 1;
     State.InitializedTime = gameGetTime();
-    
-    // init restart str
-    char* a = uiMsgString(0x2400 - 4);
-    strncpy(a, "Full Restart \x13 + \x14 + L3 + \x17", 64);
-  }
-
-  // reload save
-  if (!State.HasLoadedLast) {
-    checkpointLoadSaved();
-  }
-
-  // show restart combo
-  if (State.ShowRestartComboTicks > 0) {
-    --State.ShowRestartComboTicks;
-
-    uiShowLowerPopup(0, 0x2400 - 4);
-  }
-
-  // restart
-  if (Restart) {
-    Restart = 0;
-    State.ShowRestartComboTicks = 0;
-    tryFullRestart();
   }
 
   // invoke custom mode frame update logic
-	if (!State.GameOver)
-		frameTick();
+  frameTick();
 }
 
 //--------------------------------------------------------------------------
@@ -171,7 +127,6 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   setLobbyGameOptions(gameState);
   
   Initialized = 0;
-  memset(State.PlayerStates, 0, sizeof(State.PlayerStates));
   State.StartDelay = 0.2 * TPS;
   State.WaitingForClientsReady = 0;
   initialize(gameState);
@@ -179,7 +134,6 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // reset start time on load
   State.HasFirstFrame = 0;
   State.HasLoadedLast = 0;
-  State.ShowRestartComboTicks = TPS * 6;
 }
 
 //--------------------------------------------------------------------------

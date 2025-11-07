@@ -1659,7 +1659,8 @@ void patchFrameSkip()
   
   int addrValue = FRAME_SKIP_WRITE0;
   int emuClient = CLIENT_TYPE_DZO == interopData.Client || interopData.Client == CLIENT_TYPE_PCSX2; // force framelimiter off for dzo/emu
-  int disableFramelimiter = config.framelimiter == 2 || emuClient;
+  int framelimiter = 2; // config.framelimiter;
+  int disableFramelimiter = framelimiter == 2 || emuClient;
   int totalTimeMs = renderTimeMs + updateTimeMs;
   float averageTotalTimeMs = averageRenderTimeMs + averageUpdateTimeMs; 
 
@@ -1667,7 +1668,7 @@ void patchFrameSkip()
   int intelligentFps = 60;
   if (gs && gs->PlayerCount > 6) intelligentFps = 30;
 
-  if (!emuClient && config.framelimiter == 1) // auto
+  if (!emuClient && framelimiter == 1) // auto
   {
     // already disabled, to re-enable must have instantaneous high total time
     if (disableByAuto && totalTimeMs > 15.0) {
@@ -5706,9 +5707,10 @@ int main (void)
   scavHuntRun();
 #endif
 
-  if (config.enableFastLoad) {
+  // always on
+  //if (config.enableFastLoad) {
     runFastLoad();
-  }
+  //}
 
   // enable 4 player splitscreen
   //extraLocalsRun();

@@ -44,6 +44,7 @@
 
 void hook(void);
 void loadModules(void);
+void mapResetExDataCache(void);
 
 int readLevelVersion(char * name, int * version);
 int readGlobalVersion(int * version);
@@ -211,6 +212,7 @@ void mapHopTo(CustomMapDef_t* def)
 {
   if (mapsIsInLevelHop) return;
 
+  mapResetExDataCache();
   mapsIsInLevelHop = 1;
   int mapId = def->BaseMapId;
 
@@ -1051,7 +1053,7 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
   int extraDataModeMask = 0, i;
   memcpy(&versionFileDef, versionFileBuffer, sizeof(CustomMapVersionFileDef_t));
   for (i = 0; i < versionFileDef.ExtraDataCount && i < 24; ++i) {
-    short modeId = *(short*)((u32)versionFileBuffer + 0x30 + 8*i);
+    short modeId = *(short*)((u32)versionFileBuffer + 0x150 + 8*i);
     if (modeId > 0) {
       extraDataModeMask |= (1 << modeId);
     }
@@ -1101,7 +1103,7 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
   strncpy(customMapDefs[insertAtIdx].Filename, filenameWithoutExtension, sizeof(customMapDefs[insertAtIdx].Filename));
   strncpy(customMapDefs[insertAtIdx].Name, versionFileDef.Name, sizeof(customMapDefs[insertAtIdx].Name));
   customMapDefCount++;
-  
+
   //DPRINTF("(%d/%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x shrub:%d\n", insertAtIdx, customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask, versionFileDef.ShrubMinRenderDistance);
 }
 
@@ -1114,7 +1116,7 @@ void refreshCustomMapList(void)
   char filename[64];
   char filenameWithoutExtension[64];
   char fullpath[256];
-  char buffer[256] __attribute__((aligned(16)));
+  char buffer[512] __attribute__((aligned(16)));
   int versionExtLen = strlen(versionExt);
   int actionStateAtStart = actionState;
   long timeLastUI = timerGetSystemTime();
@@ -1886,6 +1888,13 @@ void runMapLoader(void)
     }
 	}
 
+  // reset exdata cache on exit game
+  static char wasInGame = 0;
+  if (wasInGame && !isInGame()) {
+    mapResetExDataCache();
+  }
+  wasInGame = isInGame();
+
   //
   if (actionState == ACTION_REFRESHING_MAPLIST) {
     
@@ -1938,6 +1947,12 @@ int mapReadCustomMapThumbnail(char* mapFilename, char *buf, int bufSize)
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+void mapResetExDataCache(void)
+{
+  customMapExDataBufReadLen = 0;
 }
 
 //------------------------------------------------------------------------------

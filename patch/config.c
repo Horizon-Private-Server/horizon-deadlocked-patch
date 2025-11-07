@@ -75,7 +75,8 @@ FooterExtraCallbackFunc_t footerCallback;
 // modes with footer ex stats
 const char modesWithDynamicStatsPage[] = {
   CUSTOM_MODE_SURVIVAL,
-  CUSTOM_MODE_OBSTACLE
+  CUSTOM_MODE_OBSTACLE,
+  CUSTOM_MODE_COLLECTATHON,
 };
 const int modesWithDynamicStatsPageCount = sizeof(modesWithDynamicStatsPage);
 
@@ -323,11 +324,11 @@ MenuElem_t menuElementsGeneral[] = {
   { "Camera Shake", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableCameraShake, "Toggles the camera shake caused by nearby explosions." },
   // { "Deadzone", listActionHandler, menuStateAlwaysEnabledHandler, &dataDeadzone, "Joystick deadzones." },
   { "Disable \x11 to equip hacker ray", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.disableCircleToHackerRay, "Moves hacker ray into the quickselect menu (secondary select)." },
-  { "Fast USB Load (EMU/DZO Only)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFastLoad, "Speeds up loading of custom maps for EMU and DZO clients." },
+  //{ "Fast USB Load (EMU/DZO Only)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFastLoad, "Speeds up loading of custom maps for EMU and DZO clients." },
   { "Field of View", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataFieldOfView },
   { "Fixed Cycle Order", listActionHandler, menuStateAlwaysEnabledHandler, &dataFixedCycleOrder, "If you have equipped the B6, Fusion, Magma the configured cycle order will be forced." },
   { "Fps Counter", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFpsCounter, "Toggles the in game FPS counter." },
-  { "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter, "If Off (recommended), forces 60 FPS in all games. Otherwise games with 7+ people will run at 30 FPS." },
+  //{ "Framelimiter", listActionHandler, menuStateAlwaysEnabledHandler, &dataFramelimiter, "If Off (recommended), forces 60 FPS in all games. Otherwise games with 7+ people will run at 30 FPS." },
   { "Fusion Reticle", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableFusionReticule, "Toggles the in game fusion reticle. Normally disabled in multiplayer this setting adds it back." },
   { "In Game Scoreboard (L3)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableInGameScoreboard, "Toggles the in game scoreboard. Hold L3 to display." },
   { "Level of Detail", listActionHandler, menuStateAlwaysEnabledHandler, &dataLevelOfDetail, "Configures the level of detail of the scene. Lower this to reduce the graphics requirements on laggy maps/survival." },
@@ -504,14 +505,15 @@ MenuElem_OrderedListData_t dataCustomModes = {
   .value = &gameConfig.customModeId,
   .stateHandler = menuStateHandler_SelectedGameModeOverride,
 #if RAIDS
-  .count = 15,
+  .count = CUSTOM_MODE_COUNT - 0,
 #else
-  .count = 14,
+  .count = CUSTOM_MODE_COUNT - 1,
 #endif
   .items = {
     { CUSTOM_MODE_NONE, "None" },
     { CUSTOM_MODE_1000_KILLS, "1000 Kills" },
     //{ CUSTOM_MODE_BENCHMARK, "Benchmark" },
+    { CUSTOM_MODE_COLLECTATHON, "Collectathon" },
     { CUSTOM_MODE_GRIDIRON, "DreadBall" },
     { CUSTOM_MODE_GUN_GAME, "Gun Game" },
     { CUSTOM_MODE_HNS, "Hide and Seek" },
@@ -549,6 +551,7 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_RAIDS] "Raids",
   [CUSTOM_MODE_OITC] "OITC",
   [CUSTOM_MODE_OBSTACLE] NULL,
+  [CUSTOM_MODE_COLLECTATHON] NULL,
   //[CUSTOM_MODE_BENCHMARK] NULL,
   [CUSTOM_MODE_GRIDIRON] NULL,
 #if DEV
@@ -572,6 +575,7 @@ const char* CustomModeMapAttributeNames[] = {
   [CUSTOM_MODE_RAIDS] "RAIDS",
   [CUSTOM_MODE_OITC] "OITC",
   [CUSTOM_MODE_OBSTACLE] "OC",
+  [CUSTOM_MODE_COLLECTATHON] "COLLECT",
   //[CUSTOM_MODE_BENCHMARK] NULL,
   [CUSTOM_MODE_GRIDIRON] "DREADBALL",
 #if DEV
@@ -844,7 +848,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "CQ Turrets", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableTurrets, "Disables turrets around nodes." },
   { "CQ Upgrades", toggleInvertedActionHandler, menuStateHandler_CQSettingStateHandler, &gameConfig.grCqDisableUpgrades, "Disables conquest node upgrades." },
   { "Damage Cooldown", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoInvTimer, "Disables the brief hit invincibility after taking damage." },
-  { "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit, "Forces sniper shots that hit to register on every client. Can result in shots that appear to phase through walls." },
+  //{ "Fix Wallsniping", toggleActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grFusionShotsAlwaysHit, "Forces sniper shots that hit to register on every client. Can result in shots that appear to phase through walls." },
   // { "Fusion Reticle", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionReticule },
   { "Fusion Scoping", listActionHandler, menuStateAlwaysEnabledHandler, &dataFusionScoping },
   { "Healthbars", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.grHealthBars, "Draws a healthbar above each player's nametag." },
@@ -978,13 +982,17 @@ char* getCustomMapName(int mapIdx)
 }
 
 //------------------------------------------------------------------------------
-void survivalSendMapData(int mapIdx, char* exDataBuf)
+void cgmSendMapData(int mapIdx, int modeId, char* exDataBuf, int exDataBufLen)
 {
+  int len = 1024;
   char buf[1024];
   char* exData = (char*)buf;
 
   // no map
   if (mapIdx <= 0) return;
+
+  // no mode
+  if (modeId == 0) return;
 
   // no connection
   void * lobbyConnection = netGetLobbyServerConnection();
@@ -993,26 +1001,27 @@ void survivalSendMapData(int mapIdx, char* exDataBuf)
   // read use/extra data
   if (exDataBuf) {
     exData = exDataBuf;
-  } else if (mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, buf, sizeof(buf), CUSTOM_MODE_SURVIVAL) <= 4) {
+    len = exDataBufLen;
+  } else if ((len = mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, buf, sizeof(buf), modeId)) <= 0) {
     return;
   }
 
-  int gambitCount = minf(MAX_SURV_GAMBITS, *(int*)(exData + 4));
-  char* gambits = (char*)(exData + 8);
-
   // send latest map data to server first
-  UpdateCustomMapSurvivalDataRequest_t msgMapData = {
-    .GambitCount = gambitCount,
-  };
-  strncpy(msgMapData.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msgMapData.MapFilename));
-  strncpy(msgMapData.MapName, customMapDefs[mapIdx-1].Name, sizeof(msgMapData.MapName));
-  int i;
-  for (i = 0; i < gambitCount; ++i) {
-    strncpy(msgMapData.Gambits[i], gambits, sizeof(msgMapData.Gambits[i]));
-    gambits += strlen(gambits) + 1;
-    gambits += strlen(gambits) + 1;
+  UpdateCustomMapExDataRequest_t msg;
+  strncpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
+
+  // send in fragments
+  int off = 0;
+  while (off < len) {
+    int size = (int)minf(len-off, sizeof(msg.Data));
+    msg.CustomModeId = modeId;
+    msg.LastSegment = (off+size) >= len;
+    msg.Offset = off;
+    msg.Len = size;
+    memcpy(msg.Data, exData + off, size);
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_UPDATE_CUSTOM_MAP_EX_DATA_REQUEST, sizeof(msg), &msg);
+    off += size;
   }
-  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_UPDATE_CUSTOM_MAP_SURVIVAL_DATA_REQUEST, sizeof(msgMapData), &msgMapData);
 }
 
 //------------------------------------------------------------------------------
@@ -1060,17 +1069,27 @@ void dynamicPageEnableForCurrentMap(void)
   if (tabElements[selectedTabItem].elements == menuElementsGameSettingsCustomMaps)
     mapIdx = *dataCustomMaps.stagingValue;
 
-  switch (getCustomMapMode(mapIdx))
+  int modeId = getCustomMapMode(mapIdx);
+  if (!modeId) modeId = *dataCustomModes.value;
+
+  switch (modeId)
   {
     case CUSTOM_MODE_SURVIVAL:
     {
-      survivalSendMapData(mapIdx, NULL);
+      //survivalSendMapData(mapIdx, NULL);
+      cgmSendMapData(mapIdx, CUSTOM_MODE_SURVIVAL, NULL, 0);
       dynamicPageEnable(mapIdx, 1);
       break;
     }
     case CUSTOM_MODE_OBSTACLE:
     {
       dynamicPageEnable(mapIdx, 2);
+      break;
+    }
+    case CUSTOM_MODE_COLLECTATHON:
+    {
+      cgmSendMapData(mapIdx, CUSTOM_MODE_COLLECTATHON, NULL, 0);
+      dynamicPageEnable(mapIdx, 3);
       break;
     }
   }
@@ -1159,7 +1178,8 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
 
   // add stats footer interaction
   int mapIdx = *dataCustomMaps.value;
-  if (mapIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, customMapDefs[mapIdx-1].ForcedCustomModeId)) {
+  int modeIdx = *dataCustomModes.value;
+  if (mapIdx && modeIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, modeIdx)) {
     snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
     footerCallback = &dynamicPageEnableForCurrentMap;
   } else {
@@ -1207,7 +1227,9 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state)
 
   // add stats footer interaction
   int mapIdx = *dataCustomMaps.stagingValue;
-  if (mapIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, customMapDefs[mapIdx-1].ForcedCustomModeId)) {
+  int modeIdx = customMapDefs[mapIdx-1].ForcedCustomModeId;
+  if (!modeIdx) modeIdx = *dataCustomModes.value;
+  if (mapIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, modeIdx)) {
     snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
     footerCallback = &dynamicPageEnableForCurrentMap;
   }
@@ -1538,6 +1560,8 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
       for (i = 0; i < customMapDefCount; ++i) {
         if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
           *value = i+1;
+          //if (*dataCustomMaps.value == v)
+          //  *dataCustomMaps.value = i+1;
           return 0;
         }
       }
@@ -1568,23 +1592,35 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
       *value = 0;
       return 0;
     }
-    case CUSTOM_MODE_SEARCH_AND_DESTROY:
+    case CUSTOM_MODE_COLLECTATHON:
     {
-      // supported custom maps
-      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << CUSTOM_MODE_SEARCH_AND_DESTROY)) != 0)
+      //if (v && strcmp(customMapDefs[v-1].Name, "test") == 0)
+      //  printf("%s => %x\n", customMapDefs[v-1].Name, customMapDefs[v-1].CustomModeExtraDataMask);
+
+      // supported custom maps only
+      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << gm)) != 0)
         return 1;
 
-      if (v == 0) return 1;
+      // force first map
+      for (i = 0; i < customMapDefCount; ++i) {
+        if ((customMapDefs[i].CustomModeExtraDataMask & (1 << gm)) != 0) {
+          *value = i+1;
+          *dataCustomMaps.value = i+1;
+          return 0;
+        }
+      }
 
       *value = 0;
       return 0;
     }
     case CUSTOM_MODE_PAYLOAD:
+    case CUSTOM_MODE_SEARCH_AND_DESTROY:
     {
       // supported custom maps
-      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << CUSTOM_MODE_PAYLOAD)) != 0)
+      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << gm)) != 0)
         return 1;
 
+      // supports all vanilla maps
       if (v == 0) return 1;
 
       *value = 0;
@@ -1793,7 +1829,8 @@ int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char*
 
   // send to server
   if (!isInGame()) {
-    survivalSendMapData(selIdx, buf);
+    cgmSendMapData(selIdx, CUSTOM_MODE_SURVIVAL, buf, exDataLen);
+    //survivalSendMapData(selIdx, buf);
   }
 
   // parse
@@ -2903,7 +2940,7 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
     case ACTIONTYPE_VALIDATE:
     {
       if (listData->stateHandler != NULL)
-        listData->stateHandler(listData, activeValue);
+        listData->stateHandler(listData, listData->value);
       break;
     }
     case ACTIONTYPE_INPUT:

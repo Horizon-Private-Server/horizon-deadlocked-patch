@@ -388,6 +388,11 @@ enum CustomMessageId
     CUSTOM_MSG_ID_CLIENT_UPDATE_SURVIVAL_GAMBIT_COMPLETED_REQUEST = 71,
 
     /*
+     * 
+     */
+    CUSTOM_MSG_ID_CLIENT_UPDATE_CUSTOM_MAP_EX_DATA_REQUEST = 72,
+
+    /*
      * Start of custom message ids reserved for custom game modes.
      */
     CUSTOM_MSG_ID_GAME_MODE_START = 100,
@@ -642,6 +647,16 @@ typedef struct UpdateSurvivalGambitCompletedRequest
   char MapFilename[64];
   char GambitName[32];
 } UpdateSurvivalGambitCompletedRequest_t;
+
+typedef struct UpdateCustomMapExDataRequest
+{
+  u16 Offset;
+  u16 Len;
+  char CustomModeId;
+  char LastSegment;
+  char MapFilename[64];
+  char Data[432];
+} UpdateCustomMapExDataRequest_t;
 
 
 typedef struct CustomDzoCommandDrawText

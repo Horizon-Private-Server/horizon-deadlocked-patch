@@ -2103,7 +2103,8 @@ void grGameStart(void)
 	if (gameConfig.prChargebootForever)
 		unlimitedChargebootLogic();
 
-	if (gameConfig.grFusionShotsAlwaysHit)
+  // always on
+	//if (gameConfig.grFusionShotsAlwaysHit)
 		fusionShotsAlwaysHitLogic();
 
   if (gameConfig.grCqPersistentCapture)
