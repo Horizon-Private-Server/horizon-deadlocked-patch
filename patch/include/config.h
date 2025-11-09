@@ -4,7 +4,7 @@
 #include "messageid.h"
 #include <libdl/gamesettings.h>
 
-#define MAX_CUSTOM_MAP_DEFINITIONS              (64)
+#define MAX_CUSTOM_MAP_DEFINITIONS              (128)
 #define CONFIG_ITEM_HELP_SIZE                   (64)
 
 enum PatchGameNetMessage

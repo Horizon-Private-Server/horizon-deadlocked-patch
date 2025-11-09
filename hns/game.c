@@ -238,11 +238,13 @@ void stageSeekLogic(void)
           playerRespawn(player);
         }
       } else {
-        if (!init) uiShowPopup(player->LocalPlayerIndex, "Press UP to switch to spectate mode");
+        if (!init) uiShowPopup(player->LocalPlayerIndex, "Press L3 to toggle between spectate mode");
 
         // toggle spectate
-        if (!gameIsStartMenuOpen(player->LocalPlayerIndex) && !PATCH_POINTERS_PATCHMENU && padGetButtonDown(player->LocalPlayerIndex, PAD_UP) > 0) {
+        if (!gameIsStartMenuOpen(player->LocalPlayerIndex) && !PATCH_POINTERS_PATCHMENU && padGetButtonDown(player->LocalPlayerIndex, PAD_L3) > 0 && PATCH_POINTERS_SPECTATE == 0) {
           PATCH_INTEROP->SetSpectate(player->LocalPlayerIndex, i);
+        } else if (!gameIsStartMenuOpen(player->LocalPlayerIndex) && !PATCH_POINTERS_PATCHMENU && padGetButtonDown(player->LocalPlayerIndex, PAD_L3) > 0 && PATCH_POINTERS_SPECTATE > 0) {
+          PATCH_INTEROP->SetSpectate(player->LocalPlayerIndex, -1);
         }
       }
     }
