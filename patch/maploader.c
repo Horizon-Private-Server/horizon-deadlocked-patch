@@ -46,14 +46,12 @@ void hook(void);
 void loadModules(void);
 void mapResetExDataCache(void);
 
-int readLevelVersion(char * name, int * version);
-int readGlobalVersion(int * version);
+// int readLevelVersion(char * name, int * version);
+// int readGlobalVersion(int * version);
 
 int usbFsModuleSize = 0;
 int usbSrvModuleSize = 0;
 
-int mapsRemoteGlobalVersion = -2;
-int mapsLocalGlobalVersion = -1;
 int mapsIsInLevelHop = 0;
 
 // patch config
@@ -390,7 +388,7 @@ int onSetMapOverride(void * connection, void * data)
     }
 
     // read global maps version from usb
-    readLocalGlobalVersion();
+    //readLocalGlobalVersion();
 
 		// print
 		DPRINTF("MapId:%d MapName:%s MapFileName:%s Version:%d\n", payload.CustomMap.BaseMapId, payload.CustomMap.Name, payload.CustomMap.Filename, version);
@@ -431,7 +429,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
 	DPRINTF("server sent map irx modules\n");
 
 	MapServerSentModulesMessage * msg = (MapServerSentModulesMessage*)data;
-  mapsRemoteGlobalVersion = msg->Version;
+  //mapsRemoteGlobalVersion = msg->Version;
 
   // we've already initialized the usb interface
   if (rpcInit > 0)
@@ -457,17 +455,17 @@ int onServerSentMapIrxModules(void * connection, void * data)
 }
 
 //------------------------------------------------------------------------------
-int onServerSendMapVersion(void * connection, void * data)
-{
-  // read local global version first
-  useHost = 1;
-  if (!readGlobalVersion(NULL)) useHost = 0;
-  readLocalGlobalVersion();
+// int onServerSendMapVersion(void * connection, void * data)
+// {
+//   // read local global version first
+//   useHost = 1;
+//   if (!readGlobalVersion(NULL)) useHost = 0;
+//   readLocalGlobalVersion();
 
-  memcpy(&mapsRemoteGlobalVersion, data, 4);
-	DPRINTF("server sent map version %d, local %d\n", mapsRemoteGlobalVersion, mapsLocalGlobalVersion);
-  return 4;
-}
+//   memcpy(&mapsRemoteGlobalVersion, data, 4);
+// 	DPRINTF("server sent map version %d, local %d\n", mapsRemoteGlobalVersion, mapsLocalGlobalVersion);
+//   return 4;
+// }
 
 #if MAPDOWNLOADER
 //------------------------------------------------------------------------------
@@ -594,13 +592,13 @@ int onServerSentMapInitiated(void * connection, void * data)
 #endif
 
 //------------------------------------------------------------------------------
-int readLocalGlobalVersion(void)
-{
-  if (!readGlobalVersion(&mapsLocalGlobalVersion))
-    return (mapsLocalGlobalVersion = -1);
+// int readLocalGlobalVersion(void)
+// {
+//   if (!readGlobalVersion(&mapsLocalGlobalVersion))
+//     return (mapsLocalGlobalVersion = -1);
     
-  return mapsLocalGlobalVersion;
-}
+//   return mapsLocalGlobalVersion;
+// }
 
 //------------------------------------------------------------------------------
 void loadModules(void)
@@ -641,23 +639,11 @@ void initModules(void)
 	{
     // check if host fs exists
     useHost = 1;
-    if (!readGlobalVersion(NULL)) useHost = 0;
+    if (!hasCustomMapsFolder()) useHost = 0;
 
-    // read local global version
-    readLocalGlobalVersion();
-		if (mapsLocalGlobalVersion != mapsRemoteGlobalVersion)
-		{
-			// Indicate new version
-			actionState = ACTION_NEW_MAPS_UPDATE;
-		}
-		else
-		{
-			// Indicate maps installed
-			actionState = ACTION_MODULES_INSTALLED;
-		}
+    // indicate maps installed
+    actionState = ACTION_MODULES_INSTALLED;
 		
-		DPRINTF("local maps version %d || remote maps version %d\n", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
-
     // refresh map list
     refreshCustomMapList();
 		
@@ -771,23 +757,23 @@ int readFile(char * path, void * buffer, int offset, int length)
 }
 
 //------------------------------------------------------------------------------
-int readGlobalVersion(int * version)
-{
-	int r;
-  char buf[4];
-  char filename[128];
+// int readGlobalVersion(int * version)
+// {
+// 	int r;
+//   char buf[4];
+//   char filename[128];
 
-  snprintf(filename, sizeof(filename), fGlobalVersion, getMapPathPrefix());
-	r = readFile(filename, (void*)buf, 0, 4);
-	if (r != 4)
-	{
-		DPRINTF("error reading file (%s)\n", filename);
-		return 0;
-	}
+//   snprintf(filename, sizeof(filename), fGlobalVersion, getMapPathPrefix());
+// 	r = readFile(filename, (void*)buf, 0, 4);
+// 	if (r != 4)
+// 	{
+// 		DPRINTF("error reading file (%s)\n", filename);
+// 		return 0;
+// 	}
 
-  if (version) *version = *(int*)buf;
-	return 1;
-}
+//   if (version) *version = *(int*)buf;
+// 	return 1;
+// }
 
 //--------------------------------------------------------------
 int readLevelVersion(char * name, int * version)
@@ -1105,6 +1091,39 @@ void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
   customMapDefCount++;
 
   //DPRINTF("(%d/%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x shrub:%d\n", insertAtIdx, customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask, versionFileDef.ShrubMinRenderDistance);
+}
+
+//------------------------------------------------------------------------------
+int hasCustomMapsFolder(void)
+{
+  iox_dirent_t dirent;
+  io_dirent_t* iomanDirent = (io_dirent_t*)&dirent;
+  
+  // need usb modules
+  if (!HAS_LOADED_MODULES) return 0;
+
+  //
+  char dirpath[16];
+  snprintf(dirpath, sizeof(dirpath), "%sdl", getMapPathPrefix());
+  DPRINTF("dir path %s\n", dirpath);
+
+	// Open
+  int fd;
+	rpcUSBdopen(dirpath);
+	rpcUSBSync(0, NULL, &fd);
+
+	// Ensure the dir was opened successfully
+	if (fd < 0)
+	{
+		DPRINTF("error opening dir (%s): %d\n", dirpath, fd);
+		return 0;
+	}
+	
+  // close
+  rpcUSBdclose(fd);
+	rpcUSBSync(0, NULL, NULL);
+  
+  return 1;
 }
 
 //------------------------------------------------------------------------------
@@ -1807,7 +1826,7 @@ void runMapLoader(void)
 	// 
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_MAP_OVERRIDE, &onSetMapOverride);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_MAP_IRX_MODULES, &onServerSentMapIrxModules);
-  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_CMAPS_GLOBAL_VERSION, onServerSendMapVersion);
+  //netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SENT_CMAPS_GLOBAL_VERSION, onServerSendMapVersion);
 #if MAPDOWNLOADER
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_INITIATE_DOWNLOAD_MAP_RESPONSE, &onServerSentMapInitiated);
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_MAP_CHUNK_REQUEST, &onServerSentMapChunk);
@@ -1861,9 +1880,8 @@ void runMapLoader(void)
     {
       // check if host fs exists
       useHost = 1;
-      if (!readGlobalVersion(&mapsLocalGlobalVersion)) {
+      if (!hasCustomMapsFolder()) {
         useHost = 0;
-        readLocalGlobalVersion();
       }
         
       // refresh map list

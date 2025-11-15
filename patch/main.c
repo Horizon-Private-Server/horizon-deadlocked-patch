@@ -130,8 +130,6 @@ void bannerDraw(void);
 void bannerTick(void);
 int readLocalGlobalVersion(void);
 
-extern int mapsRemoteGlobalVersion;
-extern int mapsLocalGlobalVersion;
 extern int mapsIsInLevelHop;
 
 void resetFreecam(void);
@@ -5520,7 +5518,7 @@ void onOnlineMenu(void)
   // 
   if (showNeedLatestMapsPopup)
   {
-    sprintf(buf, "Please download the latest custom maps to play. %d %d", mapsLocalGlobalVersion, mapsRemoteGlobalVersion);
+    sprintf(buf, "Please download the latest custom maps to play.");
     uiShowOkDialog("Custom Maps", buf);
 
     showNeedLatestMapsPopup = 0;
