@@ -1605,7 +1605,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
       for (i = 0; i < customMapDefCount; ++i) {
         if ((customMapDefs[i].CustomModeExtraDataMask & (1 << gm)) != 0) {
           *value = i+1;
-          *dataCustomMaps.value = i+1;
+          //*dataCustomMaps.value = i+1;
           return 0;
         }
       }

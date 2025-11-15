@@ -1031,17 +1031,19 @@ int readLevelUsb(u8 * buf)
 }
 
 //------------------------------------------------------------------------------
-void customMapInsert(char* versionFileBuffer, char* filenameWithoutExtension)
+void customMapInsert(char* versionFileBuffer, int versionFileBufferSize, char* filenameWithoutExtension)
 {
   // parse extra data
   CustomMapVersionFileDef_t versionFileDef;
   CustomMapRaidsExtraDataHeader_t raidsExDataHeader;
   int extraDataModeMask = 0, i;
   memcpy(&versionFileDef, versionFileBuffer, sizeof(CustomMapVersionFileDef_t));
-  for (i = 0; i < versionFileDef.ExtraDataCount && i < 24; ++i) {
-    short modeId = *(short*)((u32)versionFileBuffer + 0x150 + 8*i);
-    if (modeId > 0) {
-      extraDataModeMask |= (1 << modeId);
+  if (versionFileBufferSize > 0x150) {
+    for (i = 0; i < versionFileDef.ExtraDataCount && i < 24; ++i) {
+      short modeId = *(short*)((u32)versionFileBuffer + 0x150 + 8*i);
+      if (modeId > 0) {
+        extraDataModeMask |= (1 << modeId);
+      }
     }
   }
 
@@ -1243,7 +1245,7 @@ void refreshCustomMapList(void)
     if (fWadLen <= 0) continue;
 
     // parse extra data
-    customMapInsert(buffer, filenameWithoutExtension);
+    customMapInsert(buffer, read, filenameWithoutExtension);
 
     // reached max maps
     if (customMapDefCount >= MAX_CUSTOM_MAP_DEFINITIONS) break;
