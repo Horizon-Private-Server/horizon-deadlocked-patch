@@ -210,7 +210,7 @@ void hook2()
 
   // reset iop
 	SifInitRpc(0);
-  ((void (*)(char*, int))0x0012cc30)("", 0);
+  while (!SifIopReset("", 0)) {}
   while (!SifIopSync()) {};
 	SifExitRpc();
 
