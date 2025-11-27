@@ -83,6 +83,7 @@ extern u32 colorContentBg;
 extern u32 colorText;
 extern int isUnloading;
 extern char mapOverrideResponse;
+extern int redownloadCustomModeBinaries;
 
 enum MenuActionId
 {
@@ -411,6 +412,12 @@ int onSetMapOverride(void * connection, void * data)
 			MapLoaderState.MapId = payload.CustomMap.BaseMapId;
 			MapLoaderState.LoadingFd = -1;
 			MapLoaderState.LoadingFileSize = -1;
+
+      // check for change
+      // if map changed and custom mode active
+      // redownload custom mode
+      if (gameConfig.customModeId && lastSelectedCustomMapId != patchStateContainer.SelectedCustomMapId)
+        redownloadCustomModeBinaries = 1;
 		}
 		else
 		{
