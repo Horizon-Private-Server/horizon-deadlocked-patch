@@ -355,7 +355,7 @@ int onSetMapOverride(void * connection, void * data)
   memcpy(&payload, data, sizeof(payload));
 
   // reset
-  int lastSelectedCustomMapId = patchStateContainer.SelectedCustomMapId;
+  static int lastSelectedCustomMapId = 0;
   patchStateContainer.SelectedCustomMapId = 0;
 
 	if (payload.CustomMap.BaseMapId == 0)
@@ -427,6 +427,7 @@ int onSetMapOverride(void * connection, void * data)
 	}
 
   patchStateContainer.SelectedCustomMapChanged = isInMenus() && lastSelectedCustomMapId != patchStateContainer.SelectedCustomMapId;
+  lastSelectedCustomMapId = patchStateContainer.SelectedCustomMapId;
 	return sizeof(MapOverrideMessage);
 }
 
