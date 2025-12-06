@@ -342,7 +342,7 @@ int mobyComputeComplexity(Moby * moby)
 
     // pull from spawn params
     if (pvars->MobVars.SpawnParamsIdx >= 0 && pvars->MobVars.SpawnParamsIdx < mapConfig->DefaultSpawnParamsCount) {
-      return mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].Cost;
+      return mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].RenderCost;
     }
   }
 
@@ -969,6 +969,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   // copy spawn params to config
   pvars->MobVars.SpawnParamsIdx = args.SpawnParamsIdx;
   struct MobSpawnParams* params = &mapConfig->DefaultSpawnParams[args.SpawnParamsIdx];
+  pvars->VTable = params->MobVTable;
   memcpy(&pvars->MobVars.Config, &params->Config, sizeof(struct MobConfig));
 
   // initialize mob vars

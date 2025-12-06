@@ -23,7 +23,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // reactor
   [MOB_SPAWN_PARAM_REACTOR]
 	{
-		.Cost = REACTOR_RENDER_COST,
+    .MobCreate = reactorCreate,
+    .MobVTable = &ReactorVTable,
+    .OClass = REACTOR_MOBY_OCLASS,
+    .Scale = 1,
+		.RenderCost = REACTOR_RENDER_COST,
     .MaxSpawnedAtOnce = 1,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -59,7 +63,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // king leviathan
   [MOB_SPAWN_PARAM_KING_LEVIATHAN]
   {
-		.Cost = LEVIATHAN_RENDER_COST,
+    .MobCreate = leviathanCreate,
+    .MobVTable = &LeviathanVTable,
+    .OClass = LEVIATHAN_MOBY_OCLASS,
+    .Scale = 1,
+		.RenderCost = LEVIATHAN_RENDER_COST,
     .MaxSpawnedAtOnce = 1,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -95,7 +103,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // executioner
 	[MOB_SPAWN_PARAM_EXECUTIONER]
 	{
-		.Cost = EXECUTIONER2_RENDER_COST,
+    .MobCreate = executioner2Create,
+    .MobVTable = &Executioner2VTable,
+    .OClass = EXECUTIONER2_MOBY_OCLASS,
+    .Scale = 1,
+		.RenderCost = EXECUTIONER2_RENDER_COST,
     .MaxSpawnedAtOnce = 4,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -132,7 +144,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // leviathan
   [MOB_SPAWN_PARAM_LEVIATHAN]
   {
-		.Cost = LEVIATHAN_RENDER_COST,
+    .MobCreate = leviathanCreate,
+    .MobVTable = &LeviathanVTable,
+    .OClass = LEVIATHAN_MOBY_OCLASS,
+    .Scale = 1,
+		.RenderCost = LEVIATHAN_RENDER_COST,
     .MaxSpawnedAtOnce = 10,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -167,7 +183,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // reaper
 	[MOB_SPAWN_PARAM_REAPER]
 	{
-		.Cost = REAPER_RENDER_COST,
+    .MobCreate = reaperCreate,
+    .MobVTable = &ReaperVTable,
+    .OClass = REAPER_MOBY_OCLASS,
+    .Scale = 1,
+		.RenderCost = REAPER_RENDER_COST,
     .MaxSpawnedAtOnce = 10,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -202,7 +222,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// normal zombie
 	[MOB_SPAWN_PARAM_NORMAL]
 	{
-		.Cost = ZOMBIE_RENDER_COST,
+    .MobCreate = zombieCreate,
+    .MobVTable = &ZombieVTable,
+    .OClass = ZOMBIE_MOBY_OCLASS,
+    .Scale = 1,
+		.RenderCost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -237,7 +261,11 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // swarmer
   [MOB_SPAWN_PARAM_SWARMER]
 	{
-		.Cost = SWARMER_RENDER_COST,
+    .MobCreate = swarmerCreate,
+    .MobVTable = &SwarmerVTable,
+    .OClass = SWARMER_MOBY_OCLASS,
+    .Scale = 1,
+		.RenderCost = SWARMER_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -305,37 +333,6 @@ SurvivalBakedConfig_t bakedConfig = {
     { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 294.33, 343.81, 110.45 }, .Rotation = { -5.798351, 0, 0 } },
     { .Type = BAKED_SPAWNPOINT_UPGRADE, .Params = 0, .Position = { 299.76, 423.91, 107.96 }, .Rotation = { 0, 0, -3.141593 } }
   }
-};
-
-//--------------------------------------------------------------------------
-u32 MobPrimaryColors[] = {
-  [MOB_SPAWN_PARAM_SWARMER] 0x00464443,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00464443,
-	[MOB_SPAWN_PARAM_EXECUTIONER] 	0x00464443,
-	[MOB_SPAWN_PARAM_REAPER]  0x00464443,
-	[MOB_SPAWN_PARAM_LEVIATHAN]	0x00464443,
-	[MOB_SPAWN_PARAM_REACTOR]	0x00464443,
-	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x00464443,
-};
-
-u32 MobSecondaryColors[] = {
-	[MOB_SPAWN_PARAM_SWARMER] 0x80808080,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
-	[MOB_SPAWN_PARAM_EXECUTIONER] 	0x80202020,
-	[MOB_SPAWN_PARAM_REAPER]	0x80FF2020,
-	[MOB_SPAWN_PARAM_LEVIATHAN]	0x80FF2020,
-	[MOB_SPAWN_PARAM_REACTOR]	0x8020C020,
-	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x80FF2020,
-};
-
-u32 MobLODColors[] = {
-	[MOB_SPAWN_PARAM_SWARMER] 0x00808080,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
-	[MOB_SPAWN_PARAM_EXECUTIONER] 	0x000000FF,
-	[MOB_SPAWN_PARAM_REAPER]	0x00202020,
-	[MOB_SPAWN_PARAM_LEVIATHAN]	0x0080FF80,
-	[MOB_SPAWN_PARAM_REACTOR]	0x00FF0000,
-	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x0000FF00,
 };
 
 //--------------------------------------------------------------------------

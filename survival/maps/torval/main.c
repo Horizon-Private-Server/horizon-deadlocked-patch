@@ -31,6 +31,7 @@
 #include <libdl/radar.h>
 #include <libdl/graphics.h>
 #include <libdl/color.h>
+#include <libdl/stdio.h>
 #include <libdl/utils.h>
 #include "module.h"
 #include "messageid.h"
@@ -190,44 +191,16 @@ int mapPathCanBeSkippedForTarget(Moby* moby)
 //--------------------------------------------------------------------------
 int createMob(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
-  switch (spawnParamsIdx)
-  {
-    case MOB_SPAWN_PARAM_LEVIATHAN:
-    case MOB_SPAWN_PARAM_KING_LEVIATHAN:
-    {
-      return leviathanCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
-    }
-    case MOB_SPAWN_PARAM_REAPER:
-    {
-      return reaperCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
-    }
-    case MOB_SPAWN_PARAM_REACTOR:
-    {
-      return reactorCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
-    }
-    // case MOB_SPAWN_PARAM_TREMOR:
-    // {
-    //   return tremorCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
-    // }
-    case MOB_SPAWN_PARAM_EXECUTIONER:
-    {
-      return executioner2Create(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
-    }
-    case MOB_SPAWN_PARAM_NORMAL:
-    {
-      return zombieCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
-    }
-    case MOB_SPAWN_PARAM_SWARMER:
-    {
-      return swarmerCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
-    }
-    default:
-    {
-      DPRINTF("unhandled create spawnParamsIdx %d\n", spawnParamsIdx);
-      break;
-    }
+  if (spawnParamsIdx < 0 || spawnParamsIdx >= MapConfig.DefaultSpawnParamsCount) {
+    DPRINTF("unhandled create spawnParamsIdx %d\\n", spawnParamsIdx);
+    return 0;
   }
 
+  struct MobSpawnParams* spawnParams = &MapConfig.DefaultSpawnParams[spawnParamsIdx];
+  if (spawnParams->MobCreate)
+    return spawnParams->MobCreate(spawnParamsIdx, position, yaw, spawnFromUID, spawnFlags, config);
+
+  DPRINTF("unhandled create spawnParamsIdx %d\\n", spawnParamsIdx);
   return 0;
 }
 

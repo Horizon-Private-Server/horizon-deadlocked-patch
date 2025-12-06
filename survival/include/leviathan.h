@@ -44,8 +44,8 @@
 #define LEVIATHAN_LASER_COOLDOWN_TICKS_MAX       (20 * TPS)
 
 #define LEVIATHAN_PRIMARY_COLOR                  (0x00464443)
-#define LEVIATHAN_GLOW_COLOR                     (0x80202020)
-#define LEVIATHAN_LOD_COLOR                      (0x00808080)
+#define LEVIATHAN_GLOW_COLOR                     (0x80FF2020)
+#define LEVIATHAN_LOD_COLOR                      (0x0000FF00)
 
 #include <libdl/math3d.h>
 #include <libdl/moby.h>
@@ -125,5 +125,9 @@ typedef struct LeviathanMobVars {
   u32 AttackLaserCooldownTicks;
   int LaserAtTicks;
 } LeviathanMobVars_t;
+
+int leviathanCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+
+extern struct MobVTable LeviathanVTable;
 
 #endif // SURVIVAL_MOB_LEVIATHAN_H

@@ -56,18 +56,15 @@ struct MobVTable ExecutionerVTable = {
   .ShouldForceStateUpdateOnAction = &executionerShouldForceStateUpdateOnAction,
 };
 
-extern u32 MobPrimaryColors[];
-extern u32 MobSecondaryColors[];
-extern u32 MobLODColors[];
-
 //--------------------------------------------------------------------------
 int executionerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
+  struct MobSpawnParams* spawnParams = &MapConfig.DefaultSpawnParams[spawnParamsIdx];
   
 	// create guber object
 	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(EXECUTIONER_MOBY_OCLASS, sizeof(struct MobPVar), &guberEvent, NULL);
+	guberMobyCreateSpawned(spawnParams->OClass, sizeof(struct MobPVar), &guberEvent, NULL);
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
@@ -151,7 +148,7 @@ void executionerPostDraw(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
+  u32 color = EXECUTIONER_LOD_COLOR | (moby->Opacity << 24);
   mobPostDrawQuad(moby, 127, color, 1);
 }
 
@@ -181,8 +178,8 @@ void executionerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID
   moby->Scale = 0.4;
 
   // colors by mob type
-	moby->GlowRGBA = MobSecondaryColors[pvars->MobVars.SpawnParamsIdx];
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->GlowRGBA = EXECUTIONER_GLOW_COLOR;
+	moby->PrimaryColor = EXECUTIONER_PRIMARY_COLOR;
 
   // targeting
 	pvars->TargetVars.targetHeight = 2.5;
@@ -211,7 +208,7 @@ void executionerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
 	// set colors before death so that the corn has the correct color
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->PrimaryColor = EXECUTIONER_PRIMARY_COLOR;
 
   // spawn explosion
   u32 expColor = 0x801E70D6;

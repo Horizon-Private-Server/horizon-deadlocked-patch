@@ -96,10 +96,6 @@ const int reactorOnDamagePlayerDialogIds[] = {
   DIALOG_ID_REACTOR_THIS_IS_MY_HOUSE,
 };
 
-extern u32 MobPrimaryColors[];
-extern u32 MobSecondaryColors[];
-extern u32 MobLODColors[];
-
 Moby* reactorActiveMoby = NULL;
 
 //--------------------------------------------------------------------------
@@ -112,10 +108,11 @@ void reactorTransAnim(Moby* moby, int animId, float startOff)
 int reactorCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
+  struct MobSpawnParams* spawnParams = &MapConfig.DefaultSpawnParams[spawnParamsIdx];
   
 	// create guber object
 	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(REACTOR_MOBY_OCLASS, sizeof(struct MobPVar) + sizeof(ReactorMobVars_t), &guberEvent, NULL);
+	guberMobyCreateSpawned(spawnParams->OClass, sizeof(struct MobPVar), &guberEvent, NULL);
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
@@ -233,7 +230,7 @@ void reactorPostDraw(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
+  u32 color = REACTOR_LOD_COLOR | (moby->Opacity << 24);
   mobPostDrawQuad(moby, 127, color, 1);
 }
 
@@ -274,8 +271,8 @@ void reactorOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
   moby->Scale = 0.6;
 
   // colors by mob type
-	moby->GlowRGBA = MobSecondaryColors[pvars->MobVars.SpawnParamsIdx];
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->GlowRGBA = REACTOR_GLOW_COLOR;
+	moby->PrimaryColor = REACTOR_PRIMARY_COLOR;
 
   // targeting
 	pvars->TargetVars.targetHeight = 1.5;
@@ -325,7 +322,7 @@ void reactorOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   reactorActiveMoby = NULL;
 
 	// set colors before death so that the corn has the correct color
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->PrimaryColor = REACTOR_PRIMARY_COLOR;
 
   // destroy particle mobys
   if (reactorVars->PrepShotWithFireParticleMoby1) {

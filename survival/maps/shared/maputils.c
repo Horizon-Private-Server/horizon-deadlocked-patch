@@ -31,6 +31,7 @@
 #include <libdl/color.h>
 #include <libdl/utils.h>
 #include "game.h"
+#include "mob.h"
 #include "../../include/game.h"
 
 extern char LocalPlayerStrBuffer[2][64];
@@ -284,16 +285,13 @@ int mobyIsMob(Moby* moby)
 {
   if (!moby) return 0;
 
-  return moby->OClass == ZOMBIE_MOBY_OCLASS
-    || moby->OClass == EXECUTIONER_MOBY_OCLASS
-    || moby->OClass == EXECUTIONER2_MOBY_OCLASS
-    || moby->OClass == TREMOR_MOBY_OCLASS
-    || moby->OClass == SWARMER_MOBY_OCLASS
-    || moby->OClass == SWARMER2_MOBY_OCLASS
-    || moby->OClass == REACTOR_MOBY_OCLASS
-    || moby->OClass == REAPER_MOBY_OCLASS
-    || moby->OClass == LEVIATHAN_MOBY_OCLASS
-    ;
+  int i;
+  for (i = 0; i < MapConfig.DefaultSpawnParamsCount; ++i) {
+    if (MapConfig.DefaultSpawnParams[i].OClass == moby->OClass)
+      return 1;
+  }
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------

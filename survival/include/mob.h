@@ -130,7 +130,11 @@ struct MobConfig {
 };
 
 struct MobSpawnParams {
-  int Cost;
+  MapOnMobCreate_func MobCreate;
+  struct MobVTable* MobVTable;
+  int RenderCost;
+  float Scale;
+  int OClass;
   int MaxSpawnedAtOnce;
   int MaxSpawnedPerRound;
   int MinRound;
@@ -142,6 +146,7 @@ struct MobSpawnParams {
   char Name[32];
   struct MobConfig Config;
   char SpecialRoundOnly;
+  char BlipType;
 };
 
 struct Knockback {

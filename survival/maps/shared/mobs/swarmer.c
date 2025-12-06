@@ -61,24 +61,15 @@ struct MobVTable SwarmerVTable = {
   .ShouldForceStateUpdateOnAction = &swarmerShouldForceStateUpdateOnAction,
 };
 
-extern u32 MobPrimaryColors[];
-extern u32 MobSecondaryColors[];
-extern u32 MobLODColors[];
-
 //--------------------------------------------------------------------------
 int swarmerCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
 	struct MobSpawnEventArgs args;
+  struct MobSpawnParams* spawnParams = &MapConfig.DefaultSpawnParams[spawnParamsIdx];
   
-  int oclass = SWARMER_MOBY_OCLASS;
-
-#if SWARMER_ORANGE
-  oclass = SWARMER2_MOBY_OCLASS;
-#endif
-
 	// create guber object
 	GuberEvent * guberEvent = 0;
-	guberMobyCreateSpawned(oclass, sizeof(struct MobPVar), &guberEvent, NULL);
+	guberMobyCreateSpawned(spawnParams->OClass, sizeof(struct MobPVar), &guberEvent, NULL);
 	if (guberEvent)
 	{
     if (MapConfig.PopulateSpawnArgsFunc) {
@@ -164,7 +155,7 @@ void swarmerPostDraw(Moby* moby)
     return;
     
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  u32 color = MobLODColors[pvars->MobVars.SpawnParamsIdx] | (moby->Opacity << 24);
+  u32 color = SWARMER_LOD_COLOR | (moby->Opacity << 24);
   mobPostDrawQuad(moby, 127, color, 0);
 }
 
@@ -195,8 +186,8 @@ void swarmerOnSpawn(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, ch
   moby->Scale = 0.256339 * scale;
 
   // colors by mob type
-	moby->GlowRGBA = MobSecondaryColors[pvars->MobVars.SpawnParamsIdx];
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->GlowRGBA = SWARMER_GLOW_COLOR;
+	moby->PrimaryColor = SWARMER_PRIMARY_COLOR;
 
   // targeting
 	pvars->TargetVars.targetHeight = 1 + (scale * 0.25);
@@ -224,7 +215,7 @@ void swarmerOnDestroy(Moby* moby, int killedByPlayerId, int weaponId)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
 	// set colors before death so that the corn has the correct color
-	moby->PrimaryColor = MobPrimaryColors[pvars->MobVars.SpawnParamsIdx];
+	moby->PrimaryColor = SWARMER_PRIMARY_COLOR;
 }
 
 //--------------------------------------------------------------------------

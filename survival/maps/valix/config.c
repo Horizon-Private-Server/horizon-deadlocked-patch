@@ -40,7 +40,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // king leviathan
   [MOB_SPAWN_PARAM_KING_LEVIATHAN]
   {
-		.Cost = LEVIATHAN_RENDER_COST,
+		.RenderCost = LEVIATHAN_RENDER_COST,
     .MaxSpawnedAtOnce = 1,
     .MaxSpawnedPerRound = 1,
     .SpecialRoundOnly = 1,
@@ -76,7 +76,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // leviathan common
   [MOB_SPAWN_PARAM_LEVIATHAN_COMMON]
   {
-		.Cost = LEVIATHAN_RENDER_COST,
+		.RenderCost = LEVIATHAN_RENDER_COST,
     .MaxSpawnedAtOnce = 15,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 1,
@@ -111,7 +111,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // leviathan
   [MOB_SPAWN_PARAM_LEVIATHAN]
   {
-		.Cost = LEVIATHAN_RENDER_COST,
+		.RenderCost = LEVIATHAN_RENDER_COST,
     .MaxSpawnedAtOnce = 15,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -146,7 +146,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// reaper
 	[MOB_SPAWN_PARAM_REAPER]
 	{
-		.Cost = REAPER_RENDER_COST,
+		.RenderCost = REAPER_RENDER_COST,
     .MaxSpawnedAtOnce = 10,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -181,7 +181,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// runner zombie
 	[MOB_SPAWN_PARAM_TREMOR]
 	{
-		.Cost = TREMOR_RENDER_COST,
+		.RenderCost = TREMOR_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -216,7 +216,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// normal zombie
 	[MOB_SPAWN_PARAM_NORMAL]
 	{
-		.Cost = ZOMBIE_RENDER_COST,
+		.RenderCost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -251,7 +251,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // swarmer
   [MOB_SPAWN_PARAM_SWARMER]
 	{
-		.Cost = SWARMER_RENDER_COST,
+		.RenderCost = SWARMER_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -327,37 +327,6 @@ SurvivalBakedConfig_t bakedConfig = {
     { .Type = BAKED_SPAWNPOINT_MYSTERY_BOX, .Params = 0, .Position = { 626.5102, 176.14, 338.7231 }, .Rotation = { 0, 0, -3.049145 } }
     
   }
-};
-
-//--------------------------------------------------------------------------
-u32 MobPrimaryColors[] = {
-  [MOB_SPAWN_PARAM_SWARMER] 0x00464443,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00464443,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x00464443,
-	[MOB_SPAWN_PARAM_REAPER]  0x00464443,
-	[MOB_SPAWN_PARAM_LEVIATHAN]	0x00464443,
-	[MOB_SPAWN_PARAM_LEVIATHAN_COMMON]	0x00464443,
-	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x00464443,
-};
-
-u32 MobSecondaryColors[] = {
-	[MOB_SPAWN_PARAM_SWARMER] 0x80808080,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x80202020,
-	[MOB_SPAWN_PARAM_REAPER]	0x80FF2020,
-	[MOB_SPAWN_PARAM_LEVIATHAN]	0x80FF2020,
-	[MOB_SPAWN_PARAM_LEVIATHAN_COMMON]	0x80FF2020,
-	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x80FF2020,
-};
-
-u32 MobLODColors[] = {
-	[MOB_SPAWN_PARAM_SWARMER] 0x00808080,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x00808080,
-	[MOB_SPAWN_PARAM_REAPER]	0x00808080,
-	[MOB_SPAWN_PARAM_LEVIATHAN]	0x00808080,
-	[MOB_SPAWN_PARAM_LEVIATHAN_COMMON]	0x00808080,
-	[MOB_SPAWN_PARAM_KING_LEVIATHAN]	0x00808080,
 };
 
 //--------------------------------------------------------------------------
