@@ -1786,6 +1786,18 @@ void runBounce(void)
   }
 }
 
+void printCameraOctant(void)
+{
+  float* cameraPos = (float*)0x0022CD00;
+  int xOctant = (int)(cameraPos[0] * 0.25);
+  int yOctant = (int)(cameraPos[1] * 0.25);
+  int zOctant = (int)(cameraPos[2] * 0.25);
+
+  char strBuf[64];
+  snprintf(strBuf, sizeof(strBuf), "%d %d %d", xOctant*4, yOctant*4, zOctant*4);
+  gfxScreenSpaceText(10, SCREEN_HEIGHT-10, 1, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT);
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -1833,14 +1845,7 @@ void runTestLogic(void)
 
     //runBounce();
 
-    float* cameraPos = (float*)0x0022CD00;
-    int xOctant = (int)(cameraPos[0] * 0.25);
-    int yOctant = (int)(cameraPos[1] * 0.25);
-    int zOctant = (int)(cameraPos[2] * 0.25);
-
-    char strBuf[64];
-    snprintf(strBuf, sizeof(strBuf), "%d %d %d", xOctant*4, yOctant*4, zOctant*4);
-    gfxScreenSpaceText(10, SCREEN_HEIGHT-10, 1, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT);
+    //printCameraOctant();
 
     // animate all mobys, always
     // POKE_U32(0x004AEC08, 0x0C12BD0C);
