@@ -22,6 +22,7 @@ Moby* mobLastInList = 0;
 extern struct SurvivalMapConfig* mapConfig;
 extern PatchConfig_t* playerConfig;
 
+int mobOrderedSkipOffset = 0;
 int mobOrderedDrawUpToIndex = MAX_MOBS_ALIVE;
 int mobComplexitySum = 0;
 
@@ -342,7 +343,7 @@ int mobyComputeComplexity(Moby * moby)
 
     // pull from spawn params
     if (pvars->MobVars.SpawnParamsIdx >= 0 && pvars->MobVars.SpawnParamsIdx < mapConfig->DefaultSpawnParamsCount) {
-      return mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].Cost;
+      return mapConfig->DefaultSpawnParams[pvars->MobVars.SpawnParamsIdx].RenderCost;
     }
   }
 
@@ -576,38 +577,24 @@ void mobHandleDraw(Moby* moby)
     }
   }
 
-  // dzo clients don't need draw optimization as much
-  // unfortunately the cost of each mob can cause problems on the VU
-  // so we are forced to stop animating some
+  // draw if mob is one of the closer ones to the player
+  int draw = pvars->MobVars.Order < mobOrderedDrawUpToIndex;
+  moby->DrawDist = 128;
+
+  // if dzo
+  // all mobs draw all the time
+  // so we want to rotate through them and animate them all
   if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO) {
-    minMobsForHiding = 30;
-    minRankForDrawCutoff = 0.25;
+    if (pvars->MobVars.Order >= (mobOrderedDrawUpToIndex >> 1)) {
+      int rotatedOrder = (pvars->MobVars.Order + mobOrderedSkipOffset) % State.MobStats.TotalAlive;
+      draw = rotatedOrder < (mobOrderedDrawUpToIndex >> 1);
+    }
   }
-  
-  if (1) {
-    moby->DrawDist = 128;
-    if (pvars->MobVars.Order >= mobOrderedDrawUpToIndex) {
-      if (pvars->VTable && pvars->VTable->PostDraw) {
-        gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
-        moby->DrawDist = 0;
-      }
-    }
-  } else {
-    int order = pvars->MobVars.Order;
-    moby->DrawDist = 128;
-    if (order >= 0) {
-      float rank = 1 - clamp(order / (float)State.RoundMaxSpawnedAtOnce, 0, 1);
-      //float rankCurve = powf(rank, 6);
-      
-      if (State.MobStats.TotalAlive > minMobsForHiding) {
-        if (rank < minRankForDrawCutoff) {
-          if (pvars->VTable && pvars->VTable->PostDraw) {
-            gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
-            moby->DrawDist = 0;
-          }
-        }
-      }
-    }
+
+  // draw lod sprite if no draw
+  if (!draw && pvars->VTable && pvars->VTable->PostDraw) {
+    gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
+    moby->DrawDist = 0;
   }
 }
 
@@ -943,8 +930,9 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   moby->PUpdate = &mobUpdate;
 
   // set boss moby
-  if (args.MobAttribute == MOB_ATTRIBUTE_BOSS)
+  if (args.MobAttribute == MOB_ATTRIBUTE_BOSS) {
     State.BossMoby = moby;
+  }
 
   // 
   moby->ModeBits |= 0x1030;
@@ -969,10 +957,12 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   // copy spawn params to config
   pvars->MobVars.SpawnParamsIdx = args.SpawnParamsIdx;
   struct MobSpawnParams* params = &mapConfig->DefaultSpawnParams[args.SpawnParamsIdx];
+  pvars->VTable = params->MobVTable;
   memcpy(&pvars->MobVars.Config, &params->Config, sizeof(struct MobConfig));
 
   // initialize mob vars
   pvars->MobVars.Config.MobAttribute = args.MobAttribute;
+  pvars->MobVars.Config.Behavior = args.Behavior;
   pvars->MobVars.Config.Bolts = args.Bolts;
 #if PAYDAY
   pvars->MobVars.Config.Bolts = 100000;
@@ -988,6 +978,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   pvars->MobVars.Config.Speed = (float)args.SpeedEighths / 8.0;
   pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount;
   pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
+  pvars->MobVars.Config.DamageCooldownTickCount = args.DamageCooldownTickCount;
   pvars->MobVars.Health = pvars->MobVars.Config.MaxHealth;
   pvars->MobVars.Order = -1;
   pvars->MobVars.TimeLastGroundedTicks = 0;
@@ -1195,7 +1186,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
     // handle stats
     pState->State.Kills++;
-    pState->State.KillsPerMob[pvars->MobVars.SpawnParamsIdx]++;
+    //pState->State.KillsPerMob[pvars->MobVars.SpawnParamsIdx]++;
     gameData->PlayerStats.Kills[(int)killedByPlayerId]++;
     int weaponSlotId = weaponIdToSlot(weaponId);
     if (weaponId > 0 && (weaponId != WEAPON_ID_WRENCH || weaponSlotId == WEAPON_SLOT_WRENCH))
@@ -1500,10 +1491,6 @@ int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
 //--------------------------------------------------------------------------
 void mobInitialize(void)
 {
-  // set vtable callbacks
-  *(u32*)0x003A0A84 = (u32)&getGuber;
-  *(u32*)0x003A0A94 = (u32)&handleEvent;
-
   // collision hit type
   //*(u32*)0x004bd1f0 = 0x08000000 | ((u32)&colHotspot / 4);
   //*(u32*)0x004bd1f4 = 0x00402021;
@@ -1701,6 +1688,12 @@ void mobTick(void)
         }
       }
     }
+  }
+
+  if (State.MobStats.TotalAlive > 0) {
+    mobOrderedSkipOffset = (mobOrderedSkipOffset + (mobOrderedDrawUpToIndex>>1)) % State.MobStats.TotalAlive;
+  } else {
+    mobOrderedSkipOffset = 0;
   }
 
 #if PRINT_MOB_COMPLEXITY

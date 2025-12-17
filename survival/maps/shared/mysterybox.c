@@ -985,6 +985,7 @@ int mboxCreate(VECTOR position, VECTOR rotation)
   return guberEvent != NULL;
 }
 
+//--------------------------------------------------------------------------
 void mboxSpawn(void)
 {
   static int spawned = 0;
@@ -1005,6 +1006,7 @@ void mboxSpawn(void)
   spawned = 1;
 }
 
+//--------------------------------------------------------------------------
 void mboxInit(void)
 {
   Moby* temp = mobySpawn(MYSTERY_BOX_OCLASS, 0);

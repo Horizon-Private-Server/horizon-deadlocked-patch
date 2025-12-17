@@ -1,5 +1,6 @@
 #include "include/utils.h"
 #include "include/game.h"
+#include "include/mob.h"
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
@@ -247,17 +248,15 @@ float getSignedSlope(VECTOR forward, VECTOR normal)
 int mobyIsMob(Moby* moby)
 {
   if (!moby) return 0;
+  if (!mapConfig) return 0;
 
-  return moby->OClass == ZOMBIE_MOBY_OCLASS
-    || moby->OClass == EXECUTIONER_MOBY_OCLASS
-    || moby->OClass == EXECUTIONER2_MOBY_OCLASS
-    || moby->OClass == TREMOR_MOBY_OCLASS
-    || moby->OClass == SWARMER_MOBY_OCLASS
-    || moby->OClass == SWARMER2_MOBY_OCLASS
-    || moby->OClass == REACTOR_MOBY_OCLASS
-    || moby->OClass == REAPER_MOBY_OCLASS
-    || moby->OClass == LEVIATHAN_MOBY_OCLASS
-    ;
+  int i;
+  for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i) {
+    if (mapConfig->DefaultSpawnParams[i].OClass == moby->OClass)
+      return 1;
+  }
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------

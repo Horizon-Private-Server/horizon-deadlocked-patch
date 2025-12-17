@@ -221,8 +221,6 @@ int upgradeHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// 
 	//moby->ModeBits |= 0x30;
-	//moby->GlowRGBA = MobSecondaryColors[(int)args.MobType];
-	//moby->PrimaryColor = MobPrimaryColors[(int)args.MobType];
 	moby->CollData = NULL;
 	moby->DrawDist = 0;
   moby->ModeBits = 0;

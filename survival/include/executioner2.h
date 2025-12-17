@@ -34,6 +34,10 @@
 #define EXECUTIONER2_FLINCH_PROBABILITY              (0.05)
 #define EXECUTIONER2_FLINCH_PROBABILITY_PWR_FACTOR   (0.02)
 
+#define EXECUTIONER2_PRIMARY_COLOR                  (0x00464443)
+#define EXECUTIONER2_GLOW_COLOR                     (0x80202020)
+#define EXECUTIONER2_LOD_COLOR                      (0x000000FF)
+
 enum Executioner2AnimId
 {
   EXECUTIONER2_ANIM_IDLE,
@@ -95,5 +99,9 @@ typedef struct Executioner2MobVars
   int AnimationLoopLastFire;
   u8 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
 } Executioner2MobVars_t;
+
+int executioner2Create(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
+
+extern struct MobVTable Executioner2VTable;
 
 #endif // SURVIVAL_MOB_EXECUTIONER2_H

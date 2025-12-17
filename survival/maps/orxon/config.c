@@ -114,7 +114,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// executioner
 	[MOB_SPAWN_PARAM_TITAN]
 	{
-		.Cost = EXECUTIONER_RENDER_COST,
+		.RenderCost = EXECUTIONER_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -151,7 +151,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// ghost zombie
 	[MOB_SPAWN_PARAM_GHOST]
 	{
-		.Cost = ZOMBIE_RENDER_COST,
+		.RenderCost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -186,7 +186,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// explode zombie
 	[MOB_SPAWN_PARAM_EXPLOSION]
 	{
-		.Cost = ZOMBIE_RENDER_COST,
+		.RenderCost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -221,7 +221,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// acid zombie
 	[MOB_SPAWN_PARAM_ACID]
 	{
-		.Cost = ZOMBIE_RENDER_COST,
+		.RenderCost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -256,7 +256,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// freeze zombie
 	[MOB_SPAWN_PARAM_FREEZE]
 	{
-		.Cost = ZOMBIE_RENDER_COST,
+		.RenderCost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -291,7 +291,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// runner zombie
 	[MOB_SPAWN_PARAM_TREMOR]
 	{
-		.Cost = TREMOR_RENDER_COST,
+		.RenderCost = TREMOR_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -326,7 +326,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// normal zombie
 	[MOB_SPAWN_PARAM_NORMAL]
 	{
-		.Cost = ZOMBIE_RENDER_COST,
+		.RenderCost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -361,7 +361,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
   // swarmer
   [MOB_SPAWN_PARAM_SWARMER]
 	{
-		.Cost = SWARMER_RENDER_COST,
+		.RenderCost = SWARMER_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -432,40 +432,6 @@ SurvivalBakedConfig_t bakedConfig = {
     { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 409.4999, 614, 434.0144 }, .Rotation = { 0, 0, -1.570796 } },
     { .Type = BAKED_SPAWNPOINT_STACK_BOX, .Params = 0, .Position = { 409.4999, 621, 434.0144 }, .Rotation = { 0, 0, -1.570796 } }
   }
-};
-
-//--------------------------------------------------------------------------
-u32 MobPrimaryColors[] = {
-  [MOB_SPAWN_PARAM_SWARMER] 0x00464443,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00464443,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x00464443,
-	[MOB_SPAWN_PARAM_FREEZE] 	0x00804000,
-	[MOB_SPAWN_PARAM_ACID] 		0x00464443,
-	[MOB_SPAWN_PARAM_EXPLOSION] 0x00202080,
-	[MOB_SPAWN_PARAM_GHOST] 	0x00464443,
-	[MOB_SPAWN_PARAM_TITAN]		0x00464443,
-};
-
-u32 MobSecondaryColors[] = {
-	[MOB_SPAWN_PARAM_SWARMER] 0x80202020,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x80202020,
-	[MOB_SPAWN_PARAM_FREEZE] 	0x80FF2000,
-	[MOB_SPAWN_PARAM_ACID] 		0x8000FF00,
-	[MOB_SPAWN_PARAM_EXPLOSION] 0x000040C0,
-	[MOB_SPAWN_PARAM_GHOST] 	0x80202020,
-	[MOB_SPAWN_PARAM_TITAN]		0x80FF2020,
-};
-
-u32 MobLODColors[] = {
-	[MOB_SPAWN_PARAM_SWARMER] 0x00808080,
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x00808080,
-	[MOB_SPAWN_PARAM_FREEZE] 	0x00F08000,
-	[MOB_SPAWN_PARAM_ACID] 		0x0000F000,
-	[MOB_SPAWN_PARAM_EXPLOSION] 0x004040F0,
-	[MOB_SPAWN_PARAM_GHOST] 	0x00464443,
-	[MOB_SPAWN_PARAM_TITAN]		0x00808080,
 };
 
 //--------------------------------------------------------------------------

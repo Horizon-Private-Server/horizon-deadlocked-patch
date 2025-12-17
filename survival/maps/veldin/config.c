@@ -18,7 +18,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// reaper
   [MOB_SPAWN_PARAM_REAPER]
 	{
-		.Cost = REAPER_RENDER_COST,
+		.RenderCost = REAPER_RENDER_COST,
     .MaxSpawnedAtOnce = 20,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -53,7 +53,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// runner zombie
 	[MOB_SPAWN_PARAM_TREMOR]
 	{
-		.Cost = TREMOR_RENDER_COST,
+		.RenderCost = TREMOR_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -88,7 +88,7 @@ struct MobSpawnParams defaultSpawnParams[] = {
 	// normal zombie
 	[MOB_SPAWN_PARAM_NORMAL]
 	{
-		.Cost = ZOMBIE_RENDER_COST,
+		.RenderCost = ZOMBIE_RENDER_COST,
     .MaxSpawnedAtOnce = 0,
     .MaxSpawnedPerRound = 0,
     .SpecialRoundOnly = 0,
@@ -146,25 +146,6 @@ SurvivalBakedConfig_t bakedConfig = {
     { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 220.27, 407.47, 86.02 }, .Rotation = { 0, 0, -3.141592 } },
     { .Type = BAKED_SPAWNPOINT_DEMON_BELL, .Params = 0, .Position = { 220.27, 404.4699, 86.02 }, .Rotation = { 0, 0, -3.141592 } }
   }
-};
-
-//--------------------------------------------------------------------------
-u32 MobPrimaryColors[] = {
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00464443,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x00464443,
-	[MOB_SPAWN_PARAM_REAPER] 	0x00464443,
-};
-
-u32 MobSecondaryColors[] = {
-	[MOB_SPAWN_PARAM_NORMAL] 	0x80202020,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x80202020,
-	[MOB_SPAWN_PARAM_REAPER] 	0x80808080,
-};
-
-u32 MobLODColors[] = {
-	[MOB_SPAWN_PARAM_NORMAL] 	0x00808080,
-	[MOB_SPAWN_PARAM_TREMOR] 	0x00808080,
-	[MOB_SPAWN_PARAM_REAPER] 	0x80808080,
 };
 
 //--------------------------------------------------------------------------
