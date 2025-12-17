@@ -1,7 +1,7 @@
 
 EE_ELF = survival-11184.elf
 EE_BIN = survival-11184.bin
-EE_OBJS = main.o mob.o utils.o config.o demonbell.o bubble.o stats.o
+EE_OBJS = main.o mob.o utils.o config.o bubble.o stats.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
@@ -52,10 +52,10 @@ EE_DEFS += -DMOB_NO_DAMAGE
 #EE_DEFS += -DLOG_STATS2
 EE_DEFS += -DMAX_MOBS_ROUND_WEIGHT=10
 else ifeq ($(BUILD_CONFIG),TEST)
-EE_DEFS := -DRELEASE -DTEST -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643 -DDROPS1 -DUPGRADES -DDEMONBELL -DSHARED_BOLTS -DSHARED_XP
-#EE_DEFS += -DSTARTROUND=50
+EE_DEFS := -DRELEASE -DTEST -DMOB_CORN -DAUTOSTART -DVENDOR_OCLASS=0x263A -DBIGAL_OCLASS=0x2124 -DPRESTIGEMACHINE_OCLASS=0x2643 -DDROPS1 -DUPGRADES -DSHARED_BOLTS -DSHARED_XP
+#EE_DEFS += -DSTARTROUND=26
 EE_DEFS += -DMOB_NO_DAMAGE
-#EE_DEFS += -DDISABLE_SPAWNING
+EE_DEFS += -DDISABLE_SPAWNING
 #EE_DEFS += -DMANUAL_SPAWN
 #EE_DEFS += -DMANUAL_DROP_SPAWN
 EE_DEFS += -DPAYDAY
@@ -70,7 +70,7 @@ endif
 
 .PHONY: all maps orxon mpass valix torval
 
-all: mode maps clean
+all: mode clean
 
 mode: $(EE_BIN) copy
 
@@ -99,11 +99,6 @@ stats:
 
 clean: 
 	rm -f *.irx *.o
-	cd maps/orxon && $(MAKE) clean
-	cd maps/mpass && $(MAKE) clean
-	cd maps/veldin && $(MAKE) clean
-	cd maps/valix && $(MAKE) clean
-	cd maps/torval && $(MAKE) clean
  
 include $(CURDIR)/../Makefile.pref
 include $(CURDIR)/../Makefile.eeglobal

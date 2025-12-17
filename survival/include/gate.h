@@ -9,7 +9,7 @@
 #include <libdl/math3d.h>
 
 #define GATE_OCLASS                           (0x1F6)
-#define GATE_MAX_COUNT                        (16)
+#define GATE_MAX_COUNT                        (32)
 #define GATE_INTERACT_RADIUS                  (4)
 #define GATE_INTERACT_CAP_RADIUS              (-1)
 #define PLAYER_GATE_COOLDOWN_TICKS            (15)

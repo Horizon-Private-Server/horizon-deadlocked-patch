@@ -213,7 +213,8 @@ const int lodPatchesPotato[][2] = {
   { 0x0041d404, 0x00000000 },
   { 0x003F7154, 0x00000000 }, // disable b6 ball shadow
   { 0x003A18F0, 0x24020000 }, // disable b6 particles
-  { 0x0042EA50, 0x24020000 }, // disable mag particles
+  { 0x0042e9f0, 0x03E00008 }, // disable mag particles
+  { 0x0042e9f4, 0x0000102D }, // disable mag particles
   { 0x0043C150, 0x24020000 }, // disable mag shells
   { 0x003A18F0, 0x24020000 }, // disable fusion shot particles
   { 0x0042608C, 0x00000000 }, // disable jump pad blur effect
@@ -226,10 +227,25 @@ const int lodPatchesNormal[][2] = {
   { 0x0041d404, 0x7FB00060 },
   { 0x003F7154, 0x0C140F40 }, // enable b6 ball shadow
   { 0x003A18F0, 0x0C13DC80 }, // enable b6 particles
-  { 0x0042EA50, 0x0C13DC80 }, // enable mag particles
+  { 0x0042e9f0, 0x27BDFF80 }, // enable mag particles
+  { 0x0042e9f4, 0x7FB30010 }, // enable mag particles
   { 0x0043C150, 0x0C13DC80 }, // enable mag shells
   { 0x003A18F0, 0x0C13DC80 }, // enable fusion shot particles
   { 0x0042608C, 0x0C131194 }, // enable jump pad blur effect
+};
+
+const int lodPatchesSurvival[][2] = {
+  { 0x0050e318, 0x03E00008 }, // disable corn
+  { 0x0050e31c, 0x00000000 },
+  //{ 0x0041d400, 0x03E00008 }, // disable small weapon explosion
+  //{ 0x0041d404, 0x00000000 },
+  { 0x003F7154, 0x00000000 }, // disable b6 ball shadow
+  { 0x003A18F0, 0x24020000 }, // disable b6 particles
+  //{ 0x0042e9f0, 0x03E00008 }, // disable mag particles
+  //{ 0x0042e9f4, 0x0000102D }, // disable mag particles
+  { 0x0043C150, 0x24020000 }, // disable mag shells
+  { 0x003A18F0, 0x24020000 }, // disable fusion shot particles
+  { 0x0042608C, 0x00000000 }, // disable jump pad blur effect
 };
 
 
@@ -855,6 +871,8 @@ void patchLevelOfDetail(void)
 
     // correct lod
     int lodChanged = lod != lastLodLevel;
+    int lodPatchesCount = 0;
+    int* lodPatches = NULL;
     switch (lod)
     {
       case 0: // potato
@@ -864,14 +882,14 @@ void patchLevelOfDetail(void)
         *DRAW_SHADOW_FUNC = 0x03E00008;
         *(DRAW_SHADOW_FUNC + 1) = 0;
 
+        lodPatchesCount = sizeof(lodPatchesPotato) / (2 * sizeof(int));
+        lodPatches = lodPatchesPotato;
+
         if (lodChanged)
         {
           // set terrain and tie render distance
           POKE_U16(0x00223158, 120);
           *(float*)0x002230F0 = 120 * 1024;
-
-          for (i = 0; i < sizeof(lodPatchesPotato) / (2 * sizeof(int)); ++i)
-            POKE_U32(lodPatchesPotato[i][0], lodPatchesPotato[i][1]);
         }
         break;
       }
@@ -882,14 +900,14 @@ void patchLevelOfDetail(void)
         *DRAW_SHADOW_FUNC = 0x03E00008;
         *(DRAW_SHADOW_FUNC + 1) = 0;
 
+        lodPatchesCount = sizeof(lodPatchesNormal) / (2 * sizeof(int));
+        lodPatches = lodPatchesNormal;
+
         if (lodChanged)
         {
           // set terrain and tie render distance
           POKE_U16(0x00223158, 480);
           *(float*)0x002230F0 = 480 * 1024;
-
-          for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-            POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
 
           // disable jump pad blur
           POKE_U32(0x0042608C, 0);
@@ -905,14 +923,14 @@ void patchLevelOfDetail(void)
         POKE_U16(0x00223158, 960);
         *(float*)0x002230F0 = 960 * 1024;
 
+        lodPatchesCount = sizeof(lodPatchesNormal) / (2 * sizeof(int));
+        lodPatches = lodPatchesNormal;
+
         if (lodChanged)
         {
           // set terrain and tie render distance
           POKE_U16(0x00223158, 960);
           *(float*)0x002230F0 = 960 * 1024;
-
-          for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-            POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
         }
         break;
       }
@@ -923,9 +941,22 @@ void patchLevelOfDetail(void)
         *DRAW_SHADOW_FUNC = 0x27BDFF90;
         *(DRAW_SHADOW_FUNC + 1) = 0xFFB30038;
 
-        for (i = 0; i < sizeof(lodPatchesNormal) / (2 * sizeof(int)); ++i)
-          POKE_U32(lodPatchesNormal[i][0], lodPatchesNormal[i][1]);
+        lodPatchesCount = sizeof(lodPatchesNormal) / (2 * sizeof(int));
+        lodPatches = lodPatchesNormal;
         break;
+      }
+    }
+
+    // use fixed-survival patches
+    if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) {
+      lodPatchesCount = sizeof(lodPatchesSurvival) / (2 * sizeof(int));
+      lodPatches = lodPatchesSurvival;
+    }
+
+    // apply patches
+    if (lodChanged && lodPatchesCount > 0 && lodPatches) {
+      for (i = 0; i < lodPatchesCount; ++i) {
+        POKE_U32(lodPatches[i*2], lodPatches[i*2 + 1]);
       }
     }
   }
@@ -5518,8 +5549,8 @@ void onOnlineMenu(void)
   // 
   if (showNeedLatestMapsPopup)
   {
-    sprintf(buf, "Please download the latest custom maps to play.");
-    uiShowOkDialog("Custom Maps", buf);
+    sprintf(buf, "Please download the latest Survival maps to play.");
+    uiShowOkDialog("Custom Map Out-of-Date", buf);
 
     showNeedLatestMapsPopup = 0;
   }

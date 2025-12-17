@@ -399,45 +399,6 @@ void drawSnack(void)
 }
 
 //--------------------------------------------------------------------------
-struct GuberMoby* getGuber(Moby* moby)
-{
-  if (!moby) return NULL;
-
-  if (moby->OClass == UPGRADE_MOBY_OCLASS && moby->PVar)
-    return moby->GuberMoby;
-  if (moby->OClass == DROP_MOBY_OCLASS && moby->PVar)
-    return moby->GuberMoby;
-  if (moby->OClass == DEMONBELL_MOBY_OCLASS && moby->PVar)
-    return moby->GuberMoby;
-  if (mobyIsMob(moby))
-    return moby->GuberMoby;
-  if (mapConfig && mapConfig->OnUnhandledGetGuberFunc)
-    return mapConfig->OnUnhandledGetGuberFunc(moby);
-  
-  return 0;
-}
-
-//--------------------------------------------------------------------------
-int handleEvent(Moby* moby, GuberEvent* event)
-{
-  if (!moby || !event || !isInGame())
-    return 0;
-
-  if (mobyIsMob(moby))
-    return mobHandleEvent(moby, event);
-
-  switch (moby->OClass)
-  {
-    case DROP_MOBY_OCLASS: if (!mapConfig || !mapConfig->OnMobDropEventFunc) { return 0; } return mapConfig->OnMobDropEventFunc(moby, event);
-    case UPGRADE_MOBY_OCLASS: if (!mapConfig || !mapConfig->OnUpgradePickupEventFunc) { return 0; } return mapConfig->OnUpgradePickupEventFunc(moby, event);
-    case DEMONBELL_MOBY_OCLASS: return demonbellHandleEvent(moby, event);
-    default: if (!mapConfig || !mapConfig->OnUnhandledGuberEventFunc) { return 0; } return mapConfig->OnUnhandledGuberEventFunc(moby, event);
-  }
-
-  return 0;
-}
-
-//--------------------------------------------------------------------------
 int shouldDrawHud(void)
 {
   PlayerHUDFlags* hudFlags = hudGetPlayerFlags(0);
@@ -537,24 +498,6 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
   if (hasMapConfig() && mapConfig->OnPlayerGetResFunc && mapConfig->OnPlayerGetResFunc(player, outPos, outRot, firstRes))
     return;
 
-  // spawn at player start
-  SurvivalBakedConfig_t* bakedConfig = mapConfig->BakedConfig;
-  if (bakedConfig) {
-    for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
-      if (bakedConfig->BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_PLAYER_START) {
-
-        memcpy(outPos, bakedConfig->BakedSpawnPoints[i].Position, 12);
-        memcpy(outRot, bakedConfig->BakedSpawnPoints[i].Rotation, 12);
-
-        float theta = player->PlayerId / (float)GAME_MAX_PLAYERS;
-        vector_fromyaw(t, theta * MATH_PI * 2);
-        vector_scale(t, t, 2.5);
-        vector_add(outPos, outPos, t);
-        return;
-      }
-    }
-  }
-
   // pass to base if we don't have a player start
   playerGetSpawnpoint(player, outPos, outRot, firstRes);
 }
@@ -617,16 +560,15 @@ void onMobyDestroyedCleanupAnimLayers(Moby* moby)
 int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 {
   VECTOR t;
-  int spCount = spawnPointGetCount();
   int i;
   float bestPointDist = 100000;
   float minDistSqr = minDist * minDist;
+  int* spIndices = NULL;
+  int spCount = mapConfig->GetSpawnPointsFunc(&spIndices);
+  if (!spCount || !spIndices) return 0;
 
   for (i = 0; i < spCount; ++i) {
-    if (!spawnPointIsPlayer(i))
-      continue;
-      
-    SpawnPoint* sp = spawnPointGet(i);
+    SpawnPoint* sp = spawnPointGet(spIndices[i]);
     vector_subtract(t, (float*)&sp->M0[12], point);
     float d = vector_sqrmag(t);
     if (d >= minDistSqr) {
@@ -649,23 +591,23 @@ int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist)
 int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minDist)
 {
   VECTOR t;
-  int spCount = spawnPointGetCount();
   int i,j;
   int found = 0;
   float bestPointDistSqr[SPAWNPOINT_NEAR_BUFFER_SIZE] = {100000,100000,100000};
   int bestPoints[SPAWNPOINT_NEAR_BUFFER_SIZE] = {-1,-1,-1};
   float minDistSqr = minDist * minDist;
   //Player** players = playerGetAll();
+  int* spIndices = NULL;
+  int spCount = mapConfig->GetSpawnPointsFunc(&spIndices);
+  if (!spCount || !spIndices) return 0;
 
   // pick random player
   Player* player = playerGetRandom();
   if (!player) return 0;
 
   for (i = 0; i < spCount; ++i) {
-    if (!spawnPointIsPlayer(i))
-      continue;
-
-    SpawnPoint* sp = spawnPointGet(i);
+    int spIdx = spIndices[i];
+    SpawnPoint* sp = spawnPointGet(spIdx);
 
     // get closest sqr dist to player
     vector_subtract(t, (float*)&sp->M0[12], player->PlayerPosition);
@@ -676,7 +618,7 @@ int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minD
 
     if (d >= minDistSqr) {
       if (found < SPAWNPOINT_NEAR_BUFFER_SIZE) {
-        bestPoints[found] = i;
+        bestPoints[found] = spIdx;
         bestPointDistSqr[found] = d;
         found++;
       } else {
@@ -691,7 +633,7 @@ int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minD
         }
 
         if (d < largestIdxSqrDist) {
-          bestPoints[largestIdx] = i;
+          bestPoints[largestIdx] = spIdx;
           bestPointDistSqr[largestIdx] = d;
         }
       }
@@ -716,7 +658,7 @@ int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minD
     //vector_scale(t, t, 3);
     //vector_add(out, out, t);
   }
-
+  
   return found;
 }
 
@@ -831,7 +773,9 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   output->SpeedEighths = (u16)(speed * 8);
   output->ReactionTickCount = (u8)config->ReactionTickCount;
   output->AttackCooldownTickCount = (u8)config->AttackCooldownTickCount;
+  output->DamageCooldownTickCount = (u16)config->DamageCooldownTickCount;
   output->MobAttribute = config->MobAttribute;
+  output->Behavior = config->Behavior;
 }
 
 //--------------------------------------------------------------------------
@@ -2076,12 +2020,12 @@ void processPlayer(int pIndex) {
       // increment DeathsByMob if we were killed by a mob
       if (player->PlayerMoby->CollDamage >= 0) {
         MobyColDamage* damage = mobyGetDamage(player->PlayerMoby, 0xFFFFFF, 1);
-        if (damage && mobyIsMob(damage->Damager)) {
-          struct MobPVar* pvars = (struct MobPVar*)damage->Damager->PVar;
-          if (pvars) {
-            playerData->State.DeathsByMob[pvars->MobVars.SpawnParamsIdx] += 1;
-          }
-        }
+        // if (damage && mobyIsMob(damage->Damager)) {
+        //   struct MobPVar* pvars = (struct MobPVar*)damage->Damager->PVar;
+        //   if (pvars) {
+        //     playerData->State.DeathsByMob[pvars->MobVars.SpawnParamsIdx] += 1;
+        //   }
+        // }
       }
 
       if (playerData->State.Item == MYSTERY_BOX_ITEM_REVIVE_TOTEM) {
@@ -2550,11 +2494,6 @@ void onSetRoundStart(int roundNumber, int gameTime)
   int i;
   Player** players = playerGetAll();
 
-  if (State.RoundNumber != roundNumber) {
-    State.RoundDemonBellCount = 0;
-    demonbellOnRoundChanged(roundNumber);
-  }
-
   // 
   State.RoundNumber = roundNumber;
   State.RoundEndTime = gameTime;
@@ -2896,7 +2835,7 @@ void spawnUpgrades(void)
   // spawn
   for (i = 0; i < sizeof(UpgradesEnabled); ++i) {
     int upgradeId = UpgradesEnabled[i];
-    int bakedSpIdx = upgradeBakedSpawnpointIdx[upgradeId];
+    int bakedSpIdx = upgradeBakedSpawnpointIdx[i];
     if (bakedSpIdx < 0)
       continue;
 
@@ -2909,26 +2848,8 @@ void spawnUpgrades(void)
     memcpy(rot, sp->Rotation, sizeof(float)*3);
 
     // spawn
-    if (mapConfig && mapConfig->CreateUpgradePickupFunc)
+    if (mapConfig && mapConfig->CreateUpgradePickupFunc) {
       mapConfig->CreateUpgradePickupFunc(pos, rot, upgradeId);
-  }
-}
-
-//--------------------------------------------------------------------------
-void spawnDemonBell(void)
-{
-  int i;
-  
-  // only spawn if host
-  if (!gameAmIHost())
-    return;
-
-  // count number of baked spawnpoints used for upgrade
-  SurvivalBakedConfig_t* bakedConfig = mapConfig->BakedConfig;
-  for (i = 0; i < BAKED_SPAWNPOINT_COUNT; ++i) {
-    if (bakedConfig->BakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_DEMON_BELL) {
-      demonbellCreate(bakedConfig->BakedSpawnPoints[i].Position, State.DemonBellCount);
-      State.DemonBellCount += 1;
     }
   }
 }
@@ -3022,6 +2943,14 @@ void initialize(PatchStateContainer_t* gameState)
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       State.PlayerStates[i].State.Item = -1;
     }
+  } else {
+    State.Vendor = NULL;
+    State.Bankbox = NULL;
+    State.BigAl = NULL;
+    State.BossMoby = NULL;
+    State.PrestigeMachine = NULL;
+    State.MysteryBoxMoby = NULL;
+    memset(State.UpgradeMobies, 0, sizeof(State.UpgradeMobies));
   }
 
   // disable randomize weapons on respawn
@@ -3177,6 +3106,7 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->ModeSetDoubleXPFunc = &setDoubleXP;
   mapConfig->ModeSetFreezeMobsFunc = &setFreeze;
   mapConfig->ModeRevivePlayerFunc = &playerRevive;
+  mapConfig->OnGuberEventFunc = &mobHandleEvent;
 
   // custom damage cooldown time
   //POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
@@ -3226,7 +3156,6 @@ void initialize(PatchStateContainer_t* gameState)
 
   // 
   mobInitialize();
-  demonbellInitialize();
 
   //
   memset(playerStates, 0, sizeof(playerStates));
@@ -3297,7 +3226,7 @@ void initialize(PatchStateContainer_t* gameState)
       p->GadgetBox->ModBasic[5] = 64;
       p->GadgetBox->ModBasic[6] = 64;
       p->GadgetBox->ModBasic[7] = 64;
-      State.PlayerStates[i].State.Bolts = 10000000;
+      State.PlayerStates[i].State.Bolts = 100000000;
 #endif
 
       ++State.ActivePlayerCount;
@@ -3350,11 +3279,6 @@ void initialize(PatchStateContainer_t* gameState)
 #if UPGRADES
   // spawn upgrades
   spawnUpgrades();
-#endif
-
-#if DEMONBELL
-  // spawn demonbell
-  spawnDemonBell();
 #endif
 
   State.Bankbox = NULL;
@@ -3465,13 +3389,8 @@ void updateGameState(PatchStateContainer_t * gameState)
     gameState->CustomGameStatsSize = sizeof(struct SurvivalGameData);
     struct SurvivalGameData* sGameData = (struct SurvivalGameData*)gameState->CustomGameStats->Payload;
     sGameData->RoundNumber = State.RoundNumber;
-    sGameData->Version = 0x00000006;
+    sGameData->Version = 0x00000007;
     sGameData->Round50Time = State.Round50Time;
-
-    // set mob ids
-    for (i = 0; i < mapConfig->DefaultSpawnParamsCount && i < MAX_MOB_SPAWN_PARAMS; ++i) {
-      sGameData->MobIds[i] = (short)mapConfig->DefaultSpawnParams[i].StatId;
-    }
 
     // set per player stats
     for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -3481,19 +3400,6 @@ void updateGameState(PatchStateContainer_t * gameState)
       sGameData->TimesRevived[i] = State.PlayerStates[i].State.TimesRevived;
       sGameData->Points[i] = State.PlayerStates[i].State.TotalBolts * ((mapConfig && mapConfig->BakedConfig) ? mapConfig->BakedConfig->BoltRankMultiplier : 1);
       sGameData->BestRound[i] = State.PlayerStates[i].State.BestRound;
-      sGameData->TimesRolledMysteryBox[i] = State.PlayerStates[i].State.TimesRolledMysteryBox;
-      sGameData->TimesActivatedDemonBell[i] = State.PlayerStates[i].State.TimesActivatedDemonBell;
-      sGameData->TimesActivatedPower[i] = State.PlayerStates[i].State.TimesActivatedPower;
-      sGameData->TokensUsedOnGates[i] = State.PlayerStates[i].State.TokensUsedOnGates;
-
-      for (j = 0; j < 8; ++j) {
-        sGameData->AlphaMods[i][j] = (u8)State.PlayerStates[i].State.AlphaMods[j];
-      }
-
-      memcpy(sGameData->BestWeaponLevel[i], State.PlayerStates[i].State.BestWeaponLevel, sizeof(State.PlayerStates[i].State.BestWeaponLevel));
-      memcpy(sGameData->KillsPerMob[i], State.PlayerStates[i].State.KillsPerMob, sizeof(State.PlayerStates[i].State.KillsPerMob));
-      memcpy(sGameData->DeathsByMob[i], State.PlayerStates[i].State.DeathsByMob, sizeof(State.PlayerStates[i].State.DeathsByMob));
-      memcpy(sGameData->PlayerUpgrades[i], State.PlayerStates[i].State.Upgrades, sizeof(State.PlayerStates[i].State.Upgrades));
     }
   }
 }
@@ -3721,7 +3627,9 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       t[0] += 5;
 
       State.DropCooldownTicks = 0;
-      if (mapConfig && mapConfig->CreateMobDropFunc) mapConfig->CreateMobDropFunc(t, (enum DropType)manSpawnDropId, gameGetTime() + (30 * TIME_SECOND), localPlayer->Team);
+      if (mapConfig && mapConfig->CreateMobDropFunc)
+        mapConfig->CreateMobDropFunc(t, (enum DropType)manSpawnDropId, gameGetTime() + (30 * TIME_SECOND), localPlayer->Team);
+
       ++manSpawnDropIdx;
     }
   }
