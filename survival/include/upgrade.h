@@ -26,12 +26,6 @@ enum UpgradeType {
 	UPGRADE_COUNT
 };
 
-enum UpgradeEventType {
-	UPGRADE_EVENT_SPAWN,
-	UPGRADE_EVENT_DESTROY,
-	UPGRADE_EVENT_PICKUP
-};
-
 struct UpgradePVar {
 	enum UpgradeType Type;
   int Uses;
@@ -39,27 +33,6 @@ struct UpgradePVar {
 	struct PartInstance* Particles[4];
 };
 
-struct UpgradeSpawnEventArgs
-{
-	enum UpgradeType Type;
-};
-
-struct UpgradeDestroyedEventArgs
-{
-	
-};
-
-struct UpgradePickupEventArgs
-{
-	int PickedUpByPlayerId;
-};
-
 int UpgradeMax[UPGRADE_COUNT];
-
-void upgradeTick(void);
-void upgradeInit(void);
-int upgradeHandleEvent(Moby* moby, GuberEvent* event);
-int upgradeCreate(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
-void upgradePickup(Moby* moby, int pickedUpByPlayerId);
 
 #endif // SURVIVAL_UPGRADE_H

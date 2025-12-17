@@ -24,6 +24,20 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
+struct PartInstance {	
+	char IClass;
+	char Type;
+	char Tex;
+	char Alpha;
+	u32 RGBA;
+	char Rot;
+	char DrawDist;
+	short Timer;
+	float Scale;
+	VECTOR Position;
+	int Update[8];
+};
+
 void setFreeze(int isActive);
 void setDoublePoints(int isActive);
 void setDoubleXP(int isActive);

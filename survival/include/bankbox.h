@@ -24,7 +24,4 @@ struct BankBoxPVar
   int BoltsDepositThisRound;
 };
 
-void bboxSpawn(void);
-void bboxInit(void);
-
 #endif // SURVIVAL_BANK_BOX_H

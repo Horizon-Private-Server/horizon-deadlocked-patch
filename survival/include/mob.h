@@ -7,14 +7,6 @@
 #include <libdl/time.h>
 #include <libdl/player.h>
 #include <libdl/sound.h>
-#include "zombie.h"
-#include "executioner.h"
-#include "executioner2.h"
-#include "reactor.h"
-#include "tremor.h"
-#include "swarmer.h"
-#include "reaper.h"
-#include "leviathan.h"
 #include "game.h"
 
 enum MobAttributeType

@@ -40,12 +40,10 @@
 #include "messageid.h"
 #include "config.h"
 #include "include/mob.h"
-#include "include/drop.h"
 #include "include/bubble.h"
 #include "include/game.h"
 #include "include/stats.h"
 #include "include/utils.h"
-#include "include/gate.h"
 
 #define DIFFICULTY_FACTOR                   (State.MobStats.TotalSpawned / 100)
 #define SPAWNPOINT_NEAR_BUFFER_SIZE         (3)
