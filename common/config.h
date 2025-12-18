@@ -14,7 +14,7 @@
 #define PATCH_POINTERS_QUICKCHAT  (*(u8*)(0x000CFFC0 + 11))
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
-#define CMODE_SURVIVAL_VERSION    (5)
+#define CMODE_SURVIVAL_VERSION    (6)
 #define CMODE_RAIDS_VERSION       (0)
 
 struct CustomMapDef;
