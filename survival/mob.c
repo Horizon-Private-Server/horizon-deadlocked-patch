@@ -903,6 +903,7 @@ GuberEvent* mobCreateEvent(Moby* moby, u32 eventType)
 int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 {
   VECTOR p;
+  u16 p16[3];
   float yaw;
   int i;
   int spawnFromUID;
@@ -914,12 +915,18 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   int fromThisClient = event->NetEvent.OriginClientIdx == gameGetMyClientId();
 
   // read event
-  guberEventRead(event, p, 12);
+  guberEventRead(event, p16, 6);
+  //guberEventRead(event, p, 12);
   guberEventRead(event, &yaw, 4);
   guberEventRead(event, &spawnFromUID, 4);
   guberEventRead(event, &spawnFlags, 4);
   guberEventRead(event, &random, 1);
   guberEventRead(event, &args, sizeof(struct MobSpawnEventArgs));
+
+  // unpack 16 bit position
+  p[0] = p16[0] / 64.0;
+  p[1] = p16[1] / 64.0;
+  p[2] = p16[2] / 64.0;
 
   // set position and rotation
   vector_copy(moby->Position, p);

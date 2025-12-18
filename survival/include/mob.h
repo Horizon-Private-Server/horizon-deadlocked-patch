@@ -62,6 +62,8 @@ struct MobStateUpdateEventArgs;
 typedef void (*MobGenericCallback_func)(Moby* moby);
 typedef Moby* (*MobGetNextTarget_func)(Moby* moby);
 typedef int (*MobGetPreferredAction_func)(Moby* moby, int * delayTicks);
+typedef int (*MobGetExtraDataSize_func)(int spawnParamsIdx);
+typedef void (*MobOnSpawning_func)(int spawnParamsIdx, VECTOR position, float* yaw, int* spawnFromUID, int* spawnFlags, char* random, struct MobSpawnEventArgs *args);
 typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
 typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
@@ -81,6 +83,8 @@ struct MobVTable {
   MobGenericCallback_func PostUpdate;
   MobGenericCallback_func PostDraw;
   MobGenericCallback_func Move;
+  MobGetExtraDataSize_func GetExtraDataSize;
+  MobOnSpawning_func OnSpawning;
   MobOnSpawn_func OnSpawn;
   MobOnDestroy_func OnDestroy;
   MobOnDamage_func OnDamage;
@@ -124,7 +128,6 @@ struct MobConfig {
 };
 
 struct MobSpawnParams {
-  MapOnMobCreate_func MobCreate;
   struct MobVTable* MobVTable;
   int RenderCost;
   float Scale;
