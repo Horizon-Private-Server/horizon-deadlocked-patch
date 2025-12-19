@@ -594,6 +594,7 @@ int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minD
   float bestPointDistSqr[SPAWNPOINT_NEAR_BUFFER_SIZE] = {100000,100000,100000};
   int bestPoints[SPAWNPOINT_NEAR_BUFFER_SIZE] = {-1,-1,-1};
   float minDistSqr = minDist * minDist;
+  VECTOR cuboidSpaceP = {randRange(-1, 1),randRange(-1, 1),0.1,0};
   //Player** players = playerGetAll();
   int* spIndices = NULL;
   int spCount = mapConfig->GetSpawnPointsFunc(&spIndices);
@@ -608,7 +609,9 @@ int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minD
     SpawnPoint* sp = spawnPointGet(spIdx);
 
     // get closest sqr dist to player
-    vector_subtract(t, (float*)&sp->M0[12], player->PlayerPosition);
+    VECTOR p;
+    vector_apply(p, cuboidSpaceP, sp->M0);
+    vector_subtract(t, p, player->PlayerPosition);
     float d = vector_sqrmag(t);
 
     // randomize order a little
@@ -644,8 +647,7 @@ int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minD
     int pick = rand(found);
     int idx = bestPoints[pick];
     SpawnPoint* sp = spawnPointGet(idx);
-    VECTOR p = {randRange(-1, 1),randRange(-1, 1),0.1,0};
-    vector_apply(out, p, sp->M0);
+    vector_apply(out, cuboidSpaceP, sp->M0);
 
     // let map decide if spawn point is valid
     if (mapConfig->ConsiderMobSpawnPointFunc && !mapConfig->ConsiderMobSpawnPointFunc(mob, out, 0, player))
@@ -839,11 +841,23 @@ int spawnRandomMob(void) {
     }
 
     // try and spawn
-    if (spawnGetRandomPoint(sp, mob)) {
-      if (mobCreate(mobIdx, sp, 0, -1, 0, &mob->Config)) {
-        return 1;
-      } else { DPRINTF("failed to create mob\n"); }
-    } else { DPRINTF("failed to get random spawn point\n"); }
+    // run it a few times in case we get an unlucky spawn attempt
+    int count = 0;
+    while (count < 3) {
+      if (spawnGetRandomPoint(sp, mob)) {
+        if (mobCreate(mobIdx, sp, 0, -1, 0, &mob->Config)) {
+          return 1;
+        }
+
+        break;
+      }
+      ++count;
+    }
+    // if (spawnGetRandomPoint(sp, mob)) {
+    //   if (mobCreate(mobIdx, sp, 0, -1, 0, &mob->Config)) {
+    //     return 1;
+    //   } else { DPRINTF("failed to create mob\n"); }
+    // } else { DPRINTF("failed to get random spawn point\n"); }
   } else { DPRINTF("failed to get random mob params\n"); }
 
   // no more budget left
