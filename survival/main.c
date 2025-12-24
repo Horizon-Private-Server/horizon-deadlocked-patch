@@ -2939,6 +2939,18 @@ float playerGetArbiterExplosionRadius(Player* player)
 }
 
 //--------------------------------------------------------------------------
+void mapLoadResetState(PatchStateContainer_t* gameState)
+{
+  State.Vendor = NULL;
+  State.Bankbox = NULL;
+  State.BigAl = NULL;
+  State.BossMoby = NULL;
+  State.PrestigeMachine = NULL;
+  State.MysteryBoxMoby = NULL;
+  memset(State.UpgradeMobies, 0, sizeof(State.UpgradeMobies));
+}
+
+//--------------------------------------------------------------------------
 void initialize(PatchStateContainer_t* gameState)
 {
   static int waitingForClientsReady = 0;
@@ -2955,14 +2967,6 @@ void initialize(PatchStateContainer_t* gameState)
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       State.PlayerStates[i].State.Item = -1;
     }
-  } else {
-    State.Vendor = NULL;
-    State.Bankbox = NULL;
-    State.BigAl = NULL;
-    State.BossMoby = NULL;
-    State.PrestigeMachine = NULL;
-    State.MysteryBoxMoby = NULL;
-    memset(State.UpgradeMobies, 0, sizeof(State.UpgradeMobies));
   }
 
   // disable randomize weapons on respawn
@@ -4319,6 +4323,7 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // enables level hopping
   Initialized = 0;
   InitializeDelay = TPS * 0.2;
+  mapLoadResetState(gameState);
 
   setLobbyGameOptions(gameState->GameConfig);
   
