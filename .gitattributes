@@ -1,9 +1,10 @@
-# C sources and headers
+# Code related
 *.c  text eol=lf
 *.h  text eol=lf
 
 # Shell scripts
 *.sh text eol=lf
+*.ps1 text eol=lf
 
 # Assembly
 *.s  text eol=lf
@@ -12,17 +13,23 @@
 # Makefiles
 Makefile     text eol=lf
 Makefile.*   text eol=lf
+*.make         text eol=lf
 *.mk         text eol=lf
 
-# Documentation / text
+# Documentation
+.gitattributes text eol=lf
+.gitignore text eol=lf
+LICENSE     text eol=lf
+todo     text eol=lf
+*.lst     text eol=lf
 *.md       text eol=lf
 *.txt      text eol=lf
-.gitignore text eol=lf
 
 # Repo-specific text files without extension
 linkfile   text eol=lf
 
-# Explicitly mark binaries
+# Binary assets
 *.bin -text
-*.irx -text
+*.def -text
 *.elf -text
+*.irx -text
