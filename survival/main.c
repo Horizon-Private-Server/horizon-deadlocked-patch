@@ -547,11 +547,36 @@ void mobyRemoveDrawFunctions(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void mobyRemoveDamages(Moby* moby)
+{
+  struct DrawFunction {
+    void* pCallback;
+    Moby* pMoby;
+    void* pUNK_C;
+    void* pUNK_10;
+  };
+
+  MobyColDamage* damageTable = (MobyColDamage*)0x0023F980;
+  int i;
+  for (i = 0; i < 0x40; ++i) {
+    if (damageTable[i].Damager == moby) {
+      memset(&damageTable[i], 0, sizeof(MobyColDamage));
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
 void onMobyDestroyedCleanupAnimLayers(Moby* moby)
 {
+  // call base
   ((void (*)(Moby*))0x004fb480)(moby);
-  mobyRemoveDrawFunctions(moby);
   moby->CollCnt = 0;
+
+  // remove any persistent draw calls
+  mobyRemoveDrawFunctions(moby);
+
+  // remove any MobyCollDamage where moby is source
+  mobyRemoveDamages(moby);
 }
 
 //--------------------------------------------------------------------------
