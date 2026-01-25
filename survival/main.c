@@ -519,6 +519,15 @@ void playerDamageAndTeleportToSpawn(Player* player, int toState, int bTransAnim,
 }
 
 //--------------------------------------------------------------------------
+void playerDrownAndTeleportToSpawn(Player* player)
+{
+  VECTOR p, r;
+  getResurrectPoint(player, p, r, 0);
+  playerSetPosRot(player, p, r);
+  playerSetHealth(player, maxf(0, player->Health - player->MaxHealth*0.5));
+}
+
+//--------------------------------------------------------------------------
 void mobyEmptyDrawCallback(Moby* moby)
 {
 
@@ -3011,7 +3020,9 @@ void initialize(PatchStateContainer_t* gameState)
   POKE_U32(0x0060adb4, 0);
   HOOK_JAL(0x0060add4, &playerDamageAndTeleportToSpawn); // slope slide
   POKE_U32(0x0060ade0, 0);
-  HOOK_JAL(0x005DA5AC, &playerDamageAndTeleportToSpawn); // drown / lava
+  HOOK_JAL(0x005DA5AC, &playerDamageAndTeleportToSpawn); // acid drown / lava
+  POKE_U32(0x006090b8, 0);
+  HOOK_JAL(0x006090f0, &playerDrownAndTeleportToSpawn); // water drown
 
   HOOK_JAL(0x004f7780, &onMobyDestroyedCleanupAnimLayers);
 
