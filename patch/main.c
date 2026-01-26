@@ -4898,14 +4898,18 @@ void* searchGetSearchResultPtr(int idx)
   if (p1 > 0) {
     u32 p2 = *(u32*)(p1 + 0x44);
     if (p2 > 0) {
-      int count = *(int*)(p2 + 0x40);
+      // int count = *(int*)(p2 + 0x40);
       u32 ptrs = *(u32*)(p2 + 0x4C);
 
-      if (idx < count && count > 0 && ptrs > 0) {
+      // if (idx < count && count > 0 && ptrs > 0) {
+      if (ptrs > 0) {
         int i;
         int r = 0;
-        for (i = 0; i < count; ++i) {
+        while (1) {
           void* ptr = *(void**)(ptrs + i*4);
+          i += 1;
+
+          if (!ptr) break;
           if (!searchResultIndexMatchesFilter(ptr)) continue;
           
           if (r == idx) return ptr;
@@ -4933,7 +4937,7 @@ char* searchGetMapNameFromMapId(int mapId)
   void* ptr = searchGetSearchResultPtr(idx / 4);
   if (ptr) {
     int len = strlen((char*)(ptr + 0x60));
-    char* customName = (char*)(ptr + 0x60 + len + 2);
+    char* customName = (char*)(ptr + 0x60 + len + 3);
     if (customName[0])
       return customName;
   }
@@ -4951,7 +4955,7 @@ char* searchGetMapNameFromMapId2(int mapId, u64 a1, u64 a2, char* gameName)
     char* name = (char*)(ptr + 0x60);
     if (strncmp(name, gameName, 0x10) == 0) {
       int len = strlen(name);
-      char* customName = (char*)(ptr + 0x60 + len + 2);
+      char* customName = (char*)(ptr + 0x60 + len + 3);
       if (customName[0])
         return customName;
       
@@ -4981,7 +4985,7 @@ char* searchGetModeNameFromModeId2(int modeId)
     char* name = (char*)(ptr + 0x60);
     if (strncmp(name, gameName, 0x10) == 0) {
       int len = strlen((char*)(ptr + 0x60));
-      int customMode = *(u8*)(ptr + 0x60 + len + 1);
+      int customMode = (char)((*(u8*)(ptr + 0x60 + len + 1) << 4) | *(u8*)(ptr + 0x60 + len + 2));
       if (customMode) {
         int j;
         for (j = 0; j < dataCustomModes.count; ++j) {
@@ -5014,7 +5018,7 @@ void searchSetModeName(UiTextElement_t* element, char* str)
   void* ptr = searchGetSearchResultPtr(idx);
   if (ptr) {
     int len = strlen((char*)(ptr + 0x60));
-    int customMode = *(u8*)(ptr + 0x60 + len + 1);
+    int customMode = (char)((*(u8*)(ptr + 0x60 + len + 1) << 4) | *(u8*)(ptr + 0x60 + len + 2));
     if (customMode) {
       int j;
       for (j = 0; j < dataCustomModes.count; ++j) {
