@@ -1904,6 +1904,12 @@ void playerRewardXp(int playerId, int weaponId, int xp)
 void playerOnPushedIntoWall(Player* player)
 {
   if (!player || !player->SkinMoby || !player->PlayerMoby) return;
+
+  // this is also called when a player drowns (sometimes)
+  if (player->PlayerState == PLAYER_STATE_QUICKSAND_SINK) {
+    playerDrownAndTeleportToSpawn(player);
+    return;
+  }
   
   // push mobs away
   mobReactToExplosionAt(player->PlayerId, player->PlayerPosition, 1, 8);
