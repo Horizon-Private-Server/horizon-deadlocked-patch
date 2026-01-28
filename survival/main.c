@@ -583,6 +583,13 @@ void onMobyDestroyedCleanupAnimLayers(Moby* moby)
 
   // remove any persistent draw calls
   mobyRemoveDrawFunctions(moby);
+}
+
+//--------------------------------------------------------------------------
+void onMobySpawnedInitInstance(Moby* moby, int oclass, int a2)
+{
+  // init moby instance
+  ((void (*)(Moby*, int, int))0x004f7330)(moby, oclass, a2);
 
   // remove any MobyCollDamage where moby is source
   mobyRemoveDamages(moby);
@@ -3031,6 +3038,7 @@ void initialize(PatchStateContainer_t* gameState)
   HOOK_JAL(0x006090f0, &playerDrownAndTeleportToSpawn); // water drown
 
   HOOK_JAL(0x004f7780, &onMobyDestroyedCleanupAnimLayers);
+  HOOK_JAL(0x004f72a4, &onMobySpawnedInitInstance);
 
   // spawn area mod explosion on each ricochet of the v10 vipers
   //HOOK_JAL(0x003C283C, &onV10VipersHitSurface);
