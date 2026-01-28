@@ -4892,25 +4892,23 @@ int searchResultIndexMatchesFilter(void* result)
 }
 
 //--------------------------------------------------------------------------
-void* searchGetSearchResultPtr(int idx)
+void* searchGetSearchResultPtr(int idx, int bFilter)
 {
   u32 p1 = *(u32*)0x002233a4;
   if (p1 > 0) {
     u32 p2 = *(u32*)(p1 + 0x44);
     if (p2 > 0) {
       // int count = *(int*)(p2 + 0x40);
-      u32 ptrs = *(u32*)(p2 + 0x4C);
+      u32* ptrs = *(u32**)(p2 + 0x4C);
 
       // if (idx < count && count > 0 && ptrs > 0) {
       if (ptrs > 0) {
-        int i;
         int r = 0;
         while (1) {
-          void* ptr = *(void**)(ptrs + i*4);
-          i += 1;
+          void* ptr = *ptrs++;
 
           if (!ptr) break;
-          if (!searchResultIndexMatchesFilter(ptr)) continue;
+          if (bFilter && !searchResultIndexMatchesFilter(ptr)) continue;
           
           if (r == idx) return ptr;
           r++;
@@ -4934,7 +4932,7 @@ char* searchGetMapNameFromMapId(int mapId)
   );
 
   char* map = ((char* (*)(int))0x00764330)(mapId);
-  void* ptr = searchGetSearchResultPtr(idx / 4);
+  void* ptr = searchGetSearchResultPtr(idx / 4, 1);
   if (ptr) {
     int len = strlen((char*)(ptr + 0x60));
     char* customName = (char*)(ptr + 0x60 + len + 3);
@@ -4951,7 +4949,7 @@ char* searchGetMapNameFromMapId2(int mapId, u64 a1, u64 a2, char* gameName)
   int idx = 0;
   void* ptr = 0;
 
-  while ((ptr = searchGetSearchResultPtr(idx))) {
+  while ((ptr = searchGetSearchResultPtr(idx, 0))) {
     char* name = (char*)(ptr + 0x60);
     if (strncmp(name, gameName, 0x10) == 0) {
       int len = strlen(name);
@@ -4981,7 +4979,7 @@ char* searchGetModeNameFromModeId2(int modeId)
   );
 
   char* modeName = ((char* (*)(int))0x00764B80)(modeId);
-  while ((ptr = searchGetSearchResultPtr(idx))) {
+  while ((ptr = searchGetSearchResultPtr(idx, 0))) {
     char* name = (char*)(ptr + 0x60);
     if (strncmp(name, gameName, 0x10) == 0) {
       int len = strlen((char*)(ptr + 0x60));
@@ -5015,7 +5013,7 @@ void searchSetModeName(UiTextElement_t* element, char* str)
     : : "r" (idx)
   );
 
-  void* ptr = searchGetSearchResultPtr(idx);
+  void* ptr = searchGetSearchResultPtr(idx, 1);
   if (ptr) {
     int len = strlen((char*)(ptr + 0x60));
     int customMode = (char)((*(u8*)(ptr + 0x60 + len + 1) << 4) | *(u8*)(ptr + 0x60 + len + 2));
