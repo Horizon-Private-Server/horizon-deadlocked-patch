@@ -95,14 +95,6 @@ const char WEAPON_PRESTIGE_PREFIX[WEAPON_PRESTIGE_MAX+1] = {
   [5] '\x0E',
 };
 
-const int WEAPON_PRESTIGE_COST[WEAPON_PRESTIGE_MAX] = {
-  [0] 100000,
-  [1] 200000,
-  [2] 400000,
-  [3] 700000,
-  [4] 1000000,
-};
-
 const u8 UPGRADEABLE_WEAPONS[] = {
   WEAPON_ID_VIPERS,
   WEAPON_ID_MAGMA_CANNON,
@@ -1144,7 +1136,7 @@ int playerPrestigeWeapon(Player* player, int weaponId)
   int slotId = weaponIdToSlot(weaponId);
   if (slotId <= 0) return 0;
   int nextPrestige = State.PlayerStates[player->PlayerId].State.WeaponPrestige[slotId] + 1;
-  if (nextPrestige > WEAPON_PRESTIGE_MAX) return 0;
+  if (nextPrestige > mapConfig->BakedConfig->WeaponPrestigeMax) return 0;
   if (player->GadgetBox->Gadgets[weaponId].Level != VENDOR_MAX_WEAPON_LEVEL) return 0;
 
   // send out
@@ -1675,7 +1667,8 @@ void checkForRound50Time(void)
 //--------------------------------------------------------------------------
 int getWeaponPrestigeCost(int prestigeLevel)
 {
-  return WEAPON_PRESTIGE_COST[prestigeLevel];
+  if (!hasMapConfig() || !mapConfig->BakedConfig) return 0;
+  return mapConfig->BakedConfig->PrestigeCostPerLevel[prestigeLevel];
 }
 
 //--------------------------------------------------------------------------
@@ -2261,7 +2254,7 @@ void processPlayer(int pIndex) {
         if (slotId > 0) {
 
           int canPrestige = player->GadgetBox->Gadgets[weaponId].Level == VENDOR_MAX_WEAPON_LEVEL;
-          int maxPrestige = playerData->State.WeaponPrestige[slotId] >= WEAPON_PRESTIGE_MAX;
+          int maxPrestige = playerData->State.WeaponPrestige[slotId] >= mapConfig->BakedConfig->WeaponPrestigeMax;
           int cost = getWeaponPrestigeCost(playerData->State.WeaponPrestige[slotId]);
 
           // draw help popup
