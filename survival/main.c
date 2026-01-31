@@ -3435,7 +3435,7 @@ void updateGameState(PatchStateContainer_t * gameState)
     checkForRound50Time();
 
     // update custom game stats after each round
-    static int roundCompleted = 0;
+    static int roundCompleted = -1;
     if (roundCompleted != State.RoundNumber && gameAmIHost()) {
       gameState->UpdateCustomGameStats = 1;
       roundCompleted = State.RoundNumber;
