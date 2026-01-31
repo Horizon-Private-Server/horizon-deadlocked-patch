@@ -68,9 +68,6 @@ const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
   [UPGRADE_HEALTH] "\x11 Health Upgrade (%d)",
   [UPGRADE_SPEED] "\x11 Speed Upgrade (%d)",
   [UPGRADE_DAMAGE] "\x11 Damage Upgrade (%d)",
-  //[UPGRADE_MEDIC] "\x11 Revive Discount (%d)",
-  //[UPGRADE_VENDOR] "\x11 Vendor Discount (%d)",
-  //[UPGRADE_PICKUPS] "\x11 Increase Powerup Duration (%d)",
   [UPGRADE_CRIT] "\x11 Critical Hit Upgrade (%d)",
 };
 
@@ -104,23 +101,6 @@ const u8 UPGRADEABLE_WEAPONS[] = {
   WEAPON_ID_B6,
   WEAPON_ID_OMNI_SHIELD,
   WEAPON_ID_FLAIL
-};
-
-char UpgradesEnabled[] = {
-  UPGRADE_HEALTH,
-  UPGRADE_SPEED,
-  UPGRADE_DAMAGE,
-  UPGRADE_CRIT
-};
-
-int UpgradeMax[] = {
-  [UPGRADE_HEALTH] 1000,
-  [UPGRADE_SPEED] 40,
-  [UPGRADE_DAMAGE] 1000,
-  [UPGRADE_CRIT] 100,
-  [UPGRADE_MEDIC] 16,
-  [UPGRADE_VENDOR] 16,
-  [UPGRADE_PICKUPS] 33,
 };
 
 #if FIXEDTARGET
@@ -1703,10 +1683,7 @@ int getUpgradeCost(Player * player, enum WEAPON_IDS weaponId) {
   if (level < 0 || level >= VENDOR_MAX_WEAPON_LEVEL)
     return 0;
     
-  // determine discount rate
-  float rate = clamp(1 - (PLAYER_UPGRADE_VENDOR_FACTOR * State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_VENDOR]), 0, 1);
-
-  return ceilf(UPGRADE_COST[level] * rate);
+  return UPGRADE_COST[level];
 }
 
 //--------------------------------------------------------------------------
@@ -1736,7 +1713,7 @@ void respawnDeadPlayers(void) {
 
 //--------------------------------------------------------------------------
 void setPlayerQuadCooldownTimer(Player * player) {
-  player->timers.damageMuliplierTimer = 1200 + State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 1.0;
+  player->timers.damageMuliplierTimer = 1200;
   player->DamageMultiplier = 4;
 }
 
@@ -1752,7 +1729,7 @@ void setPlayerShieldCooldownTimer(void) {
     : : "r" (player)
   );
 
-  player->timers.armorLevelTimer = 1800 + State.PlayerStates[player->PlayerId].State.Upgrades[UPGRADE_PICKUPS] * TPS * 1.25;
+  player->timers.armorLevelTimer = 1800;
   POKE_U32((u32)player + 0x2FB4, 3);
 }
 
@@ -2282,14 +2259,15 @@ void processPlayer(int pIndex) {
     }
 
     // handle upgrade logic
-    for (i = 0; i < UPGRADE_COUNT; ++i) {
-      Moby* upgradeMoby = State.UpgradeMobies[i];
+    for (i = 0; i < mapConfig->UpgradeDefCount; ++i) {
+      struct UpgradeDef upgradeDef = mapConfig->UpgradeDefs[i];
+      Moby* upgradeMoby = State.UpgradeMobies[upgradeDef.Id];
       if (upgradeMoby) {
         if (!playerData->ActionCooldownTicks) {
           vector_subtract(t, player->PlayerPosition, upgradeMoby->Position);
           if (vector_sqrmag(t) < (UPGRADE_PICKUP_RADIUS * UPGRADE_PICKUP_RADIUS)) {
             
-            if (playerData->State.Upgrades[i] < UpgradeMax[i]) {
+            if (playerData->State.Upgrades[upgradeDef.Id] < upgradeDef.Max) {
 
               struct UpgradePVar* upgradePVars = (struct UpgradePVar*)upgradeMoby->PVar;
               if (!upgradePVars) continue;
@@ -2885,14 +2863,10 @@ void spawnUpgrades(void)
   }
 
   // spawn
-  for (i = 0; i < sizeof(UpgradesEnabled); ++i) {
-    int upgradeId = UpgradesEnabled[i];
+  for (i = 0; i < mapConfig->UpgradeDefCount; ++i) {
+    int upgradeId = mapConfig->UpgradeDefs[i].Id;
     int bakedSpIdx = upgradeBakedSpawnpointIdx[i];
     if (bakedSpIdx < 0)
-      continue;
-
-    // don't spawn medic on solo runs
-    if (State.ActivePlayerCount == 1 && upgradeId == UPGRADE_MEDIC)
       continue;
 
     SurvivalBakedSpawnpoint_t* sp = &bakedConfig->BakedSpawnPoints[bakedSpIdx];
@@ -3549,7 +3523,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_SPEED] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_AREA] = 5;
     State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_IMPACT] = 5;
-    State.PlayerStates[i].State.Upgrades[UPGRADE_SPEED] = UpgradeMax[UPGRADE_SPEED];
+    State.PlayerStates[i].State.Upgrades[UPGRADE_SPEED] = 40;
     State.PlayerStates[i].State.Upgrades[UPGRADE_DAMAGE] = 200;
     State.PlayerStates[i].State.Upgrades[UPGRADE_CRIT] = 100;
   }
@@ -3747,8 +3721,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
     if (gameIsStartMenuOpen(i) && !playerData->IsInWeaponsMenu) {
       int j;
-      for (j = 0; j < sizeof(UpgradesEnabled); ++j) {
-        int upgradeId = UpgradesEnabled[j];
+      for (j = 0; j < mapConfig->UpgradeDefCount; ++j) {
+        int upgradeId = mapConfig->UpgradeDefs[j].Id;
         float x = 10;
         float y = 54 + (j * 32);
 
