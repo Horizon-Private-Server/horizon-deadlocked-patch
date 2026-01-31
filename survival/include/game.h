@@ -131,8 +131,6 @@
 #define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.08)
 #define PLAYER_UPGRADE_SPEED_FACTOR           (0.03)
 #define PLAYER_UPGRADE_HEALTH_FACTOR          (5)
-#define PLAYER_UPGRADE_MEDIC_FACTOR           (0.05)
-#define PLAYER_UPGRADE_VENDOR_FACTOR          (0.02)
 #define PLAYER_UPGRADE_CRIT_FACTOR            (0.01)
 
 #define BAKED_SPAWNPOINT_COUNT							  (32)
@@ -362,6 +360,11 @@ struct SurvivalPlayerState
   u8 ItemStackable[STACKABLE_ITEM_COUNT];
 };
 
+struct UpgradeDef {
+  enum UpgradeType Id;
+  short Max;
+};
+
 struct SurvivalPlayer
 {
   float MinSqrDistFromMob;
@@ -452,8 +455,12 @@ struct SurvivalMapConfig
 
   struct MobSpawnParams* DefaultSpawnParams;
   int DefaultSpawnParamsCount; 
+
   struct SurvivalSpecialRoundParam* SpecialRoundParams;
   int SpecialRoundParamsCount; 
+
+  struct UpgradeDef* UpgradeDefs;
+  int UpgradeDefCount;
   
   // mode
   SpawnGetRandomPoint_func SpawnGetRandomPointFunc;
