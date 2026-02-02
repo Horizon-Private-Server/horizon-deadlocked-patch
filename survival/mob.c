@@ -1076,8 +1076,8 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   }
 
   // pass to map
-  if (mapConfig->OnMobSpawnedFunc)
-    mapConfig->OnMobSpawnedFunc(moby);
+  if (mapConfig->Functions.OnMobSpawnedFunc)
+    mapConfig->Functions.OnMobSpawnedFunc(moby);
 
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnSpawn)
@@ -1111,18 +1111,20 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
   if (pvars->VTable && pvars->VTable->OnDestroy)
     pvars->VTable->OnDestroy(moby, killedByPlayerId, weaponId);
   
-  int bolts = pvars->MobVars.Config.Bolts * mapConfig->BakedConfig->BoltMultiplier;
-  int xp = (int)pvars->MobVars.Config.Xp * mapConfig->BakedConfig->XpMultiplier;
+  float boltMultiplier = getBoltMultiplier();
+  float xpMultiplier = getXpMultiplier();
+  int bolts = pvars->MobVars.Config.Bolts * boltMultiplier;
+  int xp = (int)pvars->MobVars.Config.Xp * xpMultiplier;
 
 #if DROPS
-  if (mapConfig && mapConfig->CreateMobDropFunc && (!State.RoundIsSpecial || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops)) {
+  if (mapConfig && mapConfig->Functions.CreateMobDropFunc && (!State.RoundIsSpecial || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops)) {
     if (killedByPlayerId >= 0 && gameAmIHost()) {
       Player * killedByPlayer = players[(int)killedByPlayerId];
       if (killedByPlayer) {
         float randomValue = randRange(0.0, 1.0);
         float probability = playerHasBlessing(killedByPlayerId, BLESSING_ITEM_LUCK) ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
         if (randomValue < probability) {
-          mapConfig->CreateMobDropFunc(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
+          mapConfig->Functions.CreateMobDropFunc(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
         }
       }
     }
@@ -1186,8 +1188,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     if (weaponId > 1 && killedByPlayer) {
       int jackpotCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_JACKPOT);
 
-      pState->State.Bolts += jackpotCount * JACKPOT_BOLTS * mapConfig->BakedConfig->BoltMultiplier;
-      pState->State.TotalBolts += (int)(jackpotCount * JACKPOT_BOLTS * mapConfig->BakedConfig->BoltMultiplier);
+      pState->State.Bolts += jackpotCount * JACKPOT_BOLTS * boltMultiplier;
+      pState->State.TotalBolts += (int)(jackpotCount * JACKPOT_BOLTS * boltMultiplier);
     }
 
     // handle stats
@@ -1204,8 +1206,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     ++AllMobsSortedFreeSpots;
   }
 
-  if (mapConfig && mapConfig->OnMobKilledFunc)
-    mapConfig->OnMobKilledFunc(moby, killedByPlayerId, weaponId);
+  if (mapConfig && mapConfig->Functions.OnMobKilledFunc)
+    mapConfig->Functions.OnMobKilledFunc(moby, killedByPlayerId, weaponId);
 
   mobStatsOnMobDestroyed(moby);
   guberMobyDestroy(moby);
@@ -1265,7 +1267,7 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 
     int isLocal = 0;
     if (damager) isLocal = damager->IsLocal;
-    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, (args.DamageFlags & 0x20000000) ? 1 : 0);
+    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, (args.DamageFlags & 0x20000000) ? TEAM_RED : TEAM_YELLOW);
   }
 
   // 
@@ -1488,8 +1490,8 @@ int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, 
   VECTOR p;
   vector_copy(p, position);
 
-  if (mapConfig->OnMobCreateFunc)
-    return mapConfig->OnMobCreateFunc(spawnParamsIdx, p, yaw, spawnFromUID, spawnFlags, config);
+  if (mapConfig->Functions.OnMobCreateFunc)
+    return mapConfig->Functions.OnMobCreateFunc(spawnParamsIdx, p, yaw, spawnFromUID, spawnFlags, config);
 
   return 0;
 }

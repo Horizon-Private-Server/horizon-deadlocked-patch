@@ -125,17 +125,6 @@ u32 decTimerU32(u32* timeValue)
 }
 
 //--------------------------------------------------------------------------
-u32 getXpForNextToken(int counter)
-{
-  //return 200 + (counter * 20 * powf(1.001, counter));
-
-  // clamp after first 50 tokens
-  if (counter > 50) return 3000;
-
-  return (u32)(250 * powf(1.05, counter));
-}
-
-//--------------------------------------------------------------------------
 void drawDreadTokenIcon(float x, float y, float scale)
 {
 	float small = scale * 0.75;
@@ -362,5 +351,5 @@ int playerGetStackableCount(int playerId, int stackable)
 //--------------------------------------------------------------------------
 int hasMapConfig(void)
 {
-  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC && mapConfig->OnMobCreateFunc;
+  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC && mapConfig->Functions.OnMobCreateFunc;
 }

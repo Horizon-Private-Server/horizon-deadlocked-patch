@@ -51,7 +51,6 @@ int getWeaponIdFromOClass(short oclass);
 u8 decTimerU8(u8* timeValue);
 u16 decTimerU16(u16* timeValue);
 u32 decTimerU32(u32* timeValue);
-u32 getXpForNextToken(int counter);
 void drawDreadTokenIcon(float x, float y, float scale);
 struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);
 void destroyParticle(struct PartInstance* particle);

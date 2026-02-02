@@ -7,6 +7,7 @@
 #include <libdl/math3d.h>
 #include "upgrade.h"
 #include "bankbox.h"
+#include "interop.h"
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
@@ -284,34 +285,6 @@ struct MobConfig;
 struct MobSpawnEventArgs;
 struct MobSpawnParams;
 
-typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
-typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
-typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int spawnFlags);
-typedef int (*ModeCreateMob_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
-typedef int (*SpawnGetRandomPoint_func)(VECTOR out, struct MobSpawnParams* mob);
-typedef void (*ModeMobNuke_func)(int killedByPlayerId);
-typedef void (*ModeSetDoublePoints_func)(int isActive);
-typedef void (*ModeSetDoubleXP_func)(int isActive);
-typedef void (*ModeSetFreezeMobs_func)(int isActive);
-typedef void (*ModeRevivePlayer_func)(Player* player, int fromPlayerId);
-
-typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
-typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int killedByWeaponId);
-typedef int (*MapCanSpawnMobs_func)(void);
-typedef int (*MapGetSpawnPoints_func)(int** outSpawnPointIndices);
-typedef int (*MapConsiderMobSpawnPoint_func)(struct MobSpawnParams* mobSpawnParams, VECTOR position, float yaw, Player* targetPlayer);
-typedef int (*OnPlayerGetRes_func)(Player* player, VECTOR outPos, VECTOR outRot, int firstRes);
-typedef int (*CreateUpgradePickup_func)(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
-typedef int (*HandleUpgradePickupEvent_func)(Moby* moby, GuberEvent* event);
-typedef void (*PickupUpgradePickup_func)(Moby* moby, int pickedUpByPlayerId);
-typedef int (*CreateMobDrop_func)(VECTOR position, enum DropType dropType, int destroyAtTime, int team);
-typedef int (*HandleMobDropEvent_func)(Moby* moby, GuberEvent* event);
-typedef int (*FrameTick_func)(void);
-
-typedef struct GuberMoby* (*GetGuber_func)(Moby* moby);
-typedef int (*HandleGuberEvent_func)(Moby* moby, GuberEvent* event);
-
 typedef struct SurvivalBakedSpawnpoint
 {
   enum BakedSpawnpointType Type;
@@ -319,20 +292,6 @@ typedef struct SurvivalBakedSpawnpoint
   float Position[3];
   float Rotation[3];
 } SurvivalBakedSpawnpoint_t;
-
-typedef struct SurvivalBakedConfig
-{
-  float Difficulty;
-  float BoltMultiplier;
-  float XpMultiplier;
-  float SpawnDistanceFactor;
-  int BoltRankMultiplier;
-  SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];
-  int StackboxBaseCost;
-  int StackboxCostPerPerk;
-  char WeaponPrestigeMax;
-  int PrestigeCostPerLevel[WEAPON_PRESTIGE_MAX];
-} SurvivalBakedConfig_t;
 
 struct SurvivalPlayerState
 {
@@ -446,55 +405,6 @@ struct SurvivalState
   Moby** AllMobsSorted;
 };
 
-struct SurvivalMapConfig
-{
-  u32 Magic;
-  int ClientsReady;
-  struct SurvivalState* State;
-  struct SurvivalBakedConfig* BakedConfig;
-
-  struct MobSpawnParams* DefaultSpawnParams;
-  int DefaultSpawnParamsCount; 
-
-  struct SurvivalSpecialRoundParam* SpecialRoundParams;
-  int SpecialRoundParamsCount; 
-
-  struct UpgradeDef* UpgradeDefs;
-  int UpgradeDefCount;
-  
-  // mode
-  SpawnGetRandomPoint_func SpawnGetRandomPointFunc;
-  UpgradePlayerWeapon_func UpgradePlayerWeaponFunc;
-  PushSnack_func PushSnackFunc;
-  PopulateSpawnArgs_func PopulateSpawnArgsFunc;
-  ModeCreateMob_func ModeCreateMobFunc;
-  ModeMobNuke_func ModeMobNukeFunc;
-  ModeSetDoublePoints_func ModeSetDoublePointsFunc;
-  ModeSetDoubleXP_func ModeSetDoubleXPFunc;
-  ModeSetFreezeMobs_func ModeSetFreezeMobsFunc;
-  ModeRevivePlayer_func ModeRevivePlayerFunc;
-  GetGuber_func OnGetGuberFunc;
-  HandleGuberEvent_func OnGuberEventFunc;
-
-  // map
-  MapOnMobCreate_func OnMobCreateFunc;
-  MapOnMobSpawned_func OnMobSpawnedFunc;
-  MapOnMobKilled_func OnMobKilledFunc;
-  MapCanSpawnMobs_func CanSpawnMobsFunc;
-  MapGetSpawnPoints_func GetSpawnPointsFunc;
-  MapConsiderMobSpawnPoint_func ConsiderMobSpawnPointFunc;
-  OnPlayerGetRes_func OnPlayerGetResFunc;
-  CreateUpgradePickup_func CreateUpgradePickupFunc;
-  HandleUpgradePickupEvent_func OnUpgradePickupEventFunc;
-  PickupUpgradePickup_func PickupUpgradeFunc;
-  CreateMobDrop_func CreateMobDropFunc;
-  HandleMobDropEvent_func OnMobDropEventFunc;
-  FrameTick_func OnFrameTickFunc;
-
-  // misc
-  float WeaponPickupCooldownFactor;
-};
-
 struct SurvivalSpecialRoundParam
 {
   int MinRound;
@@ -508,6 +418,24 @@ struct SurvivalSpecialRoundParam
   char DisableDrops;
   char SpawnParamIds[4];
   char Name[32];
+};
+
+struct SurvivalMapConfig
+{
+  u32 Magic;
+  int ClientsReady;
+  struct SurvivalState* State;
+
+  struct MobSpawnParams* DefaultSpawnParams;
+  int DefaultSpawnParamsCount; 
+
+  struct SurvivalSpecialRoundParam* SpecialRoundParams;
+  int SpecialRoundParamsCount; 
+
+  struct UpgradeDef* UpgradeDefs;
+  int UpgradeDefCount;
+
+	struct SurvivalInteropTable Functions;
 };
 
 struct SurvivalGameData
@@ -623,10 +551,7 @@ struct SurvivalSnackItem
   char Str[64];
 };
 
-extern const int UPGRADE_COST[];
 extern const float BOLT_TAX[];
-extern const char WEAPON_PICKUP_BASE_RESPAWN_TIMES[];
-extern const char WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[];
 extern const char ENABLED_ALPHA_MODS[];
 extern const int ENABLED_ALPHA_MODS_COUNT;
 
