@@ -5962,15 +5962,12 @@ int main (void)
     //GADGET_EVENT_MAX_TLL = 5 * TIME_SECOND;
 
     // put hacker ray in weapon select
-    GameSettings * gameSettings = gameGetSettings();
-    if (gameSettings && gameSettings->GameRules == GAMERULE_CQ)
-    {
-      // put hacker ray in weapon select
-      *(u32*)0x0038A0DC = WEAPON_ID_HACKER_RAY;
+    POKE_U16(0x00553470, 0);
+    POKE_U16(0x0038A0DC, WEAPON_ID_HACKER_RAY);
+    POKE_U16(0x0038A0E0, 0);
 
-      // disable/enable press circle to equip hacker ray
-      *(u32*)0x005DE870 = config.disableCircleToHackerRay ? 0x24040000 : 0x00C0202D;
-    }
+    // disable/enable press circle to equip hacker ray
+    *(u32*)0x005DE870 = config.disableCircleToHackerRay ? 0x24040000 : 0x00C0202D;
 
     // increase cboot max slope
     POKE_U16(0x00608CD0, 0x3F40);

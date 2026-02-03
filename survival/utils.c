@@ -310,17 +310,6 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
 }
 
 //--------------------------------------------------------------------------
-int playerHasBlessing(int playerId, int blessing)
-{
-  int i;
-  for (i = 0; i < PLAYER_MAX_BLESSINGS; ++i) {
-    if (State.PlayerStates[playerId].State.ItemBlessings[i] == blessing) return 1;
-  }
-
-  return 0;
-}
-
-//--------------------------------------------------------------------------
 int playerGetStackableCount(int playerId, int stackable)
 {
   return State.PlayerStates[playerId].State.ItemStackable[stackable];

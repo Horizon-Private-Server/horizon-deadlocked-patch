@@ -145,22 +145,21 @@ SoundDef TestSoundDef =
 
 struct CustomDzoCommandSurvivalDrawHud
 {
+  char RoundCompleteMessage[64];
+  char RoundStartMessage[64];
   int Tokens;
   int EnemiesAlive;
   int CurrentRoundNumber;
   int HeldItem;
-  char Blessings[4];
   int StartRoundTimer;
   float XpPercent;
   char HasRoundCompleteMessage;
   char HasDblPoints;
   char HasDblXp;
   char WaitingForHost;
-  char RoundCompleteMessage[64];
   int Timer;
   Moby* BossMoby;
   int BossIconId;
-  char RoundStartMessage[64];
 } dzoDrawHudCmd;
 
 struct CustomDzoCommandSurvivalDrawReviveMsg
@@ -204,7 +203,6 @@ void updateDzoHud(void)
   dzoDrawHudCmd.BossMoby = State.BossMoby;
   dzoDrawHudCmd.Tokens = State.LocalPlayerState->State.CurrentTokens;
   dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
-  memcpy(dzoDrawHudCmd.Blessings, State.LocalPlayerState->State.ItemBlessings, 4);
   dzoDrawHudCmd.CurrentRoundNumber = State.RoundNumber;
   dzoDrawHudCmd.EnemiesAlive = (State.RoundMaxMobCount - State.MobStats.TotalSpawnedThisRound) + State.MobStats.TotalAlive + State.MobStats.TotalSpawning; //State.MobStats.TotalAlive;
   dzoDrawHudCmd.StartRoundTimer = State.RoundEndTime - gameTime;
@@ -3383,16 +3381,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
-#if DEBUG_MPASS
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK;
-    State.PlayerStates[i].State.BlessingSlots = 3;
-    State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_AMMO_REGEN;
-    State.PlayerStates[i].State.ItemBlessings[1] = BLESSING_ITEM_HEALTH_REGEN;
-    State.PlayerStates[i].State.ItemBlessings[2] = BLESSING_ITEM_BULL;
-  }
-#endif
-
 #if DEBUG_PERKS
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INFINITE_AMMO;
@@ -3444,8 +3432,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   if (!trailerInit) {
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_REVIVE_TOTEM;
-      State.PlayerStates[i].State.BlessingSlots = 1;
-      State.PlayerStates[i].State.ItemBlessings[0] = BLESSING_ITEM_AMMO_REGEN;
       State.PlayerStates[i].State.CurrentTokens = 15;
       State.PlayerStates[i].State.Bolts = 1000000;
       State.PlayerStates[i].State.Upgrades[UPGRADE_CRIT] = 30;
@@ -3709,37 +3695,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         drawDreadTokenIcon(x+5, y, 32);
       }
       
-      // draw blessings
-      int j;
-      for (j = playerData->State.BlessingSlots-1; j >= 0; --j) {
-        int itemTexId = -1;
-        int itemTexWH = 32;
-        u32 itemColor = 0x80C0C0C0;
-        switch (playerData->State.ItemBlessings[j])
-        {
-          case BLESSING_ITEM_MULTI_JUMP: itemTexId = 111 - 3; itemTexWH = 64; break;
-          case BLESSING_ITEM_LUCK: itemTexId = 112 - 3; itemTexWH = 64; break;
-          case BLESSING_ITEM_BULL: itemTexId = 113 - 3; itemTexWH = 64; break;
-          case BLESSING_ITEM_ELEM_IMMUNITY: itemTexId = 114 - 3; itemTexWH = 64; break;
-          case BLESSING_ITEM_HEALTH_REGEN: itemTexId = 115 - 3; itemTexWH = 64; break;
-          case BLESSING_ITEM_AMMO_REGEN: itemTexId = 116 - 3; itemTexWH = 64; break;
-          case BLESSING_ITEM_THORNS: itemTexId = 117 - 3; itemTexWH = 64; break;
-          default: break;
-        }
-
-        if (itemTexId > 0) {
-          x = 15 + (j*20);
-          y = SCREEN_HEIGHT - 100;
-          transformToSplitscreenPixelCoordinates(i, &x, &y);
-
-          // draw on ps2 and dzo
-          gfxSetupGifPaging(0);
-          gfxHelperDrawSprite(x, y, 2, 2, 32, 32, itemTexWH, itemTexWH, itemTexId, 0x40000000, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-          gfxHelperDrawSprite(x, y, 0, 0, 32, 32, itemTexWH, itemTexWH, itemTexId, itemColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-          gfxDoGifPaging();
-        }
-      }
-
       // draw current item
       {
         int itemTexId = -1;

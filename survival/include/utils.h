@@ -43,7 +43,6 @@ void setDoublePoints(int isActive);
 void setDoubleXP(int isActive);
 void playerRevive(Player* player, int fromPlayerId);
 int playerGetStackableCount(int playerId, int stackable);
-int playerHasBlessing(int playerId, int blessing);
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
 void playUpgradeSound(Player* player);
 void playPaidSound(Player* player);
