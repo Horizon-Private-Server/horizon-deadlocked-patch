@@ -1462,8 +1462,17 @@ void hookedGetTable(u32 startSector, u32 sectorCount, u8 * dest, u32 levelId)
 }
 
 //------------------------------------------------------------------------------
+void hookedMapExData(void)
+{
+  MapLoaderState.MapCodeInited = 1;
+  ((void (*)(void))EXTRA_CODE_SEG_PTR)();
+}
+
+//------------------------------------------------------------------------------
 void hookedMapLoad(int a0, int a1)
 {
+  MapLoaderState.MapCodeInited = 0;
+  
   // call base func
   ((void (*)(int, int))0x004ea128)(a0, a1);
 
@@ -1471,9 +1480,13 @@ void hookedMapLoad(int a0, int a1)
 	if (maploaderIsLoadingCustomMap()) {
     snprintf(membuffer, sizeof(membuffer), fCode, getMapPathPrefix(), MapLoaderState.MapFileName);
     if (readFile(membuffer, EXTRA_CODE_SEG_PTR, 0, -1) > 0) {
-      HOOK_J(0x00598BA0, EXTRA_CODE_SEG_PTR);
+      HOOK_J(0x00598BA0, &hookedMapExData);
+      return;
     }
   }
+
+  // didn't load custom map code, so mark as init
+  MapLoaderState.MapCodeInited = 1;
 }
 
 //------------------------------------------------------------------------------

@@ -15,13 +15,13 @@
 #define UPGRADE_MAX_USES  				(15)
 #define PLAYER_UPGRADE_COOLDOWN_TICKS					(15)
 
-enum UpgradeType {
-	UPGRADE_HEALTH = 0,
-	UPGRADE_SPEED = 1,
-	UPGRADE_DAMAGE = 2,
-	// add new upgrades by filling in these slots first
- 	UPGRADE_CRIT = 6, // Keep crit as ID 6 for DZO
-	UPGRADE_COUNT = 7
+enum UpgradeType
+{
+	UPGRADE_HEALTH,
+	UPGRADE_SPEED,
+	UPGRADE_DAMAGE,
+	UPGRADE_CRIT,
+	UPGRADE_COUNT
 };
 
 struct UpgradePVar {

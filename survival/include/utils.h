@@ -55,9 +55,6 @@ void drawDreadTokenIcon(float x, float y, float scale);
 struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);
 void destroyParticle(struct PartInstance* particle);
 
-int intArrayContains(int* list, int count, int value);
-int charArrayContains(char* list, int count, char value);
-
 void vectorProjectOnVertical(VECTOR output, VECTOR input0);
 void vectorProjectOnHorizontal(VECTOR output, VECTOR input0);
 float getSignedSlope(VECTOR forward, VECTOR normal);

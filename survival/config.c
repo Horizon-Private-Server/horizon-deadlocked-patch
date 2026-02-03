@@ -15,14 +15,3 @@ const float BOLT_TAX[] = {
 	0.40,			// 9 players
 	0.40,			// 10 players
 };
-
-const char ENABLED_ALPHA_MODS[] = {
-  ALPHA_MOD_SPEED,
-  ALPHA_MOD_AMMO,
-  ALPHA_MOD_IMPACT,
-  ALPHA_MOD_AREA,
-  ALPHA_MOD_JACKPOT,
-  ALPHA_MOD_XP
-};
-
-const int ENABLED_ALPHA_MODS_COUNT = COUNT_OF(ENABLED_ALPHA_MODS);

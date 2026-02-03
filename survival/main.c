@@ -45,7 +45,6 @@
 #include "include/stats.h"
 #include "include/utils.h"
 
-#define DIFFICULTY_FACTOR                   (State.MobStats.TotalSpawned / 100)
 #define SPAWNPOINT_NEAR_BUFFER_SIZE         (3)
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
@@ -160,6 +159,8 @@ struct CustomDzoCommandSurvivalDrawHud
   char RoundCompleteMessage[64];
   int Timer;
   Moby* BossMoby;
+  int BossIconId;
+  char RoundStartMessage[64];
 } dzoDrawHudCmd;
 
 struct CustomDzoCommandSurvivalDrawReviveMsg
@@ -192,9 +193,14 @@ void updateDzoHud(void)
     return;
 
   int gameTime = gameGetTime();
-
+  int bossIconId = 0;
   Player* player = playerGetFromSlot(0);
 
+  u32 bossIconHudId = hudPanelGetElement((void *)0x222b18, 6);
+	struct HUDWidgetRectangleObject *bossImgRectObject = (struct HUDWidgetRectangleObject *)hudCanvasGetObject(hudGetCanvas(4), bossIconHudId);
+  if (bossImgRectObject) bossIconId = bossImgRectObject->TextureId;
+  
+  dzoDrawHudCmd.BossIconId = bossIconId;
   dzoDrawHudCmd.BossMoby = State.BossMoby;
   dzoDrawHudCmd.Tokens = State.LocalPlayerState->State.CurrentTokens;
   dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
@@ -211,6 +217,8 @@ void updateDzoHud(void)
 
   // reset
   dzoDrawHudCmd.HasRoundCompleteMessage = 0;
+  dzoDrawHudCmd.StartRoundTimer = 0;
+  dzoDrawHudCmd.RoundStartMessage[0] = 0;
 }
 
 //--------------------------------------------------------------------------
@@ -709,14 +717,6 @@ int spawnCanSpawnMob(struct MobSpawnParams* mob, int spawnParamIdx)
 }
 
 //--------------------------------------------------------------------------
-float getDifficultyFactor(void)
-{
-  float difficultyBump = 0.6 + powf(1.5, State.RoundNumber / 25) * 0.4;
-  float difficulty = DIFFICULTY_FACTOR * difficultyBump * State.Difficulty;
-  return difficulty;
-}
-
-//--------------------------------------------------------------------------
 void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int spawnFlags)
 {
   GameSettings* gs = gameGetSettings();
@@ -726,7 +726,7 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   float damage = config->Damage;
   float speed = config->Speed;
   float health = config->Health;
-  float difficulty = getDifficultyFactor();
+  float difficulty = getCurrentDifficulty();
 
   // scale config by round
   if (isBaseConfig) {
@@ -1168,9 +1168,9 @@ void playerUpgradeWeapon(Player* player, int weaponId, int noAlphaMod)
   message.PlayerId = player->PlayerId;
   message.WeaponId = weaponId;
   message.Level = gBox->Gadgets[weaponId].Level + 1;
-  message.Alphamod = ENABLED_ALPHA_MODS[rand(ENABLED_ALPHA_MODS_COUNT)];
-  if (noAlphaMod)
-    message.Alphamod = 0;
+  message.Alphamod = 0;
+  if (!noAlphaMod)
+    message.Alphamod = getRandomAlphamodForPlayer(player, weaponId);
   netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_UPGRADE, sizeof(SurvivalWeaponUpgradeMessage_t), &message);
 
   // set locally
@@ -1201,8 +1201,9 @@ void onPlayerRevive(int playerId, int fromPlayerId)
   State.PlayerStates[playerId].IsDead = 0;
   State.PlayerStates[playerId].State.TimesRevived++;
   State.PlayerStates[playerId].State.TimesRevivedSinceRoundStart++;
-  Player* player = playerGetAll()[playerId];
-  if (!player)
+  Player** players = playerGetAll();
+  Player* player = players[playerId];
+  if (!playerIsValid(player))
     return;
 
   // backup current position/rotation
@@ -1239,7 +1240,11 @@ void onPlayerRevive(int playerId, int fromPlayerId)
   player->timers.acidTimer = 0;
   player->timers.collOff = 0;
   player->timers.freezeTimer = 1; // triggers the game to handle resetting movement speed on 0
-  player->timers.postHitInvinc = TPS * 3;
+  player->timers.invincibilityTimer = TPS * 3;
+
+  // pass to map
+  if (hasMapConfig() && mapConfig->Functions.OnPlayerRevivedFunc)
+    mapConfig->Functions.OnPlayerRevivedFunc(player, players[fromPlayerId]);
 }
 
 //--------------------------------------------------------------------------
@@ -2155,7 +2160,7 @@ void processPlayer(int pIndex) {
           if (!canPrestige)
             snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), errMsg);
           else
-            snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_PRESTIGE_WEAPON_MESSAGE);
+            snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_PRESTIGE_WEAPON_MESSAGE, cost);
 
           uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
           hasMessage = 1;
@@ -2501,13 +2506,23 @@ void setRoundStart(int skip)
   int targetRound = State.RoundNumber;
   if (!State.RoundEndTime)
     targetRound += 1;
-    
-  // send out
-  message.RoundNumber = targetRound;
-  message.GameTime = gameGetTime() + (skip ? 0 : ROUND_TRANSITION_DELAY_MS);
-  if (!skip && ((State.RoundIsSpecial && mapConfig->SpecialRoundParams[State.RoundSpecialIdx].UnlimitedPostRoundTime) || ((State.RoundNumber+1)%25)==0))
-    message.GameTime = -1;
 
+  // build message
+  message.RoundNumber = targetRound;
+  message.GameTime = gameGetTime();
+
+  if (!skip) {
+    // get transition time
+    // if map returns negative, use post unlimited
+    int postSpecialRoundUnlimited = State.RoundIsSpecial && mapConfig->SpecialRoundParams[State.RoundSpecialIdx].UnlimitedPostRoundTime;
+    int transitionTime = getRoundTransitionTime(targetRound);
+    if (postSpecialRoundUnlimited || transitionTime < 0)
+      message.GameTime = -1;
+    else
+      message.GameTime += transitionTime;
+  }
+
+  // send out
   netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_ROUND_START, sizeof(SurvivalRoundStartMessage_t), &message);
 
   // set locally
@@ -3717,10 +3732,10 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
           y = SCREEN_HEIGHT - 100;
           transformToSplitscreenPixelCoordinates(i, &x, &y);
 
+          // draw on ps2 and dzo
           gfxSetupGifPaging(0);
-          u64 itemSprite = gfxGetFrameTex(itemTexId);
-          gfxDrawSprite(x+2, y+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
-          gfxDrawSprite(x,   y,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
+          gfxHelperDrawSprite(x, y, 2, 2, 32, 32, itemTexWH, itemTexWH, itemTexId, 0x40000000, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+          gfxHelperDrawSprite(x, y, 0, 0, 32, 32, itemTexWH, itemTexWH, itemTexId, itemColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
           gfxDoGifPaging();
         }
       }
@@ -3744,18 +3759,20 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
           y = SCREEN_HEIGHT - 50;
           transformToSplitscreenPixelCoordinates(i, &x, &y);
 
+          // draw on ps2 and dzo
           gfxSetupGifPaging(0);
-          u64 itemSprite = gfxGetFrameTex(itemTexId);
-          gfxDrawSprite(x+2, y+2, 32, 32, 0, 0, itemTexWH, itemTexWH, 0x40000000, itemSprite);
-          gfxDrawSprite(x,   y,   32, 32, 0, 0, itemTexWH, itemTexWH, itemColor, itemSprite);
+          gfxHelperDrawSprite(x, y, 2, 2, 32, 32, itemTexWH, itemTexWH, itemTexId, 0x40000000, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+          gfxHelperDrawSprite(x, y, 0, 0, 32, 32, itemTexWH, itemTexWH, itemTexId, itemColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
           gfxDoGifPaging();
         }
 
         if (useItemChar) {
-          x = 5;
-          y = SCREEN_HEIGHT - 40;
+          x = 20;
+          y = SCREEN_HEIGHT - 50;
           transformToSplitscreenPixelCoordinates(i, &x, &y);
-          gfxScreenSpaceText(x, y, 0.75, 0.75, 0x80FFFFFF, &useItemChar, 1, 0);
+
+          // draw on ps2 and dzo
+          gfxHelperDrawText(x, y, -15, 10, 0.75, 0x80FFFFFF, &useItemChar, 1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
         }
       }
     }
@@ -3875,7 +3892,10 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         else if (State.IsHost)
         {
           // draw round countdown
-          uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
+          int timerSec = State.RoundEndTime - gameTime;
+          uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, (int)(timerSec * (60.0 / TIME_SECOND)));
+          strncpy(dzoDrawHudCmd.RoundStartMessage, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, sizeof(dzoDrawHudCmd.RoundStartMessage));
+          dzoDrawHudCmd.StartRoundTimer = timerSec;
 
           // handle skip
           if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
@@ -3885,27 +3905,33 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         else
         {
           // draw round countdown
-          uiShowTimer(0, SURVIVAL_NEXT_ROUND_TIMER_MESSAGE, (int)((State.RoundEndTime - gameTime) * (60.0 / TIME_SECOND)));
+          int timerSec = State.RoundEndTime - gameTime;
+          uiShowTimer(0, SURVIVAL_NEXT_ROUND_TIMER_MESSAGE, (int)(timerSec * (60.0 / TIME_SECOND)));
+          strncpy(dzoDrawHudCmd.RoundStartMessage, SURVIVAL_NEXT_ROUND_TIMER_MESSAGE, sizeof(dzoDrawHudCmd.RoundStartMessage));
+          dzoDrawHudCmd.StartRoundTimer = timerSec;
         }
       }
       else if (State.IsHost && State.RoundEndTime < 0)
       {
         // round doesn't begin until host chooses to start
-        gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
+        gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 0, 0, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+        //gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
         if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
           setRoundStart(1);
         }
       }
       else if (!State.IsHost && State.RoundEndTime < 0)
       {
-        gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE, -1, 4);
+        //gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE, -1, 4);
+        gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 0, 0, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
       }
       else if (State.IsHost)
       {
 #if AUTOSTART
         setRoundStart(0);
 #else
-        gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
+        gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 0, 0, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+        //gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
         if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
           setRoundStart(1);
         }

@@ -3551,6 +3551,9 @@ int sendClientReady(int timeLastSent)
   int bit = 1 << clientId;
   int dt = gameGetTime() - timeLastSent;
 
+  // map must've finished loading code
+  if (!MapLoaderState.MapCodeInited) return;
+
   // until all clients ready, send ours periodically in case a client missed ours
   if (patchStateContainer.AllClientsReady && isInGame()) return timeLastSent;
   if ((patchStateContainer.ClientsReadyMask & bit) && dt < TIME_SECOND)

@@ -105,8 +105,6 @@
 #define DOUBLE_POINTS_DURATION								(20 * TIME_SECOND)
 #define DOUBLE_XP_DURATION								    (20 * TIME_SECOND)
 #define FREEZE_DROP_DURATION									(10 * TIME_SECOND)
-#define MOB_HAS_DROP_PROBABILITY						  (0.01)
-#define MOB_HAS_DROP_PROBABILITY_LUCKY			  (0.05)
 #define DROP_MAX_SPAWNED											(4)
 
 #define PLAYER_BASE_REVIVE_TICKS					    (60 * TPS)
@@ -552,8 +550,6 @@ struct SurvivalSnackItem
 };
 
 extern const float BOLT_TAX[];
-extern const char ENABLED_ALPHA_MODS[];
-extern const int ENABLED_ALPHA_MODS_COUNT;
 
 struct GuberMoby* getGuber(Moby* moby);
 int handleEvent(Moby* moby, GuberEvent* event);

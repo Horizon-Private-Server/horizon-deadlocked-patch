@@ -1121,10 +1121,9 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     if (killedByPlayerId >= 0 && gameAmIHost()) {
       Player * killedByPlayer = players[(int)killedByPlayerId];
       if (killedByPlayer) {
-        float randomValue = randRange(0.0, 1.0);
-        float probability = playerHasBlessing(killedByPlayerId, BLESSING_ITEM_LUCK) ? MOB_HAS_DROP_PROBABILITY_LUCKY : MOB_HAS_DROP_PROBABILITY;
-        if (randomValue < probability) {
-          mapConfig->Functions.CreateMobDropFunc(moby->Position, randRangeInt(0, DROP_COUNT-1), gameGetTime() + DROP_DURATION, killedByPlayer->Team);
+        int dropType = getDropTypeOnMobKilled(killedByPlayer, moby, weaponId);
+        if (dropType >= 0 && dropType < DROP_COUNT) {
+          mapConfig->Functions.CreateMobDropFunc(moby->Position, dropType, gameGetTime() + DROP_DURATION, killedByPlayer->Team);
         }
       }
     }

@@ -114,3 +114,39 @@ u32 getXpForNextToken(Player* player, int token)
 
   return mapConfig->Functions.GetXpForNextTokenFunc(player, token);
 }
+
+//--------------------------------------------------------------------------
+float getCurrentDifficulty(void)
+{
+  if (!mapConfig->Functions.GetCurrentDifficultyFunc)
+    return 1;
+
+  return mapConfig->Functions.GetCurrentDifficultyFunc();
+}
+
+//--------------------------------------------------------------------------
+int getDropTypeOnMobKilled(Player *killedByPlayer, Moby *mob, int gadgetId)
+{
+  if (!mapConfig->Functions.GetDropTypeOnMobKilledFunc)
+    return -1;
+
+  return mapConfig->Functions.GetDropTypeOnMobKilledFunc(killedByPlayer, mob, gadgetId);
+}
+
+//--------------------------------------------------------------------------
+int getRoundTransitionTime(int round)
+{
+  if (!mapConfig->Functions.GetRoundTransitionTimeFunc)
+    return ROUND_TRANSITION_DELAY_MS;
+
+  return mapConfig->Functions.GetRoundTransitionTimeFunc(round);
+}
+
+//--------------------------------------------------------------------------
+int getRandomAlphamodForPlayer(Player* player, int gadgetId)
+{
+  if (!mapConfig->Functions.GetRandomAlphamodForPlayerFunc)
+    return ROUND_TRANSITION_DELAY_MS;
+
+  return mapConfig->Functions.GetRandomAlphamodForPlayerFunc(player, gadgetId);
+}

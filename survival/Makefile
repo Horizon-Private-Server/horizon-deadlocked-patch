@@ -1,7 +1,7 @@
 
 EE_ELF = survival-11184.elf
 EE_BIN = survival-11184.bin
-EE_OBJS = main.o mob.o utils.o config.o bubble.o stats.o interop.o
+EE_OBJS = main.o mob.o utils.o config.o bubble.o stats.o interop.o common.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
