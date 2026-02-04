@@ -38,6 +38,8 @@ struct PartInstance {
 	int Update[8];
 };
 
+struct SurvivalVote;
+
 void setFreeze(int isActive);
 void setDoublePoints(int isActive);
 void setDoubleXP(int isActive);
@@ -53,6 +55,11 @@ u32 decTimerU32(u32* timeValue);
 void drawDreadTokenIcon(float x, float y, float scale);
 struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);
 void destroyParticle(struct PartInstance* particle);
+void voteBegin(struct SurvivalVote* vote);
+void voteEnd(struct SurvivalVote* vote);
+int voteGetResult(struct SurvivalVote* vote);
+void voteCast(struct SurvivalVote* vote, int clientId, int value);
+int voteIsCast(struct SurvivalVote* vote, int clientId);
 
 void vectorProjectOnVertical(VECTOR output, VECTOR input0);
 void vectorProjectOnHorizontal(VECTOR output, VECTOR input0);

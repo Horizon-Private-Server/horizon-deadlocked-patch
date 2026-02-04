@@ -49,9 +49,8 @@
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
-const char * SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE = "\x1d   Start Round";
-const char * SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE = "Waiting for Host";
-const char * SURVIVAL_NEXT_ROUND_TIMER_MESSAGE = "Next Round";
+const char * SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Vote To Start Round (%d/%d)";
+const char * SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE = "Waiting For Players (%d/%d)";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_HEALTH_GUN = "Health Tornado";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x1c (DOWN) Revive %s";
@@ -1585,6 +1584,45 @@ void setFreeze(int isActive)
 }
 
 //--------------------------------------------------------------------------
+void onPlayerCastNextRoundVote(int clientId, int value)
+{
+  if (!State.VoteForNextRound.IsActive)
+    return;
+
+  voteCast(&State.VoteForNextRound, clientId, value);
+}
+
+//--------------------------------------------------------------------------
+int onPlayerCastVoteRemote(void * connection, void * data)
+{
+  SurvivalPlayerCastVote_t message;
+
+  memcpy(&message, data, sizeof(SurvivalPlayerCastVote_t));
+  switch (message.Ballot)
+  {
+    case 1: onPlayerCastNextRoundVote(message.ClientId, message.Value); break;
+    default: DPRINTF("recv vote from %d for invalid ballot %d\n", message.ClientId, message.Ballot); break;
+  }
+
+  return sizeof(SurvivalPlayerCastVote_t);
+}
+
+//--------------------------------------------------------------------------
+void playerCastNextRoundVote(void)
+{
+  SurvivalPlayerCastVote_t message;
+
+  // send out
+  message.Ballot = 1;
+  message.ClientId = gameGetMyClientId();
+  message.Value = 1;
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_CAST_VOTE, sizeof(message), &message);
+
+  // locally
+  onPlayerCastNextRoundVote(message.ClientId, message.Value);
+}
+
+//--------------------------------------------------------------------------
 void onSetRound50Time(int time)
 {
   char buffer[64];
@@ -2376,6 +2414,9 @@ void onSetRoundComplete(int gameTime, int boltBonus)
   State.RoundEndTime = 0;
   State.RoundCompleteTime = gameTime;
 
+  // begin vote
+  voteBegin(&State.VoteForNextRound);
+
   // add bonus
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     if (!State.PlayerStates[i].IsDead) {
@@ -2804,6 +2845,9 @@ void resetRoundState(void)
     State.PlayerStates[i].State.TimesRevivedSinceRoundStart = 0;
   }
 
+  // end vote
+  voteEnd(&State.VoteForNextRound);
+
   // reset bank
   if (State.Bankbox) {
     struct BankBoxPVar* bankPvars = (struct BankBoxPVar*)State.Bankbox->PVar;
@@ -3046,6 +3090,7 @@ void initialize(PatchStateContainer_t* gameState)
   netInstallCustomMsgHandler(CUSTOM_MSG_INTERACT_BANK_BOX, &onPlayerInteractBankBoxRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_WITHDRAWN_BANK_BOX, &onPlayerWithdrawnBankBoxRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_50_TIME, &onSetRound50TimeRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_CAST_VOTE, &onPlayerCastVoteRemote);
 
   // set game over string
   strncpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
@@ -3765,7 +3810,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     // 
     State.ActivePlayerCount = 0;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (players[i])
+      if (playerIsValid(players[i]) && playerIsConnected(players[i]))
         State.ActivePlayerCount++;
 
       processPlayer(i);
@@ -3836,61 +3881,40 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         drawRoundMessage(buffer, 1.5, 0);
       }
 
-      if (State.RoundEndTime > 0)
+      // start round transition
+      if (State.RoundEndTime == 0)
       {
-        // handle when round properly ends
-        if (gameTime > State.RoundEndTime)
-        {
-          // reset round state
-          resetRoundState();
-        }
-        else if (State.IsHost)
-        {
-          // draw round countdown
-          int timerSec = State.RoundEndTime - gameTime;
-          uiShowTimer(0, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, (int)(timerSec * (60.0 / TIME_SECOND)));
-          strncpy(dzoDrawHudCmd.RoundStartMessage, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, sizeof(dzoDrawHudCmd.RoundStartMessage));
-          dzoDrawHudCmd.StartRoundTimer = timerSec;
-
-          // handle skip
-          if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
-            setRoundStart(1);
-          }
-        }
-        else
-        {
-          // draw round countdown
-          int timerSec = State.RoundEndTime - gameTime;
-          uiShowTimer(0, SURVIVAL_NEXT_ROUND_TIMER_MESSAGE, (int)(timerSec * (60.0 / TIME_SECOND)));
-          strncpy(dzoDrawHudCmd.RoundStartMessage, SURVIVAL_NEXT_ROUND_TIMER_MESSAGE, sizeof(dzoDrawHudCmd.RoundStartMessage));
-          dzoDrawHudCmd.StartRoundTimer = timerSec;
-        }
-      }
-      else if (State.IsHost && State.RoundEndTime < 0)
-      {
-        // round doesn't begin until host chooses to start
-        gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 0, 0, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
-        //gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
-        if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
-          setRoundStart(1);
-        }
-      }
-      else if (!State.IsHost && State.RoundEndTime < 0)
-      {
-        //gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE, -1, 4);
-        gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 0, 0, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_WAIT_FOR_HOST_MESSAGE, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
-      }
-      else if (State.IsHost)
-      {
-#if AUTOSTART
         setRoundStart(0);
-#else
-        gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 0, 0, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
-        //gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, SURVIVAL_NEXT_ROUND_BEGIN_SKIP_MESSAGE, -1, 4);
-        if (localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
+      }
+      // check for auto end
+      else if (State.RoundEndTime > 0 && gameTime > State.RoundEndTime)
+      {
+        resetRoundState();
+      }
+      else if (State.VoteForNextRound.IsActive)
+      {
+        int hasCastVote = voteIsCast(&State.VoteForNextRound, gameGetMyClientId());
+
+        // vote ended, start round
+        if (voteGetResult(&State.VoteForNextRound))
           setRoundStart(1);
+
+        // print vote status
+        snprintf(dzoDrawHudCmd.RoundStartMessage, sizeof(dzoDrawHudCmd.RoundStartMessage), hasCastVote ? SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE : SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE, State.VoteForNextRound.NumVotes, State.VoteForNextRound.NumVotesRequired);
+        
+        // draw timer if round transition has time limit
+        if (State.RoundEndTime > 0) {
+          int timerSec = State.RoundEndTime - gameTime;
+          uiShowTimer(0, dzoDrawHudCmd.RoundStartMessage, (int)(timerSec * (60.0 / TIME_SECOND)));
+          dzoDrawHudCmd.StartRoundTimer = timerSec;
+        } else if (State.RoundEndTime < 0) {
+          gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 0, 0, 1, 0x80FFFFFF, dzoDrawHudCmd.RoundStartMessage, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
         }
-#endif
+
+        // handle skip
+        if (!hasCastVote && localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
+          playerCastNextRoundVote();
+        }
       }
     }
     else

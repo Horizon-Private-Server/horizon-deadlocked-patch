@@ -1128,7 +1128,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
       }
     }
   }
-#endif  
+#endif
 
 #if SHARED_BOLTS
   if (killedByPlayerId >= 0) {

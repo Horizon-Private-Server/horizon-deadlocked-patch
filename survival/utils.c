@@ -320,3 +320,61 @@ int hasMapConfig(void)
 {
   return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC && mapConfig->Functions.OnMobCreateFunc;
 }
+
+//--------------------------------------------------------------------------
+void voteBegin(struct SurvivalVote* vote)
+{
+  memset(vote, 0, sizeof(struct SurvivalVote));
+  vote->IsActive = 1;
+  vote->NumVotesRequired = State.ActivePlayerCount;
+}
+
+//--------------------------------------------------------------------------
+void voteEnd(struct SurvivalVote* vote)
+{
+  vote->IsActive = 0;
+}
+
+//--------------------------------------------------------------------------
+int voteGetResult(struct SurvivalVote* vote)
+{
+  // check for result
+  int i;
+  GameSettings* gs = gameGetSettings();
+  Player** players = playerGetAll();
+  int count = 0;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!playerIsValid(player)) continue;
+    if (gs->PlayerClients[i] < 0) continue;
+    if (!playerIsConnected(player)) continue;
+    if (!vote->Votes[gs->PlayerClients[i]]) continue;
+
+    count++;
+  }
+
+  // tally and check result
+  vote->NumVotesRequired = State.ActivePlayerCount;
+  vote->NumVotes = count;
+  vote->Result = count >= vote->NumVotesRequired;
+  return vote->Result;
+}
+
+//--------------------------------------------------------------------------
+void voteCast(struct SurvivalVote* vote, int clientId, int value)
+{
+  // cast
+  vote->Votes[clientId] = (char)value;
+}
+
+//--------------------------------------------------------------------------
+int voteIsCast(struct SurvivalVote* vote, int clientId)
+{
+  return vote->Votes[clientId];
+}
+
+//--------------------------------------------------------------------------
+int isInRoundTransition(void)
+{
+  return State.RoundCompleteTime;
+}
