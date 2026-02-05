@@ -1036,16 +1036,6 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
     }
   }
 
-  // spawn flags
-  if (spawnFlags & MOB_SPAWN_FLAG_RUSSIAN_DOLL) {
-    // give velocity on spawn
-    float theta = randRadian();
-    vector_fromyaw(pvars->MobVars.MoveVars.AddVelocity, theta);
-    vector_scale(pvars->MobVars.MoveVars.AddVelocity, pvars->MobVars.MoveVars.AddVelocity, 6 * MATH_DT);
-    pvars->MobVars.MoveVars.AddVelocity[2] = 6 * MATH_DT;
-  }
-
-  // 
   mobySetState(moby, 0, -1);
   mobStatsOnNewMobSpawned(moby, spawnFromUID, fromThisClient);
 
