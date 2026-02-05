@@ -193,7 +193,8 @@ enum GameNetMessage
   CUSTOM_MSG_WITHDRAWN_BANK_BOX,
   CUSTOM_MSG_SET_ROUND_50_TIME,
   CUSTOM_MSG_TELEPORT_BIG_AL,
-  CUSTOM_MSG_PLAYER_CAST_VOTE
+  CUSTOM_MSG_PLAYER_CAST_VOTE,
+  CUSTOM_MSG_ROUND_BEGIN,
 };
 
 enum BakedSpawnpointType
@@ -538,6 +539,11 @@ typedef struct SurvivalPlayerCastVote
   int ClientId;
   int Value;
 } SurvivalPlayerCastVote_t;
+
+typedef struct SurvivalRoundBeginMessage
+{
+  
+} SurvivalRoundBeginMessage_t;
 
 struct SurvivalSnackItem
 {

@@ -49,6 +49,7 @@
 
 const char * SURVIVAL_ROUND_COMPLETE_MESSAGE = "Round %d Complete!";
 const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
+const char * SURVIVAL_START_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Start Round";
 const char * SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Vote To Start Round (%d/%d)";
 const char * SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE = "Waiting For Players (%d/%d)";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
@@ -2403,6 +2404,42 @@ int getRoundBonus(int roundNumber, int numPlayers)
 }
 
 //--------------------------------------------------------------------------
+void onRoundBegin(void)
+{
+  resetRoundState();
+}
+
+//--------------------------------------------------------------------------
+int onRoundBeginRemote(void * connection, void * data)
+{
+  SurvivalRoundBeginMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onRoundBegin();
+
+  return sizeof(message);
+}
+
+//--------------------------------------------------------------------------
+void sendRoundBegin(void)
+{
+  SurvivalRoundBeginMessage_t message;
+
+  // if round has already begun, ignore request
+  if (!State.RoundCompleteTime)
+    return;
+
+  // don't allow beginning unless host
+  if (!State.IsHost)
+    return;
+
+  // send out
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_ROUND_BEGIN, sizeof(message), &message);
+
+  // set locally
+  onRoundBegin();
+}
+
+//--------------------------------------------------------------------------
 void onSetRoundComplete(int gameTime, int boltBonus)
 {
   int i;
@@ -3076,6 +3113,7 @@ void initialize(PatchStateContainer_t* gameState)
   // Hook custom net events
   netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_COMPLETE, &onSetRoundCompleteRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_START, &onSetRoundStartRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ROUND_BEGIN, &onRoundBeginRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_WEAPON_UPGRADE, &onPlayerUpgradeWeaponRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_REVIVE_PLAYER, &onPlayerReviveRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_DIED, &onSetPlayerDeadRemote);
@@ -3889,7 +3927,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       // check for auto end
       else if (State.RoundEndTime > 0 && gameTime > State.RoundEndTime)
       {
-        resetRoundState();
+        sendRoundBegin();
       }
       else if (State.VoteForNextRound.IsActive)
       {
@@ -3900,7 +3938,9 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
           setRoundStart(1);
 
         // print vote status
-        snprintf(dzoDrawHudCmd.RoundStartMessage, sizeof(dzoDrawHudCmd.RoundStartMessage), hasCastVote ? SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE : SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE, State.VoteForNextRound.NumVotes, State.VoteForNextRound.NumVotesRequired);
+        char* voteMsg = hasCastVote ? SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE : SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE;
+        if (State.ActivePlayerCount <= 1) voteMsg = SURVIVAL_START_NEXT_ROUND_TIMER_MESSAGE;
+        snprintf(dzoDrawHudCmd.RoundStartMessage, sizeof(dzoDrawHudCmd.RoundStartMessage), voteMsg, State.VoteForNextRound.NumVotes, State.VoteForNextRound.NumVotesRequired);
         
         // draw timer if round transition has time limit
         if (State.RoundEndTime > 0) {
