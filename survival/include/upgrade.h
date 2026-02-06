@@ -15,24 +15,20 @@
 #define UPGRADE_MAX_USES  				(15)
 #define PLAYER_UPGRADE_COOLDOWN_TICKS					(15)
 
-enum UpgradeType {
+enum UpgradeType
+{
 	UPGRADE_HEALTH,
 	UPGRADE_SPEED,
 	UPGRADE_DAMAGE,
-	UPGRADE_MEDIC,
-	UPGRADE_VENDOR,
-  UPGRADE_PICKUPS,
-  UPGRADE_CRIT,
+	UPGRADE_CRIT,
 	UPGRADE_COUNT
 };
 
 struct UpgradePVar {
 	enum UpgradeType Type;
-  int Uses;
-  int TexId;
+	int Uses;
+	int TexId;
 	struct PartInstance* Particles[4];
 };
-
-int UpgradeMax[UPGRADE_COUNT];
 
 #endif // SURVIVAL_UPGRADE_H

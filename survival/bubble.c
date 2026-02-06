@@ -11,6 +11,7 @@
 #include <libdl/moby.h>
 #include <libdl/sound.h>
 #include <libdl/random.h>
+#include <libdl/hud.h>
 #include <libdl/graphics.h>
 
 extern struct SurvivalState State;
@@ -24,20 +25,15 @@ float bubbleGetScale(struct SurvivalDamageBubble* bubble)
 }
 
 //--------------------------------------------------------------------------
-u32 bubbleGetColor(int damage, int life, int isCrit)
+u32 bubbleGetColor(int damage, int life, int team)
 {
-  u32 from = 0x00BFFF;
-  u32 to = 0x80C0FF;
+  u32 from = hudGetTeamColor(team, 1);
+  u32 to = colorScale(from, 2);
   u32 opacity = 0x80;
-
-  if (isCrit) {
-    from = 0x0010FF;
-    to = 0x8000FF;
-  }
 
   // base color
   float t = 1 - clamp((life - 10) / (float)BUBBLE_LIFE_TICKS, 0, 1);
-  u32 baseColor = colorLerp(from, to, t);  
+  u32 baseColor = colorLerp(from, to, t) & 0xffffff;  
 
   // opacity
   if (life <= 10) {
@@ -48,7 +44,7 @@ u32 bubbleGetColor(int damage, int life, int isCrit)
 }
 
 //--------------------------------------------------------------------------
-void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, int isCrit)
+void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, int team)
 {
   int i;
   int lowestLifeIdx = -1;
@@ -74,7 +70,7 @@ void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, 
     damageBubbles[lowestLifeIdx].Life = BUBBLE_LIFE_TICKS;
     damageBubbles[lowestLifeIdx].Damage = (int)ceilf(damage);
     damageBubbles[lowestLifeIdx].IsLocal = isLocal;
-    damageBubbles[lowestLifeIdx].IsCrit = isCrit;
+    damageBubbles[lowestLifeIdx].Team = team;
     vector_add(damageBubbles[lowestLifeIdx].Position, position, offset);
 
     // send to dzo
@@ -115,7 +111,7 @@ void bubbleTick(void)
       if (gfxWorldSpaceToScreenSpace(damageBubbles[i].Position, &x, &y)) {
         snprintf(buf, sizeof(buf), "%d", damageBubbles[i].Damage);
         scale = bubbleGetScale(&damageBubbles[i]);
-        gfxScreenSpaceText(x, y, scale, scale, bubbleGetColor(damageBubbles[i].Damage, damageBubbles[i].Life, damageBubbles[i].IsCrit), buf, -1, 4);
+        gfxScreenSpaceText(x, y, scale, scale, bubbleGetColor(damageBubbles[i].Damage, damageBubbles[i].Life, damageBubbles[i].Team), buf, -1, 4);
       }
     }
   }

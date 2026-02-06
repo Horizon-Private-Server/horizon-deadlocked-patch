@@ -9,6 +9,7 @@
 #include <libdl/sound.h>
 #include <libdl/random.h>
 #include <libdl/graphics.h>
+#include "common.h"
 
 extern struct SurvivalState State;
 extern struct SurvivalMapConfig* mapConfig;
@@ -125,24 +126,14 @@ u32 decTimerU32(u32* timeValue)
 }
 
 //--------------------------------------------------------------------------
-u32 getXpForNextToken(int counter)
-{
-  //return 200 + (counter * 20 * powf(1.001, counter));
-
-  // clamp after first 50 tokens
-  if (counter > 50) return 3000;
-
-  return (u32)(250 * powf(1.05, counter));
-}
-
-//--------------------------------------------------------------------------
 void drawDreadTokenIcon(float x, float y, float scale)
 {
 	float small = scale * 0.75;
 	float delta = (scale - small) / 2;
+  int texId = 32;
 
 	gfxSetupGifPaging(0);
-	u64 dreadzoneSprite = gfxGetFrameTex(32);
+	u64 dreadzoneSprite = gfxGetFrameTex(texId);
 	gfxDrawSprite(x+2, y+2, scale, scale, 0, 0, 32, 32, 0x40000000, dreadzoneSprite);
 	gfxDrawSprite(x,   y,   scale, scale, 0, 0, 32, 32, 0x80C0C0C0, dreadzoneSprite);
 	gfxDrawSprite(x+delta, y+delta, small, small, 0, 0, 32, 32, 0x80000040, dreadzoneSprite);
@@ -164,30 +155,6 @@ struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, in
 void destroyParticle(struct PartInstance* particle)
 {
 	((void (*)(struct PartInstance*))0x005284d8)(particle);
-}
-
-//--------------------------------------------------------------------------
-int intArrayContains(int* list, int count, int value)
-{
-	int i;
-
-	for (i = 0; i < count; ++i)
-		if (list[i] == value)
-			return 1;
-
-	return 0;
-}
-
-//--------------------------------------------------------------------------
-int charArrayContains(char* list, int count, char value)
-{
-	int i;
-
-	for (i = 0; i < count; ++i)
-		if (list[i] == value)
-			return 1;
-
-	return 0;
 }
 
 //--------------------------------------------------------------------------
@@ -343,17 +310,6 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
 }
 
 //--------------------------------------------------------------------------
-int playerHasBlessing(int playerId, int blessing)
-{
-  int i;
-  for (i = 0; i < PLAYER_MAX_BLESSINGS; ++i) {
-    if (State.PlayerStates[playerId].State.ItemBlessings[i] == blessing) return 1;
-  }
-
-  return 0;
-}
-
-//--------------------------------------------------------------------------
 int playerGetStackableCount(int playerId, int stackable)
 {
   return State.PlayerStates[playerId].State.ItemStackable[stackable];
@@ -362,5 +318,63 @@ int playerGetStackableCount(int playerId, int stackable)
 //--------------------------------------------------------------------------
 int hasMapConfig(void)
 {
-  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC && mapConfig->OnMobCreateFunc;
+  return mapConfig && mapConfig->Magic == MAP_CONFIG_MAGIC && mapConfig->Functions.OnMobCreateFunc;
+}
+
+//--------------------------------------------------------------------------
+void voteBegin(struct SurvivalVote* vote)
+{
+  memset(vote, 0, sizeof(struct SurvivalVote));
+  vote->IsActive = 1;
+  vote->NumVotesRequired = State.ActivePlayerCount;
+}
+
+//--------------------------------------------------------------------------
+void voteEnd(struct SurvivalVote* vote)
+{
+  vote->IsActive = 0;
+}
+
+//--------------------------------------------------------------------------
+int voteGetResult(struct SurvivalVote* vote)
+{
+  // check for result
+  int i;
+  GameSettings* gs = gameGetSettings();
+  Player** players = playerGetAll();
+  int count = 0;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    Player* player = players[i];
+    if (!playerIsValid(player)) continue;
+    if (gs->PlayerClients[i] < 0) continue;
+    if (!playerIsConnected(player)) continue;
+    if (!vote->Votes[gs->PlayerClients[i]]) continue;
+
+    count++;
+  }
+
+  // tally and check result
+  vote->NumVotesRequired = State.ActivePlayerCount;
+  vote->NumVotes = count;
+  vote->Result = count >= vote->NumVotesRequired;
+  return vote->Result;
+}
+
+//--------------------------------------------------------------------------
+void voteCast(struct SurvivalVote* vote, int clientId, int value)
+{
+  // cast
+  vote->Votes[clientId] = (char)value;
+}
+
+//--------------------------------------------------------------------------
+int voteIsCast(struct SurvivalVote* vote, int clientId)
+{
+  return vote->Votes[clientId];
+}
+
+//--------------------------------------------------------------------------
+int isInRoundTransition(void)
+{
+  return State.RoundCompleteTime;
 }

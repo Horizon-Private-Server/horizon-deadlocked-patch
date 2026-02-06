@@ -7,6 +7,7 @@
 #include <libdl/math3d.h>
 #include "upgrade.h"
 #include "bankbox.h"
+#include "interop.h"
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
@@ -104,8 +105,6 @@
 #define DOUBLE_POINTS_DURATION								(20 * TIME_SECOND)
 #define DOUBLE_XP_DURATION								    (20 * TIME_SECOND)
 #define FREEZE_DROP_DURATION									(10 * TIME_SECOND)
-#define MOB_HAS_DROP_PROBABILITY						  (0.01)
-#define MOB_HAS_DROP_PROBABILITY_LUCKY			  (0.05)
 #define DROP_MAX_SPAWNED											(4)
 
 #define PLAYER_BASE_REVIVE_TICKS					    (60 * TPS)
@@ -117,7 +116,6 @@
 #define PLAYER_KNOCKBACK_BASE_POWER						(3.0)
 #define PLAYER_KNOCKBACK_BASE_TICKS						(10)
 #define PLAYER_COLL_RADIUS          					(0.5)
-#define PLAYER_MAX_BLESSINGS                  (4)
 
 #define BIG_AL_MAX_DIST												(5)
 #define WEAPON_VENDOR_MAX_DIST								(3)
@@ -126,15 +124,11 @@
 #define VENDOR_MAX_WEAPON_LEVEL								(9)
 
 #define PRESTIGE_MACHINE_MAX_DIST							(5)
-#define PRESTIGE_MACHINE_BASE_COST            (100000)
-#define PRESTIGE_MACHINE_COST_PER_LEVEL       (100000)
 #define WEAPON_PRESTIGE_MAX                   (5)
 
 #define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.08)
 #define PLAYER_UPGRADE_SPEED_FACTOR           (0.03)
 #define PLAYER_UPGRADE_HEALTH_FACTOR          (5)
-#define PLAYER_UPGRADE_MEDIC_FACTOR           (0.05)
-#define PLAYER_UPGRADE_VENDOR_FACTOR          (0.02)
 #define PLAYER_UPGRADE_CRIT_FACTOR            (0.01)
 
 #define BAKED_SPAWNPOINT_COUNT							  (32)
@@ -147,11 +141,6 @@
 #define ITEM_HEALTHTORNADO_DURATION           (10*TIME_SECOND)
 #define ITEM_HEALTHTORNADO_PERIOD_TICKS       (TPS * 0.25)
 #define ITEM_HEALTHTORNADO_HEAL_PERCENT       (0.05)
-
-#define ITEM_BLESSING_HEALTH_REGEN_RATE_TPS   (TPS * 0.2)
-#define ITEM_BLESSING_AMMO_REGEN_RATE_TPS     (TPS * 5)
-#define ITEM_BLESSING_THORN_DAMAGE_FACTOR     (0.2)
-#define ITEM_BLESSING_MULTI_JUMP_COUNT        (5)
 
 #define ITEM_STACKABLE_HOVERBOOTS_DUR_TPS     (2 * TPS)
 #define ITEM_STACKABLE_HOVERBOOTS_SPEED_BUF   (0.1)
@@ -204,6 +193,8 @@ enum GameNetMessage
   CUSTOM_MSG_WITHDRAWN_BANK_BOX,
   CUSTOM_MSG_SET_ROUND_50_TIME,
   CUSTOM_MSG_TELEPORT_BIG_AL,
+  CUSTOM_MSG_PLAYER_CAST_VOTE,
+  CUSTOM_MSG_ROUND_BEGIN,
 };
 
 enum BakedSpawnpointType
@@ -256,19 +247,6 @@ enum DropType {
 	DROP_COUNT
 };
 
-enum BlessingItemId
-{
-  BLESSING_ITEM_NONE           = 0,
-  BLESSING_ITEM_MULTI_JUMP     = 1,
-  BLESSING_ITEM_LUCK           = 2,
-  BLESSING_ITEM_BULL           = 3,
-  BLESSING_ITEM_ELEM_IMMUNITY  = 4,
-  BLESSING_ITEM_HEALTH_REGEN   = 5,
-  BLESSING_ITEM_AMMO_REGEN     = 6,
-  BLESSING_ITEM_THORNS         = 7,
-  BLESSING_ITEM_COUNT
-};
-
 enum StackableItemId
 {
   STACKABLE_ITEM_LOW_HEALTH_DMG_BUF     = 0, // stack dmg buf
@@ -288,34 +266,6 @@ struct MobConfig;
 struct MobSpawnEventArgs;
 struct MobSpawnParams;
 
-typedef void (*UpgradePlayerWeapon_func)(int playerId, int weaponId, int giveAlphaMod);
-typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
-typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, int spawnFlags);
-typedef int (*ModeCreateMob_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
-typedef int (*SpawnGetRandomPoint_func)(VECTOR out, struct MobSpawnParams* mob);
-typedef void (*ModeMobNuke_func)(int killedByPlayerId);
-typedef void (*ModeSetDoublePoints_func)(int isActive);
-typedef void (*ModeSetDoubleXP_func)(int isActive);
-typedef void (*ModeSetFreezeMobs_func)(int isActive);
-typedef void (*ModeRevivePlayer_func)(Player* player, int fromPlayerId);
-
-typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef int (*MapOnMobCreate_func)(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
-typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, int killedByWeaponId);
-typedef int (*MapCanSpawnMobs_func)(void);
-typedef int (*MapGetSpawnPoints_func)(int** outSpawnPointIndices);
-typedef int (*MapConsiderMobSpawnPoint_func)(struct MobSpawnParams* mobSpawnParams, VECTOR position, float yaw, Player* targetPlayer);
-typedef int (*OnPlayerGetRes_func)(Player* player, VECTOR outPos, VECTOR outRot, int firstRes);
-typedef int (*CreateUpgradePickup_func)(VECTOR position, VECTOR rotation, enum UpgradeType upgradeType);
-typedef int (*HandleUpgradePickupEvent_func)(Moby* moby, GuberEvent* event);
-typedef void (*PickupUpgradePickup_func)(Moby* moby, int pickedUpByPlayerId);
-typedef int (*CreateMobDrop_func)(VECTOR position, enum DropType dropType, int destroyAtTime, int team);
-typedef int (*HandleMobDropEvent_func)(Moby* moby, GuberEvent* event);
-typedef int (*FrameTick_func)(void);
-
-typedef struct GuberMoby* (*GetGuber_func)(Moby* moby);
-typedef int (*HandleGuberEvent_func)(Moby* moby, GuberEvent* event);
-
 typedef struct SurvivalBakedSpawnpoint
 {
   enum BakedSpawnpointType Type;
@@ -323,18 +273,6 @@ typedef struct SurvivalBakedSpawnpoint
   float Position[3];
   float Rotation[3];
 } SurvivalBakedSpawnpoint_t;
-
-typedef struct SurvivalBakedConfig
-{
-  float Difficulty;
-  float BoltMultiplier;
-  float XpMultiplier;
-  float SpawnDistanceFactor;
-  int BoltRankMultiplier;
-  SurvivalBakedSpawnpoint_t BakedSpawnPoints[BAKED_SPAWNPOINT_COUNT];
-  int StackboxBaseCost;
-  int StackboxCostPerPerk;
-} SurvivalBakedConfig_t;
 
 struct SurvivalPlayerState
 {
@@ -353,13 +291,16 @@ struct SurvivalPlayerState
   int TimesActivatedDemonBell;
   int TimesActivatedPower;
   int TokensUsedOnGates;
-  int BlessingSlots;
   short Upgrades[UPGRADE_COUNT];
   short AlphaMods[8];
-  char ItemBlessings[PLAYER_MAX_BLESSINGS];
   char WeaponPrestige[9];
   char BestWeaponLevel[9];
   u8 ItemStackable[STACKABLE_ITEM_COUNT];
+};
+
+struct UpgradeDef {
+  enum UpgradeType Id;
+  short Max;
 };
 
 struct SurvivalPlayer
@@ -398,6 +339,15 @@ struct SurvivalMobStats
   int TotalSpawned;
   int NumSpawnedThisRound[MAX_MOB_SPAWN_PARAMS];
   u8 NumAlive[MAX_MOB_SPAWN_PARAMS];
+};
+
+struct SurvivalVote
+{
+  char Votes[GAME_MAX_PLAYERS];
+  char IsActive;
+  char Result;
+  short NumVotes;
+  short NumVotesRequired;
 };
 
 struct SurvivalState
@@ -441,51 +391,7 @@ struct SurvivalState
   int Round50Time;
   Moby* BossMoby;
   Moby** AllMobsSorted;
-};
-
-struct SurvivalMapConfig
-{
-  u32 Magic;
-  int ClientsReady;
-  struct SurvivalState* State;
-  struct SurvivalBakedConfig* BakedConfig;
-
-  struct MobSpawnParams* DefaultSpawnParams;
-  int DefaultSpawnParamsCount; 
-  struct SurvivalSpecialRoundParam* SpecialRoundParams;
-  int SpecialRoundParamsCount; 
-  
-  // mode
-  SpawnGetRandomPoint_func SpawnGetRandomPointFunc;
-  UpgradePlayerWeapon_func UpgradePlayerWeaponFunc;
-  PushSnack_func PushSnackFunc;
-  PopulateSpawnArgs_func PopulateSpawnArgsFunc;
-  ModeCreateMob_func ModeCreateMobFunc;
-  ModeMobNuke_func ModeMobNukeFunc;
-  ModeSetDoublePoints_func ModeSetDoublePointsFunc;
-  ModeSetDoubleXP_func ModeSetDoubleXPFunc;
-  ModeSetFreezeMobs_func ModeSetFreezeMobsFunc;
-  ModeRevivePlayer_func ModeRevivePlayerFunc;
-  GetGuber_func OnGetGuberFunc;
-  HandleGuberEvent_func OnGuberEventFunc;
-
-  // map
-  MapOnMobCreate_func OnMobCreateFunc;
-  MapOnMobSpawned_func OnMobSpawnedFunc;
-  MapOnMobKilled_func OnMobKilledFunc;
-  MapCanSpawnMobs_func CanSpawnMobsFunc;
-  MapGetSpawnPoints_func GetSpawnPointsFunc;
-  MapConsiderMobSpawnPoint_func ConsiderMobSpawnPointFunc;
-  OnPlayerGetRes_func OnPlayerGetResFunc;
-  CreateUpgradePickup_func CreateUpgradePickupFunc;
-  HandleUpgradePickupEvent_func OnUpgradePickupEventFunc;
-  PickupUpgradePickup_func PickupUpgradeFunc;
-  CreateMobDrop_func CreateMobDropFunc;
-  HandleMobDropEvent_func OnMobDropEventFunc;
-  FrameTick_func OnFrameTickFunc;
-
-  // misc
-  float WeaponPickupCooldownFactor;
+  struct SurvivalVote VoteForNextRound;
 };
 
 struct SurvivalSpecialRoundParam
@@ -501,6 +407,24 @@ struct SurvivalSpecialRoundParam
   char DisableDrops;
   char SpawnParamIds[4];
   char Name[32];
+};
+
+struct SurvivalMapConfig
+{
+  u32 Magic;
+  int ClientsReady;
+  struct SurvivalState* State;
+
+  struct MobSpawnParams* DefaultSpawnParams;
+  int DefaultSpawnParamsCount; 
+
+  struct SurvivalSpecialRoundParam* SpecialRoundParams;
+  int SpecialRoundParamsCount; 
+
+  struct UpgradeDef* UpgradeDefs;
+  int UpgradeDefCount;
+
+	struct SurvivalInteropTable Functions;
 };
 
 struct SurvivalGameData
@@ -609,6 +533,18 @@ typedef struct SurvivalPlayerUseItem
   enum MysteryBoxItem Item;
 } SurvivalPlayerUseItem_t;
 
+typedef struct SurvivalPlayerCastVote
+{
+  int Ballot;
+  int ClientId;
+  int Value;
+} SurvivalPlayerCastVote_t;
+
+typedef struct SurvivalRoundBeginMessage
+{
+  
+} SurvivalRoundBeginMessage_t;
+
 struct SurvivalSnackItem
 {
   int TicksAlive;
@@ -616,12 +552,7 @@ struct SurvivalSnackItem
   char Str[64];
 };
 
-extern const int UPGRADE_COST[];
 extern const float BOLT_TAX[];
-extern const char WEAPON_PICKUP_BASE_RESPAWN_TIMES[];
-extern const char WEAPON_PICKUP_PLAYER_RESPAWN_TIME_OFFSETS[];
-extern const char ENABLED_ALPHA_MODS[];
-extern const int ENABLED_ALPHA_MODS_COUNT;
 
 struct GuberMoby* getGuber(Moby* moby);
 int handleEvent(Moby* moby, GuberEvent* event);

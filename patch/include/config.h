@@ -157,6 +157,7 @@ typedef struct MapLoaderState
     int LoadingFd;
     int Loaded;
     int FinishedLoading;
+    int MapCodeInited;
     void * LevelBuffer;
     void * SoundBuffer;
     SndCompleteProc SoundLoadCb;
