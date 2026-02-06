@@ -347,7 +347,6 @@ int voteGetResult(struct SurvivalVote* vote)
     Player* player = players[i];
     if (!playerIsValid(player)) continue;
     if (gs->PlayerClients[i] < 0) continue;
-    if (!playerIsConnected(player)) continue;
     if (!vote->Votes[gs->PlayerClients[i]]) continue;
 
     count++;

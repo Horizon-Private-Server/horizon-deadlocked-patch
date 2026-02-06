@@ -661,7 +661,7 @@ void mobUpdate(Moby* moby)
   Player * ownerPlayer = NULL;
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
     Player* p = players[i];
-    if (p && playerIsConnected(p) && gameSettings->PlayerClients[i] == pvars->MobVars.Owner) {
+    if (playerIsValid(p) && gameSettings->PlayerClients[i] == pvars->MobVars.Owner) {
       ownerPlayer = p;
       break;
     }

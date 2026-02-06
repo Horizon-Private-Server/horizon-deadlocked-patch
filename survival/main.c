@@ -1739,7 +1739,7 @@ void onHealthBomb(Player* fromPlayer, VECTOR position) {
   if (fromPlayer) {
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       Player* player = players[i];
-      if (!player || !playerIsConnected(player)) continue;
+      if (!playerIsValid(player)) continue;
 
       vector_subtract(dt, player->PlayerPosition, position);
       if (vector_sqrmag(dt) < (ITEM_EMP_HEALTH_EFFECT_RADIUS*ITEM_EMP_HEALTH_EFFECT_RADIUS)) {
@@ -3848,7 +3848,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     // 
     State.ActivePlayerCount = 0;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (playerIsValid(players[i]) && playerIsConnected(players[i]))
+      if (playerIsValid(players[i]))
         State.ActivePlayerCount++;
 
       processPlayer(i);
