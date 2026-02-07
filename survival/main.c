@@ -3948,7 +3948,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
           uiShowTimer(0, dzoDrawHudCmd.RoundStartMessage, (int)(timerSec * (60.0 / TIME_SECOND)));
           dzoDrawHudCmd.StartRoundTimer = timerSec;
         } else if (State.RoundEndTime < 0) {
-          gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 0, 0, 1, 0x80FFFFFF, dzoDrawHudCmd.RoundStartMessage, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+          gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, dzoDrawHudCmd.RoundStartMessage, -1, TEXT_ALIGN_MIDDLECENTER);
         }
 
         // handle skip
