@@ -552,8 +552,6 @@ struct SurvivalSnackItem
   char Str[64];
 };
 
-extern const float BOLT_TAX[];
-
 struct GuberMoby* getGuber(Moby* moby);
 int handleEvent(Moby* moby, GuberEvent* event);
 

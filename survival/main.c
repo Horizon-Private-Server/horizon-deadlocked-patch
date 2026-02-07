@@ -749,7 +749,7 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   //printf("3 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
 
   output->SpawnParamsIdx = spawnParamsIdx;
-  output->Bolts = (config->Bolts + randRangeInt(-50, 50)) * BOLT_TAX[(int)gs->PlayerCount];
+  output->Bolts = config->Bolts;
   output->Xp = config->Xp;
   output->StartHealth = health;
   output->Bangles = (u16)config->Bangles;
