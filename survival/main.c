@@ -52,6 +52,7 @@ const char * SURVIVAL_ROUND_START_MESSAGE = "Round %d";
 const char * SURVIVAL_START_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Start Round";
 const char * SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Vote To Start Round (%d/%d)";
 const char * SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE = "Waiting For Players (%d/%d)";
+const char * SURVIVAL_HOST_SKIP_VOTE_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Skip Waiting For Players (%d/%d)";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_HEALTH_GUN = "Health Tornado";
 const char * SURVIVAL_REVIVE_MESSAGE = "\x1c (DOWN) Revive %s";
@@ -3934,14 +3935,19 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         int hasCastVote = voteIsCast(&State.VoteForNextRound, gameGetMyClientId());
 
         // vote ended, start round
-        if (voteGetResult(&State.VoteForNextRound))
+        int voteResult = voteGetResult(&State.VoteForNextRound);
+        if (voteResult) {
           setRoundStart(1);
+        }
 
         // print vote status
-        char* voteMsg = hasCastVote ? SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE : SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE;
-        if (State.ActivePlayerCount <= 1) voteMsg = SURVIVAL_START_NEXT_ROUND_TIMER_MESSAGE;
-        snprintf(dzoDrawHudCmd.RoundStartMessage, sizeof(dzoDrawHudCmd.RoundStartMessage), voteMsg, State.VoteForNextRound.NumVotes, State.VoteForNextRound.NumVotesRequired);
-        
+        if (!voteResult) {
+          char* voteMsg = hasCastVote ? SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE : SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE;
+          if (gameAmIHost() && hasCastVote) voteMsg = SURVIVAL_HOST_SKIP_VOTE_NEXT_ROUND_TIMER_MESSAGE;
+          if (State.ActivePlayerCount <= 1) voteMsg = SURVIVAL_START_NEXT_ROUND_TIMER_MESSAGE;
+          snprintf(dzoDrawHudCmd.RoundStartMessage, sizeof(dzoDrawHudCmd.RoundStartMessage), voteMsg, State.VoteForNextRound.NumVotes, State.VoteForNextRound.NumVotesRequired);
+        }
+
         // draw timer if round transition has time limit
         if (State.RoundEndTime > 0) {
           int timerSec = State.RoundEndTime - gameTime;
@@ -3954,6 +3960,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         // handle skip
         if (!hasCastVote && localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
           playerCastNextRoundVote();
+        } else if (gameAmIHost() && hasCastVote && localPlayerHasInput() && padGetButtonDown(0, PAD_UP) > 0) {
+          setRoundStart(1);
         }
       }
     }
