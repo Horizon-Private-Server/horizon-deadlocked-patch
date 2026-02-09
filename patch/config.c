@@ -1829,7 +1829,7 @@ int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char*
 
   // send to server
   if (!isInGame()) {
-    cgmSendMapData(selIdx, CUSTOM_MODE_SURVIVAL, buf, exDataLen);
+    cgmSendMapData(mapIdx, CUSTOM_MODE_SURVIVAL, buf, exDataLen);
     //survivalSendMapData(selIdx, buf);
   }
 
