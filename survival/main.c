@@ -25,6 +25,7 @@
 #include <libdl/dialog.h>
 #include <libdl/ui.h>
 #include <libdl/stdio.h>
+#include <libdl/color.h>
 #include <libdl/stdlib.h>
 #include <libdl/graphics.h>
 #include <libdl/spawnpoint.h>
@@ -54,8 +55,7 @@ const char * SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Vote To Start Roun
 const char * SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE = "Waiting For Players (%d/%d)";
 const char * SURVIVAL_HOST_SKIP_VOTE_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Skip Waiting For Players (%d/%d)";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
-const char * SURVIVAL_HEALTH_GUN = "Health Tornado";
-const char * SURVIVAL_REVIVE_MESSAGE = "\x1c (DOWN) Revive %s";
+const char * SURVIVAL_REVIVE_MESSAGE = "Revive %s"; //"\x1c (DOWN) Revive %s";
 const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%'d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
 const char * SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE = "Balance \x0A%'d\x08";
@@ -63,13 +63,6 @@ const char * SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE = "\x11 Deposit \x13 Withdr
 const char * SURVIVAL_PRESTIGE_WEAPON_MESSAGE = "\x11 Prestige [\x0E%'d\x08]";
 const char * SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE = "Your weapon is not powerful enough";
 const char * SURVIVAL_PRESTIGE_WEAPON_MAXED_MESSAGE = "Your weapon is too powerful";
-const char * SURVIVAL_MAXED_OUT_UPGRADE_MESSAGE = "Maxed Out";
-const char * SURVIVAL_BUY_UPGRADE_MESSAGES[] = {
-  [UPGRADE_HEALTH] "\x11 Health Upgrade (%d)",
-  [UPGRADE_SPEED] "\x11 Speed Upgrade (%d)",
-  [UPGRADE_DAMAGE] "\x11 Damage Upgrade (%d)",
-  [UPGRADE_CRIT] "\x11 Critical Hit Upgrade (%d)",
-};
 
 const char * ALPHA_MODS[] = {
   "",
@@ -203,7 +196,7 @@ void updateDzoHud(void)
   dzoDrawHudCmd.BossIconId = bossIconId;
   dzoDrawHudCmd.BossMoby = State.BossMoby;
   dzoDrawHudCmd.Tokens = State.LocalPlayerState->State.CurrentTokens;
-  dzoDrawHudCmd.HeldItem = State.LocalPlayerState->State.Item;
+  dzoDrawHudCmd.HeldItem = -1;
   dzoDrawHudCmd.CurrentRoundNumber = State.RoundNumber;
   dzoDrawHudCmd.EnemiesAlive = (State.RoundMaxMobCount - State.MobStats.TotalSpawnedThisRound) + State.MobStats.TotalAlive + State.MobStats.TotalSpawning; //State.MobStats.TotalAlive;
   dzoDrawHudCmd.StartRoundTimer = State.RoundEndTime - gameTime;
@@ -1109,12 +1102,10 @@ int playerPrestigeWeapon(Player* player, int weaponId)
 }
 
 //--------------------------------------------------------------------------
-void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
+void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
   char buf[64];
   Player* p = playerGetAll()[playerId];
-  if (alphaMod)
-    State.PlayerStates[playerId].State.AlphaMods[alphaMod]++;
   if (!p)
     return;
 
@@ -1124,13 +1115,6 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
   if (p->Gadgets[0].pMoby && p->Gadgets[0].id == weaponId)
     customBangelizeWeapons(p->Gadgets[0].pMoby, weaponId, level);
 
-  if (p->IsLocal && alphaMod) {
-    gBox->ModBasic[alphaMod-1]++;
-    snprintf(buf, sizeof(buf), "Got %s", ALPHA_MODS[alphaMod]);
-    pushSnack(buf, TPS * 1, p->LocalPlayerIndex);
-    //State.PlayerStates[playerId].MessageCooldownTicks = 0;
-  }
-  
   // stats
   int wepSlotId = weaponIdToSlot(weaponId);
   if (level > State.PlayerStates[playerId].State.BestWeaponLevel[wepSlotId])
@@ -1140,8 +1124,9 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
   playUpgradeSound(p);
 
   // set exp bar to max
-  if (level == VENDOR_MAX_WEAPON_LEVEL)
-    gBox->Gadgets[weaponId].Experience = level;
+  // moved to map
+  // if (level == VENDOR_MAX_WEAPON_LEVEL)
+  //   gBox->Gadgets[weaponId].Experience = level;
 
 #if LOG_STATS2
   DPRINTF("%d (%08X) weapon %d upgraded to %d\n", playerId, (u32)p, weaponId, level);
@@ -1152,13 +1137,13 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level, int alphaMod)
 int onPlayerUpgradeWeaponRemote(void * connection, void * data)
 {
   SurvivalWeaponUpgradeMessage_t * message = (SurvivalWeaponUpgradeMessage_t*)data;
-  onPlayerUpgradeWeapon(message->PlayerId, message->WeaponId, message->Level, message->Alphamod);
+  onPlayerUpgradeWeapon(message->PlayerId, message->WeaponId, message->Level);
 
   return sizeof(SurvivalWeaponUpgradeMessage_t);
 }
 
 //--------------------------------------------------------------------------
-void playerUpgradeWeapon(Player* player, int weaponId, int noAlphaMod)
+void playerUpgradeWeapon(Player* player, int weaponId)
 {
   SurvivalWeaponUpgradeMessage_t message;
   GadgetBox* gBox = player->GadgetBox;
@@ -1167,17 +1152,14 @@ void playerUpgradeWeapon(Player* player, int weaponId, int noAlphaMod)
   message.PlayerId = player->PlayerId;
   message.WeaponId = weaponId;
   message.Level = gBox->Gadgets[weaponId].Level + 1;
-  message.Alphamod = 0;
-  if (!noAlphaMod)
-    message.Alphamod = getRandomAlphamodForPlayer(player, weaponId);
   netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_WEAPON_UPGRADE, sizeof(SurvivalWeaponUpgradeMessage_t), &message);
 
   // set locally
-  onPlayerUpgradeWeapon(message.PlayerId, message.WeaponId, message.Level, message.Alphamod);
+  onPlayerUpgradeWeapon(message.PlayerId, message.WeaponId, message.Level);
 }
 
 //--------------------------------------------------------------------------
-void mapUpgradePlayerWeaponHandler(int playerId, int weaponId, int giveAlphaMod)
+void mapUpgradePlayerWeaponHandler(int playerId, int weaponId)
 {
   Player* player = playerGetAll()[playerId];
   if (!player || !player->PlayerMoby || !player->IsLocal)
@@ -1186,7 +1168,7 @@ void mapUpgradePlayerWeaponHandler(int playerId, int weaponId, int giveAlphaMod)
   if (!player->GadgetBox || player->GadgetBox->Gadgets[weaponId].Level >= 9)
     return;
 
-  playerUpgradeWeapon(player, weaponId, !giveAlphaMod);
+  playerUpgradeWeapon(player, weaponId);
 }
 
 //--------------------------------------------------------------------------
@@ -1372,65 +1354,6 @@ void sendPlayerStats(int playerId)
   message.PlayerId = playerId;
   memcpy(&message.Stats, &State.PlayerStates[playerId].State, sizeof(struct SurvivalPlayerState));
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SurvivalSetPlayerStatsMessage_t), &message);
-}
-
-//--------------------------------------------------------------------------
-void onPlayerUseItem(int playerId, enum MysteryBoxItem item)
-{
-  Player** players = playerGetAll();
-
-  // set player item to -1
-  State.PlayerStates[playerId].State.Item = -1;
-
-  // use item
-  switch (item)
-  {
-    case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
-    {
-      State.PlayerStates[playerId].InvisibilityCloakStopTime = gameGetTime() + ITEM_INVISCLOAK_DURATION;
-      if (State.PlayerStates[playerId].IsLocal) {
-        pushSnack("Invisibility Cloak Equipped!", TPS, players[playerId]->LocalPlayerIndex);
-      }
-      break;
-    }
-    case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
-    {
-      State.PlayerStates[playerId].HealthTornadoStopTime = gameGetTime() + ITEM_HEALTHTORNADO_DURATION;
-      if (State.PlayerStates[playerId].IsLocal) {
-        pushSnack("Health Tornado Activated!", TPS, players[playerId]->LocalPlayerIndex);
-      }
-      break;
-    }
-    default:
-    {
-      break;
-    }
-  }
-}
-
-//--------------------------------------------------------------------------
-int onPlayerUseItemRemote(void * connection, void * data)
-{
-  SurvivalPlayerUseItem_t message;
-
-  memcpy(&message, data, sizeof(SurvivalPlayerUseItem_t));
-  onPlayerUseItem(message.PlayerId, message.Item);
-
-  return sizeof(SurvivalPlayerUseItem_t);
-}
-
-//--------------------------------------------------------------------------
-void playerUseItem(int playerId, enum MysteryBoxItem item)
-{
-  SurvivalPlayerUseItem_t message;
-
-  // send out
-  message.PlayerId = playerId;
-  message.Item = item;
-  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_USE_ITEM, sizeof(SurvivalPlayerUseItem_t), &message);
-
-  // locally
-  onPlayerUseItem(playerId, item);
 }
 
 //--------------------------------------------------------------------------
@@ -1625,6 +1548,86 @@ void playerCastNextRoundVote(void)
 }
 
 //--------------------------------------------------------------------------
+void onPlayerItemAcquired(int playerId, int itemId, int currentCount)
+{
+  DPRINTF("onPlayerItemAcquired(%d, %d, %d)\n", playerId, itemId, currentCount);
+  State.PlayerStates[playerId].State.ItemCounts[itemId] = currentCount;
+
+  // trigger acquire
+  Player *player = playerGetAll()[playerId];
+  if (!playerIsValid(player))
+    return;
+
+  passPlayerOnItemAcquiredToMap(player, itemId);
+}
+
+//--------------------------------------------------------------------------
+int onPlayerItemAcquiredRemote(void * connection, void * data)
+{
+  SurvivalPlayerItemAcquireMessage_t message;
+
+  memcpy(&message, data, sizeof(SurvivalPlayerItemAcquireMessage_t));
+  onPlayerItemAcquired(message.PlayerId, message.ItemId, message.CurrentCount);
+  return sizeof(SurvivalPlayerItemAcquireMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void sendPlayerItemAcquired(int playerId, int itemId)
+{
+  DPRINTF("sendPlayerItemAcquired(%d, %d)\n", playerId, itemId);
+  SurvivalPlayerItemAcquireMessage_t message;
+
+  // send out
+  message.PlayerId = playerId;
+  message.ItemId = itemId;
+  message.CurrentCount = State.PlayerStates[playerId].State.ItemCounts[itemId];
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_ITEM_ACQUIRE, sizeof(message), &message);
+
+  // locally
+  onPlayerItemAcquired(message.PlayerId, message.ItemId, message.CurrentCount);
+}
+
+//--------------------------------------------------------------------------
+void onPlayerItemConsumed(int playerId, int itemId, int currentCount)
+{
+  DPRINTF("onPlayerItemConsumed(%d, %d, %d)\n", playerId, itemId, currentCount);
+  State.PlayerStates[playerId].State.ItemCounts[itemId] = currentCount;
+
+  // trigger consume
+  Player *player = playerGetAll()[playerId];
+  if (!playerIsValid(player))
+    return;
+
+  passPlayerOnItemConsumedToMap(player, itemId);
+}
+
+//--------------------------------------------------------------------------
+int onPlayerItemConsumedRemote(void * connection, void * data)
+{
+  SurvivalPlayerItemConsumeMessage_t message;
+
+  memcpy(&message, data, sizeof(SurvivalPlayerItemConsumeMessage_t));
+  onPlayerItemConsumed(message.PlayerId, message.ItemId, message.CurrentCount);
+  return sizeof(SurvivalPlayerItemConsumeMessage_t);
+}
+
+//--------------------------------------------------------------------------
+void sendPlayerItemConsumed(int playerId, int itemId)
+{
+  DPRINTF("sendPlayerItemConsumed(%d, %d)\n", playerId, itemId);
+  SurvivalPlayerItemConsumeMessage_t message;
+
+  // send out
+  message.PlayerId = playerId;
+  message.ItemId = itemId;
+  message.CurrentCount = State.PlayerStates[playerId].State.ItemCounts[itemId];
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), -1, CUSTOM_MSG_PLAYER_ITEM_CONSUME, sizeof(message), &message);
+
+  // locally
+  onPlayerItemConsumed(message.PlayerId, message.ItemId, message.CurrentCount);
+}
+
+//--------------------------------------------------------------------------
 void onSetRound50Time(int time)
 {
   char buffer[64];
@@ -1730,42 +1733,6 @@ void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
 }
 
 //--------------------------------------------------------------------------
-void onHealthBomb(Player* fromPlayer, VECTOR position) {
-  
-  int i;
-  VECTOR dt;
-  Player** players = playerGetAll();
-
-  // heal / revive
-  if (fromPlayer) {
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      Player* player = players[i];
-      if (!playerIsValid(player)) continue;
-
-      vector_subtract(dt, player->PlayerPosition, position);
-      if (vector_sqrmag(dt) < (ITEM_EMP_HEALTH_EFFECT_RADIUS*ITEM_EMP_HEALTH_EFFECT_RADIUS)) {
-        if (playerIsDead(player) && player->IsLocal) {
-          playerRevive(player, fromPlayer->PlayerId);
-        } else {
-          playerSetHealth(player, clamp(player->Health + (player->MaxHealth * ITEM_HEALTHTORNADO_HEAL_PERCENT), 0, player->MaxHealth));
-        }
-      }
-    }
-  }
-  
-  // explode
-  //spawnExplosion(position, 5, 0x80800000);
-  u32 color = 0x80800000;
-  mobyPlaySoundByClass(0, 0, mobySpawnExplosion(
-    vector_read(position), 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,
-    0, 0, color, color, color, color, color, color, color, color, color,
-    0, 0, 0, 0, 2, 0, 0, 0
-  ), MOBY_ID_ARBITER_ROCKET0);
-
-  if (fromPlayer && fromPlayer->IsLocal) mobReactToExplosionAt(fromPlayer->PlayerId, position, 1, 8);
-}
-
-//--------------------------------------------------------------------------
 void onEmpExplode(Moby* moby, VECTOR from, VECTOR to, u32 a3, u32 t0, u32 t1, u32 t2, u32 t3, float f12, float f13, float f14, float f15) {
   
   int i;
@@ -1799,27 +1766,6 @@ void onEmpExplode(Moby* moby, VECTOR from, VECTOR to, u32 a3, u32 t0, u32 t1, u3
 int onEmpHitMoby(Moby* moby) {
   Player* player = guberMobyGetPlayerDamager(moby);
   return player != 0;
-}
-
-//--------------------------------------------------------------------------
-Moby* onEmpFired(int oclass, int pvarSize, Moby* empLauncherMoby) {
-  
-  if (empLauncherMoby) {
-    Player* firedFromPlayer = guberMobyGetPlayerDamager(empLauncherMoby);
-    if (firedFromPlayer) {
-
-      // remove item
-      if (State.PlayerStates[firedFromPlayer->PlayerId].State.Item == MYSTERY_BOX_ITEM_EMP_HEALTH_GUN)
-        State.PlayerStates[firedFromPlayer->PlayerId].State.Item = -1;
-
-      // unequip emp
-      if (firedFromPlayer->IsLocal && firedFromPlayer->WeaponHeldId == WEAPON_ID_EMP) {
-        playerEquipWeapon(firedFromPlayer, playerGetLocalEquipslot(firedFromPlayer->LocalPlayerIndex, 0));
-      }
-    }
-  }
-
-  return mobySpawn(oclass, pvarSize);
 }
 
 //--------------------------------------------------------------------------
@@ -1915,16 +1861,14 @@ void processPlayer(int pIndex) {
   else playerData->TicksSinceHealthChanged += 1;
   playerData->LastHealth = player->Health;
 
-  // set max health
-  player->MaxHealth = 50 + (PLAYER_UPGRADE_HEALTH_FACTOR * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_HEALTH]);
+  // set base max health
+  player->MaxHealth = 50;
 
-  // set speed
-  // increase with speed upgrades
-  // add base speed boost with hoverboots
-  player->Speed = 1 + (PLAYER_UPGRADE_SPEED_FACTOR * State.PlayerStates[pIndex].State.Upgrades[UPGRADE_SPEED]);
-  player->Speed += playerGetStackableCount(pIndex, STACKABLE_ITEM_HOVERBOOTS) * ITEM_STACKABLE_HOVERBOOTS_SPEED_BUF;
-  if (player->timers.freezeTimer)
-    player->Speed *= 0.65;
+  // set base speed
+  player->Speed = 1;
+
+  // pass to map for final adjustments
+  passPlayerUpdateToMap(player);
 
   // adjust speed of chargeboot stun
   if (player->PlayerState == PLAYER_STATE_JUMP_BOUNCE) {
@@ -1933,34 +1877,6 @@ void processPlayer(int pIndex) {
     *(float*)((u32)player + 0x25C4) = 1.0;
   }
   
-  // handle invis cloak
-  if (playerData->InvisibilityCloakStopTime > 0) {
-    int timeUntilEnd = gameGetTime() - playerData->InvisibilityCloakStopTime;
-    if (timeUntilEnd < 0) {
-      player->SkinMoby->Opacity = 0x20;
-    } else {
-      player->SkinMoby->Opacity = 0x80;
-      playerData->InvisibilityCloakStopTime = -1;
-    }
-  }
-
-  // handle health tornado
-  if (playerData->HealthTornadoStopTime > 0) {
-    int timeUntilEnd = gameGetTime() - playerData->HealthTornadoStopTime;
-    if (timeUntilEnd < 0) {
-      if (!playerData->HealthTornadoActivateTicks) {
-        onHealthBomb(player, player->PlayerPosition);
-        playerData->HealthTornadoActivateTicks = ITEM_HEALTHTORNADO_PERIOD_TICKS;
-      }
-      else {
-        playerData->HealthTornadoActivateTicks--;
-      }
-    } else {
-      playerData->HealthTornadoActivateTicks = 0;
-      playerData->HealthTornadoStopTime = -1;
-    }
-  }
-
   // update state timers
   if (playerStates[pIndex] != player->PlayerState)
     playerStateTimers[pIndex] = 0;
@@ -2014,11 +1930,14 @@ void processPlayer(int pIndex) {
         // }
       }
 
-      if (playerData->State.Item == MYSTERY_BOX_ITEM_REVIVE_TOTEM) {
-        playerRevive(player, player->PlayerId);
-        uiShowPopup(0, "Self Revive Used!");
-        playerData->State.Item = -1;
-      } else {
+      // pass to map
+      passPlayerDiedToMap(player);
+
+      // delay sending dead to give time for self revive
+      // and to let the player die before ending the game
+      ++playerData->PlayerDeadForTicks;
+      if (playerData->PlayerDeadForTicks > TPS) {
+        playerData->PlayerDeadForTicks = 0;
         setPlayerDead(player, 1);
       }
     } else if (playerData->IsDead && !isDeadState) {
@@ -2037,9 +1956,10 @@ void processPlayer(int pIndex) {
 
     // set experience to min of level and max level 
     for (i = WEAPON_ID_VIPERS; i <= WEAPON_ID_FLAIL; ++i) {
-      if (gBox->Gadgets[i].Level >= 0) {
-        gBox->Gadgets[i].Experience = gBox->Gadgets[i].Level < VENDOR_MAX_WEAPON_LEVEL ? gBox->Gadgets[i].Level : VENDOR_MAX_WEAPON_LEVEL;
-      }
+      // moved to map
+      // if (gBox->Gadgets[i].Level >= 0) {
+      //   gBox->Gadgets[i].Experience = gBox->Gadgets[i].Level < VENDOR_MAX_WEAPON_LEVEL ? gBox->Gadgets[i].Level : VENDOR_MAX_WEAPON_LEVEL;
+      // }
 
       // embed prestige in weapon "modActiveWeapon" mod entry
       // only lower 8 bits are used by game
@@ -2082,7 +2002,7 @@ void processPlayer(int pIndex) {
     }
 
     // handle vendor logic
-    if (State.Vendor) {
+    if (State.Vendor && State.Vendor->Drawn && State.Vendor->DrawDist > 0) {
       
       int level = gBox->Gadgets[(int)heldWeapon].Level;
 
@@ -2115,7 +2035,8 @@ void processPlayer(int pIndex) {
               // handle pad input
               if (padGetButton(localPlayerIndex, PAD_CIRCLE) > 0) {
                 playerData->State.Bolts -= cost;
-                playerUpgradeWeapon(player, heldWeapon, 0);
+                playerUpgradeWeapon(player, heldWeapon);
+                passPlayerGetVendorRewardToMap(player, heldWeapon, level+1);
                 uiShowPopup(localPlayerIndex, uiMsgString(0x2330));
                 playPaidSound(player);
                 playerData->ActionCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
@@ -2131,7 +2052,7 @@ void processPlayer(int pIndex) {
     }
 
     // handle big al logic
-    if (State.BigAl) {
+    if (State.BigAl && State.BigAl->Drawn && State.BigAl->DrawDist > 0) {
 
       // check distance
       vector_subtract(t, player->PlayerPosition, State.BigAl->Position);
@@ -2151,7 +2072,7 @@ void processPlayer(int pIndex) {
     }
 
     // handle bank logic
-    if (State.Bankbox) {
+    if (State.Bankbox && State.Bankbox->Drawn && State.Bankbox->DrawDist > 0) {
 
       struct BankBoxPVar* bboxPvars = (struct BankBoxPVar*)State.Bankbox->PVar;
 
@@ -2216,47 +2137,6 @@ void processPlayer(int pIndex) {
       }
     }
 
-    // handle upgrade logic
-    for (i = 0; i < mapConfig->UpgradeDefCount; ++i) {
-      struct UpgradeDef* upgradeDef = &mapConfig->UpgradeDefs[i];
-      Moby* upgradeMoby = State.UpgradeMobies[upgradeDef->Id];
-      if (upgradeMoby) {
-        if (!playerData->ActionCooldownTicks) {
-          vector_subtract(t, player->PlayerPosition, upgradeMoby->Position);
-          if (vector_sqrmag(t) < (UPGRADE_PICKUP_RADIUS * UPGRADE_PICKUP_RADIUS)) {
-            
-            if (playerData->State.Upgrades[upgradeDef->Id] < upgradeDef->Max) {
-
-              struct UpgradePVar* upgradePVars = (struct UpgradePVar*)upgradeMoby->PVar;
-              if (!upgradePVars) continue;
-
-              // draw help popup
-              snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_BUY_UPGRADE_MESSAGES[upgradeDef->Id], upgradePVars->Uses);
-              uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-              hasMessage = 1;
-              playerData->MessageCooldownTicks = 2;
-
-              // handle pad input
-              if (padGetButton(localPlayerIndex, PAD_CIRCLE) > 0 && playerData->State.CurrentTokens >= UPGRADE_TOKEN_COST) {
-                playerData->State.CurrentTokens -= UPGRADE_TOKEN_COST;
-                playerData->ActionCooldownTicks = PLAYER_UPGRADE_COOLDOWN_TICKS;
-                if (mapConfig && mapConfig->Functions.PickupUpgradeFunc) mapConfig->Functions.PickupUpgradeFunc(upgradeMoby, pIndex);
-                playPaidSound(player);
-              }
-            } else {
-
-              // draw maxed out popup
-              snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_MAXED_OUT_UPGRADE_MESSAGE);
-              uiShowPopup(player->LocalPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-              hasMessage = 1;
-              playerData->MessageCooldownTicks = 2;
-            }
-            break;
-          }
-        }
-      }
-    }
-
     // handle revive logic
     int revivingPlayerId = -1;
     if (!isDeadState) {
@@ -2266,6 +2146,9 @@ void processPlayer(int pIndex) {
           // ensure player exists, is dead, and is on the same team
           struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
           Player * otherPlayer = players[i];
+          if (!otherPlayer)
+            continue;
+
           if (otherPlayer && otherPlayerData->IsDead && (otherPlayerData->ReviveCooldownTicks > 0 || (playerData->RevivingPlayerTicks > 0 && playerData->RevivingPlayerId == i))) {
 
             // check distance
@@ -2281,14 +2164,16 @@ void processPlayer(int pIndex) {
                 playerData->MessageCooldownTicks = 2;
               } else if (playerData->RevivingPlayerId == i) {
                 float time = (PLAYER_TIME_TO_REVIVE_TICKS - playerData->RevivingPlayerTicks) / (float)TPS;
-                snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), "Reviving... %.2f", time);
-                uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-                hasMessage = 1;
-                playerData->MessageCooldownTicks = 2;
+                snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), "Reviving %s\x08... %.2f", gs->PlayerNames[i], time);
+                gfxHelperDrawText(SCREEN_WIDTH/2, SCREEN_HEIGHT-100, 0, 0, 1, 0x80FFFFFF, LocalPlayerStrBuffer[localPlayerIndex], -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+                //uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
+                //hasMessage = 1;
+                //playerData->MessageCooldownTicks = 2;
               }
 
               // check for interaction pad
-              if (padGetButton(localPlayerIndex, PAD_DOWN) > 0) {
+              // revision: have the player automatically revive by standing on top
+              if (1 /*padGetButton(localPlayerIndex, PAD_DOWN) > 0*/) {
 
                 // check that we are reviving this player or no one yet
                 if (playerData->RevivingPlayerId == i || playerData->RevivingPlayerId == -1) {
@@ -2320,23 +2205,23 @@ void processPlayer(int pIndex) {
     playerData->RevivingPlayerId = revivingPlayerId;
 
     // handle items
-    if (!isDeadState && padGetButtonDown(0, PAD_LEFT) > 0) {
-      switch (playerData->State.Item)
-      {
-        case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
-        {
-          playerUseItem(pIndex, playerData->State.Item);
-          break;
-        }
-        case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
-        {
-          playerUseItem(pIndex, playerData->State.Item);
-          //onHealthBomb(player, player->PlayerPosition);
-          //playerEquipWeapon(player, WEAPON_ID_EMP);
-          break;
-        }
-      }
-    }
+    // if (!isDeadState && padGetButtonDown(0, PAD_LEFT) > 0) {
+    //   switch (playerData->State.Item)
+    //   {
+    //     case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
+    //     {
+    //       playerUseItem(pIndex, playerData->State.Item);
+    //       break;
+    //     }
+    //     case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
+    //     {
+    //       playerUseItem(pIndex, playerData->State.Item);
+    //       //onHealthBomb(player, player->PlayerPosition);
+    //       //playerEquipWeapon(player, WEAPON_ID_EMP);
+    //       break;
+    //     }
+    //   }
+    // }
 
     /*
     static int aaa = 1;
@@ -2385,6 +2270,10 @@ void processPlayer(int pIndex) {
       vtable->UpdateState(player, remoteState, 1, 1, 1);
     }
   }
+
+  // finally update speed to factor freeze
+  if (player->timers.freezeTimer)
+    player->Speed *= 0.65;
 }
 
 //--------------------------------------------------------------------------
@@ -2505,6 +2394,9 @@ void setRoundComplete(void)
   // don't allow changing outcome when not host
   if (!State.IsHost)
     return;
+
+  // kill any remaining mobs
+  mobNuke(-1);
 
   // send out
   GameSettings* gameSettings = gameGetSettings();
@@ -2788,75 +2680,6 @@ Moby* FindMobyOrSpawnBox(int oclass, int defaultToSpawnpointId)
 }
 
 //--------------------------------------------------------------------------
-void spawnUpgrades(void)
-{
-  VECTOR pos,rot;
-  int i,j;
-  int r;
-  int bakedUpgradeSpawnpointCount = 0;
-  char upgradeBakedSpawnpointIdx[UPGRADE_COUNT];
-
-  // only spawn if host
-  if (!gameAmIHost())
-    return;
-
-  // initialize spawnpoint idx to -1
-  // and set moby ref to NULL
-  for (i = 0; i < UPGRADE_COUNT; ++i) {
-    upgradeBakedSpawnpointIdx[i] = -1;
-    State.UpgradeMobies[i] = NULL;
-  }
-
-  // count number of baked spawnpoints used for upgrade
-  int bakedSpawnPointCount = 0;
-  SurvivalBakedSpawnpoint_t* bakedSpawnPoints = getBakedSpawnPoints(&bakedSpawnPointCount);
-  for (i = 0; i < bakedSpawnPointCount; ++i) {
-    if (bakedSpawnPoints[i].Type == BAKED_SPAWNPOINT_UPGRADE) {
-      ++bakedUpgradeSpawnpointCount;
-    }
-  }
-
-  // find free baked spawn idx
-  for (i = 0; i < UPGRADE_COUNT; ++i) {
-
-    // if no more free spawnpoints then exit
-    if (!bakedUpgradeSpawnpointCount)
-      break;
-
-    // randomly select point
-    r = 1 + rand(BAKED_SPAWNPOINT_COUNT);
-    j = 0;
-    while (r) {
-      j = (j + 1) % BAKED_SPAWNPOINT_COUNT;
-      if (bakedSpawnPoints[j].Type == BAKED_SPAWNPOINT_UPGRADE && !charArrayContains(upgradeBakedSpawnpointIdx, UPGRADE_COUNT, j))
-        --r;
-    }
-
-    // assign point to this upgrade
-    // decrement list
-    upgradeBakedSpawnpointIdx[i] = j;
-    --bakedUpgradeSpawnpointCount;
-  }
-
-  // spawn
-  for (i = 0; i < mapConfig->UpgradeDefCount; ++i) {
-    int upgradeId = mapConfig->UpgradeDefs[i].Id;
-    int bakedSpIdx = upgradeBakedSpawnpointIdx[i];
-    if (bakedSpIdx < 0)
-      continue;
-
-    SurvivalBakedSpawnpoint_t* sp = &bakedSpawnPoints[bakedSpIdx];
-    memcpy(pos, sp->Position, sizeof(float)*3);
-    memcpy(rot, sp->Rotation, sizeof(float)*3);
-
-    // spawn
-    if (mapConfig && mapConfig->Functions.CreateUpgradePickupFunc) {
-      mapConfig->Functions.CreateUpgradePickupFunc(pos, rot, upgradeId);
-    }
-  }
-}
-
-//--------------------------------------------------------------------------
 void resetRoundState(void)
 {
   int i;
@@ -2932,6 +2755,46 @@ float playerGetArbiterExplosionRadius(Player* player)
 }
 
 //--------------------------------------------------------------------------
+int playerOnSpawnHoloshield(int playerId)
+{
+	// each player has 4 holoshields max
+	Moby **cacheList = (Moby **)0x003360e0 + (playerId * 4);
+
+	int i;
+	int count = 0;
+	for (i = 0; i < 4; ++i)
+	{
+		if (cacheList[i])
+			++count;
+	}
+
+	// remove first and shift rest down if we've hit the max
+	// to give room for the new one
+	if (count == 4)
+	{
+		guberMobyDestroy(cacheList[0]);
+		memmove(&cacheList[0], &cacheList[1], 3 * sizeof(Moby *));
+		cacheList[3] = NULL;
+	}
+
+	return 0;
+}
+
+//--------------------------------------------------------------------------
+float fusionGetBeamHitAngle(u128 a0, u128 a1, u128 a2, void* a3)
+{
+  float r = ((float (*)(u128,u128,u128,void*))0x003fbb10)(a0, a1, a2, a3);
+
+  // increase area of beam per area mod
+  Player* player = *(Player**)(*(void**)((u32)a3 + 0x40) + 0x64);
+  if (player && player->GadgetBox) {
+    r /= (1 + playerGetWeaponAlphaModCount(player->GadgetBox, WEAPON_ID_FUSION_RIFLE, ALPHA_MOD_AREA));
+  }
+
+  return r;
+}
+
+//--------------------------------------------------------------------------
 void mapLoadResetState(PatchStateContainer_t* gameState)
 {
   State.Vendor = NULL;
@@ -2940,7 +2803,6 @@ void mapLoadResetState(PatchStateContainer_t* gameState)
   State.BossMoby = NULL;
   State.PrestigeMachine = NULL;
   State.MysteryBoxMoby = NULL;
-  memset(State.UpgradeMobies, 0, sizeof(State.UpgradeMobies));
 }
 
 //--------------------------------------------------------------------------
@@ -2958,7 +2820,7 @@ void initialize(PatchStateContainer_t* gameState)
     // clear state
     memset(&State, 0, sizeof(State));
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      State.PlayerStates[i].State.Item = -1;
+      memset(State.PlayerStates[i].State.ItemCounts, 0, sizeof(State.PlayerStates[i].State.ItemCounts));
     }
   }
 
@@ -2982,6 +2844,15 @@ void initialize(PatchStateContainer_t* gameState)
 
   // disable holoshields from disappearing
   //*(u16*)0x00401478 = 2;
+
+  // sniper shot radius
+  POKE_U32(0x003FBC84, 0x3C024200);
+  HOOK_JAL(0x003FBD3C, &fusionGetBeamHitAngle);
+  HOOK_JAL(0x003FBDB8, &fusionGetBeamHitAngle);
+
+	// let holo shoot always
+	HOOK_JAL(0x00400A48, &playerOnSpawnHoloshield);
+	POKE_U32(0x003CF04C, 0x0000102D);
 
   // disable team based holoshield toggling
   // enables players to shoot through eachothers shields
@@ -3105,7 +2976,10 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->Functions.ModeSetDoubleXPFunc = &setDoubleXP;
   mapConfig->Functions.ModeSetFreezeMobsFunc = &setFreeze;
   mapConfig->Functions.ModeRevivePlayerFunc = &playerRevive;
+  mapConfig->Functions.ModeSendPlayerStatsFunc = &sendPlayerStats;
   mapConfig->Functions.ModeOnGuberEventFunc = &mobHandleEvent;
+  mapConfig->Functions.ModeSendOnPlayerItemAcquiredFunc = &sendPlayerItemAcquired;
+  mapConfig->Functions.ModeSendOnPlayerItemConsumedFunc = &sendPlayerItemConsumed;
 
   // custom damage cooldown time
   //POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
@@ -3123,19 +2997,20 @@ void initialize(PatchStateContainer_t* gameState)
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_DOUBLE_POINTS, &onSetPlayerDoublePointsRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_DOUBLE_XP, &onSetPlayerDoubleXPRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_FREEZE, &onSetFreezeRemote);
-  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_USE_ITEM, &onPlayerUseItemRemote);
+  //netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_USE_ITEM, &onPlayerUseItemRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_WEAPON_PRESTIGE, &onPlayerPrestigeWeaponRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_INTERACT_BANK_BOX, &onPlayerInteractBankBoxRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_WITHDRAWN_BANK_BOX, &onPlayerWithdrawnBankBoxRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_50_TIME, &onSetRound50TimeRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_CAST_VOTE, &onPlayerCastVoteRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_ITEM_ACQUIRE, &onPlayerItemAcquiredRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_ITEM_CONSUME, &onPlayerItemConsumedRemote);
 
   // set game over string
   strncpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
   strncpy(uiMsgString(0x3152), SURVIVAL_UPGRADE_MESSAGE, strlen(SURVIVAL_UPGRADE_MESSAGE)+1);
   strncpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE)+1);
-  strncpy(uiMsgString(0x24B7), SURVIVAL_HEALTH_GUN, strlen(SURVIVAL_HEALTH_GUN)+1);
 
   // disable v2s and packs
   cheatsApplyNoV2s();
@@ -3234,11 +3109,6 @@ void initialize(PatchStateContainer_t* gameState)
     }
   }
 
-  // solo run start with self revive
-  if (State.ActivePlayerCount == 1 && !FirstTimeInitialized) {
-    State.PlayerStates[playerGetFromSlot(0)->PlayerId].State.Item = MYSTERY_BOX_ITEM_REVIVE_TOTEM;
-  }
-
   // initialize weapon data
   WeaponDefsData* gunDefs = weaponGetGunLevelDefs();
   for (i = 0; i < 7; ++i) {
@@ -3277,11 +3147,6 @@ void initialize(PatchStateContainer_t* gameState)
   State.PrestigeMachine = FindMobyOrSpawnBox(0, 2);
 #endif
 
-#if UPGRADES
-  // spawn upgrades
-  spawnUpgrades();
-#endif
-
   State.Bankbox = NULL;
   DPRINTF("vendor %08X\n", (u32)State.Vendor);
   DPRINTF("big al %08X\n", (u32)State.BigAl);
@@ -3293,7 +3158,7 @@ void initialize(PatchStateContainer_t* gameState)
   State.TimeOfFreeze = 0;
   State.RoundIsSpecial = 0;
   State.RoundSpecialIdx = 0;
-  State.DropCooldownTicks = DROP_COOLDOWN_TICKS_MAX; // try and stop drops from spawning immediately
+  State.DropCooldownTicks = TPS; // try and stop drops from spawning immediately
   State.Difficulty = getDifficultyMultiplier();
   
   if (!FirstTimeInitialized) {
@@ -3329,7 +3194,6 @@ void initialize(PatchStateContainer_t* gameState)
   for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
     //playerRewardXp(j, -1, xp[j]);
     State.PlayerStates[j].State.XP = xp[j];
-    State.PlayerStates[j].State.Upgrades[UPGRADE_HEALTH] = STARTROUND / 4;
   }
 
   DPRINTF("Skipped to Round #%d with %d mobs spawned\n", State.RoundNumber + 1, State.MobStats.TotalSpawned);
@@ -3465,25 +3329,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
-#if DEBUG_PERKS
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_INFINITE_AMMO;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_JUMP] = 5;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_LOW_HEALTH_DMG_BUF] = 1;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXTRA_SHOT] = 2;
-    //State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_HOVERBOOTS] = 1;
-    //State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_VAMPIRE] = 3;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_EXPLODING_ENEMIES] = 3;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_AMMO] = 5;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_SPEED] = 5;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_AREA] = 5;
-    State.PlayerStates[i].State.ItemStackable[STACKABLE_ITEM_ALPHA_MOD_IMPACT] = 5;
-    State.PlayerStates[i].State.Upgrades[UPGRADE_SPEED] = 40;
-    State.PlayerStates[i].State.Upgrades[UPGRADE_DAMAGE] = 200;
-    State.PlayerStates[i].State.Upgrades[UPGRADE_CRIT] = 100;
-  }
-#endif
-
 #if DEBUG_SOUNDS
   {
     static int aaa = 0;
@@ -3500,30 +3345,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       printf("%d\n", aaa);
       mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
     }
-  }
-#endif
-
-#if TRAILER
-  static int trailerInit = 0;
-
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_REVIVE_TOTEM;
-    State.PlayerStates[i].State.CurrentTokens = 15;
-    if (State.PlayerStates[i].State.Bolts < 100000)
-      State.PlayerStates[i].State.Bolts = 1000000;
-  }
-
-  if (!trailerInit) {
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      State.PlayerStates[i].State.Item = MYSTERY_BOX_ITEM_REVIVE_TOTEM;
-      State.PlayerStates[i].State.CurrentTokens = 15;
-      State.PlayerStates[i].State.Bolts = 1000000;
-      State.PlayerStates[i].State.Upgrades[UPGRADE_CRIT] = 30;
-      State.PlayerStates[i].State.Upgrades[UPGRADE_HEALTH] = 5;
-      State.PlayerStates[i].State.Upgrades[UPGRADE_SPEED] = 30;
-      State.PlayerStates[i].State.Upgrades[UPGRADE_DAMAGE] = 10;
-    }
-    trailerInit = 1;
   }
 #endif
 
@@ -3606,7 +3427,13 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     if (padGetButtonDown(0, PAD_UP) > 0) {
       static int manSpawnDropId = 0;
       static int manSpawnDropIdx = 0;
-      manSpawnDropId = (manSpawnDropId + 1) % 5;
+
+      int loop = 0;
+      do {
+        manSpawnDropId = (manSpawnDropId + 1) % mapConfig->ItemDefCount;
+        loop++;
+      } while (loop < mapConfig->ItemDefCount && mapConfig->ItemDefs[manSpawnDropId].DropChanceWeight <= 0);
+
       //manSpawnDropId = DROP_NUKE;
       VECTOR t;
       vector_copy(t, localPlayer->PlayerPosition);
@@ -3614,7 +3441,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
       State.DropCooldownTicks = 0;
       if (mapConfig && mapConfig->Functions.CreateMobDropFunc)
-        mapConfig->Functions.CreateMobDropFunc(t, (enum DropType)manSpawnDropId, gameGetTime() + (30 * TIME_SECOND), localPlayer->Team);
+        mapConfig->Functions.CreateMobDropFunc(t, manSpawnDropId, gameGetTime() + (30 * TIME_SECOND), localPlayer->Team);
 
       ++manSpawnDropIdx;
     }
@@ -3635,80 +3462,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     for (j = 0; j < MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS; ++j) {
       if (mobPlaySoundCooldownTicks[i][j] > 0) {
         --mobPlaySoundCooldownTicks[i][j];
-      }
-    }
-  }
-
-  // handle inf ammo
-  if (State.InfiniteAmmoStopTime > 0) {
-    int timeUntilEnd = gameGetTime() - State.InfiniteAmmoStopTime;
-    if (timeUntilEnd < 0) {
-      gameGetOptions()->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
-    } else {
-      gameGetOptions()->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
-      State.InfiniteAmmoStopTime = -1;
-
-      // give everyone max ammo
-      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        Player* player = players[i];
-        if (!player || !player->SkinMoby || !player->GadgetBox)
-          continue;
-
-        int j = 0;
-        for (j = 0; j < 8; ++j) {
-          int weaponId = weaponSlotToId(j+1);
-          struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[weaponId];
-          if (gadgetEntry->Level >= 0) {
-            gadgetEntry->Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, weaponId);
-          }
-        }
-      }
-    }
-  }
-
-  // draw upgrade counts
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* p = playerGetFromSlot(i);
-    if (!p || !p->PlayerMoby) continue;
-    struct SurvivalPlayer* playerData = &State.PlayerStates[p->PlayerId];
-
-    if (gameIsStartMenuOpen(i) && !playerData->IsInWeaponsMenu) {
-      int j;
-      for (j = 0; j < mapConfig->UpgradeDefCount; ++j) {
-        int upgradeId = mapConfig->UpgradeDefs[j].Id;
-        float x = 10;
-        float y = 54 + (j * 32);
-
-        Moby* upgradeMoby = State.UpgradeMobies[upgradeId];
-        if (!upgradeMoby || !upgradeMoby->PVar) continue;
-        struct UpgradePVar* upgradePVars = (struct UpgradePVar*)upgradeMoby->PVar;
-
-        transformToSplitscreenPixelCoordinates(i, &x, &y);
-
-        // draw count
-        int count = playerData->State.Upgrades[upgradeId];
-        snprintf(buffer, 32, "%d", count);
-        gfxScreenSpaceText(x+2, y+8+2, 1, 1, 0x40000000, buffer, -1, 0);
-        x = gfxScreenSpaceText(x,   y+8,   1, 1, 0x80C0C0C0, buffer, -1, 0);
-        
-        // draw icon
-        gfxSetupGifPaging(0);
-        u64 texId = gfxGetFrameTex(upgradePVars->TexId);
-        gfxDrawSprite(x+2,   y+8,   16, 16, 0, 0, 32, 32, 0x80C0C0C0, texId);
-        x += 16 + 4;
-        gfxDoGifPaging();
-
-        // draw factor
-        switch (upgradeId)
-        {
-          case UPGRADE_HEALTH: snprintf(buffer, 32, "+%d", count * PLAYER_UPGRADE_HEALTH_FACTOR); break;
-          case UPGRADE_DAMAGE: snprintf(buffer, 32, "+%.f%%", count * PLAYER_UPGRADE_DAMAGE_FACTOR * 100); break;
-          case UPGRADE_SPEED: snprintf(buffer, 32, "+%.f%%", count * PLAYER_UPGRADE_SPEED_FACTOR * 100); break;
-          case UPGRADE_CRIT: snprintf(buffer, 32, "%.f%%", count * PLAYER_UPGRADE_CRIT_FACTOR * 100); break;
-        }
-        gfxScreenSpaceText(x+6, y+8+2, 1, 1, 0x40000000, buffer, -1, 0);
-        gfxScreenSpaceText(x+4,   y+8,   1, 1, 0x8000C0C0, buffer, -1, 0);
-        
       }
     }
   }
@@ -3779,6 +3532,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         drawDreadTokenIcon(x+5, y, 32);
       }
       
+#if 0
       // draw current item
       {
         int itemTexId = -1;
@@ -3814,6 +3568,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
           gfxHelperDrawText(x, y, -15, 10, 0.75, 0x80FFFFFF, &useItemChar, 1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
         }
       }
+#endif
     }
   }
 
@@ -3822,8 +3577,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     *(float*)0x00347BD8 = 0.125;
     *(float*)(0x347AA0 + 0x2E20) = 125;
   }
-
-  //State.PlayerStates[0].State.Upgrades[UPGRADE_SPEED] = 30;
 #endif
 
 #if FIXEDTARGET
@@ -3899,7 +3652,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
       // determine number of players alive
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        if (players[i] && players[i]->SkinMoby && !playerIsDead(players[i]) && players[i]->Health > 0) {
+        if (players[i] && !State.PlayerStates[i].IsDead) {
           isAnyPlayerAlive = 1;
         }
       }

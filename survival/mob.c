@@ -214,12 +214,13 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
   VECTOR delta;
   struct MobDamageEventArgs args;
   memset(&args, 0, sizeof(args));
+  int weaponId = -1;
 
   // determine knockback
   Player * pDamager = playerGetFromUID(guberGetUID(sourcePlayer));
   if (pDamager)
   {
-    int weaponId = getWeaponIdFromOClass(source->OClass);
+    weaponId = getWeaponIdFromOClass(source->OClass);
     if (weaponId >= 0) {
       args.Knockback.Power = (u8)playerGetWeaponAlphaModCount(pDamager->GadgetBox, weaponId, ALPHA_MOD_IMPACT);
       args.Knockback.Ticks = PLAYER_KNOCKBACK_BASE_TICKS;
@@ -236,37 +237,9 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
       amount *= 2; // damage buff
     }
 
-    // multishot
-    int multishotCount = playerGetStackableCount(pDamager->PlayerId, STACKABLE_ITEM_EXTRA_SHOT);
-    if (multishotCount > 0) {
-      amount *= 1 + multishotCount;
-    }
-
     // prestige damage 2x per prestige
     int weaponSlot = weaponIdToSlot(weaponId);
     amount *= 1 + (2 * State.PlayerStates[pDamager->PlayerId].State.WeaponPrestige[weaponSlot]);
-    
-    // crit
-    if (pDamager->IsLocal) {
-      int critCount = State.PlayerStates[pDamager->PlayerId].State.Upgrades[UPGRADE_CRIT];
-      float critProbability = critCount * PLAYER_UPGRADE_CRIT_FACTOR;
-      float r = randRange(0, 1);
-      if (r < critProbability) {
-        amount *= 3;
-        damageFlags |= 0x20000000;
-        //mobyPlaySoundByClass(4, 0, moby, 0x10A9);
-        //mobyPlaySoundByClass(0, 0, moby, MOBY_ID_WRENCH);
-      }
-    }
-
-    // low health dmg buf
-    int lowHealthDmgBufCount = playerGetStackableCount(pDamager->PlayerId, STACKABLE_ITEM_LOW_HEALTH_DMG_BUF);
-    if (lowHealthDmgBufCount > 0) {
-      float healthFactor = pDamager->Health / pDamager->MaxHealth;
-      float healthCurve = 1 - powf(healthFactor, ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_RAMP);
-      float dmgBuf = healthCurve * ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_FAC * lowHealthDmgBufCount;
-      amount *= 1 + dmgBuf;
-    }
   }
 
   // determine angle
@@ -283,13 +256,19 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
     args.Knockback.Force = 1;
   }
 
+  // construct rest of args
+  args.SourceUID = guberGetUID(sourcePlayer);
+  args.SourceOClass = source->OClass;
+  args.DamageQuarters = amount*4;
+  args.DamageFlags = damageFlags;
+
+  // pass to map
+  if (!mobOnBeforeDamage(pDamager, source, moby, &args))
+    return;
+
   // create event
   GuberEvent * guberEvent = mobCreateEvent(moby, MOB_EVENT_DAMAGE);
   if (guberEvent) {
-    args.SourceUID = guberGetUID(sourcePlayer);
-    args.SourceOClass = source->OClass;
-    args.DamageQuarters = amount*4;
-    args.DamageFlags = damageFlags;
     guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
   }
 }
@@ -793,8 +772,6 @@ void mobUpdate(Moby* moby)
   if (colDamage && damage > 0 && colDamage->Damager) {
     Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
     if (damager) {
-      damage *= 1 + (PLAYER_UPGRADE_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Upgrades[UPGRADE_DAMAGE]);
-
       // deal extra damage after being hit
       if (damager->timers.postHitInvinc > 0) {
         damage *= 2;
@@ -1106,20 +1083,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
   int bolts = pvars->MobVars.Config.Bolts * boltMultiplier;
   int xp = (int)pvars->MobVars.Config.Xp * xpMultiplier;
 
-#if DROPS
-  if (mapConfig && mapConfig->Functions.CreateMobDropFunc && (!State.RoundIsSpecial || !mapConfig->SpecialRoundParams[State.RoundSpecialIdx].DisableDrops)) {
-    if (killedByPlayerId >= 0 && gameAmIHost()) {
-      Player * killedByPlayer = players[(int)killedByPlayerId];
-      if (killedByPlayer) {
-        int dropType = getDropTypeOnMobKilled(killedByPlayer, moby, weaponId);
-        if (dropType >= 0 && dropType < DROP_COUNT) {
-          mapConfig->Functions.CreateMobDropFunc(moby->Position, dropType, gameGetTime() + DROP_DURATION, killedByPlayer->Team);
-        }
-      }
-    }
-  }
-#endif
-
 #if SHARED_BOLTS
   if (killedByPlayerId >= 0) {
     Player * killedByPlayer = players[(int)killedByPlayerId];
@@ -1161,14 +1124,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     Player * killedByPlayer = players[(int)killedByPlayerId];
     struct SurvivalPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
     GameData * gameData = gameGetData();
-
-    // vampire
-    if (killedByPlayer && killedByPlayer->PlayerMoby) {
-      int vampCount = playerGetStackableCount(killedByPlayerId, STACKABLE_ITEM_VAMPIRE);
-      if (vampCount > 0) {
-        playerSetHealth(killedByPlayer, minf(killedByPlayer->MaxHealth, killedByPlayer->Health + (vampCount * ITEM_STACKABLE_VAMPIRE_HEALTH_AMT)));
-      }
-    }
 
     // give xp
     playerRewardXp(killedByPlayerId, weaponId, xp);
@@ -1473,14 +1428,16 @@ int mobOnUnreliableMsgRemote(void * connection, void * data)
 //--------------------------------------------------------------------------
 int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config)
 {
-  // log
-  mobStatsOnNewMobCreated(spawnParamsIdx, spawnFromUID);
-
   VECTOR p;
   vector_copy(p, position);
 
-  if (mapConfig->Functions.OnMobCreateFunc)
-    return mapConfig->Functions.OnMobCreateFunc(spawnParamsIdx, p, yaw, spawnFromUID, spawnFlags, config);
+  // try create mob
+  if (mapConfig->Functions.OnMobCreateFunc && mapConfig->Functions.OnMobCreateFunc(spawnParamsIdx, p, yaw, spawnFromUID, spawnFlags, config))
+  {
+    // log created
+    mobStatsOnNewMobCreated(spawnParamsIdx, spawnFromUID);
+    return 1;
+  }
 
   return 0;
 }

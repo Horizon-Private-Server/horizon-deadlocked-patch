@@ -1798,6 +1798,24 @@ void printCameraOctant(void)
   gfxScreenSpaceText(10, SCREEN_HEIGHT-10, 1, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT);
 }
 
+void runMatrixTester(void)
+{
+  Player* p = playerGetFromSlot(0);
+  VECTOR pivot;
+  vector_copy(pivot, p->PlayerPosition);
+
+  ((void (*)(Player*, VECTOR pivot, float x, float y, float z))0x005d7278)(p, pivot, 0, 0, 0);
+
+  MATRIX m;
+  VECTOR a;
+  matrix_unit(m);
+  vector_write(a, 0);
+  matrix_toeuler(m, a);
+
+  vector_print(a);
+  printf("\n");
+}
+
 void runTestLogic(void)
 {
   int i;
@@ -1872,6 +1890,7 @@ void runTestLogic(void)
     //runLocalPlayerChargeboot();
     //runSendMonitor();
     //runSceneSwitcher();
+    runMatrixTester();
 
     // if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
     //   mapHopTo(&customMapDefs[0]);

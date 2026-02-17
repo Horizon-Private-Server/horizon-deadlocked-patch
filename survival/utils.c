@@ -141,6 +141,27 @@ void drawDreadTokenIcon(float x, float y, float scale)
 }
 
 //--------------------------------------------------------------------------
+void mobySpawnLightningBetweenPlayer(Player* from, Player* to, int life, int numStrands, u32 color)
+{
+  VECTOR pFrom, pTo;
+  vector_add(pFrom, from->PlayerMoby->M2_03, from->PlayerPosition);
+  vector_add(pTo, to->PlayerMoby->M2_03, to->PlayerPosition);
+
+  gfxDrawSimpleTwoPointLightning(
+                  (void*)0x002225A0,
+                  pFrom,
+                  pTo,
+                  life,
+                  numStrands,
+                  0,
+                  (void*)0x00383C98,
+                  from->PlayerMoby,
+                  to->PlayerMoby,
+                  color
+                );
+}
+
+//--------------------------------------------------------------------------
 struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx)
 {
 	u32 a3 = *(u32*)0x002218E8;
@@ -307,12 +328,6 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
       break;
     }
   }
-}
-
-//--------------------------------------------------------------------------
-int playerGetStackableCount(int playerId, int stackable)
-{
-  return State.PlayerStates[playerId].State.ItemStackable[stackable];
 }
 
 //--------------------------------------------------------------------------

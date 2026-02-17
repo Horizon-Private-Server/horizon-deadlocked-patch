@@ -125,12 +125,12 @@ float getCurrentDifficulty(void)
 }
 
 //--------------------------------------------------------------------------
-int getDropTypeOnMobKilled(Player *killedByPlayer, Moby *mob, int gadgetId)
+int getDropItemOnMobKilled(Player *killedByPlayer, Moby *mob, int gadgetId)
 {
-  if (!mapConfig->Functions.GetDropTypeOnMobKilledFunc)
+  if (!mapConfig->Functions.GetDropItemOnMobKilledFunc)
     return -1;
 
-  return mapConfig->Functions.GetDropTypeOnMobKilledFunc(killedByPlayer, mob, gadgetId);
+  return mapConfig->Functions.GetDropItemOnMobKilledFunc(killedByPlayer, mob, gadgetId);
 }
 
 //--------------------------------------------------------------------------
@@ -149,4 +149,58 @@ int getRandomAlphamodForPlayer(Player* player, int gadgetId)
     return ROUND_TRANSITION_DELAY_MS;
 
   return mapConfig->Functions.GetRandomAlphamodForPlayerFunc(player, gadgetId);
+}
+
+//--------------------------------------------------------------------------
+void passPlayerOnItemAcquiredToMap(Player* player, int itemId)
+{
+  if (!mapConfig->Functions.GetOnPlayerItemAcquiredFunc)
+    return;
+
+  mapConfig->Functions.GetOnPlayerItemAcquiredFunc(player, itemId);
+}
+
+//--------------------------------------------------------------------------
+void passPlayerOnItemConsumedToMap(Player* player, int itemId)
+{
+  if (!mapConfig->Functions.GetOnPlayerItemConsumedFunc)
+    return;
+
+  mapConfig->Functions.GetOnPlayerItemConsumedFunc(player, itemId);
+}
+
+//--------------------------------------------------------------------------
+void passPlayerUpdateToMap(Player* player)
+{
+  if (!mapConfig->Functions.OnPlayerUpdateFunc)
+    return;
+
+  mapConfig->Functions.OnPlayerUpdateFunc(player);
+}
+
+//--------------------------------------------------------------------------
+void passPlayerDiedToMap(Player* player)
+{
+  if (!mapConfig->Functions.OnPlayerDiedFunc)
+    return;
+
+  mapConfig->Functions.OnPlayerDiedFunc(player);
+}
+
+//--------------------------------------------------------------------------
+void passPlayerGetVendorRewardToMap(Player* player, int gadgetId, int levelNum)
+{
+  if (!mapConfig->Functions.OnPlayerGetVendorRewardFunc)
+    return;
+
+  mapConfig->Functions.OnPlayerGetVendorRewardFunc(player, gadgetId, levelNum);
+}
+
+//--------------------------------------------------------------------------
+int mobOnBeforeDamage(Player *player, Moby *sourceMoby, Moby *mobMoby, struct MobDamageEventArgs *args)
+{
+  if (!mapConfig->Functions.OnBeforeDamageMobFunc)
+    return 1; // default is to allow damage
+
+  return mapConfig->Functions.OnBeforeDamageMobFunc(player, sourceMoby, mobMoby, args);
 }

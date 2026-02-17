@@ -1155,6 +1155,7 @@ void refreshCustomMapList(void)
   // reset
   dataCustomMaps.count = 1;
   customMapDefCount = 0;
+  mapResetExDataCache();
   memset(customMapDefs, 0, sizeof(customMapDefs));
 
   // need usb modules

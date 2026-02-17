@@ -5,9 +5,9 @@
 #include "messageid.h"
 #include <libdl/player.h>
 #include <libdl/math3d.h>
-#include "upgrade.h"
 #include "bankbox.h"
 #include "interop.h"
+#include "item.h"
 
 #define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
 
@@ -86,16 +86,6 @@
 #define MOB_BASE_HEALTH_SCALE                 (0.05*1)
 #define MOB_JUMP_MOVE_SPEED                   (10)
 
-#define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
-#define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
-#define MOB_SPECIAL_MUTATION_REL_COST			    (1.0)
-
-#if PAYDAY
-#define MOB_BASE_BOLTS											  (1000000)
-#else
-#define MOB_BASE_BOLTS											  (220)
-#endif
-
 #define JACKPOT_BOLTS													(50)
 #define XP_ALPHAMOD_XP												(10)
 
@@ -126,11 +116,6 @@
 #define PRESTIGE_MACHINE_MAX_DIST							(5)
 #define WEAPON_PRESTIGE_MAX                   (5)
 
-#define PLAYER_UPGRADE_DAMAGE_FACTOR          (0.08)
-#define PLAYER_UPGRADE_SPEED_FACTOR           (0.03)
-#define PLAYER_UPGRADE_HEALTH_FACTOR          (5)
-#define PLAYER_UPGRADE_CRIT_FACTOR            (0.01)
-
 #define BAKED_SPAWNPOINT_COUNT							  (32)
 
 #define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
@@ -138,19 +123,6 @@
 #define ITEM_QUAD_DURATION_TPS                (1*60*TPS)
 #define ITEM_SHIELD_DURATION_TPS              (1*60*TPS)
 #define ITEM_EMP_HEALTH_EFFECT_RADIUS         (15)
-#define ITEM_HEALTHTORNADO_DURATION           (10*TIME_SECOND)
-#define ITEM_HEALTHTORNADO_PERIOD_TICKS       (TPS * 0.25)
-#define ITEM_HEALTHTORNADO_HEAL_PERCENT       (0.05)
-
-#define ITEM_STACKABLE_HOVERBOOTS_DUR_TPS     (2 * TPS)
-#define ITEM_STACKABLE_HOVERBOOTS_SPEED_BUF   (0.1)
-#define ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_FAC (0.75)
-#define ITEM_STACKABLE_LOW_HEALTH_DMG_BUF_RAMP (0.5)
-#define ITEM_STACKABLE_ALPHA_MOD_AMT          (2)
-#define ITEM_STACKABLE_VAMPIRE_HEALTH_AMT     (3)
-#define ITEM_STACKABLE_EXPLODINGENEMIES_DAMAGE          (20)
-#define ITEM_STACKABLE_EXPLODINGENEMIES_RADIUS          (5.0)
-
 
 #define SNACK_ITEM_MAX_COUNT                  (8)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
@@ -195,6 +167,8 @@ enum GameNetMessage
   CUSTOM_MSG_TELEPORT_BIG_AL,
   CUSTOM_MSG_PLAYER_CAST_VOTE,
   CUSTOM_MSG_ROUND_BEGIN,
+  CUSTOM_MSG_PLAYER_ITEM_ACQUIRE,
+  CUSTOM_MSG_PLAYER_ITEM_CONSUME,
 };
 
 enum BakedSpawnpointType
@@ -220,48 +194,6 @@ enum MobStatId
   MOB_STAT_COUNT
 };
 
-enum MysteryBoxItem {
-	MYSTERY_BOX_ITEM_WEAPON_MOD,
-	MYSTERY_BOX_ITEM_ACTIVATE_POWER,
-	MYSTERY_BOX_ITEM_UPGRADE_WEAPON,
-	MYSTERY_BOX_ITEM_DREAD_TOKEN,
-	MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK,
-	MYSTERY_BOX_ITEM_REVIVE_TOTEM,
-	MYSTERY_BOX_ITEM_INFINITE_AMMO,
-	MYSTERY_BOX_ITEM_RESET_GATE,
-	MYSTERY_BOX_ITEM_TEDDY_BEAR,
-  MYSTERY_BOX_ITEM_QUAD,
-  MYSTERY_BOX_ITEM_SHIELD,
-  MYSTERY_BOX_ITEM_EMP_HEALTH_GUN,
-  MYSTERY_BOX_ITEM_RANDOMIZE_WEAPON_PICKUPS,
-  MYSTERY_BOX_ITEM_COUNT
-};
-
-enum DropType {
-	DROP_NUKE,
-	DROP_AMMO,
-	DROP_DOUBLE_POINTS,
-	DROP_DOUBLE_XP,
-	DROP_FREEZE,
-	DROP_HEALTH,
-	DROP_COUNT
-};
-
-enum StackableItemId
-{
-  STACKABLE_ITEM_LOW_HEALTH_DMG_BUF     = 0, // stack dmg buf
-  STACKABLE_ITEM_EXTRA_JUMP             = 1, // stack +1 jump
-  STACKABLE_ITEM_EXTRA_SHOT             = 2, // stack +1 shot (dmg mult)
-  STACKABLE_ITEM_HOVERBOOTS             = 3, // stack movement speed
-  STACKABLE_ITEM_ALPHA_MOD_SPEED        = 4, // stack +2 speed mod
-  STACKABLE_ITEM_ALPHA_MOD_IMPACT       = 5, // stack +2 impact mod
-  STACKABLE_ITEM_ALPHA_MOD_AREA         = 6, // stack +2 area mod
-  STACKABLE_ITEM_ALPHA_MOD_AMMO         = 7, // stack +2 ammo mod
-  STACKABLE_ITEM_VAMPIRE                = 8, // stack +X health gain
-  STACKABLE_ITEM_EXPLODING_ENEMIES      = 9, // stack +X damage per explosion
-  STACKABLE_ITEM_COUNT
-};
-
 struct MobConfig;
 struct MobSpawnEventArgs;
 struct MobSpawnParams;
@@ -285,22 +217,14 @@ struct SurvivalPlayerState
   int TimesRevivedSinceRoundStart;
   int TotalTokens;
   int CurrentTokens;
-  int Item;
   int BestRound;
   int TimesRolledMysteryBox;
   int TimesActivatedDemonBell;
-  int TimesActivatedPower;
   int TokensUsedOnGates;
-  short Upgrades[UPGRADE_COUNT];
+  short ItemCounts[MAX_ITEM_COUNT];
   short AlphaMods[8];
   char WeaponPrestige[9];
   char BestWeaponLevel[9];
-  u8 ItemStackable[STACKABLE_ITEM_COUNT];
-};
-
-struct UpgradeDef {
-  enum UpgradeType Id;
-  short Max;
 };
 
 struct SurvivalPlayer
@@ -311,13 +235,11 @@ struct SurvivalPlayer
   struct SurvivalPlayerState State;
   int TimeOfDoublePoints;
   int TimeOfDoubleXP;
-  int InvisibilityCloakStopTime;
-  int HealthTornadoStopTime;
-  int HealthTornadoActivateTicks;
   int TicksSinceHealthChanged;
   int RevivingPlayerId;
   u16 ReviveCooldownTicks;
   u16 RevivingPlayerTicks;
+  u16 PlayerDeadForTicks;
   u8 ActionCooldownTicks;
   u8 MessageCooldownTicks;
   char IsLocal;
@@ -369,13 +291,13 @@ struct SurvivalState
   int MapBaseComplexity;
   struct SurvivalMobStats MobStats;
   struct SurvivalPlayer PlayerStates[GAME_MAX_PLAYERS];
+  int StorePurchaseCount[GAME_MAX_LOCALS][MAX_ITEM_COUNT];
   char ClientReady[GAME_MAX_PLAYERS];
   int RoundInitialized;
   Moby* Vendor;
   Moby* BigAl;
   Moby* PrestigeMachine;
   Moby* Bankbox;
-  Moby* UpgradeMobies[UPGRADE_COUNT];
   Moby* MysteryBoxMoby;
   struct SurvivalPlayer* LocalPlayerState;
   int GameOver;
@@ -384,7 +306,6 @@ struct SurvivalState
   int IsHost;
   float Difficulty;
   int TimeOfFreeze;
-  int InfiniteAmmoStopTime;
   short DropCooldownTicks;
   char Freeze;
   char NumTeams;
@@ -421,8 +342,8 @@ struct SurvivalMapConfig
   struct SurvivalSpecialRoundParam* SpecialRoundParams;
   int SpecialRoundParamsCount; 
 
-  struct UpgradeDef* UpgradeDefs;
-  int UpgradeDefCount;
+  struct SurvivalItemDef* ItemDefs;
+  int ItemDefCount;
 
 	struct SurvivalInteropTable Functions;
 };
@@ -469,7 +390,6 @@ typedef struct SurvivalWeaponUpgradeMessage
   char PlayerId;
   char WeaponId;
   char Level;
-  char Alphamod;
 } SurvivalWeaponUpgradeMessage_t;
 
 typedef struct SurvivalWeaponPrestigeMessage
@@ -527,12 +447,6 @@ typedef struct SurvivalSetFreezeMessage
   char IsActive;
 } SurvivalSetFreezeMessage_t;
 
-typedef struct SurvivalPlayerUseItem
-{
-  int PlayerId;
-  enum MysteryBoxItem Item;
-} SurvivalPlayerUseItem_t;
-
 typedef struct SurvivalPlayerCastVote
 {
   int Ballot;
@@ -544,6 +458,20 @@ typedef struct SurvivalRoundBeginMessage
 {
   
 } SurvivalRoundBeginMessage_t;
+
+typedef struct SurvivalPlayerItemAcquireMessage
+{
+  int PlayerId;
+  int ItemId;
+  int CurrentCount;
+} SurvivalPlayerItemAcquireMessage_t;
+
+typedef struct SurvivalPlayerItemConsumeMessage
+{
+  int PlayerId;
+  int ItemId;
+  int CurrentCount;
+} SurvivalPlayerItemConsumeMessage_t;
 
 struct SurvivalSnackItem
 {
