@@ -252,11 +252,10 @@ Player* mobyGetPlayer(Moby* moby)
 {
   if (!moby) return 0;
   
-  Player** players = playerGetAll();
   int i;
 
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
+    Player* player = playerGetFromIndex(i);
     if (!player) continue;
 
     if (player->PlayerMoby == moby) return player;
@@ -356,10 +355,9 @@ int voteGetResult(struct SurvivalVote* vote)
   // check for result
   int i;
   GameSettings* gs = gameGetSettings();
-  Player** players = playerGetAll();
   int count = 0;
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
+    Player* player = playerGetFromIndex(i);
     if (!playerIsValid(player)) continue;
     if (gs->PlayerClients[i] < 0) continue;
     if (!vote->Votes[gs->PlayerClients[i]]) continue;

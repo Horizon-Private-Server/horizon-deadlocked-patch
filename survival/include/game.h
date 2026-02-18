@@ -118,12 +118,6 @@
 
 #define BAKED_SPAWNPOINT_COUNT							  (32)
 
-#define ITEM_INVISCLOAK_DURATION              (30*TIME_SECOND)
-#define ITEM_INFAMMO_DURATION                 (30*TIME_SECOND)
-#define ITEM_QUAD_DURATION_TPS                (1*60*TPS)
-#define ITEM_SHIELD_DURATION_TPS              (1*60*TPS)
-#define ITEM_EMP_HEALTH_EFFECT_RADIUS         (15)
-
 #define SNACK_ITEM_MAX_COUNT                  (8)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
 
@@ -294,7 +288,6 @@ struct SurvivalState
   int StorePurchaseCount[GAME_MAX_LOCALS][MAX_ITEM_COUNT];
   char ClientReady[GAME_MAX_PLAYERS];
   int RoundInitialized;
-  Moby* Vendor;
   Moby* BigAl;
   Moby* PrestigeMachine;
   Moby* Bankbox;

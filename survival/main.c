@@ -583,7 +583,6 @@ int spawnPointGetNearToPlayer(struct MobSpawnParams* mob, VECTOR out, float minD
   int bestPoints[SPAWNPOINT_NEAR_BUFFER_SIZE] = {-1,-1,-1};
   float minDistSqr = minDist * minDist;
   VECTOR cuboidSpaceP = {randRange(-1, 1),randRange(-1, 1),0.1,0};
-  //Player** players = playerGetAll();
   int* spIndices = NULL;
   int spCount = mapConfig->Functions.GetSpawnPointsFunc(&spIndices);
   if (!spCount || !spIndices) return 0;
@@ -933,7 +932,7 @@ void customMineMobyUpdate(Moby* moby)
   u32 pvar = (u32)moby->PVar;
   if (pvar) {
     int mLayer = *(int*)(pvar + 0x200);
-    Player * p = playerGetAll()[*(short*)(pvar + 0xC0)];
+    Player * p = playerGetFromIndex(*(short*)(pvar + 0xC0));
     int createdLocally = p && p->IsLocal;
     int gameTime = gameGetTime();
     int timeCreated = *(int*)(&moby->Rotation[3]);
@@ -967,7 +966,7 @@ void onPlayerWithdrawnBankBox(int playerId, int bolts)
   pvars->TotalBolts -= bolts;
   pvars->BoltsWithdrawnThisRound += bolts;
   State.PlayerStates[playerId].State.Bolts += bolts;
-  playPaidSound(playerGetAll()[playerId]);
+  playPaidSound(playerGetFromIndex(playerId));
 }
 
 //--------------------------------------------------------------------------
@@ -1045,7 +1044,7 @@ void playerInteractBankBox(Player* player, int deposit)
 void onPlayerPrestigeWeapon(int playerId, int weaponId, int prestigeId)
 {
   char buf[64];
-  Player* p = playerGetAll()[playerId];
+  Player* p = playerGetFromIndex(playerId);
   if (!p)
     return;
 
@@ -1105,7 +1104,7 @@ int playerPrestigeWeapon(Player* player, int weaponId)
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
   char buf[64];
-  Player* p = playerGetAll()[playerId];
+  Player* p = playerGetFromIndex(playerId);
   if (!p)
     return;
 
@@ -1161,7 +1160,7 @@ void playerUpgradeWeapon(Player* player, int weaponId)
 //--------------------------------------------------------------------------
 void mapUpgradePlayerWeaponHandler(int playerId, int weaponId)
 {
-  Player* player = playerGetAll()[playerId];
+  Player* player = playerGetFromIndex(playerId);
   if (!player || !player->PlayerMoby || !player->IsLocal)
     return;
   
@@ -1182,8 +1181,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
   State.PlayerStates[playerId].IsDead = 0;
   State.PlayerStates[playerId].State.TimesRevived++;
   State.PlayerStates[playerId].State.TimesRevivedSinceRoundStart++;
-  Player** players = playerGetAll();
-  Player* player = players[playerId];
+  Player* player = playerGetFromIndex(playerId);
   if (!playerIsValid(player))
     return;
 
@@ -1225,7 +1223,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 
   // pass to map
   if (hasMapConfig() && mapConfig->Functions.OnPlayerRevivedFunc)
-    mapConfig->Functions.OnPlayerRevivedFunc(player, players[fromPlayerId]);
+    mapConfig->Functions.OnPlayerRevivedFunc(player, playerGetFromIndex(fromPlayerId));
 }
 
 //--------------------------------------------------------------------------
@@ -1291,7 +1289,7 @@ void setPlayerDead(Player* player, char isDead)
 void onSetPlayerWeaponMods(int playerId, int weaponId, u8* mods)
 {
   int i;
-  Player* p = playerGetAll()[playerId];
+  Player* p = playerGetFromIndex(playerId);
   if (!p)
     return;
 
@@ -1396,11 +1394,10 @@ void setDoublePoints(int isActive)
 {
   int i;
   SurvivalSetPlayerDoublePointsMessage_t message;
-  Player** players = playerGetAll();
 
   // build active list
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* p = players[i];
+    Player* p = playerGetFromIndex(i);
     if (p) {
       State.PlayerStates[i].TimeOfDoublePoints = gameGetTime();
       State.PlayerStates[i].IsDoublePoints = isActive;
@@ -1457,11 +1454,10 @@ void setDoubleXP(int isActive)
 {
   int i;
   SurvivalSetPlayerDoubleXPMessage_t message;
-  Player** players = playerGetAll();
 
   // build active list
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* p = players[i];
+    Player* p = playerGetFromIndex(i);
     if (p) {
       State.PlayerStates[i].TimeOfDoubleXP = gameGetTime();
       State.PlayerStates[i].IsDoubleXP = isActive;
@@ -1554,7 +1550,7 @@ void onPlayerItemAcquired(int playerId, int itemId, int currentCount)
   State.PlayerStates[playerId].State.ItemCounts[itemId] = currentCount;
 
   // trigger acquire
-  Player *player = playerGetAll()[playerId];
+  Player *player = playerGetFromIndex(playerId);
   if (!playerIsValid(player))
     return;
 
@@ -1594,7 +1590,7 @@ void onPlayerItemConsumed(int playerId, int itemId, int currentCount)
   State.PlayerStates[playerId].State.ItemCounts[itemId] = currentCount;
 
   // trigger consume
-  Player *player = playerGetAll()[playerId];
+  Player *player = playerGetFromIndex(playerId);
   if (!playerIsValid(player))
     return;
 
@@ -1669,10 +1665,9 @@ void checkForRound50Time(void)
 //--------------------------------------------------------------------------
 void respawnDeadPlayers(void) {
   int i;
-  Player** players = playerGetAll();
 
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player * p = players[i];
+    Player * p = playerGetFromIndex(i);
     if (p && playerIsDead(p)) {
       State.PlayerStates[i].State.TimesRevivedSinceRoundStart = 0;
       
@@ -1735,26 +1730,26 @@ void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
 //--------------------------------------------------------------------------
 void onEmpExplode(Moby* moby, VECTOR from, VECTOR to, u32 a3, u32 t0, u32 t1, u32 t2, u32 t3, float f12, float f13, float f14, float f15) {
   
-  int i;
-  Player** players = playerGetAll();
-  VECTOR dt;
-  Player* fromPlayer = guberMobyGetPlayerDamager(moby);
+  // int i;
+  // Player** players = playerGetAll();
+  // VECTOR dt;
+  // Player* fromPlayer = guberMobyGetPlayerDamager(moby);
 
-  if (fromPlayer) {
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      Player* player = players[i];
-      if (!player || !player->SkinMoby) continue;
+  // if (fromPlayer) {
+  //   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  //     Player* player = players[i];
+  //     if (!player || !player->SkinMoby) continue;
 
-      vector_subtract(dt, player->PlayerPosition, to);
-      if (vector_sqrmag(dt) < (ITEM_EMP_HEALTH_EFFECT_RADIUS*ITEM_EMP_HEALTH_EFFECT_RADIUS)) {
-        if (playerIsDead(player)) {
-          playerRevive(player, fromPlayer->PlayerId);
-        } else {
-          playerSetHealth(player, player->MaxHealth);
-        }
-      }
-    }
-  }
+  //     vector_subtract(dt, player->PlayerPosition, to);
+  //     if (vector_sqrmag(dt) < (ITEM_EMP_HEALTH_EFFECT_RADIUS*ITEM_EMP_HEALTH_EFFECT_RADIUS)) {
+  //       if (playerIsDead(player)) {
+  //         playerRevive(player, fromPlayer->PlayerId);
+  //       } else {
+  //         playerSetHealth(player, player->MaxHealth);
+  //       }
+  //     }
+  //   }
+  // }
   
   ((void (*)(Moby* moby, VECTOR from, VECTOR to, u32 a3, u32 t0, u32 t1, u32 t2, u32 t3, float f12, float f13, float f14, float f15))0x00420ac0)(
     moby, from, to, a3, t0, t1, t2, t3,
@@ -1771,7 +1766,7 @@ int onEmpHitMoby(Moby* moby) {
 //--------------------------------------------------------------------------
 void playerRewardXp(int playerId, int weaponId, int xp)
 {
-  Player* player = playerGetAll()[playerId];
+  Player* player = playerGetFromIndex(playerId);
   if (!player || !player->PlayerMoby) return;
 
   struct SurvivalPlayer* pState = &State.PlayerStates[playerId];
@@ -1833,8 +1828,7 @@ void processPlayer(int pIndex) {
   VECTOR t;
   int i = 0, localPlayerIndex, heldWeapon, hasMessage = 0;
   char strBuf[32];
-  Player** players = playerGetAll();
-  Player* player = players[pIndex];
+  Player* player = playerGetFromIndex(pIndex);
   struct SurvivalPlayer * playerData = &State.PlayerStates[pIndex];
   GameSettings* gs = gameGetSettings();
 
@@ -2001,56 +1995,6 @@ void processPlayer(int pIndex) {
       playerData->IsInWeaponsMenu = 0;
     }
 
-    // handle vendor logic
-    if (State.Vendor && State.Vendor->Drawn && State.Vendor->DrawDist > 0) {
-      
-      int level = gBox->Gadgets[(int)heldWeapon].Level;
-
-      // check player is holding upgradable weapon
-      if (canUpgradePlayerWeapon(player, heldWeapon, level)) {
-
-        // can have multiple vendors
-        // expect them to be sequential in moby list
-        Moby* vendorMoby = State.Vendor;
-        while (vendorMoby && vendorMoby->OClass == MOBY_ID_WEAPON_VENDOR) {
-
-          vendorMoby->Bangles = 0x8;
-
-          // check distance
-          vector_subtract(t, player->PlayerPosition, vendorMoby->Position);
-          if (vector_sqrmag(t) < (WEAPON_VENDOR_MAX_DIST * WEAPON_VENDOR_MAX_DIST)) {
-            
-            // get upgrade cost
-            int cost = getUpgradePlayerWeaponCost(player, heldWeapon, level);
-
-            // draw help popup
-            snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_UPGRADE_MESSAGE, cost);
-            uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
-            hasMessage = 1;
-            playerData->MessageCooldownTicks = 2;
-
-            // handle purchase
-            if (playerData->State.Bolts >= cost) {
-
-              // handle pad input
-              if (padGetButton(localPlayerIndex, PAD_CIRCLE) > 0) {
-                playerData->State.Bolts -= cost;
-                playerUpgradeWeapon(player, heldWeapon);
-                passPlayerGetVendorRewardToMap(player, heldWeapon, level+1);
-                uiShowPopup(localPlayerIndex, uiMsgString(0x2330));
-                playPaidSound(player);
-                playerData->ActionCooldownTicks = WEAPON_UPGRADE_COOLDOWN_TICKS;
-              }
-            }
-
-            break;
-          }
-
-          ++vendorMoby;
-        }
-      }
-    }
-
     // handle big al logic
     if (State.BigAl && State.BigAl->Drawn && State.BigAl->DrawDist > 0) {
 
@@ -2145,7 +2089,7 @@ void processPlayer(int pIndex) {
 
           // ensure player exists, is dead, and is on the same team
           struct SurvivalPlayer * otherPlayerData = &State.PlayerStates[i];
-          Player * otherPlayer = players[i];
+          Player * otherPlayer = playerGetFromIndex(i);
           if (!otherPlayer)
             continue;
 
@@ -2203,25 +2147,6 @@ void processPlayer(int pIndex) {
 
     // 
     playerData->RevivingPlayerId = revivingPlayerId;
-
-    // handle items
-    // if (!isDeadState && padGetButtonDown(0, PAD_LEFT) > 0) {
-    //   switch (playerData->State.Item)
-    //   {
-    //     case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK:
-    //     {
-    //       playerUseItem(pIndex, playerData->State.Item);
-    //       break;
-    //     }
-    //     case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN:
-    //     {
-    //       playerUseItem(pIndex, playerData->State.Item);
-    //       //onHealthBomb(player, player->PlayerPosition);
-    //       //playerEquipWeapon(player, WEAPON_ID_EMP);
-    //       break;
-    //     }
-    //   }
-    // }
 
     /*
     static int aaa = 1;
@@ -2412,7 +2337,6 @@ void setRoundComplete(void)
 void onSetRoundStart(int roundNumber, int gameTime)
 {
   int i;
-  Player** players = playerGetAll();
 
   // 
   State.RoundNumber = roundNumber;
@@ -2440,7 +2364,7 @@ void onSetRoundStart(int roundNumber, int gameTime)
 
   // set best round for each player still in lobby
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
+    Player* player = playerGetFromIndex(i);
     if (player && player->SkinMoby) {
       State.PlayerStates[i].State.BestRound = roundNumber;
     }
@@ -2797,7 +2721,6 @@ float fusionGetBeamHitAngle(u128 a0, u128 a1, u128 a2, void* a3)
 //--------------------------------------------------------------------------
 void mapLoadResetState(PatchStateContainer_t* gameState)
 {
-  State.Vendor = NULL;
   State.Bankbox = NULL;
   State.BigAl = NULL;
   State.BossMoby = NULL;
@@ -2811,7 +2734,6 @@ void initialize(PatchStateContainer_t* gameState)
   static int waitingForClientsReady = 0;
   static int firstTime = 1;
   char hasTeam[10] = {0,0,0,0,0,0,0,0,0,0};
-  Player** players = playerGetAll();
   int i, j;
 
   if (firstTime) {
@@ -3070,7 +2992,7 @@ void initialize(PatchStateContainer_t* gameState)
   State.NumTeams = 0;
   State.ActivePlayerCount = 0;
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player * p = players[i];
+    Player * p = playerGetFromIndex(i);
     State.PlayerStates[i].RevivingPlayerId = -1;
 
 #if PAYDAY
@@ -3126,13 +3048,6 @@ void initialize(PatchStateContainer_t* gameState)
     //randomizeWeaponPickups();
   }
 
-  // find vendor
-#if defined(VENDOR_OCLASS)
-  State.Vendor = FindMobyOrSpawnBox(VENDOR_OCLASS, 1);
-#else
-  State.Vendor = FindMobyOrSpawnBox(0, 1);
-#endif
-
   // find al
 #if defined(BIGAL_OCLASS)
   State.BigAl = FindMobyOrSpawnBox(BIGAL_OCLASS, 2);
@@ -3148,7 +3063,6 @@ void initialize(PatchStateContainer_t* gameState)
 #endif
 
   State.Bankbox = NULL;
-  DPRINTF("vendor %08X\n", (u32)State.Vendor);
   DPRINTF("big al %08X\n", (u32)State.BigAl);
   DPRINTF("prestige machine %08X\n", (u32)State.PrestigeMachine);
 
@@ -3274,7 +3188,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
   GameSettings * gameSettings = gameGetSettings();
   GameOptions * gameOptions = gameGetOptions();
-  Player ** players = playerGetAll();
   Player* localPlayer = playerGetFromSlot(0);
   int i;
   char buffer[64];
@@ -3531,44 +3444,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         gfxScreenSpaceText(x,   y+8,   1, 1, 0x80C0C0C0, buffer, -1, 2);
         drawDreadTokenIcon(x+5, y, 32);
       }
-      
-#if 0
-      // draw current item
-      {
-        int itemTexId = -1;
-        int itemTexWH = 32;
-        u32 itemColor = 0x80C0C0C0;
-        char useItemChar = 0;
-        switch (playerData->State.Item)
-        {
-          case MYSTERY_BOX_ITEM_REVIVE_TOTEM: itemTexId = 80 - 3; break;
-          case MYSTERY_BOX_ITEM_INVISIBILITY_CLOAK: itemTexId = 140 - 3; useItemChar = '\x1A'; break;
-          case MYSTERY_BOX_ITEM_EMP_HEALTH_GUN: itemTexId = 15 - 3; useItemChar = '\x1A'; break;
-          default: break;
-        }
-
-        if (itemTexId > 0) {
-          x = 20;
-          y = SCREEN_HEIGHT - 50;
-          transformToSplitscreenPixelCoordinates(i, &x, &y);
-
-          // draw on ps2 and dzo
-          gfxSetupGifPaging(0);
-          gfxHelperDrawSprite(x, y, 2, 2, 32, 32, itemTexWH, itemTexWH, itemTexId, 0x40000000, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-          gfxHelperDrawSprite(x, y, 0, 0, 32, 32, itemTexWH, itemTexWH, itemTexId, itemColor, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-          gfxDoGifPaging();
-        }
-
-        if (useItemChar) {
-          x = 20;
-          y = SCREEN_HEIGHT - 50;
-          transformToSplitscreenPixelCoordinates(i, &x, &y);
-
-          // draw on ps2 and dzo
-          gfxHelperDrawText(x, y, -15, 10, 0.75, 0x80FFFFFF, &useItemChar, 1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-        }
-      }
-#endif
     }
   }
 
@@ -3602,7 +3477,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     // 
     State.ActivePlayerCount = 0;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (playerIsValid(players[i]))
+      if (playerIsValid(playerGetFromIndex(i)))
         State.ActivePlayerCount++;
 
       processPlayer(i);
@@ -3652,7 +3527,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
       // determine number of players alive
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        if (players[i] && !State.PlayerStates[i].IsDead) {
+        if (playerGetFromIndex(i) && !State.PlayerStates[i].IsDead) {
           isAnyPlayerAlive = 1;
         }
       }

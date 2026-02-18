@@ -278,7 +278,6 @@ int getMaxComplexity(void)
 {
   int maxComplexity = MAX_MOB_COMPLEXITY_DRAWN;
   int i = 0;
-  Player** players = playerGetAll();
 
   // reduce by lod
   int lodFactor = (int)powf(maxf(0, (playerConfig ? (2 - playerConfig->levelOfDetailMobs) : 0)), 2);
@@ -296,7 +295,7 @@ int getMaxComplexity(void)
 
   // reduce by number of visible players
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* p = players[i];
+    Player* p = playerGetFromIndex(i);
     if (!p) continue;
     if (!p->SkinMoby) continue;
 
@@ -584,7 +583,6 @@ void mobUpdate(Moby* moby)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   GameOptions* gameOptions = gameGetOptions();
   GameSettings* gameSettings = gameGetSettings();
-  Player** players = playerGetAll();
   int isFrozen = mobIsFrozen(moby);
   if (!pvars || pvars->MobVars.Destroyed || !pvars->VTable)
     return;
@@ -639,7 +637,7 @@ void mobUpdate(Moby* moby)
   // validate owner
   Player * ownerPlayer = NULL;
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* p = players[i];
+    Player* p = playerGetFromIndex(i);
     if (playerIsValid(p) && gameSettings->PlayerClients[i] == pvars->MobVars.Owner) {
       ownerPlayer = p;
       break;
@@ -1065,7 +1063,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
   char killedByPlayerId, weaponId;
   int i;
-  Player** players = playerGetAll();
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (!pvars || pvars->MobVars.Destroyed)
     return 0;
@@ -1085,10 +1082,10 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
 #if SHARED_BOLTS
   if (killedByPlayerId >= 0) {
-    Player * killedByPlayer = players[(int)killedByPlayerId];
+    Player * killedByPlayer = playerGetFromIndex(killedByPlayerId);
     if (killedByPlayer) {
       for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        Player* p = players[i];
+        Player* p = playerGetFromIndex(i);
         if (p && !playerIsDead(p)) {
           int multiplier = State.PlayerStates[i].IsDoublePoints ? 2 : 1;
           State.PlayerStates[i].State.Bolts += bolts * multiplier;
@@ -1113,7 +1110,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
   if (sharedXp) {
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      Player* p = players[i];
+      Player* p = playerGetFromIndex(i);
       if (p && !playerIsDead(p) && i != killedByPlayerId) {
         playerRewardXp(i, 0, xp);
       }
@@ -1121,7 +1118,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
   }
 
   if (killedByPlayerId >= 0) {
-    Player * killedByPlayer = players[(int)killedByPlayerId];
+    Player * killedByPlayer = playerGetFromIndex(killedByPlayerId);
     struct SurvivalPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
     GameData * gameData = gameGetData();
 
@@ -1458,7 +1455,6 @@ void mobInitialize(void)
 //--------------------------------------------------------------------------
 void mobNuke(int killedByPlayerId)
 {
-  Player** players = playerGetAll();
   u32 playerUid = 0;
 
   // only let host destroy
@@ -1467,7 +1463,7 @@ void mobNuke(int killedByPlayerId)
 
   // get uid of player
   if (killedByPlayerId >= 0 && killedByPlayerId < GAME_MAX_PLAYERS) {
-    Player* p = players[killedByPlayerId];
+    Player* p = playerGetFromIndex(killedByPlayerId);
     if (p) {
       playerUid = p->Guber.Id.UID;
     }
@@ -1492,10 +1488,9 @@ void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float 
   VECTOR delta;
   struct MobDamageEventArgs args;
   float sqrRadius = radius * radius;
-  Player** players = playerGetAll();
   u32 playerUid = 0;
   if (byPlayerId >= 0 && byPlayerId < GAME_MAX_PLAYERS) {
-    Player* p = players[byPlayerId];
+    Player* p = playerGetFromIndex(byPlayerId);
     if (p) {
       playerUid = p->Guber.Id.UID;
     }
