@@ -3244,18 +3244,30 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 #if DEBUG_SOUNDS
   {
+    u16 * list = mobyGetLoadedMobyClassList();
     static int aaa = 0;
-    const int mobyClass = 0x2751;
+    static int bbb = 0;
+    int mobyClass = list[bbb];
     if (padGetButtonDown(0, PAD_RIGHT) > 0) {
       aaa += 1;
-      printf("%d\n", aaa);
+      printf("%04X %d\n", mobyClass, aaa);
       mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
     } else if (padGetButtonDown(0, PAD_LEFT) > 0) {
       aaa -= 1;
-      printf("%d\n", aaa);
+      printf("%04X %d\n", mobyClass, aaa);
       mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
     } else if (padGetButtonDown(0, PAD_UP) > 0) {
-      printf("%d\n", aaa);
+      printf("%04X %d\n", mobyClass, aaa);
+      mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
+    } else if (padGetButtonDown(0, PAD_L1) > 0) {
+      bbb -= 1;
+      mobyClass = list[bbb];
+      printf("%04X %d\n", mobyClass, aaa);
+      mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
+    } else if (padGetButtonDown(0, PAD_L2) > 0) {
+      bbb += 1;
+      mobyClass = list[bbb];
+      printf("%04X %d\n", mobyClass, aaa);
       mobyPlaySoundByClass(aaa, 0, localPlayer->PlayerMoby, mobyClass);
     }
   }
@@ -3582,7 +3594,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
           uiShowTimer(0, dzoDrawHudCmd.RoundStartMessage, (int)(timerSec * (60.0 / TIME_SECOND)));
           dzoDrawHudCmd.StartRoundTimer = timerSec;
         } else if (State.RoundEndTime < 0) {
-          gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, dzoDrawHudCmd.RoundStartMessage, -1, TEXT_ALIGN_MIDDLECENTER);
+          gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 50, 1, 1, 0x80FFFFFF, dzoDrawHudCmd.RoundStartMessage, -1, TEXT_ALIGN_MIDDLECENTER);
         }
 
         // handle skip
