@@ -116,6 +116,7 @@ int getCustomMapDefCount(void);
 CustomMapDef_t* getCustomMapDef(int index);
 void refreshCustomMapList(void);
 void mapHopTo(CustomMapDef_t* def);
+void mapResetExDataCache(void);
 int mapReadCurrentCustomMapExtraData(void* dst, int len);
 int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int customModeId);
 void onMapLoaderOnlineMenu(void);
@@ -5558,6 +5559,7 @@ void onOnlineMenu(void)
     uiShowOkDialog("Custom Map Out-of-Date", buf);
 
     showNeedLatestMapsPopup = 0;
+    mapResetExDataCache();
   }
 
   if (showModeNeedsCustomMapPopup)
