@@ -205,6 +205,7 @@ float magDamageCooldownDamage[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
 const int allVehiclesEnabledTable[4] = {1,1,1,1};
 
 extern int dlIsActive;
+extern int dlIgnore;
 
 int lastLodLevel = 2;
 const int lodPatchesPotato[][2] = {
@@ -4436,6 +4437,26 @@ void runCheckGameMapInstalled(void)
 }
 
 /*
+ * NAME :		disableCustomModeModule
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void disableCustomModeModule(void)
+{
+  memset((void*)(u32)0x000F0000, 0, 0xFF00);
+  memset(GLOBAL_GAME_MODULES_START, 0, sizeof(GameModule) * 2);
+}
+
+/*
  * NAME :		processGameModules
  * 
  * DESCRIPTION :
@@ -4451,6 +4472,10 @@ void runCheckGameMapInstalled(void)
  */
 void processGameModules()
 {
+  // don't run while downloading mode
+  if (dlIsActive)
+    return;
+
   // Start at the first game module
   GameModule * module = GLOBAL_GAME_MODULES_START;
 
@@ -4482,8 +4507,11 @@ void processGameModules()
         else if (isSceneLoading())
           state = GAMEMODULE_SCENE_LOADING;
       
-        // Invoke module
-        module->Entrypoint(module, &patchStateContainer, state);
+        // fixes an edge case where crashes right after downloading
+        if (!isInMenus() || gamesettings->GameLoadStartTime > 0)
+        {
+          module->Entrypoint(module, &patchStateContainer, state);
+        }
       }
 
     }
@@ -4522,6 +4550,10 @@ void processGameModules()
  */
 void processGameModulesUpdate()
 {
+  // don't run while downloading mode
+  if (dlIsActive)
+    return;
+
   // Start at the first game module
   GameModule * module = GLOBAL_GAME_MODULES_START;
 
@@ -5334,6 +5366,7 @@ void runPayloadDownloadRequester(void)
     
     if (dlIsActive == 201) {
       dlIsActive = 0;
+      dlIgnore = 1;
     }
     
     redownloadCustomModeBinaries = 0;
@@ -5371,12 +5404,13 @@ void runPayloadDownloadRequester(void)
     if (redownloadCustomModeBinaries == 1 || (redownloadCustomModeBinaries == 0 && module->State && !gameConfig.customModeId && module->ModeId >= 0)) {
       DPRINTF("disabling module mode:%d\n", module->ModeId);
       module->State = GAMEMODULE_OFF;
-      memset((void*)(u32)0x000F0000, 0, 0xF000);
+      disableCustomModeModule();
     }
 
     if (redownloadCustomModeBinaries == 1) {
       netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_REQUEST_CUSTOM_MODE_PATCH, 0, &dlIsActive);
       redownloadCustomModeBinaries = 2;
+      disableCustomModeModule();
       DPRINTF("requested mode binaries\n");
     }
   }

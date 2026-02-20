@@ -453,6 +453,7 @@ typedef struct ClientDownloadDataResponse
 {
     int Id;
     int BytesReceived;
+    int Stop;
 } ClientDownloadDataResponse_t;
 
 typedef struct ClientSetGameConfig

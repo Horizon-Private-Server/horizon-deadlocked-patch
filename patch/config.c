@@ -61,6 +61,7 @@ char footerCanFilter = 0;
 int dlBytesReceived = 0;
 int dlTotalBytes = 0;
 int dlIsActive = 0;
+int dlIgnore = 0;
 int dlConnectionTimeout = 0;
 
 // constants
@@ -3519,11 +3520,12 @@ void onConfigUpdate(void)
 
   // reset when we lose connection
   void* connection = netGetLobbyServerConnection();
-  if (dlTotalBytes > 0 && (!connection || !dlIsActive)) {
+  if (dlTotalBytes > 0 && (!connection || (!dlIsActive && !dlIgnore))) {
     if (dlConnectionTimeout > 60 || !dlIsActive) {
       dlTotalBytes = 0;
       dlBytesReceived = 0;
       dlIsActive = 0;
+      dlIgnore = 0;
       dlConnectionTimeout = 0;
       DPRINTF("lost connection\n");
     } else {
@@ -3676,30 +3678,35 @@ void navTab(int direction)
 //------------------------------------------------------------------------------
 int onServerDownloadDataRequest(void * connection, void * data)
 {
-	ServerDownloadDataRequest_t* request = (ServerDownloadDataRequest_t*)data;
+	ServerDownloadDataRequest_t request;
+  memcpy(&request, data, sizeof(request));
+  int msgSize = sizeof(ServerDownloadDataRequest_t) - sizeof(request.Data) + request.DataSize;
 
 	// copy bytes to target
-  dlIsActive = request->Id;
-	dlTotalBytes = request->TotalSize;
-	dlBytesReceived += request->DataSize;
-	memcpy((void*)request->TargetAddress, request->Data, request->DataSize);
-	DPRINTF("DOWNLOAD: %d/%d, writing %d to %08X\n", dlBytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
+  dlIsActive = request.Id;
+	dlTotalBytes = request.TotalSize;
+	dlBytesReceived += request.DataSize;
+  if (!dlIgnore && request.DataSize > 0)
+    memcpy((void*)request.TargetAddress, request.Data, request.DataSize);
+	DPRINTF("DOWNLOAD: %d/%d, writing %d to %08X\n", dlBytesReceived, request.TotalSize, request.DataSize, request.TargetAddress);
   
 	// respond
-	if (connection && (!request->Chunk || dlBytesReceived >= request->TotalSize))
+	if (connection && (!request.Chunk || dlBytesReceived >= request.TotalSize))
 	{
 		ClientDownloadDataResponse_t response;
-		response.Id = request->Id;
+		response.Id = request.Id;
 		response.BytesReceived = dlBytesReceived;
+    response.Stop = dlIgnore;
 		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE, sizeof(ClientDownloadDataResponse_t), &response);
 	}
 
   // reset at end
-  if (dlBytesReceived >= request->TotalSize)
+  if (dlBytesReceived >= request.TotalSize)
   {
     dlTotalBytes = 0;
     dlBytesReceived = 0;
     dlIsActive = 0;
+    dlIgnore = 0;
     //*(u32*)0x00167F54 = 1000 * 3;
   }
   else
@@ -3707,7 +3714,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
     //*(u32*)0x00167F54 = 1000 * 15;
   }
 
-	return sizeof(ServerDownloadDataRequest_t) - sizeof(request->Data) + request->DataSize;
+	return msgSize;
 }
 
 //------------------------------------------------------------------------------
