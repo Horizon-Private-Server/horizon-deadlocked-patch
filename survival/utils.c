@@ -390,3 +390,24 @@ int isInRoundTransition(void)
 {
   return State.RoundCompleteTime;
 }
+
+//--------------------------------------------------------------------------
+void escapePrintfPercent(char* buf, int size, const char* str)
+{
+  size_t len = strlen(str);
+  size_t extra = 0;
+
+  int i;
+  int o = 0;
+  for (i = 0; o < size; ++i)
+  {
+    char c = str[i];
+    if (!c) break;
+
+    // escape %
+    if (c == '%')
+      buf[o++] = '%';
+
+    buf[o++] = c;
+  }
+}

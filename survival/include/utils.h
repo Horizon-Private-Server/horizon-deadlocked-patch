@@ -73,5 +73,6 @@ int localPlayerHasInput(void);
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 
 int hasMapConfig(void);
+void escapePrintfPercent(char* buf, int size, const char* str);
 
 #endif // SURVIVAL_UTILS_H

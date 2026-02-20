@@ -341,7 +341,14 @@ void pushSnack(char * str, int ticksAlive, int localPlayerIdx)
   if (snackItemsCount < 0)
     snackItemsCount = 0;
 
-  strncpy(snackItems[snackItemsCount].Str, str, sizeof(snackItems[snackItemsCount].Str));
+  // special case if ticks is 0
+  // want to add only if there are no other snacks in the queue
+  // as we assume this case is used for snacks drawn once a frame, but called every frame
+  // and we don't want to fill up the queue with them
+  if (ticksAlive <= 0 && snackItemsCount > 0)
+    return;
+
+  escapePrintfPercent(snackItems[snackItemsCount].Str, sizeof(snackItems[snackItemsCount].Str), str);
   snackItems[snackItemsCount].TicksAlive = ticksAlive;
   snackItems[snackItemsCount].DisplayForLocalPlayerIdx = localPlayerIdx;
   ++snackItemsCount;
