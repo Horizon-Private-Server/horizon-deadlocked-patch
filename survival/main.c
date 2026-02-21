@@ -56,11 +56,10 @@ const char * SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE = "Waiting For Players (%d/
 const char * SURVIVAL_HOST_SKIP_VOTE_NEXT_ROUND_TIMER_MESSAGE = "\x1d   Skip Waiting For Players (%d/%d)";
 const char * SURVIVAL_GAME_OVER = "GAME OVER";
 const char * SURVIVAL_REVIVE_MESSAGE = "Revive %s"; //"\x1c (DOWN) Revive %s";
-const char * SURVIVAL_UPGRADE_MESSAGE = "\x11 Upgrade [\x0E%'d\x08]";
 const char * SURVIVAL_OPEN_WEAPONS_MESSAGE = "\x12 Manage Mods";
-const char * SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE = "Balance \x0A%'d\x08";
+const char * SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE = "Balance \x0A%s\x08";
 const char * SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE = "\x11 Deposit \x13 Withdraw";
-const char * SURVIVAL_PRESTIGE_WEAPON_MESSAGE = "\x11 Prestige [\x0E%'d\x08]";
+const char * SURVIVAL_PRESTIGE_WEAPON_MESSAGE = "\x11 Prestige [\x0E%s\x08]";
 const char * SURVIVAL_PRESTIGE_WEAPON_NEED_V10_MESSAGE = "Your weapon is not powerful enough";
 const char * SURVIVAL_PRESTIGE_WEAPON_MAXED_MESSAGE = "Your weapon is too powerful";
 
@@ -2033,7 +2032,9 @@ void processPlayer(int pIndex) {
         
         // draw help popup
         char buf[32];
-        snprintf(buf, sizeof(buf), SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE, bboxPvars->TotalBolts);
+        char costBuf[32];
+        uiPrintCommaNumber(costBuf, bboxPvars->TotalBolts, 0);
+        snprintf(buf, sizeof(buf), SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE, costBuf);
         snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), "%s %s", SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE, buf);
         uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
         hasMessage = 1;
@@ -2065,12 +2066,14 @@ void processPlayer(int pIndex) {
           char* errMsg = "Cannot prestige weapon"; // generic error message if function doesn't provide one
           u32 cost = getPrestigePlayerWeaponCost(player, weaponId, nextPrestige);
           int canPrestige = canPrestigePlayerWeapon(player, weaponId, nextPrestige, &errMsg);
+          char costBuf[32];
+          uiPrintCommaNumber(costBuf, cost, 0);
 
           // draw help popup
           if (!canPrestige)
             snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), errMsg);
           else
-            snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_PRESTIGE_WEAPON_MESSAGE, cost);
+            snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), SURVIVAL_PRESTIGE_WEAPON_MESSAGE, costBuf);
 
           uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
           hasMessage = 1;
@@ -2938,7 +2941,6 @@ void initialize(PatchStateContainer_t* gameState)
 
   // set game over string
   safe_strcpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
-  safe_strcpy(uiMsgString(0x3152), SURVIVAL_UPGRADE_MESSAGE, strlen(SURVIVAL_UPGRADE_MESSAGE)+1);
   safe_strcpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE)+1);
 
   // disable v2s and packs
