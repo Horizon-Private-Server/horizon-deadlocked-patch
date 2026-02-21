@@ -2033,7 +2033,7 @@ void processPlayer(int pIndex) {
         // draw help popup
         char buf[32];
         char costBuf[32];
-        uiPrintCommaNumber(costBuf, bboxPvars->TotalBolts, 0);
+        uiPrintCommaNumber(costBuf, sizeof(costBuf), bboxPvars->TotalBolts, 0);
         snprintf(buf, sizeof(buf), SURVIVAL_INTERACT_BANK_BALANCE_MESSAGE, costBuf);
         snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), "%s %s", SURVIVAL_INTERACT_BANK_INTERACT_MESSAGE, buf);
         uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
@@ -2067,7 +2067,7 @@ void processPlayer(int pIndex) {
           u32 cost = getPrestigePlayerWeaponCost(player, weaponId, nextPrestige);
           int canPrestige = canPrestigePlayerWeapon(player, weaponId, nextPrestige, &errMsg);
           char costBuf[32];
-          uiPrintCommaNumber(costBuf, cost, 0);
+          uiPrintCommaNumber(costBuf, sizeof(costBuf), cost, 0);
 
           // draw help popup
           if (!canPrestige)
