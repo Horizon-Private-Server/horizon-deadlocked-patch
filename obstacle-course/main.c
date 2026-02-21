@@ -112,7 +112,7 @@ void gameFrameTick(struct GameModule * module, PatchStateContainer_t * gameState
     
     // init restart str
     char* a = uiMsgString(0x2400 - 4);
-    strncpy(a, "Full Restart \x13 + \x14 + L3 + \x17", 64);
+    safe_strcpy(a, "Full Restart \x13 + \x14 + L3 + \x17", 64);
   }
 
   // reload save

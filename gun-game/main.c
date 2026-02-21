@@ -777,9 +777,9 @@ void setEndGameScoreboard(void)
 
 	// names start at 6
 	// column headers start at 17
-	strncpy((char*)(uiElements[18] + 0x60), "GUN", 4);
-	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
-	strncpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
+	safe_strcpy((char*)(uiElements[18] + 0x60), "GUN", 4);
+	safe_strcpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
+	safe_strcpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
 
 	// rows
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -789,13 +789,13 @@ void setEndGameScoreboard(void)
 		{
 			// set gun
 			sprintf(buf, "%d", SortedPlayerScores[i]->Value);
-			strncpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
+			safe_strcpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
 
 			// moves deaths over
-			strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 8);
+			safe_strcpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 8);
 			
 			// moves kills over
-			strncpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), (char*)(uiElements[22 + (i*4) + 0] + 0x60), 8);
+			safe_strcpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), (char*)(uiElements[22 + (i*4) + 0] + 0x60), 8);
 		}
 	}
 }

@@ -363,7 +363,7 @@ void drawSnack(void)
   // draw
   //uiShowPopup(0, snackItems[0].Str);
   char* a = uiMsgString(0x2400);
-  strncpy(a, snackItems[0].Str, sizeof(snackItems[0].Str));
+  safe_strcpy(a, snackItems[0].Str, sizeof(snackItems[0].Str));
 
   if (snackItems[0].DisplayForLocalPlayerIdx <= 0)
     uiShowLowerPopup(0, 0x2400);
@@ -392,7 +392,7 @@ void drawRoundMessage(const char * message, float scale, int yPixelsOffset)
 
   // move to dzo
   dzoDrawHudCmd.HasRoundCompleteMessage = 1;
-  strncpy(dzoDrawHudCmd.RoundCompleteMessage, message, sizeof(dzoDrawHudCmd.RoundCompleteMessage));
+  safe_strcpy(dzoDrawHudCmd.RoundCompleteMessage, message, sizeof(dzoDrawHudCmd.RoundCompleteMessage));
 
   // draw message
   y *= SCREEN_HEIGHT;
@@ -2937,9 +2937,9 @@ void initialize(PatchStateContainer_t* gameState)
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_ITEM_CONSUME, &onPlayerItemConsumedRemote);
 
   // set game over string
-  strncpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
-  strncpy(uiMsgString(0x3152), SURVIVAL_UPGRADE_MESSAGE, strlen(SURVIVAL_UPGRADE_MESSAGE)+1);
-  strncpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE)+1);
+  safe_strcpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
+  safe_strcpy(uiMsgString(0x3152), SURVIVAL_UPGRADE_MESSAGE, strlen(SURVIVAL_UPGRADE_MESSAGE)+1);
+  safe_strcpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE)+1);
 
   // disable v2s and packs
   cheatsApplyNoV2s();
@@ -3153,7 +3153,7 @@ void updateGameState(PatchStateContainer_t * gameState)
 
   // kind of a hack but keep this value around so that when in game we can load it from the map
   // but still have it when we post stats after the game ends
-  static float boltRankMult = 1;
+  static int boltRankMult = 1;
 
   // game state update
   if (gameState->UpdateGameState)
@@ -3800,9 +3800,9 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
   int i;
 
   // column headers start at 17
-  strncpy((char*)(uiElements[19] + 0x60), "BOLTS", 6);
-  strncpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
-  strncpy((char*)(uiElements[21] + 0x60), "REVIVES", 8);
+  safe_strcpy((char*)(uiElements[19] + 0x60), "BOLTS", 6);
+  safe_strcpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
+  safe_strcpy((char*)(uiElements[21] + 0x60), "REVIVES", 8);
 
   // rows
   int* pids = (int*)(uiElements[0] - 0x9C);
@@ -3823,7 +3823,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
     sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", pState->Kills);
 
     // copy over deaths
-    strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 10);
+    safe_strcpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 10);
 
     // set bolts
     sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%ld", pState->TotalBolts);

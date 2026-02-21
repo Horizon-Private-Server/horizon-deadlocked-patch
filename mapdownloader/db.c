@@ -497,7 +497,7 @@ int download_db_item(struct DbIndexItem* item)
   // download wad
   snprintf(file_path, 511, MASS_BINARY_PATH, item->Filename, MAP_WAD_EXT);
   snprintf(url_path, 511, MAP_BINARY_PATH, item->Filename, MAP_WAD_EXT);
-  strncpy(dbStateDescStr, "Map Data", sizeof(dbStateDescStr));
+  safe_strcpy(dbStateDescStr, "Map Data", sizeof(dbStateDescStr));
   DPRINTF("%s\n", file_path);
   int wadRead = http_download(url_path, file_path, &download_db_item_callback);
 
@@ -505,14 +505,14 @@ int download_db_item(struct DbIndexItem* item)
     // download map
     snprintf(file_path, 511, MASS_BINARY_PATH, item->Filename, MAP_MAP_EXT);
     snprintf(url_path, 511, MAP_BINARY_PATH, item->Filename, MAP_MAP_EXT);
-    strncpy(dbStateDescStr, "Minimap", sizeof(dbStateDescStr));
+    safe_strcpy(dbStateDescStr, "Minimap", sizeof(dbStateDescStr));
     DPRINTF("%s\n", file_path);
     int mapRead = http_download(url_path, file_path, &download_db_item_callback);
 
     // download bg
     snprintf(file_path, 511, MASS_BINARY_PATH, item->Filename, MAP_BG_EXT);
     snprintf(url_path, 511, MAP_BINARY_PATH, item->Filename, MAP_BG_EXT);
-    strncpy(dbStateDescStr, "Loading Screen", sizeof(dbStateDescStr));
+    safe_strcpy(dbStateDescStr, "Loading Screen", sizeof(dbStateDescStr));
     DPRINTF("%s\n", file_path);
     int bgRead = http_download(url_path, file_path, &download_db_item_callback);
     

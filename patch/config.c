@@ -1009,7 +1009,7 @@ void cgmSendMapData(int mapIdx, int modeId, char* exDataBuf, int exDataBufLen)
 
   // send latest map data to server first
   UpdateCustomMapExDataRequest_t msg;
-  strncpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
+  safe_strcpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
 
   // send in fragments
   int off = 0;
@@ -1038,7 +1038,7 @@ void dynamicPageEnable(int mapIdx, int type)
   if (!lobbyConnection) return;
 
   // init
-  strncpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
+  safe_strcpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
   DynamicPageState.Enabled = 1;
   DynamicPageState.SelectionIdx = 0;
   DynamicPageState.DrawIdx = 0;
@@ -1047,7 +1047,7 @@ void dynamicPageEnable(int mapIdx, int type)
   DynamicPageState.LineItems = malloc(1024);
 
   // init
-  strncpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
+  safe_strcpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
   DynamicPageState.Enabled = 1;
   DynamicPageState.SelectionIdx = 0;
   DynamicPageState.DrawIdx = 0;
@@ -1059,7 +1059,7 @@ void dynamicPageEnable(int mapIdx, int type)
     .LineItemsCountAddress = &DynamicPageState.LineItemCount,
     .LineItemsAddress = DynamicPageState.LineItems
   };
-  strncpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
+  safe_strcpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_DYNAMIC_PAGE_CONTENT, sizeof(msg), &msg);
 }
 
@@ -1477,17 +1477,17 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
   {
     case 1:
     {
-      strncpy(element->name, "Custom map modules installed", 40);
+      safe_strcpy(element->name, "Custom map modules installed", 40);
       break;
     }
     case 2:
     {
-      strncpy(element->name, "There are custom map updates available", 40);
+      safe_strcpy(element->name, "There are custom map updates available", 40);
       break;
     }
     case 255:
     {
-      strncpy(element->name, "Error installing custom map modules", 40);
+      safe_strcpy(element->name, "Error installing custom map modules", 40);
       break;
     }
     default:
@@ -1821,7 +1821,7 @@ int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char*
   char buf[1024];
   int mapIdx = *dataCustomMaps.value;
   int selIdx = *value;
-  strncpy(dataSurvivalGambitDesc, "Choose a gambit to tweak the selected map's gameplay mechanics.", sizeof(dataSurvivalGambitDesc));
+  safe_strcpy(dataSurvivalGambitDesc, "Choose a gambit to tweak the selected map's gameplay mechanics.", sizeof(dataSurvivalGambitDesc));
   if (getCustomMapMode(mapIdx) != CUSTOM_MODE_SURVIVAL) return 0;
 
   int exDataLen = mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, buf, sizeof(buf), CUSTOM_MODE_SURVIVAL);
@@ -1846,7 +1846,7 @@ int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char*
     
     // update help text
     if ((i+1) == selIdx)
-      strncpy(dataSurvivalGambitDesc, gambits, sizeof(dataSurvivalGambitDesc));
+      safe_strcpy(dataSurvivalGambitDesc, gambits, sizeof(dataSurvivalGambitDesc));
       
     gambits += strlen(gambits)+1;
   }
@@ -3583,13 +3583,13 @@ void onConfigUpdate(void)
     // update ui strings
     if ((u32)stagingUiElements > 0x100000)
     {
-      strncpy((char*)(stagingUiElements[3] + 0x60), mapName, 32);
-      strncpy((char*)(stagingUiElements[4] + 0x60), modeName, 32);
+      safe_strcpy((char*)(stagingUiElements[3] + 0x60), mapName, 32);
+      safe_strcpy((char*)(stagingUiElements[4] + 0x60), modeName, 32);
     }
     if ((u32)stagingDetailsUiElements > 0x100000)
     {
-      strncpy((char*)(stagingDetailsUiElements[2] + 0x60), mapName, 32);
-      strncpy((char*)(stagingDetailsUiElements[3] + 0x60), modeName, 32);
+      safe_strcpy((char*)(stagingDetailsUiElements[2] + 0x60), mapName, 32);
+      safe_strcpy((char*)(stagingDetailsUiElements[3] + 0x60), modeName, 32);
     }
   }
 }

@@ -238,8 +238,8 @@ void mapHopTo(CustomMapDef_t* def)
   POKE_U32(0x0062E4E0, 0);
   //HOOK_JAL(0x0062E4D8, &maploaderTransitionDraw);
 
-  strncpy(MapLoaderState.MapName, def->Name, sizeof(MapLoaderState.MapName));
-  strncpy(MapLoaderState.MapFileName, def->Filename, sizeof(MapLoaderState.MapFileName));
+  safe_strcpy(MapLoaderState.MapName, def->Name, sizeof(MapLoaderState.MapName));
+  safe_strcpy(MapLoaderState.MapFileName, def->Filename, sizeof(MapLoaderState.MapFileName));
   MapLoaderState.Enabled = 1;
   MapLoaderState.CheckState = 0;
   MapLoaderState.MapId = mapId;
@@ -397,11 +397,11 @@ int onSetMapOverride(void * connection, void * data)
 		// send response
     SetMapOverrideResponse_t msg;
     msg.MapVersion = version;
-    strncpy(msg.MapFilename, payload.CustomMap.Filename, sizeof(msg.MapFilename));
+    safe_strcpy(msg.MapFilename, payload.CustomMap.Filename, sizeof(msg.MapFilename));
 		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_SET_MAP_OVERRIDE_RESPONSE, sizeof(msg), &msg);
 
-    strncpy(MapLoaderState.MapName, payload.CustomMap.Name, sizeof(MapLoaderState.MapName));
-    strncpy(MapLoaderState.MapFileName, payload.CustomMap.Filename, sizeof(MapLoaderState.MapFileName));
+    safe_strcpy(MapLoaderState.MapName, payload.CustomMap.Name, sizeof(MapLoaderState.MapName));
+    safe_strcpy(MapLoaderState.MapFileName, payload.CustomMap.Filename, sizeof(MapLoaderState.MapFileName));
     
 		// enable
 		if (version >= 0)
@@ -574,8 +574,8 @@ int onServerSentMapInitiated(void * connection, void * data)
 	DownloadState.TotalDownloaded = 0;
 	DownloadState.Ticks = 0;
 	DownloadState.Cancel = 0;
-	strncpy(DownloadState.MapFileName, msg->MapFileName, sizeof(DownloadState.MapFileName));
-	strncpy(DownloadState.MapName, msg->MapName, sizeof(DownloadState.MapName));
+	safe_strcpy(DownloadState.MapFileName, msg->MapFileName, sizeof(DownloadState.MapFileName));
+	safe_strcpy(DownloadState.MapName, msg->MapName, sizeof(DownloadState.MapName));
 
 	// just create the version file to reset it
 	// and also to verify that the usb drive is present
@@ -1096,8 +1096,8 @@ void customMapInsert(char* versionFileBuffer, int versionFileBufferSize, char* f
   customMapDefs[insertAtIdx].CustomModeExtraDataMask = extraDataModeMask;
   customMapDefs[insertAtIdx].ShrubMinRenderDistance = versionFileDef.ShrubMinRenderDistance;
   customMapDefs[insertAtIdx].Subsort = versionFileDef.Subsort;
-  strncpy(customMapDefs[insertAtIdx].Filename, filenameWithoutExtension, sizeof(customMapDefs[insertAtIdx].Filename));
-  strncpy(customMapDefs[insertAtIdx].Name, versionFileDef.Name, sizeof(customMapDefs[insertAtIdx].Name));
+  safe_strcpy(customMapDefs[insertAtIdx].Filename, filenameWithoutExtension, sizeof(customMapDefs[insertAtIdx].Filename));
+  safe_strcpy(customMapDefs[insertAtIdx].Name, versionFileDef.Name, sizeof(customMapDefs[insertAtIdx].Name));
   customMapDefCount++;
 
   //DPRINTF("(%d/%d) \"%s\" f:\"%s\" v:%d bmap:%d mode:%d mask:%x shrub:%d\n", insertAtIdx, customMapDefCount, versionFileDef.Name, filenameWithoutExtension, versionFileDef.Version, versionFileDef.BaseMapId, versionFileDef.ForcedCustomModeId, extraDataModeMask, versionFileDef.ShrubMinRenderDistance);
@@ -1212,8 +1212,8 @@ void refreshCustomMapList(void)
     // extract filename
     // for some reason there's a mixup between if we're using ioman or iomanX
     // PS2s use iomanX but the emu HLE hostfs thinks we're using ioman
-    if (useHost) strncpy(filename, iomanDirent->name, sizeof(filename));
-    else strncpy(filename, dirent.name, sizeof(filename));
+    if (useHost) safe_strcpy(filename, iomanDirent->name, sizeof(filename));
+    else safe_strcpy(filename, dirent.name, sizeof(filename));
 
     // OSX creates index files starting with a '.'
     // filter those out
@@ -1244,7 +1244,7 @@ void refreshCustomMapList(void)
     }
 
     // compute filename without extension
-    strncpy(filenameWithoutExtension, filename, sizeof(filenameWithoutExtension));
+    safe_strcpy(filenameWithoutExtension, filename, sizeof(filenameWithoutExtension));
     len = strlen(filenameWithoutExtension);
     filenameWithoutExtension[len - versionExtLen] = 0;
 
@@ -1560,9 +1560,9 @@ u64 hookedLoadCdvd(u64 a0, u64 a1, u64 a2, u64 a3, u64 t0, u64 t1, u64 t2)
 char* hookedLoadScreenMapNameString(char * dest, char * src)
 {
 	if (MapLoaderState.Enabled)
-		strncpy(dest, MapLoaderState.MapName, 32);
+		safe_strcpy(dest, MapLoaderState.MapName, 32);
 	else
-		strncpy(dest, src, 32);
+		safe_strcpy(dest, src, 32);
 	return dest;
 }
 
@@ -1576,7 +1576,7 @@ char* hookedLoadScreenModeNameString(char * dest, char * src)
 	// save map name as gamemode
   if (patchStateContainer.SelectedCustomMapId > 0) {
     if (customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId < 0) {
-      strncpy(dest, customMapDefs[patchStateContainer.SelectedCustomMapId-1].Name, 32);
+      safe_strcpy(dest, customMapDefs[patchStateContainer.SelectedCustomMapId-1].Name, 32);
       return dest;
     }
   }
@@ -1585,12 +1585,12 @@ char* hookedLoadScreenModeNameString(char * dest, char * src)
 	if (gameConfig.customModeId > 0) {
     for (j = 0; j < dataCustomModes.count; ++j) {
       if (dataCustomModes.items[j].value == gameConfig.customModeId) {
-		    strncpy(dest, dataCustomModes.items[j].name, 32);
+		    safe_strcpy(dest, dataCustomModes.items[j].name, 32);
         break;
       }
     }
   } else {
-		strncpy(dest, src, 32);
+		safe_strcpy(dest, src, 32);
   }
 
 	return dest;
@@ -2048,7 +2048,7 @@ int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int cust
         // save for next time
         int copyLen = (int)minf(dstLen, readLen);
         memcpy(dst, cacheBuf, copyLen);
-        strncpy(cacheBufFilename, mapFilename, READ_CUSTOM_MAP_FILENAME_LEN);
+        safe_strcpy(cacheBufFilename, mapFilename, READ_CUSTOM_MAP_FILENAME_LEN);
         customMapExDataBufModeId = customModeId;
         customMapExDataBufReadLen = readLen;
         return copyLen;

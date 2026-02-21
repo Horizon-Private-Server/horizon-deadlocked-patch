@@ -927,10 +927,10 @@ void setEndGameScoreboard(void)
 
 	// names start at 6
 	// column headers start at 17
-	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
-	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
-	strncpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
-	strncpy((char*)(uiElements[21] + 0x60), "BEST TIME", 10);
+	safe_strcpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
+	safe_strcpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
+	safe_strcpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
+	safe_strcpy((char*)(uiElements[21] + 0x60), "BEST TIME", 10);
 
 	// rows
 	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -940,14 +940,14 @@ void setEndGameScoreboard(void)
 		{
 			// set points to kills (removes suicides)
 			sprintf(buf, "%d", SortedPlayerScores[i]->Value);
-			strncpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
+			safe_strcpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
 
 			// moves deaths over
-			strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 8);
+			safe_strcpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 8);
 			
 			// calculate kills as total score minus points by finishing
 			sprintf(buf, "%d", SortedPlayerScores[i]->Value - HuntState.PlayerScore[pid]);
-			strncpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), buf, strlen(buf) + 1);
+			safe_strcpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), buf, strlen(buf) + 1);
 
 			// write best time
 			int pTime = HuntState.PlayerBestTime[pid];
@@ -955,7 +955,7 @@ void setEndGameScoreboard(void)
 				sprintf(buf, "DNF");
 			else
 				sprintf(buf, "%02d:%02d", pTime / TIME_MINUTE, (pTime % TIME_MINUTE) / TIME_SECOND);
-			strncpy((char*)(uiElements[22 + (i*4) + 3] + 0x60), buf, strlen(buf) + 1);
+			safe_strcpy((char*)(uiElements[22 + (i*4) + 3] + 0x60), buf, strlen(buf) + 1);
 		}
 	}
 }

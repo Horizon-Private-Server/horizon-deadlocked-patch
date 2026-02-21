@@ -62,9 +62,9 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 
 	// names start at 6
 	// column headers start at 17
-	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
-	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
-	strncpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
+	safe_strcpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
+	safe_strcpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
+	safe_strcpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
 
 	// rows
 	int* pids = (int*)(uiElements[0] - 0x9C);
@@ -78,13 +78,13 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 
 		// set points
 		sprintf(buf, "%d", SpleefState.PlayerPoints[pid]);
-		strncpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
+		safe_strcpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
 
 		// moves deaths over
-		strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 8);
+		safe_strcpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 8);
 		
 		// set kills
 		sprintf(buf, "%d", SpleefState.PlayerKills[pid]);
-		strncpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), buf, strlen(buf) + 1);
+		safe_strcpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), buf, strlen(buf) + 1);
 	}
 }

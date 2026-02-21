@@ -61,8 +61,8 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		topTeamIdx = 0;
 
 	// column headers start at 17
-	strncpy((char*)(uiElements[20] + 0x60), "POINTS", 7);
-	strncpy((char*)(uiElements[21] + 0x60), "STOLEN", 7);
+	safe_strcpy((char*)(uiElements[20] + 0x60), "POINTS", 7);
+	safe_strcpy((char*)(uiElements[21] + 0x60), "STOLEN", 7);
 
 	// rows
 	int* pids = (int*)(uiElements[0] - 0x9C);

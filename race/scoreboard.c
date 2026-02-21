@@ -62,7 +62,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		topTeamIdx = 0;
 
 	// column headers start at 17
-	strncpy((char*)(uiElements[20] + 0x60), "LAPS", 7);
+	safe_strcpy((char*)(uiElements[20] + 0x60), "LAPS", 7);
 
 	// first team score
 	//sprintf((char*)(uiElements[1] + 0x60), "%d", State.Teams[topTeamIdx].Score);

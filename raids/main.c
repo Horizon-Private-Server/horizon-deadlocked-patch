@@ -207,7 +207,7 @@ void pushSnack(char * str, int ticksAlive, int localPlayerIdx)
   if (snackItemsCount < 0)
     snackItemsCount = 0;
 
-  strncpy(snackItems[snackItemsCount].Str, str, sizeof(snackItems[snackItemsCount].Str));
+  safe_strcpy(snackItems[snackItemsCount].Str, str, sizeof(snackItems[snackItemsCount].Str));
   snackItems[snackItemsCount].TicksAlive = ticksAlive;
   snackItems[snackItemsCount].DisplayForLocalPlayerIdx = localPlayerIdx;
   ++snackItemsCount;
@@ -222,7 +222,7 @@ void drawSnack(void)
   // draw
   //uiShowPopup(0, snackItems[0].Str);
   char* a = uiMsgString(0x2400);
-  strncpy(a, snackItems[0].Str, sizeof(snackItems[0].Str));
+  safe_strcpy(a, snackItems[0].Str, sizeof(snackItems[0].Str));
 
   if (snackItems[0].DisplayForLocalPlayerIdx <= 0)
     uiShowLowerPopup(0, 0x2400);
@@ -365,7 +365,7 @@ void onMissionComplete(int cuboidIdx)
 
   msg.TimeMs = State.MissionCompleteTime - State.MissionStartTime;
   msg.Difficulty = State.DifficultyStars;
-  strncpy(msg.MapFilename, State.CurrentMapDef->Filename, sizeof(msg.MapFilename));
+  safe_strcpy(msg.MapFilename, State.CurrentMapDef->Filename, sizeof(msg.MapFilename));
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_RAIDS_SET_MISSION_COMPLETED_REQUEST, sizeof(msg), &msg);
 
   // pass to contracts
@@ -787,7 +787,7 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->OnMissionFailFunc = &onMissionFail;
 
 	// set game over string
-	//strncpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
+	//safe_strcpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
 
   // prevent player from doing anything
   padDisableInput();
@@ -1324,8 +1324,8 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 	int i;
 
 	// column headers start at 17
-	strncpy((char*)(uiElements[19] + 0x60), "BOLTS", 6);
-	strncpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
+	safe_strcpy((char*)(uiElements[19] + 0x60), "BOLTS", 6);
+	safe_strcpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
 
 	// rows
 	int* pids = (int*)(uiElements[0] - 0x9C);
@@ -1343,7 +1343,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", pState->Kills);
 
 		// copy over deaths
-		strncpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 10);
+		safe_strcpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 10);
 
 		// set bolts
 		//sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%ld", pState->TotalBolts);

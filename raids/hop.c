@@ -165,7 +165,7 @@ void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs)
     // broadcast
     struct HopOnBeginMsg msg = { .LoadAtTime = State.PendingWorldHopAtTime, .Difficulty = difficulty };
     if (State.PendingWorldHopMapDef)
-      strncpy(msg.MapFilename, State.PendingWorldHopMapDef->Filename, sizeof(msg.MapFilename));
+      safe_strcpy(msg.MapFilename, State.PendingWorldHopMapDef->Filename, sizeof(msg.MapFilename));
       
     netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_BEGIN_WORLD_HOP, sizeof(msg), &msg);
   }

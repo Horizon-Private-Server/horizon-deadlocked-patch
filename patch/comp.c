@@ -294,7 +294,7 @@ void addSnack(char * message)
   }
 
   snackStack[index].TicksLeft = 60 * 5;
-  strncpy(snackStack[index].Message, message, sizeof(snackStack[index].Message));
+  safe_strcpy(snackStack[index].Message, message, sizeof(snackStack[index].Message));
 }
 
 //------------------------------------------------------------------------------
@@ -414,7 +414,7 @@ int beginAccountNameChangeRequest(void) {
   void * connection = netGetLobbyServerConnection();
 
   memset(&request, 0, sizeof(request));
-  strncpy(request.Name, (char*)0x0017225E, 16);
+  safe_strcpy(request.Name, (char*)0x0017225E, 16);
   if (uiShowInputDialog("Change Name", request.Name, 15) == 1) {
 
     // send queue request
@@ -872,7 +872,7 @@ void runCompLogic(void) {
     //POKE_U16(0x0072A004, (short)UI_MENU_ID_CLAN_ROOM); // change leave game return to menu to clan room
 
     // change clan room channel name to "Default"
-    strncpy((char*)0x00220A80, "Default", 7);
+    safe_strcpy((char*)0x00220A80, "Default", 7);
   }
 
   // force number of locals to 1

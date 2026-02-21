@@ -536,7 +536,7 @@ void replaceString(int textId, const char * str)
 {
 	// Get pointer to game string
 	char * strPtr = uiMsgString(textId);
-	strncpy(strPtr, str, 32);
+	safe_strcpy(strPtr, str, 32);
 }
 
 inline void disableBlipPulsing(void)
@@ -811,7 +811,7 @@ void drawRoundMessage(const char * message, float scale)
   if (PATCH_DZO_INTEROP_FUNCS)
   {
     struct CustomDzoCommandSndDrawRoundResult cmd;
-    strncpy(cmd.Message, message, sizeof(cmd.Message));
+    safe_strcpy(cmd.Message, message, sizeof(cmd.Message));
     PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_SND_DRAW_ROUND_RESULT, sizeof(cmd), &cmd);
   }
 }

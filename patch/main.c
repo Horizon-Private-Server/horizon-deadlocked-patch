@@ -1047,7 +1047,7 @@ void patchCameraShake(void)
  */
 int patchGameSettings_OpenPasswordInputDialog(void * a0, char * title, char * value, int a3, int maxLength, int t1, int t2, int t3, int t4)
 {
-  strncpy((char*)value, PASSWORD_BUFFER, maxLength);
+  safe_strcpy((char*)value, PASSWORD_BUFFER, maxLength);
 
   return internal_uiInputDialog(a0, title, value, a3, maxLength, t1, t2, t3, t4);
 }
@@ -4352,16 +4352,16 @@ int hookCheckHostStartGame(void* a0)
     // wait for download to finish
     if (dlIsActive) {
       showMiscPopup = 1;
-      strncpy(miscPopupTitle, "System", 32);
-      strncpy(miscPopupBody, "Please wait for the download to finish.", 64);
+      safe_strcpy(miscPopupTitle, "System", 32);
+      safe_strcpy(miscPopupBody, "Please wait for the download to finish.", 64);
       return 0;
     }
 
     // if training, verify we're the only player in the lobby
     if (gameConfig.customModeId == CUSTOM_MODE_TRAINING && gs && gs->PlayerCount != 1) {
       showMiscPopup = 1;
-      strncpy(miscPopupTitle, "Training", 32);
-      strncpy(miscPopupBody, "Too many players to start.", 64);
+      safe_strcpy(miscPopupTitle, "Training", 32);
+      safe_strcpy(miscPopupBody, "Too many players to start.", 64);
       return 0;
     }
   }
@@ -4768,7 +4768,7 @@ void forceLobbyNameOverrides(void)
     for (j = 0; j < GAME_MAX_PLAYERS; ++j) {
       if (gs->PlayerAccountIds[j] == accountId) {
         if (locals[i] == 0) {
-          strncpy(gs->PlayerNames[j], patchStateContainer.LobbyNameOverrides.Names[i], 16);
+          safe_strcpy(gs->PlayerNames[j], patchStateContainer.LobbyNameOverrides.Names[i], 16);
         }
         locals[i]++;
       }

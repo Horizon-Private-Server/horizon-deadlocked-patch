@@ -62,7 +62,7 @@ void correctEndGameData(void)
 	// so we need to write the local player's name back and remove all the other names
 	u32 gameOverDataAddr = 0x001e0d78;
 
-	strncpy((char*)(gameOverDataAddr + 0x410), gameSettings->PlayerNames[0], 16);
+	safe_strcpy((char*)(gameOverDataAddr + 0x410), gameSettings->PlayerNames[0], 16);
 	for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
 		*(u32*)(gameOverDataAddr + 0x410 + (i * 0x10)) = 0;
 	}

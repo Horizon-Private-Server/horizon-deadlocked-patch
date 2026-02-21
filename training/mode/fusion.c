@@ -441,7 +441,7 @@ void modeInitTarget(SimulatedPlayer_t *sPlayer)
   sPlayer->Points = 0;
 
 	last_names_idx = (last_names_idx + 1 + rand(NAMES_COUNT)) % NAMES_COUNT;
-	strncpy(gs->PlayerNames[sPlayer->Player->PlayerId], NAMES[last_names_idx], 16);
+	safe_strcpy(gs->PlayerNames[sPlayer->Player->PlayerId], NAMES[last_names_idx], 16);
 
 #if DEBUG
 	sprintf(gs->PlayerNames[sPlayer->Player->PlayerId], "%d", sPlayer->Idx);
@@ -496,10 +496,10 @@ void modeSetEndGameScoreboard(PatchGameConfig_t * gameConfig)
     , TRAINING_AGGRO_NAMES[gameConfig->trainingConfig.aggression]);
 	
 	// column headers start at 17
-	strncpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
-	strncpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
-	strncpy((char*)(uiElements[20] + 0x60), "ACCURACY", 9);
-	strncpy((char*)(uiElements[21] + 0x60), "COMBO", 6);
+	safe_strcpy((char*)(uiElements[18] + 0x60), "POINTS", 7);
+	safe_strcpy((char*)(uiElements[19] + 0x60), "KILLS", 6);
+	safe_strcpy((char*)(uiElements[20] + 0x60), "ACCURACY", 9);
+	safe_strcpy((char*)(uiElements[21] + 0x60), "COMBO", 6);
 
 	// first team score
 	sprintf((char*)(uiElements[1] + 0x60), "%d", State.Points);

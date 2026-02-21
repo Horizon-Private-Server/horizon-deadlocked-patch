@@ -60,7 +60,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 	int infectedWon = WinningTeam == INFECTED_TEAM;
   
 	// column headers start at 17
-	strncpy((char*)(uiElements[20] + 0x60), "INFECTIONS", 10);
+	safe_strcpy((char*)(uiElements[20] + 0x60), "INFECTIONS", 10);
 
 	// first team score
 	sprintf((char*)(uiElements[1] + 0x60), "%d", infectedWon ? InfectedCount : SurvivorCount);

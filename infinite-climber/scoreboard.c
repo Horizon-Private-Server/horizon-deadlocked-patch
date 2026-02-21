@@ -65,8 +65,8 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 	char buf[32];
 
 	// column headers start at 17
-	strncpy((char*)(uiElements[18] + 0x60), "DISTANCE", 9);
-	strncpy((char*)(uiElements[19] + 0x60), "TIME", 5);
+	safe_strcpy((char*)(uiElements[18] + 0x60), "DISTANCE", 9);
+	safe_strcpy((char*)(uiElements[19] + 0x60), "TIME", 5);
 
 	// rows
 	int* pids = (int*)(uiElements[0] - 0x9C);
@@ -80,7 +80,7 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 
 		// set distance
 		sprintf(buf, "%.2f", State.PlayerBestHeight[pid]);
-		strncpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
+		safe_strcpy((char*)(uiElements[22 + (i*4) + 0] + 0x60), buf, strlen(buf) + 1);
 
 		// set time alive
 		int pTime = State.TimePlayerDied[pid] - State.StartTime;
@@ -88,6 +88,6 @@ void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
 			pTime = State.EndTime - State.StartTime;
 
 		sprintf(buf, "%02d:%02d", pTime / TIME_MINUTE, (pTime % TIME_MINUTE) / TIME_SECOND);
-		strncpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), buf, strlen(buf) + 1);
+		safe_strcpy((char*)(uiElements[22 + (i*4) + 1] + 0x60), buf, strlen(buf) + 1);
 	}
 }
