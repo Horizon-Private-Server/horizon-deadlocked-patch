@@ -3151,6 +3151,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 {
   int i,j;
 
+  // kind of a hack but keep this value around so that when in game we can load it from the map
+  // but still have it when we post stats after the game ends
+  static float boltRankMult = 1;
+
   // game state update
   if (gameState->UpdateGameState)
   {
@@ -3158,6 +3162,8 @@ void updateGameState(PatchStateContainer_t * gameState)
   }
 
   if (isInGame()) {
+    boltRankMult = getBoltRankMultiplier();
+
     // compute round 50 completed time
     checkForRound50Time();
 
@@ -3184,7 +3190,7 @@ void updateGameState(PatchStateContainer_t * gameState)
       sGameData->Kills[i] = State.PlayerStates[i].State.Kills;
       sGameData->Revives[i] = State.PlayerStates[i].State.Revives;
       sGameData->TimesRevived[i] = State.PlayerStates[i].State.TimesRevived;
-      sGameData->Points[i] = State.PlayerStates[i].State.TotalBolts * getBoltRankMultiplier();
+      sGameData->Points[i] = State.PlayerStates[i].State.TotalBolts * boltRankMult;
       sGameData->BestRound[i] = State.PlayerStates[i].State.BestRound;
     }
   }
