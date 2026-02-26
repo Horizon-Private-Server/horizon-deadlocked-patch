@@ -3477,6 +3477,12 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       //printf("max:%d total:%d alive:%d spawning:%d\n", State.RoundMaxMobCount, State.MobStats.TotalSpawnedThisRound, State.MobStats.TotalAlive, State.MobStats.TotalSpawning);
     }
 
+    // draw paused
+    if (survivalIsPaused())
+    {
+      gfxHelperDrawText(SCREEN_WIDTH/2, 50, 0, 0, 2, 0x8080FFFF, "PAUSED", -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+    }
+
     // draw timer
     drawTimer(gameGetTime() - State.InitializedTime);
 
