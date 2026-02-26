@@ -1832,7 +1832,7 @@ void healthbarsHook(int nameX, int nameY, u32 nameColor, char * nameStr, int nam
 	// Draw boxes
 	float x = (float)nameX / SCREEN_WIDTH;
 	float y = (float)nameY / SCREEN_HEIGHT;
-	float health = player->Health / player->MaxHealth;
+	float health = clamp(player->Health / player->MaxHealth, 0, 1);
 	float w = (0.05 * 1) + 0.02, h = 0.01, p = 0.002;
 	float right = w * health;
 	x -= w / 2;
