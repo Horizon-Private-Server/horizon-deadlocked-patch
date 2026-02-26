@@ -404,6 +404,7 @@ void drawTimer(int time)
 {
   char buf[32];
 
+  if (State.LocalPlayerState->IsInWeaponsMenu) return;
   if (time < 0) time = 0;
   snprintf(buf, sizeof(buf), "%02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
   gfxScreenSpaceText(31, 211, 0.9, 0.9, 0x40000000, buf, -1, 1);
@@ -3643,7 +3644,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
           int timerSec = State.RoundEndTime - gameTime;
           uiShowTimer(0, dzoDrawHudCmd.RoundStartMessage, (int)(timerSec * (60.0 / TIME_SECOND)));
           dzoDrawHudCmd.StartRoundTimer = timerSec;
-        } else if (State.RoundEndTime < 0) {
+        } else if (State.RoundEndTime < 0 && !gameIsAnyStartMenuOpen()) {
           gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 50, 1, 1, 0x80FFFFFF, dzoDrawHudCmd.RoundStartMessage, -1, TEXT_ALIGN_MIDDLECENTER);
         }
 
