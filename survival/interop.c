@@ -143,15 +143,6 @@ int getRoundTransitionTime(int round)
 }
 
 //--------------------------------------------------------------------------
-int getRandomAlphamodForPlayer(Player* player, int gadgetId)
-{
-  if (!mapConfig->Functions.GetRandomAlphamodForPlayerFunc)
-    return ROUND_TRANSITION_DELAY_MS;
-
-  return mapConfig->Functions.GetRandomAlphamodForPlayerFunc(player, gadgetId);
-}
-
-//--------------------------------------------------------------------------
 void passPlayerOnItemAcquiredToMap(Player* player, int itemId)
 {
   if (!mapConfig->Functions.GetOnPlayerItemAcquiredFunc)
