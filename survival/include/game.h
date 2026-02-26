@@ -306,6 +306,7 @@ struct SurvivalState
   Moby* BossMoby;
   Moby** AllMobsSorted;
   struct SurvivalVote VoteForNextRound;
+  int Paused;
 };
 
 struct SurvivalSpecialRoundParam

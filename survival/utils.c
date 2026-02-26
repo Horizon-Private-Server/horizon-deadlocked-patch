@@ -411,3 +411,9 @@ void escapePrintfPercent(char* buf, int size, const char* str)
     buf[o++] = c;
   }
 }
+
+//--------------------------------------------------------------------------
+int survivalIsPaused(void)
+{
+  return State.Paused;
+}

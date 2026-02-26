@@ -583,7 +583,7 @@ void mobUpdate(Moby* moby)
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   GameOptions* gameOptions = gameGetOptions();
   GameSettings* gameSettings = gameGetSettings();
-  int isFrozen = mobIsFrozen(moby);
+  int isFrozen = mobIsFrozen(moby) || survivalIsPaused();
   if (!pvars || pvars->MobVars.Destroyed || !pvars->VTable)
     return;
 
@@ -787,10 +787,12 @@ void mobUpdate(Moby* moby)
     };
 
     if (!pvars->VTable || pvars->VTable->OnLocalDamage(moby, &e)) {
-      if (e.PlayerDamager && playerIsLocal(e.PlayerDamager)) {
-        mobSendDamageEvent(moby, e.PlayerDamager->PlayerMoby, e.Damager, e.Damage, e.DamageFlags);	
-      } else if (!e.PlayerDamager && isOwner) {
-        mobSendDamageEvent(moby, e.Damager, e.Damager, e.Damage, e.DamageFlags);	
+      if (!survivalIsPaused()) {
+        if (e.PlayerDamager && playerIsLocal(e.PlayerDamager)) {
+          mobSendDamageEvent(moby, e.PlayerDamager->PlayerMoby, e.Damager, e.Damage, e.DamageFlags);	
+        } else if (!e.PlayerDamager && isOwner) {
+          mobSendDamageEvent(moby, e.Damager, e.Damager, e.Damage, e.DamageFlags);	
+        }
       }
     }
 

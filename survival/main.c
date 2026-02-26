@@ -806,6 +806,11 @@ struct MobSpawnParams* spawnGetRandomMobParams(int * mobIdx)
 
 //--------------------------------------------------------------------------
 int spawnRandomMob(void) {
+
+  // disable spawning during pause
+  if (survivalIsPaused())
+    return 0;
+
   VECTOR sp;
   int mobIdx = 0;
   struct MobSpawnParams* mob = spawnGetRandomMobParams(&mobIdx);
@@ -3243,6 +3248,25 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   if (!Initialized) {
     initialize(gameState);
     return;
+  }
+
+  // update pause state
+  State.Paused = 0;
+  if (gameSettings->PlayerCount == 1)
+  {
+    int pause = 1;
+    for (i = 0; i < GAME_MAX_LOCALS; ++i) 
+    {
+      Player* player = playerGetFromSlot(i);
+      if (!playerIsValid(player)) continue;
+      if (!gameIsStartMenuOpen(i) || State.PlayerStates[player->PlayerId].IsInWeaponsMenu)
+      {
+        pause = 0;
+        break;
+      }
+    }
+
+    State.Paused = pause;
   }
 
 #if STARTROUND

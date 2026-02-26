@@ -43,6 +43,7 @@ struct SurvivalVote;
 void setFreeze(int isActive);
 void setDoublePoints(int isActive);
 void setDoubleXP(int isActive);
+int survivalIsPaused(void);
 void playerRevive(Player* player, int fromPlayerId);
 Moby * spawnExplosion(VECTOR position, float size, u32 color);
 void playUpgradeSound(Player* player);
