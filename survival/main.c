@@ -2715,17 +2715,28 @@ int playerOnSpawnHoloshield(int playerId)
 }
 
 //--------------------------------------------------------------------------
-float fusionGetBeamHitAngle(u128 a0, u128 a1, u128 a2, void* a3)
+float fusionGetBeamDistOffByAreaMods(int areaCount)
 {
-  float r = ((float (*)(u128,u128,u128,void*))0x003fbb10)(a0, a1, a2, a3);
+  // falloff sqrt(x * 0.5)
+  return sqrtf(areaCount * 0.5);
+}
+
+//--------------------------------------------------------------------------
+float fusionGetBeamHitDistSqr(u128 a0, u128 a1, u128 a2, void* a3)
+{
+  float sqrDist = ((float (*)(u128,u128,u128,void*))0x003fbb10)(a0, a1, a2, a3);
+  float before = sqrDist;
 
   // increase area of beam per area mod
   Player* player = *(Player**)(*(void**)((u32)a3 + 0x40) + 0x64);
   if (player && player->GadgetBox) {
-    r /= (1 + playerGetWeaponAlphaModCount(player->GadgetBox, WEAPON_ID_FUSION_RIFLE, ALPHA_MOD_AREA));
+    int count = playerGetWeaponAlphaModCount(player->GadgetBox, WEAPON_ID_FUSION_RIFLE, ALPHA_MOD_AREA);
+    float dist = sqrtf(sqrDist);
+    float off = fusionGetBeamDistOffByAreaMods(count);
+    sqrDist = powf(maxf(0, dist - off), 2);
   }
 
-  return r;
+  return sqrDist;
 }
 
 //--------------------------------------------------------------------------
@@ -2779,8 +2790,8 @@ void initialize(PatchStateContainer_t* gameState)
 
   // sniper shot radius
   POKE_U32(0x003FBC84, 0x3C024200);
-  HOOK_JAL(0x003FBD3C, &fusionGetBeamHitAngle);
-  HOOK_JAL(0x003FBDB8, &fusionGetBeamHitAngle);
+  HOOK_JAL(0x003FBD3C, &fusionGetBeamHitDistSqr);
+  HOOK_JAL(0x003FBDB8, &fusionGetBeamHitDistSqr);
 
 	// let holo shoot always
 	HOOK_JAL(0x00400A48, &playerOnSpawnHoloshield);
