@@ -360,7 +360,8 @@ int voteGetResult(struct SurvivalVote* vote)
     Player* player = playerGetFromIndex(i);
     if (!playerIsValid(player)) continue;
     if (gs->PlayerClients[i] < 0) continue;
-    if (!vote->Votes[gs->PlayerClients[i]]) continue;
+    if (gs->PlayerClients[i] >= GAME_MAX_PLAYERS) continue;
+    if (!vote->Votes[(int)gs->PlayerClients[i]]) continue;
 
     count++;
   }
@@ -394,9 +395,6 @@ int isInRoundTransition(void)
 //--------------------------------------------------------------------------
 void escapePrintfPercent(char* buf, int size, const char* str)
 {
-  size_t len = strlen(str);
-  size_t extra = 0;
-
   int i;
   int o = 0;
   for (i = 0; o < size; ++i)

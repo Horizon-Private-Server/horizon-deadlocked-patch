@@ -147,36 +147,36 @@ struct MobConfig {
   u16 Bangles;
   u16 Xp;
   u16 DamageCooldownTickCount;
+  u16 AttackCooldownTickCount;
   u8 ReactionTickCount;
-  u8 AttackCooldownTickCount;
   char MobAttribute;
   char Behavior;
   char SharedXp;
 };
 
 struct MobSpawnParams {
-  struct MobVTable* MobVTable;
-  int RenderCost;
-  float Scale;
-  int OClass;
-  int MaxSpawnedAtOnce;
-  int MaxSpawnedPerRound;
-  int MinRound;
-  int CooldownTicks;
-  float CooldownOffsetPerRoundFactor; // 0 is unchanged, -1 is -1 tick per round, +1 is +1 tick per round
-  float Probability;
-  float RangedAttackDistance;
-  u32 BaseColor;
-  u32 GlowColor;
-  u32 SpriteColor;
-  int SpriteTexId;
-  int BossTexUid;
-  enum MobStatId StatId;
-  enum MobSpawnType SpawnType;
-  char Name[32];
-  struct MobConfig Config;
-  char SpecialRoundOnly;
-  char BlipType;
+	struct MobVTable *MobVTable;
+	int RenderCost;
+	float Scale;
+	int OClass;
+	int MaxSpawnedAtOnce;
+	int MaxSpawnedPerRound;
+	int MinRound;
+	int CooldownTicks;
+	float CooldownOffsetPerRoundFactor; // 0 is unchanged, -1 is -1 tick per round, +1 is +1 tick per round
+	float Probability;
+	float RangedAttackDistance;
+	u32 BaseColor;
+	u32 GlowColor;
+	u32 SpriteColor;
+	int SpriteTexId;
+	int BossTexUid;
+	enum MobSpawnType SpawnType;
+	enum MobStatId StatId;
+	char Name[32];
+	struct MobConfig Config;
+	char SpecialRoundOnly;
+	char BlipType;
 };
 
 struct Knockback {
@@ -382,6 +382,7 @@ struct MobSpawnEventArgs
   u16 Damage;
   u16 Xp;
   u16 DamageCooldownTickCount;
+  u16 AttackCooldownTickCount;
   char MobType;
   char MobAttribute;
   char Behavior;
@@ -390,7 +391,6 @@ struct MobSpawnEventArgs
   u8 HitRadiusEighths;
   u8 CollRadiusEighths;
   u8 ReactionTickCount;
-  u8 AttackCooldownTickCount;
 };
 
 struct MobUnreliableBaseMsgArgs

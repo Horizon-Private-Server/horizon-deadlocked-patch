@@ -5,7 +5,7 @@ EE_OBJS = main.o mob.o utils.o config.o bubble.o stats.o interop.o common.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
-EE_LDFLAGS := -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
+EE_LDFLAGS := -Werror -fno-builtin -nostdlib -nostartfiles -L. -L../libdl/lib
 
 # set to DEBUG or RELEASE or TEST
 BUILD_CONFIG := RELEASE

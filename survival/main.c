@@ -12,8 +12,6 @@
  */
 
 #include <tamtypes.h>
-#include <string.h>
-
 #include <libdl/time.h>
 #include <libdl/game.h>
 #include <libdl/gamesettings.h>
@@ -34,6 +32,7 @@
 #include <libdl/sound.h>
 #include <libdl/dl.h>
 #include <libdl/utils.h>
+#include <libdl/string.h>
 #include <libdl/collision.h>
 #include <libdl/radar.h>
 #include "module.h"
@@ -164,6 +163,7 @@ struct CustomDzoCommandSurvivalDrawReviveMsg
 
 void _getLocalBolts(void);
 void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds);
+void resetRoundState(void);
 
 //--------------------------------------------------------------------------
 void dzoDrawReviveMsg(int playerId, VECTOR wsPosition, int seconds)
@@ -274,7 +274,7 @@ void setPlayerWeaponsMenu(int localPlayerIndex)
     0x00222C48,
   };
 
-  int isOpen = hudCanvasGetObject(canvas, hudPanelGetElement((void*)addrs[0], 0));
+  int isOpen = hudCanvasGetObject(canvas, hudPanelGetElement((void*)addrs[0], 0)) != NULL;
   if (!isOpen) {
     has[localPlayerIndex] = 0;
     return;
@@ -470,9 +470,6 @@ Player * playerGetRandom(void)
 //--------------------------------------------------------------------------
 void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
 {
-  int i;
-  VECTOR t;
-
   // pass to map
   if (hasMapConfig() && playerGetRes(player, outPos, outRot, firstRes))
     return;
@@ -759,7 +756,7 @@ void populateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCon
   output->CollRadiusEighths = (u8)(config->CollRadius * 8);
   output->SpeedEighths = (u16)(speed * 8);
   output->ReactionTickCount = (u8)config->ReactionTickCount;
-  output->AttackCooldownTickCount = (u8)config->AttackCooldownTickCount;
+  output->AttackCooldownTickCount = (u16)config->AttackCooldownTickCount;
   output->DamageCooldownTickCount = (u16)config->DamageCooldownTickCount;
   output->MobAttribute = config->MobAttribute;
   output->Behavior = config->Behavior;
@@ -797,10 +794,10 @@ struct MobSpawnParams* spawnGetRandomMobParams(int * mobIdx)
     }
   }
 
-  for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i) {
-    struct MobSpawnParams* mob = &mapConfig->DefaultSpawnParams[i];
-    //DPRINTF("CANT SPAWN round:%d mobIdx:%d mobMinRound:%d mobCost:%d mobProb:%f\n", State.RoundNumber, i, mob->MinRound, mob->Cost, mob->Probability);
-  }
+  // for (i = 0; i < mapConfig->DefaultSpawnParamsCount; ++i) {
+  //   struct MobSpawnParams* mob = &mapConfig->DefaultSpawnParams[i];
+  //   DPRINTF("CANT SPAWN round:%d mobIdx:%d mobMinRound:%d mobCost:%d mobProb:%f\n", State.RoundNumber, i, mob->MinRound, mob->Cost, mob->Probability);
+  // }
   
   return NULL;
 }
@@ -1055,7 +1052,6 @@ void playerInteractBankBox(Player* player, int deposit)
 //--------------------------------------------------------------------------
 void onPlayerPrestigeWeapon(int playerId, int weaponId, int prestigeId)
 {
-  char buf[64];
   Player* p = playerGetFromIndex(playerId);
   if (!p)
     return;
@@ -1115,7 +1111,6 @@ int playerPrestigeWeapon(Player* player, int weaponId)
 //--------------------------------------------------------------------------
 void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 {
-  char buf[64];
   Player* p = playerGetFromIndex(playerId);
   if (!p)
     return;
@@ -1732,7 +1727,7 @@ void onV10MagDamageMoby(Moby* target, MobyColDamageIn* in)
     //if (damager) min += 0.05 * playerGetWeaponAlphaModCount(damager->GadgetBox, WEAPON_ID_MAGMA_CANNON, ALPHA_MOD_AREA);
 
     float falloff = minf(1, maxf(min, minf(1, 1 - (dist / 32))));
-    float origDmg = in->DamageHp;
+    // float origDmg = in->DamageHp;
     in->DamageHp *= falloff;
   }
 
@@ -1926,15 +1921,15 @@ void processPlayer(int pIndex) {
     if (isDeadState && !playerData->IsDead) {
 
       // increment DeathsByMob if we were killed by a mob
-      if (player->PlayerMoby->CollDamage >= 0) {
-        MobyColDamage* damage = mobyGetDamage(player->PlayerMoby, 0xFFFFFF, 1);
-        // if (damage && mobyIsMob(damage->Damager)) {
-        //   struct MobPVar* pvars = (struct MobPVar*)damage->Damager->PVar;
-        //   if (pvars) {
-        //     playerData->State.DeathsByMob[pvars->MobVars.SpawnParamsIdx] += 1;
-        //   }
-        // }
-      }
+      // if (player->PlayerMoby->CollDamage >= 0) {
+      //   MobyColDamage* damage = mobyGetDamage(player->PlayerMoby, 0xFFFFFF, 1);
+      //   if (damage && mobyIsMob(damage->Damager)) {
+      //     struct MobPVar* pvars = (struct MobPVar*)damage->Damager->PVar;
+      //     if (pvars) {
+      //       playerData->State.DeathsByMob[pvars->MobVars.SpawnParamsIdx] += 1;
+      //     }
+      //   }
+      // }
 
       // pass to map
       passPlayerDiedToMap(player);
@@ -2731,7 +2726,6 @@ float fusionGetBeamDistOffByAreaMods(int areaCount)
 float fusionGetBeamHitDistSqr(u128 a0, u128 a1, u128 a2, void* a3)
 {
   float sqrDist = ((float (*)(u128,u128,u128,void*))0x003fbb10)(a0, a1, a2, a3);
-  float before = sqrDist;
 
   // increase area of beam per area mod
   Player* player = *(Player**)(*(void**)((u32)a3 + 0x40) + 0x64);
@@ -2957,8 +2951,8 @@ void initialize(PatchStateContainer_t* gameState)
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_ITEM_CONSUME, &onPlayerItemConsumedRemote);
 
   // set game over string
-  safe_strcpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen(SURVIVAL_GAME_OVER)+1);
-  safe_strcpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen(SURVIVAL_REVIVE_MESSAGE)+1);
+  safe_strcpy(uiMsgString(0x3477), SURVIVAL_GAME_OVER, strlen((char*)SURVIVAL_GAME_OVER)+1);
+  safe_strcpy(uiMsgString(0x3153), SURVIVAL_REVIVE_MESSAGE, strlen((char*)SURVIVAL_REVIVE_MESSAGE)+1);
 
   // disable v2s and packs
   cheatsApplyNoV2s();
@@ -3168,7 +3162,7 @@ void initialize(PatchStateContainer_t* gameState)
 //--------------------------------------------------------------------------
 void updateGameState(PatchStateContainer_t * gameState)
 {
-  int i,j;
+  int i;
 
   // kind of a hack but keep this value around so that when in game we can load it from the map
   // but still have it when we post stats after the game ends
@@ -3639,7 +3633,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
         // print vote status
         if (!voteResult) {
-          char* voteMsg = hasCastVote ? SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE : SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE;
+          const char* voteMsg = hasCastVote ? SURVIVAL_VOTED_NEXT_ROUND_TIMER_MESSAGE : SURVIVAL_VOTE_NEXT_ROUND_TIMER_MESSAGE;
           if (gameAmIHost() && hasCastVote) voteMsg = SURVIVAL_HOST_SKIP_VOTE_NEXT_ROUND_TIMER_MESSAGE;
           if (State.ActivePlayerCount <= 1) voteMsg = SURVIVAL_START_NEXT_ROUND_TIMER_MESSAGE;
           snprintf(dzoDrawHudCmd.RoundStartMessage, sizeof(dzoDrawHudCmd.RoundStartMessage), voteMsg, State.VoteForNextRound.NumVotes, State.VoteForNextRound.NumVotesRequired);
@@ -3979,5 +3973,6 @@ void start(struct GameModule * module, PatchStateContainer_t * gameState, enum G
     case GAMEMODULE_LOAD: loadStart(module, gameState); break;
     case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
     case GAMEMODULE_GAME_UPDATE: break;
+    default: break;
   }
 }

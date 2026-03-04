@@ -478,7 +478,7 @@ void mobSetTarget(Moby* moby, Moby* target)
 //--------------------------------------------------------------------------
 void mobSetAction(Moby* moby, int action)
 {
-  struct MobActionUpdateEventArgs args;
+  // struct MobActionUpdateEventArgs args;
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
   // don't set if already action
@@ -537,8 +537,8 @@ void mobHandleDraw(Moby* moby)
 {
   int i;
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
-  int minMobsForHiding = 20;
-  float minRankForDrawCutoff = 0.75;
+  // int minMobsForHiding = 20;
+  // float minRankForDrawCutoff = 0.75;
 
   // if we aren't in the sorted list, try and find an empty spot
   if (pvars->MobVars.Order < 0 && AllMobsSortedFreeSpots > 0) {
@@ -630,7 +630,7 @@ void mobUpdate(Moby* moby)
   decTimerU16(&pvars->MobVars.FlinchCooldownTicks);
   decTimerU16(&pvars->MobVars.TimeBombTicks);
   u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
-  u16 forcedBlipCooldownTicks = decTimerU16(&pvars->MobVars.ForcedBlipCooldownTicks);
+  decTimerU16(&pvars->MobVars.ForcedBlipCooldownTicks);
   decTimerU8(&pvars->MobVars.Knockback.Ticks);
   if (!mobAmIOwner(moby)) pvars->TicksSinceLastStateUpdate += 1;
   
