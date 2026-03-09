@@ -631,7 +631,8 @@ void mobUpdate(Moby* moby)
   decTimerU16(&pvars->MobVars.TimeBombTicks);
   u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
   decTimerU16(&pvars->MobVars.ForcedBlipCooldownTicks);
-  decTimerU8(&pvars->MobVars.Knockback.Ticks);
+  // moved into mob code
+  //decTimerU8(&pvars->MobVars.Knockback.Ticks);
   if (!mobAmIOwner(moby)) pvars->TicksSinceLastStateUpdate += 1;
   
   // validate owner
@@ -1484,7 +1485,7 @@ void mobNuke(int killedByPlayerId)
 }
 
 //--------------------------------------------------------------------------
-void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius)
+void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius, int knockbackPower)
 {
   int i;
   VECTOR delta;
@@ -1505,6 +1506,7 @@ void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float 
       vector_subtract(delta, m->Position, position);
       if (vector_sqrmag(delta) <= sqrRadius) {
         
+			  struct MobPVar *pvars = (struct MobPVar *)m->PVar;
         float dist = vector_length(delta);
         float angle = atan2f(delta[1] / dist, delta[0] / dist);
         
@@ -1516,8 +1518,8 @@ void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float 
           args.DamageQuarters = damage*4;
           args.DamageFlags = 0;
           args.Knockback.Angle = (short)(angle * 1000);
-          args.Knockback.Ticks = 10;
-          args.Knockback.Power = 6;
+          args.Knockback.Ticks = pvars->MobVars.MoveVars.MoveStep + 1;
+          args.Knockback.Power = knockbackPower > 255 ? 255 : knockbackPower;
           args.Knockback.Force = 1;
           guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
         }

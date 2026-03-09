@@ -1220,7 +1220,8 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 
     // spawn explosion to push zombies back
     spawnExplosion(deadPos, 5, 0x80008000);
-    mobReactToExplosionAt(fromPlayerId, deadPos, 1, 8);
+    if (gameAmIHost())
+      mobReactToExplosionAt(fromPlayerId, deadPos, 1, 8, 14);
   }
 
   player->timers.acidTimer = 0;
