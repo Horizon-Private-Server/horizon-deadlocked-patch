@@ -341,7 +341,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
   { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic, "Enables all music tracks in game. Use R3 + Right to skip a track in game." },
   { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot, "Toggles tapping L2 once to chargeboot." },
-  { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate, "Toggles the custom spectate feature. Use \x13 when dead to spectate." },
+  // { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate, "Toggles the custom spectate feature. Use \x13 when dead to spectate." },
   // { "Sync player state", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enablePlayerStateSync },
 };
 

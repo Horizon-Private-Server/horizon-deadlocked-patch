@@ -6269,7 +6269,8 @@ int main (void)
   }
 
   // Process spectate
-  if (config.enableSpectate)
+  // 4/10/2026: spectate is always active
+  if (config.enableSpectate || 1)
     processSpectate();
   else
     PATCH_POINTERS_SPECTATE = 0;
