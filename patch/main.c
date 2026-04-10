@@ -18,11 +18,6 @@
 #include <libdl/pad.h>
 #include <libdl/time.h>
 #include <libdl/net.h>
-#include "module.h"
-#include "messageid.h"
-#include "config.h"
-#include "common.h"
-#include "include/config.h"
 #include <libdl/game.h>
 #include <libdl/string.h>
 #include <libdl/collision.h>
@@ -38,11 +33,21 @@
 #include <libdl/utils.h>
 #include <libdl/music.h>
 #include <libdl/color.h>
+#include "module.h"
+#include "messageid.h"
+#include "config.h"
+#include "common.h"
+#include "include/config.h"
 
 /*
  * Array of game modules.
  */
 #define GLOBAL_GAME_MODULES_START			((GameModule*)0x000CF000)
+
+/*
+ * If the patch has ever been loaded at any point during this session.
+ */
+#define PATCH_HAS_EVER_LOADED     	(*(u8*)0x000CFFF5)
 
 /*
  * Camera speed patch offsets.
@@ -66,6 +71,9 @@
 
 #define GAMESETTINGS_CREATE_PATCH		(*(u32*)0x0072E5B4)
 #define GAMESETTINGS_CREATE_FUNC		(0x0070B540)
+
+#define GAMESETTINGS_CREATE_DEFAULTS_PATCH (*(u32*)0x0072bc58)
+#define GAMESETTINGS_CREATE_DEFAULTS_FUNC  (0x0071afe8)
 
 #define GAMESETTINGS_RESPAWN_TIME      	(*(char*)0x0017380C)
 #define GAMESETTINGS_RESPAWN_TIME2      (*(char*)0x012B3638)
@@ -1173,6 +1181,73 @@ void patchGameSettingsLoad()
 }
 
 /*
+ * NAME :		patchDefaultCreateGameSettings
+ * 
+ * DESCRIPTION :
+ * 			Patches create game loaded default settings.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchDefaultCreateGameSettings(void)
+{
+  POKE_U16(0x12A8DA0, 4);   // Game Type: Deathmatch
+  POKE_U16(0x12AA250, 1);   // Map: Catacrom
+  POKE_U16(0x12B0A6C, 1);   // Chargeboots: Always
+  POKE_U16(0x12B1F1C, 1);   // Autospawn Weapons: On
+  POKE_U16(0x12B33CC, 1);   // Unlimited Ammo: On
+  POKE_U16(0x12AB768, 10);  // Time Limit: 10
+
+  // DEATHMATCH
+  POKE_U16(0x12B89E8, 1);   // Team Play: On
+  POKE_U16(0x12B6044, 0);   // Kills To Win: None
+
+  // JUGGERNAUT
+  POKE_U16(0x12BF470, 0);   // Kills To Win: None
+
+  // CQ
+  POKE_U16(0x12B34E0, 500); // Bolts To Win: 500
+
+  // CTF
+  POKE_U16(0x12B8A50, 0);   // Caps To Win: None
+  POKE_U16(0x12B9F44, 1);   // Crazy Mode: On
+
+  // KOTH
+  POKE_U16(0x12BC90C, 0);   // Time In Hill: None
+  POKE_U16(0x12BC9B8, 60);  // Moving Hill Time: 60
+  POKE_U16(0x12BDEAC, 1);   // Team Play: On
+  POKE_U16(0x12BF35C, 1);   // Hill Sharing: On
+}
+
+/*
+ * NAME :		patchCreateGameDefaults_Hook
+ * 
+ * DESCRIPTION :
+ * 			Patches create game default settings right after being built.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void patchCreateGameDefaults_Hook(void *a0, void *a1)
+{
+  // pass to func
+  ((void (*)(void *, void *))GAMESETTINGS_CREATE_DEFAULTS_FUNC)(a0, a1);
+
+  // override defaults
+  patchDefaultCreateGameSettings();
+}
+
+/*
  * NAME :		patchPopulateCreateGame_Hook
  * 
  * DESCRIPTION :
@@ -1192,7 +1267,7 @@ void patchPopulateCreateGame_Hook(void * a0, int settingsCount, u32 * settingsPt
   int i = 0;
 
   // Check if already loaded
-  for (; i < settingsCount; ++i)
+  for (i = 0; i < settingsCount; ++i)
   {
     if (settingsPtrs[i] == respawnTimerPtr)
       break;
@@ -1280,6 +1355,18 @@ void patchCreateGame()
   if (GAMESETTINGS_CREATE_PATCH == 0x0C1C2D50)
   {
     GAMESETTINGS_CREATE_PATCH = 0x0C000000 | ((u32)&patchCreateGame_Hook >> 2);
+  }
+  
+  // Patch defaults function pointer
+  if (GAMESETTINGS_CREATE_DEFAULTS_PATCH == 0x0C1C6BFA)
+  {
+    GAMESETTINGS_CREATE_DEFAULTS_PATCH = 0x0C000000 | ((u32)&patchCreateGameDefaults_Hook >> 2);
+  }
+
+  // patch defaults on patch load
+  if (!PATCH_HAS_EVER_LOADED && isInMenus())
+  {
+    patchDefaultCreateGameSettings();
   }
 }
 
@@ -6209,5 +6296,7 @@ int main (void)
   // Call this last
   dlPostUpdate();
 
+  // patch has fully loaded at this point
+  PATCH_HAS_EVER_LOADED = 1;
   return 0;
 }
