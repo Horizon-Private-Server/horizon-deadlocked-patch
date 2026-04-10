@@ -158,6 +158,8 @@ void onMapEditorGameUpdate(void);
 #endif
 
 // gamerules
+void grMobyUpdateTick(void);
+void grMobyUpdatePostTick(void);
 void grGameStart(void);
 void grLobbyStart(void);
 void grLoadStart(void);
@@ -2587,10 +2589,16 @@ void onMobyUpdate(Moby* moby)
 {
   playerSyncTick();
 
-  if (!mapsIsInLevelHop)
+  if (!mapsIsInLevelHop) {
+    grMobyUpdateTick();
     processGameModulesUpdate();
+  }
 
   ((void (*)(Moby*))0x003BD5A8)(moby);
+
+  if (!mapsIsInLevelHop) {
+    grMobyUpdatePostTick();
+  }
 
   playerSyncPostTick();
 }

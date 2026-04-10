@@ -685,6 +685,18 @@ MenuElem_ListData_t dataHeadbutt = {
   }
 };
 
+// input restriction list item
+MenuElem_ListData_t dataInputRestriction = {
+  .value = &gameConfig.grInputRestriction,
+  .stateHandler = NULL,
+  .count = 3,
+  .items = {
+    "Allow All",
+    "Controller Only",
+    "Keyboard Mouse Only"
+  }
+};
+
 // weather override list item
 // MenuElem_ListData_t dataWeather = {
 //   .value = &gameConfig.prWeatherId,
@@ -841,6 +853,7 @@ MenuElem_t menuElementsGameSettings[] = {
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Camera Input", listActionHandler, menuStateAlwaysEnabledHandler, &dataInputRestriction, "Require a Joystick or Keyboard/Mouse for aiming." },
   { "Better Flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags, "Moves flag and spawn locations on some vanilla maps to more enjoyable locations." },
   { "Better Hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills, "Moves hill spawns on some vanilla maps to more enjoyable locations." },
   { "CTF Halftime", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grHalfTime, "If a timelimit is set, each team will swap flag bases at half time." },

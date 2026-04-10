@@ -84,6 +84,13 @@ enum PayloadContestMode
 	PAYLOAD_CONTEST_STOP
 };
 
+enum GameRuleInputRestrictions
+{
+  GAMERULE_INPUT_RESTRICTION_NONE,
+  GAMERULE_INPUT_RESTRICTION_CONTROLLER_ONLY,
+  GAMERULE_INPUT_RESTRICTION_KBM_ONLY,
+};
+
 typedef struct UpdateGameStateRequest {
 	char TeamsEnabled;
   char PADDING;
@@ -126,7 +133,8 @@ typedef struct HNSConfig
 typedef struct PatchGameConfig
 {
   char customModeId;
-  char prWeatherId;
+  //char prWeatherId;
+  char grInputRestriction;
   char grNoPacks;
   char grV2s;
   char grNoSpawnImmunity;

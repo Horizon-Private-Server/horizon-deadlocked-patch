@@ -34,6 +34,8 @@
 #include <libdl/utils.h>
 #include <libdl/net.h>
 #include "module.h"
+#include "window.h"
+#include "common.h"
 #include "messageid.h"
 #include "halftime.h"
 #include "include/config.h"
@@ -101,6 +103,14 @@ int GameRulesInitialized = 0;
  *
  */
 int FirstPass = 1;
+
+/*
+ *
+ */
+float InputRestrictionLastCamYawPitch[GAME_MAX_LOCALS][2] = {0};
+int InputRestrictionDisplayMessageTicks = 0;
+float InputRestrictionDetectionThreshold = 0;
+float InputRestrictionDetectionCounter = 0;
 
 /*
  *
@@ -930,6 +940,231 @@ void instantDeathLogic(void)
     if (player->IsLocal && player->Health <= 0 && *(char*)((u32)player + 0x2ed7) == 0) {
       ((void (*)(Player*))0x005e2188)(player);
     }
+  }
+}
+
+/*
+ * NAME :		inputRestrictionLogic_IgnoreRestriction
+ * 
+ * DESCRIPTION :
+ *      Returns 1 if this feature should be ignored given the current game config/state.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int inputRestrictionLogic_IgnoreRestriction(void)
+{
+  // if spectating ignore input restriction
+  if (PATCH_POINTERS_SPECTATE > 0)
+    return 1;
+
+  // ignore in training
+  if (gameConfig.customModeId == CUSTOM_MODE_TRAINING)
+    return 1;
+
+  // ignore in survival
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL)
+    return 1;
+
+  // game ended
+  if (gameHasEnded())
+    return 1;
+
+  return 0;
+}
+
+/*
+ * NAME :		inputRestrictionLogic_NoKbm_PreTick
+ * 
+ * DESCRIPTION :
+ *      Reverts changes made to camera outside of gameplay loop.
+ *      Detects such changes and increments detection threshold.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void inputRestrictionLogic_NoKbm_PreTick(void)
+{
+  if (gameConfig.grInputRestriction != GAMERULE_INPUT_RESTRICTION_CONTROLLER_ONLY)
+    return;
+
+  if (inputRestrictionLogic_IgnoreRestriction())
+    return;
+
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* local = playerGetFromSlot(i);
+    if (!playerIsValid(local)) continue;
+
+    float oYaw = InputRestrictionLastCamYawPitch[i][0];
+    float oPitch = InputRestrictionLastCamYawPitch[i][1];
+    float cYaw = local->CameraYaw.Value;
+    float cPitch = local->CameraPitch.Value;
+
+    // check for changes values
+    if (oYaw != cYaw || oPitch != cPitch)
+    {
+      InputRestrictionDetectionThreshold += 1;
+    }
+
+    // force yaw/pitch back if bad input is detected
+    // reverting changes made outside game loop
+    if (InputRestrictionDisplayMessageTicks > 0)
+    {
+      local->CameraYaw.Value = oYaw;
+      local->CameraPitch.Value = oPitch;
+    }
+  }
+}
+
+/*
+ * NAME :		inputRestrictionLogic_NoKbm_PostTick
+ * 
+ * DESCRIPTION :
+ *      Stores 
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void inputRestrictionLogic_NoKbm_PostTick(void)
+{
+  if (gameConfig.grInputRestriction != GAMERULE_INPUT_RESTRICTION_CONTROLLER_ONLY)
+    return;
+    
+  if (inputRestrictionLogic_IgnoreRestriction())
+    return;
+
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* local = playerGetFromSlot(i);
+    if (!playerIsValid(local)) continue;
+
+    float cYaw = local->CameraYaw.Value;
+    float cPitch = local->CameraPitch.Value;
+
+    // save new yaw/pitch for later
+    InputRestrictionLastCamYawPitch[i][0] = cYaw;
+    InputRestrictionLastCamYawPitch[i][1] = cPitch;
+  }
+}
+
+/*
+ * NAME :		inputRestrictionLogic_NoPad
+ * 
+ * DESCRIPTION :
+ * 			Disables controller inputs for camera.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void inputRestrictionLogic_NoPad(void)
+{
+  if (inputRestrictionLogic_IgnoreRestriction())
+    return;
+
+  // disable yaw write
+  POKE_U32(0x004DC7AC, 0);
+  
+  // disable pitch write
+  POKE_U32(0x004DC780, 0);
+  POKE_U32(0x004DC7B8, 0);
+
+  // check for pad right joystick input
+  int i;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+    Player* local = playerGetFromSlot(i);
+    if (!playerIsValid(local)) continue;
+
+    struct PAD* pad = (struct PAD*)local->Paddata;
+    if (!pad) continue;
+
+    int rh = pad->rdata[4];
+    int rv = pad->rdata[5];
+    int dh = fabsf(rh - 127);
+    int dv = fabsf(rv - 127);
+    if (dh > 10 || dv > 10)
+    {
+      InputRestrictionDetectionThreshold += 1;
+    }
+  }
+}
+
+/*
+ * NAME :		inputRestrictionLogic
+ * 
+ * DESCRIPTION :
+ * 			Disables controller/kbm inputs for camera.
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void inputRestrictionLogic(void)
+{
+  if (gameConfig.grInputRestriction == GAMERULE_INPUT_RESTRICTION_KBM_ONLY) {
+    inputRestrictionLogic_NoPad();
+  }
+
+  // update bad input detection
+  // detect when bad input threshold is reached within a period of time
+  if (InputRestrictionDetectionCounter >= 15)
+  {
+    if (InputRestrictionDetectionThreshold > 5) {
+      InputRestrictionDisplayMessageTicks = 60 * 3;
+    }
+
+    InputRestrictionDetectionThreshold = 0;
+    InputRestrictionDetectionCounter = 0;
+  } else {
+    InputRestrictionDetectionCounter++;
+  }
+
+  // display message
+  if (InputRestrictionDisplayMessageTicks > 0)
+  {
+    const char* msg = gameConfig.grInputRestriction == GAMERULE_INPUT_RESTRICTION_CONTROLLER_ONLY
+      ? "Joystick input is required for camera aiming"
+      : "Mouse input is required for camera aiming";
+
+    // draw message
+    if (!gameIsAnyStartMenuOpen() && PATCH_POINTERS_PATCHMENU != 1) {
+      Window_t wnd;
+      windowCreate(&wnd, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 250, 42, TEXT_ALIGN_MIDDLECENTER, 1);
+      windowFill(&wnd, 0x60000000);
+
+      Window_t wndMsg;
+      windowCreateFrom(&wndMsg, &wnd, 0, 0, wnd.Width - 20, 42, TEXT_ALIGN_MIDDLECENTER);
+      windowDrawTextWindow(&wndMsg, TEXT_ALIGN_MIDDLECENTER, 0, 0, 1, 0x80FFFFFF, msg, -1, TEXT_ALIGN_MIDDLECENTER);
+
+      windowBorder(&wnd, 0x80FFFFFF, 1, 1, 1, 1);
+    }
+
+    // lower
+    --InputRestrictionDisplayMessageTicks;
   }
 }
 
@@ -1991,6 +2226,10 @@ void grInitialize(void)
 	// reset
 	htReset();
   otReset();
+  InputRestrictionDisplayMessageTicks = 0;
+  InputRestrictionDetectionCounter = 0;
+  InputRestrictionDetectionThreshold = 0;
+  memset(InputRestrictionLastCamYawPitch, 0, sizeof(InputRestrictionLastCamYawPitch));
 	BetterHillsInitialized = 0;
 	HasDisabledHealthboxes = 0;
 	RotatingWeaponsNextRotationTime = 0;
@@ -1998,6 +2237,46 @@ void grInitialize(void)
 	memset(HeadbuttHitTimers, 0, sizeof(HeadbuttHitTimers));
 
 	GameRulesInitialized = 1;
+}
+
+/*
+ * NAME :		grMobyUpdateTick
+ * 
+ * DESCRIPTION :
+ * 			Gamerules moby update tick.
+ * 
+ * NOTES :
+ * 			This is called only when in game.
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void grMobyUpdateTick(void)
+{
+  inputRestrictionLogic_NoKbm_PreTick();
+}
+
+/*
+ * NAME :		grMobyUpdatePostTick
+ * 
+ * DESCRIPTION :
+ * 			Gamerules after moby update tick.
+ * 
+ * NOTES :
+ * 			This is called only when in game.
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void grMobyUpdatePostTick(void)
+{
+  inputRestrictionLogic_NoKbm_PostTick();
 }
 
 /*
@@ -2127,6 +2406,9 @@ void grGameStart(void)
 
   if (gameConfig.grInstantDeath)
     instantDeathLogic();
+
+  if (gameConfig.grInputRestriction)
+    inputRestrictionLogic();
 
   if (gameConfig.grNoFusionADS && isInGame()) {
     POKE_U16(0x00528320, 0x000F);
