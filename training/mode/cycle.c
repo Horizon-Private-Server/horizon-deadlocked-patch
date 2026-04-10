@@ -701,6 +701,9 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 1;
+	gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Homenodes = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Homenodes = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.NodeType = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0; // CTF

@@ -562,6 +562,7 @@ void modeSetLobbyGameOptions(PatchGameConfig_t * gameConfig)
 	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = endless ? 0 : TIMELIMIT_MINUTES;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 0;
+	gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
 	
   gameSettings->GameLevel = 44; // sarathos
   gameSettings->GameRules = GAMERULE_DM;

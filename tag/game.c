@@ -584,17 +584,15 @@ void setLobbyGameOptions(PatchStateContainer_t * gameState)
   }
 	
   // force koth
-  if (gameSettings->GameRules != GAMERULE_KOTH) {
-    gameSettings->GameRules = GAMERULE_KOTH;
-    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
-    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
-    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 1;
-    if (gameOptions->GameFlags.MultiplayerGameFlags.Timelimit == 0)
-      gameOptions->GameFlags.MultiplayerGameFlags.HillTimeToWin = 5;
-	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 2; // CTF SPAWNS
-  }
+  gameSettings->GameRules = GAMERULE_KOTH;
 	
 	// apply options
+  gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hills = 1;
+  if (gameOptions->GameFlags.MultiplayerGameFlags.Timelimit == 0)
+    gameOptions->GameFlags.MultiplayerGameFlags.HillTimeToWin = 5;
+  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 2; // CTF SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.HillArmor = 0;

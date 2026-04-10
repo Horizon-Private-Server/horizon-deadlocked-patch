@@ -1843,13 +1843,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 		return;
 	
   // force cq
-  if (gameSettings->GameRules != GAMERULE_CQ) {
-    gameSettings->GameRules = GAMERULE_CQ;
-    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 1;
-    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
-    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
-	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 0; // CQ SPAWNS
-  }
+  gameSettings->GameRules = GAMERULE_CQ;
 	
   // disable healthboxes
   gameConfig->grNoHealthBoxes = 2;
@@ -1863,6 +1857,10 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
   gameOptions->GameFlags.MultiplayerGameFlags.Homenodes = 1;
   gameOptions->GameFlags.MultiplayerGameFlags.UNK_11 = 0; // upgrades/teleporters
 
+  gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 0; // CQ SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;

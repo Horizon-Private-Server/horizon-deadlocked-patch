@@ -722,15 +722,15 @@ void setLobbyGameOptions(void)
   // force ctf
   if (gameSettings->GameRules != GAMERULE_CTF) {
     gameSettings->GameRules = GAMERULE_CTF;
-    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
-    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 1;
-    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
     gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = (int)maxf(10, gameOptions->GameFlags.MultiplayerGameFlags.Timelimit);
     gameOptions->GameFlags.MultiplayerGameFlags.CapsToWin = 0;
-	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 2; // CTF SPAWNS
   }
 	
 	// apply options
+  gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Flags = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 2; // CTF SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;

@@ -723,14 +723,14 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
   // force deathmatch
   if (gameSettings->GameRules != GAMERULE_DM) {
     gameSettings->GameRules = GAMERULE_DM;
-    gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
-    gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
-    gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
     gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
-	  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
   }
 	
 	// apply options
+  gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
 	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
 	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 1;
