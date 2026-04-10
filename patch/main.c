@@ -3343,8 +3343,9 @@ void onClientVoteToEnd(int playerId)
  */
 void sendClientVoteForEnd(void)
 {
+  // check 4 locals in case we're in training where 4 are loaded
   int i = 0;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
+  for (i = 0; i < 4; ++i) {
     Player* p = playerGetFromSlot(i);
     if (!p || !p->IsLocal || !p->PlayerMoby) continue;
 
