@@ -696,7 +696,7 @@ void mobUpdate(Moby* moby)
   //
   if (!isFrozen) {
     // set next state
-    if (pvars->MobVars.NextAction >= 0 && pvars->MobVars.Knockback.Ticks == 0) {
+    if (pvars->MobVars.NextAction >= 0) {
       if (nextActionTicks == 0 && (isOwner || (pvars->VTable && pvars->VTable->CanNonOwnerTransitionToAction(moby, pvars->MobVars.NextAction)))) {
         mobSetAction(moby, pvars->MobVars.NextAction);
         pvars->MobVars.NextAction = -1;
