@@ -147,7 +147,7 @@ void mobSpawnCorn(Moby* moby, int bangle)
 //--------------------------------------------------------------------------
 void mobSendStateUpdate(Moby* moby)
 {
-  struct MobStateUpdateEventArgs args;
+  struct MobFullStateUpdateEventArgs args;
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
   // create event
@@ -160,7 +160,7 @@ void mobSendStateUpdate(Moby* moby)
     args.PathHasReachedEnd = pvars->MobVars.MoveVars.PathHasReachedEnd;
     args.PathHasReachedStart = pvars->MobVars.MoveVars.PathHasReachedStart;
     args.TargetUID = guberGetUID(pvars->MobVars.Target);
-    guberEventWrite(guberEvent, &args, sizeof(struct MobStateUpdateEventArgs));
+    guberEventWrite(guberEvent, &args, sizeof(struct MobFullStateUpdateEventArgs));
   }
 }
 
@@ -179,8 +179,8 @@ void mobSendStateUpdateUnreliable(Moby* moby)
   msg.Base.MobUID = guberGetUID(moby);
 
   // action update
-  msg.StateUpdate.Action = pvars->MobVars.Action;
-  msg.StateUpdate.ActionId = pvars->MobVars.ActionId;
+  msg.StateUpdate.State = pvars->MobVars.State;
+  msg.StateUpdate.StateId = pvars->MobVars.StateId;
   msg.StateUpdate.Random = pvars->MobVars.DynamicRandom = (u8)rand(256);
 
   // state update
@@ -478,32 +478,22 @@ void mobSetTarget(Moby* moby, Moby* target)
 //--------------------------------------------------------------------------
 void mobSetAction(Moby* moby, int action)
 {
-  // struct MobActionUpdateEventArgs args;
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
 
   // don't set if already action
-  if (pvars->MobVars.Action == action)
+  if (pvars->MobVars.State == action)
     return;
 
-  // we send this unreliably now
-  // GuberEvent* event = mobCreateEvent(moby, MOB_EVENT_STATE_UPDATE);
-  // if (event) {
-  // 	args.Action = action;
-  // 	args.ActionId = ++pvars->MobVars.ActionId;
-  //   args.Random = (char)rand(255);
-  // 	guberEventWrite(event, &args, sizeof(struct MobActionUpdateEventArgs));
-  // }
-
   // mark dirty if owner and mob wants state update
-  if (mobAmIOwner(moby) && pvars->VTable && pvars->VTable->ShouldForceStateUpdateOnAction && pvars->VTable->ShouldForceStateUpdateOnAction(moby, action))
+  if (mobAmIOwner(moby) && pvars->VTable && pvars->VTable->ShouldForceStateUpdateOnState && pvars->VTable->ShouldForceStateUpdateOnState(moby, action))
     pvars->MobVars.Dirty = 1;
   
-  pvars->MobVars.LastActionId = pvars->MobVars.ActionId++;
-  pvars->MobVars.LastAction = pvars->MobVars.Action;
+  pvars->MobVars.LastStateId = pvars->MobVars.StateId++;
+  pvars->MobVars.LastState = pvars->MobVars.State;
   
   // pass to mob handler
-  if (pvars->VTable && pvars->VTable->ForceLocalAction)
-    pvars->VTable->ForceLocalAction(moby, action);
+  if (pvars->VTable && pvars->VTable->ForceLocalState)
+    pvars->VTable->ForceLocalState(moby, action);
 
   //pvars->MobVars.DynamicRandom = (char)rand(255);
 }
@@ -622,9 +612,9 @@ void mobUpdate(Moby* moby)
     State.MobStats.MobsDrawnCurrent++;
 
   // dec timers
-  u16 nextCheckActionDelayTicks = decTimerU16(&pvars->MobVars.NextCheckActionDelayTicks);
-  u16 nextActionTicks = decTimerU16(&pvars->MobVars.NextActionDelayTicks);
-  decTimerU16(&pvars->MobVars.ActionCooldownTicks);
+  u16 nextCheckActionDelayTicks = decTimerU16(&pvars->MobVars.NextCheckStateDelayTicks);
+  u16 nextActionTicks = decTimerU16(&pvars->MobVars.NextStateDelayTicks);
+  decTimerU16(&pvars->MobVars.StateCooldownTicks);
   decTimerU16(&pvars->MobVars.AttackCooldownTicks);
   u16 scoutCooldownTicks = decTimerU16(&pvars->MobVars.ScoutCooldownTicks);
   decTimerU16(&pvars->MobVars.FlinchCooldownTicks);
@@ -673,8 +663,8 @@ void mobUpdate(Moby* moby)
   // 
   if (!isFrozen) {
     //mobDoAction(moby);
-    if (pvars->VTable && pvars->VTable->DoAction)
-      pvars->VTable->DoAction(moby);
+    if (pvars->VTable && pvars->VTable->DoState)
+      pvars->VTable->DoState(moby);
 
     // count ticks since last grounded
     if (pvars->MobVars.MoveVars.Grounded)
@@ -696,21 +686,21 @@ void mobUpdate(Moby* moby)
   //
   if (!isFrozen) {
     // set next state
-    if (pvars->MobVars.NextAction >= 0) {
-      if (nextActionTicks == 0 && (isOwner || (pvars->VTable && pvars->VTable->CanNonOwnerTransitionToAction(moby, pvars->MobVars.NextAction)))) {
-        mobSetAction(moby, pvars->MobVars.NextAction);
-        pvars->MobVars.NextAction = -1;
+    if (pvars->MobVars.NextState >= 0) {
+      if (nextActionTicks == 0 && (isOwner || (pvars->VTable && pvars->VTable->CanNonOwnerTransitionToState(moby, pvars->MobVars.NextState)))) {
+        mobSetAction(moby, pvars->MobVars.NextState);
+        pvars->MobVars.NextState = -1;
       }
     }
     
     // 
-    if (nextCheckActionDelayTicks == 0 && pvars->VTable && pvars->VTable->GetPreferredAction) {
+    if (nextCheckActionDelayTicks == 0 && pvars->VTable && pvars->VTable->GetPreferredState) {
       int delayTicks = 0;
-      int nextAction = pvars->VTable->GetPreferredAction(moby, &delayTicks);
+      int nextAction = pvars->VTable->GetPreferredState(moby, &delayTicks);
       float delayDifficultyFactor = lerpf(1, 0.25, clamp((State.RoundNumber - 50) / 50.0, 0, 1));
-      if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction && nextAction != pvars->MobVars.Action) {
-        pvars->MobVars.NextAction = nextAction;
-        pvars->MobVars.NextActionDelayTicks = delayTicks * delayDifficultyFactor; //nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
+      if (nextAction >= 0 && nextAction != pvars->MobVars.NextState && nextAction != pvars->MobVars.State) {
+        pvars->MobVars.NextState = nextAction;
+        pvars->MobVars.NextStateDelayTicks = delayTicks * delayDifficultyFactor; //nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
       }
 
       // get new target
@@ -734,7 +724,7 @@ void mobUpdate(Moby* moby)
         pvars->MobVars.ScoutCooldownTicks = 60;
       }
 
-      pvars->MobVars.NextCheckActionDelayTicks = 2;
+      pvars->MobVars.NextCheckStateDelayTicks = 2;
     }
   }
 
@@ -855,7 +845,7 @@ void mobUpdate(Moby* moby)
       mobSendStateUpdateUnreliable(moby);
       pvars->MobVars.Dirty = 0;
       pvars->MobVars.AutoDirtyCooldownTicks = MOB_AUTO_DIRTY_COOLDOWN_TICKS;
-      DPRINTF("%d send unreliable state %d %08X\n", gameGetTime(), pvars->MobVars.Action, (u32)moby);
+      DPRINTF("%d send unreliable state %d %08X\n", gameGetTime(), pvars->MobVars.State, (u32)moby);
     }
   }
   
@@ -1229,24 +1219,24 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
+int mobHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
 {
-  struct MobActionUpdateEventArgs args;
+  struct MobStateUpdateEventArgs args;
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (!pvars)
     return 0;
 
   // read event
-  guberEventRead(event, &args, sizeof(struct MobActionUpdateEventArgs));
+  guberEventRead(event, &args, sizeof(struct MobStateUpdateEventArgs));
 
   // 
-  if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args.ActionId) > 0 && pvars->MobVars.Action != args.Action) {
-    pvars->MobVars.LastActionId = args.ActionId;
-    pvars->MobVars.LastAction = pvars->MobVars.Action;
+  if (SEQ_DIFF_U8(pvars->MobVars.LastStateId, args.StateId) > 0 && pvars->MobVars.State != args.State) {
+    pvars->MobVars.LastStateId = args.StateId;
+    pvars->MobVars.LastState = pvars->MobVars.State;
     
     // pass to mob handler
-    if (pvars->VTable && pvars->VTable->ForceLocalAction)
-      pvars->VTable->ForceLocalAction(moby, args.Action);
+    if (pvars->VTable && pvars->VTable->ForceLocalState)
+      pvars->VTable->ForceLocalState(moby, args.State);
   }
 
   pvars->MobVars.DynamicRandom = args.Random;
@@ -1258,7 +1248,7 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 }
 
 //--------------------------------------------------------------------------
-int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventArgs* args)
+int mobHandleEvent_FullStateUpdateUnreliable(Moby* moby, struct MobFullStateUpdateEventArgs* args)
 {
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   VECTOR t;
@@ -1276,14 +1266,14 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
   }
 
   // 
-  if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) > 0 && pvars->MobVars.Action != args->Action) {
-    pvars->MobVars.LastActionId = args->ActionId;
-    pvars->MobVars.LastAction = pvars->MobVars.Action;
+  if (SEQ_DIFF_U8(pvars->MobVars.LastStateId, args->StateId) > 0 && pvars->MobVars.State != args->State) {
+    pvars->MobVars.LastStateId = args->StateId;
+    pvars->MobVars.LastState = pvars->MobVars.State;
     pvars->MobVars.DynamicRandom = args->Random;
     
     // pass to mob handler
-    if (pvars->VTable && pvars->VTable->ForceLocalAction)
-      pvars->VTable->ForceLocalAction(moby, args->Action);
+    if (pvars->VTable && pvars->VTable->ForceLocalState)
+      pvars->VTable->ForceLocalState(moby, args->State);
   }
 
   // 
@@ -1300,28 +1290,28 @@ int mobHandleEvent_StateUpdateUnreliable(Moby* moby, struct MobStateUpdateEventA
 #endif
 
   // pass to mob
-  if (pvars->VTable && pvars->VTable->OnStateUpdate)
-    pvars->VTable->OnStateUpdate(moby, args);
+  if (pvars->VTable && pvars->VTable->OnFullStateUpdate)
+    pvars->VTable->OnFullStateUpdate(moby, args);
 
   //DPRINTF("mob target update event %08X, %d:%08X, %08X\n", (u32)moby, args->TargetUID, (u32)target, (u32)pvars->MobVars.Target);
   return 0;
 }
 
 //--------------------------------------------------------------------------
-int mobHandleEvent_StateUpdate(Moby* moby, GuberEvent* event)
+int mobHandleEvent_FullStateUpdate(Moby* moby, GuberEvent* event)
 {
-  struct MobStateUpdateEventArgs args;
+  struct MobFullStateUpdateEventArgs args;
   struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
   if (!pvars || mobAmIOwner(moby))
     return 0;
 
   // read event
-  guberEventRead(event, &args, sizeof(struct MobStateUpdateEventArgs));
+  guberEventRead(event, &args, sizeof(struct MobFullStateUpdateEventArgs));
   
   //DPRINTF("mob target update event %08X, %08X, %d:%08X, %08X\n", (u32)moby, (u32)event, args.TargetUID, (u32)target, (u32)pvars->MobVars.Target);
   
   // pass to actual handler
-  return mobHandleEvent_StateUpdateUnreliable(moby, &args);
+  return mobHandleEvent_FullStateUpdateUnreliable(moby, &args);
 }
 
 //--------------------------------------------------------------------------
@@ -1342,7 +1332,7 @@ int mobHandleEvent_OwnerUpdate(Moby* moby, GuberEvent* event)
   pvars->MobVars.Owner = newOwner;
 
   if (gameGetMyClientId() == newOwner) {
-    pvars->MobVars.NextAction = -1; // indicate we have no new action since we just became owner
+    pvars->MobVars.NextState = -1; // indicate we have no new action since we just became owner
   }
   
   //DPRINTF("mob owner update event %08X, %08X, %d\n", (u32)moby, (u32)event, newOwner);
@@ -1380,8 +1370,8 @@ int mobHandleEvent(Moby* moby, GuberEvent* event)
       case MOB_EVENT_SPAWN: return mobHandleEvent_Spawn(moby, event);
       case MOB_EVENT_DESTROY: return mobHandleEvent_Destroy(moby, event);
       case MOB_EVENT_DAMAGE: return mobHandleEvent_Damage(moby, event);
-      case MOB_EVENT_STATE_UPDATE: return mobHandleEvent_ActionUpdate(moby, event);
-      case MOB_EVENT_TARGET_UPDATE: return mobHandleEvent_StateUpdate(moby, event);
+      case MOB_EVENT_STATE_UPDATE: return mobHandleEvent_StateUpdate(moby, event);
+      case MOB_EVENT_TARGET_UPDATE: return mobHandleEvent_FullStateUpdate(moby, event);
       case MOB_EVENT_OWNER_UPDATE: return mobHandleEvent_OwnerUpdate(moby, event);
       case MOB_EVENT_CUSTOM: return mobHandleEvent_Custom(moby, event);
       default:
@@ -1413,7 +1403,7 @@ int mobOnUnreliableMsgRemote(void * connection, void * data)
         if (guber) {
           Moby* moby = guber->Moby;
           if (moby && mobyIsMob(moby) && !mobyIsDestroyed(moby)) {
-            mobHandleEvent_StateUpdateUnreliable(moby, &args.StateUpdate);
+            mobHandleEvent_FullStateUpdateUnreliable(moby, &args.StateUpdate);
           }
         }
       }

@@ -235,7 +235,7 @@ float getSignedSlope(VECTOR forward, VECTOR normal)
 //--------------------------------------------------------------------------
 int mobyIsMob(Moby* moby)
 {
-  if (!moby) return 0;
+  if (!moby || !moby->Guber) return 0;
   if (!mapConfig) return 0;
 
   int i;

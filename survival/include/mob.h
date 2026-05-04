@@ -84,26 +84,26 @@ enum MobTargetingRules
 struct MobDamageEventArgs;
 struct MobLocalDamageEventArgs;
 struct MobSpawnEventArgs;
-struct MobStateUpdateEventArgs;
+struct MobFullStateUpdateEventArgs;
 
 typedef void (*MobGenericCallback_func)(Moby* moby);
 typedef Moby* (*MobGetNextTarget_func)(Moby* moby);
-typedef int (*MobGetPreferredAction_func)(Moby* moby, int * delayTicks);
+typedef int (*MobGetPreferredState_func)(Moby* moby, int * delayTicks);
 typedef int (*MobGetExtraDataSize_func)(int spawnParamsIdx);
 typedef void (*MobOnSpawning_func)(int spawnParamsIdx, VECTOR position, float* yaw, int* spawnFromUID, int* spawnFlags, char* random, struct MobSpawnEventArgs *args);
 typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
 typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
 typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
 typedef int (*MobOnLocalDamage_func)(Moby* moby, struct MobLocalDamageEventArgs* e);
-typedef void (*MobOnStateUpdate_func)(Moby* moby, struct MobStateUpdateEventArgs* e);
+typedef void (*MobOnFullStateUpdate_func)(Moby* moby, struct MobFullStateUpdateEventArgs* e);
 typedef int (*MobOnRespawn_func)(Moby* moby);
 typedef void (*MobOnCustomEvent_func)(Moby* moby, GuberEvent* event);
-typedef void (*MobForceLocalAction_func)(Moby* moby, int action);
+typedef void (*MobForceLocalState_func)(Moby* moby, int state);
 typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
 typedef short (*MobGetArmor_func)(Moby* moby);
 typedef int (*MobIsAttacking_func)(Moby* moby);
-typedef int (*MobCanNonOwnerTransitionToAction_func)(Moby* moby, int action);
-typedef int (*MobShouldForceStateUpdateOnAction_func)(Moby* moby, int action);
+typedef int (*MobCanNonOwnerTransitionToState_func)(Moby* moby, int state);
+typedef int (*MobShouldForceStateUpdateOnState_func)(Moby* moby, int state);
 
 struct MobVTable {
   MobGenericCallback_func PreUpdate;
@@ -116,18 +116,18 @@ struct MobVTable {
   MobOnDestroy_func OnDestroy;
   MobOnDamage_func OnDamage;
   MobOnLocalDamage_func OnLocalDamage;
-  MobOnStateUpdate_func OnStateUpdate;
+  MobOnFullStateUpdate_func OnFullStateUpdate;
   MobOnRespawn_func OnRespawn;
   MobOnCustomEvent_func OnCustomEvent;
   MobGetNextTarget_func GetNextTarget;
-  MobGetPreferredAction_func GetPreferredAction;
-  MobForceLocalAction_func ForceLocalAction;
-  MobGenericCallback_func DoAction;
+  MobGetPreferredState_func GetPreferredState;
+  MobForceLocalState_func ForceLocalState;
+  MobGenericCallback_func DoState;
   MobDoDamage_func DoDamage;
   MobGetArmor_func GetArmor;
   MobIsAttacking_func IsAttacking;
-  MobCanNonOwnerTransitionToAction_func CanNonOwnerTransitionToAction;
-  MobShouldForceStateUpdateOnAction_func ShouldForceStateUpdateOnAction;
+  MobCanNonOwnerTransitionToState_func CanNonOwnerTransitionToState;
+  MobShouldForceStateUpdateOnState_func ShouldForceStateUpdateOnState;
 };
 
 struct MobConfig {
@@ -203,8 +203,8 @@ struct MobMoveVars {
   char Grounded;
   char HitWall;
   char IsStuck;
-  char MoveStep;
-  char LastMoveStep;
+  u8 MoveStep;
+  u8 LastMoveStep;
   char ForceUseTargetPosition;
   u8 UngroundedTicks;
   u8 StuckCheckTicks;
@@ -231,18 +231,18 @@ struct MobVars {
   int SpawnParamsIdx;
   int SpawnFlags;
   VECTOR TargetPosition;
-  int Action;
-  int NextAction;
-  int LastAction;
+  int State;
+  int NextState;
+  int LastState;
   float Health;
   float ClosestDist;
   float LastSpeed;
   Moby * Target;
   int LastHitBy;
   u16 LastHitByOClass;
-  u16 NextCheckActionDelayTicks;
-  u16 NextActionDelayTicks;
-  u16 ActionCooldownTicks;
+  u16 NextCheckStateDelayTicks;
+  u16 NextStateDelayTicks;
+  u16 StateCooldownTicks;
   u16 AttackCooldownTicks;
   u16 ScoutCooldownTicks;
   u16 FlinchCooldownTicks;
@@ -250,11 +250,11 @@ struct MobVars {
   u16 ForcedBlipCooldownTicks;
   u16 TimeBombTicks;
   u16 MovingTicks;
-  u16 CurrentActionForTicks;
+  u16 CurrentStateForTicks;
   u16 TimeLastGroundedTicks;
   u16 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
-  u8 ActionId;
-  u8 LastActionId;
+  u8 StateId;
+  u8 LastStateId;
   u8 SlowTicks;
   char Owner;
   char IsTraversing;
@@ -352,24 +352,24 @@ struct MobLocalDamageEventArgs
   Player* PlayerDamager;
 };
 
-struct MobActionUpdateEventArgs
+struct MobStateUpdateEventArgs
 {
-  int Action;
-  u8 ActionId;
+  int State;
+  u8 StateId;
   char Random;
 };
 
-struct MobStateUpdateEventArgs
+struct MobFullStateUpdateEventArgs
 {
   VECTOR Position;
   int TargetUID;
-  int Action;
+  int State;
   u8 PathStartNodeIdx;
   u8 PathEndNodeIdx;
   u8 PathCurrentEdgeIdx;
   char PathHasReachedStart;
   char PathHasReachedEnd;
-  u8 ActionId;
+  u8 StateId;
   char Random;
 };
 
@@ -402,7 +402,7 @@ struct MobUnreliableBaseMsgArgs
 struct MobUnreliableMsgStateUpdateArgs
 {
   struct MobUnreliableBaseMsgArgs Base;
-  struct MobStateUpdateEventArgs StateUpdate;
+  struct MobFullStateUpdateEventArgs StateUpdate;
 };
 
 int mobOnUnreliableMsgRemote(void* connection, void* data);

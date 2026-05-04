@@ -3087,8 +3087,16 @@ void initialize(PatchStateContainer_t* gameState)
   DPRINTF("big al %08X\n", (u32)State.BigAl);
   DPRINTF("prestige machine %08X\n", (u32)State.PrestigeMachine);
 
+  // reset mob stats
+  State.MobStats.MobsDrawGameTime = 0;
+  State.MobStats.MobsDrawnCurrent = 0;
+  State.MobStats.MobsDrawnLast = 0;
+  State.MobStats.TotalAlive = 0;
+  State.MobStats.TotalSpawning = 0;
+  memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
+  // memset(&State.MobStats, 0, sizeof(State.MobStats));
+
   // initialize state
-  memset(&State.MobStats, 0, sizeof(State.MobStats));
   State.Freeze = 0;
   State.TimeOfFreeze = 0;
   State.RoundIsSpecial = 0;
