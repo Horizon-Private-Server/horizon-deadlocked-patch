@@ -2479,9 +2479,12 @@ void grLobbyStart(void)
 void grLoadStart(void)
 {
 	// only handle when loading level
-	GameSettings* gs = gameGetSettings();
-	if (!gs || gs->GameStartTime >= 0)
-		return;
+  if (!hasGameCodeSeg())
+    return;
+
+	// Reset
+	GameRulesInitialized = 0;
+	FirstPass = 1;
 
   //gameGetOptions()->GameFlags.MultiplayerGameFlags.Timelimit = 1;
 

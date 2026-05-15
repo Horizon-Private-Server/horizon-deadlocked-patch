@@ -130,6 +130,11 @@ typedef struct HNSConfig
   u8 hideStageTime;
 } HNSConfig_t;
 
+typedef struct ForgeCgmConfig
+{
+  u8 params[4];
+} ForgeCgmConfig_t;
+
 typedef struct PatchGameConfig
 {
   char customModeId;
@@ -173,6 +178,7 @@ typedef struct PatchGameConfig
   TrainingConfig_t trainingConfig;
   HNSConfig_t hnsConfig;
   SurvivalConfig_t survivalConfig;
+  ForgeCgmConfig_t forgeCgmConfig;
 } PatchGameConfig_t;
 
 typedef struct PatchStateContainer
@@ -254,6 +260,7 @@ enum CHARACTER_TWEAKER_ID
 
 enum CUSTOM_MODE_ID
 {
+  CUSTOM_MODE_FORGE_CUSTOM = -6,
   CUSTOM_MODE_NONE = 0,
   CUSTOM_MODE_1000_KILLS,
   CUSTOM_MODE_GUN_GAME,

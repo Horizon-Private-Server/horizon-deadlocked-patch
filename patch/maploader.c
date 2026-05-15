@@ -1570,13 +1570,21 @@ char* hookedLoadScreenMapNameString(char * dest, char * src)
 char* hookedLoadScreenModeNameString(char * dest, char * src)
 {
 	int i = 0, j = 0;
+  char exDataBuf[36];
 
 	// if we're loading a custom map
 	// and that map has an exclusive gamemode
 	// save map name as gamemode
   if (patchStateContainer.SelectedCustomMapId > 0) {
-    if (customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId < 0) {
+    int forcedCustomModeId = customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId;
+    if (forcedCustomModeId < 0) {
       safe_strcpy(dest, customMapDefs[patchStateContainer.SelectedCustomMapId-1].Name, 32);
+        
+      // if forge custom mode, try and parse from map extra data
+      if (forcedCustomModeId == CUSTOM_MODE_FORGE_CUSTOM)
+        if (mapReadCustomMapExtraData(customMapDefs[patchStateContainer.SelectedCustomMapId-1].Filename, exDataBuf, sizeof(exDataBuf), forcedCustomModeId) == sizeof(exDataBuf))
+          safe_strcpy(dest, exDataBuf + 4, 32);
+
       return dest;
     }
   }
@@ -2012,7 +2020,7 @@ int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int cust
     return copyLen;
   }
   
-  if (mapFilename && mapFilename[0] && customModeId > 0) {
+  if (mapFilename && mapFilename[0] && customModeId != 0) {
     char buffer[READ_CUSTOM_MAP_EXDATA_LEN];
     char filepath[256];
     snprintf(filepath, sizeof(filepath), fVersion, getMapPathPrefix(), mapFilename);

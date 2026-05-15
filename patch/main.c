@@ -3671,6 +3671,43 @@ int sendClientReady(int timeLastSent)
 }
 
 /*
+ * NAME :		onLobbyStaging
+ * 
+ * DESCRIPTION :
+ * 			Overrides staging lobby "invite" popup, injecting custom stats option (if available).
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+int onLobbyStaging(void * ui, int pad)
+{
+  int canShowDynamicPage = dynamicPageAvailableForCurrentMap();
+  u32 * uiElements = (u32*)((u32)ui + 0xB0);
+
+  // intercept pad
+  int context = *(int*)((u32)ui + 0x230);
+  if (context != 0x33 && canShowDynamicPage && pad == 12) // l2
+  {
+    dynamicPageEnableForCurrentMap();
+    pad = 0;
+  }
+
+  // rename DETAILS to STATS if dynamic page is available
+  if (canShowDynamicPage)
+    sprintf((char*)(uiElements[52] + 0x18), "\x16 STATS");
+  else
+    safe_strcpy((char*)(uiElements[52] + 0x18), uiMsgString(0x362c), 33);
+
+  // call base
+  return ((int (*)(void*, int))0x00759220)(ui, pad);
+}
+
+/*
  * NAME :		runClientReadyMessager
  * 
  * DESCRIPTION :
@@ -4568,6 +4605,8 @@ void disableCustomModeModule(void)
  */
 void processGameModules()
 {
+  static int postGameEndFrameUpdateTicks = 0;
+
   // don't run while downloading mode
   if (dlIsActive)
     return;
@@ -4577,6 +4616,10 @@ void processGameModules()
 
   // Game settings
   GameSettings * gamesettings = gameGetSettings();
+
+  // reset after game
+  if (!gamesettings || isInMenus())
+    postGameEndFrameUpdateTicks = 0;
 
   // Iterate through all the game modules until we hit an empty one
   while (module->Entrypoint)
@@ -4595,8 +4638,15 @@ void processGameModules()
           // Check if the game hasn't ended
           // We also give the module a second after the game has ended to
           // do some end game logic
-          if (!gameHasEnded() || gameGetTime() < (gameGetFinishedExitTime() + TIME_SECOND))
+          if (gameHasEnded() && postGameEndFrameUpdateTicks < 60)
+          {
+            postGameEndFrameUpdateTicks++;
             state = GAMEMODULE_GAME_FRAME;
+          }
+          else if (!gameHasEnded())
+          {
+            state = GAMEMODULE_GAME_FRAME;
+          }
         }
         else if (isInMenus())
           state = GAMEMODULE_LOBBY;
@@ -5620,6 +5670,11 @@ void onOnlineMenu(void)
     uiShowOkDialog("System", "Patch has been successfully loaded.");
     hasInitialized = 2;
   }
+
+#ifndef COMP
+  // hook lobby staging update func
+  POKE_U32(0x004BFA70, &onLobbyStaging);
+#endif
 
   // map loader
   onMapLoaderOnlineMenu();

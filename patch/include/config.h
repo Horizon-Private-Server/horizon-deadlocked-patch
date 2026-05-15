@@ -235,5 +235,7 @@ extern u32 SONY_MAC_ADDRESSES[];
 extern int SONY_MAC_ADDRESSES_COUNT;
 
 int configHasDevRules(void);
+int dynamicPageAvailableForCurrentMap(void);
+void dynamicPageEnableForCurrentMap(void);
 
 #endif // __PATCH_CONFIG_H__

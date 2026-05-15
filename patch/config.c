@@ -26,8 +26,17 @@
 #define THUMBNAIL_SIZE      (9248)
 #define TPS                 (60)
 #define MAX_SURV_GAMBITS    (10)
+#define MAX_FORGE_CGM_PARAMS (4)
+#define MAX_FORGE_CGM_POPTS (16)
 
 typedef void (*FooterExtraCallbackFunc_t)(void);
+
+struct ForgeCgmParameterDef
+{
+  int NextParamOffset;
+  int OptionCount;
+  char Strings[0]; // null terminated Name, Description, Options strings
+};
 
 // config
 extern PatchConfig_t config;
@@ -78,8 +87,13 @@ const char modesWithDynamicStatsPage[] = {
   CUSTOM_MODE_SURVIVAL,
   CUSTOM_MODE_OBSTACLE,
   CUSTOM_MODE_COLLECTATHON,
+  CUSTOM_MODE_FORGE_CUSTOM,
 };
 const int modesWithDynamicStatsPageCount = sizeof(modesWithDynamicStatsPage);
+
+// 
+char *modeExDataBuf = NULL;
+int modeExDataBufSize = 2048;
 
 // menu display properties
 const u32 colorBlack = 0x80000000;
@@ -154,11 +168,13 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listDa
 int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value);
 int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, char* value);
 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_ForgeCgmSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
 void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
@@ -658,6 +674,47 @@ MenuElem_ListData_t dataHnsHideDuration = {
   }
 };
 
+// forge cgm parameters
+MenuElem_ListData_t dataForgeCgmParam1 = {
+  .value = &gameConfig.forgeCgmConfig.params[0],
+  .stateHandler = menuStateHandler_SelectedForgeCgmParameter,
+  .count = 0,
+  .items = {
+    NULL,
+    [MAX_FORGE_CGM_POPTS] NULL
+  }
+};
+
+MenuElem_ListData_t dataForgeCgmParam2 = {
+  .value = &gameConfig.forgeCgmConfig.params[1],
+  .stateHandler = menuStateHandler_SelectedForgeCgmParameter,
+  .count = 0,
+  .items = {
+    NULL,
+    [MAX_FORGE_CGM_POPTS] NULL
+  }
+};
+
+MenuElem_ListData_t dataForgeCgmParam3 = {
+  .value = &gameConfig.forgeCgmConfig.params[2],
+  .stateHandler = menuStateHandler_SelectedForgeCgmParameter,
+  .count = 0,
+  .items = {
+    NULL,
+    [MAX_FORGE_CGM_POPTS] NULL
+  }
+};
+
+MenuElem_ListData_t dataForgeCgmParam4 = {
+  .value = &gameConfig.forgeCgmConfig.params[3],
+  .stateHandler = menuStateHandler_SelectedForgeCgmParameter,
+  .count = 0,
+  .items = {
+    NULL,
+    [MAX_FORGE_CGM_POPTS] NULL
+  }
+};
+
 // player size list item
 // MenuElem_ListData_t dataPlayerSize = {
 //   .value = &gameConfig.prPlayerSize,
@@ -850,6 +907,12 @@ MenuElem_t menuElementsGameSettings[] = {
 
   // HNS SETTINGS
   { "Hide Time", listActionHandler, menuStateHandler_HnsSettingStateHandler, &dataHnsHideDuration, "Time in seconds the hiders have to hide before the seekers can hunt for them." },
+
+  // FORGE CGM SETTINGS 
+  { "", listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam1, NULL },
+  { "", listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam2, NULL },
+  { "", listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam3, NULL },
+  { "", listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam4, NULL },
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -1077,6 +1140,14 @@ void dynamicPageEnable(int mapIdx, int type)
 }
 
 //------------------------------------------------------------------------------
+int dynamicPageAvailableForCurrentMap(void)
+{
+  int mapIdx = *dataCustomMaps.value;
+  int modeIdx = *dataCustomModes.value;
+  return mapIdx && modeIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, modeIdx);
+}
+
+//------------------------------------------------------------------------------
 void dynamicPageEnableForCurrentMap(void)
 {
   int mapIdx = *dataCustomMaps.value;
@@ -1106,6 +1177,12 @@ void dynamicPageEnableForCurrentMap(void)
       dynamicPageEnable(mapIdx, 3);
       break;
     }
+    case CUSTOM_MODE_FORGE_CUSTOM:
+    {
+      cgmSendMapData(mapIdx, CUSTOM_MODE_FORGE_CUSTOM, NULL, 0);
+      dynamicPageEnable(mapIdx, 4);
+      break;
+    }
   }
 }
 
@@ -1119,6 +1196,19 @@ void dynamicPageDisable(void)
     free(DynamicPageState.LineItems);
     DynamicPageState.LineItems = NULL;
   }
+}
+
+//------------------------------------------------------------------------------
+int findIndexOfMenuElemByUserData(MenuElem_t* elements, int count, void* userdata)
+{
+  int i;
+  for (i = 0; i < count; ++i)
+  {
+    if (elements[i].userdata == userdata)
+      return i;
+  }
+
+  return -1;
 }
 
 //------------------------------------------------------------------------------
@@ -1332,6 +1422,7 @@ void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
     CUSTOM_MODE_GUN_GAME,
     -4, // climber
     -2, // spleef
+    CUSTOM_MODE_FORGE_CUSTOM,
   };
 
   const char weightedPartyModes[] = {
@@ -1344,6 +1435,8 @@ void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
     -4, // climber
     -4, // climber
     -2, // spleef
+    CUSTOM_MODE_FORGE_CUSTOM,
+    CUSTOM_MODE_FORGE_CUSTOM,
   };
 
   int retry = 0;
@@ -1354,11 +1447,36 @@ void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
 
     // if mode has dedicate map select that map
     if (mode < 0) {
+      int count;
       int i;
       for (i = 0; i < customMapDefCount; ++i) {
         if (customMapDefs[i].ForcedCustomModeId == mode) {
+          ++count;
           map = i + 1;
-          break;
+        }
+      }
+
+      // no map with mode
+      if (count == 0)
+      {
+        ++retry;
+        continue;
+      }
+
+      // if multiple maps with hidden mode, pick random
+      if (count > 1)
+      {
+        int selMapIdx = libcRand() % count;
+        int curMapIdx = 0;
+        for (i = 0; i < customMapDefCount; ++i) {
+          if (customMapDefs[i].ForcedCustomModeId == mode) {
+            if (curMapIdx == selMapIdx)
+            {
+              map = i + 1;
+              break;
+            }
+            ++curMapIdx;
+          }
         }
       }
     }
@@ -1873,6 +1991,80 @@ int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char*
 }
 
 // 
+int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, char* value)
+{
+  if (isInGame()) return 1;
+  if (modeExDataBuf == NULL) return 0;
+
+  int mapIdx = *dataCustomMaps.value;
+  int selIdx = *value;
+  if (getCustomMapMode(mapIdx) != CUSTOM_MODE_FORGE_CUSTOM)
+    return 0;
+
+  int exDataLen = mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, modeExDataBuf, modeExDataBufSize, CUSTOM_MODE_FORGE_CUSTOM);
+  if (exDataLen < 72)
+    return 0;
+
+  // send to server
+  // cgmSendMapData(mapIdx, CUSTOM_MODE_FORGE_CUSTOM, modeExDataBuf, exDataLen);
+
+  // parse
+  int paramOffset = *(int*)(modeExDataBuf + 64 + 4);
+  if (paramOffset == 0)
+    return 0;
+
+  int thisParamIdx = (int)((u32)listData->value - (u32)gameConfig.forgeCgmConfig.params);
+  int selectedElemIdx = findIndexOfMenuElemByUserData(menuElementsGameSettings, sizeof(menuElementsGameSettings), listData);
+  int selectedParamIdx = selectedElemIdx - findIndexOfMenuElemByUserData(menuElementsGameSettings, sizeof(menuElementsGameSettings), &dataForgeCgmParam1);
+  int paramCount = minf(MAX_FORGE_CGM_PARAMS, *(int*)(modeExDataBuf + paramOffset));
+  struct ForgeCgmParameterDef* params = (struct ForgeCgmParameterDef*)(modeExDataBuf + paramOffset + 4);
+
+  int i;
+  for (i = 0; i < MAX_FORGE_CGM_PARAMS; ++i) {
+    if (i >= paramCount)
+    {
+      if (thisParamIdx == i)
+        listData->count = 0;
+      continue;
+    }
+
+    if (thisParamIdx == i)
+    {
+      char *paramStrPtr = (char*)params->Strings;
+
+      char *paramName = paramStrPtr;
+      paramStrPtr += strlen(paramName) + 1;
+
+      char *paramDesc = paramStrPtr;
+      paramStrPtr += strlen(paramDesc) + 1;
+
+      int o;
+      for (o = 0; o < params->OptionCount; ++o)
+      {
+        char* option = paramStrPtr;
+        paramStrPtr += strlen(option) + 1;
+        
+        listData->items[o] = option;
+      }
+
+      // reset to 0 if out of bounds
+      if (thisParamIdx == i && selIdx > paramCount)
+        *value = 0;
+
+      // update help text
+      menuElementsGameSettings[selectedElemIdx].help = paramDesc;
+      safe_strcpy(menuElementsGameSettings[selectedElemIdx].name, paramName, sizeof(menuElementsGameSettings[selectedElemIdx].name));
+      listData->count = params->OptionCount;
+    }
+
+    // move to next
+    params = (struct ForgeCgmParameterDef*)(modeExDataBuf + (u32)params->NextParamOffset);
+  }
+
+  return 1;
+}
+
+// 
 void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
 {
   if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL)
@@ -1908,6 +2100,20 @@ void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element
     *state = ELEMENT_HIDDEN;
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+}
+
+// 
+void menuStateHandler_ForgeCgmSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+{
+  int mapIdx = *dataCustomMaps.value;
+  if (mapIdx <= 0 || getCustomMapMode(mapIdx) != CUSTOM_MODE_FORGE_CUSTOM)
+    *state = ELEMENT_HIDDEN;
+  else
+    *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
+
+  MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
+  if (listData != NULL && listData->count == 0)
+    *state = ELEMENT_HIDDEN;
 }
 
 // 
@@ -2563,10 +2769,7 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
 
   // get element state
   int state = getMenuElementState(tab, element);
-
-  // do nothing if hidden
-  if ((state & ELEMENT_VISIBLE) == 0)
-    return;
+  int isVisible = (state & ELEMENT_VISIBLE) != 0;
 
   switch (actionType)
   {
@@ -2581,6 +2784,9 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     case ACTIONTYPE_SELECT:
     case ACTIONTYPE_INCREMENT:
     {
+      if (!isVisible)
+        break;
+
       if ((state & ELEMENT_EDITABLE) == 0) {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
@@ -2604,6 +2810,9 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     }
     case ACTIONTYPE_DECREMENT:
     {
+      if (!isVisible)
+        break;
+        
       if ((state & ELEMENT_EDITABLE) == 0) {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
@@ -2627,16 +2836,25 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     }
     case ACTIONTYPE_GETHEIGHT:
     {
+      if (!isVisible)
+        break;
+        
       *(float*)actionArg = LINE_HEIGHT;
       break;
     }
     case ACTIONTYPE_DRAW:
     {
+      if (!isVisible)
+        break;
+        
       drawListMenuElement(tab, element, listData, (RECT*)actionArg);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
     {
+      if (!isVisible)
+        break;
+        
       gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
       break;
     }
@@ -2648,6 +2866,9 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     }
     case ACTIONTYPE_INPUT:
     {
+      if (!isVisible)
+        break;
+        
       tabInput(tab);
       break;
     }
@@ -3444,6 +3665,13 @@ void configUnload(void)
     mapOverrideSelectedMapThumbnail = NULL;
     mapOverrideSelectedMapHasThumbnail = 0;
   }
+  
+  // unload exdata buf
+  if (modeExDataBuf)
+  {
+    free(modeExDataBuf);
+    modeExDataBuf = NULL;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -3454,59 +3682,69 @@ void onMenuUpdate(int inGame)
   footerTextExtra[0] = 0;
   footerCallback = NULL;
 
-  if (isConfigMenuActive)
+  if (inGame && modeExDataBuf)
+  {
+    free(modeExDataBuf);
+    modeExDataBuf = NULL;
+  }
+  else if (!inGame && !modeExDataBuf)
+  {
+    modeExDataBuf = malloc(modeExDataBufSize);
+  }
+
+  if (DynamicPageState.Enabled)
+  {
+    // prevent pad from affecting menus
+    padDisableInput();
+    drawDynamicPage();
+    
+    // close
+    if (DynamicPageState.Enabled == 3 || padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
+    {
+      dynamicPageDisable();
+      padEnableInput();
+    }
+  }
+  else if (isConfigMenuActive)
   {
     // prevent pad from affecting menus
     padDisableInput();
 
-    if (DynamicPageState.Enabled)
+    // draw
+    if (padGetButton(0, PAD_L3) <= 0)
     {
-      drawDynamicPage();
-      
-      // close
-      if (DynamicPageState.Enabled == 3 || padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
+      // draw frame
+      drawFrame();
+
+      // draw tab
+      drawTab(tab);
+
+      // draw footer
+      drawFooter();
+
+      // draw ping overlay
+      if (gameGetSettings())
       {
-        dynamicPageDisable();
+        int ping = gameGetPing();
+        sprintf(buf, "ping %d", ping);
+        gfxScreenSpaceText(0.88 * SCREEN_WIDTH, 0.15 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, buf, -1, 2);
       }
     }
-    else
+
+    // nav tab right
+    if (padGetButtonUp(0, PAD_R1) > 0)
     {
-      // draw
-      if (padGetButton(0, PAD_L3) <= 0)
-      {
-        // draw frame
-        drawFrame();
-
-        // draw tab
-        drawTab(tab);
-
-        // draw footer
-        drawFooter();
-
-        // draw ping overlay
-        if (gameGetSettings())
-        {
-          int ping = gameGetPing();
-          sprintf(buf, "ping %d", ping);
-          gfxScreenSpaceText(0.88 * SCREEN_WIDTH, 0.15 * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, buf, -1, 2);
-        }
-      }
-
-      // nav tab right
-      if (padGetButtonUp(0, PAD_R1) > 0)
-      {
-        navTab(1);
-      }
-      // nav tab left
-      else if (padGetButtonUp(0, PAD_L1) > 0)
-      {
-        navTab(-1);
-      }
-      // close
-      else if (padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
-      {
-        configMenuDisable();
-      }
+      navTab(1);
+    }
+    // nav tab left
+    else if (padGetButtonUp(0, PAD_L1) > 0)
+    {
+      navTab(-1);
+    }
+    // close
+    else if (padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
+    {
+      configMenuDisable();
     }
   }
   else if (!inGame && !mapsDownloadingModules() && netGetLobbyServerConnection())
@@ -3530,6 +3768,7 @@ void onMenuUpdate(int inGame)
 void onConfigUpdate(void)
 {
   int i;
+  char exDataBuf[36];
 
   // reset when we lose connection
   void* connection = netGetLobbyServerConnection();
@@ -3584,9 +3823,16 @@ void onConfigUpdate(void)
     // override gamemode name with map if map has exclusive gamemode
     if (patchStateContainer.SelectedCustomMapId)
     {
-      if (customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId < 0)
-      {
+      int forcedCustomModeId = customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId;
+      if (forcedCustomModeId < 0)
         modeName = mapName;
+
+      // if forge custom mode, try and parse from map extra data
+      if (forcedCustomModeId == CUSTOM_MODE_FORGE_CUSTOM)
+      {
+        int exDataSize = mapReadCustomMapExtraData(customMapDefs[patchStateContainer.SelectedCustomMapId-1].Filename, exDataBuf, sizeof(exDataBuf), forcedCustomModeId);
+        if (exDataSize == sizeof(exDataBuf))
+          modeName = exDataBuf + 4;
       }
     }
 

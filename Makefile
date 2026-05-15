@@ -27,6 +27,7 @@ all:
 	$(MAKE) -C obstacle-course
 	$(MAKE) -C collectathon
 	$(MAKE) -C usbserv
+	$(MAKE) -C forge-custom-mode
 	
 clean:
 	rm -rf bin/
@@ -56,4 +57,5 @@ clean:
 	$(MAKE) -C obstacle-course clean
 	$(MAKE) -C collectathon clean
 	$(MAKE) -C usbserv clean
+	$(MAKE) -C forge-custom-mode clean
 
