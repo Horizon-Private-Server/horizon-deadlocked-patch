@@ -441,12 +441,12 @@ void findTeamBallSpawnPoint(int teamIdx)
   // check for ground
   VECTOR ground, down = {0,0,-5,0}, up = {0,0,1,0};
   vector_add(ground, dt, down);
-  if (CollLine_Fix(dt, ground, COLLISION_FLAG_IGNORE_DYNAMIC, NULL, NULL)) {
+  if (CollLine_Fix(dt, ground, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL)) {
     int cType = CollLine_Fix_GetHitCollisionId() & 0xF;
     if (cType != 0x0B && cType != 0x01 && cType != 0x04 && cType != 0x05 && cType != 0x0D && cType != 0x03) {
 
       vector_add(ground, State.Teams[teamIdx].BasePosition, up);
-      if (!CollLine_Fix(ground, dt, COLLISION_FLAG_IGNORE_DYNAMIC, NULL, NULL)) {
+      if (!CollLine_Fix(ground, dt, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL)) {
         vector_copy(State.Teams[teamIdx].BallSpawnPosition, dt);
         DPRINTF("found team ball spawn near base %d\n", State.Teams[teamIdx].TeamId);
         return;

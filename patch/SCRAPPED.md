@@ -348,7 +348,7 @@ void testPlayerCollider(int pid)
 
       vector_add(t, p->PlayerPosition, o);
 
-      if (CollLine_Fix(pos, t, COLLISION_FLAG_IGNORE_STATIC, NULL, 0)) {
+      if (CollLine_Fix(pos, t, COLLISION_FLAG_IGNORE_NONDAMAGEABLE, NULL, 0)) {
         vector_copy(t, CollLine_Fix_GetHitPosition());
         hitsColor[hitsCount] = hitsColorCurrent;
         vector_copy(hits[hitsCount++], CollLine_Fix_GetHitPosition());

@@ -277,7 +277,7 @@ void scavHuntSpawnRandomNearPosition(VECTOR position)
 
     // snap to ground
     // and check if ground is walkable
-    if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_DYNAMIC, NULL, NULL)) {
+    if (CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL)) {
       int colId = CollLine_Fix_GetHitCollisionId() & 0x0f;
       if (colId == 0xF || colId == 0x7 || colId == 0x9 || colId == 0xA) {
         vector_add(p, p, CollLine_Fix_GetHitPosition());

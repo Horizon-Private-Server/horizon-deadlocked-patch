@@ -55,7 +55,7 @@ void lootUpdate(Moby* moby)
     VECTOR vel = {0,0,-1*MATH_DT,0};
     VECTOR nextPos;
     vector_add(nextPos, vel, moby->Position);
-    if (CollLine_Fix(moby->Position, nextPos, COLLISION_FLAG_IGNORE_DYNAMIC, moby, NULL)) {
+    if (CollLine_Fix(moby->Position, nextPos, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, moby, NULL)) {
       vector_copy(nextPos, CollLine_Fix_GetHitPosition());
       *hit = 1;
     }

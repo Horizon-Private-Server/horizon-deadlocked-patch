@@ -341,7 +341,7 @@ void onMissionComplete(int cuboidIdx)
 
       VECTOR to = {0,0,-50,0};
       vector_add(to, to, pos);
-      if (CollLine_Fix(pos, to, COLLISION_FLAG_IGNORE_DYNAMIC, NULL, NULL)) {
+      if (CollLine_Fix(pos, to, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL)) {
         if (collisionIdIsWalkable(CollLine_Fix_GetHitCollisionId())) {
           // found spot above ground
           vector_copy(pos, CollLine_Fix_GetHitPosition());

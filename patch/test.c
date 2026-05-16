@@ -819,7 +819,7 @@ void drawCollider(Moby* moby)
 
       vector_add(t, p->PlayerPosition, o);
 
-      if (CollLine_Fix(pos, t, COLLISION_FLAG_IGNORE_STATIC, NULL, 0)) {
+      if (CollLine_Fix(pos, t, COLLISION_FLAG_IGNORE_NONDAMAGEABLE, NULL, 0)) {
         vector_copy(t, CollLine_Fix_GetHitPosition());
         drawEffectQuad(t, 22, 0.05, 0x80FFFFFF);
       }
@@ -1728,7 +1728,7 @@ void runBounce(void)
       if (0 && vector_sqrmag(bounceVels[i]) > 0.01) {
         float* extVel = (float*)((u32)player + 0x130 + 0x10);
         
-        if (CollLine_Fix(lastGoodPos[i], player->PlayerPosition, COLLISION_FLAG_IGNORE_DYNAMIC, player->PlayerMoby, NULL) > 0) {
+        if (CollLine_Fix(lastGoodPos[i], player->PlayerPosition, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, player->PlayerMoby, NULL) > 0) {
           
           bounceReflect(i, CollLine_Fix_GetHitNormal());
 

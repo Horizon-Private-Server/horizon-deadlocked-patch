@@ -1209,7 +1209,7 @@ void onPlayerRevive(int playerId, int fromPlayerId)
   playerSetHealth(player, player->MaxHealth);
 
   // only reset back to dead pos if player died on ground
-  if (CollLine_Fix(deadPos, deadPosDown, COLLISION_FLAG_IGNORE_DYNAMIC, player->PlayerMoby, NULL)) {
+  if (CollLine_Fix(deadPos, deadPosDown, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, player->PlayerMoby, NULL)) {
     int colId = CollLine_Fix_GetHitCollisionId() & 0xF;
     if (colId == 0xF || colId == 0x7 || colId == 0x9 || colId == 0xA)
       useDeadPos = 1;
