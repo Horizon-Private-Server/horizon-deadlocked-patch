@@ -27,7 +27,7 @@
 #define TPS                 (60)
 #define MAX_SURV_GAMBITS    (10)
 #define MAX_FORGE_CGM_PARAMS (4)
-#define MAX_FORGE_CGM_POPTS (16)
+#define MAX_FORGE_CGM_POPTS (10)
 
 typedef void (*FooterExtraCallbackFunc_t)(void);
 
