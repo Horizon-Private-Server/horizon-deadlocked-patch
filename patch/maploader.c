@@ -1466,7 +1466,7 @@ void hookedGetTable(u32 startSector, u32 sectorCount, u8 * dest, u32 levelId)
 void hookedMapExData(void)
 {
   MapLoaderState.MapCodeInited = 1;
-  ((void (*)(void))EXTRA_CODE_SEG_PTR)();
+  ((void (*)(int))EXTRA_CODE_SEG_PTR)(1);
 }
 
 //------------------------------------------------------------------------------
@@ -1482,7 +1482,7 @@ void hookedMapLoad(int a0, int a1)
     snprintf(membuffer, sizeof(membuffer), fCode, getMapPathPrefix(), MapLoaderState.MapFileName);
     if (readFile(membuffer, EXTRA_CODE_SEG_PTR, 0, -1) > 0) {
       HOOK_J(0x00598BA0, &hookedMapExData);
-      ((void (*)(void))EXTRA_CODE_SEG_PTR)();
+      ((void (*)(int))EXTRA_CODE_SEG_PTR)(0);
       return;
     }
   }

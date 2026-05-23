@@ -3894,7 +3894,7 @@ void waitForMapConfig(PatchStateContainer_t * gameState)
   } else if (!hasMapConfig()) {
 
     // call map code to let it initialize
-    ((void (*)(void))EXTRA_CODE_SEG_PTR)();
+    ((void (*)(int))EXTRA_CODE_SEG_PTR)(1);
 
   } else if (gameState->AllClientsReady && *(u16*)0x0021ddb4 == 6) {
 
