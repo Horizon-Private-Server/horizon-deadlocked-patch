@@ -1482,6 +1482,7 @@ void hookedMapLoad(int a0, int a1)
     snprintf(membuffer, sizeof(membuffer), fCode, getMapPathPrefix(), MapLoaderState.MapFileName);
     if (readFile(membuffer, EXTRA_CODE_SEG_PTR, 0, -1) > 0) {
       HOOK_J(0x00598BA0, &hookedMapExData);
+      ((void (*)(void))EXTRA_CODE_SEG_PTR)();
       return;
     }
   }
