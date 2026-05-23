@@ -1193,18 +1193,8 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
   pvars->TargetVars.hitPoints = newHp;
 #endif
 
-  // get damager
-  Player* damager = playerGetFromUID(args.SourceUID);
-  if (appliedDamage > 0) { // && damager && damager->IsLocal) {
-    VECTOR mobCenter = {0,0,pvars->TargetVars.targetHeight,0};
-    vector_add(mobCenter, mobCenter, moby->Position);
-
-    int isLocal = 0;
-    if (damager) isLocal = damager->IsLocal;
-    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, (args.DamageFlags & 0x20000000) ? TEAM_RED : TEAM_YELLOW);
-  }
-
-  // 
+  if (mapConfig->Functions.MobAfterDamageFunc)
+    mapConfig->Functions.MobAfterDamageFunc(moby, &args, appliedDamage);
 
   // drop armor bangle
   /*
