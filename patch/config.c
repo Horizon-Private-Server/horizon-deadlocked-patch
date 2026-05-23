@@ -975,6 +975,7 @@ char* mapOverrideSelectedMapThumbnail = NULL;
 int mapOverrideSelectedMapHasThumbnail = 0;
 char mapOverrideSelectedMapAuthor[32] = {};
 char mapOverrideSelectedMapDesc[256] = {};
+float mapOverrideSelectedMapDescHeight = 0;
 int mapOverrideSelectedMapTicks = 0;
 int mapOverrideLastSelectedMapIdx = 0;
 MenuElem_t menuElementsGameSettingsCustomMaps[] = {
@@ -1024,7 +1025,7 @@ const int tabsCount = sizeof(tabElements)/sizeof(TabElem_t);
 //------------------------------------------------------------------------------
 char* getCustomModeName(int modeId, int type)
 {
-  if (modeId < 0 && type == 2) return "MODE";
+  if (modeId < 0 && type == 2) return "MINIGAME";
   if (modeId <= 0) return "None";
 
   char* modeName = type > 1 ? (char*)CustomModeMapAttributeNames[modeId] : NULL;
@@ -2428,8 +2429,9 @@ void drawMapsListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, Me
     x = (r.TopLeft[0] * SCREEN_WIDTH) - 0;
     y = ((r.TopLeft[1] + 0) * SCREEN_HEIGHT) + w*0.5;
     gfxSetScissor(x, x + w, y, y + h);
-    y -= (int)minf(64, maxf(0, (mapOverrideSelectedMapTicks%(7*TPS) - 3*TPS) * 0.5));
-    gfxHelperDrawTextWindow(x, y, 0, 0, w, SCREEN_HEIGHT, 5, 5
+    float maxOffset = maxf(0, mapOverrideSelectedMapDescHeight - h + (LINE_HEIGHT * SCREEN_HEIGHT));
+    y -= (int)minf(maxOffset, maxf(0, (mapOverrideSelectedMapTicks%(10*TPS) - 3*TPS) * 0.3));
+    mapOverrideSelectedMapDescHeight = gfxHelperDrawTextWindow(x, y, 0, 0, w, SCREEN_HEIGHT, 5, 5
       , 0.9, color
       , mapOverrideSelectedMapDesc, -1
       , TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NONE);
