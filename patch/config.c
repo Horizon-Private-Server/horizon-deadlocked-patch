@@ -2048,7 +2048,7 @@ int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, ch
       }
 
       // reset to 0 if out of bounds
-      if (thisParamIdx == i && selIdx > paramCount)
+      if (thisParamIdx == i && selIdx > params->OptionCount)
         *value = 0;
 
       // update help text
