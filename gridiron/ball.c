@@ -196,6 +196,7 @@ void ballResendPickup(Moby * moby)
   if (!event) return;
 
   guberEventWrite(event, &pvars->CarrierIdx, 4);
+  guberEventWrite(event, &pvars->ResetCounter, 4);
 }
 
 //--------------------------------------------------------------------------

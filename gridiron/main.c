@@ -32,6 +32,7 @@
 #include "messageid.h"
 #include "include/game.h"
 #include "include/utils.h"
+#include "include/ball.h"
 
 int Initialized = 0;
 struct CGMState State;
