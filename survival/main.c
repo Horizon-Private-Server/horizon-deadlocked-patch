@@ -42,6 +42,7 @@
 #include "include/mob.h"
 #include "include/bubble.h"
 #include "include/game.h"
+#include "include/dzo_stats.h"
 #include "include/stats.h"
 #include "include/utils.h"
 
@@ -1056,6 +1057,9 @@ void onPlayerPrestigeWeapon(int playerId, int weaponId, int prestigeId)
   if (!p)
     return;
 
+  // Capture V10 before prestige resets the gadget level.
+  dzoStatsObserveWeapons(p);
+
   GadgetBox* gBox = p->GadgetBox;
   gBox->Gadgets[weaponId].Level = -1;
   playerGiveWeapon(gBox, weaponId, 0, 1);
@@ -1125,6 +1129,8 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
   int wepSlotId = weaponIdToSlot(weaponId);
   if (level > State.PlayerStates[playerId].State.BestWeaponLevel[wepSlotId])
     State.PlayerStates[playerId].State.BestWeaponLevel[wepSlotId] = level;
+
+  dzoStatsObserveWeapons(p);
 
   // play upgrade sound
   playUpgradeSound(p);
@@ -1555,6 +1561,9 @@ void playerCastNextRoundVote(void)
 void onPlayerItemAcquired(int playerId, int itemId, int currentCount)
 {
   DPRINTF("onPlayerItemAcquired(%d, %d, %d)\n", playerId, itemId, currentCount);
+  if (playerId < 0 || playerId >= GAME_MAX_PLAYERS || itemId < 0 || itemId >= MAX_ITEM_COUNT)
+    return;
+
   State.PlayerStates[playerId].State.ItemCounts[itemId] = currentCount;
 
   // trigger acquire
@@ -1562,6 +1571,7 @@ void onPlayerItemAcquired(int playerId, int itemId, int currentCount)
   if (!playerIsValid(player))
     return;
 
+  dzoStatsOnItemAcquired(playerId, itemId);
   passPlayerOnItemAcquiredToMap(player, itemId);
 }
 
@@ -2763,6 +2773,7 @@ void initialize(PatchStateContainer_t* gameState)
     
     // clear state
     memset(&State, 0, sizeof(State));
+    dzoStatsReset();
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       memset(State.PlayerStates[i].State.ItemCounts, 0, sizeof(State.PlayerStates[i].State.ItemCounts));
     }
@@ -2924,6 +2935,7 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->Functions.ModeOnGuberEventFunc = &mobHandleEvent;
   mapConfig->Functions.ModeSendOnPlayerItemAcquiredFunc = &sendPlayerItemAcquired;
   mapConfig->Functions.ModeSendOnPlayerItemConsumedFunc = &sendPlayerItemConsumed;
+  mapConfig->Functions.ModeReportGambitStateFunc = &dzoStatsReportGambitState;
 
   // custom damage cooldown time
   //POKE_U16(0x0060583C, DIFFICULTY_HITINVTIMERS[gameConfig->survivalConfig.difficulty]);
@@ -3748,12 +3760,14 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     // end game
     if (State.GameOver == 1)
     {
+      dzoStatsSend();
       gameEnd(4);
       State.GameOver = 2;
     }
   }
 
   //
+  dzoStatsSend();
   updateDzoHud();
 
   // last
