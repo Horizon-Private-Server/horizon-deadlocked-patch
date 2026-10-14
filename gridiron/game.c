@@ -82,6 +82,7 @@ void onReceiveBallScored(int scoredByPlayerIdx)
   if (!State.BallMoby || !isInGame()) return;
 
   Player** players = playerGetAll();
+  GameData* gameData = gameGetData();
 
   // increment points
   Player* player = players[scoredByPlayerIdx];
@@ -90,6 +91,7 @@ void onReceiveBallScored(int scoredByPlayerIdx)
     if (State.Teams[teamIdx].TeamId != player->Team) teamIdx = 1;
     State.Teams[teamIdx].Score += 1;
     State.PlayerStates[scoredByPlayerIdx].Stats.Points += 1;
+    if (gameData) gameData->PlayerStats.CtfFlagsCaptures[scoredByPlayerIdx] += 1;
     ballReset(State.BallMoby, BALL_RESET_TEAM0 + !teamIdx);
   } else {
     // reset ball to center
