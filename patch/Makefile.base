@@ -41,8 +41,7 @@ all: $(EE_BIN) clean copy
 
 $(EE_BIN): linkfile
 
-.PHONY: check-size
-check-size: $(EE_BIN)
+define CHECK_PATCH_SIZE
 	@set -eu; \
 	patch_end=$$($(EE_PREFIX)nm -n "$(EE_ELF)" | awk '$$3 == "_end" { print "0x" $$1 }'); \
 	test -n "$$patch_end" || { echo "ERROR: Missing patch _end symbol"; exit 1; }; \
@@ -53,6 +52,12 @@ check-size: $(EE_BIN)
 		exit 1; \
 	fi; \
 	printf 'Patch runtime end: 0x%08X (%d bytes free before 0x000F0000)\n' "$$patch_end" $$((0x000F0000 - patch_end))
+endef
+
+.DELETE_ON_ERROR:
+.PHONY: check-size
+check-size: $(EE_BIN)
+	$(CHECK_PATCH_SIZE)
 
 # Validate both base and comp builds before copying them into bin/.
 copy: check-size

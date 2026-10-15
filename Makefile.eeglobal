@@ -88,4 +88,5 @@ $(EE_BIN) : $(EE_OBJS) crt0.o linkfile
 	$(EE_CC) -g -mno-crt0 -Tlinkfile $(EE_LDFLAGS) \
 		-o $(EE_ELF) crt0.o $(EE_OBJS) $(EE_LIBS) -Wl,--gc-sections
 	$(EE_OBJCOPY) -O binary $(EE_ELF) $(EE_BIN)
+	$(CHECK_PATCH_SIZE)
 	$(CHECK_CUSTOM_MODE_SIZE)
