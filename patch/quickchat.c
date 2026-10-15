@@ -230,7 +230,7 @@ int quickChatOnReceiveRemoteQuickChat(void* connection, void* data)
   // otherwise it is team, make sure local player(s) are on same team as remote
   if (msg.ChatId >= 8) {
     Player* fromPlayer = playerGetAll()[msg.FromPlayerId];
-    if (!fromPlayer) return;
+    if (!fromPlayer) return sizeof(struct QuickChatMsg);
 
     int i;
     for (i = 0; i < GAME_MAX_LOCALS; ++i) {
@@ -239,7 +239,7 @@ int quickChatOnReceiveRemoteQuickChat(void* connection, void* data)
       if (localPlayer->Team == fromPlayer->Team) goto push;
     }
 
-    return;
+    return sizeof(struct QuickChatMsg);
   }
 
   push:;

@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <libdl/stdio.h>
 #include <libdl/stdlib.h>
 #include <libdl/net.h>
@@ -436,8 +437,9 @@ int onServerSentMapIrxModules(void * connection, void * data)
 {
 	DPRINTF("server sent map irx modules\n");
 
-	MapServerSentModulesMessage * msg = (MapServerSentModulesMessage*)data;
-  //mapsRemoteGlobalVersion = msg->Version;
+	MapServerSentModulesMessage msg;
+	memcpy(&msg, data, sizeof(msg));
+  //mapsRemoteGlobalVersion = msg.Version;
 
   // we've already initialized the usb interface
   if (rpcInit > 0)
@@ -448,8 +450,8 @@ int onServerSentMapIrxModules(void * connection, void * data)
 		LOAD_MODULES_STATE = 7;
 
 	// 
-	usbFsModuleSize = msg->Module1Size;
-	usbSrvModuleSize = msg->Module2Size;
+	usbFsModuleSize = msg.Module1Size;
+	usbSrvModuleSize = msg.Module2Size;
 
 	// if not OPL load modules
   if (loadModulesImmediately()) {
@@ -479,21 +481,25 @@ int onServerSentMapIrxModules(void * connection, void * data)
 //------------------------------------------------------------------------------
 int onServerSentMapChunk(void * connection, void * data)
 {
-	ServerDownloadMapChunkRequest_t * msg = (ServerDownloadMapChunkRequest_t*)data;
+	ServerDownloadMapChunkRequest_t msg;
+	memcpy(&msg, data, offsetof(ServerDownloadMapChunkRequest_t, Data));
+	if (msg.DataSize < 0 || msg.DataSize > sizeof(msg.Data))
+	  return sizeof(ServerDownloadMapChunkRequest_t);
+	memcpy(msg.Data, (char*)data + offsetof(ServerDownloadMapChunkRequest_t, Data), msg.DataSize);
 	ClientDownloadMapChunkResponse_t response = {
 		.Cancel = 0,
-		.Id = msg->Id
+		.Id = msg.Id
 	};
-	response.BytesReceived = DownloadState.TotalDownloaded += msg->DataSize;
+	response.BytesReceived = DownloadState.TotalDownloaded += msg.DataSize;
 
-	DPRINTF("server sent map chunk %d, %d bytes (%d/%d)\n", msg->Id, msg->DataSize, DownloadState.TotalDownloaded, DownloadState.TotalSize);
+	DPRINTF("server sent map chunk %d, %d bytes (%d/%d)\n", msg.Id, msg.DataSize, DownloadState.TotalDownloaded, DownloadState.TotalSize);
 
 	// 
 	if (LOAD_MODULES_STATE == 100)
 	{
 		// open
 		if (DownloadState.Fd < 0) {
-			sprintf(membuffer, msg->Id == 0 ? fWad : fBg, getMapPathPrefix(), DownloadState.MapFileName);
+			sprintf(membuffer, msg.Id == 0 ? fWad : fBg, getMapPathPrefix(), DownloadState.MapFileName);
 			DownloadState.Fd = usbOpen(membuffer, FIO_O_CREAT | FIO_O_WRONLY | FIO_O_TRUNC);
 
 			// failed to open
@@ -504,7 +510,7 @@ int onServerSentMapChunk(void * connection, void * data)
 		}
 
 		if (DownloadState.Fd >= 0) {
-			if (!usbWrite(DownloadState.Fd, msg->Data, msg->DataSize)) {
+			if (!usbWrite(DownloadState.Fd, msg.Data, msg.DataSize)) {
 				DownloadState.Cancel = 1;
 				DownloadState.Enabled = 2;
 				DownloadState.Fd = -1;
@@ -514,7 +520,7 @@ int onServerSentMapChunk(void * connection, void * data)
 				DownloadState.Fd = -1;
 				DownloadState.Enabled = 2;
 			}
-			else if (msg->IsEnd) {
+			else if (msg.IsEnd) {
 				usbClose(DownloadState.Fd);
 				DownloadState.Fd = -1;
 
@@ -558,24 +564,25 @@ int onServerSentMapChunk(void * connection, void * data)
 //------------------------------------------------------------------------------
 int onServerSentMapInitiated(void * connection, void * data)
 {
-	ServerInitiateMapDownloadResponse_t * msg = (ServerInitiateMapDownloadResponse_t*)data;
+	ServerInitiateMapDownloadResponse_t msg;
+	memcpy(&msg, data, sizeof(msg));
 	ClientDownloadMapChunkResponse_t response = {
-		.Id = msg->MapId,
+		.Id = msg.MapId,
 		.BytesReceived = 0,
 		.Cancel = 0
 	};
-	DPRINTF("server sent map init %d,%d,%s\n", msg->MapId, msg->MapVersion, msg->MapFileName);
+	DPRINTF("server sent map init %d,%d,%s\n", msg.MapId, msg.MapVersion, msg.MapFileName);
 
 	DownloadState.Enabled = 1;
-	DownloadState.MapId = msg->MapId;
-	DownloadState.Version = msg->MapVersion;
-	DownloadState.TotalSize = msg->TotalSize;
+	DownloadState.MapId = msg.MapId;
+	DownloadState.Version = msg.MapVersion;
+	DownloadState.TotalSize = msg.TotalSize;
 	DownloadState.Fd = -1;
 	DownloadState.TotalDownloaded = 0;
 	DownloadState.Ticks = 0;
 	DownloadState.Cancel = 0;
-	safe_strcpy(DownloadState.MapFileName, msg->MapFileName, sizeof(DownloadState.MapFileName));
-	safe_strcpy(DownloadState.MapName, msg->MapName, sizeof(DownloadState.MapName));
+	safe_strcpy(DownloadState.MapFileName, msg.MapFileName, sizeof(DownloadState.MapFileName));
+	safe_strcpy(DownloadState.MapName, msg.MapName, sizeof(DownloadState.MapName));
 
 	// just create the version file to reset it
 	// and also to verify that the usb drive is present

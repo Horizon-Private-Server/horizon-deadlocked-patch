@@ -11,6 +11,7 @@
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
 
+#include <stddef.h>
 #include <tamtypes.h>
 
 #include <libdl/dl.h>
@@ -44,26 +45,30 @@ ServerResponseBootElf_t bootElf = {
 
 int onServerDownloadDataRequest(void * connection, void * data)
 {
-  ServerDownloadDataRequest_t* request = (ServerDownloadDataRequest_t*)data;
+  ServerDownloadDataRequest_t request;
+  memcpy(&request, data, offsetof(ServerDownloadDataRequest_t, Data));
+  if (request.DataSize < 0 || request.DataSize > sizeof(request.Data))
+    return sizeof(ServerDownloadDataRequest_t) - sizeof(request.Data) + request.DataSize;
+  memcpy(request.Data, (char*)data + offsetof(ServerDownloadDataRequest_t, Data), request.DataSize);
 
 
   // copy bytes to target
-  totalBytes = request->TotalSize;
-  bytesReceived += request->DataSize;
-  memcpy((void*)request->TargetAddress, request->Data, request->DataSize);
-  DPRINTF("DOWNLOAD: {%d} %d/%d, writing %d to %08X\n", request->Id, bytesReceived, request->TotalSize, request->DataSize, request->TargetAddress);
+  totalBytes = request.TotalSize;
+  bytesReceived += request.DataSize;
+  memcpy((void*)request.TargetAddress, request.Data, request.DataSize);
+  DPRINTF("DOWNLOAD: {%d} %d/%d, writing %d to %08X\n", request.Id, bytesReceived, request.TotalSize, request.DataSize, request.TargetAddress);
 
   // respond
-  if (connection && (!request->Chunk || bytesReceived >= request->TotalSize))
+  if (connection && (!request.Chunk || bytesReceived >= request.TotalSize))
   {
     ClientDownloadDataResponse_t response;
-    response.Id = request->Id;
+    response.Id = request.Id;
     response.BytesReceived = bytesReceived;
     response.Stop = 0;
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE, sizeof(ClientDownloadDataResponse_t), &response);
   }
 
-  return sizeof(ServerDownloadDataRequest_t) - sizeof(request->Data) + request->DataSize;
+  return sizeof(ServerDownloadDataRequest_t) - sizeof(request.Data) + request.DataSize;
 }
 
 /*

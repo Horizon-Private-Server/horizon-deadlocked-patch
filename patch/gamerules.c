@@ -384,7 +384,7 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay);
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void onRotatingWeaponsChangedRemote(void * connection, void * data)
+int onRotatingWeaponsChangedRemote(void * connection, void * data)
 {
 	RotatingWeaponsChangedMessage_t message;
 	memcpy(&message, data, sizeof(RotatingWeaponsChangedMessage_t));
@@ -392,6 +392,8 @@ void onRotatingWeaponsChangedRemote(void * connection, void * data)
 	RotatingWeaponsNextRotationTime = message.gameTime;
 	RotatingWeaponsActiveId = message.weaponId;
   RotatingWeaponsGiveAmmo = 1;
+
+  return sizeof(RotatingWeaponsChangedMessage_t);
 }
 
 /*

@@ -4935,12 +4935,14 @@ void forceLobbyNameOverrides(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void onServerDateTimeResponseRemote(void* connection, void* data)
+int onServerDateTimeResponseRemote(void* connection, void* data)
 {
   ServerDateTimeMessage_t msg;
   memcpy(&msg, data, sizeof(ServerDateTimeMessage_t));
   
   interopData.Month = msg.Month;
+
+  return sizeof(ServerDateTimeMessage_t);
 }
 
 /*
@@ -4956,10 +4958,12 @@ void onServerDateTimeResponseRemote(void* connection, void* data)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void onServerSetLobbyNameOverridesRemote(void* connection, void* data)
+int onServerSetLobbyNameOverridesRemote(void* connection, void* data)
 {
   memcpy(&patchStateContainer.LobbyNameOverrides, data, sizeof(SetNameOverridesMessage_t));
   hasPendingLobbyNameOverrides = 1;
+
+  return sizeof(SetNameOverridesMessage_t);
 }
 
 /*

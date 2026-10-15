@@ -982,8 +982,9 @@ void onPlayerWithdrawnBankBox(int playerId, int bolts)
 //--------------------------------------------------------------------------
 int onPlayerWithdrawnBankBoxRemote(void * connection, void * data)
 {
-  SurvivalPlayerWithdrawnBankBoxMessage_t * message = (SurvivalPlayerWithdrawnBankBoxMessage_t*)data;
-  onPlayerWithdrawnBankBox(message->PlayerId, message->Amount);
+  SurvivalPlayerWithdrawnBankBoxMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onPlayerWithdrawnBankBox(message.PlayerId, message.Amount);
 
   return sizeof(SurvivalPlayerWithdrawnBankBoxMessage_t);
 }
@@ -1023,8 +1024,9 @@ void onPlayerInteractBankBox(int playerId, int deposit, int amount)
 //--------------------------------------------------------------------------
 int onPlayerInteractBankBoxRemote(void * connection, void * data)
 {
-  SurvivalPlayerInteractBankBoxMessage_t * message = (SurvivalPlayerInteractBankBoxMessage_t*)data;
-  onPlayerInteractBankBox(message->PlayerId, message->Deposit, message->Amount);
+  SurvivalPlayerInteractBankBoxMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onPlayerInteractBankBox(message.PlayerId, message.Deposit, message.Amount);
 
   return sizeof(SurvivalPlayerInteractBankBoxMessage_t);
 }
@@ -1081,8 +1083,9 @@ void onPlayerPrestigeWeapon(int playerId, int weaponId, int prestigeId)
 //--------------------------------------------------------------------------
 int onPlayerPrestigeWeaponRemote(void * connection, void * data)
 {
-  SurvivalWeaponPrestigeMessage_t * message = (SurvivalWeaponPrestigeMessage_t*)data;
-  onPlayerPrestigeWeapon(message->PlayerId, message->WeaponId, message->PrestigeId);
+  SurvivalWeaponPrestigeMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onPlayerPrestigeWeapon(message.PlayerId, message.WeaponId, message.PrestigeId);
 
   return sizeof(SurvivalWeaponPrestigeMessage_t);
 }
@@ -1148,8 +1151,9 @@ void onPlayerUpgradeWeapon(int playerId, int weaponId, int level)
 //--------------------------------------------------------------------------
 int onPlayerUpgradeWeaponRemote(void * connection, void * data)
 {
-  SurvivalWeaponUpgradeMessage_t * message = (SurvivalWeaponUpgradeMessage_t*)data;
-  onPlayerUpgradeWeapon(message->PlayerId, message->WeaponId, message->Level);
+  SurvivalWeaponUpgradeMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onPlayerUpgradeWeapon(message.PlayerId, message.WeaponId, message.Level);
 
   return sizeof(SurvivalWeaponUpgradeMessage_t);
 }
@@ -1243,8 +1247,9 @@ void onPlayerRevive(int playerId, int fromPlayerId)
 //--------------------------------------------------------------------------
 int onPlayerReviveRemote(void * connection, void * data)
 {
-  SurvivalReviveMessage_t * message = (SurvivalReviveMessage_t*)data;
-  onPlayerRevive(message->PlayerId, message->FromPlayerId);
+  SurvivalReviveMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onPlayerRevive(message.PlayerId, message.FromPlayerId);
 
   return sizeof(SurvivalReviveMessage_t);
 }
@@ -1279,8 +1284,9 @@ void onSetPlayerDead(int playerId, char isDead)
 //--------------------------------------------------------------------------
 int onSetPlayerDeadRemote(void * connection, void * data)
 {
-  SurvivalSetPlayerDeadMessage_t * message = (SurvivalSetPlayerDeadMessage_t*)data;
-  onSetPlayerDead(message->PlayerId, message->IsDead);
+  SurvivalSetPlayerDeadMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onSetPlayerDead(message.PlayerId, message.IsDead);
 
   return sizeof(SurvivalSetPlayerDeadMessage_t);
 }
@@ -1319,10 +1325,11 @@ void onSetPlayerWeaponMods(int playerId, int weaponId, u8* mods)
 //--------------------------------------------------------------------------
 int onSetPlayerWeaponModsRemote(void * connection, void * data)
 {
-  SurvivalSetWeaponModsMessage_t * message = (SurvivalSetWeaponModsMessage_t*)data;
-  onSetPlayerWeaponMods(message->PlayerId, message->WeaponId, message->Mods);
+  SurvivalSetWeaponModsMessage_t message;
+  memcpy(&message, data, sizeof(SurvivalSetWeaponModsMessage_t));
+  onSetPlayerWeaponMods(message.PlayerId, message.WeaponId, message.Mods);
 
-  return sizeof(SurvivalSetPlayerDeadMessage_t);
+  return sizeof(SurvivalSetWeaponModsMessage_t);
 }
 
 //--------------------------------------------------------------------------
@@ -1351,8 +1358,9 @@ void onSetPlayerStats(int playerId, struct SurvivalPlayerState* stats)
 //--------------------------------------------------------------------------
 int onSetPlayerStatsRemote(void * connection, void * data)
 {
-  SurvivalSetPlayerStatsMessage_t * message = (SurvivalSetPlayerStatsMessage_t*)data;
-  onSetPlayerStats(message->PlayerId, &message->Stats);
+  SurvivalSetPlayerStatsMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onSetPlayerStats(message.PlayerId, &message.Stats);
 
   return sizeof(SurvivalSetPlayerStatsMessage_t);
 }
@@ -1381,8 +1389,9 @@ void onSetPlayerDoublePoints(char isActive[GAME_MAX_PLAYERS], int timeOfDoublePo
 //--------------------------------------------------------------------------
 int onSetPlayerDoublePointsRemote(void * connection, void * data)
 {
-  SurvivalSetPlayerDoublePointsMessage_t * message = (SurvivalSetPlayerDoublePointsMessage_t*)data;
-  onSetPlayerDoublePoints(message->IsActive, message->TimeOfDoublePoints);
+  SurvivalSetPlayerDoublePointsMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onSetPlayerDoublePoints(message.IsActive, message.TimeOfDoublePoints);
 
   return sizeof(SurvivalSetPlayerDoublePointsMessage_t);
 }
@@ -1441,8 +1450,9 @@ void onSetPlayerDoubleXP(char isActive[GAME_MAX_PLAYERS], int timeOfDoubleXP[GAM
 //--------------------------------------------------------------------------
 int onSetPlayerDoubleXPRemote(void * connection, void * data)
 {
-  SurvivalSetPlayerDoubleXPMessage_t * message = (SurvivalSetPlayerDoubleXPMessage_t*)data;
-  onSetPlayerDoubleXP(message->IsActive, message->TimeOfDoubleXP);
+  SurvivalSetPlayerDoubleXPMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onSetPlayerDoubleXP(message.IsActive, message.TimeOfDoubleXP);
 
   return sizeof(SurvivalSetPlayerDoubleXPMessage_t);
 }
@@ -1499,8 +1509,9 @@ void onSetFreeze(char isActive)
 //--------------------------------------------------------------------------
 int onSetFreezeRemote(void * connection, void * data)
 {
-  SurvivalSetFreezeMessage_t * message = (SurvivalSetFreezeMessage_t*)data;
-  onSetFreeze(message->IsActive);
+  SurvivalSetFreezeMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onSetFreeze(message.IsActive);
 
   return sizeof(SurvivalSetFreezeMessage_t);
 }
@@ -2323,8 +2334,9 @@ void onSetRoundComplete(int gameTime, int boltBonus)
 //--------------------------------------------------------------------------
 int onSetRoundCompleteRemote(void * connection, void * data)
 {
-  SurvivalRoundCompleteMessage_t * message = (SurvivalRoundCompleteMessage_t*)data;
-  onSetRoundComplete(message->GameTime, message->BoltBonus);
+  SurvivalRoundCompleteMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onSetRoundComplete(message.GameTime, message.BoltBonus);
 
   return sizeof(SurvivalRoundCompleteMessage_t);
 }
@@ -2398,8 +2410,9 @@ void onSetRoundStart(int roundNumber, int gameTime)
 //--------------------------------------------------------------------------
 int onSetRoundStartRemote(void * connection, void * data)
 {
-  SurvivalRoundStartMessage_t * message = (SurvivalRoundStartMessage_t*)data;
-  onSetRoundStart(message->RoundNumber, message->GameTime);
+  SurvivalRoundStartMessage_t message;
+  memcpy(&message, data, sizeof(message));
+  onSetRoundStart(message.RoundNumber, message.GameTime);
 
   return sizeof(SurvivalRoundStartMessage_t);
 }

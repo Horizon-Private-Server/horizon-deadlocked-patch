@@ -82,6 +82,8 @@ int scavHuntOnReceiveRemoteSettings(void* connection, void* data)
   scavHuntSpawnFactor = maxf(response.SpawnFactor, 0.1);
   scavHuntSpawnTimerFactor = clamp(scavHuntSpawnFactor, 1, 30);
   DPRINTF("received scav hunt %d %f\n", scavHuntEnabled, scavHuntSpawnFactor);
+
+  return sizeof(ScavengerHuntSettingsResponse_t);
 }
 
 //--------------------------------------------------------------------------
