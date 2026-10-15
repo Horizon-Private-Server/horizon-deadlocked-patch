@@ -1,6 +1,7 @@
 
 EE_ELF = thousand-kills-11184.elf
 EE_BIN = thousand-kills-11184.bin
+EE_CUSTOM_MODE = 1
 EE_OBJS = main.o
 EE_LIBS = -ldl
 

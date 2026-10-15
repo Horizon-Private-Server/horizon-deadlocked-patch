@@ -1,6 +1,7 @@
 
 EE_ELF = benchmark-11184.elf
 EE_BIN = benchmark-11184.bin
+EE_CUSTOM_MODE = 1
 EE_OBJS = main.o
 EE_LIBS = -ldl
 

@@ -1,6 +1,7 @@
 
 EE_ELF = obstacle-11184.elf
 EE_BIN = obstacle-11184.bin
+EE_CUSTOM_MODE = 1
 EE_OBJS = common.o main.o game.o utils.o config.o net.o
 EE_LIBS = -ldl
 

@@ -1,6 +1,7 @@
 
 EE_ELF = forge-cgm-11184.elf
 EE_BIN = forge-cgm-11184.bin
+EE_CUSTOM_MODE = 1
 EE_OBJS = common.o main.o teams.o stats.o
 EE_LIBS = -ldl
 

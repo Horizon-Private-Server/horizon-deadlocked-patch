@@ -52,6 +52,19 @@ SECTIONS {
 		*(.scommon.*)
 	}
 
+	/* Keep all zero-initialized runtime data before _end, including small common. */
+	.bss : {
+		*(.sbss)
+		*(.sbss.*)
+		*(.gnu.linkonce.sb.*)
+		*(.scommon)
+		*(.scommon.*)
+		*(.bss)
+		*(.bss.*)
+		*(.gnu.linkonce.b*)
+		*(COMMON)
+	}
+
 	_end = . ;
 	PROVIDE(end = .);
 }

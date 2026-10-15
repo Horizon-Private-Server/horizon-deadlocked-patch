@@ -1,6 +1,7 @@
 
 EE_ELF = template-11184.elf
 EE_BIN = template-11184.bin
+EE_CUSTOM_MODE = 1
 EE_OBJS = main.o game.o scoreboard.o utils.o config.o net.o
 EE_LIBS = -ldl
 

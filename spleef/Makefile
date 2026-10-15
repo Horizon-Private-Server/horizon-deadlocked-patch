@@ -1,6 +1,7 @@
 
 EE_ELF = spleef-11184.elf
 EE_BIN = spleef-11184.bin
+EE_CUSTOM_MODE = 1
 EE_OBJS = common.o main.o scoreboard.o
 EE_LIBS = -ldl
 

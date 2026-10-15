@@ -1,6 +1,7 @@
 
 EE_ELF = payload-11184.elf
 EE_BIN = payload-11184.bin
+EE_CUSTOM_MODE = 1
 EE_OBJS = common.o main.o game.o scoreboard.o utils.o config.o net.o bezier.o
 EE_LIBS = -ldl
 

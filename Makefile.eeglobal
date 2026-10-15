@@ -50,9 +50,42 @@ window.o : /src/common/window.c
 %.o : %.s
 	$(EE_AS) $(EE_ASFLAGS) $< -o $@
 
-$(EE_BIN) : $(EE_OBJS) crt0.o
+ifeq ($(EE_CUSTOM_MODE),1)
+# Reserve the word at 0x000FFFFC; check every allocated ELF section, including BSS.
+define CHECK_CUSTOM_MODE_SIZE
+	@set -eu; \
+	mode_bytes=$$(wc -c < "$(EE_BIN)"); \
+	if test "$$mode_bytes" -gt 65532; then \
+		printf 'ERROR: %s is %d bytes; custom modes must fit within 65532 bytes (0x000F0000..0x000FFFFC)\n' "$(EE_BIN)" "$$mode_bytes"; \
+		exit 1; \
+	fi; \
+	mode_sections=$$($(EE_PREFIX)objdump -h "$(EE_ELF)" | awk '/^[[:space:]]*[0-9]+[[:space:]]/ { address=$$4; size=$$3 } /ALLOC/ && size != "00000000" { print address ":" size }'); \
+	test -n "$$mode_sections" || { echo "ERROR: Missing allocated sections in $(EE_ELF)"; exit 1; }; \
+	mode_end=$$((0x000F0000)); \
+	for section in $$mode_sections; do \
+		section_start=$$((0x$${section%:*})); \
+		section_end=$$((section_start + 0x$${section#*:})); \
+		if test "$$section_start" -lt $$((0x000F0000)) || test "$$section_end" -gt $$((0x000FFFFC)); then \
+			printf 'ERROR: %s runtime section 0x%08X..0x%08X exceeds 0x000F0000..0x000FFFFC (including BSS)\n' "$(EE_ELF)" "$$section_start" "$$section_end"; \
+			exit 1; \
+		fi; \
+		if test "$$section_end" -gt "$$mode_end"; then mode_end=$$section_end; fi; \
+	done; \
+	printf '%s: %d binary bytes, runtime end 0x%08X (%d bytes free)\n' "$(EE_BIN)" "$$mode_bytes" "$$mode_end" $$((0x000FFFFC - mode_end))
+endef
+
+.DELETE_ON_ERROR:
+.PHONY: check-size
+check-size: $(EE_BIN)
+	$(CHECK_CUSTOM_MODE_SIZE)
+
+copy: check-size
+endif
+
+$(EE_BIN) : $(EE_OBJS) crt0.o linkfile
 	# $(EE_CC) -Os  -mno-crt0 -Tlinkfile $(EE_LDFLAGS) -s \
 	#	-o $(EE_BIN) crt0.o $(EE_OBJS) $(EE_LIBS) -Wl,--gc-sections -Wl,--oformat=binary
 	$(EE_CC) -g -mno-crt0 -Tlinkfile $(EE_LDFLAGS) \
 		-o $(EE_ELF) crt0.o $(EE_OBJS) $(EE_LIBS) -Wl,--gc-sections
 	$(EE_OBJCOPY) -O binary $(EE_ELF) $(EE_BIN)
+	$(CHECK_CUSTOM_MODE_SIZE)

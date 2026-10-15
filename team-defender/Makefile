@@ -1,6 +1,7 @@
 
 EE_ELF = team-defender-11184.elf
 EE_BIN = team-defender-11184.bin
+EE_CUSTOM_MODE = 1
 EE_OBJS = common.o main.o game.o scoreboard.o utils.o config.o net.o
 EE_LIBS = -ldl
 
