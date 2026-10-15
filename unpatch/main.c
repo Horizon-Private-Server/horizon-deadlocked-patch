@@ -198,6 +198,10 @@ void onOnlineMenu(void)
 	u32 barBgColor = 0x80202020;
 	u32 barFgColor = 0x80000040;
 
+  // Native popups need input even before the normal draw routine returns.
+  if (netDoIHaveNetError() || !netGetLobbyServerConnection() || uiGetActive() != UI_ID_ONLINE_MAIN_MENU)
+    padEnableInput();
+
 	// call normal draw routine
 	((void (*)(void))0x00707F28)();
 
@@ -266,22 +270,25 @@ int main (void)
 
 	// just clear if selfDestruct is true
 	if (selfDestruct) {
-		return;
+    padEnableInput();
+		return 0;
 	}
 
 	// 
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_DATA_REQUEST, &onServerDownloadDataRequest);
 
 	// only continue if in menus
-	if (state != 0)
-		return;
+	if (state != 0) {
+    padEnableInput();
+		return 0;
+  }
 
 	// Hook menu loop
 	*(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
 
   // reset when we lose connection
   void* connection = netGetLobbyServerConnection();
-  if (totalBytes > 0 && !connection)
+  if (totalBytes > 0 && (!connection || netDoIHaveNetError()))
   {
     totalBytes = 0;
     bytesReceived = 0;
@@ -289,13 +296,16 @@ int main (void)
   }
 
 	// disable pad on online main menu
-  if (!netGetLobbyServerConnection()) {
+  if (!connection || netDoIHaveNetError()) {
     padEnableInput();
 
 	  *(u32*)0x00594CB8 = 0x0C000000 | (0x00707F28 / 4);
   }
 	else if (uiGetActive() == UI_ID_ONLINE_MAIN_MENU) {
 		padDisableInput();
+  }
+  else {
+    padEnableInput();
   }
 
 	return 0;

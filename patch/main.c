@@ -134,6 +134,7 @@ void onConfigInitialize(void);
 void onConfigUpdate(void);
 void configMenuEnable(void);
 void configMenuDisable(void);
+void configMenuReset(void);
 void configTrySendGameConfig(void);
 void bannerDraw(void);
 void bannerTick(void);
@@ -5671,6 +5672,8 @@ void onOnlineMenu(void)
   // 
   if (hasInitialized == 1)
   {
+    // The downloader may have left the game's menu input disabled.
+    padEnableInput();
     uiShowOkDialog("System", "Patch has been successfully loaded.");
     hasInitialized = 2;
   }
@@ -5799,6 +5802,13 @@ int main (void)
   // Call this first
   dlPreUpdate();
 
+  // A disconnect popup must remain usable even if the menu hook keeps running.
+  if (netDoIHaveNetError() || (isInMenus() && !netGetLobbyServerConnection()))
+  {
+    configMenuReset();
+    lastMenuInvokedTime = 0;
+  }
+
   //
   //if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
   //  POKE_U32(0x0036D664, gameGetTime() + (TIME_SECOND * 1020));
@@ -5815,6 +5825,7 @@ int main (void)
   if (!hasInitialized)
   {
     DPRINTF("patch loaded\n");
+    padEnableInput();
     onConfigInitialize();
     hasInitialized = 1;
 

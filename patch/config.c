@@ -133,6 +133,7 @@ struct {
 //
 void configMenuDisable(void);
 void configMenuEnable(void);
+void configMenuReset(void);
 void configTrySendGameConfig(void);
 
 // action handlers
@@ -3684,6 +3685,13 @@ void onMenuUpdate(int inGame)
   footerTextExtra[0] = 0;
   footerCallback = NULL;
 
+  // Do not let an abandoned overlay disable input to a disconnect popup.
+  if (netDoIHaveNetError() || (!inGame && !netGetLobbyServerConnection()))
+  {
+    configMenuReset();
+    return;
+  }
+
   if (inGame && modeExDataBuf)
   {
     free(modeExDataBuf);
@@ -3774,8 +3782,8 @@ void onConfigUpdate(void)
 
   // reset when we lose connection
   void* connection = netGetLobbyServerConnection();
-  if (dlTotalBytes > 0 && (!connection || (!dlIsActive && !dlIgnore))) {
-    if (dlConnectionTimeout > 60 || !dlIsActive) {
+  if (dlTotalBytes > 0 && (netDoIHaveNetError() || !connection || (!dlIsActive && !dlIgnore))) {
+    if (netDoIHaveNetError() || dlConnectionTimeout > 60 || !dlIsActive) {
       dlTotalBytes = 0;
       dlBytesReceived = 0;
       dlIsActive = 0;
@@ -4103,6 +4111,15 @@ void configTrySendGameConfig(void)
   }
 #endif
 
+}
+
+//------------------------------------------------------------------------------
+void configMenuReset(void)
+{
+  // Clear local state without sending config changes over a failed connection.
+  isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 0;
+  dynamicPageDisable();
+  padEnableInput();
 }
 
 //------------------------------------------------------------------------------

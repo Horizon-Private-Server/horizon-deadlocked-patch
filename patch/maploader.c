@@ -495,7 +495,7 @@ int onServerSentMapChunk(void * connection, void * data)
 	DPRINTF("server sent map chunk %d, %d bytes (%d/%d)\n", msg.Id, msg.DataSize, DownloadState.TotalDownloaded, DownloadState.TotalSize);
 
 	// 
-	if (LOAD_MODULES_STATE == 100)
+	if (LOAD_MODULES_STATE == 100 && DownloadState.Enabled == 1 && !DownloadState.Cancel)
 	{
 		// open
 		if (DownloadState.Fd < 0) {
@@ -1682,9 +1682,43 @@ int mapsPromptEnableCustomMaps(void)
 }
 
 //------------------------------------------------------------------------------
+static int mapsCancelDisconnectedDownloads(void)
+{
+  if (netGetLobbyServerConnection() && !netDoIHaveNetError())
+    return 0;
+
+  if (actionState == ACTION_DOWNLOADING_MODULES)
+  {
+    actionState = ACTION_NONE;
+    initialized = 2; // Retry the module request after reconnecting.
+    padEnableInput();
+  }
+
+#if MAPDOWNLOADER
+  if (DownloadState.Enabled)
+  {
+    DownloadState.Cancel = 1;
+    if (DownloadState.Fd >= 0)
+      usbClose(DownloadState.Fd);
+    DownloadState.Fd = -1;
+    DownloadState.Enabled = 0;
+    padEnableInput();
+  }
+#endif
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 void onMapLoaderOnlineMenu(void)
 {
 	u32 bgColorDownload = 0x70000000;
+
+  if (mapsCancelDisconnectedDownloads())
+  {
+    padEnableInput();
+    return;
+  }
 
 	if (actionState == ACTION_DOWNLOADING_MODULES)
 	{
@@ -1862,6 +1896,9 @@ void runMapLoader(void)
 {
   // prevent refreshing maps when redownloading patch in game (debug)
   if (!isInMenus() && !initialized) return;
+
+  // The menu hook may not run while the native disconnect popup is open.
+  mapsCancelDisconnectedDownloads();
 
 	// 
 	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SET_MAP_OVERRIDE, &onSetMapOverride);
