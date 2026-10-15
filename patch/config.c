@@ -2226,7 +2226,7 @@ int getMenuElementState(TabElem_t* tab, MenuElem_t* element)
 }
 
 //------------------------------------------------------------------------------
-void drawToggleMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
+void drawToggleMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect, int inverted)
 {
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2242,27 +2242,8 @@ void drawToggleMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
 
   // draw value
   x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
-  gfxScreenSpaceText(x, y, 1, 1, color, *(char*)element->userdata ? "On" : "Off", -1, 2);
-}
-
-//------------------------------------------------------------------------------
-void drawToggleInvertedMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
-{
-  // get element state
-  int state = getMenuElementState(tab, element);
-
-  float x,y;
-  float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
-  u32 color = colorLerp(colorText, 0, lerp);
-
-  // draw name
-  x = (rect->TopLeft[0] * SCREEN_WIDTH) + 5;
-  y = (rect->TopLeft[1] * SCREEN_HEIGHT) + 5;
-  gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
-
-  // draw value
-  x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
-  gfxScreenSpaceText(x, y, 1, 1, color, *(char*)element->userdata ? "Off" : "On", -1, 2);
+  int enabled = (*(char*)element->userdata != 0) != inverted;
+  gfxScreenSpaceText(x, y, 1, 1, color, enabled ? "On" : "Off", -1, 2);
 }
 
 //------------------------------------------------------------------------------
@@ -3202,7 +3183,7 @@ void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int action
 }
 
 //------------------------------------------------------------------------------
-void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void toggleActionHandlerCommon(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg, int inverted)
 {
   // get element state
   int state = getMenuElementState(tab, element);
@@ -3234,7 +3215,7 @@ void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int action
     }
     case ACTIONTYPE_DRAW:
     {
-      drawToggleInvertedMenuElement(tab, element, (RECT*)actionArg);
+      drawToggleMenuElement(tab, element, (RECT*)actionArg, inverted);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
@@ -3253,50 +3234,13 @@ void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int action
 //------------------------------------------------------------------------------
 void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
 {
-  // get element state
-  int state = getMenuElementState(tab, element);
+  toggleActionHandlerCommon(tab, element, actionType, actionArg, 0);
+}
 
-  // do nothing if hidden
-  if ((state & ELEMENT_VISIBLE) == 0)
-    return;
-
-  switch (actionType)
-  {
-    case ACTIONTYPE_INCREMENT:
-    case ACTIONTYPE_SELECT:
-    case ACTIONTYPE_DECREMENT:
-    {
-      if ((state & ELEMENT_EDITABLE) == 0) {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
-        break;
-      }
-
-      // toggle
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
-      *(char*)element->userdata = !(*(char*)element->userdata);
-      break;
-    }
-    case ACTIONTYPE_GETHEIGHT:
-    {
-      *(float*)actionArg = LINE_HEIGHT;
-      break;
-    }
-    case ACTIONTYPE_DRAW:
-    {
-      drawToggleMenuElement(tab, element, (RECT*)actionArg);
-      break;
-    }
-    case ACTIONTYPE_DRAW_HIGHLIGHT:
-    {
-      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
-      break;
-    }
-    case ACTIONTYPE_INPUT:
-    {
-      tabInput(tab);
-      break;
-    }
-  }
+//------------------------------------------------------------------------------
+void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+{
+  toggleActionHandlerCommon(tab, element, actionType, actionArg, 1);
 }
 
 //------------------------------------------------------------------------------

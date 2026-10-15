@@ -39,6 +39,24 @@ endif
 
 all: $(EE_BIN) clean copy
 
+$(EE_BIN): linkfile
+
+.PHONY: check-size
+check-size: $(EE_BIN)
+	@set -eu; \
+	patch_end=$$($(EE_PREFIX)nm -n "$(EE_ELF)" | awk '$$3 == "_end" { print "0x" $$1 }'); \
+	test -n "$$patch_end" || { echo "ERROR: Missing patch _end symbol"; exit 1; }; \
+	patch_end=$$((patch_end)); \
+	patch_bytes=$$(wc -c < "$(EE_BIN)"); \
+	if test "$$patch_end" -gt $$((0x000F0000)) || test "$$patch_bytes" -gt $$((0x20000)); then \
+		printf 'ERROR: Patch overlaps gamemode memory at 0x000F0000 (runtime end 0x%08X, binary %d bytes)\n' "$$patch_end" "$$patch_bytes"; \
+		exit 1; \
+	fi; \
+	printf 'Patch runtime end: 0x%08X (%d bytes free before 0x000F0000)\n' "$$patch_end" $$((0x000F0000 - patch_end))
+
+# Validate both base and comp builds before copying them into bin/.
+copy: check-size
+
 # print out size stats
 stats:
 	@echo "modules:"

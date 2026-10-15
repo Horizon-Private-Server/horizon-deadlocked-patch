@@ -1,5 +1,7 @@
 
 
+.PHONY: test
+
 all:
 	$(MAKE) -C patch
 	$(MAKE) -C unpatch
@@ -29,6 +31,9 @@ all:
 	$(MAKE) -C usbserv
 	$(MAKE) -C forge-custom-mode
 	
+test:
+	$(MAKE) -C patch test
+
 clean:
 	rm -rf bin/
 	$(MAKE) -C patch clean

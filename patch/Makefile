@@ -1,6 +1,10 @@
 
 all: base
 
+.PHONY: test
+test:
+	$(MAKE) -f Makefile.base check-size
+
 stats:
 	$(MAKE) -f Makefile.base stats
 

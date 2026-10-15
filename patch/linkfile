@@ -51,6 +51,16 @@ SECTIONS {
 		*(.scommon.*)
 	}
 
+	/* Include zero-initialized runtime data in the patch memory limit. */
+	.bss : {
+		*(.sbss)
+		*(.sbss.*)
+		*(.gnu.linkonce.sb.*)
+		*(.bss)
+		*(.bss.*)
+		*(.gnu.linkonce.b*)
+		*(COMMON)
+	}
 
 	_end = . ;
 	PROVIDE(end = .);
