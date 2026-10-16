@@ -10,7 +10,6 @@
 #define TPS																		(60)
 #define THROW_BASE_POWER                      (7.0)
 #define PICKUP_COOLDOWN                       (TIME_SECOND * 1.5)
-#define EQUIP_PING_COOLDOWN                   (TIME_SECOND * 1.5)
 #define MIN_FLOAT_MAGNITUDE										(0.0001)
 
 #define POINTS_PER_TOUCHDOWN                  (1)
@@ -40,7 +39,6 @@ struct CGMPlayer
 {
 	int PlayerIndex;
   int TimeLastCarrier;
-  int TimeLastEquipPing;
 	struct CGMPlayerStats Stats;
 };
 
@@ -83,21 +81,10 @@ typedef struct SetTeamScoreMessage
 	int TeamScores[2];
 } SetTeamScoreMessage_t;
 
-typedef struct BallPickupRequestMessage
-{
-	int PickupByPlayerId;
-	int ResetCounter;
-} BallPickupRequestMessage_t;
-
-typedef struct BallScoredMessage
-{
-	int ScoredByPlayerId;
-} BallScoredMessage_t;
-
 void sendPlayerStats(int playerId);
 void sendTeamScore(void);
-void sendBallScored(int playerIdx);
-void sendBallPickupRequest(int playerIdx, int resetCounter);
+int playerStateCanHoldBall(Player* player);
+void onBallScored(int playerIdx);
 void netHookMessages(void);
 void updateTeamScore(int team);
 

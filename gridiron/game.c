@@ -60,43 +60,9 @@ void onReceiveTeamScore(int teamScores[2])
 }
 
 //--------------------------------------------------------------------------
-void onReceiveBallPickupRequest(int fromPlayerIdx, int resetCounter)
+void onBallScored(int scoredByPlayerIdx)
 {
-  if (!State.BallMoby || !isInGame()) return;
-
-  Player* player = playerGetAll()[fromPlayerIdx];
-  if (!player) return;
-
-  if (playerStateCanHoldBall(player) && ballGetCarrierIdx(State.BallMoby) < 0) {
-    if (!tryEquipBall(fromPlayerIdx, resetCounter)) {
-      ballResendPickup(State.BallMoby);
-    }
-  } else {
-    ballResendPickup(State.BallMoby);
-  }
-}
-
-//--------------------------------------------------------------------------
-void onReceiveBallScored(int scoredByPlayerIdx)
-{
-  if (!State.BallMoby || !isInGame()) return;
-
   Player** players = playerGetAll();
-  GameData* gameData = gameGetData();
-
-  // increment points
-  Player* player = players[scoredByPlayerIdx];
-  if (player) {
-    int teamIdx = 0;
-    if (State.Teams[teamIdx].TeamId != player->Team) teamIdx = 1;
-    State.Teams[teamIdx].Score += 1;
-    State.PlayerStates[scoredByPlayerIdx].Stats.Points += 1;
-    if (gameData) gameData->PlayerStats.CtfFlagsCaptures[scoredByPlayerIdx] += 1;
-    ballReset(State.BallMoby, BALL_RESET_TEAM0 + !teamIdx);
-  } else {
-    // reset ball to center
-    ballReset(State.BallMoby, BALL_RESET_CENTER);
-  }
 
   // return to base
   int i;
@@ -107,7 +73,8 @@ void onReceiveBallScored(int scoredByPlayerIdx)
   }
 
   // popup and play sound
-  mobyPlaySoundByClass(3, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_RED_FLAG);
+  Player* local = playerGetFromSlot(0);
+  if (local && local->PlayerMoby) mobyPlaySoundByClass(3, 0, local->PlayerMoby, MOBY_ID_RED_FLAG);
   snprintf(ScoreMessageBuffer, sizeof(ScoreMessageBuffer), "%s scored!", gameGetSettings()->PlayerNames[scoredByPlayerIdx]);
   uiShowPopup(0, ScoreMessageBuffer);
 }
@@ -168,74 +135,15 @@ int playerStateCanHoldBall(Player * player)
 //--------------------------------------------------------------------------
 int tryEquipBall(int playerIdx, int resetCounter)
 {
-  Player* player = playerGetAll()[playerIdx];
-	if (playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS || !player || !State.BallMoby)
-		return 0;
-
-	if (!playerStateCanHoldBall(player))
-		return 0;
-
-  // cooldown
-  if ((gameGetTime() - State.PlayerStates[playerIdx].TimeLastCarrier) < PICKUP_COOLDOWN)
-    return 0;
-
-	if (player->HeldMoby)
-		return 0;
-
-	// hold
-  if (!gameAmIHost()) {
-    sendBallPickupRequest(playerIdx, resetCounter);
-    player->HeldMoby = State.BallMoby;
-  } else {
-	  ballPickup(State.BallMoby, playerIdx, resetCounter);
-  }
-
-  State.PlayerStates[playerIdx].TimeLastEquipPing = gameGetTime();
-  return 1;
-}
-
-//--------------------------------------------------------------------------
-int tryPingEquip(int playerIdx)
-{
-  Player* player = playerGetAll()[playerIdx];
-	if (playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS || !player || !player->IsLocal || !State.BallMoby)
-		return 0;
-
-	if (!playerStateCanHoldBall(player))
-		return 0;
-
-  // cooldown
-  if ((gameGetTime() - State.PlayerStates[playerIdx].TimeLastEquipPing) < EQUIP_PING_COOLDOWN)
-    return 0;
-
-	if (player->HeldMoby != State.BallMoby)
-		return 0;
-
-	// hold
-  BallPVars_t * pvars = (BallPVars_t*)State.BallMoby->PVar;
-  if (!gameAmIHost()) {
-    sendBallPickupRequest(playerIdx, pvars->ResetCounter);
-  } else {
-	  ballPickup(State.BallMoby, playerIdx, pvars->ResetCounter);
-  }
-
-  State.PlayerStates[playerIdx].TimeLastEquipPing = gameGetTime();
-  return 1;
+  if (!State.BallMoby || playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS) return 0;
+  ballPickup(State.BallMoby, playerIdx, resetCounter);
+  return ballGetCarrierIdx(State.BallMoby) == playerIdx || ballHasPendingPickup(State.BallMoby, playerIdx);
 }
 
 //--------------------------------------------------------------------------
 void tryDropBall(int playerIdx)
 {
-  Player* player = playerGetAll()[playerIdx];
-	if (playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS || !player || !State.BallMoby || !player->IsLocal)
-		return;
-
-	// force player to drop flag
-	if (player->HeldMoby == State.BallMoby)
-	{
-		playerDropFlag(player, 0);
-		State.PlayerStates[playerIdx].TimeLastCarrier = gameGetTime();
-	}
+  ballRequestDrop(State.BallMoby, playerIdx);
 }
 
 //--------------------------------------------------------------------------
@@ -256,7 +164,7 @@ void playerTryEnterThrowState(Player* player)
 void playerLogic(int playerIdx)
 {
 	Player * localPlayer = playerGetFromSlot(0);
-  Player * player = playerGetAll()[playerIdx];
+  Player * player = playerGetFromIndex(playerIdx);
   struct CGMPlayer * playerState = &State.PlayerStates[playerIdx];
 	VECTOR temp = {0,0,0,0};
 	int gameTime = gameGetTime();
@@ -272,13 +180,8 @@ void playerLogic(int playerIdx)
     friendlyTeamIdx = 1;
   int enemyTeamIdx = !friendlyTeamIdx;
   
-  // if player already holds ball then periodically update other clients
-  if (player->IsLocal && State.BallMoby && ballCarrierIdx == playerIdx) {
-    tryPingEquip(playerIdx);
-  }
-
-  // otherwise, check for pickup
-  else if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
+  // Predicted pickups remain separate from confirmed ownership.
+  if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
     vector_subtract(temp, player->PlayerPosition, State.BallMoby->Position);
     if (vector_sqrmag(temp) < 4) {
       tryEquipBall(playerIdx, ballGetResetCounter(State.BallMoby));
@@ -294,7 +197,7 @@ void playerLogic(int playerIdx)
   }
 #endif
 
-  if (player->HeldMoby == State.BallMoby) {
+  if (State.BallMoby && player->HeldMoby == State.BallMoby) {
 
     // drop if ball belongs to someone else
     if (ballCarrierIdx >= 0 && ballCarrierIdx != playerIdx) {
@@ -302,9 +205,9 @@ void playerLogic(int playerIdx)
     } else {
       vector_subtract(temp, State.Teams[enemyTeamIdx].BasePosition, player->PlayerPosition);
 
-      if (player->IsLocal && vector_sqrmag(temp) < 5 && player->Ground.onGood && player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_FLAG_SPAWN_POINT)
+      if (player->IsLocal && ballCarrierIdx == playerIdx && vector_sqrmag(temp) < 5 && player->Ground.onGood && player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_FLAG_SPAWN_POINT)
       {
-        sendBallScored(playerIdx);
+        ballRequestScore(State.BallMoby, playerIdx);
       }
       else if (!canHoldBall && player->IsLocal)
       {
@@ -341,8 +244,7 @@ void playerLogic(int playerIdx)
       }
       else if (playerPadGetButtonUp(player, PAD_R1) && state == PLAYER_STATE_THROW_SHURIKEN && player->IsLocal)
       {
-        tryDropBall(playerIdx);
-        ballThrow(State.BallMoby, THROW_BASE_POWER);
+        ballThrow(State.BallMoby, playerIdx, THROW_BASE_POWER);
       }
     }
   }

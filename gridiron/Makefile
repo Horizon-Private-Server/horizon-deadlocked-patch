@@ -2,7 +2,7 @@
 EE_ELF = gridiron-11184.elf
 EE_BIN = gridiron-11184.bin
 EE_CUSTOM_MODE = 1
-EE_OBJS = main.o game.o scoreboard.o utils.o config.o net.o ball.o
+EE_OBJS = main.o game.o scoreboard.o utils.o config.o net.o ball.o ballstate.o
 EE_LIBS = -ldl
 
 EE_INCS := -I../common
