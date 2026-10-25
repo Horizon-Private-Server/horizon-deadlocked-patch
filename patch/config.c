@@ -540,7 +540,7 @@ MenuElem_OrderedListData_t dataCustomModes = {
     { CUSTOM_MODE_OITC, "One in the Chamber" },
     { CUSTOM_MODE_PAYLOAD, "Payload" },
 #if RAIDS
-    { CUSTOM_MODE_RAIDS, "Raids" },
+    { CUSTOM_MODE_RAIDS, "Raids (Alpha)" },
 #endif
     { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
     { CUSTOM_MODE_TAG, "Tag" },
@@ -566,7 +566,7 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_TRAINING] NULL,
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
   [CUSTOM_MODE_TAG] NULL,
-  [CUSTOM_MODE_RAIDS] "Raids",
+  [CUSTOM_MODE_RAIDS] NULL,
   [CUSTOM_MODE_OITC] "OITC",
   [CUSTOM_MODE_OBSTACLE] NULL,
   [CUSTOM_MODE_COLLECTATHON] NULL,
@@ -1643,7 +1643,14 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
   char selIdx = *(listData->stagingValue ? listData->stagingValue : listData->value);
 
   // if no override selected, let user see all maps
-  if (!gm) return 1;
+  if (!gm)
+  {
+    // hide raids non-hub maps
+    if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[v-1].Filename, RAIDS_HUB_MAPFILENAME, sizeof(customMapDefs[v-1].Filename)) != 0)
+      return 0;
+
+    return 1;
+  }
 
   // otherwise filter by game mode
   switch (gm)
@@ -1663,67 +1670,22 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
     //   return 0;
     // }
     case CUSTOM_MODE_RAIDS:
-    {
-      // accept if selected map is raids
-      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[v-1].Filename, "raids_hub", sizeof(customMapDefs[v-1].Filename)) == 0)
-        return 1;
-
-      // force raids hub map
-      for (i = 0; i < customMapDefCount; ++i) {
-        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[i].Filename, "raids_hub", sizeof(customMapDefs[i].Filename)) == 0) {
-          *value = i+1;
-          return 0;
-        }
-      }
-
-      // reset
-      *value = 0;
-      return 0;
-    }
     case CUSTOM_MODE_SURVIVAL:
-    {
-#if DEBUG
-      //return 1;
-#endif
-
-      // accept if selected map is survival
-      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL)
-        return 1;
-
-      // force first survival map
-      for (i = 0; i < customMapDefCount; ++i) {
-        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_SURVIVAL) {
-          *value = i+1;
-          //if (*dataCustomMaps.value == v)
-          //  *dataCustomMaps.value = i+1;
-          return 0;
-        }
-      }
-
-      // reset
-      *value = 0;
-      return 0;
-    }
     case CUSTOM_MODE_OBSTACLE:
     {
-      #if DEBUG
-        //return 1;
-      #endif
-      
-      // accept if selected map is obstacle
-      if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_OBSTACLE)
-        return 1;
-
-      // force first obstacle map
+      int firstMatch = 0;
       for (i = 0; i < customMapDefCount; ++i) {
-        if (customMapDefs[i].ForcedCustomModeId == CUSTOM_MODE_OBSTACLE) {
-          *value = i+1;
-          return 0;
-        }
+        if (customMapDefs[i].ForcedCustomModeId != gm)
+          continue;
+        if (gm == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[i].Filename, RAIDS_HUB_MAPFILENAME, sizeof(customMapDefs[i].Filename)) != 0)
+          continue;
+        if (v == i+1)
+          return 1;
+        if (!firstMatch)
+          firstMatch = i+1;
       }
 
-      // reset
-      *value = 0;
+      *value = firstMatch;
       return 0;
     }
     case CUSTOM_MODE_COLLECTATHON:
@@ -2877,36 +2839,6 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
   {
     case ACTIONTYPE_INCREMENT:
     case ACTIONTYPE_SELECT:
-    {
-      if ((state & ELEMENT_EDITABLE) == 0) {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
-        return;
-      }
-
-      char value = *activeValue;
-
-      int index = 0;
-      for (index = 0; index < listData->count; ++index) {
-        if (listData->items[index].value == value) {
-          break;
-        }
-      }
-
-      int startIndex = index;
-      do
-      {
-        index += 1;
-        if (index >= listData->count)
-          index = 0;
-        char tValue = listData->items[index].value;
-        if (listData->items[index].name && (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue)))
-          break;
-      } while (index != startIndex);
-
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
-      *activeValue = listData->items[index].value;
-      break;
-    }
     case ACTIONTYPE_DECREMENT:
     {
       if ((state & ELEMENT_EDITABLE) == 0) {
@@ -2923,12 +2855,15 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
         }
       }
 
+      int direction = actionType == ACTIONTYPE_DECREMENT ? -1 : 1;
       int startIndex = index;
       do
       {
-        index -= 1;
+        index += direction;
         if (index < 0)
           index = listData->count - 1;
+        if (index >= listData->count)
+          index = 0;
         char tValue = listData->items[index].value;
         if (listData->items[index].name && (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue)))
           break;

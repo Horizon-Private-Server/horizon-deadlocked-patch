@@ -8,7 +8,6 @@
  */
 
 #include <tamtypes.h>
-#include <string.h>
 
 #include <libdl/time.h>
 #include <libdl/game.h>
@@ -21,6 +20,7 @@
 #include <libdl/dialog.h>
 #include <libdl/ui.h>
 #include <libdl/stdio.h>
+#include <libdl/string.h>
 #include <libdl/stdlib.h>
 #include <libdl/guber.h>
 #include <libdl/graphics.h>
@@ -178,12 +178,6 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
 	// set health string
 	snprintf(State.PlayerStates[player->PlayerId].HealthBarStrBuf, sizeof(State.PlayerStates[player->PlayerId].HealthBarStrBuf), "%d/%d", (int)player->Health, (int)player->MaxHealth);
 	healthText->ExternalStringMemory = State.PlayerStates[player->PlayerId].HealthBarStrBuf;
-}
-
-//--------------------------------------------------------------------------
-void uiShowLowerPopup(int localPlayerIdx, int msgStringId)
-{
-	((void (*)(int, int, int))0x0054ea30)(localPlayerIdx, msgStringId, 0);
 }
 
 //--------------------------------------------------------------------------
@@ -1357,10 +1351,10 @@ void waitForMapConfig(PatchStateContainer_t * gameState)
   if (!mapConfig || mapConfig->Magic != MAP_CONFIG_MAGIC) {
     
     // prevent game from finishing loading
-    POKE_U32(0x004A7FD4, 0);
-    POKE_U32(0x004A7FDC, 0);
-    POKE_U32(0x004A7FE4, 0);
-    POKE_U32(0x004A82E8, 0);
+    //POKE_U32(0x004A7FD4, 0);
+    //POKE_U32(0x004A7FDC, 0);
+    //POKE_U32(0x004A7FE4, 0);
+    //POKE_U32(0x004A82E8, 0);
   } else if (!hasMapConfig()) {
 
     // call map code to let it initialize
@@ -1369,9 +1363,9 @@ void waitForMapConfig(PatchStateContainer_t * gameState)
   } else if (gameState->AllClientsReady && *(u16*)0x0021ddb4 == 6) {
 
     // let game load
-    POKE_U32(0x0021e680, 15);
-    POKE_U32(0x0021e684, 15);
-    POKE_U32(0x0021ddb4, 15);
+    //POKE_U32(0x0021e680, 15);
+    //POKE_U32(0x0021e684, 15);
+    //POKE_U32(0x0021ddb4, 15);
   }
 }
 

@@ -6,6 +6,8 @@
 
 #define MAX_CUSTOM_MAP_DEFINITIONS              (128)
 #define CONFIG_ITEM_HELP_SIZE                   (64)
+#define RAIDS_HUB_MAPFILENAME                   ("raids_hub")
+#define RAIDS_MAX_PLAYERS                       (5)
 
 enum PatchGameNetMessage
 {
@@ -234,6 +236,7 @@ extern MapLoaderState_t MapLoaderState;
 extern u32 SONY_MAC_ADDRESSES[];
 extern int SONY_MAC_ADDRESSES_COUNT;
 
+char* getCustomModeName(int modeId, int type);
 int configHasDevRules(void);
 int dynamicPageAvailableForCurrentMap(void);
 void dynamicPageEnableForCurrentMap(void);

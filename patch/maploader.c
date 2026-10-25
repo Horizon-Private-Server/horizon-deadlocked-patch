@@ -417,7 +417,7 @@ int onSetMapOverride(void * connection, void * data)
       // check for change
       // if map changed and custom mode active
       // redownload custom mode
-      if (gameConfig.customModeId && lastSelectedCustomMapId != patchStateContainer.SelectedCustomMapId)
+      if (isInMenus() && gameConfig.customModeId && lastSelectedCustomMapId != patchStateContainer.SelectedCustomMapId)
         redownloadCustomModeBinaries = 1;
 		}
 		else
@@ -1069,7 +1069,7 @@ void customMapInsert(char* versionFileBuffer, int versionFileBufferSize, char* f
     if (versionFileDef.ForcedCustomModeId == CUSTOM_MODE_RAIDS) {
       if (customMapDefs[i].ForcedCustomModeId != CUSTOM_MODE_RAIDS) continue;
       
-      int isHub = strncmp(filenameWithoutExtension, "raids_hub", 10) == 0;
+      int isHub = strncmp(filenameWithoutExtension, RAIDS_HUB_MAPFILENAME, 10) == 0;
       if (isHub) {
         insertAtIdx = i;
         break;

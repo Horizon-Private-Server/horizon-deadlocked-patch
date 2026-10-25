@@ -4455,7 +4455,7 @@ int hookCheckHostStartGame(void* a0)
   if (v0) {
     int modeRequiresLatestMaps = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS;
     int modeRequiresCustomMap = gameConfig.customModeId == CUSTOM_MODE_SURVIVAL || gameConfig.customModeId == CUSTOM_MODE_RAIDS || gameConfig.customModeId == CUSTOM_MODE_OBSTACLE;
-    
+
     // verify we have map
     if (mapOverrideResponse < 0) {
       showNoMapPopup = 1;
@@ -4498,6 +4498,36 @@ int hookCheckHostStartGame(void* a0)
       safe_strcpy(miscPopupBody, "Too many players to start.", 64);
       return 0;
     }
+
+#if RAIDS
+    if (gameConfig.customModeId == CUSTOM_MODE_RAIDS && gs) {
+      // limit number of players in raids
+      if (gs->PlayerCount > RAIDS_MAX_PLAYERS) {
+        snprintf(miscPopupBody, sizeof(miscPopupBody), "Too many players. Max supported is %d.", RAIDS_MAX_PLAYERS);
+      } else {
+        // limit each client to 1 player in raids
+        u32 seenClients = 0;
+        int i;
+        for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+          int clientId = gs->PlayerClients[i];
+          if (clientId < 0 || clientId >= GAME_MAX_PLAYERS) continue;
+
+          u32 clientMask = 1u << clientId;
+          if (seenClients & clientMask)
+            break;
+          seenClients |= clientMask;
+        }
+
+        if (i == GAME_MAX_PLAYERS)
+          return v0;
+        safe_strcpy(miscPopupBody, "Local players are not supported in Raids.", sizeof(miscPopupBody));
+      }
+
+      showMiscPopup = 1;
+      safe_strcpy(miscPopupTitle, getCustomModeName(CUSTOM_MODE_RAIDS, 0), sizeof(miscPopupTitle));
+      return 0;
+    }
+#endif
   }
 
   return v0;

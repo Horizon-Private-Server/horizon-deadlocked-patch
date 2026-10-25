@@ -1,4 +1,4 @@
-#include <string.h>
+#include <libdl/string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
 #include <libdl/collision.h>

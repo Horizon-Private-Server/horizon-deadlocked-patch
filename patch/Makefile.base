@@ -20,7 +20,7 @@ EE_DEFS += -DMAPBOOTELF
 #EE_DEFS += -DLEVELHOP
 #EE_DEFS += -DQUICKCHAT
 #EE_DEFS += -DNPS_INSTANTSYNC
-#EE_DEFS += -DRAIDS
+EE_DEFS += -DRAIDS
 
 # build test if defined
 ifneq (,$(findstring -DTEST,$(EE_DEFS)))
