@@ -10,12 +10,13 @@
 #include <libdl/random.h>
 #include "config.h"
 
-#define SP_MUSIC_TRACK_COUNT                (62 /* + 2*/)
+#define SP_MUSIC_TRACK_COUNT                (62)
+#define SP_MUSIC_RAIDS_TRACK_COUNT          (SP_MUSIC_TRACK_COUNT + 2)
 
 extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 
-int spMusicTrackTable[SP_MUSIC_TRACK_COUNT][2] = {
+int spMusicTrackTable[SP_MUSIC_RAIDS_TRACK_COUNT][2] = {
   { 0x0000A59E, 0x0000AB5A },
   { 0x0000B1BE, 0x0000B77A },
   { 0x0000BE86, 0x0000C3C4 },
@@ -79,9 +80,9 @@ int spMusicTrackTable[SP_MUSIC_TRACK_COUNT][2] = {
   { 0x0003227F, 0x00032735 },
   { 0x00032CFB, 0x000332D2 },
 
-  // these are extras added
-  //{ 0x0009BBAC - 0x000F8D29, 0x0009C017 - 0x000F8D29 }, // challenge complete
-  //{ 0x0009C482 - 0x000F8D29, 0x0009C7C7 - 0x000F8D29 }, // challenge failed
+  // These extras are loaded only in raids.
+  { 0x0009BBAC - 0x000F8D29, 0x0009C017 - 0x000F8D29 }, // challenge complete
+  { 0x0009C482 - 0x000F8D29, 0x0009C7C7 - 0x000F8D29 }, // challenge failed
 };
 
 //--------------------------------------------------------------------------
@@ -94,18 +95,19 @@ int spMusicGetRandom(void)
 void spMusicLoad(void)
 {
   int i;
+  int trackCount = gameConfig.customModeId == CUSTOM_MODE_RAIDS ? SP_MUSIC_RAIDS_TRACK_COUNT : SP_MUSIC_TRACK_COUNT;
   u32 newTracksAddr = 0x001CF940;
-  for (i = 0; i < SP_MUSIC_TRACK_COUNT; ++i) {
+  for (i = 0; i < trackCount; ++i) {
     POKE_U32(newTracksAddr + 0x00, spMusicTrackTable[i][0]);
     POKE_U32(newTracksAddr + 0x08, spMusicTrackTable[i][1]);
     newTracksAddr += 0x10;
   }
 
-  ((void (*)(int,int,int))0x0051f928)(4,13 + SP_MUSIC_TRACK_COUNT,0x400);
-  POKE_U16(0x004A8328, 13 + SP_MUSIC_TRACK_COUNT);
+  ((void (*)(int,int,int))0x0051f928)(4,13 + trackCount,0x400);
+  POKE_U16(0x004A8328, 13 + trackCount);
   //musicPlayTrack(MUSIC_TRACK_DREADZONE_STATION, 1);
 
-  DPRINTF("SPMUSIC loaded %d tracks\n", SP_MUSIC_TRACK_COUNT);
+  DPRINTF("SPMUSIC loaded %d tracks\n", trackCount);
 }
 
 //--------------------------------------------------------------------------
