@@ -474,11 +474,11 @@ void onMobyDestroyedCleanupAnimLayers(Moby* moby)
 {
   // base func
   ((void (*)(Moby*))0x004fb480)(moby);
+  mobyRemoveDrawFunctions(moby);
 
   // let moby be reused instantly
   // unless mob, then let is die normal
   if (mobyIsMob(moby) || mobyIsMob(moby->PParent)) return;
-  mobyRemoveDrawFunctions(moby);
   moby->CollCnt = 0;
 }
 
