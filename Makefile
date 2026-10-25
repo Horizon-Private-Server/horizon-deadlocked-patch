@@ -30,6 +30,7 @@ all:
 	$(MAKE) -C collectathon
 	$(MAKE) -C usbserv
 	$(MAKE) -C forge-custom-mode
+	$(MAKE) -C raids
 	
 test:
 	$(MAKE) -C patch test
@@ -63,4 +64,5 @@ clean:
 	$(MAKE) -C collectathon clean
 	$(MAKE) -C usbserv clean
 	$(MAKE) -C forge-custom-mode clean
+	$(MAKE) -C raids clean
 
