@@ -105,8 +105,7 @@ int initialized = 0;
 int actionState = ACTION_MODULES_NOT_INSTALLED;
 int rpcInit = 0;
 
-// 
-char membuffer[256];
+// Filesystem selection. Paths use per-call buffers so callbacks cannot overwrite them.
 int useHost = 0;
 
 #define MASS_PATH_PREFIX      "mass:"
@@ -141,6 +140,39 @@ typedef struct MapServerSentModulesMessage
 } MapServerSentModulesMessage;
 
 MapLoaderState_t MapLoaderState;
+
+// Keep this separate from Enabled (map selection) and LoadingFd (RPC resource).
+// Native sound loading can pump events while the sound file is already closed.
+enum CustomMapLoadPhase
+{
+  CUSTOM_LOAD_NATIVE,
+  CUSTOM_LOAD_COMPLETE,
+  CUSTOM_LOAD_STARTING,
+  CUSTOM_LOAD_SOUND,
+  CUSTOM_LOAD_SOUND_INIT,
+  CUSTOM_LOAD_WAD,
+  CUSTOM_LOAD_FAILED
+};
+enum CustomMapLoadPhase customLoadPhase;
+const char* customLoadError;
+u32 nativeLevelWadSectors;
+
+//------------------------------------------------------------------------------
+int customMapLoadPending(void)
+{
+  return customLoadPhase >= CUSTOM_LOAD_STARTING;
+}
+
+//------------------------------------------------------------------------------
+u32 failCustomMapLoad(const char* error)
+{
+  DPRINTF("custom map %s failed: %s (phase %d, fd %d, bytes %d/%d)\n",
+    MapLoaderState.MapFileName, error, customLoadPhase, MapLoaderState.LoadingFd,
+    MapLoaderState.LoadedBytes, MapLoaderState.LoadingFileSize);
+  customLoadError = error;
+  customLoadPhase = CUSTOM_LOAD_FAILED;
+  return 1;
+}
 
 #if MAPDOWNLOADER
 struct MapDownloadState
@@ -188,10 +220,18 @@ int maploaderIsLoadingCustomMap(void)
 //------------------------------------------------------------------------------
 void maploaderTransitionDraw(void)
 {
-  if (maploaderIsLoadingCustomMap()) {
+  if (customLoadPhase == CUSTOM_LOAD_FAILED) {
+    int i;
+    for (i = 0; i < 2; ++i)
+      gfxScreenSpaceText(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + i * 24, 0.8, 0.8, 0x80FFFFFF,
+        i ? "Check map files and restart game." : customLoadError, -1, TEXT_ALIGN_MIDDLECENTER);
+    return;
+  }
+
+  if (maploaderIsLoadingCustomMap() && MapLoaderState.LoadingFileSize > 0) {
     float w = MapLoaderState.FinishedLoading ? 1.0 : clamp(MapLoaderState.LoadedBytes / (float)MapLoaderState.LoadingFileSize, 0, 1);
     float h = 0.03;
-    gfxScreenSpaceBox(0, 1 - h/2, w, h, 0x80000080);
+    gfxScreenSpaceBox(0, 1 - h / 2, w, h, 0x80000080);
   }
 }
 
@@ -210,7 +250,7 @@ void mapHopToLoadingOnlineWadDraw(int a0)
 //------------------------------------------------------------------------------
 void mapHopTo(CustomMapDef_t* def)
 {
-  if (mapsIsInLevelHop) return;
+  if (mapsIsInLevelHop || customMapLoadPending()) return;
 
   mapResetExDataCache();
   mapsIsInLevelHop = 1;
@@ -355,6 +395,14 @@ int onSetMapOverride(void * connection, void * data)
   MapOverrideMessage payload;
   memcpy(&payload, data, sizeof(payload));
 
+  // Events may be dispatched inside native sound loading. Never switch files or
+  // discard the current descriptor in the middle of a custom load.
+  if (customMapLoadPending() && (payload.CustomMap.BaseMapId != MapLoaderState.MapId ||
+      strncmp(payload.CustomMap.Filename, MapLoaderState.MapFileName, sizeof(payload.CustomMap.Filename)) != 0)) {
+    failCustomMapLoad("Map changed");
+    return sizeof(MapOverrideMessage);
+  }
+
   // reset
   static int lastSelectedCustomMapId = 0;
   patchStateContainer.SelectedCustomMapId = 0;
@@ -411,8 +459,11 @@ int onSetMapOverride(void * connection, void * data)
 			MapLoaderState.CheckState = 0;
 			mapOverrideResponse = version;
 			MapLoaderState.MapId = payload.CustomMap.BaseMapId;
-			MapLoaderState.LoadingFd = -1;
-			MapLoaderState.LoadingFileSize = -1;
+			if (!customMapLoadPending())
+			{
+				MapLoaderState.LoadingFd = -1;
+				MapLoaderState.LoadingFileSize = -1;
+			}
 
       // check for change
       // if map changed and custom mode active
@@ -481,6 +532,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
 //------------------------------------------------------------------------------
 int onServerSentMapChunk(void * connection, void * data)
 {
+	char membuffer[256];
 	ServerDownloadMapChunkRequest_t msg;
 	memcpy(&msg, data, offsetof(ServerDownloadMapChunkRequest_t, Data));
 	if (msg.DataSize < 0 || msg.DataSize > sizeof(msg.Data))
@@ -564,6 +616,7 @@ int onServerSentMapChunk(void * connection, void * data)
 //------------------------------------------------------------------------------
 int onServerSentMapInitiated(void * connection, void * data)
 {
+	char membuffer[256];
 	ServerInitiateMapDownloadResponse_t msg;
 	memcpy(&msg, data, sizeof(msg));
 	ClientDownloadMapChunkResponse_t response = {
@@ -793,6 +846,7 @@ int readFile(char * path, void * buffer, int offset, int length)
 //--------------------------------------------------------------
 int readLevelVersion(char * name, int * version)
 {
+	char membuffer[256];
 	int r;
 
 	// Generate version filename
@@ -812,6 +866,7 @@ int readLevelVersion(char * name, int * version)
 //--------------------------------------------------------------
 int getLevelSizeUsb()
 {
+	char membuffer[256];
 	// Generate wad filename
 	sprintf(membuffer, fWad, getMapPathPrefix(), MapLoaderState.MapFileName);
 
@@ -831,6 +886,7 @@ int getLevelSizeUsb()
 //--------------------------------------------------------------
 int readLevelMapUsb(u8 * buf, int size)
 {
+	char membuffer[256];
 	// Generate toc filename
 	sprintf(membuffer, fMap, getMapPathPrefix(), MapLoaderState.MapFileName);
 
@@ -841,6 +897,7 @@ int readLevelMapUsb(u8 * buf, int size)
 //--------------------------------------------------------------
 int readLevelBgUsb(u8 * buf, int size)
 {
+	char membuffer[256];
 	// Ensure a wad isn't already open
 	if (MapLoaderState.LoadingFd >= 0)
 	{
@@ -926,123 +983,45 @@ int usbWrite(int fd, u8* buf, int len)
 #endif
 
 //--------------------------------------------------------------
-int openSoundUsb()
+void closeLevelUsb(void)
 {
-	// Ensure a wad isn't already open
-	if (MapLoaderState.LoadingFd >= 0)
-	{
-		DPRINTF("openSoundUsb() called but a file is already open (%d)!", MapLoaderState.LoadingFd);
-		return 0;
-	}
-
-	// Generate wad filename
-	sprintf(membuffer, fSound, getMapPathPrefix(), MapLoaderState.MapFileName);
-
-	// open wad file
-	rpcUSBopen(membuffer, FIO_O_RDONLY);
-	rpcUSBSync(0, NULL, &MapLoaderState.LoadingFd);
-	
-	// Ensure wad successfully opened
-	if (MapLoaderState.LoadingFd < 0)
-	{
-		DPRINTF("error opening file (%s): %d\n", membuffer, MapLoaderState.LoadingFd);
-		return 0;									
-	}
-
-	// Get length of file
-	rpcUSBseek(MapLoaderState.LoadingFd, 0, SEEK_END);
-	rpcUSBSync(0, NULL, &MapLoaderState.LoadingFileSize);
-
-	// Check the file has a valid size
-	if (MapLoaderState.LoadingFileSize <= 0)
-	{
-		DPRINTF("error seeking file (%s): %d\n", membuffer, MapLoaderState.LoadingFileSize);
-		rpcUSBclose(MapLoaderState.LoadingFd);
-		rpcUSBSync(0, NULL, NULL);
-		MapLoaderState.LoadingFd = -1;
-    MapLoaderState.Enabled = 0;
-		return 0;
-	}
-
-	// Go back to start of file
-	// The read will be called later
-	rpcUSBseek(MapLoaderState.LoadingFd, 0, SEEK_SET);
-	rpcUSBSync(0, NULL, NULL);
-
-	DPRINTF("%s is %d byte long.\n", membuffer, MapLoaderState.LoadingFileSize);
-	return MapLoaderState.LoadingFileSize;
+  int fd = MapLoaderState.LoadingFd;
+  MapLoaderState.LoadingFd = -1;
+  // Only called with an owned descriptor after open/read completion.
+  rpcUSBclose(fd);
+  rpcUSBSync(0, NULL, NULL);
 }
 
 //--------------------------------------------------------------
-int openLevelUsb()
+int beginLoadingMapFile(int sound)
 {
-	// Ensure a wad isn't already open
-	if (MapLoaderState.LoadingFd >= 0)
-	{
-		DPRINTF("openLevelUsb() called but a file is already open (%d)!", MapLoaderState.LoadingFd);
-		return 0;
-	}
+  char membuffer[256];
+  int seekResult = -1;
+  const char* format = sound ? fSound : fWad;
+  snprintf(membuffer, sizeof(membuffer), format, getMapPathPrefix(), MapLoaderState.MapFileName);
+  MapLoaderState.LoadingFileSize = -1;
+  if (rpcUSBopen(membuffer, FIO_O_RDONLY) != 1 ||
+      rpcUSBSync(0, NULL, &MapLoaderState.LoadingFd) != 1 || MapLoaderState.LoadingFd < 0)
+    return 0;
 
-	// Generate wad filename
-	sprintf(membuffer, fWad, getMapPathPrefix(), MapLoaderState.MapFileName);
+  if (rpcUSBseek(MapLoaderState.LoadingFd, 0, SEEK_END) != 1 ||
+      rpcUSBSync(0, NULL, &MapLoaderState.LoadingFileSize) != 1 || MapLoaderState.LoadingFileSize <= 0 ||
+      rpcUSBseek(MapLoaderState.LoadingFd, 0, SEEK_SET) != 1 ||
+      rpcUSBSync(0, NULL, &seekResult) != 1 || seekResult != 0) {
+    closeLevelUsb();
+    return 0;
+  }
 
-	// open wad file
-	rpcUSBopen(membuffer, FIO_O_RDONLY);
-	rpcUSBSync(0, NULL, &MapLoaderState.LoadingFd);
-	
-	// Ensure wad successfully opened
-	if (MapLoaderState.LoadingFd < 0)
-	{
-		DPRINTF("error opening file (%s): %d\n", membuffer, MapLoaderState.LoadingFd);
-		return 0;									
-	}
-
-	// Get length of file
-	rpcUSBseek(MapLoaderState.LoadingFd, 0, SEEK_END);
-	rpcUSBSync(0, NULL, &MapLoaderState.LoadingFileSize);
-
-	// Check the file has a valid size
-	if (MapLoaderState.LoadingFileSize <= 0)
-	{
-		DPRINTF("error seeking file (%s): %d\n", membuffer, MapLoaderState.LoadingFileSize);
-		rpcUSBclose(MapLoaderState.LoadingFd);
-		rpcUSBSync(0, NULL, NULL);
-		MapLoaderState.LoadingFd = -1;
-    MapLoaderState.Enabled = 0;
-		return 0;
-	}
-
-	// Go back to start of file
-	// The read will be called later
-	rpcUSBseek(MapLoaderState.LoadingFd, 0, SEEK_SET);
-	rpcUSBSync(0, NULL, NULL);
-
-	DPRINTF("%s is %d byte long.\n", membuffer, MapLoaderState.LoadingFileSize);
-	return MapLoaderState.LoadingFileSize;
-}
-
-//--------------------------------------------------------------
-int readLevelUsb(u8 * buf)
-{
-	// Ensure the wad is open
-	if (MapLoaderState.LoadingFd < 0 || MapLoaderState.LoadingFileSize <= 0)
-	{
-		DPRINTF("error opening file: %d\n", MapLoaderState.LoadingFd);
-		return 0;									
-	}
-
-	// Try to read from usb
   MapLoaderState.LoadedBytes = 0;
-	if (rpcUSBread(MapLoaderState.LoadingFd, buf, MapLoaderState.LoadingFileSize) != 0)
-	{
-		DPRINTF("error reading from file.\n");
-		rpcUSBclose(MapLoaderState.LoadingFd);
-		rpcUSBSync(0, NULL, NULL);
-		MapLoaderState.LoadingFd = -1;
-		return 0;
-	}
-				
-	return 1;
+  if (rpcUSBread(MapLoaderState.LoadingFd, MapLoaderState.LevelBuffer, MapLoaderState.LoadingFileSize) != 0) {
+    closeLevelUsb();
+    return 0;
+  }
+
+  if (sound) MapLoaderState.SoundBuffer = MapLoaderState.LevelBuffer;
+  MapLoaderState.Loaded |= sound ? 2 : 1;
+  customLoadPhase = sound ? CUSTOM_LOAD_SOUND : CUSTOM_LOAD_WAD;
+  return 1;
 }
 
 //------------------------------------------------------------------------------
@@ -1286,138 +1265,97 @@ void refreshCustomMapList(void)
 }
 
 //------------------------------------------------------------------------------
-int beginLoadingLevelWad(void)
+void hookedLoad(u64 arg0, void* dest, u32 sectorStart, u32 sectorSize, u64 arg4, u64 arg5, u64 arg6)
 {
-  int fSize = openLevelUsb();
-  if (fSize > 0) {
-    if (readLevelUsb(MapLoaderState.LevelBuffer) > 0) {
-      MapLoaderState.Loaded |= 1;
-      DPRINTF("loading level wad...");
-      return 1;
-    }
+  void (*cdvdLoad)(u64, void*, u32, u32, u64, u64, u64) = (void (*)(u64, void*, u32, u32, u64, u64, u64))0x00163840;
+
+  if (customMapLoadPending()) {
+    failCustomMapLoad("Load overlap");
+    return;
   }
 
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-int beginLoadingSoundWad(void* dest)
-{
-  int fSize = openSoundUsb();
-  if (fSize > 0) {
-    MapLoaderState.SoundBuffer = dest;
-    DPRINTF("level: %08X\nsound: %08X\n", MapLoaderState.LevelBuffer, MapLoaderState.SoundBuffer);
-
-    // read sound bank in background
-    // let hookedCheck handle when sound is finished loading
-    DPRINTF("begin sound bank read\n");
-    if (readLevelUsb(MapLoaderState.SoundBuffer) > 0) {
-      MapLoaderState.Loaded |= 2;
-      return 1;
-    }
-  }
-
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-void hookedLoad(u64 arg0, void * dest, u32 sectorStart, u32 sectorSize, u64 arg4, u64 arg5, u64 arg6)
-{
-	void (*cdvdLoad)(u64, void*, u32, u32, u64, u64, u64) = (void (*)(u64, void*, u32, u32, u64, u64, u64))0x00163840;
-
-	// Check if loading MP map
+  // Check if loading MP map
+  MapLoaderState.LoadingFd = -1;
   MapLoaderState.LevelBuffer = dest;
   MapLoaderState.SoundBuffer = 0;
   MapLoaderState.Loaded = 0;
   MapLoaderState.FinishedLoading = 0;
-	if (maploaderIsLoadingCustomMap())
-	{
-    // load sound wad first
-    // Generate sound filename
-    sprintf(membuffer, fSound, getMapPathPrefix(), MapLoaderState.MapFileName);
-    int filelen = readFileLength(membuffer);
-    if (filelen > 0)
-      if (beginLoadingSoundWad(dest)) return;
+  if (maploaderIsLoadingCustomMap()) {
+    customLoadPhase = CUSTOM_LOAD_STARTING;
+    // The sound file is optional. Until a read starts it is safe to fall back.
+    if (beginLoadingMapFile(1)) return;
 
     // if we've reached here, then the sound wad doesn't exist, so load the level wad
-    if (beginLoadingLevelWad()) return;
-	}
+    if (beginLoadingMapFile(0)) return;
 
-	// Default to cdvd load if the usb load failed
-	cdvdLoad(arg0, dest, sectorStart, sectorSize, arg4, arg5, arg6);
+    DPRINTF("custom map unavailable; falling back to CDVD\n");
+    MapLoaderState.Enabled = 0;
+    // The table may have sized this buffer for a smaller custom WAD.
+    if (nativeLevelWadSectors > sectorSize) {
+      failCustomMapLoad("WAD read failed");
+      return;
+    }
+    if (nativeLevelWadSectors) sectorSize = nativeLevelWadSectors;
+  }
+
+  // Default to cdvd load if the usb load failed
+  customLoadPhase = CUSTOM_LOAD_NATIVE;
+  cdvdLoad(arg0, dest, sectorStart, sectorSize, arg4, arg5, arg6);
 }
 
 //------------------------------------------------------------------------------
 u32 hookedCheck(void)
 {
-	u32 (*check)(void) = (u32 (*)(void))0x00163928;
-	int r, cmd;
+  u32 (*check)(void) = (u32 (*)(void))0x00163928;
+  int r = 0, cmd = 0;
+  enum CustomMapLoadPhase phase = customLoadPhase;
 
-  // delay non-host by some amount of time
-  // useful for testing slow load desyncs
-  /*
-  if (MapLoaderState.LoadingFd < 0 && MapLoaderState.Enabled && !gameAmIHost()) {
-    GameSettings* gs = gameGetSettings();
-    int loadAfter = gs->GameLoadStartTime + (1000 * 45);
-    if (gameGetTime() > loadAfter)
-      return check();
- 
-    check();
-    return 1;
-  }
-  */
+  // After the custom WAD, the engine still uses CDVD for other level assets.
+  if (phase <= CUSTOM_LOAD_COMPLETE) return check();
+  // Includes reentrant checks while closing files or inside native sound code.
+  if (phase != CUSTOM_LOAD_SOUND && phase != CUSTOM_LOAD_WAD) return 1;
 
-	// If the wad is not open then we're loading from cdvd
-	if (MapLoaderState.LoadingFd < 0 || !MapLoaderState.Enabled)
-    return check();
-
-	// Otherwise check to see if we've finished loading the data from USB
-	if (rpcUSBSyncNB(0, &cmd, &r) == 1)
-	{
-		// If the command is USBREAD close and return
-		if (cmd == 0x04)
-		{
-			DPRINTF("finished reading %d bytes from USB\n", r);
-			rpcUSBclose(MapLoaderState.LoadingFd);
-			rpcUSBSync(0, NULL, NULL);
-			MapLoaderState.LoadingFd = -1;
-
-      if ((MapLoaderState.Loaded & 1) == 0) {
-        // finish loading sound wad
-        if (*(u32*)0x0021E1EC != 0) {
-          ((void (*)())0x0058d5d0)(); // sound_LevelInit()
-          ((void (*)())0x0051f7b8)(); // music_LoadCoreBank()
-          POKE_U32(0x004ea028, 0);    // nop sound_LevelInit()
-          POKE_U32(0x004ea05c, 0);    // nop music_LoadCoreBank()
-        } else {
-          // 
-          ((void (*)())0x0066b170)(); // sound_LevelInit()
-          ((void (*)())0x005fec20)(); // music_LoadCoreBank()
-          POKE_U32(0x005cfca0, 0);    // nop sound_LevelInit()
-          POKE_U32(0x005cfcd4, 0);    // nop music_LoadCoreBank()
-        }
-
-        // load level wad
-        if (beginLoadingLevelWad()) return;
-      }
-
-      // finished loading level +/ sound wads
-      MapLoaderState.FinishedLoading = 1;
-			return 0;
-		}
-	}
-
-  // read bytes
+  int sync;
+  if (MapLoaderState.LoadingFd < 0 || (sync = rpcUSBSyncNB(0, &cmd, &r)) < 0 || cmd != 0x04)
+    return failCustomMapLoad("USB read failed");
   MapLoaderState.LoadedBytes = r;
+  if (sync == 0) return 1;
 
-	// Set bg color to red
-	//*((vu32*)0x120000e0) = 0x1010B4;
+  // Hold the completion gate before releasing the descriptor or calling any
+  // native code. Sound and level intentionally share the same EE buffer.
+  customLoadPhase = CUSTOM_LOAD_STARTING;
+  closeLevelUsb();
+  if (customLoadPhase == CUSTOM_LOAD_FAILED) return 1;
+  if (r != MapLoaderState.LoadingFileSize) {
+    return failCustomMapLoad("USB read failed");
+  }
 
-	// Not sure if this is necessary but it doesn't hurt to call the game's native load check
-	check();
+  if (phase == CUSTOM_LOAD_SOUND) {
+    customLoadPhase = CUSTOM_LOAD_SOUND_INIT;
+    int inGame = *(u32*)0x0021E1EC != 0;
+    void (*soundInit)(void) = (void (*)(void))(inGame ? 0x0058d5d0 : 0x0066b170);
+    void (*musicLoad)(void) = (void (*)(void))(inGame ? 0x0051f7b8 : 0x005fec20);
+    soundInit();
+    if (customLoadPhase == CUSTOM_LOAD_FAILED) return 1;
+    musicLoad();
+    if (customLoadPhase == CUSTOM_LOAD_FAILED) return 1;
 
-	// Indicate that we haven't finished loading
-	return 1;
+    // Do not overwrite the sound buffer unless its synchronous bank load ran.
+    if ((MapLoaderState.Loaded & 4) == 0) {
+      return failCustomMapLoad("Sound bank failed");
+    }
+    u32 soundInitCall = inGame ? 0x004ea028 : 0x005cfca0;
+    POKE_U32(soundInitCall, 0);        // sound_LevelInit()
+    POKE_U32(soundInitCall + 0x34, 0); // music_LoadCoreBank()
+    customLoadPhase = CUSTOM_LOAD_STARTING;
+    if (beginLoadingMapFile(0)) return 1;
+    return failCustomMapLoad("WAD read failed");
+  }
+
+  // Only a complete WAD read can release the native level-processing gate.
+  customLoadPhase = CUSTOM_LOAD_COMPLETE;
+  MapLoaderState.FinishedLoading = 1;
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -1438,6 +1376,7 @@ void hookedGetTable(u32 startSector, u32 sectorCount, u8 * dest, u32 levelId)
 {
 	// load table
 	((void (*)(u32,u32,void*))0x00159A00)(startSector, sectorCount, dest);
+	nativeLevelWadSectors = ((u32*)dest)[7];
 
 	// Disable when loading menu
 	if (levelId == 0)
@@ -1479,6 +1418,7 @@ void hookedMapExData(void)
 //------------------------------------------------------------------------------
 void hookedMapLoad(int a0, int a1)
 {
+  char membuffer[256];
   MapLoaderState.MapCodeInited = 0;
   
   // call base func
@@ -1529,27 +1469,24 @@ void hookedGetHud(u64 a0, void * dest, u32 startSector, u32 sectorCount, u64 t0,
 //------------------------------------------------------------------------------
 void hookedSoundCoreBankLoad(int loc, int offset, SndCompleteProc cb, u64 user_data)
 {
-	// Check if loading MP map
-	if (maploaderIsLoadingCustomMap() && MapLoaderState.LevelBuffer > 0 && MapLoaderState.SoundBuffer > 0)
-	{
-    MapLoaderState.SoundLoadCb = cb;
-    MapLoaderState.SoundLoadUserData = user_data;
-  
-    // sound wad finished, pass to Cb
-    if (cb && (MapLoaderState.Loaded & 4) == 0) {
-      int r = ((int (*)(void*))0x00158400)(MapLoaderState.SoundBuffer);
-      DPRINTF("load sound bank from EE %08X to IOP %08X\n", MapLoaderState.SoundBuffer, r);
-      MapLoaderState.SoundLoadCb(r, MapLoaderState.SoundLoadUserData);
-      MapLoaderState.SoundLoadCb = NULL; // reset
+  if (customLoadPhase != CUSTOM_LOAD_NATIVE && MapLoaderState.SoundBuffer) {
+    // Ignore duplicate/reentrant requests, and never process a partial read.
+    if (customLoadPhase == CUSTOM_LOAD_SOUND_INIT && cb && (MapLoaderState.Loaded & 4) == 0) {
       MapLoaderState.Loaded |= 4;
+      int r = ((int (*)(void*))0x00158400)(MapLoaderState.SoundBuffer);
+      if (!r) {
+        MapLoaderState.Loaded &= ~4;
+        failCustomMapLoad("Sound bank failed");
+        return;
+      }
+      if (customLoadPhase == CUSTOM_LOAD_FAILED) return;
+      cb(r, user_data);
     }
-
-    // we're loading the sound wad from USB
     return;
-	}
+  }
 
   // snd_BankLoadByLoc_CB
-	((void (*)(int, int, SndCompleteProc, u64))0x001582a8)(loc, offset, cb, user_data);
+  ((void (*)(int, int, SndCompleteProc, u64))0x001582a8)(loc, offset, cb, user_data);
 }
 
 //------------------------------------------------------------------------------
@@ -1682,7 +1619,7 @@ int mapsPromptEnableCustomMaps(void)
 }
 
 //------------------------------------------------------------------------------
-static int mapsCancelDisconnectedDownloads(void)
+int mapsCancelDisconnectedDownloads(void)
 {
   if (netGetLobbyServerConnection() && !netDoIHaveNetError())
     return 0;
@@ -1712,6 +1649,9 @@ static int mapsCancelDisconnectedDownloads(void)
 //------------------------------------------------------------------------------
 void onMapLoaderOnlineMenu(void)
 {
+#if MAPDOWNLOADER
+	char membuffer[256];
+#endif
 	u32 bgColorDownload = 0x70000000;
 
   if (mapsCancelDisconnectedDownloads())
@@ -1976,7 +1916,7 @@ void runMapLoader(void)
 		}
 
     // reset before we load
-    if (isInMenus()) {
+    if (isInMenus() && !customMapLoadPending()) {
       MapLoaderState.LevelBuffer = NULL;
       MapLoaderState.SoundBuffer = NULL;
       MapLoaderState.SoundLoadCb = NULL;
@@ -1996,8 +1936,7 @@ void runMapLoader(void)
     gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, colorBlack);
     gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, colorContentBg);
 
-		sprintf(membuffer, "Scanning USB drive for custom maps...");
-    gfxScreenSpaceText(SCREEN_WIDTH * 0.22, SCREEN_HEIGHT * 0.4, 1, 1, colorText, membuffer, -1, 3);
+    gfxScreenSpaceText(SCREEN_WIDTH * 0.22, SCREEN_HEIGHT * 0.4, 1, 1, colorText, "Scanning USB drive for custom maps...", -1, 3);
 
 		float w = (float)customMapDefCount / (float)MAX_CUSTOM_MAP_DEFINITIONS;
 		gfxScreenSpaceBox(0.2, 0.45, 0.6 * w, 0.05, colorRed);
