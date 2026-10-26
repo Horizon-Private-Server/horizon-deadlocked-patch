@@ -41,22 +41,6 @@ GuberEvent* mobCreateEvent(Moby* moby, u32 eventType);
 int spawnGetRandomPoint(VECTOR out, struct MobSpawnParams* mob);
 void playerRewardXp(int playerId, int weaponId, int xp);
 
-float difficultyXpMult[RAIDS_DIFFICULTY_COUNT] = {
-  [RAIDS_DIFFICULTY_1STAR] 1.0,
-  [RAIDS_DIFFICULTY_2STAR] 2.0,
-  [RAIDS_DIFFICULTY_3STAR] 4.0,
-  [RAIDS_DIFFICULTY_4STAR] 8.0,
-  [RAIDS_DIFFICULTY_5STAR] 16.0
-};
-
-float difficultyBoltMult[RAIDS_DIFFICULTY_COUNT] = {
-  [RAIDS_DIFFICULTY_1STAR] 1.0,
-  [RAIDS_DIFFICULTY_2STAR] 2.0,
-  [RAIDS_DIFFICULTY_3STAR] 4.0,
-  [RAIDS_DIFFICULTY_4STAR] 7.0,
-  [RAIDS_DIFFICULTY_5STAR] 10.0
-};
-
 //--------------------------------------------------------------------------
 int mobAmIOwner(Moby* moby)
 {
@@ -598,6 +582,7 @@ void mobUpdate(Moby* moby)
 	decTimerU16(&pvars->MobVars.FlinchCooldownTicks);
 	u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
 	decTimerU8(&pvars->MobVars.Knockback.Ticks);
+  for (i = 0; i < GAME_MAX_LOCALS; ++i) decTimerU16(&pvars->MobVars.LocalPlayerDamageHitInvTimer[i]);
   u16 acidEffectActiveTicks = decTimerU16(&pvars->MobVars.AcidEffectActiveTicks);
   decTimerU16(&pvars->MobVars.FreezeEffectActiveTicks);
   pvars->TicksSinceLastStateUpdate += 1;
@@ -912,21 +897,22 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	// initialize mob vars
 	pvars->MobVars.Config.Bolts = args.Bolts;
 	pvars->MobVars.Config.Xp = args.Xp;
-	pvars->MobVars.Config.Bangles = args.Bangles;
+	pvars->MobVars.Config.Bangles = params->Config.Bangles;
 	pvars->MobVars.Config.Scale = params->Scale;
 	pvars->MobVars.Config.Damage = (float)args.Damage;
 	pvars->MobVars.Config.Health = (float)args.StartHealth;
+  pvars->MobVars.Config.MaxHealth = (float)args.StartHealth;
+  pvars->MobVars.Config.DamageCooldownTickCount = params->Config.DamageCooldownTickCount;
 	pvars->MobVars.Config.Speed = (float)args.SpeedEighths / 8.0;
-	pvars->MobVars.Config.TurnSpeed = params->Config.TurnSpeed;
-	pvars->MobVars.Config.AttackRadius = (float)args.AttackRadiusEighths / 8.0;
-	pvars->MobVars.Config.HitRadius = (float)args.HitRadiusEighths / 8.0;
-	pvars->MobVars.Config.CollRadius = (float)args.CollRadiusEighths / 8.0;
+	pvars->MobVars.Config.TurnSpeed = params->Config.TurnSpeed[args.DifficultyStars];
+	pvars->MobVars.Config.AttackRadius = params->Config.AttackRadius;
+	pvars->MobVars.Config.HitRadius = params->Config.HitRadius;
+	pvars->MobVars.Config.CollRadius = params->Config.CollRadius;
 	pvars->MobVars.Config.OutOfSightDeAggroTickCount = params->Config.OutOfSightDeAggroTickCount;
-	pvars->MobVars.Config.ReactionTickCount = args.ReactionTickCount;
-	pvars->MobVars.Config.AttackCooldownTickCount = args.AttackCooldownTickCount;
+	pvars->MobVars.Config.ReactionTickCount = params->Config.ReactionTickCount;
+	pvars->MobVars.Config.AttackCooldownTickCount = params->Config.AttackCooldownTickCount;
 	pvars->MobVars.Config.AutoAggroMaxRange = params->Config.AutoAggroMaxRange;
 	pvars->MobVars.Config.VisionRange = params->Config.VisionRange;
-  pvars->MobVars.Config.RangedMaxDistanceToTarget = params->Config.RangedMaxDistanceToTarget;
 	pvars->MobVars.Config.PeripheryRangeTheta = params->Config.PeripheryRangeTheta;
 	pvars->MobVars.Health = pvars->MobVars.Config.Health;
 	pvars->MobVars.Order = -1;
@@ -934,6 +920,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Random = random;
   pvars->MobVars.DynamicRandom = random;
   pvars->MobVars.Behavior = behavior;
+  pvars->MobVars.DifficultyStars = args.DifficultyStars;
   pvars->MobVars.BlipType = params->BlipType;
   pvars->MobVars.BlipTeam = params->BlipTeam;
   vector_copy(pvars->MobVars.MoveVars.NextPosition, p);
@@ -1042,8 +1029,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
   if (pvars->VTable && pvars->VTable->OnDestroy)
     pvars->VTable->OnDestroy(moby, killedByPlayerId, sourceId);
 
-	int bolts = pvars->MobVars.Config.Bolts * difficultyBoltMult[State.DifficultyStars];
-	float xp = pvars->MobVars.Config.Xp * difficultyXpMult[State.DifficultyStars];
+	int bolts = pvars->MobVars.Config.Bolts;
+	float xp = pvars->MobVars.Config.Xp;
 
 	if (killedByPlayerId >= 0) {
         
@@ -1251,6 +1238,7 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
 	// read event
 	guberEventRead(event, &args, sizeof(struct MobActionUpdateEventArgs));
 
+  pvars->MobVars.DynamicRandom = args.Random;
 	// 
 	if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args.ActionId) > 0 && pvars->MobVars.Action != args.Action) {
 		pvars->MobVars.LastActionId = args.ActionId;
@@ -1262,7 +1250,6 @@ int mobHandleEvent_ActionUpdate(Moby* moby, GuberEvent* event)
       pvars->VTable->ForceLocalAction(moby, args.Action);
 	}
 
-  pvars->MobVars.DynamicRandom = args.Random;
 	
 #if LOG_STATS2
 	DPRINTF("mob state update event %08X, %08X, %d\n", (u32)moby, (u32)event, args.Action);
@@ -1472,8 +1459,11 @@ void mobRegisterNpc(Moby* moby)
 
   // invalidate spawn params
   pvars->MobVars.SpawnParamsIdx = -1;
+  pvars->MobVars.DifficultyStars = State.DifficultyStars;
 
 	// initialize mob vars
+  pvars->MobVars.Config.MaxHealth = pvars->MobVars.Config.Health;
+  pvars->MobVars.Config.DamageCooldownTickCount = 0;
   pvars->MobVars.Health = pvars->MobVars.Config.Health;
 	pvars->MobVars.Order = -1;
 	pvars->MobVars.TimeLastGroundedTicks = 0;
@@ -1517,51 +1507,25 @@ void mobRegisterNpc(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, float difficultyMult)
+void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCreateArgs* args)
 {
   GameSettings* gs = gameGetSettings();
   if (!gs)
     return;
 
-  float damage = config->Damage;
-  float speed = config->Speed;
-  float health = config->Health;
-  float difficulty = State.Difficulty * difficultyMult;
+  struct MobConfig* config = args->Config;
+  int difficulty = args->DifficultyStars;
+  float damage = config->Damage[difficulty] * args->DamageMultiplier;
+  float speed = config->Speed[difficulty] * args->SpeedMultiplier;
+  float health = config->Health[difficulty] * args->HealthMultiplier;
 
-  // scale config by round
-  if (isBaseConfig || 1) {
-    //printf("1 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
-    //damage = damage * powf(1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
-    //speed = speed * powf(1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * DIFFICULTY_FACTOR * State.Difficulty * randRange(0.5, 1.2)), 2);
-    
-    damage = damage * (1 + (MOB_BASE_DAMAGE_SCALE * config->DamageScale * difficulty));
-    speed = speed * (1 + (MOB_BASE_SPEED_SCALE * config->SpeedScale * difficulty));
-    health = health * powf(1 + (MOB_BASE_HEALTH_SCALE * config->HealthScale * difficulty), 2);
-    //printf("2 %d damage:%f speed:%f health:%f\n", spawnParamsIdx, damage, speed, health);
-  }
-
-  // enforce max values
-  if (config->MaxDamage > 0 && damage > config->MaxDamage)
-    damage = config->MaxDamage;
-  if (config->MaxSpeed > 0 && speed > config->MaxSpeed)
-    speed = config->MaxSpeed;
-  if (config->MaxHealth > 0 && health > config->MaxHealth)
-    health = config->MaxHealth;
-  
-  // printf("3 %d damage:%f speed:%f health:%f base:%d diff:%f\n", spawnParamsIdx, damage, speed, health, isBaseConfig, difficulty);
-
-  output->SpawnParamsIdx = spawnParamsIdx;
-  output->Bolts = (config->Bolts + randRangeInt(-50, 50)); // * BOLT_TAX[(int)gs->PlayerCount];
-  output->Xp = config->Xp;
+  output->SpawnParamsIdx = args->SpawnParamsIdx;
+  output->DifficultyStars = difficulty;
+  output->Bolts = (config->Bolts[difficulty] + randRangeInt(-50, 50)); // * BOLT_TAX[(int)gs->PlayerCount];
+  output->Xp = config->Xp[difficulty];
   output->StartHealth = (int)clamp(health, 0, 0x7FFFFFFF);
-  output->Bangles = (u16)config->Bangles;
   output->Damage = (u16)clamp(damage, 0, 0xFFFF);
-  output->AttackRadiusEighths = (u16)clamp(config->AttackRadius * 8, 0, 0xFFFF);
-  output->HitRadiusEighths = (u8)clamp(config->HitRadius * 8, 0, 0xFF);
-  output->CollRadiusEighths = (u8)clamp(config->CollRadius * 8, 0, 0xFF);
   output->SpeedEighths = (u16)clamp(speed * 8, 0, 0xFFFF);
-  output->ReactionTickCount = (u8)config->ReactionTickCount;
-  output->AttackCooldownTickCount = config->AttackCooldownTickCount;
 }
 
 //--------------------------------------------------------------------------

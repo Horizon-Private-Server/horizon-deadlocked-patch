@@ -377,6 +377,10 @@ void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, floa
 int mobyIsMob(Moby* moby)
 {
   if (!moby) return 0;
+  if (mobyIsNpc(moby)) return 1;
+
+  // Thrown zombie heads share the model OClass, but have projectile PVars.
+  if (!moby->Guber) return 0;
   
   int i;
   if (hasMapConfig()) {
@@ -386,7 +390,7 @@ int mobyIsMob(Moby* moby)
     }
   }
 
-  return moby->OClass == NPC_MOBY_OCLASS;
+  return 0;
 }
 
 //--------------------------------------------------------------------------

@@ -5,9 +5,6 @@
 #include <tamtypes.h>
 #include <libdl/player.h>
 
-/* Reserved locally; mirror in DZO's DzoPatchCustomCommandIds. */
-#define CUSTOM_DZO_CMD_ID_SURVIVAL_STATS (15)
-
 #define DZO_SURVIVAL_STATS_PAUSED              (1u << 0)
 #define DZO_SURVIVAL_STATS_GAME_OVER           (1u << 1)
 #define DZO_SURVIVAL_STATS_PERKS_AVAILABLE     (1u << 2)

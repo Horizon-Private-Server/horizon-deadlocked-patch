@@ -6,6 +6,7 @@
 
 #define MAX_CUSTOM_MAP_DEFINITIONS              (128)
 #define CONFIG_ITEM_HELP_SIZE                   (64)
+#define MENU_ELEMENT_NAME_SIZE                  (48)
 #define RAIDS_HUB_MAPFILENAME                   ("raids_hub")
 #define RAIDS_MAX_PLAYERS                       (5)
 
@@ -69,7 +70,7 @@ typedef void (*TabStateHandler)(struct TabElem* tab, int * state);
 
 typedef struct MenuElem
 {
-  char name[48];
+  char * name;
   ActionHandler handler;
   MenuElementStateHandler stateHandler;
   void * userdata;

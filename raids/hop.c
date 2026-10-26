@@ -59,7 +59,7 @@ void hopCancel(void)
 }
 
 //--------------------------------------------------------------------------
-int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime)
+int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime, int mapVersion)
 {
   // check if msg is canceling hop
   if (!mapFilename || !mapFilename[0]) {
@@ -74,6 +74,11 @@ int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime)
     for (i = 0; i < customMapCount; ++i) {
       CustomMapDef_t* def = PATCH_INTEROP->GetCustomMapDef(i);
       if (strncmp(def->Filename, mapFilename, sizeof(def->Filename)) == 0) {
+        int raidsVersion = 0;
+        if ((mapVersion >= 0 && def->Version != mapVersion)
+            || PATCH_INTEROP->ReadCustomMapExtraData(def->Filename, &raidsVersion, sizeof(raidsVersion), CUSTOM_MODE_RAIDS) != sizeof(raidsVersion)
+            || raidsVersion != CMODE_RAIDS_VERSION) break;
+
         State.PendingWorldHopMapDef = def;
         State.PendingWorldHopAtTime = loadAtTime;
         State.PendingWorldHopDifficultyStars = difficulty;
@@ -107,7 +112,7 @@ int hopOnBeginRemote(void * connection, void * data)
 
   // try and prepare world hop
   // if unable to, then broadcast that to everyone
-  if (!hopPrepare(msg.MapFilename, msg.Difficulty, 0, msg.LoadAtTime)) {
+  if (!hopPrepare(msg.MapFilename, msg.Difficulty, 0, msg.LoadAtTime, msg.MapVersion)) {
     int clientId = gameGetMyClientId();
     netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_WORLD_HOP_MISSING_MAP, sizeof(clientId), &clientId);
   }
@@ -135,7 +140,7 @@ int hopOnClientMissingMapRemote(void * connection, void * data)
 
   // show snack that client didn't have the map
   if (playerId >= 0) {
-    snprintf(strBuf, sizeof(strBuf), "%s missing map", gs->PlayerNames[playerId]);
+    snprintf(strBuf, sizeof(strBuf), "%s needs a map update", gs->PlayerNames[playerId]);
     pushSnack(strBuf, 30, 0);
   }
 
@@ -154,7 +159,7 @@ void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs)
   cost = 0;
 #endif
 
-  if (hopPrepare(mapFilename, difficulty, cost, gameGetTime() + delayMs)) {
+  if (hopPrepare(mapFilename, difficulty, cost, gameGetTime() + delayMs, -1)) {
 
     GameSettings* gs = gameGetSettings();
     if (gs) {
@@ -163,7 +168,7 @@ void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs)
     }
 
     // broadcast
-    struct HopOnBeginMsg msg = { .LoadAtTime = State.PendingWorldHopAtTime, .Difficulty = difficulty };
+    struct HopOnBeginMsg msg = { .LoadAtTime = State.PendingWorldHopAtTime, .Difficulty = difficulty, .MapVersion = State.PendingWorldHopMapDef->Version };
     if (State.PendingWorldHopMapDef)
       safe_strcpy(msg.MapFilename, State.PendingWorldHopMapDef->Filename, sizeof(msg.MapFilename));
       

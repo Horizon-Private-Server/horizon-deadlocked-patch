@@ -928,7 +928,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	updateGameState(gameState);
 
 	// Ensure in game
-	if (!gameSettings || !isInGame())
+	if (!gameSettings || !isInGame() || !hasMapConfig())
 		return;
 
 	// Determine if host

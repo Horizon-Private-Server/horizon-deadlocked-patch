@@ -79,36 +79,23 @@ struct MobVTable {
 };
 
 struct MobConfig {
-	int Bolts;
-
-	float Damage;
-	float MaxDamage;
-  float DamageScale;
-
-	float Speed;
-	float MaxSpeed;
-  float SpeedScale;
-
-	float Health;
-	float MaxHealth;
-  float HealthScale;
-
-  float TurnSpeed;
+  int Bolts[RAIDS_DIFFICULTY_COUNT];
+  float Damage[RAIDS_DIFFICULTY_COUNT];
+  float Speed[RAIDS_DIFFICULTY_COUNT];
+  float Health[RAIDS_DIFFICULTY_COUNT];
+	float TurnSpeed[RAIDS_DIFFICULTY_COUNT];
 	float AttackRadius;
 	float HitRadius;
   float CollRadius;
-
   float AutoAggroMaxRange;
   float VisionRange;
-  float RangedMaxDistanceToTarget;
   float PeripheryRangeTheta;
-
 	u16 Bangles;
-	u16 Xp;
+  u16 Xp[RAIDS_DIFFICULTY_COUNT];
 	u16 AttackCooldownTickCount;
-
   u16 OutOfSightDeAggroTickCount;
 	u8 ReactionTickCount;
+  u16 DamageCooldownTickCount;
 };
 
 struct MobSpawnedConfig {
@@ -126,7 +113,6 @@ struct MobSpawnedConfig {
 
   float AutoAggroMaxRange;
   float VisionRange;
-  float RangedMaxDistanceToTarget;
   float PeripheryRangeTheta;
 
 	u16 Bangles;
@@ -135,6 +121,8 @@ struct MobSpawnedConfig {
 
   u16 OutOfSightDeAggroTickCount;
 	u8 ReactionTickCount;
+  float MaxHealth;
+  u16 DamageCooldownTickCount;
 };
 
 struct MobSpawnParams {
@@ -147,6 +135,13 @@ struct MobSpawnParams {
   char BlipType;
   char BlipTeam;
   char TeamPalette;
+  char IsBoss;
+  u32 BaseColor;
+  u32 GlowColor;
+  u32 SpriteColor;
+  int SpriteTexId;
+  int BossTexUid;
+  char Name[32];
 };
 
 struct Knockback {
@@ -215,11 +210,11 @@ struct MobVars {
 	float ClosestDistToPlayer;
   u32 Userdata;
 	int LastAcidBy;
-	int LastAcidByOClass;
+  int LastAcidByOClass;
   float LastAcidByDamage;
 	int LastHitBy;
 	float LastHitByDamage;
-	u16 LastHitByOClass;
+  u16 LastHitByOClass;
 	u16 NextCheckActionDelayTicks;
 	u16 NextActionDelayTicks;
 	u16 ActionCooldownTicks;
@@ -250,6 +245,8 @@ struct MobVars {
   char BlipType;
   char BlipTeam;
   char Behavior;
+  u8 DifficultyStars;
+  u16 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
 };
 
 // warning: multiple differing types with the same name, only one recovered
@@ -358,17 +355,12 @@ struct MobStateUpdateEventArgs
 struct MobSpawnEventArgs
 {
 	int Bolts;
+	int Xp;
 	int StartHealth;
-	u16 Bangles;
 	u16 SpeedEighths;
 	u16 Damage;
-	u16 AttackRadiusEighths;
-	u16 AttackCooldownTickCount;
   u8 SpawnParamsIdx;
-	u8 Xp;
-	u8 HitRadiusEighths;
-  u8 CollRadiusEighths;
-	u8 ReactionTickCount;
+  u8 DifficultyStars;
 };
 
 struct MobCreateArgs
@@ -379,7 +371,10 @@ struct MobCreateArgs
   VECTOR Position;
   float Yaw;
   int SpawnFromUID;
-  float DifficultyMult;
+  float HealthMultiplier;
+  float DamageMultiplier;
+  float SpeedMultiplier;
+  u8 DifficultyStars;
   struct MobConfig *Config;
   char Behavior;
 };
@@ -403,7 +398,7 @@ void mobNuke(int killedByPlayerId);
 int mobHandleEvent(Moby* moby, GuberEvent* event);
 int mobCreate(struct MobCreateArgs* args);
 void mobRegisterNpc(Moby* moby);
-void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobConfig* config, int spawnParamsIdx, int isBaseConfig, float difficultyMult);
+void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct MobCreateArgs* args);
 void mobInitialize(void);
 void mobTick(void);
 

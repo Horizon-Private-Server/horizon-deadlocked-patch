@@ -13,6 +13,7 @@ struct HopOnBeginMsg
   int LoadAtTime;
   int Difficulty;
   char MapFilename[64];
+  int MapVersion;
 };
 
 void hopLoadMapStats(char* mapFilename, char* mapName);

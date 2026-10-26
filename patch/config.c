@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <libdl/pad.h>
 #include <libdl/ui.h>
 #include <libdl/graphics.h>
@@ -885,6 +886,10 @@ MenuElem_ListData_t dataGameConfigPreset = {
   }
 };
 
+// Keep writable labels in the binary: the raw patch entrypoint does not clear BSS.
+char forgeCgmParameterNames[MAX_FORGE_CGM_PARAMS][MENU_ELEMENT_NAME_SIZE]
+  __attribute__((section(".data"))) = {{0}};
+
 // game settings tab menu items
 MenuElem_t menuElementsGameSettings[] = {
   { "Reset", buttonActionHandler, menuStateAlwaysEnabledHandler, gmResetSelectHandler },
@@ -910,10 +915,10 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Hide Time", listActionHandler, menuStateHandler_HnsSettingStateHandler, &dataHnsHideDuration, "Time in seconds the hiders have to hide before the seekers can hunt for them." },
 
   // FORGE CGM SETTINGS 
-  { "", listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam1, NULL },
-  { "", listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam2, NULL },
-  { "", listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam3, NULL },
-  { "", listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam4, NULL },
+  { forgeCgmParameterNames[0], listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam1, NULL },
+  { forgeCgmParameterNames[1], listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam2, NULL },
+  { forgeCgmParameterNames[2], listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam3, NULL },
+  { forgeCgmParameterNames[3], listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam4, NULL },
 
   // GAME RULES
   { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
@@ -1610,17 +1615,17 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
   {
     case 1:
     {
-      safe_strcpy(element->name, "Custom map modules installed", 40);
+      element->name = "Custom map modules installed";
       break;
     }
     case 2:
     {
-      safe_strcpy(element->name, "There are custom map updates available", 40);
+      element->name = "There are custom map updates available";
       break;
     }
     case 255:
     {
-      safe_strcpy(element->name, "Error installing custom map modules", 40);
+      element->name = "Error installing custom map modules";
       break;
     }
     default:
@@ -2017,7 +2022,7 @@ int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, ch
 
       // update help text
       menuElementsGameSettings[selectedElemIdx].help = paramDesc;
-      safe_strcpy(menuElementsGameSettings[selectedElemIdx].name, paramName, sizeof(menuElementsGameSettings[selectedElemIdx].name));
+      safe_strcpy(menuElementsGameSettings[selectedElemIdx].name, paramName, MENU_ELEMENT_NAME_SIZE);
       listData->count = params->OptionCount;
     }
 
@@ -3827,8 +3832,11 @@ void navTab(int direction)
 int onServerDownloadDataRequest(void * connection, void * data)
 {
 	ServerDownloadDataRequest_t request;
-  memcpy(&request, data, sizeof(request));
-  int msgSize = sizeof(ServerDownloadDataRequest_t) - sizeof(request.Data) + request.DataSize;
+	memcpy(&request, data, offsetof(ServerDownloadDataRequest_t, Data));
+  int msgSize = offsetof(ServerDownloadDataRequest_t, Data) + request.DataSize;
+  if (request.DataSize < 0 || request.DataSize > sizeof(request.Data))
+    return msgSize;
+  memcpy(request.Data, (char*)data + offsetof(ServerDownloadDataRequest_t, Data), request.DataSize);
 
 	// copy bytes to target
   dlIsActive = request.Id;
