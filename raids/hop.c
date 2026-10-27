@@ -23,6 +23,7 @@ extern int Initialized;
 void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
 
 int hopCost = 0;
+int hopMissionType = RAIDS_MISSION_HUB;
 
 //--------------------------------------------------------------------------
 void hopLoadMapStats(char* mapFilename, char* mapName)
@@ -56,6 +57,7 @@ void hopCancel(void)
   State.PendingWorldHopMapDef = NULL;
   State.PendingWorldHopDifficultyStars = 0;
   hopCost = 0;
+  hopMissionType = RAIDS_MISSION_HUB;
 }
 
 //--------------------------------------------------------------------------
@@ -74,14 +76,15 @@ int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime, int 
     for (i = 0; i < customMapCount; ++i) {
       CustomMapDef_t* def = PATCH_INTEROP->GetCustomMapDef(i);
       if (strncmp(def->Filename, mapFilename, sizeof(def->Filename)) == 0) {
-        int raidsVersion = 0;
+        struct RaidsCustomMapExtraData exData = {};
         if ((mapVersion >= 0 && def->Version != mapVersion)
-            || PATCH_INTEROP->ReadCustomMapExtraData(def->Filename, &raidsVersion, sizeof(raidsVersion), CUSTOM_MODE_RAIDS) != sizeof(raidsVersion)
-            || raidsVersion != CMODE_RAIDS_VERSION) break;
+            || PATCH_INTEROP->ReadCustomMapExtraData(def->Filename, &exData, sizeof(exData), CUSTOM_MODE_RAIDS) != sizeof(exData)
+            || exData.RaidsVersion != CMODE_RAIDS_VERSION) break;
 
         State.PendingWorldHopMapDef = def;
         State.PendingWorldHopAtTime = loadAtTime;
         State.PendingWorldHopDifficultyStars = difficulty;
+        hopMissionType = exData.MissionType;
 
         // charge host
         if (gameAmIHost()) {
@@ -248,11 +251,20 @@ void hopTick(void)
   float y = SCREEN_HEIGHT * 0.2;
   float offY = 0;
 
-  if (strncmp(State.PendingWorldHopMapDef->Filename, RAIDS_HUB_MAPFILENAME, sizeof(State.PendingWorldHopMapDef->Filename)) != 0) {
+  if (hopMissionType == RAIDS_MISSION_RAID) {
     drawStars(x, y, 0, offY, 16, 4, 0x80008080, TEXT_ALIGN_MIDDLECENTER, State.PendingWorldHopDifficultyStars + 1);
     offY += 20;
   }
   
+  char* missionTypeName = NULL;
+  if (hopMissionType == RAIDS_MISSION_OPEN_WORLD) missionTypeName = "Planet";
+  else if (hopMissionType == RAIDS_MISSION_RAID) missionTypeName = "Raid";
+  else if (hopMissionType == RAIDS_MISSION_HUB) missionTypeName = "Hub";
+  if (missionTypeName) {
+    gfxHelperDrawText(x, y, 0, offY, 0.65, 0x80FFFFFF, missionTypeName, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    offY += 14;
+  }
+
   gfxHelperDrawText(x, y, 0, offY, 0.9, 0x80FFFFFF, State.PendingWorldHopMapDef->Name, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
   offY += 16;
 
