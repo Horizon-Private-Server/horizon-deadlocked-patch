@@ -10,6 +10,7 @@
 
 #define BANK_MAX_ITEMS                 (64)
 #define BANK_MAX_CONTRACTS             (3)
+#define BANK_MAX_CLASS_UNLOCK_RULES    (8)
 #define BANK_UPDATE_SIZE               (16)
 #define BANK_BADGE_EFFECT_COUNT        (8)
 
@@ -132,7 +133,6 @@ typedef struct RaidsContract {
 
   // kills to complete
   u32 RequiredKills;
-  int RequiredKillsMobOClass;
   int RequiredKillsGadgetId;
 
   // if raid - time to complete
@@ -142,6 +142,7 @@ typedef struct RaidsContract {
   u32 RewardBolts;
   u32 RewardPlayerXp;
   u32 RewardWeaponXp;
+  u32 RewardClassXp;
 
   // expiration
   int RefreshInMinutes;
@@ -155,7 +156,7 @@ typedef struct RaidsContract {
   char MapFilename[64];
   char MapName[32];
   
-  // corresponding RequiredKillsMobOClass mob name
+  // exported contract group name
   char MobName[32];
 } RaidsContract_t;
 
@@ -177,7 +178,32 @@ typedef struct RaidsPlayerAccount
   double WeaponXp[WEAPON_SLOT_COUNT-1];
   u64 Experience;
   u32 Bolts;
+  int EquippedClass;
 } RaidsPlayerAccount_t;
+
+typedef struct RaidsPlayerClassWeaponConstraint
+{
+  // if negative, weapon is disabled
+  char MaxRarity;
+} RaidsPlayerClassWeaponConstraint_t;
+
+typedef struct RaidsPlayerClassUnlockRule
+{
+  u8 ClassType;
+  u8 RequiredLevel;
+} RaidsPlayerClassUnlockRule_t;
+
+typedef struct RaidsPlayerClass
+{
+  u64 CurrentExperience;
+  int CurrentSkillPoints;
+  int ClassType;
+  float ExperienceCurveMultiplier;
+  int UnlockRulesCount;
+  char Name[32];
+  RaidsPlayerClassWeaponConstraint_t WeaponConstraints[WEAPON_SLOT_COUNT-1];
+  RaidsPlayerClassUnlockRule_t UnlockRules[BANK_MAX_CLASS_UNLOCK_RULES];
+} RaidsPlayerClass_t;
 
 typedef struct RaidsPlayerEquippedInventory
 {
@@ -189,6 +215,7 @@ typedef struct RaidsPlayerEquippedInventory
 typedef struct RaidsPlayerBank
 {
   RaidsPlayerAccount_t Account;
+  RaidsPlayerClass_t EquippedClass;
   RaidsPlayerEquippedInventory_t EquippedInventory;
   RaidsContract_t Contracts[BANK_MAX_CONTRACTS];
 } RaidsPlayerBank_t;
@@ -200,6 +227,22 @@ struct RaidsGetBankRequest
   u32 DestTimeFlagAddress;
   int Filter;
   int Page;
+};
+
+struct RaidsGetEquippedClassRequest
+{
+  u32 DestAddress;
+  u32 DestHasFlagAddress;
+  u32 DestTimeFlagAddress;
+};
+
+struct RaidsGetClassesRequest
+{
+  u32 DestAddress;
+  u32 DestHasFlagAddress;
+  u32 DestTimeFlagAddress;
+  int Offset;
+  int Count;
 };
 
 struct RaidsGetContractsRequest
@@ -278,6 +321,8 @@ typedef void (*BankSendInventoryItemToServer_func)(RaidsInventoryItem_t* item, e
 typedef void (*BankRequestEquippedInventoryFromServer_func)(void);
 typedef void (*BankRequestAccountFromServer_func)(void);
 typedef void (*BankSendAccountToServer_func)(void);
+typedef void (*BankRequestEquippedClassFromServer_func)(void);
+typedef void (*BankRequestClassesFromServer_func)(void);
 typedef void (*BankRequestContractsFromServer_func)(void);
 typedef void (*BankSendContractStatsToServer_func)(RaidsContract_t* contract);
 typedef void (*BankRequestMapStats_func)(char* mapFilename, char* mapName, struct RaidsBankMapStats* dest, int missionType);
@@ -286,6 +331,10 @@ typedef int (*BankGetHasEquippedInventory_func)(void);
 typedef int (*BankHasPendingEquippedInventoryRequest_func)(void);
 typedef int (*BankGetHasAccount_func)(void);
 typedef int (*BankHasPendingAccountRequest_func)(void);
+typedef int (*BankGetHasEquippedClass_func)(void);
+typedef int (*BankHasPendingEquippedClassRequest_func)(void);
+typedef int (*BankGetHasClasses_func)(void);
+typedef int (*BankHasPendingClassesRequest_func)(void);
 typedef int (*BankGetHasContracts_func)(void);
 typedef int (*BankHasPendingContractsRequest_func)(void);
 
@@ -313,6 +362,8 @@ struct BankVTable
   BankRequestEquippedInventoryFromServer_func RequestEquippedInventoryFromServer;
   BankRequestAccountFromServer_func RequestAccountFromServer;
   BankSendAccountToServer_func SendAccountToServer;
+  BankRequestEquippedClassFromServer_func RequestEquippedClassFromServer;
+  BankRequestClassesFromServer_func RequestClassesFromServer;
   BankRequestContractsFromServer_func RequestContractsFromServer;
   BankSendContractStatsToServer_func SendContractStatsToServer;
   BankRequestMapStats_func RequestMapStats;
@@ -321,6 +372,10 @@ struct BankVTable
   BankHasPendingEquippedInventoryRequest_func HasPendingEquippedInventoryRequest;
   BankGetHasAccount_func GetHasAccount;
   BankHasPendingAccountRequest_func HasPendingAccountRequest;
+  BankGetHasEquippedClass_func GetHasEquippedClass;
+  BankHasPendingEquippedClassRequest_func HasPendingEquippedClassRequest;
+  BankGetHasClasses_func GetHasClasses;
+  BankHasPendingClassesRequest_func HasPendingClassesRequest;
   BankGetHasContracts_func GetHasContracts;
   BankHasPendingContractsRequest_func HasPendingContractsRequest;
   

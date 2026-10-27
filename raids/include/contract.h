@@ -9,7 +9,7 @@
 #include <libdl/math3d.h>
 
 int contractCheckForCompletion(int contractIdx);
-void contractHandleKill(int mobOClass, int gadgetId, u32 weaponXp, u32 playerXp);
+void contractHandleKill(int mobDefIdx, int gadgetId, u32 weaponXp, u32 playerXp);
 void contractMissionComplete(int timeMs);
 void contractTick(void);
 

@@ -74,7 +74,7 @@ void trackerDraw(void)
   windowMove(&drawWindow, 0, 10);
 
   // xp
-  snprintf(strBuf, sizeof(strBuf), "XP: (+%dLVL) %'ld (%'d /min)", TrackerState.PlayerLevels, TrackerState.PlayerXp, (int)((TrackerState.PlayerXp * 60) / dt));
+  snprintf(strBuf, sizeof(strBuf), "Hero XP: (+%dLVL) %'ld (%'d /min)", TrackerState.PlayerLevels, TrackerState.PlayerXp, (int)((TrackerState.PlayerXp * 60) / dt));
   windowDrawText(&drawWindow, TEXT_ALIGN_TOPLEFT, 0, 0, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT);
   windowMove(&drawWindow, 0, 10);
 
@@ -83,7 +83,7 @@ void trackerDraw(void)
   if (slot >= 0) {
     struct GadgetDef* gadgetDef = weaponGetDef(weaponId, 0);
     char* weaponName = uiMsgString(gadgetDef->quickSelectTag);
-    snprintf(strBuf, sizeof(strBuf), "%s (+%dP) XP: %'ld (%.0f /min)", weaponName, TrackerState.WeaponLevels[slot], TrackerState.WeaponXp[slot], (float)((TrackerState.WeaponXp[slot] * 60) / dt));
+    snprintf(strBuf, sizeof(strBuf), "%s (+%dP) Weapon XP: %'ld (%.0f /min)", weaponName, TrackerState.WeaponLevels[slot], TrackerState.WeaponXp[slot], (float)((TrackerState.WeaponXp[slot] * 60) / dt));
     windowDrawText(&drawWindow, TEXT_ALIGN_TOPLEFT, 0, 0, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT);
     windowMove(&drawWindow, 0, 10);
   }

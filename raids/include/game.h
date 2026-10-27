@@ -146,6 +146,8 @@ enum RaidsCustomMenus
   RAIDS_CUSTOM_MENU_SKILLS,
   RAIDS_CUSTOM_MENU_UPGRADE,
   RAIDS_CUSTOM_MENU_CONTRACTS,
+  RAIDS_CUSTOM_MENU_WELCOME,
+  RAIDS_CUSTOM_MENU_RESERVED_FOR_MAP = 100,
 };
 
 enum RaidsDifficultys
@@ -262,12 +264,13 @@ struct RaidsMobStats
 
 struct RaidsMobContractRule
 {
-  u16 MobOClass;
+  u16 MobDefMask;
   u16 MinCount;
   u16 MaxCount;
   u16 ExpirationMinutes;
   float XpMult;
   float BoltMult;
+  char Name[32];
 };
 
 struct RaidsState
@@ -320,6 +323,7 @@ struct RaidsMapConfig
   int TrackWhitelistCount;
   int TrackWhitelistEnabled;
   struct BankVTable* BankVTable;
+  int ClassXpRewards[RAIDS_DIFFICULTY_COUNT];
 
   // mode
   PushSnack_func PushSnackFunc;
@@ -379,6 +383,8 @@ struct RaidsSetMissionCompleteRequest
   u32 TimeMs;
   int Difficulty;
   char MapFilename[64];
+  u32 ClassXp;
+  int MissionStartTime;
 };
 
 struct Guber* getGuber(Moby* moby);

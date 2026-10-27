@@ -53,9 +53,11 @@ int contractCheckForCompletion(int contractIdx)
 }
 
 //--------------------------------------------------------------------------
-void contractHandleKill(int mobOClass, int gadgetId, u32 weaponXp, u32 playerXp)
+void contractHandleKill(int mobDefIdx, int gadgetId, u32 weaponXp, u32 playerXp)
 {
   if (!hasMapConfig() || !mapConfig->BankVTable) return;
+  if (mobDefIdx < 0 || mobDefIdx >= MAX_MOB_SPAWN_PARAMS || mobDefIdx >= mapConfig->MobSpawnParamsCount) return;
+  if (!mapConfig->MobContractRules || !State.CurrentMapDef) return;
   
   RaidsPlayerBank_t* bank = mapConfig->BankVTable->GetLocalBank();
   if (!bank) return;
@@ -76,8 +78,18 @@ void contractHandleKill(int mobOClass, int gadgetId, u32 weaponXp, u32 playerXp)
     // check difficulty
     //if (contract->RequiredDifficultyStars >= 0 && contract->RequiredDifficultyStars != State.DifficultyStars) continue;
 
-    // check mob
-    if (contract->RequiredKillsMobOClass != 0 && contract->RequiredKillsMobOClass != mobOClass) continue;
+    // check contract group against the map's current definition mask
+    if (contract->RequiredKills == 0 || !contract->MobName[0]) continue;
+    int matchesMob = 0;
+    int j;
+    for (j = 0; j < mapConfig->MobContractRulesCount; ++j) {
+      struct RaidsMobContractRule* rule = &mapConfig->MobContractRules[j];
+      if (strncmp(rule->Name, contract->MobName, sizeof(contract->MobName)) == 0) {
+        matchesMob = (rule->MobDefMask & (1u << mobDefIdx)) != 0;
+        break;
+      }
+    }
+    if (!matchesMob) continue;
 
     // check weapon
     if (contract->RequiredKillsGadgetId != 0 && contract->RequiredKillsGadgetId != gadgetId) continue;

@@ -1070,7 +1070,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     
     // log
     trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp, appliedWeaponXp, weaponId);
-    if (killedByLocal) contractHandleKill(moby->OClass, weaponId, appliedWeaponXp, appliedPlayerXp);
+    if (killedByLocal) contractHandleKill(pvars->MobVars.SpawnParamsIdx, weaponId, appliedWeaponXp, appliedPlayerXp);
 
     // spawn ammo chance
     // originally wanted to do this only if the killer was the local player

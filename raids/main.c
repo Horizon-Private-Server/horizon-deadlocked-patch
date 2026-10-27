@@ -242,17 +242,13 @@ u64 missionCompleteGetBoltReward(void)
 }
 
 //--------------------------------------------------------------------------
-float missionCompleteGetXpReward(void)
+u32 missionCompleteGetClassXpReward(void)
 {
-  Player* player = playerGetFromSlot(0);
+  if (!mapConfig || !missionIsBossRaid()) return 0;
+  if (State.DifficultyStars < 0 || State.DifficultyStars >= RAIDS_DIFFICULTY_COUNT) return 0;
 
-  // xp is based on amount of xp earned during gameplay
-  // clamp between 5000 and 100000
-  float xp = 500 + (State.PlayerStates[player->PlayerId].State.Experience / 2);
-  xp -= (long)xp % 100;
-  if (xp < 1000) xp = 1000;
-  if (xp > 10000) xp = 10000;
-  return xp;
+  int xp = mapConfig->ClassXpRewards[State.DifficultyStars];
+  return xp > 0 ? xp : 0;
 }
 
 //--------------------------------------------------------------------------
@@ -272,8 +268,8 @@ void drawMissionCompleteMessage(void)
   snprintf(strBuf, sizeof(strBuf), "Completed in %02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
   gfxHelperDrawText(x, y, 0, 50, 0.9, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
-  //snprintf(strBuf, sizeof(strBuf), "\x0A+%'ld\x08 Bolts        \x0A+%'ld\x08 XP", missionCompleteGetBoltReward(), missionCompleteGetXpReward());
-  //gfxHelperDrawText(x, y, 0, 65, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  snprintf(strBuf, sizeof(strBuf), "\x0A+%'ld\x08 Bolts        \x0A+%'d\x08 Class XP", missionCompleteGetBoltReward(), missionCompleteGetClassXpReward());
+  gfxHelperDrawText(x, y, 0, 65, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
   snprintf(strBuf, sizeof(strBuf), "Press [UP] to open the Planet Select menu");
   gfxHelperDrawText(x, SCREEN_HEIGHT - 20, 0, 0, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMCENTER, COMMON_DZO_DRAW_NORMAL);
@@ -350,17 +346,20 @@ void onMissionComplete(int cuboidIdx)
 
   // 
   mapConfig->BankVTable->AddBolts(missionCompleteGetBoltReward());
-  //bankAddXP(missionCompleteGetXpReward());
 
   // send time to server
   struct RaidsSetMissionCompleteRequest msg;
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
 
+  msg.ClassXp = missionCompleteGetClassXpReward();
+  msg.MissionStartTime = State.MissionStartTime;
   msg.TimeMs = State.MissionCompleteTime - State.MissionStartTime;
   msg.Difficulty = State.DifficultyStars;
   safe_strcpy(msg.MapFilename, State.CurrentMapDef->Filename, sizeof(msg.MapFilename));
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_RAIDS_SET_MISSION_COMPLETED_REQUEST, sizeof(msg), &msg);
+  mapConfig->BankVTable->RequestEquippedClassFromServer();
+  mapConfig->BankVTable->RequestClassesFromServer();
 
   // pass to contracts
   contractMissionComplete(msg.TimeMs);
@@ -1118,6 +1117,12 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     if (!gameHasEnded()) {
       if (!bankVTable->GetHasAccount() && !bankVTable->HasPendingAccountRequest()) {
         bankVTable->RequestAccountFromServer();
+      }
+      if (!bankVTable->GetHasEquippedClass() && !bankVTable->HasPendingEquippedClassRequest()) {
+        bankVTable->RequestEquippedClassFromServer();
+      }
+      if (!bankVTable->GetHasClasses() && !bankVTable->HasPendingClassesRequest()) {
+        bankVTable->RequestClassesFromServer();
       }
       if (!bankVTable->GetHasContracts() && !bankVTable->HasPendingContractsRequest()) {
         bankVTable->RequestContractsFromServer();
