@@ -13,6 +13,7 @@
 #define BANK_MAX_CONTRACTS             (3)
 #define BANK_MAX_CLASS_UNLOCK_RULES    (RAIDS_MAX_CLASS_UNLOCK_RULES)
 #define BANK_MAX_CLASS_SKILLS          (RAIDS_MAX_CLASS_SKILLS)
+#define BANK_MAX_CLASSES               (RAIDS_MAX_CLASSES)
 #define BANK_UPDATE_SIZE               (16)
 #define BANK_BADGE_EFFECT_COUNT        (8)
 
@@ -153,6 +154,7 @@ typedef struct RaidsContract {
   // stats
   u32 Kills;
   u32 CompletedTimeMs;
+  int CompletedClassType;
 
   // map
   char MapFilename[64];
@@ -181,6 +183,7 @@ typedef struct RaidsPlayerAccount
   u64 Experience;
   u32 Bolts;
   int EquippedClass;
+  u64 ClassXp[BANK_MAX_CLASSES];
 } RaidsPlayerAccount_t;
 
 typedef struct RaidsPlayerClassSkill
@@ -189,13 +192,11 @@ typedef struct RaidsPlayerClassSkill
   u8 AppliedRank;
 } RaidsPlayerClassSkill_t;
 
-typedef struct RaidsPlayerClass
+typedef struct RaidsPlayerClassProgress
 {
-  u64 CurrentExperience;
-  int CurrentSkillPoints;
   int ClassType;
   RaidsPlayerClassSkill_t Skills[BANK_MAX_CLASS_SKILLS];
-} RaidsPlayerClass_t;
+} RaidsPlayerClassProgress_t;
 
 typedef struct RaidsPlayerEquippedInventory
 {
@@ -207,7 +208,7 @@ typedef struct RaidsPlayerEquippedInventory
 typedef struct RaidsPlayerBank
 {
   RaidsPlayerAccount_t Account;
-  RaidsPlayerClass_t EquippedClass;
+  RaidsPlayerClassProgress_t EquippedClassProgress;
   RaidsPlayerEquippedInventory_t EquippedInventory;
   RaidsContract_t Contracts[BANK_MAX_CONTRACTS];
 } RaidsPlayerBank_t;
@@ -243,10 +244,19 @@ struct RaidsClassSkillRequest
   int SkillId;
 };
 
+struct RaidsUpdateContractStatsRequest
+{
+  u32 ContractUid;
+  u32 Kills;
+  u32 CompletedTimeMs;
+  int CompletedClassType;
+};
+
 struct RaidsGetContractsRequest
 {
   u32 DestAddress;
   u32 DestHasFlagAddress;
+  struct RaidsUpdateContractStatsRequest ContractStats[BANK_MAX_CONTRACTS];
 };
 
 struct RaidsUpdateBankInventoryItemRequest
@@ -304,18 +314,20 @@ struct RaidsBankSetPlayerEquippedInventoryMsg
 struct RaidsBankSetPlayerAccountMsg
 {
   int ClientId;
-  RaidsPlayerAccount_t Account;
+  int Level;
+  u32 Bolts;
 };
 
 struct RaidsBankSetPlayerEquippedClassMsg
 {
   int ClientId;
   int AccountId;
-  RaidsPlayerClass_t EquippedClass;
+  RaidsPlayerClassProgress_t EquippedClassProgress;
+  u64 EquippedClassXp;
 };
 
 typedef RaidsPlayerBank_t* (*BankGetLocalBank_func)(void);
-typedef RaidsPlayerClass_t* (*BankGetPlayerEquippedClass_func)(int playerId);
+typedef RaidsPlayerClassProgress_t* (*BankGetPlayerEquippedClass_func)(int playerId);
 typedef int (*BankGetPlayerClassSkillRank_func)(int playerId, enum RaidsClassSkillId skillId);
 typedef float (*BankGetPlayerClassSkillMultiplier_func)(int playerId, enum RaidsClassSkillId skillId);
 typedef void (*BankGetItemName_func)(RaidsInventoryItem_t* item, char* buf, int bufSize);
@@ -329,8 +341,8 @@ typedef void (*BankSendInventoryItemToServer_func)(RaidsInventoryItem_t* item, e
 typedef void (*BankRequestEquippedInventoryFromServer_func)(void);
 typedef void (*BankRequestAccountFromServer_func)(void);
 typedef void (*BankSendAccountToServer_func)(void);
-typedef void (*BankRequestEquippedClassFromServer_func)(void);
-typedef void (*BankRequestClassesFromServer_func)(void);
+typedef void (*BankRequestEquippedClassProgressFromServer_func)(void);
+typedef void (*BankRequestAllClassProgressFromServer_func)(void);
 typedef int (*BankSpendClassSkillPoint_func)(enum RaidsClassSkillId skillId);
 typedef int (*BankResetClassSkills_func)(void);
 typedef void (*BankRequestContractsFromServer_func)(void);
@@ -341,10 +353,10 @@ typedef int (*BankGetHasEquippedInventory_func)(void);
 typedef int (*BankHasPendingEquippedInventoryRequest_func)(void);
 typedef int (*BankGetHasAccount_func)(void);
 typedef int (*BankHasPendingAccountRequest_func)(void);
-typedef int (*BankGetHasEquippedClass_func)(void);
-typedef int (*BankHasPendingEquippedClassRequest_func)(void);
-typedef int (*BankGetHasClasses_func)(void);
-typedef int (*BankHasPendingClassesRequest_func)(void);
+typedef int (*BankGetHasEquippedClassProgress_func)(void);
+typedef int (*BankHasPendingEquippedClassProgressRequest_func)(void);
+typedef int (*BankGetHasAllClassProgress_func)(void);
+typedef int (*BankHasPendingAllClassProgressRequest_func)(void);
 typedef int (*BankGetHasContracts_func)(void);
 typedef int (*BankHasPendingContractsRequest_func)(void);
 
@@ -357,6 +369,8 @@ typedef u32 (*BankAddBolts_func)(u32 amt);
 typedef u32 (*BankSubBolts_func)(u32 amt);
 typedef double (*BankGetWeaponXP_func)(int gadgetId);
 typedef double (*BankAddWeaponXP_func)(double amt, int gadgetId);
+typedef u64 (*BankGetClassXP_func)(int classType);
+typedef u64 (*BankAddClassXP_func)(u64 amount, int classType);
 
 struct BankVTable
 {
@@ -375,8 +389,8 @@ struct BankVTable
   BankRequestEquippedInventoryFromServer_func RequestEquippedInventoryFromServer;
   BankRequestAccountFromServer_func RequestAccountFromServer;
   BankSendAccountToServer_func SendAccountToServer;
-  BankRequestEquippedClassFromServer_func RequestEquippedClassFromServer;
-  BankRequestClassesFromServer_func RequestClassesFromServer;
+  BankRequestEquippedClassProgressFromServer_func RequestEquippedClassProgressFromServer;
+  BankRequestAllClassProgressFromServer_func RequestAllClassProgressFromServer;
   BankSpendClassSkillPoint_func SpendClassSkillPoint;
   BankResetClassSkills_func ResetClassSkills;
   BankRequestContractsFromServer_func RequestContractsFromServer;
@@ -387,10 +401,10 @@ struct BankVTable
   BankHasPendingEquippedInventoryRequest_func HasPendingEquippedInventoryRequest;
   BankGetHasAccount_func GetHasAccount;
   BankHasPendingAccountRequest_func HasPendingAccountRequest;
-  BankGetHasEquippedClass_func GetHasEquippedClass;
-  BankHasPendingEquippedClassRequest_func HasPendingEquippedClassRequest;
-  BankGetHasClasses_func GetHasClasses;
-  BankHasPendingClassesRequest_func HasPendingClassesRequest;
+  BankGetHasEquippedClassProgress_func GetHasEquippedClassProgress;
+  BankHasPendingEquippedClassProgressRequest_func HasPendingEquippedClassProgressRequest;
+  BankGetHasAllClassProgress_func GetHasAllClassProgress;
+  BankHasPendingAllClassProgressRequest_func HasPendingAllClassProgressRequest;
   BankGetHasContracts_func GetHasContracts;
   BankHasPendingContractsRequest_func HasPendingContractsRequest;
   
@@ -402,6 +416,8 @@ struct BankVTable
   BankSubBolts_func SubBolts;
   BankGetWeaponXP_func GetWeaponXP;
   BankAddWeaponXP_func AddWeaponXP;
+  BankGetClassXP_func GetClassXP;
+  BankAddClassXP_func AddClassXP;
 };
 
 #endif // RAIDS_BANK_H

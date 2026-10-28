@@ -346,20 +346,20 @@ void onMissionComplete(int cuboidIdx)
 
   // 
   mapConfig->BankVTable->AddBolts(missionCompleteGetBoltReward());
+  RaidsPlayerBank_t* bank = mapConfig->BankVTable->GetLocalBank();
+  if (bank) mapConfig->BankVTable->AddClassXP(missionCompleteGetClassXpReward(), bank->Account.EquippedClass);
+  mapConfig->BankVTable->SendAccountToServer();
 
   // send time to server
   struct RaidsSetMissionCompleteRequest msg;
   void* connection = netGetLobbyServerConnection();
   if (!connection) return;
 
-  msg.ClassXp = missionCompleteGetClassXpReward();
   msg.MissionStartTime = State.MissionStartTime;
   msg.TimeMs = State.MissionCompleteTime - State.MissionStartTime;
   msg.Difficulty = State.DifficultyStars;
   safe_strcpy(msg.MapFilename, State.CurrentMapDef->Filename, sizeof(msg.MapFilename));
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_RAIDS_SET_MISSION_COMPLETED_REQUEST, sizeof(msg), &msg);
-  mapConfig->BankVTable->RequestEquippedClassFromServer();
-  mapConfig->BankVTable->RequestClassesFromServer();
 
   // pass to contracts
   contractMissionComplete(msg.TimeMs);
@@ -696,6 +696,9 @@ void initialize(PatchStateContainer_t* gameState)
     
     // clear state
     memset(&State, 0, sizeof(State));
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      State.PlayerStates[i].EquippedClassProgress.ClassType = -1;
+    }
     
     // load map stats
     if (PATCH_INTEROP) hopLoadMapStats(PATCH_INTEROP->MapLoaderFilename, "DreadZone Station");
@@ -832,7 +835,6 @@ void initialize(PatchStateContainer_t* gameState)
 
       State.PlayerStates[i].IsDead = 0;
       State.PlayerStates[i].State.Bolts = 0;
-      State.PlayerStates[i].State.Experience = 0;
       State.PlayerStates[i].State.Kills = 0;
       State.PlayerStates[i].State.Deaths = 0;
       memset(State.PlayerStates[i].State.AllKills, 0, sizeof(State.PlayerStates[i].State.AllKills));
@@ -1118,11 +1120,11 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       if (!bankVTable->GetHasAccount() && !bankVTable->HasPendingAccountRequest()) {
         bankVTable->RequestAccountFromServer();
       }
-      if (!bankVTable->GetHasEquippedClass() && !bankVTable->HasPendingEquippedClassRequest()) {
-        bankVTable->RequestEquippedClassFromServer();
+      if (!bankVTable->GetHasEquippedClassProgress() && !bankVTable->HasPendingEquippedClassProgressRequest()) {
+        bankVTable->RequestEquippedClassProgressFromServer();
       }
-      if (!bankVTable->GetHasClasses() && !bankVTable->HasPendingClassesRequest()) {
-        bankVTable->RequestClassesFromServer();
+      if (!bankVTable->GetHasAllClassProgress() && !bankVTable->HasPendingAllClassProgressRequest()) {
+        bankVTable->RequestAllClassProgressFromServer();
       }
       if (!bankVTable->GetHasContracts() && !bankVTable->HasPendingContractsRequest()) {
         bankVTable->RequestContractsFromServer();

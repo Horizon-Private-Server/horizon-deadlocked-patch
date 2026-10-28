@@ -1052,10 +1052,9 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     u32 appliedPlayerXp = 0;
     u32 appliedWeaponXp = 0;
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
+      if (killedByLocal) pState->State.Bolts += bolts;
       mapConfig->BankVTable->AddBolts(bolts);
       mapConfig->BankVTable->AddXP((u32)xp);
-      pState->State.Experience += xp;
-      pState->State.Bolts += bolts;
       appliedPlayerXp = (u32)xp;
     }
 

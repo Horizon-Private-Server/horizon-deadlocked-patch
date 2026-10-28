@@ -146,6 +146,8 @@ void contractMissionComplete(int timeMs)
     // check time
     if (contract->RequiredRaidTimeMs > 0 && timeMs < contract->RequiredRaidTimeMs) {
       contract->CompletedTimeMs = (u32)timeMs;
+      if (contract->RewardClassXp > 0 && contract->CompletedClassType < 0)
+        contract->CompletedClassType = bank->Account.EquippedClass;
       mapConfig->BankVTable->SendContractStatsToServer(contract);
 
       char buf[64];
