@@ -77,36 +77,6 @@ int Lives[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_5STAR] 2,
 };
 
-float VehicleHealthMultipliers[] = {
-  [0] 2.0, // puma
-  [1] 3.0, // hovership
-  [2] 0.0,
-  [3] 0.0,
-  [4] 0.0,
-  [5] 3.0, // landstalker
-  [6] 1.0, // hoverbike
-};
-
-float VehicleDriverDamage[] = {
-  [0] 50.0, // puma
-  [1] 75.0, // hovership
-  [2] 0.0,
-  [3] 0.0,
-  [4] 0.0,
-  [5] 50.0, // landstalker
-  [6] 50.0, // hoverbike
-};
-
-float VehiclePassengerDamage[] = {
-  [0] 100.0, // puma
-  [1] 120.0, // hovership
-  [2] 0.0,
-  [3] 0.0,
-  [4] 0.0,
-  [5] 120.0, // landstalker
-  [6] 0.0, // hoverbike
-};
-
 //--------------------------------------------------------------------------
 void respawnDeadPlayers(void) {
 	int i;
@@ -497,21 +467,6 @@ Moby* onGuberEventCreateMoby(int oclass, int pvarSize)
 }
 
 //--------------------------------------------------------------------------
-void vehicleReinitPhysicsPost(Vehicle* vehicle)
-{
-	// pointer to gameplay data is stored in $s1
-	asm volatile (
-		"move %0, $s1"
-		: : "r" (vehicle)
-	);
-
-  vehicle->maxHP = 10000;
-  vehicle->hitPoints = 10000;
-  vehicle->fDriverAttackDamage = VehicleDriverDamage[vehicle->vehicleType];
-  vehicle->fPassengerAttackDamage = VehiclePassengerDamage[vehicle->vehicleType];
-}
-
-//--------------------------------------------------------------------------
 int shouldDrawHud(void)
 {
   PlayerHUDFlags* hudFlags = hudGetPlayerFlags(0);
@@ -578,15 +533,6 @@ void processPlayer(int pIndex) {
     }
   }
   
-  // set vehicle max health if driver
-  Vehicle* vehicle = player->Vehicle;
-  if (vehicle && player->InVehicle && vehicle->pDriver == player) {
-    vector_write(player->Velocity, 0); // make sure predictive movements aren't used
-    vehicle->maxHP = player->MaxHealth * VehicleHealthMultipliers[vehicle->vehicleType];
-    if (vehicle->hitPoints > vehicle->maxHP)
-      vehicle->hitPoints = vehicle->maxHP;
-  }
-
   // update death state
   if (!playerData->IsDead && playerIsDead(player)) {
     playerData->IsDead = 1;
@@ -726,10 +672,6 @@ void initialize(PatchStateContainer_t* gameState)
   POKE_U16(0x005e5a80, 0);
   POKE_U16(0x005e5b96, 0x10E0);
 
-  HOOK_J(0x004546EC, &vehicleReinitPhysicsPost); // puma
-  HOOK_J(0x00465244, &vehicleReinitPhysicsPost); // hoverbike
-  HOOK_J(0x0047da18, &vehicleReinitPhysicsPost); // landstalker
-  HOOK_J(0x0046ED14, &vehicleReinitPhysicsPost); // hovership
   POKE_U32(0x005F6488, 0); // enable vehicle targeting non-players
   
   HOOK_JAL(0x004f7780, &onMobyDestroyedCleanupAnimLayers);
