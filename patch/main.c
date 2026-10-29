@@ -205,6 +205,7 @@ float averageRenderTimeMs = 0;
 int updateTimeMs = 0;
 float averageUpdateTimeMs = 0;
 int redownloadCustomModeBinaries = 0;
+int customModeRequestPending = 0;
 ServerSetRanksRequest_t lastSetRanksRequest;
 VoteToEndState_t voteToEndState;
 int flagRequestCounters[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
@@ -5443,6 +5444,7 @@ void updateHook(void)
 int onCustomModeDownloadInitiated(void * connection, void * data)
 {
   DPRINTF("requested mode binaries started %d\n", dlIsActive);
+  customModeRequestPending = 0;
   redownloadCustomModeBinaries = 0;
   return 0;
 }
@@ -5543,13 +5545,15 @@ void runPayloadDownloadRequester(void)
 {
   GameModule * module = GLOBAL_GAME_MODULES_START;
   GameSettings* gs = gameGetSettings();
-  if (!gs) {
+  void* connection = netGetLobbyServerConnection();
+  if (!gs || !connection || netDoIHaveNetError()) {
     
     if (dlIsActive == 201) {
       dlIsActive = 0;
       dlIgnore = 1;
     }
     
+    customModeRequestPending = 0;
     redownloadCustomModeBinaries = 0;
     return;
   }
@@ -5558,7 +5562,7 @@ void runPayloadDownloadRequester(void)
   if (gameAmIHost() && isConfigMenuActive)
     return;
 
-  if (!dlIsActive) {
+  if (!dlIsActive && !customModeRequestPending) {
     // redownload when set mode doesn't match downloaded one
     if (!redownloadCustomModeBinaries && gameConfig.customModeId && (module->State == GAMEMODULE_OFF || module->ModeId != gameConfig.customModeId)) {
       redownloadCustomModeBinaries = 1;
@@ -5589,10 +5593,15 @@ void runPayloadDownloadRequester(void)
     }
 
     if (redownloadCustomModeBinaries == 1) {
-      netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_REQUEST_CUSTOM_MODE_PATCH, 0, &dlIsActive);
-      redownloadCustomModeBinaries = 2;
-      disableCustomModeModule();
-      DPRINTF("requested mode binaries\n");
+      customModeRequestPending = 1;
+      if (netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_REQUEST_CUSTOM_MODE_PATCH, 0, &dlIsActive) == 0) {
+        redownloadCustomModeBinaries = 2;
+        disableCustomModeModule();
+        DPRINTF("requested mode binaries\n");
+      } else {
+        customModeRequestPending = 0;
+        redownloadCustomModeBinaries = 1;
+      }
     }
   }
 
