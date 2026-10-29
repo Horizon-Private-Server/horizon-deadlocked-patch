@@ -534,15 +534,15 @@ MenuElem_OrderedListData_t dataCustomModes = {
     //{ CUSTOM_MODE_BENCHMARK, "Benchmark" },
     { CUSTOM_MODE_COLLECTATHON, "Collectathon" },
     { CUSTOM_MODE_GRIDIRON, "DreadBall" },
+#if RAIDS
+    { CUSTOM_MODE_RAIDS, "DreadZone Raids" },
+#endif
     { CUSTOM_MODE_GUN_GAME, "Gun Game" },
     { CUSTOM_MODE_HNS, "Hide and Seek" },
     { CUSTOM_MODE_INFECTED, "Infected" },
     { CUSTOM_MODE_OBSTACLE, "Obstacle Course" },
     { CUSTOM_MODE_OITC, "One in the Chamber" },
     { CUSTOM_MODE_PAYLOAD, "Payload" },
-#if RAIDS
-    { CUSTOM_MODE_RAIDS, "Raids (Alpha)" },
-#endif
     { CUSTOM_MODE_SEARCH_AND_DESTROY, "Search and Destroy" },
     { CUSTOM_MODE_TAG, "Tag" },
     { CUSTOM_MODE_TEAM_DEFENDER, "Team Defender" },
@@ -567,7 +567,9 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_TRAINING] NULL,
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
   [CUSTOM_MODE_TAG] NULL,
-  [CUSTOM_MODE_RAIDS] NULL,
+#if RAIDS
+  [CUSTOM_MODE_RAIDS] "Raids",
+#endif
   [CUSTOM_MODE_OITC] "OITC",
   [CUSTOM_MODE_OBSTACLE] NULL,
   [CUSTOM_MODE_COLLECTATHON] NULL,
