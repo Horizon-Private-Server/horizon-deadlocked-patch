@@ -592,7 +592,7 @@ void mobUpdate(Moby* moby)
 	u16 scoutCooldownTicks = decTimerU16(&pvars->MobVars.ScoutCooldownTicks);
 	decTimerU16(&pvars->MobVars.FlinchCooldownTicks);
 	u16 autoDirtyCooldownTicks = decTimerU16(&pvars->MobVars.AutoDirtyCooldownTicks);
-	decTimerU8(&pvars->MobVars.Knockback.Ticks);
+  if (isNpc) decTimerU8(&pvars->MobVars.Knockback.Ticks);
   for (i = 0; i < GAME_MAX_LOCALS; ++i) decTimerU16(&pvars->MobVars.LocalPlayerDamageHitInvTimer[i]);
   u16 acidEffectActiveTicks = decTimerU16(&pvars->MobVars.AcidEffectActiveTicks);
   decTimerU16(&pvars->MobVars.FreezeEffectActiveTicks);
@@ -659,7 +659,7 @@ void mobUpdate(Moby* moby)
 	//
 	if (1) {
 		// set next state
-		if (pvars->MobVars.NextAction >= 0 && pvars->MobVars.Knockback.Ticks == 0) {
+		if (pvars->MobVars.NextAction >= 0) {
 			if (nextActionTicks == 0 && (isOwner || (pvars->VTable && pvars->VTable->CanNonOwnerTransitionToAction(moby, pvars->MobVars.NextAction)))) {
         mobSetAction(moby, pvars->MobVars.NextAction);
 				pvars->MobVars.NextAction = -1;

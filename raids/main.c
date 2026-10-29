@@ -440,6 +440,26 @@ void mobyRemoveDrawFunctions(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
+void mobyRemoveDamages(Moby* moby)
+{
+  MobyColDamage* damageTable = (MobyColDamage*)0x0023F980;
+  int i;
+  for (i = 0; i < 0x40; ++i) {
+    if (damageTable[i].Damager == moby)
+      memset(&damageTable[i], 0, sizeof(MobyColDamage));
+  }
+}
+
+//--------------------------------------------------------------------------
+void onMobySpawnedInitInstance(Moby* moby, int oclass, int a2)
+{
+  ((void (*)(Moby*, int, int))0x004f7330)(moby, oclass, a2);
+
+  // A reused moby must not inherit damage records from its previous instance.
+  mobyRemoveDamages(moby);
+}
+
+//--------------------------------------------------------------------------
 void onMobyDestroyedCleanupAnimLayers(Moby* moby)
 {
   // base func
@@ -675,6 +695,7 @@ void initialize(PatchStateContainer_t* gameState)
   POKE_U32(0x005F6488, 0); // enable vehicle targeting non-players
   
   HOOK_JAL(0x004f7780, &onMobyDestroyedCleanupAnimLayers);
+  HOOK_JAL(0x004f72a4, &onMobySpawnedInitInstance);
   HOOK_JAL(0x0061c3ec, &onGuberEventCreateMoby);
 
   // disable guber event delay until createTime+relDispatchTime reached
