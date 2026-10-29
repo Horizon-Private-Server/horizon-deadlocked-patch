@@ -41,19 +41,4 @@ enum RaidsClassSkillId
   RAIDS_CLASS_SKILL_COUNT
 };
 
-// Factors are multipliers; unlearned and unknown skills return 1.
-float skillsGetFactor(enum RaidsClassSkillId skillId, int skillPoints, float multiplier);
-// Base curves; the dispatcher applies each class node's multiplier.
-float skillsGetDamageFactor(int skillPoints);
-float skillsGetMovementSpeedFactor(int skillPoints);
-
-// Flat bonuses use the skill's units (counts, seconds, ticks, HP, pickups, or percentage points).
-float skillsGetBonus(enum RaidsClassSkillId skillId, int skillPoints, float multiplier);
-int skillsIsValid(enum RaidsClassSkillId skillId);
-int skillsIsUnlock(enum RaidsClassSkillId skillId);
-void skillsFormatRank(enum RaidsClassSkillId skillId, int skillPoints, float multiplier, char* buf, int bufSize);
-
-char* skillsGetName(enum RaidsClassSkillId skillId);
-char* skillsGetDescription(enum RaidsClassSkillId skillId);
-
 #endif // RAIDS_SKILLS_H

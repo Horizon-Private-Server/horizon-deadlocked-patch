@@ -47,6 +47,7 @@
 #include "include/stats.h"
 #include "include/tracker.h"
 #include "include/utils.h"
+#include "include/interop.h"
 
 char LocalPlayerStrBuffer[2][64];
 int Initialized = 0;
@@ -558,17 +559,22 @@ void processPlayer(int pIndex) {
   playerData->LastHealth = player->Health;
 
   // player speed
-  int lightfootStrength = mapConfig->BankVTable->GetEquippedWeaponModRarity(pIndex, player->WeaponHeldId, RAIDS_WEAPON_MOD_LIGHTFOOT) + 1;
-  player->Speed = 1 + (WEAPON_MOD_LIGHTFOOT_FACTOR * lightfootStrength);
+  struct RaidsPlayerStats stats = {
+    .Speed = 1,
+    .MaxHealth = 50 + (PLAYER_LEVEL_HEALTH_FACTOR * playerData->State.Level)
+  };
+  raidsModifyPlayerStats(player, &stats);
+  player->Speed = stats.Speed;
 
 	// set max health
   // auto heal if max health increases
-  float maxHealth = 50 + (PLAYER_LEVEL_HEALTH_FACTOR * playerData->State.Level);
+  float maxHealth = stats.MaxHealth;
   if (player->MaxHealth != maxHealth) {
     if (maxHealth > player->MaxHealth) {
       playerSetHealth(player, player->MaxHealth = maxHealth);
     } else {
       player->MaxHealth = maxHealth;
+      if (player->Health > maxHealth) playerSetHealth(player, maxHealth);
     }
   }
   
@@ -584,9 +590,13 @@ void processPlayer(int pIndex) {
   // update death state
   if (!playerData->IsDead && playerIsDead(player)) {
     playerData->IsDead = 1;
+    raidsOnPlayerDied(player);
   } else if (playerData->IsDead && !playerIsDead(player)) {
     playerData->IsDead = 0;
+    raidsOnPlayerRevived(player);
   }
+
+  raidsOnPlayerUpdate(player);
 
 	if (player->IsLocal) {
 		
@@ -769,18 +779,7 @@ void initialize(PatchStateContainer_t* gameState)
   
   // write map config
   mapConfig->State = &State;
-  mapConfig->PushSnackFunc = &pushSnack;
-  mapConfig->PushDamageBubbleFunc = &bubblePush;
-  mapConfig->GetAmmoRefillCostFunc = &getAmmoRefillCost;
-  mapConfig->BeginWorldHopFunc = &hopBegin;
-  mapConfig->PopulateSpawnArgsFunc = &mobPopulateSpawnArgsFromConfig;
-  mapConfig->RegisterNpcFunc = &mobRegisterNpc;
-  mapConfig->OnGetGuberFunc = &getGuber;
-  mapConfig->OnGuberEventFunc = &handleEvent;
-  mapConfig->TryCreateMobFunc = &mobCreate;
-  mapConfig->RequestPrestigeLootFunc = &lootRequestFromPrestige;
-  mapConfig->OnMissionCompleteFunc = &onMissionComplete;
-  mapConfig->OnMissionFailFunc = &onMissionFail;
+  raidsInteropInit();
 
 	// set game over string
 	//safe_strcpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
@@ -837,7 +836,6 @@ void initialize(PatchStateContainer_t* gameState)
       State.PlayerStates[i].State.Bolts = 0;
       State.PlayerStates[i].State.Kills = 0;
       State.PlayerStates[i].State.Deaths = 0;
-      memset(State.PlayerStates[i].State.AllKills, 0, sizeof(State.PlayerStates[i].State.AllKills));
 
 			// is local
 			State.PlayerStates[i].IsLocal = p->IsLocal;
@@ -1212,8 +1210,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   hopTick();
 
   // map frame tick
-  if (mapConfig && mapConfig->OnFrameTickFunc)
-    mapConfig->OnFrameTickFunc();
+  if (mapConfig && mapConfig->Functions.OnFrameTickFunc)
+    mapConfig->Functions.OnFrameTickFunc();
   
   // ticks
   mobTick();

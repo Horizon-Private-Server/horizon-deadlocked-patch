@@ -57,11 +57,4 @@ typedef struct RaidsClassDef
   RaidsClassSkillDef_t Skills[RAIDS_MAX_CLASS_SKILLS];
 } RaidsClassDef_t;
 
-const RaidsClassDef_t* classesGetDefinition(int classType);
-const RaidsClassDef_t* classesGetDefinitionByIdx(int idx);
-int classesGetSkillMaxRank(const RaidsClassDef_t* def, int skillIdx);
-int classesGridIsAdjacent(int x, int y, int otherX, int otherY);
-int classesValidateDefinitions(void);
-void classesInit(void);
-
 #endif // RAIDS_CLASSES_H

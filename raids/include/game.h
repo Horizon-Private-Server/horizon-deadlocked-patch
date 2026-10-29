@@ -108,8 +108,6 @@
 #define PLAYER_LEVEL_HEALTH_FACTOR            (10)
 #define PLAYER_LEVEL_DAMAGE_FACTOR            (0.04)
 
-#define WEAPON_MOD_LIGHTFOOT_FACTOR           (0.25)
-
 #define SNACK_ITEM_MAX_COUNT                  (8)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
 
@@ -121,7 +119,7 @@
 #define MOB_COMPLEXITY_LOD_FACTOR             (500)
 #define MOB_MAX_FLINCH_PROBABILITY            (0.25)
 
-#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.2)
+#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.05)
 #define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.015)
 
 #define BADGE_SHARPSHOOTER_CRIT_AMOUNT        (0.05)
@@ -195,33 +193,10 @@ enum MobDamageSource
   MOB_DAMAGE_SOURCE_COUNT
 };
 
+#include "interop.h"
+
 struct RaidsBankMapStats;
 struct MobConfig;
-struct MobSpawnEventArgs;
-struct MobCreateArgs;
-struct MobDamageEventArgs;
-
-typedef void (*PushSnack_func)(char * string, int ticksAlive, int localPlayerIdx);
-typedef void (*PushDamageBubble_func)(VECTOR position, float randomRadius, float damage, int isLocal, int isCrit);
-typedef long (*GetAmmoRefillCost_func)(Player* player);
-typedef void (*BeginWorldHop_func)(char* mapFilename, int difficulty, int cost, int delayMs);
-typedef void (*PopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobCreateArgs* args);
-typedef void (*RegisterNpc_func)(Moby* moby);
-typedef int (*OnGuberEvent_func)(Moby* moby, GuberEvent* event);
-typedef struct Guber* (*OnGetGuber_func)(Moby* moby);
-typedef int (*TryCreateMob_func)(struct MobCreateArgs* args);
-typedef void (*RequestPrestigeLoot_func)(int gadgetId);
-typedef void (*OnMissionComplete_func)(int cuboidIdx);
-typedef void (*OnMissionFail_func)(void);
-
-typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef int (*MapOnMobCreate_func)(struct MobCreateArgs* args);
-typedef void (*MapOnMobUpdate_func)(Moby* moby);
-typedef void (*MapOnMobDamaged_func)(Moby* moby, struct MobDamageEventArgs* args);
-typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, enum MobDamageSource source);
-typedef void (*MapOnMobDestroyed_func)(Moby* moby);
-typedef void (*MapCreateAmmoDropAt_func)(Moby* moby);
-typedef void (*FrameTick_func)(void);
 
 struct RaidsPlayerState
 {
@@ -229,7 +204,6 @@ struct RaidsPlayerState
   int Level;
 	int Kills;
 	int Deaths;
-	int AllKills[MOB_DAMAGE_SOURCE_COUNT-1][MAX_MOB_SPAWN_PARAMS];
 };
 
 struct RaidsPlayer
@@ -313,6 +287,11 @@ struct RaidsState
   char DesiredMusicLoop;
 };
 
+struct RaidsMapData
+{
+  int AllKills[GAME_MAX_PLAYERS][MOB_DAMAGE_SOURCE_COUNT-1][MAX_MOB_SPAWN_PARAMS];
+};
+
 struct RaidsMapConfig
 {
   u32 Magic;
@@ -326,31 +305,10 @@ struct RaidsMapConfig
   int TrackWhitelistCount;
   int TrackWhitelistEnabled;
   struct BankVTable* BankVTable;
+  struct RaidsMapData* MapData;
   int ClassXpRewards[RAIDS_DIFFICULTY_COUNT];
 
-  // mode
-  PushSnack_func PushSnackFunc;
-  PushDamageBubble_func PushDamageBubbleFunc;
-  GetAmmoRefillCost_func GetAmmoRefillCostFunc;
-  BeginWorldHop_func BeginWorldHopFunc;
-  PopulateSpawnArgs_func PopulateSpawnArgsFunc;
-  RegisterNpc_func RegisterNpcFunc;
-  OnGuberEvent_func OnGuberEventFunc;
-  OnGetGuber_func OnGetGuberFunc;
-  TryCreateMob_func TryCreateMobFunc;
-  RequestPrestigeLoot_func RequestPrestigeLootFunc;
-  OnMissionComplete_func OnMissionCompleteFunc;
-  OnMissionFail_func OnMissionFailFunc;
-
-  // map
-  MapOnMobCreate_func OnMobCreateFunc;
-  MapOnMobSpawned_func OnMobSpawnedFunc;
-  MapOnMobUpdate_func OnMobUpdateFunc;
-  MapOnMobDamaged_func OnMobDamagedFunc;
-  MapOnMobKilled_func OnMobKilledFunc;
-  MapOnMobDestroyed_func OnMobDestroyedFunc;
-  MapCreateAmmoDropAt_func CreateAmmoDropAtFunc;
-  FrameTick_func OnFrameTickFunc;
+  struct RaidsInteropTable Functions;
 };
 
 struct RaidsCustomMapExtraData

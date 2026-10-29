@@ -13,9 +13,11 @@
 #include <libdl/random.h>
 #include <libdl/radar.h>
 #include <libdl/color.h>
+#include <libdl/team.h>
 #include "include/loot.h"
 #include "include/tracker.h"
 #include "include/contract.h"
+#include "include/interop.h"
 
 int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
@@ -221,11 +223,20 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
       if (item) critProbability = item->WeaponData.CritChance / 255.0;
       //critProbability += 0.5 * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
 
-      float r = randRange(0, 1);
-      if (r < critProbability) {
-        amount *= 3;
-        damageFlags |= 0x20000000;
-      }
+      struct RaidsPlayerDamageContext context = {
+        .Attacker = pDamager,
+        .Source = source,
+        .Target = moby,
+        .WeaponId = weaponId,
+        .DamageSource = sourceId,
+        .Damage = amount,
+        .CritChance = critProbability,
+        .CritMultiplier = 3,
+        .DamageFlags = damageFlags
+      };
+      raidsFinalizePlayerDamage(&context);
+      amount = context.Damage;
+      damageFlags = context.DamageFlags;
     }
 	}
 
@@ -248,7 +259,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 	if (guberEvent) {
 		args.SourceUID = guberGetUID(sourcePlayer);
 		args.SourceOClass = source->OClass;
-		args.DamageQuarters = amount*4;
+		args.DamageQuarters = raidsDamageToQuarters(amount);
     args.DamageFlags = damageFlags;
 		guberEventWrite(guberEvent, &args, sizeof(struct MobDamageEventArgs));
 	}
@@ -541,8 +552,8 @@ void mobUpdate(Moby* moby)
   if (pvars->VTable->PreUpdate)
     pvars->VTable->PreUpdate(moby);
 
-  if (mapConfig && mapConfig->OnMobUpdateFunc)
-    mapConfig->OnMobUpdateFunc(moby);
+  if (mapConfig && mapConfig->Functions.OnMobUpdateFunc)
+    mapConfig->Functions.OnMobUpdateFunc(moby);
 
 	// handle radar
 	if (pvars->MobVars.BlipType >= 0 && gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips > 0)
@@ -992,8 +1003,8 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	}
 
   // pass to map
-  if (mapConfig->OnMobSpawnedFunc)
-    mapConfig->OnMobSpawnedFunc(moby);
+  if (mapConfig->Functions.OnMobSpawnedFunc)
+    mapConfig->Functions.OnMobSpawnedFunc(moby);
 
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnSpawn)
@@ -1022,8 +1033,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
   int weaponId = getWeaponIdFromDamageSource(sourceId);
 
   // pass death to map
-  if (mapConfig && mapConfig->OnMobDestroyedFunc)
-    mapConfig->OnMobDestroyedFunc(moby);
+  if (mapConfig && mapConfig->Functions.OnMobDestroyedFunc)
+    mapConfig->Functions.OnMobDestroyedFunc(moby);
     
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnDestroy)
@@ -1075,8 +1086,10 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     // originally wanted to do this only if the killer was the local player
     // but to encourage cooperative play, it makes sense for it to randomly drop regardless
     if (killedByLocal || pvars->MobVars.ClosestDistToLocal < (25*25)) {
-      if (killedByPlayer && mapConfig && mapConfig->CreateAmmoDropAtFunc && randRange(0, 1) < State.AmmoDropChance) {
-        mapConfig->CreateAmmoDropAtFunc(moby);
+      if (killedByPlayer && mapConfig && mapConfig->Functions.CreateAmmoDropAtFunc) {
+        float chance = raidsGetAmmoDropChance(killedByPlayer, moby, State.AmmoDropChance);
+        if (randRange(0, 1) < chance)
+          mapConfig->Functions.CreateAmmoDropAtFunc(moby);
       }
     }
 
@@ -1105,8 +1118,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 		}
 
 		// handle stats
-    if (sourceId > 0 && pvars->MobVars.SpawnParamsIdx >= 0)
-      pState->State.AllKills[sourceId-1][pvars->MobVars.SpawnParamsIdx]++;
 		pState->State.Kills++;
 		gameData->PlayerStats.Kills[(int)killedByPlayerId]++;
 		int weaponSlotId = weaponIdToSlot(weaponId);
@@ -1115,8 +1126,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     }
 
     // pass kill to map
-    if (mapConfig && mapConfig->OnMobKilledFunc)
-      mapConfig->OnMobKilledFunc(moby, killedByPlayerId, sourceId);
+    if (mapConfig && mapConfig->Functions.OnMobKilledFunc)
+      mapConfig->Functions.OnMobKilledFunc(moby, killedByPlayerId, sourceId);
 	}
 
 	if (pvars->MobVars.Order >= 0) {
@@ -1163,8 +1174,8 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
     pvars->VTable->OnDamage(moby, &args);
 
   // pass damage to map
-  if (mapConfig && mapConfig->OnMobDamagedFunc)
-    mapConfig->OnMobDamagedFunc(moby, &args);
+  if (mapConfig && mapConfig->Functions.OnMobDamagedFunc)
+    mapConfig->Functions.OnMobDamagedFunc(moby, &args);
 
 	// flash
 	mobyStartFlash(moby, FT_HIT, 0x800000FF, 0);
@@ -1209,10 +1220,10 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
     vector_add(mobCenter, mobCenter, moby->Position);
     int isLocal = 0;
     if (damager) isLocal = damager->IsLocal;
-    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, (args.DamageFlags & 0x20000000) ? 1 : 0);
+    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, (args.DamageFlags & 0x20000000) ? TEAM_RED : TEAM_YELLOW);
   }
 
-  // 
+  raidsMobAfterDamage(moby, &args, appliedDamage);
 
 	// drop armor bangle
 	/*
@@ -1533,8 +1544,8 @@ int mobCreate(struct MobCreateArgs* args)
   // log
   mobStatsOnNewMobCreated(args->SpawnParamsIdx, args->SpawnFromUID);
 
-  if (mapConfig->OnMobCreateFunc)
-    return mapConfig->OnMobCreateFunc(args);
+  if (mapConfig->Functions.OnMobCreateFunc)
+    return mapConfig->Functions.OnMobCreateFunc(args);
 
   return 0;
 }
