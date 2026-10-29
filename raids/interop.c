@@ -1,5 +1,7 @@
 #include <float.h>
 #include <libdl/random.h>
+#include <libdl/guber.h>
+#include <libdl/player.h>
 #include "include/game.h"
 #include "include/interop.h"
 #include "include/utils.h"
@@ -28,6 +30,7 @@ void raidsInteropInit(void)
   mapConfig->Functions.ModeRequestPrestigeLootFunc = &lootRequestFromPrestige;
   mapConfig->Functions.ModeOnMissionCompleteFunc = &onMissionComplete;
   mapConfig->Functions.ModeOnMissionFailFunc = &onMissionFail;
+  mapConfig->Functions.ModeProcessPlayerDamageFunc = &raidsProcessPlayerDamage;
 }
 
 //--------------------------------------------------------------------------
@@ -62,6 +65,41 @@ void raidsOnPlayerRevived(Player* player)
 {
   if (hasMapConfig() && mapConfig->Functions.OnPlayerRevivedFunc)
     mapConfig->Functions.OnPlayerRevivedFunc(player);
+}
+
+//--------------------------------------------------------------------------
+void raidsProcessPlayerDamage(Moby* target, Moby* source, float* damage, u32* damageFlags)
+{
+  if (!target || !source || !damage || !damageFlags || !hasMapConfig()) return;
+  Player* player = guberMobyGetPlayerDamager(source);
+  if (!playerIsValid(player) || !player->IsLocal || player->PlayerId < 0 || player->PlayerId >= GAME_MAX_PLAYERS) return;
+
+  enum MobDamageSource sourceId = getDamageSourceFromOClass(source->OClass);
+  int weaponId = getWeaponIdFromDamageSource(sourceId);
+  RaidsInventoryItem_t* item = NULL;
+  if (mapConfig->BankVTable && mapConfig->BankVTable->GetEquippedWeaponFromGadgetBox)
+    item = mapConfig->BankVTable->GetEquippedWeaponFromGadgetBox(player->GadgetBox, weaponId);
+
+  // Match mob hits: native damage, Hero level, holoshield quad, then crit/skills.
+  float amount = *damage * (1 + PLAYER_LEVEL_DAMAGE_FACTOR * State.PlayerStates[player->PlayerId].State.Level);
+  if (sourceId == MOB_DAMAGE_SOURCE_HOLOSHIELD) {
+    *damageFlags |= 0x40000000;
+    amount *= player->DamageMultiplier;
+  }
+  struct RaidsPlayerDamageContext context = {
+    .Attacker = player,
+    .Source = source,
+    .Target = target,
+    .WeaponId = weaponId,
+    .DamageSource = sourceId,
+    .Damage = amount,
+    .CritChance = item ? item->WeaponData.CritChance / 255.0f : 0,
+    .CritMultiplier = 3,
+    .DamageFlags = *damageFlags
+  };
+  raidsFinalizePlayerDamage(&context);
+  *damage = context.Damage;
+  *damageFlags = context.DamageFlags;
 }
 
 //--------------------------------------------------------------------------
