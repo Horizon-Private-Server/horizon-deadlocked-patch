@@ -31,6 +31,7 @@ void raidsInteropInit(void)
   mapConfig->Functions.ModeOnMissionCompleteFunc = &onMissionComplete;
   mapConfig->Functions.ModeOnMissionFailFunc = &onMissionFail;
   mapConfig->Functions.ModeProcessPlayerDamageFunc = &raidsProcessPlayerDamage;
+  mapConfig->Functions.ModeDrawHudFunc = &raidsDrawHud;
 }
 
 //--------------------------------------------------------------------------

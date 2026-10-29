@@ -48,9 +48,11 @@ double trackerGetTimeElapsed(void)
 //--------------------------------------------------------------------------
 void trackerDraw(void)
 {
+  if (!TrackerState.Enabled || !isInGame()) return;
   const u32 textColor = 0x80FFFFFF;
   double dt = trackerGetTimeElapsed();
   Player* localPlayer = playerGetFromSlot(0);
+  if (!localPlayer) return;
   int weaponId = localPlayer->WeaponHeldId;
   char strBuf[128];
   Window_t drawWindow;
@@ -240,9 +242,6 @@ void trackerTick(void)
       trackerReset();
     }
   }
-
-  // draw
-  trackerDraw();
 }
 
 //--------------------------------------------------------------------------

@@ -13,6 +13,7 @@ void trackerLogPlayerLevelUp(void);
 void trackerLogWeaponLevelUp(int weaponId);
 void trackerLogLootDrop(void);
 void trackerTick(void);
+void trackerDraw(void);
 void trackerInit(void);
 
 #endif // RAIDS_TRACKER_H

@@ -20,6 +20,7 @@ void hopLoadMapStats(char* mapFilename, char* mapName);
 void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs);
 
 void hopTick(void);
+void hopDraw(void);
 void hopInit(void);
 
 #endif // RAIDS_HOP_H

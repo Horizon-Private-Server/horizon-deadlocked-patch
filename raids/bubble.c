@@ -79,6 +79,20 @@ void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, 
 //--------------------------------------------------------------------------
 void bubbleTick(void)
 {
+  if (!damageBubbles || !cameraGetGameCamera(0) || playerGetNumLocals() > 1) return;
+
+  int i;
+  for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i) {
+    if (damageBubbles[i].Life) {
+      damageBubbles[i].Life--;
+      damageBubbles[i].Position[2] += MATH_DT;
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+void bubbleDraw(void)
+{
   int i;
   char buf[32];
   float scale;
@@ -92,9 +106,6 @@ void bubbleTick(void)
   int dzo = PATCH_INTEROP && PATCH_INTEROP->Client == CLIENT_TYPE_DZO;
   for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i) {
     if (damageBubbles[i].Life) {
-
-      damageBubbles[i].Life--;
-      damageBubbles[i].Position[2] += 1*MATH_DT;
 
       if (!damageBubbles[i].IsLocal) {
         vector_subtract(dt, damageBubbles[i].Position, camera->pos);

@@ -258,6 +258,32 @@ void drawTimer(int time)
 }
 
 //--------------------------------------------------------------------------
+void raidsDrawHud(void)
+{
+  if (!Initialized || !isInGame() || !hasMapConfig() || mapConfig->State != &State) return;
+
+  if (!State.GameOver && !gameIsAnyStartMenuOpen()) {
+    int timer = -1;
+    if (missionIsComplete()) {
+      timer = State.MissionCompleteTime - State.MissionStartTime;
+      drawMissionCompleteMessage();
+    } else if (missionIsActive()) {
+      drawStars(SCREEN_WIDTH - 15, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
+      if (missionIsBossRaid()) drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
+      timer = gameGetTime() - State.MissionStartTime;
+    }
+
+    if (timer > 0) {
+      drawTimer(timer);
+    }
+  }
+
+  bubbleDraw();
+  hopDraw();
+  trackerDraw();
+}
+
+//--------------------------------------------------------------------------
 int collisionIdIsWalkable(int collisionId)
 {
   collisionId &= 0x0f;
@@ -1108,23 +1134,6 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     forcePlayerHUD();
     drawSnack();
     missionCheckForMissionFailed();
-
-    // draw hud
-    if (!gameIsAnyStartMenuOpen()) {
-      int timer = -1;
-      if (missionIsComplete()) {
-        timer = State.MissionCompleteTime - State.MissionStartTime;
-        drawMissionCompleteMessage();
-      } else if (missionIsActive()) {
-        drawStars(SCREEN_WIDTH - 15, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
-        if (missionIsBossRaid()) drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
-        timer = gameGetTime() - State.MissionStartTime;
-      }
-
-      if (timer > 0) {
-        drawTimer(timer);
-      }
-    }
 
     // 
     State.ActivePlayerCount = 0;

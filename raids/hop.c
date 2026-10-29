@@ -244,8 +244,16 @@ void hopTick(void)
   int delaySeconds = (State.PendingWorldHopAtTime - gameGetTime()) / TIME_SECOND;
   if (delaySeconds <= 0) {
     hopDo();
-    return;
   }
+}
+
+//--------------------------------------------------------------------------
+void hopDraw(void)
+{
+  if (State.PendingWorldHopAtTime <= 0 || !State.PendingWorldHopMapDef) return;
+
+  int delaySeconds = (State.PendingWorldHopAtTime - gameGetTime()) / TIME_SECOND;
+  if (delaySeconds <= 0) return;
 
   float x = SCREEN_WIDTH * 0.5;
   float y = SCREEN_HEIGHT * 0.2;

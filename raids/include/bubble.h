@@ -25,6 +25,7 @@ struct RaidsDamageBubble
 
 void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, int team);
 void bubbleTick(void);
+void bubbleDraw(void);
 void bubbleInit(void);
 void bubbleDeinit(void);
 
