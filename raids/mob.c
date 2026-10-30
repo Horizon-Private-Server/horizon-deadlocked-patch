@@ -190,7 +190,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 		}
 
     if (sourceId == MOB_DAMAGE_SOURCE_HOLOSHIELD) {
-      damageFlags |= 0x40000000; // short slowdown
+      damageFlags |= RAIDS_DAMAGE_FLAG_SHORT_FREEZE; // short slowdown
       amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
     }
 
@@ -226,7 +226,7 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
   args.Knockback.Force = 0;
 
   // full knockback
-  if (damageFlags & 0x80000000) {
+  if (damageFlags & RAIDS_DAMAGE_FLAG_FORCE_KNOCKBACK) {
     args.Knockback.Ticks = 5;
     args.Knockback.Power = 10;
     args.Knockback.Force = 1;
@@ -1197,7 +1197,14 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
     vector_add(mobCenter, mobCenter, moby->Position);
     int isLocal = 0;
     if (damager) isLocal = damager->IsLocal;
-    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, (args.DamageFlags & 0x20000000) ? TEAM_RED : TEAM_YELLOW);
+    int isCrit = args.DamageFlags & RAIDS_DAMAGE_FLAG_CRITICAL;
+    int isSuperCrit = args.DamageFlags & RAIDS_DAMAGE_FLAG_SUPER_CRITICAL;
+    int team = isSuperCrit ? TEAM_RED
+      : isCrit ? TEAM_ORANGE : TEAM_YELLOW;
+    float popScale = isSuperCrit ? RAIDS_DAMAGE_BUBBLE_SUPER_CRIT_POP_SCALE
+      : isCrit ? RAIDS_DAMAGE_BUBBLE_CRIT_POP_SCALE : 0;
+    bubblePush(mobCenter, pvars->MobVars.Config.CollRadius, appliedDamage, isLocal, team,
+      popScale, isSuperCrit ? '!' : 0);
   }
 
   raidsMobAfterDamage(moby, &args, appliedDamage);

@@ -84,7 +84,7 @@ void raidsProcessPlayerDamage(Moby* target, Moby* source, float* damage, u32* da
   // Match mob hits: native damage, Hero level, holoshield quad, then crit/skills.
   float amount = *damage * (1 + PLAYER_LEVEL_DAMAGE_FACTOR * State.PlayerStates[player->PlayerId].State.Level);
   if (sourceId == MOB_DAMAGE_SOURCE_HOLOSHIELD) {
-    *damageFlags |= 0x40000000;
+    *damageFlags |= RAIDS_DAMAGE_FLAG_SHORT_FREEZE;
     amount *= player->DamageMultiplier;
   }
   struct RaidsPlayerDamageContext context = {
@@ -114,15 +114,16 @@ void raidsFinalizePlayerDamage(struct RaidsPlayerDamageContext* context)
   if (!(context->CritChance >= 0 && context->CritChance <= FLT_MAX)) context->CritChance = 0;
   if (context->CritChance > 1) context->CritChance = 1;
 
+  context->IsCritical = randRange(0, 1) < context->CritChance;
+
   if (mapConfig->Functions.ModifyPlayerCritDamageFunc)
     mapConfig->Functions.ModifyPlayerCritDamageFunc(context);
 
   if (!(context->CritMultiplier >= 0 && context->CritMultiplier <= FLT_MAX)) context->CritMultiplier = 3;
 
-  context->IsCritical = randRange(0, 1) < context->CritChance;
   if (context->IsCritical) {
     context->Damage *= context->CritMultiplier;
-    context->DamageFlags |= 0x20000000;
+    context->DamageFlags |= RAIDS_DAMAGE_FLAG_CRITICAL;
   }
   if (mapConfig->Functions.FinalizePlayerDamageFunc)
     mapConfig->Functions.FinalizePlayerDamageFunc(context);

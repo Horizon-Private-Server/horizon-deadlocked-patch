@@ -13,6 +13,7 @@
 
 #define BUBBLE_LIFE_TICKS         (TPS * 2)
 #define BUBBLE_MAX_NONLOCAL_DIST  (50.0)
+#define BUBBLE_POP_TICKS          (TPS / 4)
 
 struct RaidsDamageBubble
 {
@@ -21,9 +22,11 @@ struct RaidsDamageBubble
   u8 Life;
   char IsLocal;
   char Team;
+  float PopScale;
+  char Suffix;
 };
 
-void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, int team);
+void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, int team, float popScale, char suffix);
 void bubbleTick(void);
 void bubbleDraw(void);
 void bubbleInit(void);

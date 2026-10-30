@@ -22,7 +22,16 @@ struct RaidsDamageBubble* damageBubbles = NULL;
 //--------------------------------------------------------------------------
 float bubbleGetScale(struct RaidsDamageBubble* bubble)
 {
-  return 0.2 + (bubble->Life / (float)BUBBLE_LIFE_TICKS);
+  float scale = 0.2 + (bubble->Life / (float)BUBBLE_LIFE_TICKS);
+
+  // The requested extra pop fades over the first quarter second.
+  if (bubble->PopScale > 0) {
+    float pop = clamp((bubble->Life - (BUBBLE_LIFE_TICKS - BUBBLE_POP_TICKS))
+      / (float)BUBBLE_POP_TICKS, 0, 1);
+    scale *= 1 + bubble->PopScale * pop;
+  }
+
+  return scale;
 }
 
 //--------------------------------------------------------------------------
@@ -45,7 +54,7 @@ u32 bubbleGetColor(int damage, int life, int team)
 }
 
 //--------------------------------------------------------------------------
-void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, int team)
+void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, int team, float popScale, char suffix)
 {
   int i;
   int lowestLifeIdx = -1;
@@ -72,6 +81,8 @@ void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, 
     damageBubbles[lowestLifeIdx].Damage = (int)ceilf(damage);
     damageBubbles[lowestLifeIdx].IsLocal = isLocal;
     damageBubbles[lowestLifeIdx].Team = team;
+    damageBubbles[lowestLifeIdx].PopScale = popScale;
+    damageBubbles[lowestLifeIdx].Suffix = suffix;
     vector_add(damageBubbles[lowestLifeIdx].Position, position, offset);
   }
 }
@@ -113,7 +124,8 @@ void bubbleDraw(void)
       }
 
       u32 color = bubbleGetColor(damageBubbles[i].Damage, damageBubbles[i].Life, damageBubbles[i].Team);
-      snprintf(buf, sizeof(buf), "%d", damageBubbles[i].Damage);
+      char suffix[2] = { damageBubbles[i].Suffix, 0 };
+      snprintf(buf, sizeof(buf), "%d%s", damageBubbles[i].Damage, suffix);
       scale = bubbleGetScale(&damageBubbles[i]);
       gfxHelperDrawText_WS(damageBubbles[i].Position, scale, color, buf, -1, TEXT_ALIGN_MIDDLECENTER, dzo ? COMMON_DZO_DRAW_ONLY : COMMON_DZO_DRAW_NONE);
     }
