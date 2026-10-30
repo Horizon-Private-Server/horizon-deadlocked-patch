@@ -101,30 +101,8 @@ void mobStatsOnMobDestroyed(Moby* moby)
 //--------------------------------------------------------------------------
 void mobSpawnCorn(Moby* moby, int bangle)
 {
-#if MOB_CORN
-	mobyBlowCorn(
-			moby
-		, bangle
-		, 0
-		, 3.0
-		, 6.0
-		, 3.0
-		, 6.0
-		, -1
-		, -1.0
-		, -1.0
-		, 255
-		, 1
-		, 0
-		, 1
-		, 1.0
-		, 0x23
-		, 3
-		, 1.0
-		, NULL
-		, 0
-		);
-#endif
+  if (mapConfig && mapConfig->Functions.MobBlowCornFunc)
+    mapConfig->Functions.MobBlowCornFunc(moby, bangle);
 }
 
 //--------------------------------------------------------------------------
@@ -492,7 +470,7 @@ void mobSetAction(Moby* moby, int action)
 //--------------------------------------------------------------------------
 int mobGetLostArmorBangle(short armorStart, short armorEnd)
 {
-	return (armorStart - armorEnd) & armorStart;
+	return (u16)armorStart & ~(u16)armorEnd;
 }
 
 //--------------------------------------------------------------------------
@@ -1224,14 +1202,14 @@ int mobHandleEvent_Damage(Moby* moby, GuberEvent* event)
 
   raidsMobAfterDamage(moby, &args, appliedDamage);
 
-	// drop armor bangle
-	/*
-	int armorNew = mobGetArmor(pvars);
-	if (armorNew != armorStart) {
-		int b = mobGetLostArmorBangle(armorStart, armorNew);
-		mobSpawnCorn(moby, b);
-	}
-	*/
+  // drop armor bangles
+  if (pvars->VTable && pvars->VTable->GetArmor) {
+    u16 armorNew = pvars->VTable->GetArmor(moby);
+    int droppedBangles = mobGetLostArmorBangle(armorStart, armorNew);
+    if (droppedBangles)
+      mobSpawnCorn(moby, droppedBangles);
+    moby->Bangles = armorNew;
+  }
 
 	return 0;
 }
