@@ -272,7 +272,6 @@ struct RaidsState
 	int AlivePlayerCount;
   int TicksWithNoLivingPlayers;
 	int IsHost;
-	float Difficulty;
   float AmmoDropChance;
   float AmmoRefillCostMultiplier;
   int DifficultyStars;

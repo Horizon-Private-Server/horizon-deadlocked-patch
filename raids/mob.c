@@ -675,10 +675,9 @@ void mobUpdate(Moby* moby)
 		if (nextCheckActionDelayTicks == 0 && pvars->VTable && pvars->VTable->GetPreferredAction) {
       int delayTicks = 0;
       int nextAction = pvars->VTable->GetPreferredAction(moby, &delayTicks);
-      float delayDifficultyFactor = lerpf(1, 0.25, clamp(State.Difficulty / 5.0, 0, 1));
 			if (nextAction >= 0 && nextAction != pvars->MobVars.NextAction && nextAction != pvars->MobVars.Action) {
 				pvars->MobVars.NextAction = nextAction;
-				pvars->MobVars.NextActionDelayTicks = delayTicks * delayDifficultyFactor; //nextAction >= MOB_ACTION_ATTACK ? pvars->MobVars.Config.ReactionTickCount : 0;
+				pvars->MobVars.NextActionDelayTicks = delayTicks;
 			}
 
 			// get new target

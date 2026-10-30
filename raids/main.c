@@ -61,14 +61,6 @@ int snackItemsCount = 0;
 
 PatchConfig_t* playerConfig = NULL;
 
-float Difficulties[RAIDS_DIFFICULTY_COUNT] = {
-  [RAIDS_DIFFICULTY_1STAR] 0,
-  [RAIDS_DIFFICULTY_2STAR] 25.0,
-  [RAIDS_DIFFICULTY_3STAR] 150.0,
-  [RAIDS_DIFFICULTY_4STAR] 500.0,
-  [RAIDS_DIFFICULTY_5STAR] 1250.0,
-};
-
 int Lives[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_1STAR] 2,
   [RAIDS_DIFFICULTY_2STAR] 2,
@@ -805,7 +797,6 @@ void initialize(PatchStateContainer_t* gameState)
   memset(snackItems, 0, sizeof(snackItems));
 
 	// initialize player states
-  State.Difficulty = Difficulties[State.DifficultyStars];
 	State.LocalPlayerState = NULL;
 	State.NumTeams = 0;
   State.TicksWithNoLivingPlayers = 0;
