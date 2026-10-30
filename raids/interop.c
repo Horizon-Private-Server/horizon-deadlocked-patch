@@ -84,7 +84,8 @@ void raidsProcessPlayerDamage(Moby* target, Moby* source, float* damage, u32* da
   // Match mob hits: native damage, Hero level, holoshield quad, then crit/skills.
   float amount = *damage * (1 + PLAYER_LEVEL_DAMAGE_FACTOR * State.PlayerStates[player->PlayerId].State.Level);
   if (sourceId == MOB_DAMAGE_SOURCE_HOLOSHIELD) {
-    *damageFlags |= RAIDS_DAMAGE_FLAG_SHORT_FREEZE;
+    // TODO: Enable holoshield slowdown through a future class skill.
+    // *damageFlags |= RAIDS_DAMAGE_FLAG_SHORT_FREEZE;
     amount *= player->DamageMultiplier;
   }
   struct RaidsPlayerDamageContext context = {

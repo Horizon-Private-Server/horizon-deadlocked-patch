@@ -190,7 +190,8 @@ void mobSendDamageEvent(Moby* moby, Moby* sourcePlayer, Moby* source, float amou
 		}
 
     if (sourceId == MOB_DAMAGE_SOURCE_HOLOSHIELD) {
-      damageFlags |= RAIDS_DAMAGE_FLAG_SHORT_FREEZE; // short slowdown
+      // TODO: Enable holoshield slowdown through a future class skill.
+      // damageFlags |= RAIDS_DAMAGE_FLAG_SHORT_FREEZE;
       amount *= pDamager->DamageMultiplier; // quad doesn't seem to affect holos
     }
 
