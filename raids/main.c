@@ -862,7 +862,10 @@ void updateGameState(PatchStateContainer_t * gameState)
 	// game state update
 	if (gameState->UpdateGameState)
 	{
-		//gameState->GameStateUpdate.RoundNumber = State.RoundNumber + 1;
+    // Raids has no rounds. Send mission type + 1 in the high byte and the
+    // zero-based star difficulty in the low byte; zero remains unreported.
+    // Keep this encoding in sync with RaidsCustomMode.GetGameInfo on the server.
+    gameState->GameStateUpdate.RoundNumber = ((State.MissionType + 1) << 8) | (State.DifficultyStars & 0xFF);
 	}
 
   if (isInGame()) {
