@@ -189,7 +189,7 @@ void igScoreboardRun(void)
   }
 
   // draw
-  PATCH_POINTERS_SCOREBOARD = padGetButton(0, PAD_L3) > 0;
+  PATCH_POINTERS_SCOREBOARD = gameConfig.customModeId != CUSTOM_MODE_RAIDS && padGetButton(0, PAD_L3) > 0;
   if (config.enableInGameScoreboard && PATCH_POINTERS_SCOREBOARD && !isConfigMenuActive && !gameIsStartMenuOpen(0)) {
     igScoreboardDraw();
   }
