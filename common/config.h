@@ -15,7 +15,7 @@
 #define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
 
 #define CMODE_SURVIVAL_VERSION    (12)
-#define CMODE_RAIDS_VERSION       (5)
+#define CMODE_RAIDS_VERSION       (6)
 
 struct CustomMapDef;
 
