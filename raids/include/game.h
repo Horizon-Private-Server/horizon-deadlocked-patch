@@ -119,7 +119,7 @@
 #define MAX_MOB_COMPLEXITY_DRAWN              (7500)
 #define MAX_MOB_COMPLEXITY_DRAWN_DZO          (MAX_MOB_COMPLEXITY_DRAWN * 1)
 #define MOB_COMPLEXITY_SKIN_FACTOR            (500)
-#define MAX_MOB_COMPLEXITY_MIN                (500)
+#define MAX_MOB_COMPLEXITY_MIN                (1000)
 #define MOB_COMPLEXITY_LOD_FACTOR             (500)
 #define MOB_MAX_FLINCH_PROBABILITY            (0.25)
 

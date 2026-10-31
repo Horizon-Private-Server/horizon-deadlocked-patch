@@ -24,6 +24,7 @@ int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
 Moby* mobLastInList = 0;
 
+int mobOrderedSkipOffset = 0;
 int mobOrderedDrawUpToIndex = MAX_MOBS_ALIVE;
 int mobComplexitySum = 0;
 
@@ -504,12 +505,24 @@ void mobHandleDraw(Moby* moby)
 		}
 	}
 
+  int draw = pvars->MobVars.Order < mobOrderedDrawUpToIndex;
   moby->DrawDist = 128;
-  if (pvars->MobVars.Order >= mobOrderedDrawUpToIndex) {
-    if (pvars->VTable && pvars->VTable->PostDraw) {
-      gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
-      moby->DrawDist = 0;
+
+  // dzo draws all mobs, so keep nearby mobs animated and rotate the rest
+  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO && State.MobStats.TotalAlive > 0) {
+    int rotateCount = mobOrderedDrawUpToIndex >> 1;
+    if (rotateCount < 1) rotateCount = 1;
+    draw = pvars->MobVars.Order < rotateCount;
+    if (!draw) {
+      int rotatedOrder = (pvars->MobVars.Order + mobOrderedSkipOffset) % State.MobStats.TotalAlive;
+      draw = rotatedOrder < rotateCount;
     }
+  }
+
+  // use the lod sprite when this mob is outside the current animation group
+  if (!draw && pvars->VTable && pvars->VTable->PostDraw) {
+    gfxRegisterDrawFunction((void**)0x0022251C, (gfxDrawFuncDef*)pvars->VTable->PostDraw, moby);
+    moby->DrawDist = 0;
   }
 }
 
@@ -1532,6 +1545,7 @@ void mobInitialize(void)
   mobFirstInList = NULL;
   mobLastInList = NULL;
   mobInMobMove = 0;
+  mobOrderedSkipOffset = 0;
   AllMobsSortedFreeSpots = MAX_MOBS_ALIVE;
 }
 
@@ -1611,11 +1625,25 @@ void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float 
 }
 
 //--------------------------------------------------------------------------
+int mobIsLodBoss(Moby* moby)
+{
+  if (!moby || !moby->PVar || !mapConfig || !mapConfig->MobSpawnParams) return 0;
+
+  struct MobPVar* pvars = (struct MobPVar*)moby->PVar;
+  int spawnParamsIdx = pvars->MobVars.SpawnParamsIdx;
+  return spawnParamsIdx >= 0 && spawnParamsIdx < mapConfig->MobSpawnParamsCount
+      && mapConfig->MobSpawnParams[spawnParamsIdx].IsBoss;
+}
+
+//--------------------------------------------------------------------------
 void mobTick(void)
 {
 	int i, j;
 	VECTOR t;
   Player** players = playerGetAll();
+  Player* localPlayer = playerGetFromSlot(0);
+  float lastLodDistance = 10000000;
+  int lastLodIsBoss = 0;
 
 	if (mobFirstInList && (mobyIsDestroyed(mobFirstInList) || !mobyIsMob(mobFirstInList)))
 		mobFirstInList = NULL;
@@ -1702,10 +1730,18 @@ void mobTick(void)
 					pvars->MobVars.ClosestDistToPlayer = dist;
       }
 
-			// if closer than last, swap
+      // sort from the camera without changing gameplay distance checks
+      float lodDistance = 10000000;
+      if (localPlayer) {
+        vector_subtract(t, m->Position, localPlayer->CameraPos);
+        lodDistance = vector_sqrmag(t);
+      }
+      int isBoss = mobIsLodBoss(m);
+      int swap = 0;
+
+      // draw bosses first, then the mobs closest to the camera
 			if (i > 0) {
 				Moby* last = AllMobsSorted[i-1];
-				int swap = 0;
 
 				// swap if previous is empty
 				// or if this is closer than previous
@@ -1713,7 +1749,7 @@ void mobTick(void)
 					swap = 1;
 				} else {
 					struct MobPVar* lPvars = (struct MobPVar*)last->PVar;
-					if (lPvars && pvars->MobVars.ClosestDistToLocal < lPvars->MobVars.ClosestDistToLocal) {
+					if (isBoss || (lPvars && lodDistance < lastLodDistance && !lastLodIsBoss)) {
 						swap = 1;
 						lPvars->MobVars.Order = i;
 					}
@@ -1726,8 +1762,23 @@ void mobTick(void)
 					pvars->MobVars.Order = i-1;
 				}
 			}
+
+      // a swap carries the previous mob and its draw priority to the next slot
+      if (!swap) {
+        lastLodDistance = lodDistance;
+        lastLodIsBoss = isBoss;
+      }
 		}
 	}
+
+  // advance the animation group, even when the lod budget is very small
+  if (State.MobStats.TotalAlive > 0) {
+    int rotateCount = mobOrderedDrawUpToIndex >> 1;
+    if (rotateCount < 1) rotateCount = 1;
+    mobOrderedSkipOffset = (mobOrderedSkipOffset + rotateCount) % State.MobStats.TotalAlive;
+  } else {
+    mobOrderedSkipOffset = 0;
+  }
 
 #if PRINT_MOB_COMPLEXITY
   //DPRINTF("MOB COMPLEXITY %d\n", mobComplexitySum);
