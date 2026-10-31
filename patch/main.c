@@ -855,6 +855,11 @@ void runLagjumpPatch(void)
  */
 void patchLevelOfDetail(void)
 {
+  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS) {
+    lastLodLevel = -1;
+    return;
+  }
+
   int i = 0;
 
   // only apply in game

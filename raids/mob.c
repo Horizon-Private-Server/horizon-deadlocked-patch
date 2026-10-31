@@ -1,6 +1,7 @@
 #include "include/mob.h"
 #include "include/utils.h"
 #include "include/game.h"
+#include "include/settings.h"
 #include "include/bubble.h"
 #include "config.h"
 #include <string.h>
@@ -22,8 +23,6 @@
 int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
 Moby* mobLastInList = 0;
-
-extern PatchConfig_t* playerConfig;
 
 int mobOrderedDrawUpToIndex = MAX_MOBS_ALIVE;
 int mobComplexitySum = 0;
@@ -252,10 +251,11 @@ int getMaxComplexity(void)
   Player** players = playerGetAll();
 
   // reduce by lod
-  int lodFactor = (int)powf(maxf(0, (playerConfig ? (2 - playerConfig->levelOfDetailMobs) : 0)), 2);
+  int lod = raidsUserSettings.MobLod;
+  int lodFactor = (int)powf(maxf(0, 2 - lod), 2);
   maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * lodFactor;
 
-  if (playerConfig->levelOfDetailMobs == 3)
+  if (lod == 3)
     maxComplexity += MOB_COMPLEXITY_LOD_FACTOR*2;
 
   // dzo bypasses max complexity

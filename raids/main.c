@@ -48,6 +48,8 @@
 #include "include/tracker.h"
 #include "include/utils.h"
 #include "include/interop.h"
+#include "include/settings.h"
+#include "include/lod.h"
 
 char LocalPlayerStrBuffer[2][64];
 int Initialized = 0;
@@ -58,8 +60,6 @@ struct RaidsMapConfig* mapConfig = (struct RaidsMapConfig*)(EXTRA_CODE_SEG_PTR +
 
 struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
-
-PatchConfig_t* playerConfig = NULL;
 
 int Lives[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_1STAR] 2,
@@ -273,6 +273,7 @@ void raidsDrawHud(void)
   bubbleDraw();
   hopDraw();
   trackerDraw();
+  raidsSettingsDraw();
 }
 
 //--------------------------------------------------------------------------
@@ -690,6 +691,7 @@ void initialize(PatchStateContainer_t* gameState)
     
     // clear state
     memset(&State, 0, sizeof(State));
+    State.Settings = &raidsUserSettings;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       State.PlayerStates[i].EquippedClassProgress.ClassType = -1;
     }
@@ -730,6 +732,8 @@ void initialize(PatchStateContainer_t* gameState)
   netInstallCustomMsgHandler(CUSTOM_MSG_USE_LIFE, &onUseLifeRemote);
 
   // component init
+  raidsSettingsMapInit();
+  raidsLodMapInit();
   mobInitialize();
   bubbleInit();
   lootInit();
@@ -915,7 +919,12 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
 	// Determine if host
 	State.IsHost = gameAmIHost();
-  playerConfig = gameState->Config;
+  
+  // run raids lod pass
+  raidsLodTick();
+
+  // run raids settings pass
+  raidsSettingsTick();
 
 	if (!Initialized) {
     State.MissionStartTime = 0;
