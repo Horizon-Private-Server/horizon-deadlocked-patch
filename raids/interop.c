@@ -151,18 +151,3 @@ void raidsMobAfterDamage(Moby* moby, struct MobDamageEventArgs* args, float appl
   if (hasMapConfig() && mapConfig->Functions.MobAfterDamageFunc)
     mapConfig->Functions.MobAfterDamageFunc(moby, args, appliedDamage);
 }
-
-//--------------------------------------------------------------------------
-float raidsGetAmmoDropChance(Player* player, Moby* moby, float baseChance)
-{
-  if (!(baseChance >= 0 && baseChance <= FLT_MAX)) baseChance = 0;
-  if (baseChance > 1) baseChance = 1;
-
-  float chance = baseChance;
-  if (hasMapConfig() && mapConfig->Functions.GetAmmoDropChanceFunc)
-    chance = mapConfig->Functions.GetAmmoDropChanceFunc(player, moby, baseChance);
-
-  if (!(chance >= 0 && chance <= FLT_MAX)) chance = baseChance;
-  if (chance > 1) chance = 1;
-  return chance;
-}

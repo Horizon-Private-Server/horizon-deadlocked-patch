@@ -123,7 +123,7 @@
 #define MOB_COMPLEXITY_LOD_FACTOR             (500)
 #define MOB_MAX_FLINCH_PROBABILITY            (0.25)
 
-#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.05)
+#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.1f)
 #define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.015)
 
 #define BADGE_SHARPSHOOTER_CRIT_AMOUNT        (0.05)

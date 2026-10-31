@@ -1060,17 +1060,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp, appliedWeaponXp, weaponId);
     if (killedByLocal) contractHandleKill(pvars->MobVars.SpawnParamsIdx, weaponId, appliedWeaponXp, appliedPlayerXp);
 
-    // spawn ammo chance
-    // originally wanted to do this only if the killer was the local player
-    // but to encourage cooperative play, it makes sense for it to randomly drop regardless
-    if (killedByLocal || pvars->MobVars.ClosestDistToLocal < (25*25)) {
-      if (killedByPlayer && mapConfig && mapConfig->Functions.CreateAmmoDropAtFunc) {
-        float chance = raidsGetAmmoDropChance(killedByPlayer, moby, State.AmmoDropChance);
-        if (randRange(0, 1) < chance)
-          mapConfig->Functions.CreateAmmoDropAtFunc(moby);
-      }
-    }
-
     // spawn loot chance
     if (randRange(0, 1) >= (1-GAME_DEFAULT_LOOT_DROP_CHANCE)) {
       lootRequestFromMob(moby, killedByLocal ? weaponId : 0);
