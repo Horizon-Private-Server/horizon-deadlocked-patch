@@ -113,6 +113,13 @@ void contractHandleKill(int mobDefIdx, int gadgetId, u32 weaponXp, u32 playerXp)
 
     // check for completion
     if (contractCheckForCompletion(i)) {
+      if (contract->RewardClassXp > 0 && contract->CompletedClassType < 0
+          && mapConfig->BankVTable->GetHasAccount()
+          && mapConfig->BankVTable->GetClassDefinition(bank->Account.EquippedClass))
+        contract->CompletedClassType = bank->Account.EquippedClass;
+      mapConfig->BankVTable->SendContractStatsToServer(contract);
+      contractState.SendStatsCounter[i] = 0;
+
       char buf[64];
       snprintf(buf, sizeof(buf), "Contract #%d Completed", i + 1);
       playUpgradeSound(playerGetFromSlot(0));
