@@ -57,6 +57,8 @@ typedef struct PlayerSyncPlayerData
   u8 CurrentStateUpdateCmdId;
   u8 CurrentSubStateId;
   u8 StateUpdateCmdId;
+  u8 VehiclePadPrepared;
+  u8 SavedVehicleInputFlags;
   PlayerSyncStateUpdateUnpacked_t StateUpdates[CMD_BUFFER_SIZE];
 } PlayerSyncPlayerData_t;
 
@@ -144,6 +146,29 @@ void playerSyncOnPlayerUpdateSetState(Player* player, int toState, int a2, int a
 }
 
 //--------------------------------------------------------------------------
+void playerSyncRestoreVehicleInputFlags(Player* player, PlayerSyncPlayerData_t* data)
+{
+  // bit 0 indicates we overrode the flag
+  // bit 2 stores the original vehicle input flag
+  if (!(data->SavedVehicleInputFlags & 1)) return;
+
+  if (player->pNetPlayer) {
+    player->pNetPlayer->flags = (player->pNetPlayer->flags & ~4)
+      | (data->SavedVehicleInputFlags & 4);
+  }
+  data->SavedVehicleInputFlags = 0;
+  data->Pad[2] = 0xFF;
+  data->Pad[3] = 0xFF;
+}
+
+//--------------------------------------------------------------------------
+void playerSyncUpdatePlayerPad(Player* player, PlayerSyncPlayerData_t* data)
+{
+  ((void (*)(struct PAD*))0x00527e08)(player->Paddata);
+  ((void (*)(struct PAD*, void*, int))0x00527510)(player->Paddata, data->Pad, 0x14);
+}
+
+//--------------------------------------------------------------------------
 int playerSyncHandlePlayerPadHook(Player* player)
 {
   int padIdx = 0;
@@ -154,11 +179,16 @@ int playerSyncHandlePlayerPadHook(Player* player)
     // get player sync data
     PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
   
-    // process input
-    ((void (*)(struct PAD*))0x00527e08)(player->Paddata);
+    // if the player left the vehicle during native updates
+    // release driving buttons before processing on foot input
+    if (data->VehiclePadPrepared && (!player->Vehicle || player->Vehicle->pDriver != player
+        || player->PlayerState != PLAYER_STATE_VEHICLE)) {
+      playerSyncRestoreVehicleInputFlags(player, data);
+      data->VehiclePadPrepared = 0;
+    }
 
-    // update pad
-    ((void (*)(struct PAD*, void*, int))0x00527510)(player->Paddata, data->Pad, 0x14);
+    if (!data->VehiclePadPrepared)
+      playerSyncUpdatePlayerPad(player, data);
   }
 
   int result = ((int (*)(Player*))0x0060cec0)(player);
@@ -181,6 +211,50 @@ void playerRotationLerp(VECTOR out, VECTOR a, VECTOR b, float t)
   out[0] = lerpfAngle(a[0], b[0], t);
   out[1] = lerpfAngle(a[1], b[1], t);
   out[2] = lerpfAngle(a[2], b[2], t);
+}
+
+//--------------------------------------------------------------------------
+void playerSyncHandleVehicleUpdate(Vehicle* vehicle, int gameTime)
+{
+  // run native vehicle physics first
+  // apply correction before updating riders and vehicle visuals
+  ((void (*)(Vehicle*, int))0x00619dc8)(vehicle, gameTime);
+  if (!gameConfig.grNewPlayerSync || !PLAYER_SYNC_DATAS_PTR) return;
+
+  Player* driver = vehicle->pDriver;
+  Moby* moby = vehicle->pMoby;
+  if (!driver || driver->IsLocal || driver->Vehicle != vehicle || !moby
+      || driver->PlayerState != PLAYER_STATE_VEHICLE || vehicle->hitPoints <= 0
+      || (vehicle->flags & (2 | 0x10000000))) return;
+
+  // only sync vehicles where the driver and vehicle use the same world transform
+  // turrets can have a seat offset or rotate independently
+  switch (moby->OClass) {
+    case MOBY_ID_PUMA:
+    case MOBY_ID_HOVERBIKE:
+    case MOBY_ID_HOVERSHIP:
+    case MOBY_ID_LANDSTALKER:
+      break;
+    default:
+      return;
+  }
+
+  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[driver->PlayerId];
+  if (!data->VehiclePadPrepared) return;
+
+  VECTOR delta;
+  vector_subtract(delta, driver->RemoteHero.receivedSyncPos, moby->Position);
+  float distanceSq = vector_sqrmag(delta);
+  if (distanceSq > 49) {
+    vector_copy(moby->Position, driver->RemoteHero.receivedSyncPos);
+  } else if (distanceSq > (0.01*0.01)) {
+    vector_lerp(moby->Position, moby->Position, driver->RemoteHero.receivedSyncPos, 0.15);
+  }
+  playerRotationLerp(moby->Rotation, moby->Rotation, driver->RemoteHero.receivedSyncRot, 0.15);
+
+  // update native vehicle position and rotation
+  vector_copy(vehicle->netLocalPos, moby->Position);
+  vector_copy(vehicle->netLocalRot, moby->Rotation);
 }
 
 //--------------------------------------------------------------------------
@@ -239,6 +313,11 @@ void playerSyncHandlePlayerState(Player* player)
   if (!player || player->IsLocal || !player->PlayerMoby || !PLAYER_SYNC_DATAS_PTR) return;
 
   PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
+
+  // restore the native vehicle input flag
+  // do this even if we don't have a valid state update
+  playerSyncRestoreVehicleInputFlags(player, data);
+  data->VehiclePadPrepared = 0;
 
   // move forward subtick
   data->CurrentSubStateId++;
@@ -336,6 +415,11 @@ void playerSyncHandlePlayerState(Player* player)
     vector_add(stateCurrentPosition, stateCurrentPosition, stateInterpolated.GroundMoby->Position);
   }
 
+  // vehicles use the driver's received position and rotation as their target
+  // use the synced transform directly so player smoothing doesn't delay the vehicle
+  int isVehicleDriver = player->Vehicle && player->Vehicle->pDriver == player
+    && player->PlayerState == PLAYER_STATE_VEHICLE && stateInterpolated.State == PLAYER_STATE_VEHICLE;
+
   // snap position
   float snapRadius = (stateInterpolated.GroundMoby != player->Ground.pMoby) ? 4 : 49;
   vector_subtract(dt, stateCurrentPosition, player->PlayerPosition);
@@ -358,14 +442,14 @@ void playerSyncHandlePlayerState(Player* player)
   }
 
   vector_copy(playerMoby->Position, player->PlayerPosition);
-  vector_copy(player->RemoteHero.receivedSyncPos, player->PlayerPosition);
+  vector_copy(player->RemoteHero.receivedSyncPos, isVehicleDriver ? stateCurrentPosition : player->PlayerPosition);
   vector_copy(player->RemoteHero.posAtSyncFrame, player->PlayerPosition);
 
   // lerp rotation
   player->PlayerRotation[0] = lerpfAngle(player->PlayerRotation[0], stateInterpolated.Rotation[0], tRot);
   player->PlayerRotation[1] = lerpfAngle(player->PlayerRotation[1], stateInterpolated.Rotation[1], tRot);
   player->PlayerRotation[2] = lerpfAngle(player->PlayerRotation[2], stateInterpolated.Rotation[2], tRot);
-  vector_copy(player->RemoteHero.receivedSyncRot, player->PlayerRotation);
+  vector_copy(player->RemoteHero.receivedSyncRot, isVehicleDriver ? stateInterpolated.Rotation : player->PlayerRotation);
 
   // lerp camera rotation
   player->CamRot[0] = 0;
@@ -425,6 +509,14 @@ void playerSyncHandlePlayerState(Player* player)
   *(float*)((u32)player + 0x2e38) = mag;
   *(float*)((u32)player + 0x0120) = moveX;
   *(float*)((u32)player + 0x0124) = -moveY;
+
+  // pass acceleration and braking through while driving
+  // leave firing, exiting and seat switching to the game
+  if (isVehicleDriver && !player->timers.noInput) {
+    u16 padBits = stateInterpolated.PadBits | (u16)~(PAD_CROSS | PAD_SQUARE);
+    data->Pad[2] = padBits & 0xFF;
+    data->Pad[3] = padBits >> 8;
+  }
 
   data->Pad[4] = 0x7F;
   data->Pad[5] = 0x7F;
@@ -585,6 +677,17 @@ void playerSyncHandlePlayerState(Player* player)
           weaponMobyUpdateBangles(player->Gadgets[0].pMoby, stateInterpolated.GadgetId, stateInterpolated.GadgetLevel);
       } 
     }
+  }
+
+  // vehicles update before remote players
+  // process driver input here so it is ready for vehicle physics
+  // set the vehicle input flag normally supplied by native player messages
+  if (isVehicleDriver && player->Vehicle && player->Vehicle->pDriver == player
+      && player->PlayerState == PLAYER_STATE_VEHICLE && player->pNetPlayer && player->Paddata) {
+    data->SavedVehicleInputFlags = (player->pNetPlayer->flags & 4) | 1;
+    playerSyncUpdatePlayerPad(player, data);
+    player->pNetPlayer->flags |= 4;
+    data->VehiclePadPrepared = 1;
   }
 
   vector_copy(data->LastLocalPosition, player->PlayerPosition);
@@ -824,6 +927,7 @@ void playerSyncTick(void)
   // hooks
   HOOK_JAL(0x0060eb80, &playerSyncDisablePlayerStateUpdates);
   HOOK_JAL(0x0060684c, &playerSyncHandlePlayerPadHook);
+  HOOK_JAL(0x0061b2b4, &playerSyncHandleVehicleUpdate);
   //HOOK_JAL(0x0060cd44, &playerSyncOnPlayerUpdateSetState);
   HOOK_JAL(0x005f0900, &_playerSyncPatchHeroTransAnim);
 
