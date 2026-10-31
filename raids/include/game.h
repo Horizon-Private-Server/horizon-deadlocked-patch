@@ -110,7 +110,8 @@
 #define WEAPON_MENU_COOLDOWN_TICKS						(60)
 
 #define PLAYER_LEVEL_HEALTH_FACTOR            (10)
-#define PLAYER_LEVEL_DAMAGE_FACTOR            (0.04)
+#define PLAYER_LEVEL_DAMAGE_FACTOR            (0.0)
+#define PLAYER_LEVEL_WRENCH_DAMAGE            (10)
 
 #define SNACK_ITEM_MAX_COUNT                  (8)
 #define DAMAGE_BUBBLE_MAX_COUNT               (16)
