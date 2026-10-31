@@ -241,7 +241,7 @@ void raidsSettingsDraw(void)
 
   // draw footer
   windowCreateFrom(&footer, &window, 0, 0, window.Width, RAIDS_MENU_FOOTER_HEIGHT, TEXT_ALIGN_BOTTOMCENTER);
-  menuDrawFooter(&footer, "\x1B \x1A CHANGE    \x10 CHANGE    \x12 BACK");
+  menuDrawFooter(&footer, "\x1D \x1C SETTING    \x1B \x1A CHANGE    \x12 BACK");
 
   if (!raidsSettingsLoaded) {
     windowDrawText(&window, TEXT_ALIGN_TOPLEFT, 16, 48, 0.8, RAIDS_MENU_SECONDARY_COLOR,
