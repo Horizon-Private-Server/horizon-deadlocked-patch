@@ -1081,7 +1081,11 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     
     // log
     trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp, appliedWeaponXp, weaponId);
-    if (killedByLocal || canShareKill) contractHandleKill(pvars->MobVars.SpawnParamsIdx, weaponId, appliedWeaponXp, appliedPlayerXp);
+    if (killedByLocal || canShareKill) {
+      // shared contract credit follows the recipient's held weapon
+      int contractWeaponId = killedByLocal ? weaponId : localPlayer->WeaponHeldId;
+      contractHandleKill(pvars->MobVars.SpawnParamsIdx, contractWeaponId, appliedWeaponXp, appliedPlayerXp);
+    }
 
     // spawn loot chance
     if (randRange(0, 1) >= (1-GAME_DEFAULT_LOOT_DROP_CHANCE)) {
