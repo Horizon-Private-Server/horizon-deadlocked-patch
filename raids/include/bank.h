@@ -173,6 +173,7 @@ typedef struct RaidsPlayerInventoryPage
   int RefreshLocalInventory;
   int Filter;
   int Page;
+  int Sort;
   int HasFlag;
   long LastRequestTime;
 } RaidsPlayerInventoryPage_t;
@@ -220,6 +221,16 @@ struct RaidsGetBankRequest
   u32 DestTimeFlagAddress;
   int Filter;
   int Page;
+};
+
+struct RaidsGetBankInventoryRequest
+{
+  u32 DestAddress;
+  u32 DestHasFlagAddress;
+  u32 DestTimeFlagAddress;
+  int Filter;
+  int Page;
+  int Sort;
 };
 
 struct RaidsGetEquippedClassRequest
@@ -336,7 +347,7 @@ typedef float (*BankGetEquippedBadgeEffectStrength_func)(int playerId, enum Raid
 typedef enum RaidsItemRarity (*BankGetEquippedWeaponModRarity_func)(int playerId, int gadgetId, enum RaidsWeaponModType modType);
 typedef RaidsInventoryItem_t* (*BankGetEquippedWeaponFromGadgetBox_func)(GadgetBox* gbox, int gadgetId);
 
-typedef void (*BankRequestInventoryFromServer_func)(RaidsPlayerInventoryPage_t* inventory, int filter, int page);
+typedef void (*BankRequestInventoryFromServer_func)(RaidsPlayerInventoryPage_t* inventory, int filter, int page, int sort);
 typedef void (*BankSendInventoryItemToServer_func)(RaidsInventoryItem_t* item, enum RaidsItemUpdateAction action);
 typedef void (*BankRequestEquippedInventoryFromServer_func)(void);
 typedef void (*BankRequestAccountFromServer_func)(void);

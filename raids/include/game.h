@@ -269,6 +269,15 @@ typedef struct RaidsUserSettings
 
 typedef char RaidsUserSettingsSizeCheck[sizeof(RaidsUserSettings_t) == 16 ? 1 : -1];
 
+struct RaidsInventoryMenuState
+{
+  int HasState;
+  int SelectedIdx;
+  int FilterIdx;
+  int PageIdx;
+  int SortIdx;
+};
+
 struct RaidsState
 {
 	int InitializedTime;
@@ -276,6 +285,7 @@ struct RaidsState
   const RaidsUserSettings_t* Settings;
   struct RaidsMobStats MobStats;
 	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
+  struct RaidsInventoryMenuState InventoryMenu;
   int ClientsReady;
 	int MenuOpen;
   int OnHubWorld;
