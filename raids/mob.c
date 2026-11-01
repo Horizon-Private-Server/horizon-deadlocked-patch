@@ -10,6 +10,7 @@
 #include <libdl/collision.h>
 #include <libdl/graphics.h>
 #include <libdl/moby.h>
+#include <libdl/math3d.h>
 #include <libdl/net.h>
 #include <libdl/random.h>
 #include <libdl/radar.h>
@@ -19,6 +20,8 @@
 #include "include/tracker.h"
 #include "include/contract.h"
 #include "include/interop.h"
+
+#define MOB_KILL_SHARE_RADIUS (50.0f)
 
 int mobInMobMove = 0;
 Moby* mobFirstInList = 0;
@@ -711,8 +714,9 @@ void mobUpdate(Moby* moby)
     if (damage > 0) {
       Player * damager = guberMobyGetPlayerDamager(colDamage->Damager);
       if (damager) {
-        // apply player level damage buff
-        damage *= 1 + (PLAYER_LEVEL_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Level);
+        // wrench already has its own hero level damage bonus
+        if (getDamageSourceFromOClass(colDamage->Damager->OClass) != MOB_DAMAGE_SOURCE_WRENCH)
+          damage *= 1 + (PLAYER_LEVEL_DAMAGE_FACTOR * State.PlayerStates[damager->PlayerId].State.Level);
 
         // deal extra damage after being hit
         // if (damager->timers.postHitInvinc > 0) {
@@ -1023,6 +1027,10 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
   int weaponId = getWeaponIdFromDamageSource(sourceId);
 
+  // measure shared credit from the mob before destroy callbacks
+  int canShareKill = localPlayer && !playerIsDead(localPlayer)
+      && vector_sqrdistance(moby->Position, localPlayer->PlayerPosition) <= MOB_KILL_SHARE_RADIUS * MOB_KILL_SHARE_RADIUS;
+
   // pass death to map
   if (mapConfig && mapConfig->Functions.OnMobDestroyedFunc)
     mapConfig->Functions.OnMobDestroyedFunc(moby);
@@ -1034,7 +1042,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 	int bolts = pvars->MobVars.Config.Bolts;
 	float xp = pvars->MobVars.Config.Xp;
 
-	if (killedByPlayerId >= 0) {
+	if (killedByPlayerId >= 0 && killedByPlayerId < GAME_MAX_PLAYERS) {
         
     Player * killedByPlayer = players[(int)killedByPlayerId];
     struct RaidsPlayer* pState = &State.PlayerStates[(int)killedByPlayerId];
@@ -1056,22 +1064,24 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
       if (killedByLocal) pState->State.Bolts += bolts;
       mapConfig->BankVTable->AddBolts(bolts);
-      mapConfig->BankVTable->AddXP((u32)xp);
-      appliedPlayerXp = (u32)xp;
+      if (killedByLocal || canShareKill) {
+        mapConfig->BankVTable->AddXP((u32)xp);
+        appliedPlayerXp = (u32)xp;
+      }
     }
 
-    // weapon XP only if this client killed the mob
+    // share half weapon xp with nearby living party members
     if (killedByLocal && weaponId > 0) {
       mapConfig->BankVTable->AddWeaponXP(xp, weaponId);
       appliedWeaponXp = (u32)xp;
-    } else if (!killedByLocal && localPlayer->WeaponHeldId && !playerIsDead(localPlayer)) {
+    } else if (!killedByLocal && canShareKill && localPlayer->WeaponHeldId) {
       mapConfig->BankVTable->AddWeaponXP((double)(xp / 2), localPlayer->WeaponHeldId);
       appliedWeaponXp = (u32)(xp / 2);
     }
     
     // log
     trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp, appliedWeaponXp, weaponId);
-    if (killedByLocal) contractHandleKill(pvars->MobVars.SpawnParamsIdx, weaponId, appliedWeaponXp, appliedPlayerXp);
+    if (killedByLocal || canShareKill) contractHandleKill(pvars->MobVars.SpawnParamsIdx, weaponId, appliedWeaponXp, appliedPlayerXp);
 
     // spawn loot chance
     if (randRange(0, 1) >= (1-GAME_DEFAULT_LOOT_DROP_CHANCE)) {
