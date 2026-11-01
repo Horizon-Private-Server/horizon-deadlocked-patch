@@ -535,7 +535,7 @@ MenuElem_OrderedListData_t dataCustomModes = {
     { CUSTOM_MODE_COLLECTATHON, "Collectathon" },
     { CUSTOM_MODE_GRIDIRON, "DreadBall" },
 #if RAIDS
-    { CUSTOM_MODE_RAIDS, "DreadZone Raids" },
+    { CUSTOM_MODE_RAIDS, "DreadZone Raids [ALPHA]" },
 #endif
     { CUSTOM_MODE_GUN_GAME, "Gun Game" },
     { CUSTOM_MODE_HNS, "Hide and Seek" },
@@ -568,7 +568,7 @@ const char* CustomModeShortNames[] = {
   [CUSTOM_MODE_TEAM_DEFENDER] NULL,
   [CUSTOM_MODE_TAG] NULL,
 #if RAIDS
-  [CUSTOM_MODE_RAIDS] "Raids",
+  [CUSTOM_MODE_RAIDS] "Raids [ALPHA]",
 #endif
   [CUSTOM_MODE_OITC] "OITC",
   [CUSTOM_MODE_OBSTACLE] NULL,

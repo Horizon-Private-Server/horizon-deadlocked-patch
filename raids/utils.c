@@ -174,7 +174,10 @@ int getLevelFromXp(u64 xp)
 //--------------------------------------------------------------------------
 u64 getXpForLevel(int level)
 {
-  return (u64)(10 * (double)powf(level, 3) + 250*level);
+  if (level <= 0) return 0;
+  if (level > LEVELUP_MAX_PLAYER_LEVEL) level = LEVELUP_MAX_PLAYER_LEVEL;
+  u64 value = level;
+  return 3 * (10 * value * value * value + 250 * value);
 }
 
 //--------------------------------------------------------------------------

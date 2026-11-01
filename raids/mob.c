@@ -1071,10 +1071,11 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     }
 
     // share half weapon xp with nearby living party members
-    if (killedByLocal && weaponId > 0) {
+    // LEGACY_WEAPON_PROFICIENCY: preserve original source checks on rollback
+    if (killedByLocal && (RAIDS_USE_SHARED_WEAPON_PROFICIENCY || weaponId > 0)) {
       mapConfig->BankVTable->AddWeaponXP(xp, weaponId);
       appliedWeaponXp = (u32)xp;
-    } else if (!killedByLocal && canShareKill && localPlayer->WeaponHeldId) {
+    } else if (!killedByLocal && canShareKill && (RAIDS_USE_SHARED_WEAPON_PROFICIENCY || localPlayer->WeaponHeldId)) {
       mapConfig->BankVTable->AddWeaponXP((double)(xp / 2), localPlayer->WeaponHeldId);
       appliedWeaponXp = (u32)(xp / 2);
     }

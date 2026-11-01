@@ -91,8 +91,10 @@ void contractHandleKill(int mobDefIdx, int gadgetId, u32 weaponXp, u32 playerXp)
     }
     if (!matchesMob) continue;
 
-    // check weapon
+#if !RAIDS_USE_SHARED_WEAPON_PROFICIENCY
+    // LEGACY_WEAPON_PROFICIENCY: original weapon objective
     if (contract->RequiredKillsGadgetId != 0 && contract->RequiredKillsGadgetId != gadgetId) continue;
+#endif
 
     // update cache
     struct ContractStatCache* cache = &contractState.StatCache[i];

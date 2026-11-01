@@ -25,6 +25,9 @@
 struct TrackerState {
   long TimeStarted;
   u32 PlayerLevels;
+  int LastPlayerLevel;
+  char HasPlayerLevelSnapshot;
+  // LEGACY_WEAPON_PROFICIENCY
   u32 WeaponLevels[WEAPON_SLOT_COUNT-1];
   u32 LootDrops;
   u32 Kills;
@@ -34,7 +37,12 @@ struct TrackerState {
   u32 ClassLevels[BANK_MAX_CLASSES];
   u64 LastClassXp[BANK_MAX_CLASSES];
   char HasClassXpSnapshot;
+  // LEGACY_WEAPON_PROFICIENCY
   u64 WeaponXp[WEAPON_SLOT_COUNT-1];
+  double WeaponExperience;
+  double LastWeaponExperience;
+  u32 SharedWeaponLevels;
+  char HasWeaponXpSnapshot;
   char Enabled;
 } TrackerState;
 
@@ -53,7 +61,6 @@ void trackerDraw(void)
   double dt = trackerGetTimeElapsed();
   Player* localPlayer = playerGetFromSlot(0);
   if (!localPlayer) return;
-  int weaponId = localPlayer->WeaponHeldId;
   char strBuf[128];
   Window_t drawWindow;
 
@@ -102,7 +109,15 @@ void trackerDraw(void)
   windowDrawText(&drawWindow, TEXT_ALIGN_TOPLEFT, 0, 0, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT);
   windowMove(&drawWindow, 0, 10);
 
+#if RAIDS_USE_SHARED_WEAPON_PROFICIENCY
+  snprintf(strBuf, sizeof(strBuf), "Weapon XP: (+%uP) %.0f (%.0f /min)",
+    TrackerState.SharedWeaponLevels, TrackerState.WeaponExperience,
+    dt > 0 ? TrackerState.WeaponExperience * 60 / dt : 0);
+  windowDrawText(&drawWindow, TEXT_ALIGN_TOPLEFT, 0, 0, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT);
+#else
+  // LEGACY_WEAPON_PROFICIENCY: original source-specific tracker
   // weapon stats
+  int weaponId = localPlayer->WeaponHeldId;
   int slot = weaponIdToSlot(weaponId) - 1;
   if (slot >= 0) {
     struct GadgetDef* gadgetDef = weaponGetDef(weaponId, 0);
@@ -111,6 +126,7 @@ void trackerDraw(void)
     windowDrawText(&drawWindow, TEXT_ALIGN_TOPLEFT, 0, 0, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT);
     windowMove(&drawWindow, 0, 10);
   }
+#endif
 }
 
 //--------------------------------------------------------------------------
@@ -128,10 +144,12 @@ void trackerLogKill(int killedByPlayerId, u64 bolts, u64 playerXp, u64 weaponXp,
   TrackerState.PlayerXp += playerXp;
   TrackerState.Bolts += bolts;
 
-  // log weapon XP
+#if !RAIDS_USE_SHARED_WEAPON_PROFICIENCY
+  // LEGACY_WEAPON_PROFICIENCY: shared XP is measured from account snapshots
   int slot = weaponIdToSlot(weaponId) - 1;
-  if (slot >= 0)
+  if (slot >= 0 && slot < WEAPON_SLOT_COUNT - 1)
     TrackerState.WeaponXp[slot] += weaponXp;
+#endif
 }
 
 //--------------------------------------------------------------------------
@@ -184,6 +202,41 @@ void trackerUpdateClassXp(void)
 }
 
 //--------------------------------------------------------------------------
+void trackerUpdatePlayerLevel(void)
+{
+  if (!hasMapConfig() || !mapConfig->BankVTable || !State.LocalPlayerState) return;
+  struct BankVTable* bank = mapConfig->BankVTable;
+  if (!bank->GetHasAccount() || bank->HasPendingAccountRequest()) return;
+
+  int level = State.LocalPlayerState->State.Level;
+  if (TrackerState.Enabled && TrackerState.HasPlayerLevelSnapshot && level > TrackerState.LastPlayerLevel)
+    TrackerState.PlayerLevels += level - TrackerState.LastPlayerLevel;
+  TrackerState.LastPlayerLevel = level;
+  TrackerState.HasPlayerLevelSnapshot = 1;
+}
+
+//--------------------------------------------------------------------------
+void trackerUpdateWeaponXp(void)
+{
+#if RAIDS_USE_SHARED_WEAPON_PROFICIENCY
+  if (!hasMapConfig() || !mapConfig->BankVTable) return;
+  struct BankVTable* bank = mapConfig->BankVTable;
+  if (!bank->GetHasAccount() || bank->HasPendingAccountRequest()) return;
+  RaidsPlayerBank_t* localBank = bank->GetLocalBank();
+  if (!localBank) return;
+
+  double xp = localBank->Account.WeaponExperience;
+  if (TrackerState.Enabled && TrackerState.HasWeaponXpSnapshot && xp > TrackerState.LastWeaponExperience) {
+    TrackerState.WeaponExperience += xp - TrackerState.LastWeaponExperience;
+    int levels = getProficiencyFromXp(xp) - getProficiencyFromXp(TrackerState.LastWeaponExperience);
+    if (levels > 0) TrackerState.SharedWeaponLevels += levels;
+  }
+  TrackerState.LastWeaponExperience = xp;
+  TrackerState.HasWeaponXpSnapshot = 1;
+#endif
+}
+
+//--------------------------------------------------------------------------
 void trackerReset(void)
 {
   TrackerState.Kills = 0;
@@ -194,7 +247,13 @@ void trackerReset(void)
   memset(TrackerState.ClassLevels, 0, sizeof(TrackerState.ClassLevels));
   TrackerState.HasClassXpSnapshot = 0;
   trackerUpdateClassXp();
+  TrackerState.WeaponExperience = 0;
+  TrackerState.SharedWeaponLevels = 0;
+  TrackerState.HasWeaponXpSnapshot = 0;
+  trackerUpdateWeaponXp();
   TrackerState.PlayerLevels = 0;
+  TrackerState.HasPlayerLevelSnapshot = 0;
+  trackerUpdatePlayerLevel();
   memset(TrackerState.WeaponLevels, 0, sizeof(TrackerState.WeaponLevels));
   memset(TrackerState.WeaponXp, 0, sizeof(TrackerState.WeaponXp));
   TrackerState.TimeStarted = timerGetSystemTime();
@@ -206,27 +265,27 @@ void trackerTick(void)
   if (!isInGame()) return;
 
   trackerUpdateClassXp();
+  trackerUpdateWeaponXp();
 
-  // track level ups
-  static int lastPlayerLevel = 0;
-  int currPlayerLevel = State.LocalPlayerState->State.Level;
-  if (currPlayerLevel > lastPlayerLevel) {
-    trackerLogPlayerLevelUp();
-    lastPlayerLevel = currPlayerLevel;
-  }
+  trackerUpdatePlayerLevel();
 
-  // track level ups
-  static int lastWeaponLevel[WEAPON_SLOT_COUNT-1] = {};
-  int i;
-  for (i = 0; i < WEAPON_SLOT_COUNT-1; ++i) {
-    int weaponId = weaponSlotToId(i + 1);
-    double currWeaponXp = hasMapConfig() ? mapConfig->BankVTable->GetWeaponXP(weaponId) : 0;
-    int currWeaponLevel = getProficiencyFromXp(currWeaponXp);
-    if (currWeaponLevel > lastWeaponLevel[i]) {
-      trackerLogWeaponLevelUp(weaponId);
+#if !RAIDS_USE_SHARED_WEAPON_PROFICIENCY
+  // LEGACY_WEAPON_PROFICIENCY: original per-weapon level tracking
+  if (hasMapConfig() && mapConfig->BankVTable && mapConfig->BankVTable->GetHasAccount()
+      && !mapConfig->BankVTable->HasPendingAccountRequest()) {
+    static int lastWeaponLevel[WEAPON_SLOT_COUNT-1] = {};
+    static int hasSnapshot = 0;
+    int i;
+    for (i = 0; i < WEAPON_SLOT_COUNT-1; ++i) {
+      int weaponId = weaponSlotToId(i + 1);
+      int currWeaponLevel = getProficiencyFromXp(mapConfig->BankVTable->GetWeaponXP(weaponId));
+      if (hasSnapshot && currWeaponLevel > lastWeaponLevel[i])
+        trackerLogWeaponLevelUp(weaponId);
       lastWeaponLevel[i] = currWeaponLevel;
     }
+    hasSnapshot = 1;
   }
+#endif
 
   if (!TrackerState.Enabled) {
     if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && !PATCH_POINTERS_PATCHMENU

@@ -136,6 +136,7 @@ typedef struct RaidsContract {
 
   // kills to complete
   u32 RequiredKills;
+  // LEGACY_WEAPON_PROFICIENCY: retain for shadow rewards and rollback
   int RequiredKillsGadgetId;
 
   // if raid - time to complete
@@ -180,12 +181,16 @@ typedef struct RaidsPlayerInventoryPage
 
 typedef struct RaidsPlayerAccount
 {
+  // LEGACY_WEAPON_PROFICIENCY: keep for migration and shadow awards
   double WeaponXp[WEAPON_SLOT_COUNT-1];
   u64 Experience;
   u32 Bolts;
   int EquippedClass;
   u64 ClassXp[BANK_MAX_CLASSES];
+  double WeaponExperience;
 } RaidsPlayerAccount_t;
+
+typedef char RaidsAccountSizeCheck[sizeof(RaidsPlayerAccount_t) == 216 ? 1 : -1];
 
 typedef struct RaidsPlayerClassSkill
 {
@@ -213,6 +218,14 @@ typedef struct RaidsPlayerBank
   RaidsPlayerEquippedInventory_t EquippedInventory;
   RaidsContract_t Contracts[BANK_MAX_CONTRACTS];
 } RaidsPlayerBank_t;
+
+struct RaidsGetBankAccountRequest
+{
+  u32 DestAddress;
+  u32 DestHasFlagAddress;
+  u32 DestTimeFlagAddress;
+  u32 AccountSize;
+};
 
 struct RaidsGetBankRequest
 {
