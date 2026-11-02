@@ -5829,7 +5829,7 @@ void onOnlineMenu(void)
   // 
   if (showNeedLatestMapsPopup)
   {
-    sprintf(buf, "Please download the latest Survival maps to play.");
+    snprintf(buf, sizeof(buf), "Please download the latest %s maps to play.", gameConfig.customModeId == CUSTOM_MODE_RAIDS ? "Raids" : "Survival");
     uiShowOkDialog("Custom Map Out-of-Date", buf);
 
     showNeedLatestMapsPopup = 0;
