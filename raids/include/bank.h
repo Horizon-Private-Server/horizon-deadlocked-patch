@@ -136,8 +136,6 @@ typedef struct RaidsContract {
 
   // kills to complete
   u32 RequiredKills;
-  // LEGACY_WEAPON_PROFICIENCY: retain for shadow rewards and rollback
-  int RequiredKillsGadgetId;
 
   // if raid - time to complete
   u32 RequiredRaidTimeMs;
@@ -165,6 +163,8 @@ typedef struct RaidsContract {
   char MobName[32];
 } RaidsContract_t;
 
+typedef char RaidsContractSizeCheck[sizeof(RaidsContract_t) == 184 ? 1 : -1];
+
 typedef struct RaidsPlayerInventoryPage
 {
   RaidsInventoryItem_t Items[BANK_MAX_ITEMS];
@@ -181,8 +181,6 @@ typedef struct RaidsPlayerInventoryPage
 
 typedef struct RaidsPlayerAccount
 {
-  // LEGACY_WEAPON_PROFICIENCY: keep for migration and shadow awards
-  double WeaponXp[WEAPON_SLOT_COUNT-1];
   u64 Experience;
   u32 Bolts;
   int EquippedClass;
@@ -190,7 +188,7 @@ typedef struct RaidsPlayerAccount
   double WeaponExperience;
 } RaidsPlayerAccount_t;
 
-typedef char RaidsAccountSizeCheck[sizeof(RaidsPlayerAccount_t) == 216 ? 1 : -1];
+typedef char RaidsAccountSizeCheck[sizeof(RaidsPlayerAccount_t) == 152 ? 1 : -1];
 
 typedef struct RaidsPlayerClassSkill
 {
@@ -391,8 +389,8 @@ typedef int (*BankGetLevel_func)(void);
 typedef u32 (*BankGetBolts_func)(void);
 typedef u32 (*BankAddBolts_func)(u32 amt);
 typedef u32 (*BankSubBolts_func)(u32 amt);
-typedef double (*BankGetWeaponXP_func)(int gadgetId);
-typedef double (*BankAddWeaponXP_func)(double amt, int gadgetId);
+typedef double (*BankGetWeaponXP_func)(void);
+typedef double (*BankAddWeaponXP_func)(double amt);
 typedef u64 (*BankGetClassXP_func)(int classType);
 typedef u64 (*BankAddClassXP_func)(u64 amount, int classType);
 typedef int (*BankGetClassLevel_func)(RaidsPlayerClassProgress_t* playerClass, u64 xp);

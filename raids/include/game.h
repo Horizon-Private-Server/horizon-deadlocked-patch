@@ -86,11 +86,6 @@
 #define NANOLEECH_HEALTH											(3)
 #define NANOLEECH_CHANCE											(0.1)
 
-// LEGACY_WEAPON_PROFICIENCY: switch with the backend and the other game.h
-#ifndef RAIDS_USE_SHARED_WEAPON_PROFICIENCY
-#define RAIDS_USE_SHARED_WEAPON_PROFICIENCY    (1)
-#endif
-
 #define LEVELUP_MAX_PROF_LEVEL                (98)
 #define LEVELUP_MAX_PLAYER_LEVEL              (98)
 #define LEVELUP_PLAYER_LINEAR_FACTOR          (100)

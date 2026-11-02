@@ -1060,7 +1060,6 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
     // receive bolts & xp
     u32 appliedPlayerXp = 0;
-    u32 appliedWeaponXp = 0;
     if (localPlayer && (killedByLocal || !playerIsDead(localPlayer))) {
       if (killedByLocal) pState->State.Bolts += bolts;
       mapConfig->BankVTable->AddBolts(bolts);
@@ -1071,22 +1070,16 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     }
 
     // share half weapon xp with nearby living party members
-    // LEGACY_WEAPON_PROFICIENCY: preserve original source checks on rollback
-    if (killedByLocal && (RAIDS_USE_SHARED_WEAPON_PROFICIENCY || weaponId > 0)) {
-      mapConfig->BankVTable->AddWeaponXP(xp, weaponId);
-      appliedWeaponXp = (u32)xp;
-    } else if (!killedByLocal && canShareKill && (RAIDS_USE_SHARED_WEAPON_PROFICIENCY || localPlayer->WeaponHeldId)) {
-      mapConfig->BankVTable->AddWeaponXP((double)(xp / 2), localPlayer->WeaponHeldId);
-      appliedWeaponXp = (u32)(xp / 2);
+    if (killedByLocal) {
+      mapConfig->BankVTable->AddWeaponXP(xp);
+    } else if (canShareKill) {
+      mapConfig->BankVTable->AddWeaponXP((double)(xp / 2));
     }
-    
+
     // log
-    trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp, appliedWeaponXp, weaponId);
-    if (killedByLocal || canShareKill) {
-      // shared contract credit follows the recipient's held weapon
-      int contractWeaponId = killedByLocal ? weaponId : localPlayer->WeaponHeldId;
-      contractHandleKill(pvars->MobVars.SpawnParamsIdx, contractWeaponId, appliedWeaponXp, appliedPlayerXp);
-    }
+    trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp);
+    if (killedByLocal || canShareKill)
+      contractHandleKill(pvars->MobVars.SpawnParamsIdx);
 
     // spawn loot chance
     if (randRange(0, 1) >= (1-GAME_DEFAULT_LOOT_DROP_CHANCE)) {

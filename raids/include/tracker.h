@@ -8,9 +8,7 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 
-void trackerLogKill(int killedByPlayerId, u64 bolts, u64 playerXp, u64 weaponXp, int weaponId);
-void trackerLogPlayerLevelUp(void);
-void trackerLogWeaponLevelUp(int weaponId);
+void trackerLogKill(int killedByPlayerId, u64 bolts, u64 playerXp);
 void trackerLogLootDrop(void);
 void trackerTick(void);
 void trackerDraw(void);

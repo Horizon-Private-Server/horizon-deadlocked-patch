@@ -53,7 +53,7 @@ int contractCheckForCompletion(int contractIdx)
 }
 
 //--------------------------------------------------------------------------
-void contractHandleKill(int mobDefIdx, int gadgetId, u32 weaponXp, u32 playerXp)
+void contractHandleKill(int mobDefIdx)
 {
   if (!hasMapConfig() || !mapConfig->BankVTable) return;
   if (mobDefIdx < 0 || mobDefIdx >= MAX_MOB_SPAWN_PARAMS || mobDefIdx >= mapConfig->MobSpawnParamsCount) return;
@@ -91,10 +91,6 @@ void contractHandleKill(int mobDefIdx, int gadgetId, u32 weaponXp, u32 playerXp)
     }
     if (!matchesMob) continue;
 
-#if !RAIDS_USE_SHARED_WEAPON_PROFICIENCY
-    // LEGACY_WEAPON_PROFICIENCY: original weapon objective
-    if (contract->RequiredKillsGadgetId != 0 && contract->RequiredKillsGadgetId != gadgetId) continue;
-#endif
 
     // update cache
     struct ContractStatCache* cache = &contractState.StatCache[i];
