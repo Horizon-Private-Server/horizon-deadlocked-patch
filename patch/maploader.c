@@ -43,6 +43,11 @@
 #define READ_CUSTOM_MAP_EXDATA_OFF              (0x150)
 #define READ_CUSTOM_MAP_FILENAME_LEN            (sizeof(MapLoaderState.MapFileName))
 
+#define ACTIVE_LEVEL_ID                         (*(int*)0x0021DE10)
+#define GAME_ACTIVE                             (*(int*)0x0021E1EC)
+#define SCENE_LOADED_OR_FROM                    (*(int*)0x00220268)
+#define SCENE_LOADED                            (*(int*)0x0022026C)
+
 void hook(void);
 void loadModules(void);
 void mapsFreeModuleBuffers(void);
@@ -56,6 +61,7 @@ int usbFsModuleSize = 0;
 int usbSrvModuleSize = 0;
 
 int mapsIsInLevelHop = 0;
+char mapHopLoadingMessage[64] = "Loading...";
 
 // patch config
 extern PatchConfig_t config;
@@ -246,13 +252,27 @@ char* mapHopGetMsgString(int msg)
 //------------------------------------------------------------------------------
 void mapHopToLoadingOnlineWadDraw(int a0)
 {
-  gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 1, 1, 0x80FFFFFF, "loading...", -1, TEXT_ALIGN_MIDDLECENTER);
+  gfxScreenSpaceText(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 1, 1, 0x80FFFFFF, mapHopLoadingMessage, -1, TEXT_ALIGN_MIDDLECENTER);
+}
+
+//------------------------------------------------------------------------------
+void mapHopToRefreshLoadingScreen(const char* message)
+{
+  safe_strcpy(mapHopLoadingMessage, message, sizeof(mapHopLoadingMessage));
+
+  // FadeToBlack rebuilds and submits the chain using our loading-text hook.
+  ((void (*)(int, int))0x004c4930)(2, 0);
 }
 
 //------------------------------------------------------------------------------
 void mapHopTo(CustomMapDef_t* def)
 {
   if (mapsIsInLevelHop || customMapLoadPending()) return;
+
+  // force dzo to display emu view so that users see the loading text during armor reading
+  int isDzo = PATCH_INTEROP->Client == CLIENT_TYPE_DZO;
+  u8 patchMenuWasOpen = PATCH_POINTERS_PATCHMENU;
+  if (isDzo) PATCH_POINTERS_PATCHMENU = 1;
 
   mapResetExDataCache();
   mapsIsInLevelHop = 1;
@@ -322,17 +342,18 @@ void mapHopTo(CustomMapDef_t* def)
   //printf("players at start %d\n", gs->PlayerCountAtStart);
 
   // trick dzo into recognizing we're loading a new scene
-  {
-    POKE_U32(0x0021E1EC, 0); // isInGame = 0
-    POKE_U32(0x0022026C, def->BaseMapId); // isSceneLoading = baseMapId
-    ((void (*)(void))0x001270C0)();
-    POKE_U32(0x0021E1EC, 1); // isInGame = 0
-    POKE_U32(0x0022026C, 1); // isSceneLoading = baseMapId
-  }
+  int sceneLoadedFrom = SCENE_LOADED_OR_FROM;
+  SCENE_LOADED_OR_FROM = ACTIVE_LEVEL_ID;
+  SCENE_LOADED = def->BaseMapId;
+  GAME_ACTIVE = 0;
+  ((void (*)(void))0x001270C0)();
+  SCENE_LOADED_OR_FROM = sceneLoadedFrom;
+  SCENE_LOADED = 1; // level 1 is the menus
+  GAME_ACTIVE = 1;
 
   // draw we're loading the wad
   HOOK_JAL(0x004c4a94, &mapHopToLoadingOnlineWadDraw);
-  ((void (*)(int, int))0x004c4930)(2, 0);
+  mapHopToRefreshLoadingScreen("Loading online wad...");
 
   // read onlinewad
   void* onlineWadBuffer = *(u32*)0x0021dd90 - 0x7D0000;
@@ -342,6 +363,7 @@ void mapHopTo(CustomMapDef_t* def)
   ((void (*)(int))0x001634a8)(1); // fs::sync(1)
   ((void (*)(int loadType, void* dest, int sectorOffset, int sectorCount, int t0, void* loadCompleteCallback, void* loadCompleteArgs))0x00163808)
     (0, onlineWadBuffer, sectorOffset, sectorCount, 0, 0, 0); // fs::load()
+  mapHopToRefreshLoadingScreen("Loading player skins...");
 
   // load player skins
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -353,23 +375,36 @@ void mapHopTo(CustomMapDef_t* def)
     int isLocal = clientId == gameGetMyClientId();
     //if (armorIdx == 0 && isLocal) continue;
 
+    char playerName[17];
+    char loadingMessage[64];
+    memcpy(playerName, (const char*)gs->PlayerNames[i], 16);
+    playerName[16] = 0;
+    if (!playerName[0]) snprintf(playerName, sizeof(playerName), "player %d", i + 1);
+
     // parse armor table
     void* armorDef = onlineWadBuffer + 0x250 + (isLocal ? 0 : 0x14) + (0x28 * armorIdx);
     void* armorMobyPtr = onlineWadBuffer + *(u32*)(armorDef + 0x4);
     void* armorTexPtr = onlineWadBuffer + *(u32*)(armorDef + 0xc);
 
     // decompress moby data
+    snprintf(loadingMessage, sizeof(loadingMessage), "Loading %s skin...", playerName);
+    mapHopToRefreshLoadingScreen(loadingMessage);
     int len = ((int (*)(void* src, void* dst))0x004f5140)(armorMobyPtr, buffer);
     binPtrs[i] = buffer;
     buffer += (len + 0x3F) & 0xFFFFFFC0;
 
     // decompress tex data
+    snprintf(loadingMessage, sizeof(loadingMessage), "Loading %s skin textures...", playerName);
+    mapHopToRefreshLoadingScreen(loadingMessage);
     len = ((int (*)(void* src, void* dst))0x004f5140)(armorTexPtr, buffer);
     texPtrs[i] = buffer;
     buffer += (len + 0x3F) & 0xFFFFFFC0;
   }
 
   // load
+  char loadingMessage[64];
+  snprintf(loadingMessage, sizeof(loadingMessage), "Loading %.*s...", (int)sizeof(def->Name), def->Name);
+  mapHopToRefreshLoadingScreen(loadingMessage);
   ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
   DPRINTF("load %d %s\n", mapId, def->Filename);
 
@@ -388,6 +423,7 @@ void mapHopTo(CustomMapDef_t* def)
     }
   }
 
+  if (isDzo) PATCH_POINTERS_PATCHMENU = patchMenuWasOpen;
   mapsIsInLevelHop = 0;
 }
 
@@ -1341,7 +1377,7 @@ u32 hookedCheck(void)
 
   if (phase == CUSTOM_LOAD_SOUND) {
     customLoadPhase = CUSTOM_LOAD_SOUND_INIT;
-    int inGame = *(u32*)0x0021E1EC != 0;
+    int inGame = GAME_ACTIVE != 0;
     void (*soundInit)(void) = (void (*)(void))(inGame ? 0x0058d5d0 : 0x0066b170);
     void (*musicLoad)(void) = (void (*)(void))(inGame ? 0x0051f7b8 : 0x005fec20);
     soundInit();
