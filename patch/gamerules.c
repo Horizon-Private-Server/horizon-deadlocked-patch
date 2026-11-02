@@ -51,35 +51,6 @@ typedef struct RotatingWeaponsChangedMessage
 	int weaponId;
 } RotatingWeaponsChangedMessage_t;
 
-enum BETTER_HILL_PTS
-{
-	TORVAL_13 = 0,
-	MARAXUS_13 = 1,
-	SARATHOS_11 = 2,
-	SARATHOS_14 = 3,
-	CATACROM_0D = 4,
-	CATACROM_11 = 5,
-	DC_11 = 6,
-	DC_14 = 7,
-	DC_16 = 8,
-	DC_17 = 9,
-	SHAAR_14 = 10,
-	SHAAR_17 = 11,
-	//VALIX_01 = 24,
-	VALIX_13 = 12,
-	VALIX_16 = 13,
-	//MF_20 = 14,
-	//MF_22 = 15,
-	//MF_24 = 16,
-	//GS_20 = 17,
-	//GS_21 = 18,
-	//GS_22 = 19,
-	//GS_23 = 20,
-	TEMPUS_16 = 21,
-	TEMPUS_17 = 22,
-	TEMPUS_18 = 23
-};
-
 // config
 extern PatchConfig_t config;
 
@@ -156,81 +127,46 @@ char HeadbuttHitTimers[GAME_MAX_PLAYERS];
 /*
  * Custom hill spawn points
  */
-SpawnPoint BetterHillPoints[] = {
-	// TORVAL ID 0x13
-	{ { 6, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 233.28482, 278.00937, 106.855156, 0 }, { 0.16666667, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 233.28482, 278.00937, 106.855156, 0 } },
+struct BetterHillPoint
+{
+  float Position[3];
+  u8 MapId;
+  u8 SpawnIndex;
+  u8 TransformIndex;
+  u8 PositionW;
+};
 
-	// MARAXUS ID 0x13
-	{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 525.83344, 742.3953, 103.92746, 1 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 525.83344, 742.3953, 103.92746, 1 } },
+// only the XY basis and Z scale differ from zero in these transforms
+const float BetterHillTransforms[][10] = {
+  { 6, 0, 0, 10, 10, 0.16666667, 0, 0, 0.1, 0.1 },
+  { 10, 0, 0, 10, 10, 0.1, 0, 0, 0.1, 0.1 },
+  { 12, 0, 0, 12, 12, 0.083333336, 0, 0, 0.083333336, 0.083333336 },
+  { 7, 0, 0, 7, 7, 0.14285715, 0, 0, 0.14285715, 0.14285715 },
+  { 12, 0, 0, 12, 10, 0.083333336, 0, 0, 0.083333336, 0.1 },
+  { 16, 0, 0, 16, 16, 0.0625, 0, 0, 0.0625, 0.0625 },
+  { 8.660254, 5, -5, 8.660254, 10, 0.08660254, 0.05, -0.05, 0.08660254, 0.1 },
+  { 4.9999995, 8.6602545, -6.9282036, 3.9999998, 10, 0.049999997, 0.086602546, -0.10825318, 0.062499996, 0.1 },
+  { 27.499998, 47.6314, -47.6314, 27.499998, 10, 0.009090908, 0.015745917, -0.015745917, 0.009090908, 0.1 },
+};
 
-	// SARATHOS ID 0x11
-	{ { 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 493.81552, 218.55286, 105.77197, 1 }, { 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 493.81552, 218.55286, 105.77197, 1 } },
-
-	// SARATHOS ID 14 (0x0E)
-	{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 337.56897, 193.39743, 106.15551, 1 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 337.56897, 193.39743, 106.15551, 1 } },
-
-	// CATACROM ID 0x0D
-	{ { 7, 0, 0, 0, 0, 7, 0, 0, 0, 0, 7, 0, 333.3385, 255.27766, 63.045467, 0 }, { 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 333.3385, 255.27766, 63.045467, 0 } },
-	
-	// CATACROM ID 0x11
-	{ { 7, 0, 0, 0, 0, 7, 0, 0, 0, 0, 7, 0, 324.36548, 366.6925, 65.79945, 0 }, { 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 324.36548, 366.6925, 65.79945, 0 } },
-
-	// DC ID 12 (0x0C)
-	{ { 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 10, 0, 503.79434, 415.31488, 641.28125, 1 }, { 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 0, 0, 0, 0.1, 0, 503.79434, 415.31488, 641.28125, 1 } },
-
-	// DC ID 14
-	{ { 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 503.789, 494.31857, 641.2969, 1 }, { 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 503.789, 494.31857, 641.2969, 1 } },
-
-	// DC ID 16
-	{ { 16, 0, 0, 0, 0, 16, 0, 0, 0, 0, 16, 0, 349.3588, 529.6109, 641.25, 1 }, { 0.0625, 0, 0, 0, 0, 0.0625, 0, 0, 0, 0, 0.0625, 0, 349.3588, 529.6109, 641.25, 1 } },
-
-	// DC ID 17 (0x11)
-	{ { 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 10, 0, 455.52982, 493.50287, 641.03125, 1 }, { 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 0, 0, 0, 0.1, 0, 455.52982, 493.50287, 641.03125, 1 } },
-
-	// SHAAR ID 0x20
-	{ { 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 621.2297, 562.5671, 509.29688, 0 }, { 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 621.2297, 562.5671, 509.29688, 0 } },
-
-	// SHAAR ID 0x23
-	{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 487.00687, 682.48615, 509.3125, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 487.00687, 682.48615, 509.3125, 0 } },
-
-	// VALIX ID 13 (0x0D)
-	{ { 8.660254, 5, 0, 0, -5, 8.660254, 0, 0, 0, 0, 10, 0, 292.09567, 472.517, 331.46976, 0 }, { 0.08660254, 0.05, 0, 0, -0.05, 0.08660254, 0, 0, 0, 0, 0.1, 0, 292.09567, 472.517, 331.46976, 0 } },
-
-	// VALIX ID 16 (0x10)
-	{ { 8.660254, 5, 0, 0, -5, 8.660254, 0, 0, 0, 0, 10, 0, 351.16696, 400.823, 324.90625, 0 }, { 0.08660254, 0.05, 0, 0, -0.05, 0.08660254, 0, 0, 0, 0, 0.1, 0, 351.16696, 400.823, 324.90625, 0 } },
-
-	// MF ID 20 (0x14)
-	//{ { 8, 0, 0, 0, 0, 14, 0, 0, 0, 0, 5, 0, 444.0099, 600.22675, 428.04242, 0 }, { 0.125, 0, 0, 0, 0, 0.071428575, 0, 0, 0, 0, 0.2, 0, 444.0099, 600.22675, 428.04242, 0 } },
-	
-	// MF ID 22 (0x16)
-	//{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 410.27823, 598.204, 434.209, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 410.27823, 598.204, 434.209, 0 } },
-
-	// MF ID 22 (0x18)
-	//{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 356.82983, 653.3447, 428.36734, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 356.82983, 653.3447, 428.36734, 0 } },
-
-	// GC ID 0x20
-	//{ { 7, 0, 0, 0, 0, 7, 0, 0, 0, 0, 7, 0, 636.95593, 401.78497, 102.765625, 0 }, { 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 0, 0, 0, 0.14285715, 0, 636.95593, 401.78497, 102.765625, 0 } },
-
-	// GC ID 0x21
-	//{ { 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 728.6185, 563.659, 101.578125, 1 }, { 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 0, 0, 0, 0.083333336, 0, 728.6185, 563.659, 101.578125, 1 } },
-
-	// GC ID 22
-	//{ { 6.7093644, 4.3571124, 0, 0, -4.9017515, 7.548035, 0, 0, 0, 0, 8, 0, 586.91223, 541.42474, 102.828125, 0 }, { 0.10483382, 0.06807988, 0, 0, -0.060515452, 0.09318562, 0, 0, 0, 0, 0.125, 0, 586.91223, 541.42474, 102.828125, 0 } },
-
-	// GC ID 23 (0x17)
-	//{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 637.3847, 522.3367, 103, 1 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 637.3847, 522.3367, 103, 1 } },
-
-	// TEMPUS ID 16
-	{ { 10, 0, 0, 0, 0, 10, 0, 0, 0, 0, 10, 0, 530.847, 538.41187, 100.375, 0 }, { 0.1, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0.1, 0, 530.847, 538.41187, 100.375, 0 } },
-
-	// TEMPUS ID 17
-	{ { 4.9999995, 8.6602545, 0, 0, -6.9282036, 3.9999998, 0, 0, 0, 0, 10, 0, 491.03555, 425.8757, 100.828125, 0 }, { 0.049999997, 0.086602546, 0, 0, -0.10825318, 0.062499996, 0, 0, 0, 0, 0.1, 0, 491.03555, 425.8757, 100.828125, 0 } },
-
-	// TEMPUS ID 18
-	{ { 27.499998, 47.6314, 0, 0, -47.6314, 27.499998, 0, 0, 0, 0, 10, 0, 452, 443, 100.828125, 1 }, { 0.009090908, 0.015745917, 0, 0, -0.015745917, 0.009090908, 0, 0, 0, 0, 0.1, 0, 452, 443, 100.828125, 1 } },
-
-	// VALIX CTF SPAWN POINT 01
-	//{ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 }, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 333.81165, 413.57132, 330, 0 } },
+const struct BetterHillPoint BetterHillPoints[] = {
+  { { 233.28482, 278.00937, 106.855156 }, MAP_ID_TORVAL, 0x13, 0, 0 },
+  { { 525.83344, 742.3953, 103.92746 }, MAP_ID_MARAXUS, 0x13, 1, 1 },
+  { { 493.81552, 218.55286, 105.77197 }, MAP_ID_SARATHOS, 0x11, 2, 1 },
+  { { 337.56897, 193.39743, 106.15551 }, MAP_ID_SARATHOS, 0x0E, 1, 1 },
+  { { 333.3385, 255.27766, 63.045467 }, MAP_ID_CATACROM, 0x0D, 3, 0 },
+  { { 324.36548, 366.6925, 65.79945 }, MAP_ID_CATACROM, 0x11, 3, 0 },
+  { { 503.79434, 415.31488, 641.28125 }, MAP_ID_DC, 0x0C, 4, 1 },
+  { { 503.789, 494.31857, 641.2969 }, MAP_ID_DC, 0x0E, 2, 1 },
+  { { 349.3588, 529.6109, 641.25 }, MAP_ID_DC, 0x10, 5, 1 },
+  { { 455.52982, 493.50287, 641.03125 }, MAP_ID_DC, 0x11, 4, 1 },
+  { { 621.2297, 562.5671, 509.29688 }, MAP_ID_SHAAR, 0x14, 2, 0 },
+  { { 487.00687, 682.48615, 509.3125 }, MAP_ID_SHAAR, 0x17, 1, 0 },
+  { { 292.09567, 472.517, 331.46976 }, MAP_ID_VALIX, 0x0D, 6, 0 },
+  { { 351.16696, 400.823, 324.90625 }, MAP_ID_VALIX, 0x10, 6, 0 },
+  { { 530.847, 538.41187, 100.375 }, MAP_ID_TEMPUS, 0x10, 1, 0 },
+  { { 491.03555, 425.8757, 100.828125 }, MAP_ID_TEMPUS, 0x11, 7, 0 },
+  { { 452, 443, 100.828125 }, MAP_ID_TEMPUS, 0x12, 8, 1 },
 };
 
 /*
@@ -1555,82 +1491,30 @@ long radarUpdateBlipHook(int blipIdx, int a1)
  */
 void betterHillsLogic(void)
 {
-	if (BetterHillsInitialized)
-		return;
+  int i, j;
+  if (BetterHillsInitialized) return;
+  BetterHillsInitialized = 1;
 
-	//
-	BetterHillsInitialized = 1;
+  int mapId = gameGetSettings()->GameLevel;
+  const u8 matrixIndices[] = { 0, 1, 4, 5, 10 };
+  for (i = 0; i < COUNT_OF(BetterHillPoints); ++i) {
+    const struct BetterHillPoint* point = &BetterHillPoints[i];
+    if (point->MapId != mapId) continue;
 
-	// 
-	switch (gameGetSettings()->GameLevel)
-	{
-		case MAP_ID_CATACROM:
-		{
-			spawnPointSet(&BetterHillPoints[CATACROM_0D], 0x0D);
-			spawnPointSet(&BetterHillPoints[CATACROM_11], 0x11);
-      hillPointSetCount(8); // remove last hill (top of ramp area)
-			break;
-		}
-		case MAP_ID_SARATHOS:
-		{
-			spawnPointSet(&BetterHillPoints[SARATHOS_11], 0x11);
-			spawnPointSet(&BetterHillPoints[SARATHOS_14], 0x0E);
-			break;
-		}
-		case MAP_ID_DC:
-		{
-			spawnPointSet(&BetterHillPoints[DC_11], 0x0C);
-			spawnPointSet(&BetterHillPoints[DC_16], 0x10);
-			spawnPointSet(&BetterHillPoints[DC_14], 0x0E);
-			spawnPointSet(&BetterHillPoints[DC_17], 0x11);
-			break;
-		}
-		case MAP_ID_SHAAR: 
-		{
-			spawnPointSet(&BetterHillPoints[SHAAR_14], 0x14);
-			spawnPointSet(&BetterHillPoints[SHAAR_17], 0x17);
-			break;
-		}
-		case MAP_ID_VALIX: 
-		{
-			//spawnPointSet(&BetterHillPoints[VALIX_01], 0x01);
-			spawnPointSet(&BetterHillPoints[VALIX_13], 0x0D);
-			spawnPointSet(&BetterHillPoints[VALIX_16], 0x10);
-			break;
-		}
-		// case MAP_ID_MF:
-		// {
-		// 	spawnPointSet(&BetterHillPoints[MF_20], 0x14);
-		// 	spawnPointSet(&BetterHillPoints[MF_22], 0x16);
-		// 	spawnPointSet(&BetterHillPoints[MF_24], 0x18);
-		// 	break;
-		// }
-		case MAP_ID_TEMPUS:
-		{
-			spawnPointSet(&BetterHillPoints[TEMPUS_16], 0x10);
-			spawnPointSet(&BetterHillPoints[TEMPUS_17], 0x11);
-			spawnPointSet(&BetterHillPoints[TEMPUS_18], 0x12);
-			break;
-		}
-		case MAP_ID_MARAXUS: 
-		{
-			spawnPointSet(&BetterHillPoints[MARAXUS_13], 0x13);
-			break;
-		}
-		// case MAP_ID_GS:
-		// {
-		// 	spawnPointSet(&BetterHillPoints[GS_20], 0x14);
-		// 	spawnPointSet(&BetterHillPoints[GS_21], 0x15);
-		// 	spawnPointSet(&BetterHillPoints[GS_22], 0x16);
-		// 	spawnPointSet(&BetterHillPoints[GS_23], 0x17);
-		// 	break;
-		// }
-		case MAP_ID_TORVAL:
-		{
-			spawnPointSet(&BetterHillPoints[TORVAL_13], 0x13);
-			break;
-		}
-	}
+    SpawnPoint spawn = {0};
+    const float* transform = BetterHillTransforms[point->TransformIndex];
+    for (j = 0; j < COUNT_OF(matrixIndices); ++j) {
+      spawn.M0[matrixIndices[j]] = transform[j];
+      spawn.M1[matrixIndices[j]] = transform[j + COUNT_OF(matrixIndices)];
+    }
+    memcpy(&spawn.M0[12], point->Position, sizeof(point->Position));
+    memcpy(&spawn.M1[12], point->Position, sizeof(point->Position));
+    spawn.M0[15] = spawn.M1[15] = point->PositionW;
+    spawnPointSet(&spawn, point->SpawnIndex);
+  }
+
+  if (mapId == MAP_ID_CATACROM)
+    hillPointSetCount(8); // remove last hill (top of ramp area)
 }
 
 void setFlag(GameplayMobyDef_t * flag, u32 * mpInitPVarData, float pX, float pY, float pZ, int sp1, int sp2, int sp3)

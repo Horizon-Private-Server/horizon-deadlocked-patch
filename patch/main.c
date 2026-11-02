@@ -120,6 +120,9 @@
 void processSpectate(void);
 void spectateSetSpectate(int localPlayerIndex, int playerToSpectateOrDisable);
 void runMapLoader(void);
+void maploaderDeinit(void);
+void playerSyncDeinit(void);
+void configUnload(void);
 int getCustomMapDefCount(void);
 CustomMapDef_t* getCustomMapDef(int index);
 void refreshCustomMapList(void);
@@ -160,6 +163,7 @@ void runCompLogic(void);
 
 #if TEST
 void runTestLogic(void);
+void testDeinit(void);
 #endif
 
 #if MAPEDITOR
@@ -3779,6 +3783,8 @@ int runSendGameUpdate(void)
   int i;
   void * connection = netGetLobbyServerConnection();
 
+  if (isUnloading) return 0;
+
   // skip if not online, in lobby, or the game host
   if (!connection || !gameSettings || !gameAmIHost())
   {
@@ -4607,6 +4613,31 @@ void runCheckGameMapInstalled(void)
 }
 
 /*
+ * NAME :		deinitGameModules
+ * 
+ * DESCRIPTION :
+ * 			
+ * 
+ * NOTES :
+ * 
+ * ARGS : 
+ * 
+ * RETURN :
+ * 
+ * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
+ */
+void deinitGameModules(void)
+{
+  // release module-owned heap allocations before clearing their pointers
+  GameModule* modules = GLOBAL_GAME_MODULES_START;
+  int i;
+  for (i = 0; i < 2; ++i) {
+    if (modules[i].Entrypoint)
+      modules[i].Entrypoint(&modules[i], &patchStateContainer, GAMEMODULE_UNLOAD);
+  }
+}
+
+/*
  * NAME :		disableCustomModeModule
  * 
  * DESCRIPTION :
@@ -4622,14 +4653,7 @@ void runCheckGameMapInstalled(void)
  */
 void disableCustomModeModule(void)
 {
-  // release module-owned heap allocations before clearing their pointers
-  GameModule* modules = GLOBAL_GAME_MODULES_START;
-  int i;
-  for (i = 0; i < 2; ++i) {
-    if (modules[i].Entrypoint)
-      modules[i].Entrypoint(&modules[i], &patchStateContainer, GAMEMODULE_UNLOAD);
-  }
-
+  deinitGameModules();
   memset((void*)(u32)0x000F0000, 0, 0xFF00);
   memset(GLOBAL_GAME_MODULES_START, 0, sizeof(GameModule) * 2);
 }
@@ -4650,6 +4674,8 @@ void disableCustomModeModule(void)
  */
 void processGameModules()
 {
+  if (isUnloading) return;
+
   static int postGameEndFrameUpdateTicks = 0;
 
   // don't run while downloading mode
@@ -4741,6 +4767,8 @@ void processGameModules()
  */
 void processGameModulesUpdate()
 {
+  if (isUnloading) return;
+
   // don't run while downloading mode
   if (dlIsActive)
     return;
@@ -5556,6 +5584,8 @@ void sendClientType(void)
  */
 void runPayloadDownloadRequester(void)
 {
+  if (isUnloading) return;
+
   GameModule * module = GLOBAL_GAME_MODULES_START;
   GameSettings* gs = gameGetSettings();
   void* connection = netGetLobbyServerConnection();
@@ -5830,6 +5860,25 @@ void onOnlineMenu(void)
     uiShowOkDialog(miscPopupTitle, miscPopupBody);
     showMiscPopup = 0;
   }
+}
+
+void patchDeinit(void)
+{
+  // modules may still reference the shared stats and map buffers
+  deinitGameModules();
+  playerSyncDeinit();
+  configUnload();
+  maploaderDeinit();
+#if TEST
+  testDeinit();
+#endif
+
+  if (patchStateContainer.CustomGameStats) {
+    free(patchStateContainer.CustomGameStats);
+    patchStateContainer.CustomGameStats = NULL;
+  }
+  patchStateContainer.UpdateGameState = 0;
+  patchStateContainer.UpdateCustomGameStats = 0;
 }
 
 /*
@@ -6415,6 +6464,9 @@ int main (void)
     patchStateContainer.UpdateCustomGameStats = 0;
     sendGameData();
   }
+
+  if (isUnloading)
+    patchDeinit();
 
   // Call this last
   dlPostUpdate();

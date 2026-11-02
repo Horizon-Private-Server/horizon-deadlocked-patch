@@ -1116,7 +1116,7 @@ void dynamicPageEnable(int mapIdx, int type)
   dynamicPageDisable();
 
   // no map
-  if (mapIdx <= 0) return;
+  if (isUnloading || mapIdx <= 0) return;
 
   // no connection
   void * lobbyConnection = netGetLobbyServerConnection();
@@ -1130,6 +1130,10 @@ void dynamicPageEnable(int mapIdx, int type)
 
   // alloc
   DynamicPageState.LineItems = malloc(1024);
+  if (!DynamicPageState.LineItems) {
+    DynamicPageState.Enabled = 0;
+    return;
+  }
 
   // init
   safe_strcpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
@@ -3548,6 +3552,8 @@ void drawTab(TabElem_t* tab)
 //------------------------------------------------------------------------------
 void configUnload(void)
 {
+  configMenuReset();
+
   // unload thumbnail
   if (mapOverrideSelectedMapThumbnail) {
     free(mapOverrideSelectedMapThumbnail);
@@ -3566,6 +3572,11 @@ void configUnload(void)
 //------------------------------------------------------------------------------
 void onMenuUpdate(int inGame)
 {
+  if (isUnloading) {
+    configUnload();
+    return;
+  }
+
   char buf[16];
   TabElem_t* tab = &tabElements[selectedTabItem];
   footerTextExtra[0] = 0;
@@ -3682,7 +3693,10 @@ void onConfigUpdate(void)
   } else { dlConnectionTimeout = 0; }
 
   // check for unload
-  if (isUnloading) configUnload();
+  if (isUnloading) {
+    configUnload();
+    return;
+  }
 
   // if in game we lost our allocs
   if (!isConfigMenuActive && mapOverrideSelectedMapThumbnail) {

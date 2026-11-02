@@ -64,6 +64,7 @@ typedef struct PlayerSyncPlayerData
 
 
 // config
+extern int isUnloading;
 extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
 extern PatchStateContainer_t patchStateContainer;
@@ -876,16 +877,42 @@ void playerSyncPostTick(void)
 }
 
 //--------------------------------------------------------------------------
+void playerSyncDeinit(void)
+{
+  int i;
+  if (!PLAYER_SYNC_DATAS_PTR) return;
+
+  // restore temporary vehicle input flags while players are still valid
+  if (isInGame()) {
+    Player** players = playerGetAll();
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+      Player* player = players[i];
+      if (player && player->PlayerId >= 0 && player->PlayerId < GAME_MAX_PLAYERS)
+        playerSyncRestoreVehicleInputFlags(player, &PLAYER_SYNC_DATAS_PTR[player->PlayerId]);
+    }
+  }
+
+  free(PLAYER_SYNC_DATAS_PTR);
+  PLAYER_SYNC_DATAS_PTR = NULL;
+}
+
+//--------------------------------------------------------------------------
 void playerSyncTick(void)
 {
   static int delay = 50;
   static int initialized = 0;
   int i;
 
+  if (isUnloading) {
+    playerSyncDeinit();
+    return;
+  }
+
   // net
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE, &playerSyncOnReceivePlayerState);
 
   if (!isInGame()) {
+    playerSyncDeinit();
     delay = 50;
     initialized = 0;
     return;

@@ -180,6 +180,7 @@ int active = 0;
 int frame = 0;
 float lastTime = 0;
 u32 currentFrameJointMatrixAddr = 0;
+void* fixedAnimationBuffer = NULL;
 
 VECTOR b6ExplosionPositions[64];
 int b6ExplosionPositionCount = 0;
@@ -356,12 +357,26 @@ void drawJoints(Moby* moby)
 
 }
 
+void testDeinit(void)
+{
+  if (!fixedAnimationBuffer) return;
+
+  // stop recording before releasing the backing joint matrices
+  active = 0;
+  currentFrameJointMatrixAddr = 0;
+  if (*FrameJointMatrixStart == (u32)fixedAnimationBuffer) {
+    memset(Header, 0, sizeof(*Header));
+    *FrameJointMatrixStart = 0;
+  }
+  free(fixedAnimationBuffer);
+  fixedAnimationBuffer = NULL;
+}
+
 void runFixedAnimation(void)
 {
   int x,y;
-  if (!isInGame()) {
-    Header->Moby = NULL;
-    Header->SeqId = 0;
+  if (isUnloading || !isInGame()) {
+    testDeinit();
     return;
   }
 
@@ -369,7 +384,8 @@ void runFixedAnimation(void)
 
   if (!(*FrameJointMatrixStart)) {
     int size = 16 * sizeof(float) * MaxKeyframes * 0x45;
-    *FrameJointMatrixStart = (u32)malloc(size);
+    fixedAnimationBuffer = malloc(size);
+    *FrameJointMatrixStart = (u32)fixedAnimationBuffer;
     DPRINTF("malloc at %08X size %X\n", *FrameJointMatrixStart, size);
     return;
   }
@@ -1819,6 +1835,8 @@ void runMatrixTester(void)
 void runTestLogic(void)
 {
   int i;
+  if (isUnloading || !isInGame())
+    testDeinit();
 
   //runHitmarkerLogic();
   //runDrawTex();

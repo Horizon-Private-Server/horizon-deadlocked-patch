@@ -45,6 +45,8 @@
 
 void hook(void);
 void loadModules(void);
+void mapsFreeModuleBuffers(void);
+void maploaderDeinit(void);
 void mapResetExDataCache(void);
 
 // int readLevelVersion(char * name, int * version);
@@ -493,7 +495,7 @@ int onServerSentMapIrxModules(void * connection, void * data)
   //mapsRemoteGlobalVersion = msg.Version;
 
   // we've already initialized the usb interface
-  if (rpcInit > 0)
+  if (isUnloading || rpcInit > 0)
 	  return sizeof(MapServerSentModulesMessage);
 
 	// initiate loading
@@ -672,11 +674,13 @@ int onServerSentMapInitiated(void * connection, void * data)
 void loadModules(void)
 {
 	int mod_res = 0;
-	if (LOAD_MODULES_STATE < 7)
+	if (isUnloading || LOAD_MODULES_STATE < 7)
 		return;
 
 	if (LOAD_MODULES_STATE != 100)
 	{
+    if (!USB_FS_MODULE_PTR || !USB_SRV_MODULE_PTR) return;
+
 		//
 		SifInitRpc(0);
 
@@ -689,6 +693,9 @@ void loadModules(void)
 	}
 
 	LOAD_MODULES_STATE = 100;
+
+  // SifExecModuleBuffer has finished copying the images to the IOP
+  mapsFreeModuleBuffers();
 }
 
 //------------------------------------------------------------------------------
@@ -1125,6 +1132,8 @@ int hasCustomMapsFolder(void)
 //------------------------------------------------------------------------------
 void refreshCustomMapList(void)
 {
+  if (isUnloading || !customMapDefs) return;
+
   int fd, r, i;
   const char* versionExt = ".version";
   char dirpath[16];
@@ -1571,29 +1580,43 @@ int align(int addr, int align)
 }
 
 //------------------------------------------------------------------------------
+void mapsFreeModuleBuffers(void)
+{
+  if (USB_FS_MODULE_PTR) {
+    free(USB_FS_MODULE_PTR);
+    USB_FS_MODULE_PTR = NULL;
+  }
+  if (USB_SRV_MODULE_PTR) {
+    free(USB_SRV_MODULE_PTR);
+    USB_SRV_MODULE_PTR = NULL;
+  }
+  usbFsModuleSize = 0;
+  usbSrvModuleSize = 0;
+}
+
+//------------------------------------------------------------------------------
 int mapsAllocateModuleBuffer(void)
 {
+  if (isUnloading) return 0;
 	if (!USB_FS_MODULE_PTR) {
 		USB_FS_MODULE_PTR = malloc(41216);
 		if (USB_FS_MODULE_PTR) {
 			memset(USB_FS_MODULE_PTR, 0, 41216);
-			USB_FS_MODULE_PTR = (void*)align((int)USB_FS_MODULE_PTR, 0x10);
 		}
 	}
 	if (!USB_SRV_MODULE_PTR) {
 		USB_SRV_MODULE_PTR = malloc(12288);
 		if (USB_SRV_MODULE_PTR) {
 			memset(USB_SRV_MODULE_PTR, 0, 12288);
-			USB_SRV_MODULE_PTR = (void*)align((int)USB_SRV_MODULE_PTR, 0x10);
 		}
 	}
 
 	DPRINTF("fs:%08X srv:%08x\n", (u32)USB_FS_MODULE_PTR, (u32)USB_SRV_MODULE_PTR);
 
-	if (!USB_FS_MODULE_PTR)
-		return 0;
-	if (!USB_SRV_MODULE_PTR)
-		return 0;
+	if (!USB_FS_MODULE_PTR || !USB_SRV_MODULE_PTR) {
+    mapsFreeModuleBuffers();
+    return 0;
+  }
 
 	return 1;
 }
@@ -1601,6 +1624,8 @@ int mapsAllocateModuleBuffer(void)
 //------------------------------------------------------------------------------
 int mapsPromptEnableCustomMaps(void)
 {
+  if (isUnloading) return 0;
+
 	MapClientRequestModulesMessage request = { 0, 0 };
 	if (uiShowYesNoDialog("Enable Custom Maps", "Are you sure?") == 1)
 	{
@@ -1626,6 +1651,8 @@ int mapsCancelDisconnectedDownloads(void)
 
   if (actionState == ACTION_DOWNLOADING_MODULES)
   {
+    mapsFreeModuleBuffers();
+    LOAD_MODULES_STATE = 0;
     actionState = ACTION_NONE;
     initialized = 2; // Retry the module request after reconnecting.
     padEnableInput();
@@ -1649,6 +1676,8 @@ int mapsCancelDisconnectedDownloads(void)
 //------------------------------------------------------------------------------
 void onMapLoaderOnlineMenu(void)
 {
+  if (isUnloading) return;
+
 #if MAPDOWNLOADER
 	char membuffer[256];
 #endif
@@ -1753,6 +1782,7 @@ void onMapLoaderOnlineMenu(void)
 		{
 			DPRINTF("failed to allocation module buffers\n");
 			initialized = 1;
+      return;
 		}
 
 		// request irx modules from server
@@ -1832,8 +1862,42 @@ void hook(void)
 }
 
 //------------------------------------------------------------------------------
+void maploaderDeinit(void)
+{
+  int i;
+  for (i = 1; i < dataCustomMaps.count; ++i)
+    dataCustomMaps.items[i] = NULL;
+
+  if (customMapDefs) {
+    free(customMapDefs);
+    customMapDefs = NULL;
+  }
+  if (customMapExDataBuf) {
+    free(customMapExDataBuf);
+    customMapExDataBuf = NULL;
+  }
+  mapsFreeModuleBuffers();
+
+  // installed IOP modules survive patch reloads
+  if (!HAS_LOADED_MODULES) {
+    LOAD_MODULES_STATE = 0;
+    LOAD_MODULES_RESULT = 0;
+  }
+  customMapDefCount = 0;
+  customMapExDataBufModeId = 0;
+  customMapExDataBufReadLen = 0;
+  dataCustomMaps.count = 1;
+  patchStateContainer.SelectedCustomMapId = 0;
+  MapLoaderState.Enabled = 0;
+  actionState = ACTION_NONE;
+  initialized = 0;
+}
+
+//------------------------------------------------------------------------------
 void runMapLoader(void)
 {
+  if (isUnloading) return;
+
   // prevent refreshing maps when redownloading patch in game (debug)
   if (!isInMenus() && !initialized) return;
 
@@ -1857,18 +1921,6 @@ void runMapLoader(void)
 		++DownloadState.Ticks;
 #endif
 
-  if (isUnloading) {
-    if (customMapDefs) {
-      free(customMapDefs);
-      customMapDefs = NULL;
-    }
-
-    if (customMapExDataBuf) {
-      free(customMapExDataBuf);
-      customMapExDataBuf = NULL;
-    }
-  }
-
 	// 
 	if (!initialized)
 	{
@@ -1880,12 +1932,18 @@ void runMapLoader(void)
 
     if (!customMapExDataBuf) {
       customMapExDataBuf = malloc(READ_CUSTOM_MAP_EXDATA_LEN);
-      memset(customMapExDataBuf, 0, READ_CUSTOM_MAP_EXDATA_LEN);
+      if (customMapExDataBuf)
+        memset(customMapExDataBuf, 0, READ_CUSTOM_MAP_EXDATA_LEN);
     }
 
     if (!customMapDefs) {
       customMapDefs = malloc(sizeof(CustomMapDef_t) * MAX_CUSTOM_MAP_DEFINITIONS);
       DPRINTF("alloc custom maps defs %08X\n", customMapDefs);
+    }
+
+    if (!customMapExDataBuf || !customMapDefs) {
+      maploaderDeinit();
+      return;
     }
 
 		// install on login

@@ -182,6 +182,16 @@ void statsTick(void)
 }
 
 //--------------------------------------------------------------------------
+void statsDeinit(void)
+{
+  if (statsGuberSafeBackup) {
+    free(statsGuberSafeBackup);
+    statsGuberSafeBackup = NULL;
+  }
+  statsGuberSafeBackupIdx = 0;
+}
+
+//--------------------------------------------------------------------------
 void statsInit(void)
 {
   //printf("FREE GUBER EVENTS %d\n", guberCountFreeEvents());
