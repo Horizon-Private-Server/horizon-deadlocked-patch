@@ -1356,6 +1356,8 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 	int activeId = uiGetActive();
 	static int initializedScoreboard = 0;
 
+  statsDeinit();
+
 	// send final local player stats to others
 	if (Initialized == 1) {
 		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -1400,6 +1402,9 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 {
+  // the heap survives map loads, but queued events belong to the old map
+  statsDeinit();
+
   // reset initialized on load
   // enables level hopping
   Initialized = 0;
@@ -1416,14 +1421,19 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 //--------------------------------------------------------------------------
 void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
 {
-  waitForMapConfig(gameState);
+  if (context != GAMEMODULE_UNLOAD)
+    waitForMapConfig(gameState);
   switch (context)
   {
     case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
     case GAMEMODULE_LOAD: loadStart(module, gameState); break;
     case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
     case GAMEMODULE_GAME_UPDATE: break;
-    case GAMEMODULE_SCENE_LOADING: break;
+    case GAMEMODULE_SCENE_LOADING: statsDeinit(); break;
+    case GAMEMODULE_UNLOAD:
+      statsDeinit();
+      bubbleDeinit();
+      break;
     case GAMEMODULE_UNKNOWN: break;
   }
 }

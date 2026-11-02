@@ -10,5 +10,6 @@
 
 void statsTick(void);
 void statsInit(void);
+void statsDeinit(void);
 
 #endif // RAIDS_STATS_H

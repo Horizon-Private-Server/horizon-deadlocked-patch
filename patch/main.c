@@ -4622,6 +4622,14 @@ void runCheckGameMapInstalled(void)
  */
 void disableCustomModeModule(void)
 {
+  // release module-owned heap allocations before clearing their pointers
+  GameModule* modules = GLOBAL_GAME_MODULES_START;
+  int i;
+  for (i = 0; i < 2; ++i) {
+    if (modules[i].Entrypoint)
+      modules[i].Entrypoint(&modules[i], &patchStateContainer, GAMEMODULE_UNLOAD);
+  }
+
   memset((void*)(u32)0x000F0000, 0, 0xFF00);
   memset(GLOBAL_GAME_MODULES_START, 0, sizeof(GameModule) * 2);
 }

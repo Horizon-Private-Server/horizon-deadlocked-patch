@@ -1,6 +1,8 @@
+#include <stddef.h>
 #include <string.h>
 #include <libdl/stdio.h>
 #include <libdl/game.h>
+#include <libdl/guber.h>
 #include <libdl/collision.h>
 #include <libdl/stdlib.h>
 #include <libdl/color.h>
@@ -24,6 +26,8 @@
 
 #define GUBER_BACKUP_SIZE                            (512)
 #define GUBER_BACKUP_START_AT                        (50)
+// keep the former emergency native slots in the backup until the frame ends
+#define GUBER_BACKUP_CAPACITY                        (GUBER_BACKUP_SIZE + GUBER_BACKUP_START_AT)
 
 typedef struct RollingValue {
   float Value;
@@ -46,49 +50,47 @@ RACounter_t statsCollLineFix_RA[RA_COUNTERS_SIZE] = {};
 #endif
 
 GuberEvent* statsGuberSafeBackup = NULL;
-int statsGuberSafeBackupIdx = 0;
+int statsGuberSafeBackupHead = 0;
+int statsGuberSafeBackupCount = 0;
 
 //--------------------------------------------------------------------------
 int statsGuberEventBackupPop(void)
 {
-  if (!statsGuberSafeBackup) return 0;
-  if (statsGuberSafeBackupIdx <= 0) return 0;
+  if (!statsGuberSafeBackup || statsGuberSafeBackupCount <= 0) return 0;
+  if (guberCountFreeEvents() <= 0) return 0;
 
   GuberEvent* event = guberEventAlloc();
   if (!event) return 0;
 
-  DPRINTF("statsGuberEventBackupPop() %d\n", statsGuberSafeBackupIdx);
-  memcpy(event, &statsGuberSafeBackup[0], 0x58); // copy all but NextEvent ptr
-  memmove(&statsGuberSafeBackup[0], &statsGuberSafeBackup[1], sizeof(GuberEvent) * (statsGuberSafeBackupIdx - 1));
-  --statsGuberSafeBackupIdx;
+  DPRINTF("statsGuberEventBackupPop() %d\n", statsGuberSafeBackupCount);
+  // preserve the native queue link and leave the other backup slots in place
+  memcpy(event, &statsGuberSafeBackup[statsGuberSafeBackupHead], offsetof(GuberEvent, NextEvent));
+  statsGuberSafeBackupHead = (statsGuberSafeBackupHead + 1) % GUBER_BACKUP_CAPACITY;
+  --statsGuberSafeBackupCount;
   return 1;
 }
 
 //--------------------------------------------------------------------------
 GuberEvent* statsGuberEventAllocSafe(void)
 {
-  // max allocated is 256
-  // we want to avoid spamming clients with guber events
-  // so backup old events
   int free = guberCountFreeEvents();
-  while (free > GUBER_BACKUP_START_AT && statsGuberEventBackupPop()) free--;
-  if (statsGuberSafeBackup && free <= GUBER_BACKUP_START_AT) {
+  if (statsGuberSafeBackup && (free <= GUBER_BACKUP_START_AT || statsGuberSafeBackupCount > 0)) {
 
     DPRINTF("statsGuberEventAllocSafe() called with %d free GuberEvents\n", free);
 
-    // we don't have enough space, try to pop the latest event off the queue
-    // if that fails then abort (return null)
-    if (statsGuberSafeBackupIdx >= (GUBER_BACKUP_SIZE-1) && !statsGuberEventBackupPop())
-      return NULL;
+    // callers may still be filling earlier events, so only drain in statsTick
+    if (statsGuberSafeBackupCount >= GUBER_BACKUP_CAPACITY) return NULL;
 
-    GuberEvent* gEvent = &statsGuberSafeBackup[statsGuberSafeBackupIdx++];
+    int tail = (statsGuberSafeBackupHead + statsGuberSafeBackupCount) % GUBER_BACKUP_CAPACITY;
+    GuberEvent* gEvent = &statsGuberSafeBackup[tail];
+    ++statsGuberSafeBackupCount;
     memset(gEvent, 0, sizeof(GuberEvent));
     return gEvent;
   }
 
+  if (free <= 0) return NULL;
   return guberEventAlloc();
 }
-
 
 //--------------------------------------------------------------------------
 int statsRollingValueTick(char* name, RollingValue_t* rollingValue, int rolloverAtTicks)
@@ -185,12 +187,24 @@ void statsTick(void)
 }
 
 //--------------------------------------------------------------------------
+void statsDeinit(void)
+{
+  if (statsGuberSafeBackup) {
+    free(statsGuberSafeBackup);
+    statsGuberSafeBackup = NULL;
+  }
+
+  statsGuberSafeBackupHead = 0;
+  statsGuberSafeBackupCount = 0;
+}
+
+//--------------------------------------------------------------------------
 void statsInit(void)
 {
   //printf("FREE GUBER EVENTS %d\n", guberCountFreeEvents());
 
   if (!statsGuberSafeBackup) {
-    statsGuberSafeBackup = (GuberEvent*)malloc(sizeof(GuberEvent) * GUBER_BACKUP_SIZE);
+    statsGuberSafeBackup = (GuberEvent*)malloc(sizeof(GuberEvent) * GUBER_BACKUP_CAPACITY);
     DPRINTF("alloc guber event backup %08X\n", (u32)statsGuberSafeBackup);
   }
   
