@@ -192,20 +192,23 @@ void lootRequestFromMob(Moby* mob, int gadgetId)
 }
 
 //--------------------------------------------------------------------------
-void lootRequestFromPrestige(int gadgetId)
+void lootRequest(int gadgetId)
 {
   struct RaidsGenerateLootDropRequest msg;
   void* connection = netGetLobbyServerConnection();
-  if (!connection) return;
+  Player* player = playerGetFromSlot(0);
+  if (!connection || !playerIsValid(player)) return;
 
   memset(&msg, 0, sizeof(msg));
-  vector_copy(msg.Position, playerGetFromSlot(0)->PlayerPosition);
-  msg.Type = LOOT_DROP_TYPE_PRESTIGE;
+  vector_copy(msg.Position, player->PlayerPosition);
+  msg.Type = LOOT_DROP_TYPE_MOB_DEATH;
   msg.KilledWithGadgetId = gadgetId;
   msg.DifficultyStars = State.DifficultyStars;
-  memset(msg.QuickSelectGadgets, 0, sizeof(msg.QuickSelectGadgets));
+  msg.QuickSelectGadgets[0] = playerGetLocalEquipslot(0, 0);
+  msg.QuickSelectGadgets[1] = playerGetLocalEquipslot(0, 1);
+  msg.QuickSelectGadgets[2] = playerGetLocalEquipslot(0, 2);
 
-  DPRINTF("sent loot gen request (PRESTIGE)\n");
+  DPRINTF("sent loot gen request (LOOT)\n");
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_REQUEST, sizeof(msg), &msg);
 }
 

@@ -13,7 +13,6 @@ enum RaidsGenerateLootType
 {
   LOOT_DROP_TYPE_MOB_DEATH = 0,
   LOOT_DROP_TYPE_MISSION_COMPLETE = 1,
-  LOOT_DROP_TYPE_PRESTIGE = 2,
 };
 
 struct RaidsGenerateLootDropRequest
@@ -37,7 +36,7 @@ struct RaidsGenerateLootDropResponse
 };
 
 void lootRequestFromMob(Moby* mob, int gadgetId);
-void lootRequestFromPrestige(int gadgetId);
+void lootRequest(int gadgetId);
 void lootRequestFromMissionComplete(VECTOR position);
 void lootTick(void);
 void lootInit(void);

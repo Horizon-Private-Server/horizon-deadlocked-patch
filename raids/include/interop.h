@@ -40,7 +40,7 @@ typedef void (*ModeRegisterNpc_func)(Moby* moby);
 typedef int (*ModeOnGuberEvent_func)(Moby* moby, GuberEvent* event);
 typedef struct Guber* (*ModeOnGetGuber_func)(Moby* moby);
 typedef int (*ModeTryCreateMob_func)(struct MobCreateArgs* args);
-typedef void (*ModeRequestPrestigeLoot_func)(int gadgetId);
+typedef void (*ModeRequestLoot_func)(int gadgetId);
 typedef void (*ModeOnMissionComplete_func)(int cuboidIdx);
 typedef void (*ModeOnMissionFail_func)(void);
 typedef void (*ModeProcessPlayerDamage_func)(Moby* target, Moby* source, float* damage, u32* damageFlags);
@@ -76,7 +76,7 @@ struct RaidsInteropTable
   ModeOnGuberEvent_func ModeOnGuberEventFunc;
   ModeOnGetGuber_func ModeOnGetGuberFunc;
   ModeTryCreateMob_func ModeTryCreateMobFunc;
-  ModeRequestPrestigeLoot_func ModeRequestPrestigeLootFunc;
+  ModeRequestLoot_func ModeRequestLootFunc;
   ModeOnMissionComplete_func ModeOnMissionCompleteFunc;
   ModeOnMissionFail_func ModeOnMissionFailFunc;
   ModeProcessPlayerDamage_func ModeProcessPlayerDamageFunc;

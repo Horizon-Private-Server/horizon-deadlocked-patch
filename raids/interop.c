@@ -28,7 +28,7 @@ void raidsInteropInit(void)
   mapConfig->Functions.ModeOnGetGuberFunc = &getGuber;
   mapConfig->Functions.ModeOnGuberEventFunc = &handleEvent;
   mapConfig->Functions.ModeTryCreateMobFunc = &mobCreate;
-  mapConfig->Functions.ModeRequestPrestigeLootFunc = &lootRequestFromPrestige;
+  mapConfig->Functions.ModeRequestLootFunc = &lootRequest;
   mapConfig->Functions.ModeOnMissionCompleteFunc = &onMissionComplete;
   mapConfig->Functions.ModeOnMissionFailFunc = &onMissionFail;
   mapConfig->Functions.ModeProcessPlayerDamageFunc = &raidsProcessPlayerDamage;
