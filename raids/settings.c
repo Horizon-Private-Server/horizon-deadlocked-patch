@@ -12,6 +12,7 @@
 #include "include/utils.h"
 
 #define SETTINGS_RETRY_TIME              ((long)5 * TIME_SECOND * SYSTEM_TIME_TICKS_PER_MS)
+#define SETTINGS_ROW_COUNT               (4)
 #define SETTINGS_SAVE_DELAY              ((long)500 * SYSTEM_TIME_TICKS_PER_MS)
 
 extern struct RaidsState State;
@@ -22,7 +23,7 @@ RaidsUserSettings_t raidsUserSettings = {
   .Version = RAIDS_USER_SETTINGS_VERSION,
   .MapLod = 2,
   .MobLod = 2,
-  .AmmoDropPopups = 0
+  .Flags = RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS
 };
 
 RaidsUserSettings_t raidsSettingsResponse;
@@ -49,13 +50,15 @@ char* raidsSettingsLodNames[] = {
 char* raidsSettingsLabels[] = {
   "Map Level of Detail",
   "Mob Level of Detail",
-  "Ammo Pickup Popups"
+  "Ammo Pickup Popups",
+  "Contract Progress Bars"
 };
 
 char* raidsSettingsDescriptions[] = {
   "Lower map detail to reduce graphics load on demanding planets.",
   "Lower mob detail to reduce graphics load when many enemies are present.",
-  "Show the ammo gained when you collect an ammo pickup."
+  "Show the ammo gained when you collect an ammo pickup.",
+  "Show contract bars above the tracker while the tracker is enabled."
 };
 
 //--------------------------------------------------------------------------
@@ -145,9 +148,9 @@ void raidsSettingsHandleInput(void)
 
   // handle navigation
   if (padGetButtonDown(0, PAD_UP) > 0) {
-    raidsSettingsSelectedRow = (raidsSettingsSelectedRow + 2) % 3;
+    raidsSettingsSelectedRow = (raidsSettingsSelectedRow + SETTINGS_ROW_COUNT - 1) % SETTINGS_ROW_COUNT;
   } else if (padGetButtonDown(0, PAD_DOWN) > 0) {
-    raidsSettingsSelectedRow = (raidsSettingsSelectedRow + 1) % 3;
+    raidsSettingsSelectedRow = (raidsSettingsSelectedRow + 1) % SETTINGS_ROW_COUNT;
   } else {
     int direction = 0;
     if (padGetButtonDown(0, PAD_LEFT) > 0) direction = -1;
@@ -155,7 +158,8 @@ void raidsSettingsHandleInput(void)
     if (!direction) return;
 
     // select setting and available values
-    int* value = &raidsUserSettings.MapLod;
+    u8* value = &raidsUserSettings.MapLod;
+    int flag = 0;
     int count = 3;
 #if DEBUG
     count = 4;
@@ -165,12 +169,14 @@ void raidsSettingsHandleInput(void)
       value = &raidsUserSettings.MobLod;
       count = 4;
     } else if (raidsSettingsSelectedRow == 2) {
-      value = &raidsUserSettings.AmmoDropPopups;
-      count = 2;
+      flag = RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS;
+    } else if (raidsSettingsSelectedRow == 3) {
+      flag = RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS;
     }
 
     // apply change and mark settings for saving
-    *value = (*value + direction + count) % count;
+    if (flag) raidsUserSettings.Flags ^= flag;
+    else *value = (*value + direction + count) % count;
     ++raidsSettingsRevision;
     raidsSettingsLastEdit = timerGetSystemTime();
 
@@ -190,9 +196,8 @@ void raidsSettingsTick(void)
       // copy the response once so late retries cannot overwrite local edits
       // validate values before using them to index menu labels
       if (raidsSettingsResponse.Version == RAIDS_USER_SETTINGS_VERSION
-          && raidsSettingsResponse.MapLod >= 0 && raidsSettingsResponse.MapLod <= 3
-          && raidsSettingsResponse.MobLod >= 0 && raidsSettingsResponse.MobLod <= 3
-          && raidsSettingsResponse.AmmoDropPopups >= 0 && raidsSettingsResponse.AmmoDropPopups <= 1) {
+          && raidsSettingsResponse.MapLod <= 3 && raidsSettingsResponse.MobLod <= 3
+          && !(raidsSettingsResponse.Flags & ~(RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS))) {
         raidsUserSettings = raidsSettingsResponse;
         raidsSettingsLoaded = 1;
       } else {
@@ -251,7 +256,7 @@ void raidsSettingsDraw(void)
 
   // draw settings
   int i;
-  for (i = 0; i < 3; ++i) {
+  for (i = 0; i < SETTINGS_ROW_COUNT; ++i) {
     float y = 36 + 20*i;
     if (i == raidsSettingsSelectedRow)
       windowDrawBox(&window, TEXT_ALIGN_TOPLEFT, 8, y - 4, window.Width - 16, 18, selectedColor, TEXT_ALIGN_TOPLEFT);
@@ -261,7 +266,7 @@ void raidsSettingsDraw(void)
 
     char* value = i == 0 ? raidsSettingsLodNames[raidsUserSettings.MapLod]
       : i == 1 ? raidsSettingsLodNames[raidsUserSettings.MobLod]
-      : raidsUserSettings.AmmoDropPopups ? "On" : "Off";
+      : (raidsUserSettings.Flags & (i == 2 ? RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS : RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS)) ? "On" : "Off";
 
     windowDrawText(&window, TEXT_ALIGN_TOPLEFT, window.Width - 16, y, 0.8, RAIDS_MENU_TEXT_COLOR,
       value, -1, TEXT_ALIGN_TOPRIGHT);
@@ -275,7 +280,7 @@ void raidsSettingsDraw(void)
 //--------------------------------------------------------------------------
 void raidsSettingsAmmoPopup(int playerId, int messageId, int amount)
 {
-  if (raidsUserSettings.AmmoDropPopups)
+  if (raidsUserSettings.Flags & RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS)
     ((void (*)(int, int, int))0x005401c8)(playerId, messageId, amount);
 }
 

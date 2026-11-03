@@ -348,19 +348,19 @@ enum CustomMessageId
     CUSTOM_MSG_ID_RAIDS_RESET_ACCOUNT_REQUEST = 63,
 
     /*
-     * 
+     * Contract page request and snapshot response.
      */
-    CUSTOM_MSG_ID_GET_RAIDS_CONTRACTS_REQUEST = 64,
+    CUSTOM_MSG_ID_RAIDS_CONTRACT_PAGE = 64,
 
     /*
-     * 
+     * Contract claim or dismissal request and acknowledgement.
      */
-    CUSTOM_MSG_ID_RAIDS_ACTION_CONTRACT_REQUEST = 65,
+    CUSTOM_MSG_ID_RAIDS_CONTRACT_ACTION = 65,
 
     /*
-     * 
+     * Host progress submission and authoritative party progress updates.
      */
-    CUSTOM_MSG_ID_RAIDS_UPDATE_CONTRACT_STATS_REQUEST = 66,
+    CUSTOM_MSG_ID_RAIDS_CONTRACT_PROGRESS = 66,
 
     /*
      * 
@@ -421,7 +421,6 @@ enum CustomMessageId
      * 
      */
     CUSTOM_MSG_ID_RAIDS_SAVE_SETTINGS_REQUEST = 78,
-
     /*
      * Start of custom message ids reserved for custom game modes.
      */

@@ -19,7 +19,7 @@ struct RaidsSaveSettingsRequest
 };
 
 typedef char RaidsGetSettingsSizeCheck[sizeof(struct RaidsGetSettingsRequest) == 8 ? 1 : -1];
-typedef char RaidsSaveSettingsSizeCheck[sizeof(struct RaidsSaveSettingsRequest) == 24 ? 1 : -1];
+typedef char RaidsSaveSettingsSizeCheck[sizeof(struct RaidsSaveSettingsRequest) == 12 ? 1 : -1];
 
 extern RaidsUserSettings_t raidsUserSettings;
 

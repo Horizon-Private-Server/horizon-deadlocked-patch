@@ -154,7 +154,7 @@ Moby* lootSpawn(VECTOR position, RaidsInventoryItem_t* item)
 }
 
 //--------------------------------------------------------------------------
-int lootOnGenerateLootResponse(void* connection, void* data)
+int lootOnGenerateLootResponseRemote(void* connection, void* data)
 {
   struct RaidsGenerateLootDropResponse msg;
   memcpy(&msg, data, sizeof(msg));
@@ -255,7 +255,7 @@ void lootTick(void)
 //--------------------------------------------------------------------------
 void lootInit(void)
 {
-  netInstallCustomMsgHandler(CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_RESPONSE, &lootOnGenerateLootResponse);
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_GENERATE_RAIDS_LOOT_RESPONSE, &lootOnGenerateLootResponseRemote);
 
   // pull aura color from pvars
   POKE_U32(0x0043BF28, 0x8E440054);

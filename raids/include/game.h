@@ -248,27 +248,21 @@ struct RaidsMobStats
   u8 NumAlive[MAX_MOB_SPAWN_PARAMS];
 };
 
-struct RaidsMobContractRule
+enum RaidsUserSettingsFlags
 {
-  u16 MobDefMask;
-  u16 MinCount;
-  u16 MaxCount;
-  u16 ExpirationMinutes;
-  float XpMult;
-  float BoltMult;
-  float ClassXpPerMob;
-  char Name[32];
+  RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS = 0x01,
+  RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS = 0x02,
 };
 
 typedef struct RaidsUserSettings
 {
-  int Version;
-  int MapLod;
-  int MobLod;
-  int AmmoDropPopups;
+  u8 Version;
+  u8 MapLod;
+  u8 MobLod;
+  u8 Flags;
 } RaidsUserSettings_t;
 
-typedef char RaidsUserSettingsSizeCheck[sizeof(RaidsUserSettings_t) == 16 ? 1 : -1];
+typedef char RaidsUserSettingsSizeCheck[sizeof(RaidsUserSettings_t) == 4 ? 1 : -1];
 
 struct RaidsInventoryMenuState
 {
@@ -279,6 +273,14 @@ struct RaidsInventoryMenuState
   int SortIdx;
 };
 
+struct RaidsContractsMenuState
+{
+  char MapFilename[64];
+  int Difficulty;
+};
+
+typedef char RaidsContractsMenuStateSizeCheck[sizeof(struct RaidsContractsMenuState) == 68 ? 1 : -1];
+
 struct RaidsState
 {
 	int InitializedTime;
@@ -287,6 +289,7 @@ struct RaidsState
   struct RaidsMobStats MobStats;
 	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
   struct RaidsInventoryMenuState InventoryMenu;
+  struct RaidsContractsMenuState ContractsMenu;
   int ClientsReady;
 	int MenuOpen;
   int OnHubWorld;
@@ -329,8 +332,6 @@ struct RaidsMapConfig
   struct RaidsState* State;
   struct MobSpawnParams* MobSpawnParams;
   int MobSpawnParamsCount;
-  struct RaidsMobContractRule* MobContractRules;
-  int MobContractRulesCount;
   int* TrackWhitelist;
   int TrackWhitelistCount;
   int TrackWhitelistEnabled;
@@ -351,8 +352,12 @@ struct RaidsCustomMapExtraData
   int Cost[5];
   char Author[32];
   char Description[256];
+  u16 ContractRulesOffset;
+  u16 ContractRulesCount;
   char* Challenges[0]; // array of char* tuples, for challenge name & description
 };
+
+typedef char RaidsExtraDataSizeCheck[sizeof(struct RaidsCustomMapExtraData) == 332 ? 1 : -1];
 
 struct RaidsGameData
 {

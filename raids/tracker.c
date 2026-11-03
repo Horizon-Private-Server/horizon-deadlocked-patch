@@ -60,8 +60,15 @@ void trackerDraw(void)
   char strBuf[128];
   Window_t drawWindow;
 
-  windowCreate(&drawWindow, 10, SCREEN_HEIGHT-10, 0, 0, 200, 70, TEXT_ALIGN_BOTTOMLEFT, 1);
+  const float left = 10;
+  const float bottom = SCREEN_HEIGHT - 10;
+  const float height = 70;
+  windowCreate(&drawWindow, left, bottom, 0, 0, 200, height, TEXT_ALIGN_BOTTOMLEFT, 1);
   //windowFill(&drawWindow, 0x40000000);
+
+  // draw additional map-owned tracker hud
+  if (hasMapConfig() && mapConfig->Functions.OnTrackerDrawHudFunc)
+    mapConfig->Functions.OnTrackerDrawHudFunc(left, bottom - height - 8);
 
   // time
   snprintf(strBuf, sizeof(strBuf), "Time: %d:%02d:%02d", (int)dt / 3600, ((int)dt / 60) % 60, (int)dt % 60);

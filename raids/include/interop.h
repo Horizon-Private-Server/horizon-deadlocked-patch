@@ -63,6 +63,7 @@ typedef void (*MapModifyPlayerCritDamage_func)(struct RaidsPlayerDamageContext* 
 typedef void (*MapFinalizePlayerDamage_func)(struct RaidsPlayerDamageContext* context);
 typedef void (*MapMobAfterDamage_func)(Moby* moby, struct MobDamageEventArgs* args, float appliedDamage);
 typedef void (*MapMobBlowCorn_func)(Moby* moby, int bangles);
+typedef void (*MapOnTrackerDrawHud_func)(float x, float y);
 
 struct RaidsInteropTable
 {
@@ -100,19 +101,21 @@ struct RaidsInteropTable
   MapFinalizePlayerDamage_func FinalizePlayerDamageFunc;
   MapMobAfterDamage_func MobAfterDamageFunc;
   MapMobBlowCorn_func MobBlowCornFunc;
+  MapOnTrackerDrawHud_func OnTrackerDrawHudFunc;
 
   // Reserved for future callbacks.
   void* PlaceholderForFutureUseFuncs[15];
 };
 
 typedef char RaidsInteropPointerSizeCheck[sizeof(void*) == 4 ? 1 : -1];
-typedef char RaidsInteropSizeCheck[sizeof(struct RaidsInteropTable) == 184 ? 1 : -1];
+typedef char RaidsInteropSizeCheck[sizeof(struct RaidsInteropTable) == 188 ? 1 : -1];
 typedef char RaidsInteropMapOffsetCheck[offsetof(struct RaidsInteropTable, OnMobCreateFunc) == 60 ? 1 : -1];
 typedef char RaidsInteropPlayerDamageOffsetCheck[offsetof(struct RaidsInteropTable, ModeProcessPlayerDamageFunc) == 48 ? 1 : -1];
 typedef char RaidsInteropDrawHudOffsetCheck[offsetof(struct RaidsInteropTable, ModeDrawHudFunc) == 52 ? 1 : -1];
 typedef char RaidsInteropMobBlowCornOffsetCheck[offsetof(struct RaidsInteropTable, MobBlowCornFunc) == 120 ? 1 : -1];
 typedef char RaidsInteropSettingsOffsetCheck[offsetof(struct RaidsInteropTable, ModeOpenSettingsFunc) == 56 ? 1 : -1];
-typedef char RaidsInteropReservedOffsetCheck[offsetof(struct RaidsInteropTable, PlaceholderForFutureUseFuncs) == 124 ? 1 : -1];
+typedef char RaidsInteropTrackerHudOffsetCheck[offsetof(struct RaidsInteropTable, OnTrackerDrawHudFunc) == 124 ? 1 : -1];
+typedef char RaidsInteropReservedOffsetCheck[offsetof(struct RaidsInteropTable, PlaceholderForFutureUseFuncs) == 128 ? 1 : -1];
 
 void raidsDrawHud(void);
 void raidsInteropInit(void);

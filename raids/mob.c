@@ -1078,8 +1078,7 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
 
     // log
     trackerLogKill(killedByPlayerId, bolts, appliedPlayerXp);
-    if (killedByLocal || canShareKill)
-      contractHandleKill(pvars->MobVars.SpawnParamsIdx);
+    contractHandleKill(pvars->MobVars.SpawnParamsIdx);
 
     // spawn loot chance
     if (randRange(0, 1) >= (1-GAME_DEFAULT_LOOT_DROP_CHANCE)) {

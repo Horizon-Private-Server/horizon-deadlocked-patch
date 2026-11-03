@@ -1116,13 +1116,11 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       if (!bankVTable->GetHasAllClassProgress() && !bankVTable->HasPendingAllClassProgressRequest()) {
         bankVTable->RequestAllClassProgressFromServer();
       }
-      if (!bankVTable->GetHasContracts() && !bankVTable->HasPendingContractsRequest()) {
-        bankVTable->RequestContractsFromServer();
-      }
       if (!bankVTable->GetHasEquippedInventory() && !bankVTable->HasPendingEquippedInventoryRequest()) {
         bankVTable->RequestEquippedInventoryFromServer();
       }
     } else if (sendBankAtEnd) {
+      bankVTable->SendContractStatsToServer();
       if (bankVTable->GetHasAccount()) bankVTable->SendAccountToServer();
       //bankSendInventoryToServer();
       sendBankAtEnd = 0;

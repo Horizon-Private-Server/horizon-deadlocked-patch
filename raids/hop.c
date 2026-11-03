@@ -199,6 +199,10 @@ void hopDo(void)
     State.PlayerStates[pIdx].LastEquipslots[2] = playerGetLocalEquipslot(i, 2);
   }
 
+  // finalize contract stats before hop
+  if (mapConfig && mapConfig->BankVTable && mapConfig->BankVTable->SendContractStatsToServer)
+    mapConfig->BankVTable->SendContractStatsToServer();
+
   // reset init
   State.MissionStartTime = 0;
   State.MissionStatus = RAIDS_MISSION_ACTIVE;
