@@ -325,7 +325,8 @@ typedef struct RaidsContractReward
 
 typedef struct RaidsContractDifficulty
 {
-  u32 TargetTimeMs;
+  u16 TargetTimeSeconds[5];
+  u16 Reserved;
   RaidsContractReward_t TotalReward;
   float BonusRewardFactor;
 } RaidsContractDifficulty_t;
@@ -346,6 +347,9 @@ struct RaidsKillContractRule
   u16 MinCount;
   u16 MaxCount;
   u32 MinHeroLevel;
+  u32 CountIncrement;
+  float RewardRamp;
+  float PartyHeroLevelRamp;
 };
 
 typedef struct RaidsContract
@@ -396,6 +400,7 @@ struct RaidsGetContractsRequest
   u8 Difficulty;
   u8 Flags;
   char MapFilename[64];
+  u32 PartySize;
 };
 
 struct RaidsContractProgress
@@ -407,6 +412,8 @@ struct RaidsContractProgress
   };
   u8 Flags;
   s8 Difficulty;
+  u8 PartySize;
+  u8 Reserved;
 };
 
 struct RaidsUpdateContractStatsRequest
@@ -427,14 +434,14 @@ struct RaidsActionContractRequest
 };
 
 typedef char RaidsContractRuleHeaderSizeCheck[sizeof(struct RaidsContractRuleHeader) == 36 ? 1 : -1];
-typedef char RaidsKillContractRuleSizeCheck[sizeof(struct RaidsKillContractRule) == 20 ? 1 : -1];
+typedef char RaidsKillContractRuleSizeCheck[sizeof(struct RaidsKillContractRule) == 32 ? 1 : -1];
 typedef char RaidsContractRewardSizeCheck[sizeof(RaidsContractReward_t) == 16 ? 1 : -1];
-typedef char RaidsContractDifficultySizeCheck[sizeof(RaidsContractDifficulty_t) == 24 ? 1 : -1];
+typedef char RaidsContractDifficultySizeCheck[sizeof(RaidsContractDifficulty_t) == 32 ? 1 : -1];
 typedef char RaidsContractSizeCheck[sizeof(RaidsContract_t) == 92 ? 1 : -1];
 typedef char RaidsContractDataOffsetCheck[offsetof(RaidsContract_t, Kill) == 24 && offsetof(RaidsContract_t, Completion) == 24 ? 1 : -1];
 typedef char RaidsContractNameOffsetCheck[offsetof(RaidsContract_t, Name) == 60 ? 1 : -1];
 typedef char RaidsContractPageSizeCheck[sizeof(RaidsContractPage_t) == 392 ? 1 : -1];
-typedef char RaidsContractRequestSizeCheck[sizeof(struct RaidsGetContractsRequest) == 72 ? 1 : -1];
+typedef char RaidsContractRequestSizeCheck[sizeof(struct RaidsGetContractsRequest) == 76 ? 1 : -1];
 typedef char RaidsContractProgressEntrySizeCheck[sizeof(struct RaidsContractProgress) == 12 ? 1 : -1];
 typedef char RaidsContractProgressDataOffsetCheck[offsetof(struct RaidsContractProgress, Kills) == 4 && offsetof(struct RaidsContractProgress, CompletedTimeMs) == 4 ? 1 : -1];
 typedef char RaidsContractProgressSizeCheck[sizeof(struct RaidsUpdateContractStatsRequest) == 52 ? 1 : -1];

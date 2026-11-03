@@ -318,11 +318,23 @@ struct RaidsState
   char DesiredMusicTrackSkipTransition;
   char DesiredMusicTrackForce;
   char DesiredMusicLoop;
+  int MissionPartySize;
 };
 
 struct RaidsMapData
 {
   int AllKills[GAME_MAX_PLAYERS][MOB_DAMAGE_SOURCE_COUNT-1][MAX_MOB_SPAWN_PARAMS];
+};
+
+struct RaidsPartyScaling
+{
+  float Ramp;
+  float Count;
+  float Rate;
+  float AliveLimit;
+  float Health;
+  float Damage;
+  float Speed;
 };
 
 struct RaidsMapConfig
@@ -339,6 +351,7 @@ struct RaidsMapConfig
   struct RaidsMapData* MapData;
   int ClassXpRewards[RAIDS_DIFFICULTY_COUNT];
 
+  struct RaidsPartyScaling PartyScaling;
   struct RaidsInteropTable Functions;
 };
 

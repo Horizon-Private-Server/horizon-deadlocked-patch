@@ -793,6 +793,15 @@ void initialize(PatchStateContainer_t* gameState)
   mapConfig->ClientsReady = 1;
   if (State.MissionStartTime <= 0 && isInGame()) {
     State.MissionStartTime = gameGetTime();
+
+    // capture the roster once so deaths and disconnects do not change scaling
+    GameSettings* gameSettings = gameGetSettings();
+    State.MissionPartySize = 0;
+    for (i = 0; gameSettings && i < GAME_MAX_PLAYERS; ++i)
+      if (gameSettings->PlayerClients[i] >= 0) ++State.MissionPartySize;
+
+    if (State.MissionPartySize < 1) State.MissionPartySize = 1;
+    if (State.MissionPartySize > 5) State.MissionPartySize = 5;
   }
 
   // re-enable input

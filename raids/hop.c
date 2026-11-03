@@ -205,6 +205,7 @@ void hopDo(void)
 
   // reset init
   State.MissionStartTime = 0;
+  State.MissionPartySize = 0;
   State.MissionStatus = RAIDS_MISSION_ACTIVE;
   State.MissionCompleteTime = 0;
   State.ClientsReady = 0;
