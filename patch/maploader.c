@@ -353,7 +353,9 @@ void mapHopTo(CustomMapDef_t* def)
 
   // draw we're loading the wad
   HOOK_JAL(0x004c4a94, &mapHopToLoadingOnlineWadDraw);
-  mapHopToRefreshLoadingScreen("Loading online wad...");
+  char loadingMessage[64];
+  snprintf(loadingMessage, sizeof(loadingMessage), "Loading %.*s...", (int)sizeof(def->Name), def->Name);
+  mapHopToRefreshLoadingScreen(loadingMessage);
 
   // read onlinewad
   void* onlineWadBuffer = *(u32*)0x0021dd90 - 0x7D0000;
@@ -363,7 +365,6 @@ void mapHopTo(CustomMapDef_t* def)
   ((void (*)(int))0x001634a8)(1); // fs::sync(1)
   ((void (*)(int loadType, void* dest, int sectorOffset, int sectorCount, int t0, void* loadCompleteCallback, void* loadCompleteArgs))0x00163808)
     (0, onlineWadBuffer, sectorOffset, sectorCount, 0, 0, 0); // fs::load()
-  mapHopToRefreshLoadingScreen("Loading player skins...");
 
   // load player skins
   for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
@@ -387,24 +388,17 @@ void mapHopTo(CustomMapDef_t* def)
     void* armorTexPtr = onlineWadBuffer + *(u32*)(armorDef + 0xc);
 
     // decompress moby data
-    snprintf(loadingMessage, sizeof(loadingMessage), "Loading %s skin...", playerName);
-    mapHopToRefreshLoadingScreen(loadingMessage);
     int len = ((int (*)(void* src, void* dst))0x004f5140)(armorMobyPtr, buffer);
     binPtrs[i] = buffer;
     buffer += (len + 0x3F) & 0xFFFFFFC0;
 
     // decompress tex data
-    snprintf(loadingMessage, sizeof(loadingMessage), "Loading %s skin textures...", playerName);
-    mapHopToRefreshLoadingScreen(loadingMessage);
     len = ((int (*)(void* src, void* dst))0x004f5140)(armorTexPtr, buffer);
     texPtrs[i] = buffer;
     buffer += (len + 0x3F) & 0xFFFFFFC0;
   }
 
   // load
-  char loadingMessage[64];
-  snprintf(loadingMessage, sizeof(loadingMessage), "Loading %.*s...", (int)sizeof(def->Name), def->Name);
-  mapHopToRefreshLoadingScreen(loadingMessage);
   ((void (*)(int mapId, int bSave, int missionId))0x004e2410)(mapId, 1, -1);
   DPRINTF("load %d %s\n", mapId, def->Filename);
 
