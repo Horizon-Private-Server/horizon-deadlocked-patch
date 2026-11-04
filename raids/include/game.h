@@ -264,6 +264,11 @@ typedef struct RaidsUserSettings
 
 typedef char RaidsUserSettingsSizeCheck[sizeof(RaidsUserSettings_t) == 3 ? 1 : -1];
 
+struct RaidsHubState
+{
+  char HasShownWelcomePopup;
+};
+
 struct RaidsInventoryMenuState
 {
   int HasState;
@@ -290,6 +295,7 @@ struct RaidsState
   Moby** AllMobsSorted;
   int AllMobsSortedCount;
 	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
+  struct RaidsHubState Hub;
   struct RaidsInventoryMenuState InventoryMenu;
   struct RaidsContractsMenuState ContractsMenu;
   int ClientsReady;
