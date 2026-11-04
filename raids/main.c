@@ -49,6 +49,7 @@
 #include "include/utils.h"
 #include "include/interop.h"
 #include "include/settings.h"
+#include "include/xp.h"
 #include "include/lod.h"
 
 char LocalPlayerStrBuffer[2][64];
@@ -272,6 +273,7 @@ void raidsDrawHud(void)
     }
   }
 
+  raidsXpDraw();
   bubbleDraw();
   hopDraw();
   trackerDraw();
@@ -737,6 +739,7 @@ void initialize(PatchStateContainer_t* gameState)
 
   // component init
   raidsSettingsMapInit();
+  raidsXpInit();
   raidsLodMapInit();
   mobInitialize();
   bubbleInit();

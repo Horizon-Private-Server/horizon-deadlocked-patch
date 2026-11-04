@@ -12,7 +12,7 @@
 #include "include/utils.h"
 
 #define SETTINGS_RETRY_TIME              ((long)5 * TIME_SECOND * SYSTEM_TIME_TICKS_PER_MS)
-#define SETTINGS_ROW_COUNT               (4)
+#define SETTINGS_ROW_COUNT               (5)
 #define SETTINGS_SAVE_DELAY              ((long)500 * SYSTEM_TIME_TICKS_PER_MS)
 
 extern struct RaidsState State;
@@ -20,10 +20,9 @@ extern int Initialized;
 
 // defaults until account settings are loaded
 RaidsUserSettings_t raidsUserSettings = {
-  .Version = RAIDS_USER_SETTINGS_VERSION,
   .MapLod = 2,
   .MobLod = 2,
-  .Flags = RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS
+  .Flags = RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS | RAIDS_USER_SETTINGS_KILL_XP_POPUPS
 };
 
 RaidsUserSettings_t raidsSettingsResponse;
@@ -51,14 +50,16 @@ char* raidsSettingsLabels[] = {
   "Map Level of Detail",
   "Mob Level of Detail",
   "Ammo Pickup Popups",
-  "Contract Progress Bars"
+  "Contract Progress Bars",
+  "Kill XP Popups"
 };
 
 char* raidsSettingsDescriptions[] = {
   "Lower map detail to reduce graphics load on demanding planets.",
   "Lower mob detail to reduce graphics load when many enemies are present.",
   "Show the ammo gained when you collect an ammo pickup.",
-  "Show contract bars above the tracker while the tracker is enabled."
+  "Show contract bars above the tracker while the tracker is enabled.",
+  "Show XP near the crosshair for your own kills."
 };
 
 //--------------------------------------------------------------------------
@@ -172,6 +173,8 @@ void raidsSettingsHandleInput(void)
       flag = RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS;
     } else if (raidsSettingsSelectedRow == 3) {
       flag = RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS;
+    } else if (raidsSettingsSelectedRow == 4) {
+      flag = RAIDS_USER_SETTINGS_KILL_XP_POPUPS;
     }
 
     // apply change and mark settings for saving
@@ -195,9 +198,8 @@ void raidsSettingsTick(void)
     if (raidsSettingsHasResponse) {
       // copy the response once so late retries cannot overwrite local edits
       // validate values before using them to index menu labels
-      if (raidsSettingsResponse.Version == RAIDS_USER_SETTINGS_VERSION
-          && raidsSettingsResponse.MapLod <= 3 && raidsSettingsResponse.MobLod <= 3
-          && !(raidsSettingsResponse.Flags & ~(RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS))) {
+      if (raidsSettingsResponse.MapLod <= 3 && raidsSettingsResponse.MobLod <= 3
+          && !(raidsSettingsResponse.Flags & ~(RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS | RAIDS_USER_SETTINGS_KILL_XP_POPUPS))) {
         raidsUserSettings = raidsSettingsResponse;
         raidsSettingsLoaded = 1;
       } else {
@@ -241,7 +243,7 @@ void raidsSettingsDraw(void)
   Window_t footer;
 
   // draw frame
-  windowCreate(&window, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 420, 196, TEXT_ALIGN_MIDDLECENTER, 1);
+  windowCreate(&window, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 420, 216, TEXT_ALIGN_MIDDLECENTER, 1);
   menuDrawFrame(&window, "Raids Settings", RAIDS_MENU_TITLE_HEIGHT);
 
   // draw footer
@@ -264,9 +266,15 @@ void raidsSettingsDraw(void)
     windowDrawText(&window, TEXT_ALIGN_TOPLEFT, 16, y, 0.8, RAIDS_MENU_TEXT_COLOR,
       raidsSettingsLabels[i], -1, TEXT_ALIGN_TOPLEFT);
 
-    char* value = i == 0 ? raidsSettingsLodNames[raidsUserSettings.MapLod]
-      : i == 1 ? raidsSettingsLodNames[raidsUserSettings.MobLod]
-      : (raidsUserSettings.Flags & (i == 2 ? RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS : RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS)) ? "On" : "Off";
+    char* value;
+    if (i < 2) {
+      value = raidsSettingsLodNames[i == 0 ? raidsUserSettings.MapLod : raidsUserSettings.MobLod];
+    } else {
+      int flag = i == 2 ? RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS
+        : i == 3 ? RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS : RAIDS_USER_SETTINGS_KILL_XP_POPUPS;
+      int enabled = (raidsUserSettings.Flags & flag) != 0;
+      value = enabled ? "On" : "Off";
+    }
 
     windowDrawText(&window, TEXT_ALIGN_TOPLEFT, window.Width - 16, y, 0.8, RAIDS_MENU_TEXT_COLOR,
       value, -1, TEXT_ALIGN_TOPRIGHT);

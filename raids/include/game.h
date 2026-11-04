@@ -252,17 +252,17 @@ enum RaidsUserSettingsFlags
 {
   RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS = 0x01,
   RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS = 0x02,
+  RAIDS_USER_SETTINGS_KILL_XP_POPUPS = 0x04,
 };
 
 typedef struct RaidsUserSettings
 {
-  u8 Version;
   u8 MapLod;
   u8 MobLod;
   u8 Flags;
 } RaidsUserSettings_t;
 
-typedef char RaidsUserSettingsSizeCheck[sizeof(RaidsUserSettings_t) == 4 ? 1 : -1];
+typedef char RaidsUserSettingsSizeCheck[sizeof(RaidsUserSettings_t) == 3 ? 1 : -1];
 
 struct RaidsInventoryMenuState
 {

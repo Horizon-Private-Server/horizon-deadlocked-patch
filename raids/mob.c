@@ -2,6 +2,7 @@
 #include "include/utils.h"
 #include "include/game.h"
 #include "include/settings.h"
+#include "include/xp.h"
 #include "include/bubble.h"
 #include "config.h"
 #include <string.h>
@@ -1073,6 +1074,8 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
     // share half weapon xp with nearby living party members
     if (killedByLocal) {
       mapConfig->BankVTable->AddWeaponXP(xp);
+      if (killedByPlayer == localPlayer)
+        raidsXpNotifyKill((u32)xp);
     } else if (canShareKill) {
       mapConfig->BankVTable->AddWeaponXP((double)(xp / 2));
     }
