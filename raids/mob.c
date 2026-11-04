@@ -921,7 +921,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 	pvars->MobVars.Config.AutoAggroMaxRange = params->Config.AutoAggroMaxRange;
 	pvars->MobVars.Config.VisionRange = params->Config.VisionRange;
 	pvars->MobVars.Config.PeripheryRangeTheta = params->Config.PeripheryRangeTheta;
-	pvars->MobVars.Health = pvars->MobVars.Config.Health;
+	pvars->MobVars.Health = (float)args.CurrentHealth;
 	pvars->MobVars.Order = -1;
 	pvars->MobVars.TimeLastGroundedTicks = 0;
 	pvars->MobVars.Random = random;
@@ -947,7 +947,7 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
 
 	// initialize target vars
 	pvars->TargetVars.hitPoints = pvars->MobVars.Health;
-	pvars->TargetVars.maxHitPoints = pvars->MobVars.Health;
+	pvars->TargetVars.maxHitPoints = pvars->MobVars.Config.MaxHealth;
 	pvars->TargetVars.team = 10;
 	pvars->TargetVars.targetHeight = 1;
   //pvars->TargetVars.damageTypes = 0x40; // shock
@@ -1005,6 +1005,10 @@ int mobHandleEvent_Spawn(Moby* moby, GuberEvent* event)
   // pass to mob handler
   if (pvars->VTable && pvars->VTable->OnSpawn)
     pvars->VTable->OnSpawn(moby, p, yaw, spawnFromUID, random, &args);
+
+  // restore action after the mob has initialized its vars
+  if (args.StartAction != pvars->MobVars.Action && pvars->VTable && pvars->VTable->ForceLocalAction)
+    pvars->VTable->ForceLocalAction(moby, args.StartAction);
 	
 #if LOG_STATS2
 	DPRINTF("mob created event %08X, %08X, %08X spawnArgsIdx:%d spawnedNum:%d roundTotal:%d)\n", (u32)moby, (u32)event, (u32)moby->GuberMoby, args.SpawnParamsIdx, State.MobStats.TotalAlive, State.MobStats.TotalSpawned);
@@ -1531,9 +1535,11 @@ void mobPopulateSpawnArgsFromConfig(struct MobSpawnEventArgs* output, struct Mob
   output->DifficultyStars = difficulty;
   output->Bolts = (config->Bolts[difficulty] + randRangeInt(-50, 50)); // * BOLT_TAX[(int)gs->PlayerCount];
   output->Xp = config->Xp[difficulty];
-  output->StartHealth = (int)clamp(health, 0, 0x7FFFFFFF);
+  output->StartHealth = (u32)health;
+  output->CurrentHealth = args->StartHealth > 0 ? (u32)args->StartHealth : output->StartHealth;
   output->Damage = (u16)clamp(damage, 0, 0xFFFF);
   output->SpeedEighths = (u16)clamp(speed * 8, 0, 0xFFFF);
+  output->StartAction = args->StartAction;
 }
 
 //--------------------------------------------------------------------------

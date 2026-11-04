@@ -356,11 +356,13 @@ struct MobSpawnEventArgs
 {
 	int Bolts;
 	int Xp;
-	int StartHealth;
+	u32 StartHealth;
+	u32 CurrentHealth;
 	u16 SpeedEighths;
 	u16 Damage;
   u8 SpawnParamsIdx;
   u8 DifficultyStars;
+  u8 StartAction;
 };
 
 struct MobCreateArgs
@@ -370,12 +372,14 @@ struct MobCreateArgs
   u32 Userdata;
   VECTOR Position;
   float Yaw;
+  float StartHealth;
   int SpawnFromUID;
   float HealthMultiplier;
   float DamageMultiplier;
   float SpeedMultiplier;
-  u8 DifficultyStars;
   struct MobConfig *Config;
+  u8 DifficultyStars;
+  u8 StartAction;
   char Behavior;
 };
 
