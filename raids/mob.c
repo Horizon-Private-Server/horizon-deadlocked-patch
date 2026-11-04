@@ -1064,8 +1064,9 @@ int mobHandleEvent_Destroy(Moby* moby, GuberEvent* event)
       if (killedByLocal) pState->State.Bolts += bolts;
       mapConfig->BankVTable->AddBolts(bolts);
       if (killedByLocal || canShareKill) {
-        mapConfig->BankVTable->AddXP((u32)xp);
-        appliedPlayerXp = (u32)xp;
+        // share half hero xp with nearby living party members
+        appliedPlayerXp = (u32)(killedByLocal ? xp : xp / 2);
+        mapConfig->BankVTable->AddXP(appliedPlayerXp);
       }
     }
 
