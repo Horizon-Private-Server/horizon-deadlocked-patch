@@ -61,6 +61,8 @@ struct RaidsMapConfig* mapConfig = (struct RaidsMapConfig*)(EXTRA_CODE_SEG_PTR +
 struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
 
+extern Moby* AllMobsSorted[MAX_MOBS_ALIVE];
+
 int Lives[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_1STAR] 2,
   [RAIDS_DIFFICULTY_2STAR] 2,
@@ -692,6 +694,8 @@ void initialize(PatchStateContainer_t* gameState)
     // clear state
     memset(&State, 0, sizeof(State));
     State.Settings = &raidsUserSettings;
+    State.AllMobsSorted = AllMobsSorted;
+    State.AllMobsSortedCount = MAX_MOBS_ALIVE;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
       State.PlayerStates[i].EquippedClassProgress.ClassType = -1;
     }
@@ -1430,6 +1434,7 @@ void start(struct GameModule * module, PatchStateContainer_t * gameState, enum G
 {
   if (context != GAMEMODULE_UNLOAD)
     waitForMapConfig(gameState);
+
   switch (context)
   {
     case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;

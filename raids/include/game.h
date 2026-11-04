@@ -287,6 +287,8 @@ struct RaidsState
   int MapBaseComplexity;
   const RaidsUserSettings_t* Settings;
   struct RaidsMobStats MobStats;
+  Moby** AllMobsSorted;
+  int AllMobsSortedCount;
 	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
   struct RaidsInventoryMenuState InventoryMenu;
   struct RaidsContractsMenuState ContractsMenu;
