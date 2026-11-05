@@ -11,8 +11,8 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
-#define BUBBLE_LIFE_TICKS         (TPS * 2)
-#define BUBBLE_MAX_NONLOCAL_DIST  (50.0)
+#define BUBBLE_LIFE_TICKS (TPS * 2)
+#define BUBBLE_MAX_NONLOCAL_DIST (50.0)
 
 struct SurvivalDamageBubble
 {

@@ -15,14 +15,14 @@
 #include "module.h"
 #include "include/config.h"
 
-#define PLAYER_SYNC_DATAS_PTR     (*(PlayerSyncPlayerData_t**)0x000CFFB0)
-#define CMD_BUFFER_SIZE           (8)
+#define PLAYER_SYNC_DATAS_PTR (*(PlayerSyncPlayerData_t **)0x000CFFB0)
+#define CMD_BUFFER_SIZE (8)
 
 typedef struct PlayerSyncStateUpdateUnpacked
 {
   VECTOR Position;
   VECTOR Rotation;
-  Moby* GroundMoby;
+  Moby *GroundMoby;
   int GameTime;
   float CameraDistance;
   float CameraHeight;
@@ -62,7 +62,6 @@ typedef struct PlayerSyncPlayerData
   PlayerSyncStateUpdateUnpacked_t StateUpdates[CMD_BUFFER_SIZE];
 } PlayerSyncPlayerData_t;
 
-
 // config
 extern int isUnloading;
 extern PatchConfig_t config;
@@ -72,7 +71,7 @@ extern PatchStateContainer_t patchStateContainer;
 // ping
 extern int ClientLatency[GAME_MAX_PLAYERS];
 
-extern void* _playerSyncPatchHeroTransAnim;
+extern void *_playerSyncPatchHeroTransAnim;
 
 //--------------------------------------------------------------------------
 int playerSyncCmdDelta(int fromCmdId, int toCmdId)
@@ -106,14 +105,19 @@ int playerSyncCmdGetBufIndex(int cmdId)
 int playerSyncGetSendRate(void)
 {
   // in survival the mobs already bloat the network, and player syncing is less important, so we can reduce the send rate a lot
-  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return 5;
-  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS) return 5;
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL)
+    return 5;
+  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS)
+    return 5;
 
   // in larger lobbies we want to reduce network bandwidth by reducing send rate
-  GameSettings* gs = gameGetSettings();
-  if (gs && gs->PlayerCountAtStart > 8) return 4;
-  if (gs && gs->PlayerCountAtStart > 6) return 3;
-  if (gs && gs->PlayerCountAtStart > 4) return 1;
+  GameSettings *gs = gameGetSettings();
+  if (gs && gs->PlayerCountAtStart > 8)
+    return 4;
+  if (gs && gs->PlayerCountAtStart > 6)
+    return 3;
+  if (gs && gs->PlayerCountAtStart > 4)
+    return 1;
 
   return 0;
 }
@@ -121,7 +125,8 @@ int playerSyncGetSendRate(void)
 //--------------------------------------------------------------------------
 int playerSyncShouldImmediatelySendStateChange(int fromState, int toState)
 {
-  if (toState == PLAYER_STATE_GET_HIT) return 1;
+  if (toState == PLAYER_STATE_GET_HIT)
+    return 1;
 
   return 0;
 }
@@ -130,32 +135,35 @@ int playerSyncShouldImmediatelySendStateChange(int fromState, int toState)
 float playerSyncLerpAngleIfDelta(float from, float to, float lerpAmount, float minAngleBetween)
 {
   float dt = clampAngle(from - to);
-  if (dt < minAngleBetween) return from;
+  if (dt < minAngleBetween)
+    return from;
 
   return lerpfAngle(from, to, lerpAmount);
 }
 
 //--------------------------------------------------------------------------
-void playerSyncOnPlayerUpdateSetState(Player* player, int toState, int a2, int a3, int t0)
+void playerSyncOnPlayerUpdateSetState(Player *player, int toState, int a2, int a3, int t0)
 {
   // prevent synced players from bonking on our screens
   // if the bonk, they'll send that as a state update
-  if (!player->IsLocal && toState == PLAYER_STATE_JUMP_BOUNCE) return;
+  if (!player->IsLocal && toState == PLAYER_STATE_JUMP_BOUNCE)
+    return;
 
-  PlayerVTable* vtable = playerGetVTable(player);
+  PlayerVTable *vtable = playerGetVTable(player);
   vtable->UpdateState(player, toState, a2, a3, t0);
 }
 
 //--------------------------------------------------------------------------
-void playerSyncRestoreVehicleInputFlags(Player* player, PlayerSyncPlayerData_t* data)
+void playerSyncRestoreVehicleInputFlags(Player *player, PlayerSyncPlayerData_t *data)
 {
   // bit 0 indicates we overrode the flag
   // bit 2 stores the original vehicle input flag
-  if (!(data->SavedVehicleInputFlags & 1)) return;
+  if (!(data->SavedVehicleInputFlags & 1))
+    return;
 
-  if (player->pNetPlayer) {
-    player->pNetPlayer->flags = (player->pNetPlayer->flags & ~4)
-      | (data->SavedVehicleInputFlags & 4);
+  if (player->pNetPlayer)
+  {
+    player->pNetPlayer->flags = (player->pNetPlayer->flags & ~4) | (data->SavedVehicleInputFlags & 4);
   }
   data->SavedVehicleInputFlags = 0;
   data->Pad[2] = 0xFF;
@@ -163,27 +171,28 @@ void playerSyncRestoreVehicleInputFlags(Player* player, PlayerSyncPlayerData_t* 
 }
 
 //--------------------------------------------------------------------------
-void playerSyncUpdatePlayerPad(Player* player, PlayerSyncPlayerData_t* data)
+void playerSyncUpdatePlayerPad(Player *player, PlayerSyncPlayerData_t *data)
 {
-  ((void (*)(struct PAD*))0x00527e08)(player->Paddata);
-  ((void (*)(struct PAD*, void*, int))0x00527510)(player->Paddata, data->Pad, 0x14);
+  ((void (*)(struct PAD *))0x00527e08)(player->Paddata);
+  ((void (*)(struct PAD *, void *, int))0x00527510)(player->Paddata, data->Pad, 0x14);
 }
 
 //--------------------------------------------------------------------------
-int playerSyncHandlePlayerPadHook(Player* player)
+int playerSyncHandlePlayerPadHook(Player *player)
 {
   int padIdx = 0;
-  
+
   // enable pad
-  if (!player->IsLocal && PLAYER_SYNC_DATAS_PTR) {
+  if (!player->IsLocal && PLAYER_SYNC_DATAS_PTR)
+  {
 
     // get player sync data
-    PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
-  
+    PlayerSyncPlayerData_t *data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
+
     // if the player left the vehicle during native updates
     // release driving buttons before processing on foot input
-    if (data->VehiclePadPrepared && (!player->Vehicle || player->Vehicle->pDriver != player
-        || player->PlayerState != PLAYER_STATE_VEHICLE)) {
+    if (data->VehiclePadPrepared && (!player->Vehicle || player->Vehicle->pDriver != player || player->PlayerState != PLAYER_STATE_VEHICLE))
+    {
       playerSyncRestoreVehicleInputFlags(player, data);
       data->VehiclePadPrepared = 0;
     }
@@ -192,17 +201,18 @@ int playerSyncHandlePlayerPadHook(Player* player)
       playerSyncUpdatePlayerPad(player, data);
   }
 
-  int result = ((int (*)(Player*))0x0060cec0)(player);
+  int result = ((int (*)(Player *))0x0060cec0)(player);
 
   return result;
 }
 
 //--------------------------------------------------------------------------
-void playerSyncHandlePostPlayerState(Player* player)
+void playerSyncHandlePostPlayerState(Player *player)
 {
-  if (!player || player->IsLocal || !player->PlayerMoby || !PLAYER_SYNC_DATAS_PTR) return;
-  
-  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
+  if (!player || player->IsLocal || !player->PlayerMoby || !PLAYER_SYNC_DATAS_PTR)
+    return;
+
+  PlayerSyncPlayerData_t *data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
   data->TicksSinceLastUpdate += 1;
 }
 
@@ -215,22 +225,23 @@ void playerRotationLerp(VECTOR out, VECTOR a, VECTOR b, float t)
 }
 
 //--------------------------------------------------------------------------
-void playerSyncHandleVehicleUpdate(Vehicle* vehicle, int gameTime)
+void playerSyncHandleVehicleUpdate(Vehicle *vehicle, int gameTime)
 {
   // run native vehicle physics first
   // apply correction before updating riders and vehicle visuals
-  ((void (*)(Vehicle*, int))0x00619dc8)(vehicle, gameTime);
-  if (!gameConfig.grNewPlayerSync || !PLAYER_SYNC_DATAS_PTR) return;
+  ((void (*)(Vehicle *, int))0x00619dc8)(vehicle, gameTime);
+  if (!gameConfig.grNewPlayerSync || !PLAYER_SYNC_DATAS_PTR)
+    return;
 
-  Player* driver = vehicle->pDriver;
-  Moby* moby = vehicle->pMoby;
-  if (!driver || driver->IsLocal || driver->Vehicle != vehicle || !moby
-      || driver->PlayerState != PLAYER_STATE_VEHICLE || vehicle->hitPoints <= 0
-      || (vehicle->flags & (2 | 0x10000000))) return;
+  Player *driver = vehicle->pDriver;
+  Moby *moby = vehicle->pMoby;
+  if (!driver || driver->IsLocal || driver->Vehicle != vehicle || !moby || driver->PlayerState != PLAYER_STATE_VEHICLE || vehicle->hitPoints <= 0 || (vehicle->flags & (2 | 0x10000000)))
+    return;
 
   // only sync vehicles where the driver and vehicle use the same world transform
   // turrets can have a seat offset or rotate independently
-  switch (moby->OClass) {
+  switch (moby->OClass)
+  {
     case MOBY_ID_PUMA:
     case MOBY_ID_HOVERBIKE:
     case MOBY_ID_HOVERSHIP:
@@ -240,15 +251,19 @@ void playerSyncHandleVehicleUpdate(Vehicle* vehicle, int gameTime)
       return;
   }
 
-  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[driver->PlayerId];
-  if (!data->VehiclePadPrepared) return;
+  PlayerSyncPlayerData_t *data = &PLAYER_SYNC_DATAS_PTR[driver->PlayerId];
+  if (!data->VehiclePadPrepared)
+    return;
 
   VECTOR delta;
   vector_subtract(delta, driver->RemoteHero.receivedSyncPos, moby->Position);
   float distanceSq = vector_sqrmag(delta);
-  if (distanceSq > 49) {
+  if (distanceSq > 49)
+  {
     vector_copy(moby->Position, driver->RemoteHero.receivedSyncPos);
-  } else if (distanceSq > (0.01*0.01)) {
+  }
+  else if (distanceSq > (0.01 * 0.01))
+  {
     vector_lerp(moby->Position, moby->Position, driver->RemoteHero.receivedSyncPos, 0.15);
   }
   playerRotationLerp(moby->Rotation, moby->Rotation, driver->RemoteHero.receivedSyncRot, 0.15);
@@ -259,15 +274,17 @@ void playerSyncHandleVehicleUpdate(Vehicle* vehicle, int gameTime)
 }
 
 //--------------------------------------------------------------------------
-void playerStateUpdateLerp(PlayerSyncStateUpdateUnpacked_t* out, PlayerSyncStateUpdateUnpacked_t* a, PlayerSyncStateUpdateUnpacked_t* b, float t)
+void playerStateUpdateLerp(PlayerSyncStateUpdateUnpacked_t *out, PlayerSyncStateUpdateUnpacked_t *a, PlayerSyncStateUpdateUnpacked_t *b, float t)
 {
   int isHalfway = t >= 0.5;
-  if (t <= 0) {
+  if (t <= 0)
+  {
     memcpy(out, a, sizeof(PlayerSyncStateUpdateUnpacked_t));
     return;
   }
 
-  if (t >= 1) {
+  if (t >= 1)
+  {
     memcpy(out, b, sizeof(PlayerSyncStateUpdateUnpacked_t));
     return;
   }
@@ -298,22 +315,24 @@ void playerStateUpdateLerp(PlayerSyncStateUpdateUnpacked_t* out, PlayerSyncState
   // we want to respect the change by forcing the position to b->Position
   // otherwise the world space a != local space b
   // we could also translate both a,b positions into world, then lerp, then convert to out->GroundMoby local too
-  if (b->GroundMoby != a->GroundMoby) {
+  if (b->GroundMoby != a->GroundMoby)
+  {
     out->GroundMoby = b->GroundMoby;
     vector_copy(out->Position, b->Position);
   }
 }
 
 //--------------------------------------------------------------------------
-void playerSyncHandlePlayerState(Player* player)
+void playerSyncHandlePlayerState(Player *player)
 {
   MATRIX m, mInv;
   VECTOR dt;
   int i;
   int rate = playerSyncGetSendRate();
-  if (!player || player->IsLocal || !player->PlayerMoby || !PLAYER_SYNC_DATAS_PTR) return;
+  if (!player || player->IsLocal || !player->PlayerMoby || !PLAYER_SYNC_DATAS_PTR)
+    return;
 
-  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
+  PlayerSyncPlayerData_t *data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
 
   // restore the native vehicle input flag
   // do this even if we don't have a valid state update
@@ -322,48 +341,55 @@ void playerSyncHandlePlayerState(Player* player)
 
   // move forward subtick
   data->CurrentSubStateId++;
-  if (data->CurrentSubStateId > rate && data->StateUpdateCmdId != data->CurrentStateUpdateCmdId) {
+  if (data->CurrentSubStateId > rate && data->StateUpdateCmdId != data->CurrentStateUpdateCmdId)
+  {
     data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId)].Valid = 0; // mark invalid/used
     data->CurrentStateUpdateCmdId = playerSyncGetCmdId(data->CurrentStateUpdateCmdId + 1);
     data->CurrentSubStateId = 0;
   }
 
-  // we're running behind 
+  // we're running behind
   int stateIdDelta = playerSyncCmdDelta(data->CurrentStateUpdateCmdId, data->StateUpdateCmdId);
-  if (stateIdDelta > 1) {
+  if (stateIdDelta > 1)
+  {
     DPRINTF("%'d running behind %d, %d=>%d\n", gameGetTime(), stateIdDelta, data->CurrentStateUpdateCmdId, data->StateUpdateCmdId);
     data->CurrentSubStateId = 0;
 
     int targetId = playerSyncGetCmdId(data->StateUpdateCmdId - 1);
-    while (data->CurrentStateUpdateCmdId != targetId) {
+    while (data->CurrentStateUpdateCmdId != targetId)
+    {
       data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId)].Valid = 0; // mark invalid/used
       data->CurrentStateUpdateCmdId = playerSyncGetCmdId(data->CurrentStateUpdateCmdId + 1);
     }
-  } else if (stateIdDelta == 0 && data->CurrentSubStateId > (rate/2)) {
+  }
+  else if (stateIdDelta == 0 && data->CurrentSubStateId > (rate / 2))
+  {
     DPRINTF("%'d running ahead %d\n", gameGetTime(), data->CurrentSubStateId);
     data->CurrentSubStateId = (int)maxf(0, data->CurrentSubStateId - 1);
   }
 
-  #if NPS_INSTANTSYNC
+#if NPS_INSTANTSYNC
   data->CurrentSubStateId = 0;
   data->CurrentStateUpdateCmdId = data->StateUpdateCmdId;
-  #endif
-  
+#endif
+
   PlayerSyncStateUpdateUnpacked_t stateInterpolated;
-  PlayerSyncStateUpdateUnpacked_t* stateCurrent = &data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId)];
-  PlayerSyncStateUpdateUnpacked_t* stateNext = &data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId+1)];
-  
-  if (!stateCurrent->Valid) return;
-  
-  Moby* playerMoby = player->PlayerMoby;
-  PlayerVTable* vtable = playerGetVTable(player);
+  PlayerSyncStateUpdateUnpacked_t *stateCurrent = &data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId)];
+  PlayerSyncStateUpdateUnpacked_t *stateNext = &data->StateUpdates[playerSyncCmdGetBufIndex(data->CurrentStateUpdateCmdId + 1)];
+
+  if (!stateCurrent->Valid)
+    return;
+
+  Moby *playerMoby = player->PlayerMoby;
+  PlayerVTable *vtable = playerGetVTable(player);
   float tSub = data->CurrentSubStateId / (float)(rate + 1);
   float tPos = 0.15;
   float tRot = 0.15;
   float tCam = 0.5;
   int padIdx = 0;
 
-  if (!stateNext->Valid) {
+  if (!stateNext->Valid)
+  {
     tSub = 0;
   }
   //printf("%d %d/%f\n", data->CurrentStateUpdateCmdId, data->CurrentSubStateId, tSub);
@@ -377,22 +403,25 @@ void playerSyncHandlePlayerState(Player* player)
 
   // set no input
   //if (data->TicksSinceLastUpdate == 0) {
-  if (data->CurrentSubStateId == 0) {
+  if (data->CurrentSubStateId == 0)
+  {
     player->timers.noInput = stateInterpolated.NoInput;
   }
 
   // resurrecting
-  if (playerIsDead(player) && player->pNetPlayer && player->pNetPlayer->warpMessage.isResurrecting) {
-    ((void (*)(Player*))0x005e2940)(player);
+  if (playerIsDead(player) && player->pNetPlayer && player->pNetPlayer->warpMessage.isResurrecting)
+  {
+    ((void (*)(Player *))0x005e2940)(player);
     player->pNetPlayer->warpMessage.isResurrecting = 0;
   }
-  
-  // extrapolate
-  #if NPS_INSTANTSYNC
-  GameSettings* gs = gameGetSettings();
-  if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player)) {
+
+// extrapolate
+#if NPS_INSTANTSYNC
+  GameSettings *gs = gameGetSettings();
+  if (data->TicksSinceLastUpdate > 0 && data->TicksSinceLastUpdate <= rate && !playerIsDead(player))
+  {
     //DPRINTF("extrapolate %d\n", data->TicksSinceLastUpdate);
-    
+
     // extrapolate position
     vector_subtract(dt, player->PlayerPosition, data->LastLocalPosition);
     vector_add(stateCurrent->Position, stateCurrent->Position, dt);
@@ -407,24 +436,25 @@ void playerSyncHandlePlayerState(Player* player)
     vector_copy(stateInterpolated.Position, stateCurrent->Position);
     vector_copy(stateInterpolated.Rotation, stateCurrent->Rotation);
   }
-  #endif
+#endif
 
   // compute absolute position
   VECTOR stateCurrentPosition;
   vector_copy(stateCurrentPosition, stateInterpolated.Position);
-  if (stateInterpolated.GroundMoby) {
+  if (stateInterpolated.GroundMoby)
+  {
     vector_add(stateCurrentPosition, stateCurrentPosition, stateInterpolated.GroundMoby->Position);
   }
 
   // vehicles use the driver's received position and rotation as their target
   // use the synced transform directly so player smoothing doesn't delay the vehicle
-  int isVehicleDriver = player->Vehicle && player->Vehicle->pDriver == player
-    && player->PlayerState == PLAYER_STATE_VEHICLE && stateInterpolated.State == PLAYER_STATE_VEHICLE;
+  int isVehicleDriver = player->Vehicle && player->Vehicle->pDriver == player && player->PlayerState == PLAYER_STATE_VEHICLE && stateInterpolated.State == PLAYER_STATE_VEHICLE;
 
   // snap position
   float snapRadius = (stateInterpolated.GroundMoby != player->Ground.pMoby) ? 4 : 49;
   vector_subtract(dt, stateCurrentPosition, player->PlayerPosition);
-  if (vector_sqrmag(dt) > snapRadius) {
+  if (vector_sqrmag(dt) > snapRadius)
+  {
     VECTOR dif;
     vector_subtract(dif, stateCurrentPosition, player->PlayerPosition);
     vector_copy(player->PlayerPosition, stateCurrentPosition);
@@ -434,7 +464,8 @@ void playerSyncHandlePlayerState(Player* player)
   }
 
   // lerp position if distance is greater than threshold
-  else if (vector_sqrmag(dt) > (0.01*0.01)) {
+  else if (vector_sqrmag(dt) > (0.01 * 0.01))
+  {
     VECTOR dif;
     vector_subtract(dif, stateCurrentPosition, player->PlayerPosition);
     vector_scale(dif, dif, tPos);
@@ -476,7 +507,8 @@ void playerSyncHandlePlayerState(Player* player)
   vector_copy(player->CameraDir, player->CameraForward);
 
   // copy to player camera
-  if (player->Camera) {
+  if (player->Camera)
+  {
     VECTOR off;
     matrix_unit(m);
     matrix_rotate_y(m, m, player->CamRot[1]);
@@ -490,31 +522,33 @@ void playerSyncHandlePlayerState(Player* player)
   matrix_unit(mInv);
   matrix_rotate_y(mInv, mInv, clampAngle(-player->CamRot[1] + MATH_PI));
   matrix_rotate_z(mInv, mInv, clampAngle(player->CamRot[2] + MATH_PI));
-  memcpy(player->CamUMtx, mInv, sizeof(VECTOR)*3);
+  memcpy(player->CamUMtx, mInv, sizeof(VECTOR) * 3);
 
   // set health
   player->Health = stateInterpolated.Health;
 
   // set net camera rotation
-  if (player->pNetPlayer) {
+  if (player->pNetPlayer)
+  {
     vector_pack(player->CamRot, player->pNetPlayer->padMessageElems[padIdx].msg.cameraRot);
   }
 
   // set joystick
   float moveX = (stateInterpolated.MoveX - 127) / 128.0;
   float moveY = (stateInterpolated.MoveY - 127) / 128.0;
-  float mag = minf(1, sqrtf((moveX*moveX) + (moveY*moveY)));
+  float mag = minf(1, sqrtf((moveX * moveX) + (moveY * moveY)));
   float ang = atan2f(moveY, moveX);
-  *(float*)((u32)player + 0x2e08) = mag;
-  *(float*)((u32)player + 0x2e0c) = ang;
-  *(float*)((u32)player + 0x2e38) = mag;
-  *(float*)((u32)player + 0x0120) = moveX;
-  *(float*)((u32)player + 0x0124) = -moveY;
+  *(float *)((u32)player + 0x2e08) = mag;
+  *(float *)((u32)player + 0x2e0c) = ang;
+  *(float *)((u32)player + 0x2e38) = mag;
+  *(float *)((u32)player + 0x0120) = moveX;
+  *(float *)((u32)player + 0x0124) = -moveY;
 
   // pass acceleration and braking through while driving
   // leave firing, exiting and seat switching to the game
-  if (isVehicleDriver && !player->timers.noInput) {
-    u16 padBits = stateInterpolated.PadBits | (u16)~(PAD_CROSS | PAD_SQUARE);
+  if (isVehicleDriver && !player->timers.noInput)
+  {
+    u16 padBits = stateInterpolated.PadBits | (u16) ~(PAD_CROSS | PAD_SQUARE);
     data->Pad[2] = padBits & 0xFF;
     data->Pad[3] = padBits >> 8;
   }
@@ -524,8 +558,9 @@ void playerSyncHandlePlayerState(Player* player)
   data->Pad[6] = stateInterpolated.MoveX;
   data->Pad[7] = stateInterpolated.MoveY;
 
-  struct tNW_Player* netPlayer = player->pNetPlayer;
-  if (netPlayer) {
+  struct tNW_Player *netPlayer = player->pNetPlayer;
+  if (netPlayer)
+  {
     netPlayer->padMessageElems[padIdx].msg.pad_data[2] = stateInterpolated.PadBits & 0xFF;
     netPlayer->padMessageElems[padIdx].msg.pad_data[3] = stateInterpolated.PadBits >> 8;
     netPlayer->padMessageElems[padIdx].msg.pad_data[4] = 0x7F;
@@ -537,7 +572,8 @@ void playerSyncHandlePlayerState(Player* player)
   // flail is not synced very well
   // so we're gonna pass R1 pad through to try and sync it up better
   // still not perfect
-  if (!player->timers.noInput && (stateInterpolated.PadBits & PAD_R1) == 0 && player->WeaponHeldId == WEAPON_ID_FLAIL) {
+  if (!player->timers.noInput && (stateInterpolated.PadBits & PAD_R1) == 0 && player->WeaponHeldId == WEAPON_ID_FLAIL)
+  {
     data->Pad[3] &= ~0x08;
   }
 
@@ -546,7 +582,8 @@ void playerSyncHandlePlayerState(Player* player)
   player->RemoteHero.receivedState = stateInterpolated.State;
 
   // update state
-  if (stateInterpolated.StateId != data->LastStateId) {
+  if (stateInterpolated.StateId != data->LastStateId)
+  {
     int skip = 0;
     int playerState = player->PlayerState;
     //DPRINTF("%d => %d\n", data->LastState, stateInterpolated.State);
@@ -557,20 +594,24 @@ void playerSyncHandlePlayerState(Player* player)
       case PLAYER_STATE_VEHICLE:
       case PLAYER_STATE_TURRET_DRIVER:
       {
-        if (data->LastState != playerState) break;
+        if (data->LastState != playerState)
+          break;
 
         // leave vehicle
-        Vehicle* vehicle = player->Vehicle;
-        if (stateInterpolated.State != PLAYER_STATE_VEHICLE && vehicle) {
+        Vehicle *vehicle = player->Vehicle;
+        if (stateInterpolated.State != PLAYER_STATE_VEHICLE && vehicle)
+        {
 
           // driver leave
-          if (vehicle->pDriver == player) {
+          if (vehicle->pDriver == player)
+          {
             vehicle->pDriver = 0;
             vehicle->flags |= 2;
           }
-          
+
           // passenger leave
-          if (vehicle->pPassenger == player) {
+          if (vehicle->pPassenger == player)
+          {
             vehicle->pPassenger = 0;
           }
 
@@ -602,10 +643,13 @@ void playerSyncHandlePlayerState(Player* player)
       {
         //DPRINTF("wrench %d: pstate:%d pstatetime:%d lasttime:%d\n", gameGetTime(), playerState, player->timers.state, data->LastStateTime);
         skip = 1;
-        if (stateInterpolated.State == playerState && player->timers.state < data->LastStateTime) {
+        if (stateInterpolated.State == playerState && player->timers.state < data->LastStateTime)
+        {
           data->LastStateId = stateInterpolated.StateId;
           data->LastState = stateInterpolated.State;
-        } else if ((player->timers.state % 10) != 0) {
+        }
+        else if ((player->timers.state % 10) != 0)
+        {
           data->Pad[3] &= ~0x80;
         }
         break;
@@ -632,10 +676,12 @@ void playerSyncHandlePlayerState(Player* player)
       }
     }
 
-    if (!skip) {
+    if (!skip)
+    {
       //DPRINTF("%d new state %d (from %d)\n", player->PlayerId, stateInterpolated.State, player->PlayerState);
 
-      if (player->PlayerSubstate > 1) {
+      if (player->PlayerSubstate > 1)
+      {
         //DPRINTF("substate fix %d=>0\n", player->PlayerSubstate);
         player->PlayerSubstate = 0;
       }
@@ -644,8 +690,9 @@ void playerSyncHandlePlayerState(Player* player)
       vtable->UpdateState(player, stateInterpolated.State, 1, force, 1);
       data->LastStateId = stateInterpolated.StateId;
       data->LastState = stateInterpolated.State;
-
-    } else {
+    }
+    else
+    {
       data->LastStateTime = player->timers.state;
     }
   }
@@ -655,12 +702,14 @@ void playerSyncHandlePlayerState(Player* player)
   // if they do fire and stop, the client should tell the remote clients
   // the remote clients should assume they didn't stop
   // this fixes wrench lag
-  if (player->timers.state < 0x3D && player->PlayerState == PLAYER_STATE_CHARGE) {
-    *(char*)((u32)player + 0x265a) = 0;
+  if (player->timers.state < 0x3D && player->PlayerState == PLAYER_STATE_CHARGE)
+  {
+    *(char *)((u32)player + 0x265a) = 0;
   }
 
   //
-  if (player->pNetPlayer && player->pNetPlayer->pNetPlayerData) {
+  if (player->pNetPlayer && player->pNetPlayer->pNetPlayerData)
+  {
     player->pNetPlayer->pNetPlayerData->handGadget = stateInterpolated.GadgetId;
     player->pNetPlayer->pNetPlayerData->lastKeepAlive = data->LastNetTime;
     player->pNetPlayer->pNetPlayerData->timeStamp = data->LastNetTime;
@@ -668,23 +717,25 @@ void playerSyncHandlePlayerState(Player* player)
     vector_copy(player->pNetPlayer->pNetPlayerData->vPosition, player->PlayerPosition);
 
     // force weapon level
-    if (player->GadgetBox && stateInterpolated.GadgetId >= 0 && stateInterpolated.GadgetId < 32) {
+    if (player->GadgetBox && stateInterpolated.GadgetId >= 0 && stateInterpolated.GadgetId < 32)
+    {
       int level = player->GadgetBox->Gadgets[stateInterpolated.GadgetId].Level;
-      if (level != stateInterpolated.GadgetLevel) {
+      if (level != stateInterpolated.GadgetLevel)
+      {
         player->GadgetBox->Gadgets[stateInterpolated.GadgetId].Level = stateInterpolated.GadgetLevel;
 
         // update bangles if gadget equipped
         if (player->Gadgets[0].id == stateInterpolated.GadgetId && player->Gadgets[0].pMoby)
           weaponMobyUpdateBangles(player->Gadgets[0].pMoby, stateInterpolated.GadgetId, stateInterpolated.GadgetLevel);
-      } 
+      }
     }
   }
 
   // vehicles update before remote players
   // process driver input here so it is ready for vehicle physics
   // set the vehicle input flag normally supplied by native player messages
-  if (isVehicleDriver && player->Vehicle && player->Vehicle->pDriver == player
-      && player->PlayerState == PLAYER_STATE_VEHICLE && player->pNetPlayer && player->Paddata) {
+  if (isVehicleDriver && player->Vehicle && player->Vehicle->pDriver == player && player->PlayerState == PLAYER_STATE_VEHICLE && player->pNetPlayer && player->Paddata)
+  {
     data->SavedVehicleInputFlags = (player->pNetPlayer->flags & 4) | 1;
     playerSyncUpdatePlayerPad(player, data);
     player->pNetPlayer->flags |= 4;
@@ -696,10 +747,12 @@ void playerSyncHandlePlayerState(Player* player)
 }
 
 //--------------------------------------------------------------------------
-int playerSyncOnReceivePlayerState(void* connection, void* data)
+int playerSyncOnReceivePlayerState(void *connection, void *data)
 {
-  if (!isInGame() || !PLAYER_SYNC_DATAS_PTR) return sizeof(PlayerSyncStateUpdatePacked_t);
-  if (!gameConfig.grNewPlayerSync) return sizeof(PlayerSyncStateUpdatePacked_t);
+  if (!isInGame() || !PLAYER_SYNC_DATAS_PTR)
+    return sizeof(PlayerSyncStateUpdatePacked_t);
+  if (!gameConfig.grNewPlayerSync)
+    return sizeof(PlayerSyncStateUpdatePacked_t);
 
   PlayerSyncStateUpdatePacked_t msg;
   PlayerSyncStateUpdateUnpacked_t unpacked;
@@ -726,22 +779,27 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
   unpacked.CmdId = msg.CmdId;
   unpacked.Valid = 1;
 
-  if (msg.GroundMobyUID != -1 && (msg.Flags & 1)) {
-    Guber* groundGuber = guberGetObjectByUID(msg.GroundMobyUID);
-    if (groundGuber) {
+  if (msg.GroundMobyUID != -1 && (msg.Flags & 1))
+  {
+    Guber *groundGuber = guberGetObjectByUID(msg.GroundMobyUID);
+    if (groundGuber)
+    {
       unpacked.GroundMoby = groundGuber->VTable->GetMoby(groundGuber);
     }
-  } else if (msg.GroundMobyUID != -1 && (msg.Flags & 2)) {
+  }
+  else if (msg.GroundMobyUID != -1 && (msg.Flags & 2))
+  {
     unpacked.GroundMoby = mobyFindByUID(msg.GroundMobyUID);
   }
 
   // target sync player data
-  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[msg.PlayerIdx];
+  PlayerSyncPlayerData_t *data = &PLAYER_SYNC_DATAS_PTR[msg.PlayerIdx];
 
   // move into buffer
   int cmdDt = playerSyncCmdDelta(data->StateUpdateCmdId, unpacked.CmdId);
   //DPRINTF("%d => %d (%d) %08X\n", data->StateUpdateCmdId, unpacked.CmdId, cmdDt, (u32)&data->StateUpdates[msg.CmdId]);
-  if (cmdDt > 0) {
+  if (cmdDt > 0)
+  {
 
     int bufIdx = playerSyncCmdGetBufIndex(unpacked.CmdId);
     memcpy(&data->StateUpdates[bufIdx], &unpacked, sizeof(unpacked));
@@ -749,9 +807,11 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
     // create sub items
     int startBufIdx = playerSyncCmdGetBufIndex(data->StateUpdateCmdId);
     int nextId = playerSyncGetCmdId(data->StateUpdateCmdId + 1);
-    while (nextId != unpacked.CmdId) {
+    while (nextId != unpacked.CmdId)
+    {
       int nextBufIdx = playerSyncCmdGetBufIndex(nextId);
-      if (!data->StateUpdates[nextBufIdx].Valid) {
+      if (!data->StateUpdates[nextBufIdx].Valid)
+      {
         float t = playerSyncCmdDelta(data->StateUpdateCmdId, nextId) / (float)cmdDt;
         playerStateUpdateLerp(&data->StateUpdates[nextBufIdx], &data->StateUpdates[startBufIdx], &data->StateUpdates[bufIdx], t);
       }
@@ -769,21 +829,23 @@ int playerSyncOnReceivePlayerState(void* connection, void* data)
 }
 
 //--------------------------------------------------------------------------
-void playerSyncBroadcastPlayerState(Player* player)
+void playerSyncBroadcastPlayerState(Player *player)
 {
   VECTOR dt;
   PlayerSyncStateUpdatePacked_t msg;
-  void * connection = netGetDmeServerConnection();
-  if (!connection || !player || !player->IsLocal || !PLAYER_SYNC_DATAS_PTR) return;
+  void *connection = netGetDmeServerConnection();
+  if (!connection || !player || !player->IsLocal || !PLAYER_SYNC_DATAS_PTR)
+    return;
 
-  PlayerSyncPlayerData_t* data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
+  PlayerSyncPlayerData_t *data = &PLAYER_SYNC_DATAS_PTR[player->PlayerId];
 
   int rate = playerSyncGetSendRate();
   int ticker = data->SendRateTicker--;
 
   // stall until ticker is <= 0
   // or if there's a state change that must be sent right away
-  if (ticker > 0) {
+  if (ticker > 0)
+  {
     if (data->LastState == player->PlayerState || !playerSyncShouldImmediatelySendStateChange(data->LastState, player->PlayerState))
       return;
   }
@@ -794,7 +856,8 @@ void playerSyncBroadcastPlayerState(Player* player)
   player->LocalHero.UNK_LOCALHERO[0x1EE] = 0;
 
   // detect state change
-  if (data->LastState != player->PlayerState || player->timers.state < data->LastStateTime) {
+  if (data->LastState != player->PlayerState || player->timers.state < data->LastStateTime)
+  {
     data->LastState = player->PlayerState;
     data->LastStateId = (data->LastStateId + 1) % 256;
   }
@@ -819,10 +882,10 @@ void playerSyncBroadcastPlayerState(Player* player)
   msg.CameraPitch = (short)(pitch * 10240.0);
   msg.NoInput = player->timers.noInput;
   msg.Health = (short)player->Health;
-  msg.MoveX = ((struct PAD*)player->Paddata)->rdata[6];
-  msg.MoveY = ((struct PAD*)player->Paddata)->rdata[7];
-  msg.PadBits0 = ((struct PAD*)player->Paddata)->rdata[2];
-  msg.PadBits1 = ((struct PAD*)player->Paddata)->rdata[3];
+  msg.MoveX = ((struct PAD *)player->Paddata)->rdata[6];
+  msg.MoveY = ((struct PAD *)player->Paddata)->rdata[7];
+  msg.PadBits0 = ((struct PAD *)player->Paddata)->rdata[2];
+  msg.PadBits1 = ((struct PAD *)player->Paddata)->rdata[3];
   msg.GadgetId = player->Gadgets[0].id;
   msg.GadgetLevel = -1;
   msg.State = player->PlayerState;
@@ -831,18 +894,23 @@ void playerSyncBroadcastPlayerState(Player* player)
 
   // check if we're on a ground moby
   // if so, sync relative position
-  Moby* groundMoby = player->Ground.pMoby;
-  if (groundMoby) {
-    Guber* groundMobyGuber = guberGetObjectByMoby(groundMoby);
-    if (groundMobyGuber) {
+  Moby *groundMoby = player->Ground.pMoby;
+  if (groundMoby)
+  {
+    Guber *groundMobyGuber = guberGetObjectByMoby(groundMoby);
+    if (groundMobyGuber)
+    {
       msg.GroundMobyUID = groundMobyGuber->Id.UID;
       msg.Flags = 1;
-    } else if (groundMoby->UID > 0) {
+    }
+    else if (groundMoby->UID > 0)
+    {
       msg.GroundMobyUID = groundMoby->UID;
       msg.Flags = 2;
     }
 
-    if (msg.GroundMobyUID != -1) {
+    if (msg.GroundMobyUID != -1)
+    {
       VECTOR relativePosition;
       vector_subtract(relativePosition, player->PlayerPosition, groundMoby->Position);
       memcpy(msg.Position, relativePosition, sizeof(float) * 3);
@@ -866,12 +934,15 @@ int playerSyncDisablePlayerStateUpdates(void)
 void playerSyncPostTick(void)
 {
   int i;
-  if (!isInGame()) return;
-  if (!gameConfig.grNewPlayerSync) return;
+  if (!isInGame())
+    return;
+  if (!gameConfig.grNewPlayerSync)
+    return;
 
   // player updates
-  Player** players = playerGetAll();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  Player **players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     playerSyncHandlePostPlayerState(players[i]);
   }
 }
@@ -880,13 +951,16 @@ void playerSyncPostTick(void)
 void playerSyncDeinit(void)
 {
   int i;
-  if (!PLAYER_SYNC_DATAS_PTR) return;
+  if (!PLAYER_SYNC_DATAS_PTR)
+    return;
 
   // restore temporary vehicle input flags while players are still valid
-  if (isInGame()) {
-    Player** players = playerGetAll();
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      Player* player = players[i];
+  if (isInGame())
+  {
+    Player **players = playerGetAll();
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      Player *player = players[i];
       if (player && player->PlayerId >= 0 && player->PlayerId < GAME_MAX_PLAYERS)
         playerSyncRestoreVehicleInputFlags(player, &PLAYER_SYNC_DATAS_PTR[player->PlayerId]);
     }
@@ -903,7 +977,8 @@ void playerSyncTick(void)
   static int initialized = 0;
   int i;
 
-  if (isUnloading) {
+  if (isUnloading)
+  {
     playerSyncDeinit();
     return;
   }
@@ -911,7 +986,8 @@ void playerSyncTick(void)
   // net
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SYNC_STATE_UPDATE, &playerSyncOnReceivePlayerState);
 
-  if (!isInGame()) {
+  if (!isInGame())
+  {
     playerSyncDeinit();
     delay = 50;
     initialized = 0;
@@ -923,28 +999,33 @@ void playerSyncTick(void)
   gameConfig.grNewPlayerSync = 1;
 #endif
 
-  if (!gameConfig.grNewPlayerSync) return;
-  
-  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS) {
+  if (!gameConfig.grNewPlayerSync)
+    return;
+
+  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS)
+  {
     //gameConfig.grNewPlayerSync = 0;
     //return;
   }
 
   // allocate buffer
-  if (PLAYER_SYNC_DATAS_PTR == 0) {
+  if (PLAYER_SYNC_DATAS_PTR == 0)
+  {
     PLAYER_SYNC_DATAS_PTR = malloc(sizeof(PlayerSyncPlayerData_t) * GAME_MAX_PLAYERS);
     initialized = 0;
   }
 
   // not enough memory to allocate
   // fail and disable
-  if (PLAYER_SYNC_DATAS_PTR == 0) {
+  if (PLAYER_SYNC_DATAS_PTR == 0)
+  {
     gameConfig.grNewPlayerSync = 0;
     return;
   }
 
   // reset buffer
-  if (!initialized && PLAYER_SYNC_DATAS_PTR) {
+  if (!initialized && PLAYER_SYNC_DATAS_PTR)
+  {
     memset(PLAYER_SYNC_DATAS_PTR, 0, sizeof(PlayerSyncPlayerData_t) * GAME_MAX_PLAYERS);
   }
 
@@ -971,13 +1052,15 @@ void playerSyncTick(void)
   POKE_U32(0x0060ff08, 0);
 
   // player updates
-  Player** players = playerGetAll();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  Player **players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     playerSyncHandlePlayerState(players[i]);
   }
 
   // player updates
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     playerSyncBroadcastPlayerState(players[i]);
   }
 }

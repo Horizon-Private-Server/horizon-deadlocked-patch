@@ -8,7 +8,7 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 
-#define COLLECTIBLE_OCLASS                        (0x400E)
+#define COLLECTIBLE_OCLASS (0x400E)
 
 struct CollectiblePVar
 {

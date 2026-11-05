@@ -15,28 +15,25 @@
 #include <libdl/ui.h>
 #include "module.h"
 
-
 /*
  * When non-zero, it refreshes the in-game scoreboard.
  */
-#define GAME_SCOREBOARD_REFRESH_FLAG        (*(u32*)0x00310248)
+#define GAME_SCOREBOARD_REFRESH_FLAG (*(u32 *)0x00310248)
 
 /*
  * Target scoreboard value.
  */
-#define GAME_SCOREBOARD_TARGET              (*(u32*)0x002FA084)
+#define GAME_SCOREBOARD_TARGET (*(u32 *)0x002FA084)
 
 /*
  * Collection of scoreboard items.
  */
-#define GAME_SCOREBOARD_ARRAY               ((ScoreboardItem**)0x002FA04C)
+#define GAME_SCOREBOARD_ARRAY ((ScoreboardItem **)0x002FA04C)
 
 /*
  * Number of items in the scoreboard.
  */
-#define GAME_SCOREBOARD_ITEM_COUNT          (*(u32*)0x002F9FCC)
-
-
+#define GAME_SCOREBOARD_ITEM_COUNT (*(u32 *)0x002F9FCC)
 
 enum HalfTimeStates
 {
@@ -46,7 +43,6 @@ enum HalfTimeStates
   HT_INTERMISSION2,
   HT_COMPLETED
 };
-
 
 enum OvertimeStates
 {
@@ -81,7 +77,7 @@ int OvertimeEnd = -1;
 /*
  * Flag moby by team id.
  */
-Moby * CtfFlags[4] = {0,0,0,0};
+Moby *CtfFlags[4] = { 0, 0, 0, 0 };
 VECTOR CtfHtOtFreezePositions[GAME_MAX_PLAYERS];
 
 extern PatchStateContainer_t patchStateContainer;
@@ -126,10 +122,11 @@ void htReset(void)
  */
 void htDestroyPlayerObjects(void)
 {
-  Moby* moby = mobyListGetStart();
+  Moby *moby = mobyListGetStart();
   while ((moby = mobyFindNextByOClass(moby, MOBY_ID_MINE_LAUNCHER_MINE)))
   {
-    if (!mobyIsDestroyed(moby)) {
+    if (!mobyIsDestroyed(moby))
+    {
       moby->State = 3; // destroy
     }
 
@@ -153,8 +150,8 @@ void htDestroyPlayerObjects(void)
  */
 void getFlags(void)
 {
-  Moby * moby = mobyListGetStart();
-  Moby * mEnd = mobyListGetEnd();
+  Moby *moby = mobyListGetStart();
+  Moby *mEnd = mobyListGetEnd();
 
   // reset
   CtfFlags[0] = CtfFlags[1] = CtfFlags[2] = CtfFlags[3] = 0;
@@ -163,12 +160,12 @@ void getFlags(void)
   while (moby < mEnd)
   {
     if (!mobyIsDestroyed(moby) &&
-     (moby->OClass == MOBY_ID_BLUE_FLAG ||
-      moby->OClass == MOBY_ID_RED_FLAG ||
-      moby->OClass == MOBY_ID_GREEN_FLAG ||
-      moby->OClass == MOBY_ID_ORANGE_FLAG))
+        (moby->OClass == MOBY_ID_BLUE_FLAG ||
+         moby->OClass == MOBY_ID_RED_FLAG ||
+         moby->OClass == MOBY_ID_GREEN_FLAG ||
+         moby->OClass == MOBY_ID_ORANGE_FLAG))
     {
-      CtfFlags[*(u16*)(moby->PVar + 0x14)] = moby;
+      CtfFlags[*(u16 *)(moby->PVar + 0x14)] = moby;
     }
 
     ++moby;
@@ -192,7 +189,7 @@ void getFlags(void)
 void htCtfBegin(void)
 {
   int i;
-  Player** players = playerGetAll();
+  Player **players = playerGetAll();
 
   // Make sure we have the flag mobies
   getFlags();
@@ -208,9 +205,11 @@ void htCtfBegin(void)
   gameFlagSetPickupDistance(0);
 
   // Freeze players
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (player)
+    {
       vector_copy(CtfHtOtFreezePositions[i], player->PlayerPosition);
     }
   }
@@ -219,7 +218,6 @@ void htCtfBegin(void)
   uiShowPopup(0, "Halftime");
   uiShowPopup(1, "Halftime");
 }
-
 
 /*
  * NAME :		htCtfSwitch
@@ -238,32 +236,32 @@ void htCtfBegin(void)
 void htCtfSwitch(void)
 {
   int i, j;
-  Player ** players = playerGetAll();
-  GameSettings* gameSettings = gameGetSettings();
-  Player * player;
-  Moby * moby;
-  ScoreboardItem * scoreboardItem;
+  Player **players = playerGetAll();
+  GameSettings *gameSettings = gameGetSettings();
+  Player *player;
+  Moby *moby;
+  ScoreboardItem *scoreboardItem;
   VECTOR rVector, pVector;
-  u8 * teamCaps = (u8*)0x0036DC4C;
+  u8 *teamCaps = (u8 *)0x0036DC4C;
   int teams = 0;
-  u8 teamChangeMap[4] = {0,1,2,3};
+  u8 teamChangeMap[4] = { 0, 1, 2, 3 };
   u8 backupTeamCaps[4];
   int scoreboardItemCount = GAME_SCOREBOARD_ITEM_COUNT;
 
-  // 
+  //
   memset(rVector, 0, sizeof(VECTOR));
 
   // backup
   memcpy(backupTeamCaps, teamCaps, 4);
-  
+
   // Determine teams
   for (i = 0; i < GAME_MAX_PLAYERS; ++i)
   {
     player = players[i];
     if (!player)
       continue;
-      
-    teams |= (1 << (player->Team+1));
+
+    teams |= (1 << (player->Team + 1));
   }
 
   // If all four teams then just swap
@@ -279,7 +277,7 @@ void htCtfSwitch(void)
   {
     for (i = 0; i < 4; ++i)
     {
-      if (!(teams & (1 << (i+1))))
+      if (!(teams & (1 << (i + 1))))
         continue;
 
       j = i;
@@ -289,7 +287,7 @@ void htCtfSwitch(void)
         if (j >= 4)
           j = 0;
 
-        if (!(teams & (1 << (j+1))))
+        if (!(teams & (1 << (j + 1))))
           continue;
 
         teamChangeMap[i] = j;
@@ -317,7 +315,7 @@ void htCtfSwitch(void)
         // Swap
         if (scoreboardItem->TeamId == teamChangeMap[player->Team])
         {
-          ScoreboardItem * temp = GAME_SCOREBOARD_ARRAY[player->LocalPlayerIndex];
+          ScoreboardItem *temp = GAME_SCOREBOARD_ARRAY[player->LocalPlayerIndex];
           GAME_SCOREBOARD_ARRAY[player->LocalPlayerIndex] = scoreboardItem;
           GAME_SCOREBOARD_ARRAY[j] = temp;
           break;
@@ -332,9 +330,9 @@ void htCtfSwitch(void)
     // Change to new team
     playerSetTeam(player, teamChangeMap[player->Team]);
 
-    // 
+    //
     gameSettings->PlayerTeams[player->PlayerId] = player->Team;
-    
+
     // Respawn (first res patch)
     POKE_U32(0x205e2d48, 0x24070001);
     playerRespawn(player);
@@ -350,8 +348,8 @@ void htCtfSwitch(void)
   {
     if (CtfFlags[i])
     {
-      *(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
-      vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+      *(u16 *)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+      vector_copy((float *)&CtfFlags[i]->Position, (float *)CtfFlags[i]->PVar);
     }
   }
 }
@@ -376,7 +374,6 @@ void htCtfEnd(void)
   gameFlagSetPickupDistance(2);
 }
 
-
 /*
  * NAME :		htCtfTick
  * 
@@ -394,22 +391,24 @@ void htCtfEnd(void)
 void htCtfTick(void)
 {
   int i;
-  Player ** players = playerGetAll();
+  Player **players = playerGetAll();
   int gameTime = gameGetTime();
 
   // prevent pad input
   padResetInput(0);
   padResetInput(1);
-  
+
   patchStateContainer.HalfTimeState = HalfTimeState;
   switch (HalfTimeState)
   {
     case HT_INTERMISSION:
     {
       // lock players to positions
-      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        Player* player = players[i];
-        if (player && player->PlayerMoby && player->IsLocal) {
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        Player *player = players[i];
+        if (player && player->PlayerMoby && player->IsLocal)
+        {
           vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
           vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
         }
@@ -449,8 +448,8 @@ void htCtfTick(void)
       {
         if (CtfFlags[i])
         {
-          *(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
-          vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+          *(u16 *)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+          vector_copy((float *)&CtfFlags[i]->Position, (float *)CtfFlags[i]->PVar);
         }
       }
 
@@ -462,7 +461,6 @@ void htCtfTick(void)
       break;
     }
   }
-  
 }
 
 /*
@@ -483,13 +481,13 @@ void halftimeLogic(void)
 {
   int timeLimit = gameGetRawTimeLimit();
   int gameTime = gameGetTime();
-  GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
 
   // Check we're in game and that it is compatible
   if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF || !isInGame() || gameSettings->GameStartTime <= 0)
     return;
 
-  // 
+  //
   switch (HalfTimeState)
   {
     case HT_WAITING:
@@ -517,7 +515,6 @@ void halftimeLogic(void)
     }
   }
 }
-
 
 /*
  * NAME :		otReset
@@ -559,7 +556,7 @@ void otReset(void)
 void otCtfBegin(void)
 {
   int i;
-  Player** players = playerGetAll();
+  Player **players = playerGetAll();
 
   // Make sure we have the flag mobies
   getFlags();
@@ -575,9 +572,11 @@ void otCtfBegin(void)
   gameFlagSetPickupDistance(0);
 
   // Freeze players
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (player)
+    {
       vector_copy(CtfHtOtFreezePositions[i], player->PlayerPosition);
     }
   }
@@ -606,14 +605,14 @@ void otCtfBegin(void)
  */
 void otCtfRespawnPlayers(void)
 {
-  Player** players = playerGetAll();
-  VECTOR pVector, rVector = {0,0,0,0};
-  Moby* moby;
+  Player **players = playerGetAll();
+  VECTOR pVector, rVector = { 0, 0, 0, 0 };
+  Moby *moby;
   int i;
 
   for (i = 0; i < GAME_MAX_PLAYERS; ++i)
   {
-    Player* player = players[i];
+    Player *player = players[i];
     if (!player)
       continue;
 
@@ -632,8 +631,8 @@ void otCtfRespawnPlayers(void)
   {
     if (CtfFlags[i])
     {
-      *(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
-      vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+      *(u16 *)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+      vector_copy((float *)&CtfFlags[i]->Position, (float *)CtfFlags[i]->PVar);
     }
   }
 }
@@ -679,31 +678,39 @@ void otCtfEnd(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int otGetScores(int* bestScore, int* winningTeam)
+int otGetScores(int *bestScore, int *winningTeam)
 {
   int i;
   int best = -1;
   int teamsWithBest = 0;
   int teamWithBest = -1;
-  int teams[4] = {0,0,0,0};
-  Player** players = playerGetAll();
+  int teams[4] = { 0, 0, 0, 0 };
+  Player **players = playerGetAll();
 
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player && player->PlayerMoby && player->pNetPlayer && player->Team >= 0 && player->Team < 4) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (player && player->PlayerMoby && player->pNetPlayer && player->Team >= 0 && player->Team < 4)
+    {
       teams[player->Team] += 1;
     }
   }
 
-  GameData * gameData = gameGetData();
-  if (gameData) {
-    for (i = 0; i < 4; ++i) {
-      if (teams[i]) {
-        if (gameData->TeamStats.FlagCaptureCounts[i] > best) {
+  GameData *gameData = gameGetData();
+  if (gameData)
+  {
+    for (i = 0; i < 4; ++i)
+    {
+      if (teams[i])
+      {
+        if (gameData->TeamStats.FlagCaptureCounts[i] > best)
+        {
           best = gameData->TeamStats.FlagCaptureCounts[i];
           teamsWithBest = 1;
           teamWithBest = i;
-        } else if (gameData->TeamStats.FlagCaptureCounts[i] == best) {
+        }
+        else if (gameData->TeamStats.FlagCaptureCounts[i] == best)
+        {
           teamsWithBest += 1;
           teamWithBest = -1;
         }
@@ -711,11 +718,13 @@ int otGetScores(int* bestScore, int* winningTeam)
     }
   }
 
-  if (bestScore) {
+  if (bestScore)
+  {
     *bestScore = best;
   }
 
-  if (winningTeam) {
+  if (winningTeam)
+  {
     *winningTeam = teamWithBest;
   }
 
@@ -741,11 +750,12 @@ int otGetWinningTeam(void)
   int i;
   int playersAlive = 0;
   int winningTeam = -1;
-  Player** players = playerGetAll();
-  GameOptions* go = gameGetOptions();
+  Player **players = playerGetAll();
+  GameOptions *go = gameGetOptions();
 
   // if 1 team has most caps then return that team
-  if (otGetScores(NULL, &winningTeam) <= 1) {
+  if (otGetScores(NULL, &winningTeam) <= 1)
+  {
     return winningTeam;
   }
 
@@ -754,9 +764,11 @@ int otGetWinningTeam(void)
 
   // otherwise if survivor is on, return last team alive
   winningTeam = -1;
-  if (go && go->GameFlags.MultiplayerGameFlags.Survivor) {
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      Player* player = players[i];
+  if (go && go->GameFlags.MultiplayerGameFlags.Survivor)
+  {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      Player *player = players[i];
 
       // skip players that left/don't exist
       if (!player || !player->PlayerMoby || !player->pNetPlayer)
@@ -770,10 +782,12 @@ int otGetWinningTeam(void)
       // either set winning team to player (if not yet set)
       // or if the player is not the current winning team
       // then that means we have more than one team alive
-      if (winningTeam < 0) {
+      if (winningTeam < 0)
+      {
         winningTeam = player->Team;
       }
-      else if (winningTeam != player->Team) {
+      else if (winningTeam != player->Team)
+      {
         winningTeam = -1;
         break;
       }
@@ -781,7 +795,8 @@ int otGetWinningTeam(void)
   }
 
   // no one is alive == draw
-  if (playersAlive == 0) {
+  if (playersAlive == 0)
+  {
     return -2;
   }
 
@@ -805,13 +820,15 @@ int otGetWinningTeam(void)
 void otOnTimelimitReached(int reason)
 {
   // if we're already in OT then ignore
-  if (OvertimeState != OT_WAITING) {
+  if (OvertimeState != OT_WAITING)
+  {
     return;
   }
 
   //DPRINTF("ot game end called reason=%d\n", reason);
 
-  if (reason == 1) {
+  if (reason == 1)
+  {
 
     // determine if score is tied
     int bestScore = 0;
@@ -819,7 +836,8 @@ void otOnTimelimitReached(int reason)
 
     //DPRINTF("ot best score %d, teams with best score %d\n", bestScore, teamsWithBestScore);
 
-    if (teamsWithBestScore > 1) {
+    if (teamsWithBestScore > 1)
+    {
       otCtfBegin();
       return;
     }
@@ -846,7 +864,7 @@ void otOnTimelimitReached(int reason)
 void otCtfTick(void)
 {
   int i;
-  Player ** players = playerGetAll();
+  Player **players = playerGetAll();
   int gameTime = gameGetTime();
 
   // prevent pad input
@@ -859,9 +877,11 @@ void otCtfTick(void)
     case OT_INTERMISSION:
     {
       // lock players to positions
-      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        Player* player = players[i];
-        if (player && player->PlayerMoby && player->IsLocal) {
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        Player *player = players[i];
+        if (player && player->PlayerMoby && player->IsLocal)
+        {
           vector_copy(player->PlayerPosition, CtfHtOtFreezePositions[i]);
           vector_copy(player->PlayerMoby->Position, CtfHtOtFreezePositions[i]);
         }
@@ -901,8 +921,8 @@ void otCtfTick(void)
       {
         if (CtfFlags[i])
         {
-          *(u16*)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
-          vector_copy((float*)&CtfFlags[i]->Position, (float*)CtfFlags[i]->PVar);
+          *(u16 *)(CtfFlags[i]->PVar + 0x10) = 0xFFFF;
+          vector_copy((float *)&CtfFlags[i]->Position, (float *)CtfFlags[i]->PVar);
         }
       }
 
@@ -914,7 +934,6 @@ void otCtfTick(void)
       break;
     }
   }
-  
 }
 
 /*
@@ -935,13 +954,13 @@ void overtimeLogic(void)
 {
   int timeLimit = gameGetRawTimeLimit();
   int gameTime = gameGetTime();
-  GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
 
   // Check we're in game and that it is compatible
   if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF || !isInGame() || gameSettings->GameStartTime <= 0)
     return;
 
-  // 
+  //
   switch (OvertimeState)
   {
     case OT_WAITING:
@@ -958,13 +977,16 @@ void overtimeLogic(void)
     {
       // end game when we have a clear winner
       int winningTeam = otGetWinningTeam();
-      if (winningTeam >= 0) {
+      if (winningTeam >= 0)
+      {
         gameSetWinner(winningTeam, 1);
         internal_gameEnd(2);
         gameSetWinner(winningTeam, 1);
         //DPRINTF("ot game over %d\n", winningTeam);
         OvertimeState = OT_GAMEOVER;
-      } else if (winningTeam == -2) {
+      }
+      else if (winningTeam == -2)
+      {
         // draw
         internal_gameEnd(1);
         gameSetWinner(-1, 1);

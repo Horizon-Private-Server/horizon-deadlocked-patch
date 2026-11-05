@@ -24,54 +24,54 @@
 #include "include/utils.h"
 
 //--------------------------------------------------------------------------
-int onSetPlayerStatsRemote(void * connection, void * data)
+int onSetPlayerStatsRemote(void *connection, void *data)
 {
   SetPlayerStatsMessage_t message;
   memcpy(&message, data, sizeof(SetPlayerStatsMessage_t));
 
-	onSetPlayerStats(message.PlayerId, &message.Stats);
-	return sizeof(SetPlayerStatsMessage_t);
+  onSetPlayerStats(message.PlayerId, &message.Stats);
+  return sizeof(SetPlayerStatsMessage_t);
 }
 
 //--------------------------------------------------------------------------
-int onSetSeekerRemote(void * connection, void * data)
+int onSetSeekerRemote(void *connection, void *data)
 {
   SetSeekerMessage_t message;
   memcpy(&message, data, sizeof(SetSeekerMessage_t));
-  
-	onSetSeeker(message.PlayerId);
-	onSetPlayerStats(message.PlayerId, &message.Stats);
-	return sizeof(SetSeekerMessage_t);
+
+  onSetSeeker(message.PlayerId);
+  onSetPlayerStats(message.PlayerId, &message.Stats);
+  return sizeof(SetSeekerMessage_t);
 }
 
 //--------------------------------------------------------------------------
 void sendPlayerStats(int playerId)
 {
-	int i;
-	SetPlayerStatsMessage_t message;
+  int i;
+  SetPlayerStatsMessage_t message;
 
-	// send out
-	message.PlayerId = playerId;
-	memcpy(&message.Stats, &State.PlayerStates[playerId].Stats, sizeof(struct CGMPlayerStats));
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SetPlayerStatsMessage_t), &message);
+  // send out
+  message.PlayerId = playerId;
+  memcpy(&message.Stats, &State.PlayerStates[playerId].Stats, sizeof(struct CGMPlayerStats));
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SetPlayerStatsMessage_t), &message);
 }
 
 //--------------------------------------------------------------------------
 void sendSeeker(int playerId)
 {
-	int i;
-	SetSeekerMessage_t message;
+  int i;
+  SetSeekerMessage_t message;
 
-	// send out
-	message.PlayerId = playerId;
-	memcpy(&message.Stats, &State.PlayerStates[playerId].Stats, sizeof(struct CGMPlayerStats));
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_SEEKER, sizeof(SetSeekerMessage_t), &message);
+  // send out
+  message.PlayerId = playerId;
+  memcpy(&message.Stats, &State.PlayerStates[playerId].Stats, sizeof(struct CGMPlayerStats));
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_SEEKER, sizeof(SetSeekerMessage_t), &message);
 }
 
 //--------------------------------------------------------------------------
 void netHookMessages(void)
 {
-	// Hook custom net events
-	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_STATS, &onSetPlayerStatsRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_SEEKER, &onSetSeekerRemote);
+  // Hook custom net events
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_STATS, &onSetPlayerStatsRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_SEEKER, &onSetSeekerRemote);
 }

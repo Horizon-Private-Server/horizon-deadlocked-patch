@@ -26,7 +26,7 @@ enum COMMON_DZO_DRAW_TYPE
  *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
-void helperAlign(float* pX, float* pY, float w, float h, enum TextAlign alignment);
+void helperAlign(float *pX, float *pY, float w, float h, enum TextAlign alignment);
 
 /*
  * NAME :    helperRealign
@@ -42,12 +42,11 @@ void helperAlign(float* pX, float* pY, float w, float h, enum TextAlign alignmen
  *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
-void helperRealign(float* pX, float* pY, float w, float h, enum TextAlign fromAlignment, enum TextAlign toAlignment);
+void helperRealign(float *pX, float *pY, float w, float h, enum TextAlign fromAlignment, enum TextAlign toAlignment);
 
 //------------------------------------------------------------------------------
 //------------------------------------ DRAW ------------------------------------
 //------------------------------------------------------------------------------
-
 
 /*
  * NAME :    gfxHelperDrawBox
@@ -95,8 +94,8 @@ void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum
  * 
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
-void gfxHelperDrawText(float x, float y, float offsetX, float offsetY, float scale, u32 color, char* str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
-void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char* str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+void gfxHelperDrawText(float x, float y, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
 
 /*
  * NAME :    gfxHelperDrawTextWindow
@@ -121,7 +120,7 @@ void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char* st
  * 
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
-float gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char* str, int length, enum TextAlign alignment, enum FontWindowFlags flags, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+float gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum FontWindowFlags flags, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
 
 /*
  * NAME :    gfxHelperDrawSprite
@@ -150,8 +149,8 @@ void gfxHelperDrawSprite(float x, float y, float offsetX, float offsetY, float w
 void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
 
 //------------------------------------------------------------------------------
-int intArrayContains(int* list, int count, int value);
-int charArrayContains(char* list, int count, char value);
+int intArrayContains(int *list, int count, int value);
+int charArrayContains(char *list, int count, char value);
 int libcRand(void);
 
 #endif // _PATCH_COMMON_

@@ -19,9 +19,9 @@ struct RaidsPlayerStats
 // Local calculation only. Damage is quantized once, when the event is sent.
 struct RaidsPlayerDamageContext
 {
-  Player* Attacker;
-  Moby* Source;
-  Moby* Target;
+  Player *Attacker;
+  Moby *Source;
+  Moby *Target;
   int WeaponId;
   int DamageSource; // enum MobDamageSource
   float Damage;
@@ -31,38 +31,38 @@ struct RaidsPlayerDamageContext
   u32 DamageFlags;
 };
 
-typedef void (*ModePushSnack_func)(char* string, int ticksAlive, int localPlayerIdx);
+typedef void (*ModePushSnack_func)(char *string, int ticksAlive, int localPlayerIdx);
 typedef void (*ModePushDamageBubble_func)(VECTOR position, float randomRadius, float damage, int isLocal, int team, float popScale, char suffix);
-typedef long (*ModeGetAmmoRefillCost_func)(Player* player);
-typedef void (*ModeBeginWorldHop_func)(char* mapFilename, int difficulty, int cost, int delayMs);
-typedef void (*ModePopulateSpawnArgs_func)(struct MobSpawnEventArgs* output, struct MobCreateArgs* args);
-typedef void (*ModeRegisterNpc_func)(Moby* moby);
-typedef int (*ModeOnGuberEvent_func)(Moby* moby, GuberEvent* event);
-typedef struct Guber* (*ModeOnGetGuber_func)(Moby* moby);
-typedef int (*ModeTryCreateMob_func)(struct MobCreateArgs* args);
+typedef long (*ModeGetAmmoRefillCost_func)(Player *player);
+typedef void (*ModeBeginWorldHop_func)(char *mapFilename, int difficulty, int cost, int delayMs);
+typedef void (*ModePopulateSpawnArgs_func)(struct MobSpawnEventArgs *output, struct MobCreateArgs *args);
+typedef void (*ModeRegisterNpc_func)(Moby *moby);
+typedef int (*ModeOnGuberEvent_func)(Moby *moby, GuberEvent *event);
+typedef struct Guber *(*ModeOnGetGuber_func)(Moby *moby);
+typedef int (*ModeTryCreateMob_func)(struct MobCreateArgs *args);
 typedef void (*ModeRequestLoot_func)(int gadgetId);
 typedef void (*ModeOnMissionComplete_func)(int cuboidIdx);
 typedef void (*ModeOnMissionFail_func)(void);
-typedef void (*ModeProcessPlayerDamage_func)(Moby* target, Moby* source, float* damage, u32* damageFlags);
+typedef void (*ModeProcessPlayerDamage_func)(Moby *target, Moby *source, float *damage, u32 *damageFlags);
 typedef void (*ModeDrawHud_func)(void);
 typedef void (*ModeOpenSettings_func)(void);
 
-typedef int (*MapOnMobCreate_func)(struct MobCreateArgs* args);
-typedef void (*MapOnMobSpawned_func)(Moby* moby);
-typedef void (*MapOnMobUpdate_func)(Moby* moby);
-typedef void (*MapOnMobDamaged_func)(Moby* moby, struct MobDamageEventArgs* args);
-typedef void (*MapOnMobKilled_func)(Moby* moby, int killedByPlayerId, enum MobDamageSource source);
-typedef void (*MapOnMobDestroyed_func)(Moby* moby);
+typedef int (*MapOnMobCreate_func)(struct MobCreateArgs *args);
+typedef void (*MapOnMobSpawned_func)(Moby *moby);
+typedef void (*MapOnMobUpdate_func)(Moby *moby);
+typedef void (*MapOnMobDamaged_func)(Moby *moby, struct MobDamageEventArgs *args);
+typedef void (*MapOnMobKilled_func)(Moby *moby, int killedByPlayerId, enum MobDamageSource source);
+typedef void (*MapOnMobDestroyed_func)(Moby *moby);
 typedef void (*MapFrameTick_func)(void);
-typedef void (*MapModifyPlayerStats_func)(Player* player, struct RaidsPlayerStats* stats);
-typedef void (*MapOnPlayerUpdate_func)(Player* player);
-typedef void (*MapOnPlayerDied_func)(Player* player);
-typedef void (*MapOnPlayerRevived_func)(Player* player);
-typedef void (*MapModifyPlayerCritChance_func)(struct RaidsPlayerDamageContext* context);
-typedef void (*MapModifyPlayerCritDamage_func)(struct RaidsPlayerDamageContext* context);
-typedef void (*MapFinalizePlayerDamage_func)(struct RaidsPlayerDamageContext* context);
-typedef void (*MapMobAfterDamage_func)(Moby* moby, struct MobDamageEventArgs* args, float appliedDamage);
-typedef void (*MapMobBlowCorn_func)(Moby* moby, int bangles);
+typedef void (*MapModifyPlayerStats_func)(Player *player, struct RaidsPlayerStats *stats);
+typedef void (*MapOnPlayerUpdate_func)(Player *player);
+typedef void (*MapOnPlayerDied_func)(Player *player);
+typedef void (*MapOnPlayerRevived_func)(Player *player);
+typedef void (*MapModifyPlayerCritChance_func)(struct RaidsPlayerDamageContext *context);
+typedef void (*MapModifyPlayerCritDamage_func)(struct RaidsPlayerDamageContext *context);
+typedef void (*MapFinalizePlayerDamage_func)(struct RaidsPlayerDamageContext *context);
+typedef void (*MapMobAfterDamage_func)(Moby *moby, struct MobDamageEventArgs *args, float appliedDamage);
+typedef void (*MapMobBlowCorn_func)(Moby *moby, int bangles);
 typedef void (*MapOnTrackerDrawHud_func)(float x, float y);
 
 struct RaidsInteropTable
@@ -104,10 +104,10 @@ struct RaidsInteropTable
   MapOnTrackerDrawHud_func OnTrackerDrawHudFunc;
 
   // Reserved for future callbacks.
-  void* PlaceholderForFutureUseFuncs[15];
+  void *PlaceholderForFutureUseFuncs[15];
 };
 
-typedef char RaidsInteropPointerSizeCheck[sizeof(void*) == 4 ? 1 : -1];
+typedef char RaidsInteropPointerSizeCheck[sizeof(void *) == 4 ? 1 : -1];
 typedef char RaidsInteropSizeCheck[sizeof(struct RaidsInteropTable) == 188 ? 1 : -1];
 typedef char RaidsInteropMapOffsetCheck[offsetof(struct RaidsInteropTable, OnMobCreateFunc) == 60 ? 1 : -1];
 typedef char RaidsInteropPlayerDamageOffsetCheck[offsetof(struct RaidsInteropTable, ModeProcessPlayerDamageFunc) == 48 ? 1 : -1];
@@ -119,13 +119,13 @@ typedef char RaidsInteropReservedOffsetCheck[offsetof(struct RaidsInteropTable, 
 
 void raidsDrawHud(void);
 void raidsInteropInit(void);
-void raidsModifyPlayerStats(Player* player, struct RaidsPlayerStats* stats);
-void raidsOnPlayerUpdate(Player* player);
-void raidsOnPlayerDied(Player* player);
-void raidsOnPlayerRevived(Player* player);
-void raidsProcessPlayerDamage(Moby* target, Moby* source, float* damage, u32* damageFlags);
-void raidsFinalizePlayerDamage(struct RaidsPlayerDamageContext* context);
+void raidsModifyPlayerStats(Player *player, struct RaidsPlayerStats *stats);
+void raidsOnPlayerUpdate(Player *player);
+void raidsOnPlayerDied(Player *player);
+void raidsOnPlayerRevived(Player *player);
+void raidsProcessPlayerDamage(Moby *target, Moby *source, float *damage, u32 *damageFlags);
+void raidsFinalizePlayerDamage(struct RaidsPlayerDamageContext *context);
 u32 raidsDamageToQuarters(float damage);
-void raidsMobAfterDamage(Moby* moby, struct MobDamageEventArgs* args, float appliedDamage);
+void raidsMobAfterDamage(Moby *moby, struct MobDamageEventArgs *args, float appliedDamage);
 
 #endif // RAIDS_INTEROP_H

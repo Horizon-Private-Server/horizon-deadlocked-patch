@@ -7,24 +7,24 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 
-#define TPS																		(60)
-#define MIN_FLOAT_MAGNITUDE										(0.0001)
-#define MAX_BOLTS                             (64)
+#define TPS (60)
+#define MIN_FLOAT_MAGNITUDE (0.0001)
+#define MAX_BOLTS (64)
 
 enum GameNetMessage
 {
-	CUSTOM_MSG_CLIENT_COLLECTED_BOLT = CUSTOM_MSG_ID_GAME_MODE_START,
+  CUSTOM_MSG_CLIENT_COLLECTED_BOLT = CUSTOM_MSG_ID_GAME_MODE_START,
 };
 
 typedef struct PlayerCollectedBoltMessage
 {
-	int PlayerId;
+  int PlayerId;
   u32 BoltUid;
 } PlayerCollectedBoltMessage_t;
 
 struct CGMCustomMapExData
 {
-	u32 Version;
+  u32 Version;
   u8 EasyBoltsCount;
   u8 MediumBoltsCount;
   u8 HardBoltsCount;
@@ -35,10 +35,10 @@ struct CGMCustomMapExData
 struct CGMState
 {
   int StartDelay;
-	int WaitingForClientsReady;
-	int InitializedTime;
+  int WaitingForClientsReady;
+  int InitializedTime;
   struct CGMCustomMapExData MapData;
-	int IsHost;
+  int IsHost;
   int BoltCount;
   char PopupMessageBuf[64];
   char HasMapData;
@@ -48,10 +48,11 @@ struct CGMState
 
 struct CGMGameData
 {
-	u32 Version;
+  u32 Version;
 };
 
-struct ServerConfig {
+struct ServerConfig
+{
   u32 CollectedBoltsUids[MAX_BOLTS];
 };
 

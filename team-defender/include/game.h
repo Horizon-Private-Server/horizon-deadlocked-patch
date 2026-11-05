@@ -7,70 +7,70 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 
-#define TPS																		(60)
+#define TPS (60)
 
-#define MIN_FLOAT_MAGNITUDE										(0.0001)
+#define MIN_FLOAT_MAGNITUDE (0.0001)
 
-#define POINTS_PER_KILL                       (1)
-#define POINTS_PER_ASSIST                     (1)
-#define POINTS_PER_FLAG_KILL                  (4)
+#define POINTS_PER_KILL (1)
+#define POINTS_PER_ASSIST (1)
+#define POINTS_PER_FLAG_KILL (4)
 
-#define ASSIST_FEED_MAX_ITEMS                 (8)
-#define ASSIST_FEED_ITEM_LIFETIME_TICKS       (2 * TPS)
+#define ASSIST_FEED_MAX_ITEMS (8)
+#define ASSIST_FEED_ITEM_LIFETIME_TICKS (2 * TPS)
 
 enum GameNetMessage
 {
-	CUSTOM_MSG_PLAYER_SET_STATS = CUSTOM_MSG_ID_GAME_MODE_START,
-	CUSTOM_MSG_SEND_TEAM_SCORE,
+  CUSTOM_MSG_PLAYER_SET_STATS = CUSTOM_MSG_ID_GAME_MODE_START,
+  CUSTOM_MSG_SEND_TEAM_SCORE,
   CUSTOM_MSG_SEND_PLAYER_ASSIST,
   CUSTOM_MSG_SEND_FLAG_BASE_POSITION,
 };
 
 struct CGMPlayerStats
 {
-	int Points;
+  int Points;
   float TimeWithFlag;
 };
 
 struct CGMPlayer
 {
-	int PlayerIndex;
-	struct CGMPlayerStats Stats;
+  int PlayerIndex;
+  struct CGMPlayerStats Stats;
 };
 
 struct CGMTeam
 {
-	int Score;
+  int Score;
 };
 
 struct CGMState
 {
-	int InitializedTime;
-	struct CGMPlayer PlayerStates[GAME_MAX_PLAYERS];
-	struct CGMPlayer* LocalPlayerState;
-	struct CGMTeam Teams[GAME_MAX_PLAYERS];
-  Moby* FlagMoby;
+  int InitializedTime;
+  struct CGMPlayer PlayerStates[GAME_MAX_PLAYERS];
+  struct CGMPlayer *LocalPlayerState;
+  struct CGMTeam Teams[GAME_MAX_PLAYERS];
+  Moby *FlagMoby;
   int CurrentFlagCarrierPlayerIdx;
-	int IsHost;
+  int IsHost;
 };
 
 struct CGMGameData
 {
-	u32 Version;
-	int TeamScore[GAME_MAX_PLAYERS];
-	int Points[GAME_MAX_PLAYERS];
-	float TimeWithFlag[GAME_MAX_PLAYERS];
+  u32 Version;
+  int TeamScore[GAME_MAX_PLAYERS];
+  int Points[GAME_MAX_PLAYERS];
+  float TimeWithFlag[GAME_MAX_PLAYERS];
 };
 
 typedef struct SetPlayerStatsMessage
 {
-	int PlayerId;
-	struct CGMPlayerStats Stats;
+  int PlayerId;
+  struct CGMPlayerStats Stats;
 } SetPlayerStatsMessage_t;
 
 typedef struct SetTeamScoreMessage
 {
-	int TeamScores[GAME_MAX_PLAYERS];
+  int TeamScores[GAME_MAX_PLAYERS];
 } SetTeamScoreMessage_t;
 
 typedef struct PlayerAssistMessage
@@ -85,12 +85,12 @@ typedef struct FlagBasePositionMessage
 
 struct FlagPVars
 {
-	VECTOR BasePosition;
-	short CarrierIdx;
-	short LastCarrierIdx;
-	short Team;
-	char UNK_16[6];
-	int TimeFlagDropped;
+  VECTOR BasePosition;
+  short CarrierIdx;
+  short LastCarrierIdx;
+  short Team;
+  char UNK_16[6];
+  int TimeFlagDropped;
 };
 
 struct AssistFeedItem

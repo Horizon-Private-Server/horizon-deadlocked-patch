@@ -17,12 +17,13 @@
 #include "config.h"
 #include "common.h"
 
-#define RA_COUNTERS_SIZE  (64)
+#define RA_COUNTERS_SIZE (64)
 
-#define GUBER_BACKUP_SIZE                            (512)
-#define GUBER_BACKUP_START_AT                        (50)
+#define GUBER_BACKUP_SIZE (512)
+#define GUBER_BACKUP_START_AT (50)
 
-typedef struct RollingValue {
+typedef struct RollingValue
+{
   float Value;
   float BackValue;
   float Low;
@@ -30,7 +31,8 @@ typedef struct RollingValue {
   int BackTicks;
 } RollingValue_t;
 
-typedef struct RACounter {
+typedef struct RACounter
+{
   u32 Address;
   int Count;
   int Ticks;
@@ -42,17 +44,20 @@ RollingValue_t statsCollLineFix_Calls = { .Low = -1 };
 RACounter_t statsCollLineFix_RA[RA_COUNTERS_SIZE] = {};
 #endif
 
-GuberEvent* statsGuberSafeBackup = NULL;
+GuberEvent *statsGuberSafeBackup = NULL;
 int statsGuberSafeBackupIdx = 0;
 
 //--------------------------------------------------------------------------
 int statsGuberEventBackupPop(void)
 {
-  if (!statsGuberSafeBackup) return 0;
-  if (statsGuberSafeBackupIdx <= 0) return 0;
+  if (!statsGuberSafeBackup)
+    return 0;
+  if (statsGuberSafeBackupIdx <= 0)
+    return 0;
 
-  GuberEvent* event = guberEventAlloc();
-  if (!event) return 0;
+  GuberEvent *event = guberEventAlloc();
+  if (!event)
+    return 0;
 
   DPRINTF("statsGuberEventBackupPop() %d\n", statsGuberSafeBackupIdx);
   memcpy(event, &statsGuberSafeBackup[0], 0x58); // copy all but NextEvent ptr
@@ -62,23 +67,25 @@ int statsGuberEventBackupPop(void)
 }
 
 //--------------------------------------------------------------------------
-GuberEvent* statsGuberEventAllocSafe(void)
+GuberEvent *statsGuberEventAllocSafe(void)
 {
   // max allocated is 256
   // we want to avoid spamming clients with guber events
   // so backup old events
   int free = guberCountFreeEvents();
-  while (free > GUBER_BACKUP_START_AT && statsGuberEventBackupPop()) free--;
-  if (statsGuberSafeBackup && free <= GUBER_BACKUP_START_AT) {
+  while (free > GUBER_BACKUP_START_AT && statsGuberEventBackupPop())
+    free--;
+  if (statsGuberSafeBackup && free <= GUBER_BACKUP_START_AT)
+  {
 
     DPRINTF("statsGuberEventAllocSafe() called with %d free GuberEvents\n", free);
 
     // we don't have enough space, try to pop the latest event off the queue
     // if that fails then abort (return null)
-    if (statsGuberSafeBackupIdx >= (GUBER_BACKUP_SIZE-1) && !statsGuberEventBackupPop())
+    if (statsGuberSafeBackupIdx >= (GUBER_BACKUP_SIZE - 1) && !statsGuberEventBackupPop())
       return NULL;
 
-    GuberEvent* gEvent = &statsGuberSafeBackup[statsGuberSafeBackupIdx++];
+    GuberEvent *gEvent = &statsGuberSafeBackup[statsGuberSafeBackupIdx++];
     memset(gEvent, 0, sizeof(GuberEvent));
     return gEvent;
   }
@@ -86,15 +93,17 @@ GuberEvent* statsGuberEventAllocSafe(void)
   return guberEventAlloc();
 }
 
-
 //--------------------------------------------------------------------------
-int statsRollingValueTick(char* name, RollingValue_t* rollingValue, int rolloverAtTicks)
+int statsRollingValueTick(char *name, RollingValue_t *rollingValue, int rolloverAtTicks)
 {
   rollingValue->BackTicks++;
-  if (rollingValue->BackTicks >= rolloverAtTicks) {
+  if (rollingValue->BackTicks >= rolloverAtTicks)
+  {
     float normalizedValue = (TPS * rollingValue->BackValue) / (float)rollingValue->BackTicks;
-    if (normalizedValue > rollingValue->High) rollingValue->High = normalizedValue;
-    if (normalizedValue < rollingValue->Low || rollingValue->Low < 0) rollingValue->Low = normalizedValue;
+    if (normalizedValue > rollingValue->High)
+      rollingValue->High = normalizedValue;
+    if (normalizedValue < rollingValue->Low || rollingValue->Low < 0)
+      rollingValue->Low = normalizedValue;
     rollingValue->Value = rollingValue->BackValue;
     printf("%s: %f (%f per sec) | range:<%f,%f>\n", name, rollingValue->Value, normalizedValue, rollingValue->Low, rollingValue->High);
     rollingValue->BackTicks = 0;
@@ -106,13 +115,16 @@ int statsRollingValueTick(char* name, RollingValue_t* rollingValue, int rollover
 }
 
 //--------------------------------------------------------------------------
-void statsRATick(char* name, RACounter_t* counters, int countersSize, int rolloverAtTicks)
+void statsRATick(char *name, RACounter_t *counters, int countersSize, int rolloverAtTicks)
 {
   int i;
-  for (i = 0; i < countersSize; ++i) {
-    if (counters[i].Address) {
+  for (i = 0; i < countersSize; ++i)
+  {
+    if (counters[i].Address)
+    {
       ++counters[i].Ticks;
-      if (counters[i].Ticks >= rolloverAtTicks) {
+      if (counters[i].Ticks >= rolloverAtTicks)
+      {
         float normalizedValue = (TPS * counters[i].Count) / (float)counters[i].Ticks;
         printf("%s: %08X called %d (%f per sec)\n", name, counters[i].Address, counters[i].Count, normalizedValue);
         memset(&counters[i], 0, sizeof(RACounter_t));
@@ -122,16 +134,19 @@ void statsRATick(char* name, RACounter_t* counters, int countersSize, int rollov
 }
 
 //--------------------------------------------------------------------------
-void statsCountRA(RACounter_t* counters, int countersSize, u32 address)
+void statsCountRA(RACounter_t *counters, int countersSize, u32 address)
 {
   int i;
-  for (i = 0; i < countersSize; ++i) {
-    if (counters[i].Address == address) {
+  for (i = 0; i < countersSize; ++i)
+  {
+    if (counters[i].Address == address)
+    {
       ++counters[i].Count;
       return;
     }
 
-    if (counters[i].Address == 0) {
+    if (counters[i].Address == 0)
+    {
       counters[i].Address = address;
       counters[i].Count = 1;
       counters[i].Ticks = 0;
@@ -141,7 +156,7 @@ void statsCountRA(RACounter_t* counters, int countersSize, u32 address)
 }
 
 //--------------------------------------------------------------------------
-GuberEvent* statsOnGuberAllocEvent(void)
+GuberEvent *statsOnGuberAllocEvent(void)
 {
 #if LOG_PERF_STATS
   statsGuberEventAlloc_Calls.BackValue++;
@@ -152,12 +167,11 @@ GuberEvent* statsOnGuberAllocEvent(void)
 //--------------------------------------------------------------------------
 int statsOnCollLineFix(int a0)
 {
-  volatile void* ra;
-	asm volatile (
+  volatile void *ra;
+  asm volatile(
     "vnop;"
-		"sw $ra, 0(%0)"
-		: : "r" (&ra)
-	);
+    "sw $ra, 0(%0)"
+    : : "r"(&ra));
 
 #if LOG_PERF_STATS
   statsCountRA(statsCollLineFix_RA, RA_COUNTERS_SIZE, (u32)ra);
@@ -184,7 +198,8 @@ void statsTick(void)
 //--------------------------------------------------------------------------
 void statsDeinit(void)
 {
-  if (statsGuberSafeBackup) {
+  if (statsGuberSafeBackup)
+  {
     free(statsGuberSafeBackup);
     statsGuberSafeBackup = NULL;
   }
@@ -196,11 +211,12 @@ void statsInit(void)
 {
   //printf("FREE GUBER EVENTS %d\n", guberCountFreeEvents());
 
-  if (!statsGuberSafeBackup) {
-    statsGuberSafeBackup = (GuberEvent*)malloc(sizeof(GuberEvent) * GUBER_BACKUP_SIZE);
+  if (!statsGuberSafeBackup)
+  {
+    statsGuberSafeBackup = (GuberEvent *)malloc(sizeof(GuberEvent) * GUBER_BACKUP_SIZE);
     DPRINTF("alloc guber event backup %08X\n", (u32)statsGuberSafeBackup);
   }
-  
+
   // guber events
   HOOK_JAL(0x00611360, &statsOnGuberAllocEvent);
   HOOK_JAL(0x006116d4, &statsOnGuberAllocEvent);

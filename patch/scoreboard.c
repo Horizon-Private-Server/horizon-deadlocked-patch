@@ -15,8 +15,8 @@
 #include "common.h"
 #include "include/config.h"
 
-#define LATENCY_PING_COOLDOWN_TICKS         (60 * 1)
-#define USE_CLIENT_PING                     1
+#define LATENCY_PING_COOLDOWN_TICKS (60 * 1)
+#define USE_CLIENT_PING 1
 
 extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
@@ -37,17 +37,20 @@ struct ClientPing
 int ClientLatency[GAME_MAX_PLAYERS];
 
 //--------------------------------------------------------------------------
-int igScoreboardOnRemoteLatencyPing(void* connection, void* data)
+int igScoreboardOnRemoteLatencyPing(void *connection, void *data)
 {
   struct LatencyPing msg;
   memcpy(&msg, data, sizeof(msg));
 
-  if (msg.FromClientIdx == gameGetMyClientId()) {
+  if (msg.FromClientIdx == gameGetMyClientId())
+  {
     long dticks = timerGetSystemTime() - msg.Ticks;
     int dms = dticks / SYSTEM_TIME_TICKS_PER_MS;
     ClientLatency[msg.ToClientIdx] = dms;
     //DPRINTF("RTT to CLIENT %d : %dms\n", msg.ToClientIdx, dms);
-  } else {
+  }
+  else
+  {
     // send back
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, msg.FromClientIdx, CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, sizeof(msg), &msg);
   }
@@ -63,15 +66,18 @@ void igScoreboardSendLatencyPings(void)
   msg.Ticks = timerGetSystemTime();
 
   // ensure we have a connection to the dme server
-  void * connection = netGetDmeServerConnection();
-  if (!connection) return;
+  void *connection = netGetDmeServerConnection();
+  if (!connection)
+    return;
 
   // send to each client
   int i;
-  Player** players = playerGetAll();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!player || !player->pNetPlayer || player->IsLocal) continue;
+  Player **players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (!player || !player->pNetPlayer || player->IsLocal)
+      continue;
 
     msg.ToClientIdx = player->pNetPlayer->netClientIndex;
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, msg.ToClientIdx, CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, sizeof(msg), &msg);
@@ -79,7 +85,7 @@ void igScoreboardSendLatencyPings(void)
 }
 
 //--------------------------------------------------------------------------
-int igScoreboardOnRemoteClientPing(void* connection, void* data)
+int igScoreboardOnRemoteClientPing(void *connection, void *data)
 {
   struct ClientPing msg;
   memcpy(&msg, data, sizeof(msg));
@@ -99,8 +105,9 @@ void igScoreboardBroadcastClientPing(void)
   ClientLatency[msg.FromClientIdx] = msg.Ping;
 
   // ensure we have a connection to the dme server
-  void * connection = netGetDmeServerConnection();
-  if (!connection) return;
+  void *connection = netGetDmeServerConnection();
+  if (!connection)
+    return;
 
   netBroadcastCustomAppMessage(0, connection, CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, sizeof(struct ClientPing), &msg);
 }
@@ -109,8 +116,9 @@ void igScoreboardBroadcastClientPing(void)
 void igScoreboardDraw(void)
 {
   char buf[32];
-  GameSettings* gs = gameGetSettings();
-  if (!isInGame() || !gs) return;
+  GameSettings *gs = gameGetSettings();
+  if (!isInGame() || !gs)
+    return;
 
   int draw = COMMON_DZO_DRAW_NONE; //COMMON_DZO_DRAW_NORMAL;
   float anchorX = 0.5 * SCREEN_WIDTH;
@@ -118,7 +126,7 @@ void igScoreboardDraw(void)
   float width = 0.65 * SCREEN_WIDTH;
   float height = 0.08 * SCREEN_HEIGHT;
   float rowHeight = 0.04 * SCREEN_HEIGHT;
-  float aY = anchorY + height/2;
+  float aY = anchorY + height / 2;
   const float offsets[] = { -160, -50, 45, 140 };
 
   // bg
@@ -138,16 +146,19 @@ void igScoreboardDraw(void)
   // rows
   int i;
   float y = 0.38 * SCREEN_HEIGHT;
-  Player** players = playerGetAll();
-  GameData* gdata = gameGetData();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    if (gs->PlayerNames[i][0] == 0) continue;
+  Player **players = playerGetAll();
+  GameData *gdata = gameGetData();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    if (gs->PlayerNames[i][0] == 0)
+      continue;
 
-    float yOff = (SCREEN_HEIGHT/2) - y - rowHeight - 1;
-    aY = anchorY + rowHeight/2;
+    float yOff = (SCREEN_HEIGHT / 2) - y - rowHeight - 1;
+    aY = anchorY + rowHeight / 2;
 
     int team = gs->PlayerTeams[i];
-    if (players[i]) team = players[i]->Team;
+    if (players[i])
+      team = players[i]->Team;
     gfxHelperDrawBox(anchorX, aY, 0, yOff, width, rowHeight, TEAM_COLORS[team], TEXT_ALIGN_MIDDLECENTER, draw);
     gfxHelperDrawText(anchorX, aY, offsets[0], yOff, 1, 0x80FFFFFF, gs->PlayerNames[i], -1, TEXT_ALIGN_MIDDLELEFT, draw);
 
@@ -178,9 +189,11 @@ void igScoreboardRun(void)
   netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_LATENCY_TEST_PING, &igScoreboardOnRemoteLatencyPing);
 #endif
 
-  if (!isInGame()) {
+  if (!isInGame())
+  {
     PATCH_POINTERS_SCOREBOARD = 0;
-    if (!reset) {
+    if (!reset)
+    {
       memset(ClientLatency, 0, sizeof(ClientLatency));
       pingCooldown = 0;
       reset = 1;
@@ -190,14 +203,18 @@ void igScoreboardRun(void)
 
   // draw
   PATCH_POINTERS_SCOREBOARD = gameConfig.customModeId != CUSTOM_MODE_RAIDS && padGetButton(0, PAD_L3) > 0;
-  if (config.enableInGameScoreboard && PATCH_POINTERS_SCOREBOARD && !isConfigMenuActive && !gameIsStartMenuOpen(0)) {
+  if (config.enableInGameScoreboard && PATCH_POINTERS_SCOREBOARD && !isConfigMenuActive && !gameIsStartMenuOpen(0))
+  {
     igScoreboardDraw();
   }
 
   // send pings
-  if (pingCooldown) {
+  if (pingCooldown)
+  {
     --pingCooldown;
-  } else {
+  }
+  else
+  {
 #if USE_CLIENT_PING
     igScoreboardBroadcastClientPing();
 #else

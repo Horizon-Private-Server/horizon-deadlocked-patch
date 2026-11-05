@@ -30,7 +30,7 @@ typedef char BallRequestFits[(sizeof(BallRequest_t) <= 63) ? 1 : -1];
 typedef char BallReplyFits[(sizeof(BallReply_t) <= 63) ? 1 : -1];
 typedef char BallScoreFits[(sizeof(BallScoreMessage_t) <= 63) ? 1 : -1];
 
-void ballReply(Moby* moby, const BallRequest_t* request, int accepted);
+void ballReply(Moby *moby, const BallRequest_t *request, int accepted);
 
 //--------------------------------------------------------------------------
 int ballIsNewerSequence(unsigned int sequence, unsigned int previousSequence)
@@ -40,10 +40,10 @@ int ballIsNewerSequence(unsigned int sequence, unsigned int previousSequence)
 }
 
 //--------------------------------------------------------------------------
-int ballSendEvent(Moby* moby, int eventType, const void* payload, int payloadSize)
+int ballSendEvent(Moby *moby, int eventType, const void *payload, int payloadSize)
 {
-  Guber* guber = guberGetObjectByMoby(moby);
-  GuberEvent* event;
+  Guber *guber = guberGetObjectByMoby(moby);
+  GuberEvent *event;
 
   if (!guber)
     return 0;
@@ -52,14 +52,14 @@ int ballSendEvent(Moby* moby, int eventType, const void* payload, int payloadSiz
   if (!event)
     return 0;
 
-  guberEventWrite(event, (void*)payload, payloadSize);
+  guberEventWrite(event, (void *)payload, payloadSize);
   return 1;
 }
 
 //--------------------------------------------------------------------------
-void ballGetState(Moby* moby, BallStateMessage_t* state)
+void ballGetState(Moby *moby, BallStateMessage_t *state)
 {
-  BallPVars_t* pvars = moby->PVar;
+  BallPVars_t *pvars = moby->PVar;
 
   state->Revision = pvars->Revision;
   state->ResetCounter = pvars->ResetCounter;
@@ -71,28 +71,29 @@ void ballGetState(Moby* moby, BallStateMessage_t* state)
 }
 
 //--------------------------------------------------------------------------
-int ballHasPendingPickup(Moby* moby, int playerIdx)
+int ballHasPendingPickup(Moby *moby, int playerIdx)
 {
-  BallPVars_t* pvars;
+  BallPVars_t *pvars;
 
   if (!moby || playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS)
     return 0;
 
   pvars = moby->PVar;
   return pvars->Pending[playerIdx].Active &&
-    pvars->Pending[playerIdx].Request.Action == BALL_ACTION_PICKUP;
+         pvars->Pending[playerIdx].Request.Action == BALL_ACTION_PICKUP;
 }
 
 //--------------------------------------------------------------------------
-int ballGetVisualCarrierIdx(Moby* moby)
+int ballGetVisualCarrierIdx(Moby *moby)
 {
-  BallPVars_t* pvars = moby->PVar;
+  BallPVars_t *pvars = moby->PVar;
   int i;
 
   if (pvars->CarrierIdx >= 0)
     return pvars->CarrierIdx;
 
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     if (ballHasPendingPickup(moby, i))
       return i;
   }
@@ -101,14 +102,15 @@ int ballGetVisualCarrierIdx(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void ballReconcile(Moby* moby)
+void ballReconcile(Moby *moby)
 {
-  BallPVars_t* pvars = moby->PVar;
-  Player** players = playerGetAll();
+  BallPVars_t *pvars = moby->PVar;
+  Player **players = playerGetAll();
   int i;
 
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
     int isConfirmedCarrier;
     int isPredictedCarrier;
 
@@ -125,12 +127,12 @@ void ballReconcile(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void ballNotify(Moby* moby, int previousCarrierIdx, int previousResetCounter)
+void ballNotify(Moby *moby, int previousCarrierIdx, int previousResetCounter)
 {
-  BallPVars_t* pvars = moby->PVar;
-  Player* local = playerGetFromSlot(0);
+  BallPVars_t *pvars = moby->PVar;
+  Player *local = playerGetFromSlot(0);
   int sound = -1;
-  const char* text = NULL;
+  const char *text = NULL;
   int carrierChanged = previousCarrierIdx != pvars->CarrierIdx;
   int ballWasReset = previousResetCounter != pvars->ResetCounter;
 
@@ -138,10 +140,13 @@ void ballNotify(Moby* moby, int previousCarrierIdx, int previousResetCounter)
       (carrierChanged || ballWasReset))
     State.PlayerStates[previousCarrierIdx].TimeLastCarrier = gameGetTime();
 
-  if (ballWasReset) {
+  if (ballWasReset)
+  {
     if (pvars->ResetType == BALL_RESET_CENTER)
       text = "The ball has returned to the center!";
-  } else if (carrierChanged) {
+  }
+  else if (carrierChanged)
+  {
     sound = pvars->CarrierIdx >= 0 ? 0 : 1;
     text = pvars->CarrierIdx >= 0 ? "The ball has been picked up!" : "The ball has been dropped!";
   }
@@ -149,17 +154,18 @@ void ballNotify(Moby* moby, int previousCarrierIdx, int previousResetCounter)
   if (sound >= 0 && local && local->PlayerMoby)
     mobyPlaySoundByClass(sound, 0, local->PlayerMoby, MOBY_ID_RED_FLAG);
   if (text)
-    uiShowPopup(0, (char*)text);
+    uiShowPopup(0, (char *)text);
 }
 
 //--------------------------------------------------------------------------
-void ballResolvePending(Moby* moby)
+void ballResolvePending(Moby *moby)
 {
-  BallPVars_t* pvars = moby->PVar;
+  BallPVars_t *pvars = moby->PVar;
   int i;
 
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    BallPendingRequest_t* pending = &pvars->Pending[i];
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    BallPendingRequest_t *pending = &pvars->Pending[i];
     BallPendingRequest_t completedRequest;
     int matchesCurrentState;
     int pickupWasConfirmed;
@@ -168,8 +174,8 @@ void ballResolvePending(Moby* moby)
       continue;
 
     matchesCurrentState = pending->Request.ResetCounter == pvars->ResetCounter &&
-      pending->Request.Revision == pvars->Revision &&
-      (pvars->CarrierIdx < 0 || pvars->CarrierIdx == i);
+                          pending->Request.Revision == pvars->Revision &&
+                          (pvars->CarrierIdx < 0 || pvars->CarrierIdx == i);
     if (matchesCurrentState)
       continue;
 
@@ -181,17 +187,17 @@ void ballResolvePending(Moby* moby)
     // The next revision must grant this exact pickup before its queued throw
     // can run. A reset or a later possession cancels the queued action.
     pickupWasConfirmed = completedRequest.Request.Action == BALL_ACTION_PICKUP &&
-      completedRequest.Request.ResetCounter == pvars->ResetCounter &&
-      pvars->CarrierIdx == i && pvars->Revision == completedRequest.Request.Revision + 1;
+                         completedRequest.Request.ResetCounter == pvars->ResetCounter &&
+                         pvars->CarrierIdx == i && pvars->Revision == completedRequest.Request.Revision + 1;
     if (completedRequest.QueuedDrop && pickupWasConfirmed)
       ballRequestAction(moby, i, BALL_ACTION_DROP, completedRequest.DropPosition, completedRequest.DropVelocity);
   }
 }
 
 //--------------------------------------------------------------------------
-void ballCheckAuthority(Moby* moby)
+void ballCheckAuthority(Moby *moby)
 {
-  BallPVars_t* pvars = moby->PVar;
+  BallPVars_t *pvars = moby->PVar;
   int hostId = gameGetHostId();
 
   if (pvars->AuthorityClientId == hostId)
@@ -206,9 +212,9 @@ void ballCheckAuthority(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int ballApplyState(Moby* moby, const BallStateMessage_t* state)
+int ballApplyState(Moby *moby, const BallStateMessage_t *state)
 {
-  BallPVars_t* pvars = moby->PVar;
+  BallPVars_t *pvars = moby->PVar;
   int previousCarrierIdx = pvars->CarrierIdx;
   int previousResetCounter = pvars->ResetCounter;
   int isNewRevision;
@@ -240,7 +246,7 @@ int ballApplyState(Moby* moby, const BallStateMessage_t* state)
 }
 
 //--------------------------------------------------------------------------
-int ballBroadcastState(Moby* moby)
+int ballBroadcastState(Moby *moby)
 {
   BallStateMessage_t state;
 
@@ -249,9 +255,9 @@ int ballBroadcastState(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-void ballCommit(Moby* moby, int previousCarrierIdx, int previousResetCounter)
+void ballCommit(Moby *moby, int previousCarrierIdx, int previousResetCounter)
 {
-  BallPVars_t* pvars = moby->PVar;
+  BallPVars_t *pvars = moby->PVar;
 
   ++pvars->Revision;
   pvars->HasState = 1;
@@ -264,9 +270,9 @@ void ballCommit(Moby* moby, int previousCarrierIdx, int previousResetCounter)
 }
 
 //--------------------------------------------------------------------------
-void ballResetState(Moby* moby, int resetType)
+void ballResetState(Moby *moby, int resetType)
 {
-  BallPVars_t* pvars = moby->PVar;
+  BallPVars_t *pvars = moby->PVar;
 
   pvars->CarrierIdx = -1;
   ++pvars->ResetCounter;
@@ -277,9 +283,9 @@ void ballResetState(Moby* moby, int resetType)
 }
 
 //--------------------------------------------------------------------------
-void ballReset(Moby* moby, int resetType)
+void ballReset(Moby *moby, int resetType)
 {
-  BallPVars_t* pvars;
+  BallPVars_t *pvars;
   int previousCarrierIdx, previousResetCounter;
 
   if (!moby || !gameAmIHost() || resetType < BALL_RESET_CENTER || resetType > BALL_RESET_TEAM1)
@@ -294,9 +300,9 @@ void ballReset(Moby* moby, int resetType)
 }
 
 //--------------------------------------------------------------------------
-void ballGetScore(Moby* moby, BallScoreMessage_t* score)
+void ballGetScore(Moby *moby, BallScoreMessage_t *score)
 {
-  BallPVars_t* pvars = moby->PVar;
+  BallPVars_t *pvars = moby->PVar;
   int i;
 
   score->Sequence = pvars->ScoreSequence;
@@ -308,10 +314,10 @@ void ballGetScore(Moby* moby, BallScoreMessage_t* score)
 }
 
 //--------------------------------------------------------------------------
-void ballApplyScore(Moby* moby, const BallScoreMessage_t* score)
+void ballApplyScore(Moby *moby, const BallScoreMessage_t *score)
 {
-  BallPVars_t* pvars = moby->PVar;
-  GameData* gameData = gameGetData();
+  BallPVars_t *pvars = moby->PVar;
+  GameData *gameData = gameGetData();
   int i;
 
   if (score->ScoredByPlayerId < 0 || score->ScoredByPlayerId >= GAME_MAX_PLAYERS ||
@@ -322,7 +328,8 @@ void ballApplyScore(Moby* moby, const BallScoreMessage_t* score)
   pvars->LastScorePlayer = score->ScoredByPlayerId;
   State.Teams[0].Score = score->TeamScores[0];
   State.Teams[1].Score = score->TeamScores[1];
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     State.PlayerStates[i].Stats.Points = score->PlayerPoints[i];
     if (gameData)
       gameData->PlayerStats.CtfFlagsCaptures[i] = score->PlayerPoints[i];
@@ -331,12 +338,12 @@ void ballApplyScore(Moby* moby, const BallScoreMessage_t* score)
 }
 
 //--------------------------------------------------------------------------
-void ballHandleRequest(Moby* moby, const BallRequest_t* request, int originClientId)
+void ballHandleRequest(Moby *moby, const BallRequest_t *request, int originClientId)
 {
-  BallPVars_t* pvars = moby->PVar;
-  GameSettings* settings = gameGetSettings();
-  Player* player;
-  BallRequestResult_t* result;
+  BallPVars_t *pvars = moby->PVar;
+  GameSettings *settings = gameGetSettings();
+  Player *player;
+  BallRequestResult_t *result;
   int playerIdx = request->PlayerId;
   int previousCarrierIdx, previousResetCounter, teamIdx;
 
@@ -355,7 +362,8 @@ void ballHandleRequest(Moby* moby, const BallRequest_t* request, int originClien
     result->Known = 0;
 
   // Retry the previous reply; never apply the same action twice.
-  if (result->Known && !ballIsNewerSequence(request->RequestId, result->RequestId)) {
+  if (result->Known && !ballIsNewerSequence(request->RequestId, result->RequestId))
+  {
     int isDuplicate = request->RequestId == result->RequestId;
 
     ballReply(moby, request, isDuplicate && result->Accepted);
@@ -444,10 +452,10 @@ reply:
 }
 
 //--------------------------------------------------------------------------
-void ballHandleReply(Moby* moby, const BallReply_t* reply)
+void ballHandleReply(Moby *moby, const BallReply_t *reply)
 {
-  BallPVars_t* pvars = moby->PVar;
-  BallPendingRequest_t* pending;
+  BallPVars_t *pvars = moby->PVar;
+  BallPendingRequest_t *pending;
 
   if (reply->PlayerId < 0 || reply->PlayerId >= GAME_MAX_PLAYERS)
     return;
@@ -456,7 +464,8 @@ void ballHandleReply(Moby* moby, const BallReply_t* reply)
     ballApplyState(moby, &reply->State);
 
   pending = &pvars->Pending[reply->PlayerId];
-  if (pending->Active && pending->Request.RequestId == reply->RequestId) {
+  if (pending->Active && pending->Request.RequestId == reply->RequestId)
+  {
     pending->Active = 0;
     pending->QueuedDrop = 0;
     ballReconcile(moby);
@@ -464,7 +473,7 @@ void ballHandleReply(Moby* moby, const BallReply_t* reply)
 }
 
 //--------------------------------------------------------------------------
-void ballReply(Moby* moby, const BallRequest_t* request, int accepted)
+void ballReply(Moby *moby, const BallRequest_t *request, int accepted)
 {
   BallReply_t reply;
 
@@ -479,24 +488,27 @@ void ballReply(Moby* moby, const BallRequest_t* request, int accepted)
 }
 
 //--------------------------------------------------------------------------
-void ballSendRequest(Moby* moby, BallPendingRequest_t* pending)
+void ballSendRequest(Moby *moby, BallPendingRequest_t *pending)
 {
-  if (gameAmIHost()) {
+  if (gameAmIHost())
+  {
     BallRequest_t request = pending->Request;
 
     pending->LastSent = gameGetTime();
     ballHandleRequest(moby, &request, gameGetMyClientId());
-  } else if (ballSendEvent(moby, BALL_EVENT_REQUEST, &pending->Request, sizeof(pending->Request))) {
+  }
+  else if (ballSendEvent(moby, BALL_EVENT_REQUEST, &pending->Request, sizeof(pending->Request)))
+  {
     pending->LastSent = gameGetTime();
   }
 }
 
 //--------------------------------------------------------------------------
-void ballRequestAction(Moby* moby, int playerIdx, int action, const float* position, const float* velocity)
+void ballRequestAction(Moby *moby, int playerIdx, int action, const float *position, const float *velocity)
 {
-  BallPVars_t* pvars;
-  BallPendingRequest_t* pending;
-  Player* player;
+  BallPVars_t *pvars;
+  BallPendingRequest_t *pending;
+  Player *player;
 
   if (!moby || playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS)
     return;
@@ -508,9 +520,11 @@ void ballRequestAction(Moby* moby, int playerIdx, int action, const float* posit
     return;
 
   pending = &pvars->Pending[playerIdx];
-  if (pending->Active) {
+  if (pending->Active)
+  {
     // Preserve throw/drop input while the pickup is waiting for confirmation.
-    if (pending->Request.Action == BALL_ACTION_PICKUP && action == BALL_ACTION_DROP) {
+    if (pending->Request.Action == BALL_ACTION_PICKUP && action == BALL_ACTION_DROP)
+    {
       pending->QueuedDrop = 1;
       memcpy(pending->DropPosition, position, sizeof(pending->DropPosition));
       memcpy(pending->DropVelocity, velocity, sizeof(pending->DropVelocity));
@@ -518,12 +532,14 @@ void ballRequestAction(Moby* moby, int playerIdx, int action, const float* posit
     return;
   }
 
-  if (action == BALL_ACTION_PICKUP) {
+  if (action == BALL_ACTION_PICKUP)
+  {
     if (pvars->CarrierIdx >= 0 || !playerStateCanHoldBall(player) || player->HeldMoby)
       return;
     if (gameGetTime() - State.PlayerStates[playerIdx].TimeLastCarrier < PICKUP_COOLDOWN)
       return;
-  } else if (pvars->CarrierIdx != playerIdx)
+  }
+  else if (pvars->CarrierIdx != playerIdx)
     return;
 
   memset(pending, 0, sizeof(*pending));
@@ -546,17 +562,17 @@ void ballRequestAction(Moby* moby, int playerIdx, int action, const float* posit
 }
 
 //--------------------------------------------------------------------------
-void ballPickup(Moby* moby, int playerIdx, int resetCounter)
+void ballPickup(Moby *moby, int playerIdx, int resetCounter)
 {
-  if (moby && resetCounter == ((BallPVars_t*)moby->PVar)->ResetCounter)
+  if (moby && resetCounter == ((BallPVars_t *)moby->PVar)->ResetCounter)
     ballRequestAction(moby, playerIdx, BALL_ACTION_PICKUP, NULL, NULL);
 }
 
 //--------------------------------------------------------------------------
-void ballRequestDrop(Moby* moby, int playerIdx)
+void ballRequestDrop(Moby *moby, int playerIdx)
 {
   VECTOR position;
-  Player* player;
+  Player *player;
 
   if (!moby || playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS)
     return;
@@ -564,7 +580,8 @@ void ballRequestDrop(Moby* moby, int playerIdx)
   if (!player)
     return;
   memcpy(position, moby->Position, sizeof(position));
-  if (ballHasPendingPickup(moby, playerIdx)) {
+  if (ballHasPendingPickup(moby, playerIdx))
+  {
     memcpy(position, player->PlayerPosition, sizeof(position));
     position[2] += 1;
   }
@@ -572,16 +589,16 @@ void ballRequestDrop(Moby* moby, int playerIdx)
 }
 
 //--------------------------------------------------------------------------
-void ballRequestScore(Moby* moby, int playerIdx)
+void ballRequestScore(Moby *moby, int playerIdx)
 {
   ballRequestAction(moby, playerIdx, BALL_ACTION_SCORE, NULL, NULL);
 }
 
 //--------------------------------------------------------------------------
-void ballNetworkInitialize(Moby* moby)
+void ballNetworkInitialize(Moby *moby)
 {
-  BallPVars_t* pvars = moby->PVar;
-  Moby* visualMoby = pvars->VisualMoby;
+  BallPVars_t *pvars = moby->PVar;
+  Moby *visualMoby = pvars->VisualMoby;
 
   memset(pvars, 0, sizeof(*pvars));
   pvars->VisualMoby = visualMoby;
@@ -593,7 +610,7 @@ void ballNetworkInitialize(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int ballCarrierMustDrop(int carrierIdx, Player* carrier, GameSettings* settings)
+int ballCarrierMustDrop(int carrierIdx, Player *carrier, GameSettings *settings)
 {
   if (carrierIdx < 0)
     return 0;
@@ -612,20 +629,22 @@ int ballCarrierMustDrop(int carrierIdx, Player* carrier, GameSettings* settings)
 }
 
 //--------------------------------------------------------------------------
-void ballNetworkUpdate(Moby* moby)
+void ballNetworkUpdate(Moby *moby)
 {
-  BallPVars_t* pvars = moby->PVar;
-  GameSettings* settings = gameGetSettings();
-  Player** players = playerGetAll();
+  BallPVars_t *pvars = moby->PVar;
+  GameSettings *settings = gameGetSettings();
+  Player **players = playerGetAll();
   int i;
 
   ballCheckAuthority(moby);
 
-  if (gameAmIHost()) {
+  if (gameAmIHost())
+  {
     int carrierIdx = pvars->CarrierIdx;
-    Player* carrier = playerGetFromIndex(carrierIdx);
+    Player *carrier = playerGetFromIndex(carrierIdx);
 
-    if (ballCarrierMustDrop(carrierIdx, carrier, settings)) {
+    if (ballCarrierMustDrop(carrierIdx, carrier, settings))
+    {
       int previousResetCounter = pvars->ResetCounter;
 
       pvars->CarrierIdx = -1;
@@ -638,11 +657,13 @@ void ballNetworkUpdate(Moby* moby)
     }
 
     // Broadcast even when the carrier is remote or clients disagree about it.
-    if (gameGetTime() - pvars->LastSyncTime >= TIME_SECOND && ballBroadcastState(moby)) {
+    if (gameGetTime() - pvars->LastSyncTime >= TIME_SECOND && ballBroadcastState(moby))
+    {
       BallScoreMessage_t score;
 
       pvars->LastSyncTime = gameGetTime();
-      if (pvars->ScoreSequence) {
+      if (pvars->ScoreSequence)
+      {
         ballGetScore(moby, &score);
         ballSendEvent(moby, BALL_EVENT_SCORE, &score, sizeof(score));
       }
@@ -650,17 +671,21 @@ void ballNetworkUpdate(Moby* moby)
   }
 
   // Requests have independent retry/expiry timers for split-screen players.
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    BallPendingRequest_t* pending = &pvars->Pending[i];
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    BallPendingRequest_t *pending = &pvars->Pending[i];
 
     if (!pending->Active)
       continue;
 
     if (!players[i] || !players[i]->IsLocal ||
-        gameGetTime() - pending->Started >= BALL_REQUEST_TIMEOUT) {
+        gameGetTime() - pending->Started >= BALL_REQUEST_TIMEOUT)
+    {
       pending->Active = 0;
       pending->QueuedDrop = 0;
-    } else if (gameGetTime() - pending->LastSent >= BALL_RETRY_TIME) {
+    }
+    else if (gameGetTime() - pending->LastSent >= BALL_RETRY_TIME)
+    {
       ballSendRequest(moby, pending);
     }
   }
@@ -669,7 +694,7 @@ void ballNetworkUpdate(Moby* moby)
 }
 
 //--------------------------------------------------------------------------
-int ballHandleNetworkEvent(Moby* moby, GuberEvent* event)
+int ballHandleNetworkEvent(Moby *moby, GuberEvent *event)
 {
   int originClientId = event->NetEvent.OriginClientIdx;
 

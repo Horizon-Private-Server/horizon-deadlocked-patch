@@ -25,6 +25,5 @@
 
 void netHookMessages(void)
 {
-	// Hook custom net events
-	
+  // Hook custom net events
 }

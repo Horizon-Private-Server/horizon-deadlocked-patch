@@ -21,20 +21,21 @@
 extern struct RaidsState State;
 extern int Initialized;
 
-void pushSnack(char * str, int ticksAlive, int localPlayerIdx);
+void pushSnack(char *str, int ticksAlive, int localPlayerIdx);
 
 int hopCost = 0;
 int hopMissionType = RAIDS_MISSION_HUB;
 
 //--------------------------------------------------------------------------
-void hopLoadMapStats(char* mapFilename, char* mapName)
+void hopLoadMapStats(char *mapFilename, char *mapName)
 {
-  if (!mapFilename || !mapFilename[0]) return;
+  if (!mapFilename || !mapFilename[0])
+    return;
 
   // update current map stats
   char exDataBuf[RAIDS_MAX_EXDATA_SIZE];
   memset(exDataBuf, 0, sizeof(exDataBuf));
-  struct RaidsCustomMapExtraData* exData = (struct RaidsCustomMapExtraData*)exDataBuf;
+  struct RaidsCustomMapExtraData *exData = (struct RaidsCustomMapExtraData *)exDataBuf;
   PATCH_INTEROP->ReadCustomMapExtraData(mapFilename, exDataBuf, sizeof(exDataBuf), CUSTOM_MODE_RAIDS);
   State.CurrentMapStats.Invalid = 1;
   State.CurrentMapStats.ChallengesCount = exData->ChallengesCount;
@@ -50,7 +51,8 @@ void hopLoadMapStats(char* mapFilename, char* mapName)
 void hopCancel(void)
 {
   // refund host
-  if (State.PendingWorldHopMapDef && State.PendingWorldHopAtTime && gameAmIHost()) {
+  if (State.PendingWorldHopMapDef && State.PendingWorldHopAtTime && gameAmIHost())
+  {
     mapConfig->BankVTable->AddBolts(hopCost);
   }
 
@@ -62,25 +64,28 @@ void hopCancel(void)
 }
 
 //--------------------------------------------------------------------------
-int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime, int mapVersion)
+int hopPrepare(char *mapFilename, int difficulty, int cost, int loadAtTime, int mapVersion)
 {
   // check if msg is canceling hop
-  if (!mapFilename || !mapFilename[0]) {
+  if (!mapFilename || !mapFilename[0])
+  {
     hopCancel();
     return 0;
   }
 
   // find map
-  if (PATCH_INTEROP && PATCH_INTEROP->GetCustomMapDefCount) {
+  if (PATCH_INTEROP && PATCH_INTEROP->GetCustomMapDefCount)
+  {
     int customMapCount = PATCH_INTEROP->GetCustomMapDefCount();
     int i;
-    for (i = 0; i < customMapCount; ++i) {
-      CustomMapDef_t* def = PATCH_INTEROP->GetCustomMapDef(i);
-      if (strncmp(def->Filename, mapFilename, sizeof(def->Filename)) == 0) {
+    for (i = 0; i < customMapCount; ++i)
+    {
+      CustomMapDef_t *def = PATCH_INTEROP->GetCustomMapDef(i);
+      if (strncmp(def->Filename, mapFilename, sizeof(def->Filename)) == 0)
+      {
         struct RaidsCustomMapExtraData exData = {};
-        if ((mapVersion >= 0 && def->Version != mapVersion)
-            || PATCH_INTEROP->ReadCustomMapExtraData(def->Filename, &exData, sizeof(exData), CUSTOM_MODE_RAIDS) != sizeof(exData)
-            || exData.RaidsVersion != CMODE_RAIDS_VERSION) break;
+        if ((mapVersion >= 0 && def->Version != mapVersion) || PATCH_INTEROP->ReadCustomMapExtraData(def->Filename, &exData, sizeof(exData), CUSTOM_MODE_RAIDS) != sizeof(exData) || exData.RaidsVersion != CMODE_RAIDS_VERSION)
+          break;
 
         State.PendingWorldHopMapDef = def;
         State.PendingWorldHopAtTime = loadAtTime;
@@ -88,7 +93,8 @@ int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime, int 
         hopMissionType = exData.MissionType;
 
         // charge host
-        if (gameAmIHost()) {
+        if (gameAmIHost())
+        {
           hopCost = cost;
           mapConfig->BankVTable->SubBolts(cost);
         }
@@ -102,21 +108,23 @@ int hopPrepare(char* mapFilename, int difficulty, int cost, int loadAtTime, int 
 }
 
 //--------------------------------------------------------------------------
-int hopOnBeginRemote(void * connection, void * data)
+int hopOnBeginRemote(void *connection, void *data)
 {
   struct HopOnBeginMsg msg;
   memcpy(&msg, data, sizeof(msg));
 
   // check if msg is canceling hop
   hopCost = 0;
-  if (!msg.MapFilename[0]) {
+  if (!msg.MapFilename[0])
+  {
     hopCancel();
     return sizeof(msg);
   }
 
   // try and prepare world hop
   // if unable to, then broadcast that to everyone
-  if (!hopPrepare(msg.MapFilename, msg.Difficulty, 0, msg.LoadAtTime, msg.MapVersion)) {
+  if (!hopPrepare(msg.MapFilename, msg.Difficulty, 0, msg.LoadAtTime, msg.MapVersion))
+  {
     int clientId = gameGetMyClientId();
     netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_WORLD_HOP_MISSING_MAP, sizeof(clientId), &clientId);
   }
@@ -125,25 +133,28 @@ int hopOnBeginRemote(void * connection, void * data)
 }
 
 //--------------------------------------------------------------------------
-int hopOnClientMissingMapRemote(void * connection, void * data)
+int hopOnClientMissingMapRemote(void *connection, void *data)
 {
   char strBuf[64];
   int clientId;
   memcpy(&clientId, data, sizeof(clientId));
 
   // find player id of source
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
   int i;
   int playerId = -1;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    if (gs->PlayerClients[i] == clientId) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    if (gs->PlayerClients[i] == clientId)
+    {
       playerId = i;
       break;
     }
   }
 
   // show snack that client didn't have the map
-  if (playerId >= 0) {
+  if (playerId >= 0)
+  {
     snprintf(strBuf, sizeof(strBuf), "%s needs a map update", gs->PlayerNames[playerId]);
     pushSnack(strBuf, 30, 0);
   }
@@ -154,19 +165,22 @@ int hopOnClientMissingMapRemote(void * connection, void * data)
 }
 
 //--------------------------------------------------------------------------
-void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs)
+void hopBegin(char *mapFilename, int difficulty, int cost, int delayMs)
 {
-  void* connection = netGetDmeServerConnection();
-  if (!connection) return;
+  void *connection = netGetDmeServerConnection();
+  if (!connection)
+    return;
 
 #if DEBUG
   cost = 0;
 #endif
 
-  if (hopPrepare(mapFilename, difficulty, cost, gameGetTime() + delayMs, -1)) {
+  if (hopPrepare(mapFilename, difficulty, cost, gameGetTime() + delayMs, -1))
+  {
 
-    GameSettings* gs = gameGetSettings();
-    if (gs) {
+    GameSettings *gs = gameGetSettings();
+    if (gs)
+    {
       //gs->GameLoadStartTime = -1;
       //gs->GameStartTime = gameGetTime();
     }
@@ -175,7 +189,7 @@ void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs)
     struct HopOnBeginMsg msg = { .LoadAtTime = State.PendingWorldHopAtTime, .Difficulty = difficulty, .MapVersion = State.PendingWorldHopMapDef->Version };
     if (State.PendingWorldHopMapDef)
       safe_strcpy(msg.MapFilename, State.PendingWorldHopMapDef->Filename, sizeof(msg.MapFilename));
-      
+
     netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_BEGIN_WORLD_HOP, sizeof(msg), &msg);
   }
 }
@@ -183,15 +197,20 @@ void hopBegin(char* mapFilename, int difficulty, int cost, int delayMs)
 //--------------------------------------------------------------------------
 void hopDo(void)
 {
-  if (!State.PendingWorldHopMapDef) return;
-  if (!PATCH_INTEROP) return;
-  if (!PATCH_INTEROP->HopToCustomMap) return;
+  if (!State.PendingWorldHopMapDef)
+    return;
+  if (!PATCH_INTEROP)
+    return;
+  if (!PATCH_INTEROP->HopToCustomMap)
+    return;
 
   // save last equipslots
   int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* player = playerGetFromSlot(i);
-    if (!playerIsValid(player)) continue;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    Player *player = playerGetFromSlot(i);
+    if (!playerIsValid(player))
+      continue;
 
     int pIdx = player->PlayerId;
     State.PlayerStates[pIdx].LastEquipslots[0] = playerGetLocalEquipslot(i, 0);
@@ -216,20 +235,22 @@ void hopDo(void)
   raidsSettingsSave();
 
   // save inventory before hop
-  struct BankVTable* bankVTable = mapConfig ? mapConfig->BankVTable : NULL;
-  if (bankVTable && bankVTable->GetHasAccount()) {
+  struct BankVTable *bankVTable = mapConfig ? mapConfig->BankVTable : NULL;
+  if (bankVTable && bankVTable->GetHasAccount())
+  {
     bankVTable->SendAccountToServer();
     //bankVTable->SendInventoryToServer();
   }
 
   //
-  GameSettings* gs = gameGetSettings();
-  if (gs) {
+  GameSettings *gs = gameGetSettings();
+  if (gs)
+  {
     gs->GameLoadStartTime = State.PendingWorldHopAtTime;
   }
 
   // hop
-  CustomMapDef_t* def = State.PendingWorldHopMapDef;
+  CustomMapDef_t *def = State.PendingWorldHopMapDef;
   State.CurrentMapDef = def;
   State.PendingWorldHopMapDef = NULL;
   State.PendingWorldHopAtTime = 0;
@@ -246,10 +267,12 @@ void hopDo(void)
 //--------------------------------------------------------------------------
 void hopTick(void)
 {
-  if (State.PendingWorldHopAtTime <= 0 || !State.PendingWorldHopMapDef) return;
+  if (State.PendingWorldHopAtTime <= 0 || !State.PendingWorldHopMapDef)
+    return;
 
   int delaySeconds = (State.PendingWorldHopAtTime - gameGetTime()) / TIME_SECOND;
-  if (delaySeconds <= 0) {
+  if (delaySeconds <= 0)
+  {
     hopDo();
   }
 }
@@ -257,25 +280,32 @@ void hopTick(void)
 //--------------------------------------------------------------------------
 void hopDraw(void)
 {
-  if (State.PendingWorldHopAtTime <= 0 || !State.PendingWorldHopMapDef) return;
+  if (State.PendingWorldHopAtTime <= 0 || !State.PendingWorldHopMapDef)
+    return;
 
   int delaySeconds = (State.PendingWorldHopAtTime - gameGetTime()) / TIME_SECOND;
-  if (delaySeconds <= 0) return;
+  if (delaySeconds <= 0)
+    return;
 
   float x = SCREEN_WIDTH * 0.5;
   float y = SCREEN_HEIGHT * 0.2;
   float offY = 0;
 
-  if (hopMissionType == RAIDS_MISSION_RAID) {
+  if (hopMissionType == RAIDS_MISSION_RAID)
+  {
     drawStars(x, y, 0, offY, 16, 4, 0x80008080, TEXT_ALIGN_MIDDLECENTER, State.PendingWorldHopDifficultyStars + 1);
     offY += 20;
   }
-  
-  char* missionTypeName = NULL;
-  if (hopMissionType == RAIDS_MISSION_OPEN_WORLD) missionTypeName = "Planet";
-  else if (hopMissionType == RAIDS_MISSION_RAID) missionTypeName = "Raid";
-  else if (hopMissionType == RAIDS_MISSION_HUB) missionTypeName = "Hub";
-  if (missionTypeName) {
+
+  char *missionTypeName = NULL;
+  if (hopMissionType == RAIDS_MISSION_OPEN_WORLD)
+    missionTypeName = "Planet";
+  else if (hopMissionType == RAIDS_MISSION_RAID)
+    missionTypeName = "Raid";
+  else if (hopMissionType == RAIDS_MISSION_HUB)
+    missionTypeName = "Hub";
+  if (missionTypeName)
+  {
     gfxHelperDrawText(x, y, 0, offY, 0.65, 0x80FFFFFF, missionTypeName, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
     offY += 14;
   }

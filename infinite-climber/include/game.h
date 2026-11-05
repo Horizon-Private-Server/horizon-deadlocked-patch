@@ -7,47 +7,46 @@
 
 enum GameNetMessage
 {
-	CUSTOM_MSG_SPAWN = CUSTOM_MSG_ID_GAME_MODE_START,
+  CUSTOM_MSG_SPAWN = CUSTOM_MSG_ID_GAME_MODE_START,
 };
 
 typedef struct MobyDef
 {
-	float ScaleHorizontal;
-	float ScaleVertical;
-	float ObjectScale;
+  float ScaleHorizontal;
+  float ScaleVertical;
+  float ObjectScale;
 
-	u16 OClass;
-	char SpawnNormal;
+  u16 OClass;
+  char SpawnNormal;
 } MobyDef;
 
 struct State
 {
-	int TimePlayerDied[GAME_MAX_PLAYERS];
-	float PlayerFinalHeight[GAME_MAX_PLAYERS];
-	float PlayerBestHeight[GAME_MAX_PLAYERS];
-	int StartTime;
-	int EndTime;
-	float StartHeight;
+  int TimePlayerDied[GAME_MAX_PLAYERS];
+  float PlayerFinalHeight[GAME_MAX_PLAYERS];
+  float PlayerBestHeight[GAME_MAX_PLAYERS];
+  int StartTime;
+  int EndTime;
+  float StartHeight;
   int IsHost;
-	int GameOver;
+  int GameOver;
 } State;
 
 struct ClimberGameData
 {
-	u32 Version;
-	float FinalScore[GAME_MAX_PLAYERS];
-	float BestScore[GAME_MAX_PLAYERS];
+  u32 Version;
+  float FinalScore[GAME_MAX_PLAYERS];
+  float BestScore[GAME_MAX_PLAYERS];
 };
 
 struct ClimberConfig
 {
-	
 };
 
 typedef struct SpawnMessage
 {
-	int GameTime;
-	u32 Seed;
+  int GameTime;
+  u32 Seed;
 } SpawnMessage_t;
 
 void netHookMessages(void);

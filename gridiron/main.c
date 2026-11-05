@@ -39,51 +39,55 @@ struct CGMState State;
 
 void processPlayer(int pIndex);
 void resetRoundState(void);
-void initialize(PatchStateContainer_t* gameState);
-void updateGameState(PatchStateContainer_t * gameState);
-void gameTick(PatchStateContainer_t * gameState);
-void frameTick(PatchStateContainer_t * gameState);
+void initialize(PatchStateContainer_t *gameState);
+void updateGameState(PatchStateContainer_t *gameState);
+void gameTick(PatchStateContainer_t *gameState);
+void frameTick(PatchStateContainer_t *gameState);
 void setLobbyGameOptions(void);
-void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
+void setEndGameScoreboard(PatchGameConfig_t *gameConfig);
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
-	Player ** players = playerGetAll();
-	int i;
-	char buffer[32];
-	int gameTime = gameGetTime();
+  GameSettings *gameSettings = gameGetSettings();
+  GameOptions *gameOptions = gameGetOptions();
+  Player **players = playerGetAll();
+  int i;
+  char buffer[32];
+  int gameTime = gameGetTime();
 
-	//
-	dlPreUpdate();
+  //
+  dlPreUpdate();
 
-	// 
-	updateGameState(gameState);
+  //
+  updateGameState(gameState);
 
-	// Ensure in game
-	if (!gameSettings || !isInGame())
-		return;
+  // Ensure in game
+  if (!gameSettings || !isInGame())
+    return;
 
-	// Determine if host
-	State.IsHost = gameAmIHost();
+  // Determine if host
+  State.IsHost = gameAmIHost();
 
-	if (!Initialized)
-	{
-		initialize(gameState);
-		return;
-	}
+  if (!Initialized)
+  {
+    initialize(gameState);
+    return;
+  }
 
   // halftime, flip score
   static int lastHtValue = 0;
-  if (lastHtValue != gameState->HalfTimeState) {
-    if (gameState->HalfTimeState == 2) {
+  if (lastHtValue != gameState->HalfTimeState)
+  {
+    if (gameState->HalfTimeState == 2)
+    {
       int score = State.Teams[0].Score;
       State.Teams[0].Score = State.Teams[1].Score;
       State.Teams[1].Score = score;
       DPRINTF("flip score\n");
-    } else if (gameState->HalfTimeState == 3) {
+    }
+    else if (gameState->HalfTimeState == 3)
+    {
       ballReset(State.BallMoby, BALL_RESET_CENTER);
       DPRINTF("reset ball\n");
     }
@@ -93,8 +97,10 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
   // overtime, reset ball
   static int lastOtValue = 0;
-  if (lastOtValue != gameState->OverTimeState) {
-    if (gameState->OverTimeState == 3) {
+  if (lastOtValue != gameState->OverTimeState)
+  {
+    if (gameState->OverTimeState == 3)
+    {
       DPRINTF("ot reset ball\n");
       ballReset(State.BallMoby, BALL_RESET_CENTER);
     }
@@ -103,15 +109,17 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 
   // handle tick
-	if (!gameHasEnded())
-	{
-		frameTick(gameState);
-		gameTick(gameState);
-	}
-  
+  if (!gameHasEnded())
+  {
+    frameTick(gameState);
+    gameTick(gameState);
+  }
+
   // end game
-  if (gameHasEnded()) {
-    if (State.IsHost) {
+  if (gameHasEnded())
+  {
+    if (State.IsHost)
+    {
       sendTeamScore();
     }
 
@@ -122,77 +130,88 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
       gameSetWinner(State.Teams[1].TeamId, 1);
   }
 
-	dlPostUpdate();
-	return;
+  dlPostUpdate();
+  return;
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	int i;
-	int activeId = uiGetActive();
-	Player** players = playerGetAll();
-	static int initializedScoreboard = 0;
+  int i;
+  int activeId = uiGetActive();
+  Player **players = playerGetAll();
+  static int initializedScoreboard = 0;
 
-	// send final player stats to others
-	if (Initialized == 1) {
-		if (State.IsHost) {
-			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				if (players[i]) {
-					sendPlayerStats(i);
-				}
-			}
-		}
+  // send final player stats to others
+  if (Initialized == 1)
+  {
+    if (State.IsHost)
+    {
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        if (players[i])
+        {
+          sendPlayerStats(i);
+        }
+      }
+    }
 
     // use team stats for bottom summary
     POKE_U32(0x0073dbf4, 0);
 
-		Initialized = 2;
-	}
+    Initialized = 2;
+  }
 
   // disable ranking
   gameSetIsGameRanked(0);
 
-	// 
-	updateGameState(gameState);
+  //
+  updateGameState(gameState);
 
-	// scoreboard
-	switch (activeId)
-	{
-		case 0x15C:
-		{
-			if (initializedScoreboard)
-				break;
+  // scoreboard
+  switch (activeId)
+  {
+    case 0x15C:
+    {
+      if (initializedScoreboard)
+        break;
 
-			setEndGameScoreboard(gameState->GameConfig);
-			initializedScoreboard = 1;
+      setEndGameScoreboard(gameState->GameConfig);
+      initializedScoreboard = 1;
 
-			// patch rank computation to keep rank unchanged for base mode
-			POKE_U32(0x0077ACE4, 0x4600BB06);
-			break;
-		}
-		case UI_ID_GAME_LOBBY:
-		{
-			setLobbyGameOptions();
-			break;
-		}
-	}
+      // patch rank computation to keep rank unchanged for base mode
+      POKE_U32(0x0077ACE4, 0x4600BB06);
+      break;
+    }
+    case UI_ID_GAME_LOBBY:
+    {
+      setLobbyGameOptions();
+      break;
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
-void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
   setLobbyGameOptions();
 }
 
 //--------------------------------------------------------------------------
-void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+void start(struct GameModule *module, PatchStateContainer_t *gameState, enum GameModuleContext context)
 {
   switch (context)
   {
-    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
-    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
-    case GAMEMODULE_GAME_UPDATE: break;
+    case GAMEMODULE_LOBBY:
+      lobbyStart(module, gameState);
+      break;
+    case GAMEMODULE_LOAD:
+      loadStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_FRAME:
+      gameStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_UPDATE:
+      break;
   }
 }

@@ -22,7 +22,8 @@
 #include "common.h"
 #include "window.h"
 
-struct TrackerState {
+struct TrackerState
+{
   long TimeStarted;
   u32 PlayerLevels;
   int LastPlayerLevel;
@@ -52,11 +53,13 @@ double trackerGetTimeElapsed(void)
 //--------------------------------------------------------------------------
 void trackerDraw(void)
 {
-  if (!TrackerState.Enabled || !isInGame()) return;
+  if (!TrackerState.Enabled || !isInGame())
+    return;
   const u32 textColor = 0x80FFFFFF;
   double dt = trackerGetTimeElapsed();
-  Player* localPlayer = playerGetFromSlot(0);
-  if (!localPlayer) return;
+  Player *localPlayer = playerGetFromSlot(0);
+  if (!localPlayer)
+    return;
   char strBuf[128];
   Window_t drawWindow;
 
@@ -97,13 +100,16 @@ void trackerDraw(void)
 
   // class XP
   strcpy(strBuf, "Class XP: --");
-  if (hasMapConfig()) {
-    struct BankVTable* bank = mapConfig->BankVTable;
-    if (bank->GetHasAccount() && !bank->HasPendingAccountRequest()) {
-      RaidsPlayerBank_t* localBank = bank->GetLocalBank();
+  if (hasMapConfig())
+  {
+    struct BankVTable *bank = mapConfig->BankVTable;
+    if (bank->GetHasAccount() && !bank->HasPendingAccountRequest())
+    {
+      RaidsPlayerBank_t *localBank = bank->GetLocalBank();
       int classType = localBank ? localBank->Account.EquippedClass : -1;
-      const RaidsClassDef_t* def = classType >= 0 && classType < BANK_MAX_CLASSES ? bank->GetClassDefinition(classType) : NULL;
-      if (def) {
+      const RaidsClassDef_t *def = classType >= 0 && classType < BANK_MAX_CLASSES ? bank->GetClassDefinition(classType) : NULL;
+      if (def)
+      {
         double classXpPerMinute = dt > 0 ? (double)TrackerState.ClassXp[classType] * 60 / dt : 0;
         snprintf(strBuf, sizeof(strBuf), "%s (+%dLVL) Class XP: %'llu (%.0f /min)", def->Name, TrackerState.ClassLevels[classType], (unsigned long long)TrackerState.ClassXp[classType], classXpPerMinute);
       }
@@ -113,32 +119,34 @@ void trackerDraw(void)
   windowMove(&drawWindow, 0, 10);
 
   snprintf(strBuf, sizeof(strBuf), "Weapon XP: (+%uP) %.0f (%.0f /min)",
-    TrackerState.WeaponLevels, TrackerState.WeaponExperience,
-    dt > 0 ? TrackerState.WeaponExperience * 60 / dt : 0);
+           TrackerState.WeaponLevels, TrackerState.WeaponExperience,
+           dt > 0 ? TrackerState.WeaponExperience * 60 / dt : 0);
   windowDrawText(&drawWindow, TEXT_ALIGN_TOPLEFT, 0, 0, 0.7, textColor, strBuf, -1, TEXT_ALIGN_TOPLEFT);
 }
 
 //--------------------------------------------------------------------------
 void trackerLogKill(int killedByPlayerId, u64 bolts, u64 playerXp)
 {
-  if (!TrackerState.Enabled) return;
+  if (!TrackerState.Enabled)
+    return;
 
   // log local kills
-  Player* player = playerGetAll()[killedByPlayerId];
-  if (player && player->IsLocal) {
+  Player *player = playerGetAll()[killedByPlayerId];
+  if (player && player->IsLocal)
+  {
     TrackerState.Kills++;
   }
 
   // log rewards
   TrackerState.PlayerXp += playerXp;
   TrackerState.Bolts += bolts;
-
 }
 
 //--------------------------------------------------------------------------
 void trackerLogLootDrop(void)
 {
-  if (!TrackerState.Enabled) return;
+  if (!TrackerState.Enabled)
+    return;
 
   TrackerState.LootDrops++;
 }
@@ -146,19 +154,24 @@ void trackerLogLootDrop(void)
 //--------------------------------------------------------------------------
 void trackerUpdateClassXp(void)
 {
-  if (!hasMapConfig()) return;
+  if (!hasMapConfig())
+    return;
 
-  struct BankVTable* bank = mapConfig->BankVTable;
-  if (!bank->GetHasAccount() || bank->HasPendingAccountRequest()) return;
+  struct BankVTable *bank = mapConfig->BankVTable;
+  if (!bank->GetHasAccount() || bank->HasPendingAccountRequest())
+    return;
 
   int i;
-  for (i = 0; i < BANK_MAX_CLASSES; ++i) {
+  for (i = 0; i < BANK_MAX_CLASSES; ++i)
+  {
     u64 xp = bank->GetClassXP(i);
-    if (TrackerState.Enabled && TrackerState.HasClassXpSnapshot && xp > TrackerState.LastClassXp[i]) {
+    if (TrackerState.Enabled && TrackerState.HasClassXpSnapshot && xp > TrackerState.LastClassXp[i])
+    {
       TrackerState.ClassXp[i] += xp - TrackerState.LastClassXp[i];
       RaidsPlayerClassProgress_t playerClass = { .ClassType = i };
       int levels = bank->GetClassLevel(&playerClass, xp) - bank->GetClassLevel(&playerClass, TrackerState.LastClassXp[i]);
-      if (levels > 0) TrackerState.ClassLevels[i] += levels;
+      if (levels > 0)
+        TrackerState.ClassLevels[i] += levels;
     }
     TrackerState.LastClassXp[i] = xp;
   }
@@ -168,9 +181,11 @@ void trackerUpdateClassXp(void)
 //--------------------------------------------------------------------------
 void trackerUpdatePlayerLevel(void)
 {
-  if (!hasMapConfig() || !mapConfig->BankVTable || !State.LocalPlayerState) return;
-  struct BankVTable* bank = mapConfig->BankVTable;
-  if (!bank->GetHasAccount() || bank->HasPendingAccountRequest()) return;
+  if (!hasMapConfig() || !mapConfig->BankVTable || !State.LocalPlayerState)
+    return;
+  struct BankVTable *bank = mapConfig->BankVTable;
+  if (!bank->GetHasAccount() || bank->HasPendingAccountRequest())
+    return;
 
   int level = State.LocalPlayerState->State.Level;
   if (TrackerState.Enabled && TrackerState.HasPlayerLevelSnapshot && level > TrackerState.LastPlayerLevel)
@@ -182,17 +197,22 @@ void trackerUpdatePlayerLevel(void)
 //--------------------------------------------------------------------------
 void trackerUpdateWeaponXp(void)
 {
-  if (!hasMapConfig() || !mapConfig->BankVTable) return;
-  struct BankVTable* bank = mapConfig->BankVTable;
-  if (!bank->GetHasAccount() || bank->HasPendingAccountRequest()) return;
-  RaidsPlayerBank_t* localBank = bank->GetLocalBank();
-  if (!localBank) return;
+  if (!hasMapConfig() || !mapConfig->BankVTable)
+    return;
+  struct BankVTable *bank = mapConfig->BankVTable;
+  if (!bank->GetHasAccount() || bank->HasPendingAccountRequest())
+    return;
+  RaidsPlayerBank_t *localBank = bank->GetLocalBank();
+  if (!localBank)
+    return;
 
   double xp = localBank->Account.WeaponExperience;
-  if (TrackerState.Enabled && TrackerState.HasWeaponXpSnapshot && xp > TrackerState.LastWeaponExperience) {
+  if (TrackerState.Enabled && TrackerState.HasWeaponXpSnapshot && xp > TrackerState.LastWeaponExperience)
+  {
     TrackerState.WeaponExperience += xp - TrackerState.LastWeaponExperience;
     int levels = getProficiencyFromXp(xp) - getProficiencyFromXp(TrackerState.LastWeaponExperience);
-    if (levels > 0) TrackerState.WeaponLevels += levels;
+    if (levels > 0)
+      TrackerState.WeaponLevels += levels;
   }
   TrackerState.LastWeaponExperience = xp;
   TrackerState.HasWeaponXpSnapshot = 1;
@@ -222,15 +242,15 @@ void trackerReset(void)
 //--------------------------------------------------------------------------
 void trackerTick(void)
 {
-  if (!isInGame()) return;
+  if (!isInGame())
+    return;
 
   trackerUpdateClassXp();
   trackerUpdateWeaponXp();
   trackerUpdatePlayerLevel();
 
-
-  if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && !PATCH_POINTERS_PATCHMENU
-      && localPlayerHasInput() && padGetButtonDown(0, PAD_DOWN) > 0) {
+  if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && !PATCH_POINTERS_PATCHMENU && localPlayerHasInput() && padGetButtonDown(0, PAD_DOWN) > 0)
+  {
     TrackerState.Enabled = !TrackerState.Enabled;
     trackerReset();
   }

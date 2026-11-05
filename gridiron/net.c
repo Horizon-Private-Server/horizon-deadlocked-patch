@@ -24,57 +24,58 @@
 #include "include/utils.h"
 
 //--------------------------------------------------------------------------
-int onSetPlayerStatsRemote(void * connection, void * data)
+int onSetPlayerStatsRemote(void *connection, void *data)
 {
-	SetPlayerStatsMessage_t * message = (SetPlayerStatsMessage_t*)data;
-	DPRINTF("recv playerstats\n");
-	onSetPlayerStats(message->PlayerId, &message->Stats);
+  SetPlayerStatsMessage_t *message = (SetPlayerStatsMessage_t *)data;
+  DPRINTF("recv playerstats\n");
+  onSetPlayerStats(message->PlayerId, &message->Stats);
 
-	return sizeof(SetPlayerStatsMessage_t);
+  return sizeof(SetPlayerStatsMessage_t);
 }
 
 //--------------------------------------------------------------------------
 void sendPlayerStats(int playerId)
 {
-	int i;
-	SetPlayerStatsMessage_t message;
+  int i;
+  SetPlayerStatsMessage_t message;
 
-	// send out
-	message.PlayerId = playerId;
-	memcpy(&message.Stats, &State.PlayerStates[playerId].Stats, sizeof(struct CGMPlayerStats));
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SetPlayerStatsMessage_t), &message);
+  // send out
+  message.PlayerId = playerId;
+  memcpy(&message.Stats, &State.PlayerStates[playerId].Stats, sizeof(struct CGMPlayerStats));
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_STATS, sizeof(SetPlayerStatsMessage_t), &message);
 }
 
 //--------------------------------------------------------------------------
-int onReceiveTeamScoreRemote(void * connection, void * data)
+int onReceiveTeamScoreRemote(void *connection, void *data)
 {
-	SetTeamScoreMessage_t * message = (SetTeamScoreMessage_t*)data;
-	DPRINTF("recv teamscore\n");
-	onReceiveTeamScore(message->TeamScores);
+  SetTeamScoreMessage_t *message = (SetTeamScoreMessage_t *)data;
+  DPRINTF("recv teamscore\n");
+  onReceiveTeamScore(message->TeamScores);
 
-	return sizeof(SetTeamScoreMessage_t);
+  return sizeof(SetTeamScoreMessage_t);
 }
 
 //--------------------------------------------------------------------------
 void sendTeamScore(void)
 {
   static int sent = 0;
-  if (sent) return;
+  if (sent)
+    return;
 
-	int i;
-	SetTeamScoreMessage_t message;
+  int i;
+  SetTeamScoreMessage_t message;
   sent = 1;
 
-	// send out
+  // send out
   message.TeamScores[0] = State.Teams[0].Score;
   message.TeamScores[1] = State.Teams[1].Score;
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SEND_TEAM_SCORE, sizeof(SetTeamScoreMessage_t), &message);
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SEND_TEAM_SCORE, sizeof(SetTeamScoreMessage_t), &message);
 }
 
 //--------------------------------------------------------------------------
 void netHookMessages(void)
 {
-	// Hook custom net events
-	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_STATS, &onSetPlayerStatsRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_SEND_TEAM_SCORE, &onReceiveTeamScoreRemote);
+  // Hook custom net events
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_STATS, &onSetPlayerStatsRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_SEND_TEAM_SCORE, &onReceiveTeamScoreRemote);
 }

@@ -7,30 +7,30 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 
-#define TPS																		(60)
-#define MIN_FLOAT_MAGNITUDE										(0.0001)
+#define TPS (60)
+#define MIN_FLOAT_MAGNITUDE (0.0001)
 
 struct CGMPlayer
 {
-	int PlayerIndex;
+  int PlayerIndex;
 };
 
 struct CGMState
 {
-	int InitializedTime;
-	struct CGMPlayer PlayerStates[GAME_MAX_PLAYERS];
-	struct CGMPlayer* LocalPlayerState;
-	int GameOver;
-	int WinningTeam;
-	int IsHost;
+  int InitializedTime;
+  struct CGMPlayer PlayerStates[GAME_MAX_PLAYERS];
+  struct CGMPlayer *LocalPlayerState;
+  int GameOver;
+  int WinningTeam;
+  int IsHost;
   char PopupMessageBuf[64];
 };
 
 struct CGMGameData
 {
-	u32 Version;
-	u32 Rounds;
-	int Kills[GAME_MAX_PLAYERS];
+  u32 Version;
+  u32 Rounds;
+  int Kills[GAME_MAX_PLAYERS];
 };
 
 void netHookMessages(void);

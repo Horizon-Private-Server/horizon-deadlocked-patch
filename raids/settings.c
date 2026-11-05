@@ -11,9 +11,9 @@
 #include "include/settings.h"
 #include "include/utils.h"
 
-#define SETTINGS_RETRY_TIME              ((long)5 * TIME_SECOND * SYSTEM_TIME_TICKS_PER_MS)
-#define SETTINGS_ROW_COUNT               (5)
-#define SETTINGS_SAVE_DELAY              ((long)500 * SYSTEM_TIME_TICKS_PER_MS)
+#define SETTINGS_RETRY_TIME ((long)5 * TIME_SECOND * SYSTEM_TIME_TICKS_PER_MS)
+#define SETTINGS_ROW_COUNT (5)
+#define SETTINGS_SAVE_DELAY ((long)500 * SYSTEM_TIME_TICKS_PER_MS)
 
 extern struct RaidsState State;
 extern int Initialized;
@@ -39,14 +39,14 @@ long raidsSettingsLastRequest = 0;
 long raidsSettingsLastSave = 0;
 long raidsSettingsLastEdit = 0;
 
-char* raidsSettingsLodNames[] = {
+char *raidsSettingsLodNames[] = {
   "Potato",
   "Low",
   "Normal",
   "High"
 };
 
-char* raidsSettingsLabels[] = {
+char *raidsSettingsLabels[] = {
   "Map Level of Detail",
   "Mob Level of Detail",
   "Ammo Pickup Popups",
@@ -54,7 +54,7 @@ char* raidsSettingsLabels[] = {
   "Kill XP Popups"
 };
 
-char* raidsSettingsDescriptions[] = {
+char *raidsSettingsDescriptions[] = {
   "Lower map detail to reduce graphics load on demanding planets.",
   "Lower mob detail to reduce graphics load when many enemies are present.",
   "Show the ammo gained when you collect an ammo pickup.",
@@ -65,24 +65,27 @@ char* raidsSettingsDescriptions[] = {
 //--------------------------------------------------------------------------
 int raidsSettingsShouldCloseMenu(void)
 {
-  return !Initialized || !isInGame() || !hasMapConfig() || gameHasEnded()
-      || hasPendingWorldHop() || gameIsAnyStartMenuOpen() || PATCH_POINTERS_PATCHMENU != 0;
+  return !Initialized || !isInGame() || !hasMapConfig() || gameHasEnded() || hasPendingWorldHop() || gameIsAnyStartMenuOpen() || PATCH_POINTERS_PATCHMENU != 0;
 }
 
 //--------------------------------------------------------------------------
 void raidsSettingsSave(void)
 {
-  if (!raidsSettingsLoaded || raidsSettingsSavedRevision == raidsSettingsRevision) return;
+  if (!raidsSettingsLoaded || raidsSettingsSavedRevision == raidsSettingsRevision)
+    return;
 
-  void* connection = netGetLobbyServerConnection();
-  if (!connection) return;
+  void *connection = netGetLobbyServerConnection();
+  if (!connection)
+    return;
 
   // wait before retrying an unconfirmed save
   long now = timerGetSystemTime();
-  if (raidsSettingsSentRevision > raidsSettingsSavedRevision && now - raidsSettingsLastSave < SETTINGS_RETRY_TIME) return;
+  if (raidsSettingsSentRevision > raidsSettingsSavedRevision && now - raidsSettingsLastSave < SETTINGS_RETRY_TIME)
+    return;
 
   // keep the same snapshot until the server confirms it
-  if (raidsSettingsSentRevision <= raidsSettingsSavedRevision) {
+  if (raidsSettingsSentRevision <= raidsSettingsSavedRevision)
+  {
     raidsSettingsSentRevision = raidsSettingsRevision;
     raidsSettingsPendingSave = raidsUserSettings;
   }
@@ -96,13 +99,14 @@ void raidsSettingsSave(void)
 
   raidsSettingsLastSave = now;
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX,
-    CUSTOM_MSG_ID_RAIDS_SAVE_SETTINGS_REQUEST, sizeof(msg), &msg);
+                          CUSTOM_MSG_ID_RAIDS_SAVE_SETTINGS_REQUEST, sizeof(msg), &msg);
 }
 
 //--------------------------------------------------------------------------
 void raidsSettingsOpen(void)
 {
-  if (raidsSettingsShouldCloseMenu() || State.MenuOpen != RAIDS_CUSTOM_MENU_INVENTORY) return;
+  if (raidsSettingsShouldCloseMenu() || State.MenuOpen != RAIDS_CUSTOM_MENU_INVENTORY)
+    return;
 
   State.MenuOpen = RAIDS_CUSTOM_MENU_SETTINGS;
   raidsSettingsReturnPending = 0;
@@ -112,79 +116,105 @@ void raidsSettingsOpen(void)
 //--------------------------------------------------------------------------
 void raidsSettingsClose(int returnToInventory)
 {
-  if (State.MenuOpen != RAIDS_CUSTOM_MENU_SETTINGS) return;
+  if (State.MenuOpen != RAIDS_CUSTOM_MENU_SETTINGS)
+    return;
 
   raidsSettingsSave();
   raidsSettingsReturnPending = 0;
   State.MenuOpen = returnToInventory ? RAIDS_CUSTOM_MENU_INVENTORY : RAIDS_CUSTOM_MENU_NONE;
 
   // inventory keeps ownership of player input when returning
-  if (!returnToInventory) padEnableInput();
+  if (!returnToInventory)
+    padEnableInput();
 }
 
 //--------------------------------------------------------------------------
 void raidsSettingsHandleInput(void)
 {
-  if (State.MenuOpen != RAIDS_CUSTOM_MENU_SETTINGS) return;
+  if (State.MenuOpen != RAIDS_CUSTOM_MENU_SETTINGS)
+    return;
 
-  if (raidsSettingsShouldCloseMenu()) {
+  if (raidsSettingsShouldCloseMenu())
+  {
     raidsSettingsClose(0);
     return;
   }
 
   // wait for release so inventory does not also handle the back button
-  if (raidsSettingsReturnPending) {
-    if (padGetButton(0, PAD_TRIANGLE) <= 0) raidsSettingsClose(1);
+  if (raidsSettingsReturnPending)
+  {
+    if (padGetButton(0, PAD_TRIANGLE) <= 0)
+      raidsSettingsClose(1);
     return;
   }
 
   // handle close input
-  if (padGetButtonDown(0, PAD_TRIANGLE) > 0) {
+  if (padGetButtonDown(0, PAD_TRIANGLE) > 0)
+  {
     raidsSettingsSave();
     raidsSettingsReturnPending = 1;
     return;
   }
 
-  if (!raidsSettingsLoaded) return;
+  if (!raidsSettingsLoaded)
+    return;
 
   // handle navigation
-  if (padGetButtonDown(0, PAD_UP) > 0) {
+  if (padGetButtonDown(0, PAD_UP) > 0)
+  {
     raidsSettingsSelectedRow = (raidsSettingsSelectedRow + SETTINGS_ROW_COUNT - 1) % SETTINGS_ROW_COUNT;
-  } else if (padGetButtonDown(0, PAD_DOWN) > 0) {
+  }
+  else if (padGetButtonDown(0, PAD_DOWN) > 0)
+  {
     raidsSettingsSelectedRow = (raidsSettingsSelectedRow + 1) % SETTINGS_ROW_COUNT;
-  } else {
+  }
+  else
+  {
     int direction = 0;
-    if (padGetButtonDown(0, PAD_LEFT) > 0) direction = -1;
-    else if (padGetButtonDown(0, PAD_RIGHT) > 0 || padGetButtonDown(0, PAD_CROSS) > 0) direction = 1;
-    if (!direction) return;
+    if (padGetButtonDown(0, PAD_LEFT) > 0)
+      direction = -1;
+    else if (padGetButtonDown(0, PAD_RIGHT) > 0 || padGetButtonDown(0, PAD_CROSS) > 0)
+      direction = 1;
+    if (!direction)
+      return;
 
     // select setting and available values
-    u8* value = &raidsUserSettings.MapLod;
+    u8 *value = &raidsUserSettings.MapLod;
     int flag = 0;
     int count = 3;
 #if DEBUG
     count = 4;
 #endif
 
-    if (raidsSettingsSelectedRow == 1) {
+    if (raidsSettingsSelectedRow == 1)
+    {
       value = &raidsUserSettings.MobLod;
       count = 4;
-    } else if (raidsSettingsSelectedRow == 2) {
+    }
+    else if (raidsSettingsSelectedRow == 2)
+    {
       flag = RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS;
-    } else if (raidsSettingsSelectedRow == 3) {
+    }
+    else if (raidsSettingsSelectedRow == 3)
+    {
       flag = RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS;
-    } else if (raidsSettingsSelectedRow == 4) {
+    }
+    else if (raidsSettingsSelectedRow == 4)
+    {
       flag = RAIDS_USER_SETTINGS_KILL_XP_POPUPS;
     }
 
     // apply change and mark settings for saving
-    if (flag) raidsUserSettings.Flags ^= flag;
-    else *value = (*value + direction + count) % count;
+    if (flag)
+      raidsUserSettings.Flags ^= flag;
+    else
+      *value = (*value + direction + count) % count;
     ++raidsSettingsRevision;
     raidsSettingsLastEdit = timerGetSystemTime();
 
-    Player* player = playerGetFromSlot(0);
-    if (player) playEquipSound(player);
+    Player *player = playerGetFromSlot(0);
+    if (player)
+      playEquipSound(player);
   }
 }
 
@@ -194,23 +224,29 @@ void raidsSettingsTick(void)
   long now = timerGetSystemTime();
 
   // load account settings
-  if (!raidsSettingsLoaded) {
-    if (raidsSettingsHasResponse) {
+  if (!raidsSettingsLoaded)
+  {
+    if (raidsSettingsHasResponse)
+    {
       // copy the response once so late retries cannot overwrite local edits
       // validate values before using them to index menu labels
-      if (raidsSettingsResponse.MapLod <= 3 && raidsSettingsResponse.MobLod <= 3
-          && !(raidsSettingsResponse.Flags & ~(RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS | RAIDS_USER_SETTINGS_KILL_XP_POPUPS))) {
+      if (raidsSettingsResponse.MapLod <= 3 && raidsSettingsResponse.MobLod <= 3 && !(raidsSettingsResponse.Flags & ~(RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS | RAIDS_USER_SETTINGS_KILL_XP_POPUPS)))
+      {
         raidsUserSettings = raidsSettingsResponse;
         raidsSettingsLoaded = 1;
-      } else {
+      }
+      else
+      {
         raidsSettingsHasResponse = 0;
       }
     }
 
     // retry if the account response timed out
-    if (!raidsSettingsLoaded && (!raidsSettingsLastRequest || now - raidsSettingsLastRequest >= SETTINGS_RETRY_TIME)) {
-      void* connection = netGetLobbyServerConnection();
-      if (connection) {
+    if (!raidsSettingsLoaded && (!raidsSettingsLastRequest || now - raidsSettingsLastRequest >= SETTINGS_RETRY_TIME))
+    {
+      void *connection = netGetLobbyServerConnection();
+      if (connection)
+      {
         struct RaidsGetSettingsRequest msg = {
           .DestAddress = (u32)&raidsSettingsResponse,
           .DestHasFlagAddress = (u32)&raidsSettingsHasResponse
@@ -218,7 +254,7 @@ void raidsSettingsTick(void)
 
         raidsSettingsLastRequest = now;
         netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX,
-          CUSTOM_MSG_ID_RAIDS_GET_SETTINGS_REQUEST, sizeof(msg), &msg);
+                                CUSTOM_MSG_ID_RAIDS_GET_SETTINGS_REQUEST, sizeof(msg), &msg);
       }
     }
   }
@@ -229,14 +265,16 @@ void raidsSettingsTick(void)
     raidsSettingsSavedRevision = ack;
 
   // wait for input to settle before saving
-  if (now - raidsSettingsLastEdit >= SETTINGS_SAVE_DELAY) raidsSettingsSave();
+  if (now - raidsSettingsLastEdit >= SETTINGS_SAVE_DELAY)
+    raidsSettingsSave();
   raidsSettingsHandleInput();
 }
 
 //--------------------------------------------------------------------------
 void raidsSettingsDraw(void)
 {
-  if (State.MenuOpen != RAIDS_CUSTOM_MENU_SETTINGS || raidsSettingsShouldCloseMenu()) return;
+  if (State.MenuOpen != RAIDS_CUSTOM_MENU_SETTINGS || raidsSettingsShouldCloseMenu())
+    return;
 
   const u32 selectedColor = 0x40008080; // yellow
   Window_t window;
@@ -250,39 +288,45 @@ void raidsSettingsDraw(void)
   windowCreateFrom(&footer, &window, 0, 0, window.Width, RAIDS_MENU_FOOTER_HEIGHT, TEXT_ALIGN_BOTTOMCENTER);
   menuDrawFooter(&footer, "\x1D \x1C SETTING    \x1B \x1A CHANGE    \x12 BACK");
 
-  if (!raidsSettingsLoaded) {
+  if (!raidsSettingsLoaded)
+  {
     windowDrawText(&window, TEXT_ALIGN_TOPLEFT, 16, 48, 0.8, RAIDS_MENU_SECONDARY_COLOR,
-      "Loading account settings...", -1, TEXT_ALIGN_TOPLEFT);
+                   "Loading account settings...", -1, TEXT_ALIGN_TOPLEFT);
     return;
   }
 
   // draw settings
   int i;
-  for (i = 0; i < SETTINGS_ROW_COUNT; ++i) {
-    float y = 36 + 20*i;
+  for (i = 0; i < SETTINGS_ROW_COUNT; ++i)
+  {
+    float y = 36 + 20 * i;
     if (i == raidsSettingsSelectedRow)
       windowDrawBox(&window, TEXT_ALIGN_TOPLEFT, 8, y - 4, window.Width - 16, 18, selectedColor, TEXT_ALIGN_TOPLEFT);
 
     windowDrawText(&window, TEXT_ALIGN_TOPLEFT, 16, y, 0.8, RAIDS_MENU_TEXT_COLOR,
-      raidsSettingsLabels[i], -1, TEXT_ALIGN_TOPLEFT);
+                   raidsSettingsLabels[i], -1, TEXT_ALIGN_TOPLEFT);
 
-    char* value;
-    if (i < 2) {
+    char *value;
+    if (i < 2)
+    {
       value = raidsSettingsLodNames[i == 0 ? raidsUserSettings.MapLod : raidsUserSettings.MobLod];
-    } else {
-      int flag = i == 2 ? RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS
-        : i == 3 ? RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS : RAIDS_USER_SETTINGS_KILL_XP_POPUPS;
+    }
+    else
+    {
+      int flag = i == 2   ? RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS
+                 : i == 3 ? RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS
+                          : RAIDS_USER_SETTINGS_KILL_XP_POPUPS;
       int enabled = (raidsUserSettings.Flags & flag) != 0;
       value = enabled ? "On" : "Off";
     }
 
     windowDrawText(&window, TEXT_ALIGN_TOPLEFT, window.Width - 16, y, 0.8, RAIDS_MENU_TEXT_COLOR,
-      value, -1, TEXT_ALIGN_TOPRIGHT);
+                   value, -1, TEXT_ALIGN_TOPRIGHT);
   }
 
   // draw selected setting description above the footer
   windowDrawText(&window, TEXT_ALIGN_BOTTOMLEFT, 16, -RAIDS_MENU_FOOTER_HEIGHT - RAIDS_MENU_PADDING, 0.65, RAIDS_MENU_SECONDARY_COLOR,
-    raidsSettingsDescriptions[raidsSettingsSelectedRow], -1, TEXT_ALIGN_BOTTOMLEFT);
+                 raidsSettingsDescriptions[raidsSettingsSelectedRow], -1, TEXT_ALIGN_BOTTOMLEFT);
 }
 
 //--------------------------------------------------------------------------

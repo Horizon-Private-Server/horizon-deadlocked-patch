@@ -28,22 +28,22 @@
 #include <libdl/graphics.h>
 #include <libdl/utils.h>
 
-#define NAPALM_DAMAGE       (10.0)
+#define NAPALM_DAMAGE (10.0)
 
 int State = 0;
-Moby* hackerOrbMoby = NULL;
+Moby *hackerOrbMoby = NULL;
 
 SoundDef baseSoundDef = {
-	0.0,	  // MinRange
-	45.0,	  // MaxRange
-	0,		  // MinVolume
-	1228,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
+  0.0,   // MinRange
+  45.0,  // MaxRange
+  0,     // MinVolume
+  1228,  // MaxVolume
+  -635,  // MinPitch
+  635,   // MaxPitch
+  0,     // Loop
+  0x10,  // Flags
+  0x17D, // Index
+  3      // Bank
 };
 
 #if DEBUG
@@ -54,12 +54,14 @@ void sound(void)
 
   dlPreUpdate();
 
-  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+  if (padGetButtonDown(0, PAD_LEFT) > 0)
+  {
     --soundId;
     playSound(hackerOrbMoby, soundId);
     DPRINTF("sound id %d\n", soundId);
   }
-  else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+  else if (padGetButtonDown(0, PAD_RIGHT) > 0)
+  {
     ++soundId;
     playSound(hackerOrbMoby, soundId);
     DPRINTF("sound id %d\n", soundId);
@@ -84,18 +86,20 @@ void sound(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void playSound(Moby* moby, int id)
+void playSound(Moby *moby, int id)
 {
   static short sHandle = 0;
 
-  if (sHandle != 0) {
+  if (sHandle != 0)
+  {
     soundKillByHandle(sHandle);
     sHandle = 0;
   }
 
-	baseSoundDef.Index = id;
-	short sId = soundPlay(&baseSoundDef, 0, moby, 0, 0x400);
-  if (sId >= 0) {
+  baseSoundDef.Index = id;
+  short sId = soundPlay(&baseSoundDef, 0, moby, 0, 0x400);
+  if (sId >= 0)
+  {
     sHandle = soundCreateHandle(sId);
   }
 }
@@ -116,9 +120,9 @@ void playSound(Moby* moby, int id)
  */
 void applyViperNapalm(void)
 {
-  VECTOR offset = {0,0,-0.1,0};
-  Moby* m = mobyListGetStart();
-  Moby* mEnd = mobyListGetEnd();
+  VECTOR offset = { 0, 0, -0.1, 0 };
+  Moby *m = mobyListGetStart();
+  Moby *mEnd = mobyListGetEnd();
 
   // disable napalm explosion
   POKE_U32(0x00450FE4, 0);
@@ -126,7 +130,8 @@ void applyViperNapalm(void)
 
   while (m < mEnd)
   {
-    if (mobyIsDestroyed(m)) {
+    if (mobyIsDestroyed(m))
+    {
       ++m;
       continue;
     }
@@ -154,7 +159,7 @@ void applyViperNapalm(void)
       {
         rate = 3;
 
-        Moby* flail = m->PParent;
+        Moby *flail = m->PParent;
         if (flail && flail->State == 2)
           fire = 1;
         break;
@@ -162,11 +167,14 @@ void applyViperNapalm(void)
     }
 
     // napalm
-    if (fire) {
-      if (m->Mission >= rate) {
-        Player* player = guberMobyGetPlayerDamager(m);
-        if (player) {
-          Moby* napalm = ((Moby* (*)(u128 pos, u128 a1, u128 a2, Player* player, u32 t0, int t1, u32 t2, u32 t3))0x00450380)(
+    if (fire)
+    {
+      if (m->Mission >= rate)
+      {
+        Player *player = guberMobyGetPlayerDamager(m);
+        if (player)
+        {
+          Moby *napalm = ((Moby * (*)(u128 pos, u128 a1, u128 a2, Player * player, u32 t0, int t1, u32 t2, u32 t3))0x00450380)(
             vector_read(m->Position),
             0,
             0,
@@ -174,16 +182,18 @@ void applyViperNapalm(void)
             0x1801,
             4,
             0,
-            0
-          );
+            0);
 
-          if (napalm && napalm->PVar) {
-            ((float*)napalm->PVar)[12] = NAPALM_DAMAGE;
+          if (napalm && napalm->PVar)
+          {
+            ((float *)napalm->PVar)[12] = NAPALM_DAMAGE;
           }
         }
 
         m->Mission = 0;
-      } else {
+      }
+      else
+      {
         m->Mission++;
       }
     }
@@ -208,12 +218,13 @@ void applyViperNapalm(void)
  */
 void initialize(void)
 {
-  GameOptions* gameOptions = gameGetOptions();
-  Moby* moby = mobyListGetStart();
-  Moby* mEnd = mobyListGetEnd();
+  GameOptions *gameOptions = gameGetOptions();
+  Moby *moby = mobyListGetStart();
+  Moby *mEnd = mobyListGetEnd();
   while (moby < mEnd)
   {
-    if (moby->OClass == 0x2077 && !mobyIsDestroyed(moby)) {
+    if (moby->OClass == 0x2077 && !mobyIsDestroyed(moby))
+    {
       hackerOrbMoby = moby;
       State = 1;
       DPRINTF("found hacker orb moby at %08X\n", (u32)moby);
@@ -237,7 +248,7 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int main (void)
+int main(void)
 {
   if (!State)
   {
@@ -246,12 +257,14 @@ int main (void)
   }
 
   // activate effect when bolt crank is activated
-  if (State == 1 && hackerOrbMoby && hackerOrbMoby->State == 4) {
+  if (State == 1 && hackerOrbMoby && hackerOrbMoby->State == 4)
+  {
     playSound(hackerOrbMoby, 386);
     State = 2;
   }
 
-  if (State == 2) {
+  if (State == 2)
+  {
     applyViperNapalm();
   }
 
@@ -259,5 +272,5 @@ int main (void)
   sound();
 #endif
 
-	return 0;
+  return 0;
 }

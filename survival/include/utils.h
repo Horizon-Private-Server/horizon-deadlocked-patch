@@ -3,18 +3,18 @@
 #ifndef SURVIVAL_UTILS_H
 #define SURVIVAL_UTILS_H
 
-#define SEQ_DIFF_U8(a, b) (((b - a + 128*3) % (128*2)) - 128)
+#define SEQ_DIFF_U8(a, b) (((b - a + 128 * 3) % (128 * 2)) - 128)
 
 #if DEBUG
-  #define DEBUG_ONLY(s) s
+#define DEBUG_ONLY(s) s
 #else
-  #define DEBUG_ONLY(s) 
+#define DEBUG_ONLY(s)
 #endif
 
 #if RELEASE
-  #define RELEASE_ONLY(s) s
+#define RELEASE_ONLY(s) s
 #else
-  #define RELEASE_ONLY(s) 
+#define RELEASE_ONLY(s)
 #endif
 
 #include <tamtypes.h>
@@ -24,18 +24,19 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
-struct PartInstance {	
-	char IClass;
-	char Type;
-	char Tex;
-	char Alpha;
-	u32 RGBA;
-	char Rot;
-	char DrawDist;
-	short Timer;
-	float Scale;
-	VECTOR Position;
-	int Update[8];
+struct PartInstance
+{
+  char IClass;
+  char Type;
+  char Tex;
+  char Alpha;
+  u32 RGBA;
+  char Rot;
+  char DrawDist;
+  short Timer;
+  float Scale;
+  VECTOR Position;
+  int Update[8];
 };
 
 struct SurvivalVote;
@@ -44,36 +45,36 @@ void setFreeze(int isActive);
 void setDoublePoints(int isActive);
 void setDoubleXP(int isActive);
 int survivalIsPaused(void);
-void playerRevive(Player* player, int fromPlayerId);
-Moby * spawnExplosion(VECTOR position, float size, u32 color);
-void playUpgradeSound(Player* player);
-void playPaidSound(Player* player);
+void playerRevive(Player *player, int fromPlayerId);
+Moby *spawnExplosion(VECTOR position, float size, u32 color);
+void playUpgradeSound(Player *player);
+void playPaidSound(Player *player);
 int getWeaponIdFromOClass(short oclass);
-u8 decTimerU8(u8* timeValue);
-u16 decTimerU16(u16* timeValue);
-u32 decTimerU32(u32* timeValue);
+u8 decTimerU8(u8 *timeValue);
+u16 decTimerU16(u16 *timeValue);
+u32 decTimerU32(u32 *timeValue);
 void drawDreadTokenIcon(float x, float y, float scale);
-void mobySpawnLightningBetweenPlayer(Player* from, Player* to, int life, int numStrands, u32 color);
-struct PartInstance * spawnParticle(VECTOR position, u32 color, char opacity, int idx);
-void destroyParticle(struct PartInstance* particle);
-void voteBegin(struct SurvivalVote* vote);
-void voteEnd(struct SurvivalVote* vote);
-int voteGetResult(struct SurvivalVote* vote);
-void voteCast(struct SurvivalVote* vote, int clientId, int value);
-int voteIsCast(struct SurvivalVote* vote, int clientId);
+void mobySpawnLightningBetweenPlayer(Player *from, Player *to, int life, int numStrands, u32 color);
+struct PartInstance *spawnParticle(VECTOR position, u32 color, char opacity, int idx);
+void destroyParticle(struct PartInstance *particle);
+void voteBegin(struct SurvivalVote *vote);
+void voteEnd(struct SurvivalVote *vote);
+int voteGetResult(struct SurvivalVote *vote);
+void voteCast(struct SurvivalVote *vote, int clientId, int value);
+int voteIsCast(struct SurvivalVote *vote, int clientId);
 
 void vectorProjectOnVertical(VECTOR output, VECTOR input0);
 void vectorProjectOnHorizontal(VECTOR output, VECTOR input0);
 float getSignedSlope(VECTOR forward, VECTOR normal);
 
-int mobyIsMob(Moby* moby);
-Player* mobyGetPlayer(Moby* moby);
-Moby* playerGetTargetMoby(Player* player);
+int mobyIsMob(Moby *moby);
+Player *mobyGetPlayer(Moby *moby);
+Moby *playerGetTargetMoby(Player *player);
 int localPlayerHasInput(void);
 
 void transformToSplitscreenPixelCoordinates(int localPlayerIndex, float *x, float *y);
 
 int hasMapConfig(void);
-void escapePrintfPercent(char* buf, int size, const char* str);
+void escapePrintfPercent(char *buf, int size, const char *str);
 
 #endif // SURVIVAL_UTILS_H

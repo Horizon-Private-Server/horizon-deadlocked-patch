@@ -4,12 +4,12 @@
 #include <tamtypes.h>
 #include "skills.h"
 
-#define RAIDS_MAX_CLASSES             (16)
-#define RAIDS_MAX_CLASS_UNLOCK_RULES  (8)
-#define RAIDS_MAX_CLASS_SKILLS        (16)
-#define RAIDS_CLASS_MAX_LEVEL        (10)
-#define RAIDS_CLASS_GRID_SIZE         (7)
-#define RAIDS_CLASS_GRID_CENTER       (3)
+#define RAIDS_MAX_CLASSES (16)
+#define RAIDS_MAX_CLASS_UNLOCK_RULES (8)
+#define RAIDS_MAX_CLASS_SKILLS (16)
+#define RAIDS_CLASS_MAX_LEVEL (10)
+#define RAIDS_CLASS_GRID_SIZE (7)
+#define RAIDS_CLASS_GRID_CENTER (3)
 
 enum RaidsClassType
 {
@@ -48,7 +48,7 @@ typedef struct RaidsClassDef
 {
   int ClassType;
   int Tier; // Progression tier; individual skill nodes define their effect strength.
-  char* Name;
+  char *Name;
   float ExperienceCurveMultiplier;
   // Vipers, Magma, Arbiter, Fusion, Mines, B6, Flail, Holoshield. Negative disables a weapon.
   s8 WeaponMaxRarities[8];

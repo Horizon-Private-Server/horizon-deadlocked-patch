@@ -31,12 +31,12 @@
 /*
  * When non-zero, it refreshes the in-game scoreboard.
  */
-#define GAME_SCOREBOARD_REFRESH_FLAG        (*(u32*)0x00310248)
+#define GAME_SCOREBOARD_REFRESH_FLAG (*(u32 *)0x00310248)
 
 /*
  * Target scoreboard value.
  */
-#define GAME_SCOREBOARD_TARGET              (*(u32*)0x002FA084)
+#define GAME_SCOREBOARD_TARGET (*(u32 *)0x002FA084)
 
 /*
  *
@@ -58,22 +58,22 @@ int Initialized = 0;
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
 
-	// Ensure in game
-	if (!gameSettings || !isInGame())
-		return;
+  // Ensure in game
+  if (!gameSettings || !isInGame())
+    return;
 
-	DPRINTF("%d\n", gameSettings->GameRules);
-	*(u32*)0x006214E4 = 0x240203E8;
-	*(u32*)0x006263CC = 0x240203E8;
-	*(u32*)0x006213B0 = 0x240303E8;
-	//*(u32*)0x00626170 = 0x240403E8;
-	*(u32*)0x00621478 = 0x240203E8;
-	*(u32*)0x0062D748 = 0x240603E8;
-	GAME_SCOREBOARD_TARGET = 1000;
+  DPRINTF("%d\n", gameSettings->GameRules);
+  *(u32 *)0x006214E4 = 0x240203E8;
+  *(u32 *)0x006263CC = 0x240203E8;
+  *(u32 *)0x006213B0 = 0x240303E8;
+  //*(u32*)0x00626170 = 0x240403E8;
+  *(u32 *)0x00621478 = 0x240203E8;
+  *(u32 *)0x0062D748 = 0x240603E8;
+  GAME_SCOREBOARD_TARGET = 1000;
 }
 
 /*
@@ -91,15 +91,15 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
 
-	// Ensure in staging and game started
-	if (!gameSettings || gameSettings->GameLoadStartTime < 0)
-		return;
+  // Ensure in staging and game started
+  if (!gameSettings || gameSettings->GameLoadStartTime < 0)
+    return;
 
-	*(u32*)0x00705E98 = 0x240603E8;
+  *(u32 *)0x00705E98 = 0x240603E8;
 }
 
 /*
@@ -117,19 +117,25 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	
 }
 
 //--------------------------------------------------------------------------
-void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+void start(struct GameModule *module, PatchStateContainer_t *gameState, enum GameModuleContext context)
 {
   switch (context)
   {
-    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
-    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
-    case GAMEMODULE_GAME_UPDATE: break;
+    case GAMEMODULE_LOBBY:
+      lobbyStart(module, gameState);
+      break;
+    case GAMEMODULE_LOAD:
+      loadStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_FRAME:
+      gameStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_UPDATE:
+      break;
   }
 }

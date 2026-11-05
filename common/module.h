@@ -21,7 +21,7 @@
 #include "config.h"
 #include "messageid.h"
 
-#define EXTRA_CODE_SEG_PTR                      ((void*)0x01B80000)
+#define EXTRA_CODE_SEG_PTR ((void *)0x01B80000)
 
 // Forward declarations
 struct GameModule;
@@ -41,22 +41,22 @@ struct PatchStateContainer;
  */
 typedef enum GameModuleState
 {
-    /*
+  /*
      * Module is not active.
      */
-    GAMEMODULE_OFF,
+  GAMEMODULE_OFF,
 
-    /*
+  /*
      * The module will be invoked when the game/lobby starts and
      * it will be set to 'OFF' when the game/lobby ends.
      */
-    GAMEMODULE_TEMP_ON,
+  GAMEMODULE_TEMP_ON,
 
-    /*
+  /*
      * The module will always be invoked as long as the player
      * is in a game.
      */
-    GAMEMODULE_ALWAYS_ON
+  GAMEMODULE_ALWAYS_ON
 } GameModuleState;
 
 /*
@@ -72,13 +72,13 @@ typedef enum GameModuleState
  */
 typedef enum GameModuleContext
 {
-    GAMEMODULE_LOBBY,
-    GAMEMODULE_LOAD,
-    GAMEMODULE_GAME_FRAME,
-    GAMEMODULE_GAME_UPDATE,
-    GAMEMODULE_SCENE_LOADING,
-    GAMEMODULE_UNLOAD,
-    GAMEMODULE_UNKNOWN
+  GAMEMODULE_LOBBY,
+  GAMEMODULE_LOAD,
+  GAMEMODULE_GAME_FRAME,
+  GAMEMODULE_GAME_UPDATE,
+  GAMEMODULE_SCENE_LOADING,
+  GAMEMODULE_UNLOAD,
+  GAMEMODULE_UNKNOWN
 } GameModuleContext;
 
 /*
@@ -94,8 +94,7 @@ typedef enum GameModuleContext
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-typedef void (*ModuleStart)(struct GameModule * module, struct PatchStateContainer * patchStateContainer, enum GameModuleContext context);
-
+typedef void (*ModuleStart)(struct GameModule *module, struct PatchStateContainer *patchStateContainer, enum GameModuleContext context);
 
 /*
  * NAME :		GameModule
@@ -111,33 +110,31 @@ typedef void (*ModuleStart)(struct GameModule * module, struct PatchStateContain
  */
 typedef struct GameModule
 {
-    /*
+  /*
      * State of the module.
      */
-    char State;
+  char State;
 
-    /*
+  /*
      * Respective custom game mode id.
      */
-    char ModeId;
+  char ModeId;
 
-    /*
+  /*
      * Argument 2, can be anything related to the custom mode.
      */
-    char Arg2;
+  char Arg2;
 
-    /*
+  /*
      * Argument 3, can be anything related to the custom mode.
      */
-    char Arg3;
+  char Arg3;
 
-    /*
+  /*
      * Entrypoint of module to be invoked by the patch.
      */
-    ModuleStart Entrypoint;
+  ModuleStart Entrypoint;
 
 } GameModule;
-
-
 
 #endif // _MODULE_H_

@@ -37,22 +37,22 @@ extern int Initialized;
 //--------------------------------------------------------------------------
 void setTeamScore(int team, int score)
 {
-	gameScoreboardSetTeamScore(team, gameGetTeamScore(team, score));
+  gameScoreboardSetTeamScore(team, gameGetTeamScore(team, score));
 }
 
 //--------------------------------------------------------------------------
 void updateTeamScore(int team)
 {
-	setTeamScore(team, 0);
+  setTeamScore(team, 0);
 }
 
 void initializeScoreboard(void)
 {
-	*(u32*)0x005404f0 = 0x0C000000 | ((u32)&setTeamScore >> 2);
+  *(u32 *)0x005404f0 = 0x0C000000 | ((u32)&setTeamScore >> 2);
 }
 
 //--------------------------------------------------------------------------
-void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
+void setEndGameScoreboard(PatchGameConfig_t *gameConfig)
 {
   // do nothing
 }

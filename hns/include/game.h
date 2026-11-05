@@ -7,15 +7,15 @@
 #include <libdl/player.h>
 #include <libdl/math3d.h>
 
-#define TPS																		(60)
-#define HIDE_STAGE_INCREMENT_SEC              (30)
-#define TEAM_HIDERS                           (TEAM_BLUE)
-#define TEAM_SEEKERS                          (TEAM_RED)
+#define TPS (60)
+#define HIDE_STAGE_INCREMENT_SEC (30)
+#define TEAM_HIDERS (TEAM_BLUE)
+#define TEAM_SEEKERS (TEAM_RED)
 
 enum GameNetMessage
 {
-	CUSTOM_MSG_PLAYER_SET_TEAM = CUSTOM_MSG_ID_GAME_MODE_START,
-	CUSTOM_MSG_SET_ROUND_STAGE
+  CUSTOM_MSG_PLAYER_SET_TEAM = CUSTOM_MSG_ID_GAME_MODE_START,
+  CUSTOM_MSG_SET_ROUND_STAGE
 };
 
 enum GameStage
@@ -26,7 +26,7 @@ enum GameStage
 
 struct CGMState
 {
-	int InitializedTime;
+  int InitializedTime;
   enum GameStage Stage;
   int StageTicks;
   int NumHiders;
@@ -35,7 +35,7 @@ struct CGMState
 
 typedef struct SetPlayerTeamMessage
 {
-	int PlayerId;
+  int PlayerId;
   int Team;
 } SetPlayerTeamMessage_t;
 

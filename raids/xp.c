@@ -12,12 +12,13 @@
 #include "include/xp.h"
 
 #define XP_POPUP_LIFETIME_MS (1250)
-#define XP_POPUP_POP_MS      (150)
-#define XP_POPUP_FADE_MS     (350)
+#define XP_POPUP_POP_MS (150)
+#define XP_POPUP_FADE_MS (350)
 
 extern struct RaidsState State;
 
-struct {
+struct
+{
   u64 Xp;
   int LastKillTime;
   int Active;
@@ -32,8 +33,10 @@ void raidsXpInit(void)
 //--------------------------------------------------------------------------
 void raidsXpNotifyKill(u64 xp)
 {
-  if (!(raidsUserSettings.Flags & RAIDS_USER_SETTINGS_KILL_XP_POPUPS)) return;
-  if (!xp) return;
+  if (!(raidsUserSettings.Flags & RAIDS_USER_SETTINGS_KILL_XP_POPUPS))
+    return;
+  if (!xp)
+    return;
 
   int now = gameGetTime();
   int age = now - raidsXpPopup.LastKillTime;
@@ -49,15 +52,13 @@ void raidsXpNotifyKill(u64 xp)
 //--------------------------------------------------------------------------
 void raidsXpDraw(void)
 {
-  if (!raidsXpPopup.Active) return;
+  if (!raidsXpPopup.Active)
+    return;
 
   int age = gameGetTime() - raidsXpPopup.LastKillTime;
-  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(0);
-  if (age < 0 || age >= XP_POPUP_LIFETIME_MS
-      || !(raidsUserSettings.Flags & RAIDS_USER_SETTINGS_KILL_XP_POPUPS)
-      || State.GameOver || State.MenuOpen != RAIDS_CUSTOM_MENU_NONE
-      || gameIsAnyStartMenuOpen() || PATCH_POINTERS_PATCHMENU != 0
-      || hasPendingWorldHop() || !hudFlags || !hudFlags->Flags.Raw) {
+  PlayerHUDFlags *hudFlags = hudGetPlayerFlags(0);
+  if (age < 0 || age >= XP_POPUP_LIFETIME_MS || !(raidsUserSettings.Flags & RAIDS_USER_SETTINGS_KILL_XP_POPUPS) || State.GameOver || State.MenuOpen != RAIDS_CUSTOM_MENU_NONE || gameIsAnyStartMenuOpen() || PATCH_POINTERS_PATCHMENU != 0 || hasPendingWorldHop() || !hudFlags || !hudFlags->Flags.Raw)
+  {
     raidsXpInit();
     return;
   }
@@ -70,5 +71,5 @@ void raidsXpDraw(void)
 
   snprintf(buf, sizeof(buf), "+%llu XP", (unsigned long long)raidsXpPopup.Xp);
   gfxHelperDrawText(SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f, 40, y, scale,
-    (alpha << 24) | 0x0080E0FF, buf, -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
+                    (alpha << 24) | 0x0080E0FF, buf, -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
 }

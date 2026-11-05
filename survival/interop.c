@@ -2,7 +2,7 @@
 #include "include/game.h"
 
 extern struct SurvivalState State;
-extern struct SurvivalMapConfig* mapConfig;
+extern struct SurvivalMapConfig *mapConfig;
 
 //--------------------------------------------------------------------------
 int playerGetRes(Player *player, VECTOR outPos, VECTOR outRot, int firstRes)
@@ -18,7 +18,8 @@ struct SurvivalBakedSpawnpoint *getBakedSpawnPoints(int *count)
 {
   if (!mapConfig->Functions.GetBakedSpawnPointsFunc)
   {
-    if (count) *count = 0;
+    if (count)
+      *count = 0;
     return NULL;
   }
 
@@ -107,7 +108,7 @@ u32 getUpgradePlayerWeaponCost(Player *player, int gadgetId, int levelNum)
 }
 
 //--------------------------------------------------------------------------
-u32 getXpForNextToken(Player* player, int token)
+u32 getXpForNextToken(Player *player, int token)
 {
   if (!mapConfig->Functions.GetXpForNextTokenFunc)
     return 100; // default to 100, shouldn't ever be used
@@ -143,7 +144,7 @@ int getRoundTransitionTime(int round)
 }
 
 //--------------------------------------------------------------------------
-void passPlayerOnItemAcquiredToMap(Player* player, int itemId)
+void passPlayerOnItemAcquiredToMap(Player *player, int itemId)
 {
   if (!mapConfig->Functions.GetOnPlayerItemAcquiredFunc)
     return;
@@ -152,7 +153,7 @@ void passPlayerOnItemAcquiredToMap(Player* player, int itemId)
 }
 
 //--------------------------------------------------------------------------
-void passPlayerOnItemConsumedToMap(Player* player, int itemId)
+void passPlayerOnItemConsumedToMap(Player *player, int itemId)
 {
   if (!mapConfig->Functions.GetOnPlayerItemConsumedFunc)
     return;
@@ -161,7 +162,7 @@ void passPlayerOnItemConsumedToMap(Player* player, int itemId)
 }
 
 //--------------------------------------------------------------------------
-void passPlayerUpdateToMap(Player* player)
+void passPlayerUpdateToMap(Player *player)
 {
   if (!mapConfig->Functions.OnPlayerUpdateFunc)
     return;
@@ -170,7 +171,7 @@ void passPlayerUpdateToMap(Player* player)
 }
 
 //--------------------------------------------------------------------------
-void passPlayerDiedToMap(Player* player)
+void passPlayerDiedToMap(Player *player)
 {
   if (!mapConfig->Functions.OnPlayerDiedFunc)
     return;
@@ -179,7 +180,7 @@ void passPlayerDiedToMap(Player* player)
 }
 
 //--------------------------------------------------------------------------
-void passPlayerGetVendorRewardToMap(Player* player, int gadgetId, int levelNum)
+void passPlayerGetVendorRewardToMap(Player *player, int gadgetId, int levelNum)
 {
   if (!mapConfig->Functions.OnPlayerGetVendorRewardFunc)
     return;

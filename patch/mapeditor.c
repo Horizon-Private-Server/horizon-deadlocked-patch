@@ -30,7 +30,7 @@ int mapEditorLastHighlighted = 0;
 
 u128 getVector(VECTOR v)
 {
-  return *(u128*)v;
+  return *(u128 *)v;
 }
 
 int isSpawnPointHill(int id)
@@ -38,7 +38,8 @@ int isSpawnPointHill(int id)
   int count = hillPointGetCount();
   int i;
 
-  for (i = 0; i < count; ++i) {
+  for (i = 0; i < count; ++i)
+  {
     if (hillPointGetIndex(i) == id)
       return 1;
   }
@@ -46,9 +47,9 @@ int isSpawnPointHill(int id)
   return 0;
 }
 
-int addSpawnPoint(SpawnPoint * sp)
+int addSpawnPoint(SpawnPoint *sp)
 {
-  int * spTable = (int*)(*(u32*)0x0036DC58 + 0x1F8);
+  int *spTable = (int *)(*(u32 *)0x0036DC58 + 0x1F8);
   int count = spawnPointGetCount();
   int i = count, j = 0;
 
@@ -60,7 +61,7 @@ int addSpawnPoint(SpawnPoint * sp)
   spawnPointSet(sp, i);
 
   // increment count
-  (*(int*)0x00222824) = i + 1;
+  (*(int *)0x00222824) = i + 1;
 
   // add reference to table
   for (j = 0; j < 64; ++j)
@@ -76,7 +77,7 @@ int addSpawnPoint(SpawnPoint * sp)
 
 void removeSpawnPoint(int id)
 {
-  int * spTable = (int*)(*(u32*)0x0036DC58 + 0x1F8);
+  int *spTable = (int *)(*(u32 *)0x0036DC58 + 0x1F8);
   int count = spawnPointGetCount();
   int i = id + 1;
   int l = id;
@@ -93,7 +94,7 @@ void removeSpawnPoint(int id)
 
   // decrement count
   count--;
-  (*(int*)0x00222824) = count;
+  (*(int *)0x00222824) = count;
 
   // remove all references to >= count in spTable
   for (i = 0; i < 64; ++i)
@@ -104,7 +105,7 @@ void removeSpawnPoint(int id)
 void drawRing(MATRIX m3, VECTOR position, float scale0, float scale1, u32 color)
 {
   // draw
-  ((void (*)(void*, u128, float, float, int, int, int, int))0x00420c80)(
+  ((void (*)(void *, u128, float, float, int, int, int, int))0x00420c80)(
     m3,
     getVector(position),
     scale0,
@@ -112,25 +113,23 @@ void drawRing(MATRIX m3, VECTOR position, float scale0, float scale1, u32 color)
     color,
     22,
     1,
-    0
-  );
+    0);
 }
 
 void mapEditorDo(void)
 {
   if (mapEditorState == 0)
     return;
-  
 
-  Player ** players = playerGetAll();
-  Player * localPlayer = (Player*)0x347AA0;
+  Player **players = playerGetAll();
+  Player *localPlayer = (Player *)0x347AA0;
   int count = spawnPointGetCount();
   int i = 0;
   int x, y;
   int highlightedPoint = -1;
   char buf[32];
-  VECTOR temp = {0,0,0,0};
-  VECTOR temp2 = {0,0,0,0};
+  VECTOR temp = { 0, 0, 0, 0 };
+  VECTOR temp2 = { 0, 0, 0, 0 };
 
   // draw spawn points
   for (i = 0; i < count; ++i)
@@ -138,10 +137,10 @@ void mapEditorDo(void)
     if (isSpawnPointHill(i))
       continue;
 
-    SpawnPoint * sp = spawnPointGet(i);
+    SpawnPoint *sp = spawnPointGet(i);
 
     // check if player is near
-    vector_copy(temp, (float*)&sp->M0[12]);
+    vector_copy(temp, (float *)&sp->M0[12]);
     temp[3] = 0;
     vector_subtract(temp, localPlayer->PlayerPosition, temp);
     u32 color = 0x80FFFFFF;
@@ -152,12 +151,13 @@ void mapEditorDo(void)
     }
 
     // draw
-    vector_copy(temp, (float*)&sp->M0[12]);
+    vector_copy(temp, (float *)&sp->M0[12]);
     temp[2] += 1.0;
     drawRing(sp->M0, temp, 2.0, 1.0, color);
 
     // draw id
-    if (gfxWorldSpaceToScreenSpace(&sp->M0[12], &x, &y)) {
+    if (gfxWorldSpaceToScreenSpace(&sp->M0[12], &x, &y))
+    {
       sprintf(buf, "%d", i);
       gfxScreenSpaceText(x, y + 3, 1, 1, 0x80FFFF00, buf, -1, 4);
     }
@@ -180,16 +180,17 @@ void onMapEditorGameUpdate(void)
     return;
 
   // hook
-  if (*(u32*)0x004C4748 == 0x03E00008)
-    *(u32*)0x004C4748 = 0x08000000 | ((u32)&mapEditorDo >> 2);;
-  
-  // 
-  Player ** players = playerGetAll();
-  Player * localPlayer = (Player*)0x347AA0;
+  if (*(u32 *)0x004C4748 == 0x03E00008)
+    *(u32 *)0x004C4748 = 0x08000000 | ((u32)&mapEditorDo >> 2);
+  ;
+
+  //
+  Player **players = playerGetAll();
+  Player *localPlayer = (Player *)0x347AA0;
   int count = spawnPointGetCount();
   int i = 0;
   int highlightedPoint = -1;
-  VECTOR temp = {0,0,0,0};
+  VECTOR temp = { 0, 0, 0, 0 };
 
   // always waiting for respawn
   if (mapEditorRespawnState)
@@ -201,10 +202,10 @@ void onMapEditorGameUpdate(void)
     if (isSpawnPointHill(i))
       continue;
 
-    SpawnPoint * sp = spawnPointGet(i);
+    SpawnPoint *sp = spawnPointGet(i);
 
     // check if player is near
-    vector_copy(temp, (float*)&sp->M0[12]);
+    vector_copy(temp, (float *)&sp->M0[12]);
     temp[3] = 0;
     vector_subtract(temp, localPlayer->PlayerPosition, temp);
     if (highlightedPoint < 0 && vector_length(temp) < 4.0)
@@ -214,7 +215,7 @@ void onMapEditorGameUpdate(void)
     }
   }
 
-  // 
+  //
   if (mapEditorLastHighlighted != highlightedPoint && highlightedPoint >= 0)
   {
     mapEditorLastHighlighted = highlightedPoint;
@@ -222,7 +223,7 @@ void onMapEditorGameUpdate(void)
   }
 
   // ignore inputs if configured
-  if (*(u16*)((u32)localPlayer + 0x3BA) != 0)
+  if (*(u16 *)((u32)localPlayer + 0x3BA) != 0)
     return;
 
   // handle inputs
@@ -230,18 +231,14 @@ void onMapEditorGameUpdate(void)
   {
     // add new spawn point
     SpawnPoint sp = {
-      {
-        1.0, 0, 0, 0,
+      { 1.0, 0, 0, 0,
         0, 1.0, 0, 0,
         0, 0, 1.0, 0,
-        localPlayer->PlayerPosition[0], localPlayer->PlayerPosition[1], localPlayer->PlayerPosition[2], 0.01
-      },
-      { 
-        1.0, 0, 0, 0,
+        localPlayer->PlayerPosition[0], localPlayer->PlayerPosition[1], localPlayer->PlayerPosition[2], 0.01 },
+      { 1.0, 0, 0, 0,
         0, 1.0, 0, 0,
         0, 0, 1.0, 0,
-        0, 0, localPlayer->PlayerYaw, 0
-      }
+        0, 0, localPlayer->PlayerYaw, 0 }
     };
     printf("added %d\n", addSpawnPoint(&sp));
   }

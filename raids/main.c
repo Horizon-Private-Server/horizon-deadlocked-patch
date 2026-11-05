@@ -57,12 +57,12 @@ int Initialized = 0;
 int FirstTimeInitialized = 0;
 
 struct RaidsState State;
-struct RaidsMapConfig* mapConfig = (struct RaidsMapConfig*)(EXTRA_CODE_SEG_PTR + 0x10);
+struct RaidsMapConfig *mapConfig = (struct RaidsMapConfig *)(EXTRA_CODE_SEG_PTR + 0x10);
 
 struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
 
-extern Moby* AllMobsSorted[MAX_MOBS_ALIVE];
+extern Moby *AllMobsSorted[MAX_MOBS_ALIVE];
 
 int Lives[RAIDS_DIFFICULTY_COUNT] = {
   [RAIDS_DIFFICULTY_1STAR] 2,
@@ -73,20 +73,23 @@ int Lives[RAIDS_DIFFICULTY_COUNT] = {
 };
 
 //--------------------------------------------------------------------------
-void respawnDeadPlayers(void) {
-	int i;
-	Player** players = playerGetAll();
+void respawnDeadPlayers(void)
+{
+  int i;
+  Player **players = playerGetAll();
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player * p = players[i];
-		if (playerIsValid(p) && playerIsDead(p)) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *p = players[i];
+    if (playerIsValid(p) && playerIsDead(p))
+    {
       playerRespawn(p);
-		}
-	}
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
-int onMissionFailedRemote(void * connection, void * data)
+int onMissionFailedRemote(void *connection, void *data)
 {
   State.MissionStatus = RAIDS_MISSION_FAILED;
   musicPlayTrack(0x9A, 0);
@@ -95,7 +98,7 @@ int onMissionFailedRemote(void * connection, void * data)
 }
 
 //--------------------------------------------------------------------------
-int onUseLifeRemote(void * connection, void * data)
+int onUseLifeRemote(void *connection, void *data)
 {
   respawnDeadPlayers();
   State.LivesLeft--;
@@ -106,60 +109,64 @@ int onUseLifeRemote(void * connection, void * data)
 //--------------------------------------------------------------------------
 void setPlayerEXP(int localPlayerIndex, float expPercent)
 {
-	Player* player = playerGetFromSlot(localPlayerIndex);
-	if (!player || !player->PlayerMoby)
-		return;
+  Player *player = playerGetFromSlot(localPlayerIndex);
+  if (!player || !player->PlayerMoby)
+    return;
 
-	u32 canvasId = localPlayerIndex; //hudGetCurrentCanvas() + localPlayerIndex;
-	void* canvas = hudGetCanvas(canvasId);
-	if (!canvas)
-		return;
+  u32 canvasId = localPlayerIndex; //hudGetCurrentCanvas() + localPlayerIndex;
+  void *canvas = hudGetCanvas(canvasId);
+  if (!canvas)
+    return;
 
-	struct HUDWidgetRectangleObject* expBar = (struct HUDWidgetRectangleObject*)hudCanvasGetObject(canvas, 0xF000010A);
-	if (!expBar) {
-		//DPRINTF("no exp bar %d canvas:%d\n", localPlayerIndex, canvasId);
+  struct HUDWidgetRectangleObject *expBar = (struct HUDWidgetRectangleObject *)hudCanvasGetObject(canvas, 0xF000010A);
+  if (!expBar)
+  {
+    //DPRINTF("no exp bar %d canvas:%d\n", localPlayerIndex, canvasId);
     return;
   }
-	
-	// set exp bar
-	expBar->iFrame.ScaleX = 0.2275 * clamp(expPercent, 0, 1);
-	expBar->iFrame.PositionX = 0.406 + (expBar->iFrame.ScaleX / 2);
-	expBar->iFrame.PositionY = 0.0546875;
-	expBar->iFrame.Color = hudGetTeamColor(player->Team, 2);
-	expBar->Color1 = hudGetTeamColor(player->Team, 0);
-	expBar->Color2 = hudGetTeamColor(player->Team, 2);
-	expBar->Color3 = hudGetTeamColor(player->Team, 0);
+
+  // set exp bar
+  expBar->iFrame.ScaleX = 0.2275 * clamp(expPercent, 0, 1);
+  expBar->iFrame.PositionX = 0.406 + (expBar->iFrame.ScaleX / 2);
+  expBar->iFrame.PositionY = 0.0546875;
+  expBar->iFrame.Color = hudGetTeamColor(player->Team, 2);
+  expBar->Color1 = hudGetTeamColor(player->Team, 0);
+  expBar->Color2 = hudGetTeamColor(player->Team, 2);
+  expBar->Color3 = hudGetTeamColor(player->Team, 0);
 
   // make sure dzo gets xp bar
-  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO) {
-    *(float*)0x002ADC4C = 0.2275 * clamp(expPercent, 0, 1);
+  if (PATCH_INTEROP->Client == CLIENT_TYPE_DZO)
+  {
+    *(float *)0x002ADC4C = 0.2275 * clamp(expPercent, 0, 1);
   }
-  
-	struct HUDWidgetTextObject* healthText = (struct HUDWidgetTextObject*)hudCanvasGetObject(canvas, 0xF000010E);
-	if (!healthText) {
-		//DPRINTF("no health text %d\n", localPlayerIndex);
+
+  struct HUDWidgetTextObject *healthText = (struct HUDWidgetTextObject *)hudCanvasGetObject(canvas, 0xF000010E);
+  if (!healthText)
+  {
+    //DPRINTF("no health text %d\n", localPlayerIndex);
     return;
   }
-	
-	// set health string
-	snprintf(State.PlayerStates[player->PlayerId].HealthBarStrBuf, sizeof(State.PlayerStates[player->PlayerId].HealthBarStrBuf), "%d/%d", (int)player->Health, (int)player->MaxHealth);
-	healthText->ExternalStringMemory = State.PlayerStates[player->PlayerId].HealthBarStrBuf;
+
+  // set health string
+  snprintf(State.PlayerStates[player->PlayerId].HealthBarStrBuf, sizeof(State.PlayerStates[player->PlayerId].HealthBarStrBuf), "%d/%d", (int)player->Health, (int)player->MaxHealth);
+  healthText->ExternalStringMemory = State.PlayerStates[player->PlayerId].HealthBarStrBuf;
 }
 
 //--------------------------------------------------------------------------
 void popSnack(void)
 {
-  memmove(&snackItems[0], &snackItems[1], sizeof(struct RaidsSnackItem) * (SNACK_ITEM_MAX_COUNT-1));
-  memset(&snackItems[SNACK_ITEM_MAX_COUNT-1], 0, sizeof(struct RaidsSnackItem));
+  memmove(&snackItems[0], &snackItems[1], sizeof(struct RaidsSnackItem) * (SNACK_ITEM_MAX_COUNT - 1));
+  memset(&snackItems[SNACK_ITEM_MAX_COUNT - 1], 0, sizeof(struct RaidsSnackItem));
 
   if (snackItemsCount)
     --snackItemsCount;
 }
 
 //--------------------------------------------------------------------------
-void pushSnack(char * str, int ticksAlive, int localPlayerIdx)
+void pushSnack(char *str, int ticksAlive, int localPlayerIdx)
 {
-  while (snackItemsCount >= SNACK_ITEM_MAX_COUNT) {
+  while (snackItemsCount >= SNACK_ITEM_MAX_COUNT)
+  {
     popSnack();
   }
 
@@ -181,7 +188,7 @@ void drawSnack(void)
 
   // draw
   //uiShowPopup(0, snackItems[0].Str);
-  char* a = uiMsgString(0x2400);
+  char *a = uiMsgString(0x2400);
   safe_strcpy(a, snackItems[0].Str, sizeof(snackItems[0].Str));
 
   if (snackItems[0].DisplayForLocalPlayerIdx <= 0)
@@ -199,19 +206,23 @@ void drawSnack(void)
 //--------------------------------------------------------------------------
 u64 missionCompleteGetBoltReward(void)
 {
-  Player* player = playerGetFromSlot(0);
+  Player *player = playerGetFromSlot(0);
   u64 bolts = State.PlayerStates[player->PlayerId].State.Bolts >> 2;
   bolts -= bolts % 1000;
-  if (bolts < 10000) bolts = 10000;
-  if (bolts > 100000) bolts = 100000;
+  if (bolts < 10000)
+    bolts = 10000;
+  if (bolts > 100000)
+    bolts = 100000;
   return bolts;
 }
 
 //--------------------------------------------------------------------------
 u32 missionCompleteGetClassXpReward(void)
 {
-  if (!mapConfig || !missionIsBossRaid()) return 0;
-  if (State.DifficultyStars < 0 || State.DifficultyStars >= RAIDS_DIFFICULTY_COUNT) return 0;
+  if (!mapConfig || !missionIsBossRaid())
+    return 0;
+  if (State.DifficultyStars < 0 || State.DifficultyStars >= RAIDS_DIFFICULTY_COUNT)
+    return 0;
 
   int xp = mapConfig->ClassXpRewards[State.DifficultyStars];
   return xp > 0 ? xp : 0;
@@ -220,8 +231,10 @@ u32 missionCompleteGetClassXpReward(void)
 //--------------------------------------------------------------------------
 void drawMissionCompleteMessage(void)
 {
-  if (hasPendingWorldHop()) return;
-  if (State.MenuOpen) return;
+  if (hasPendingWorldHop())
+    return;
+  if (State.MenuOpen)
+    return;
 
   float x = SCREEN_WIDTH * 0.5, y = SCREEN_HEIGHT * 0.16;
   char strBuf[64];
@@ -245,7 +258,8 @@ void drawTimer(int time)
   char buf[32];
   int y = missionIsBossRaid() ? 105 : 85;
 
-  if (time < 0) time = 0;
+  if (time < 0)
+    time = 0;
   snprintf(buf, sizeof(buf), "%02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
   gfxHelperDrawText(SCREEN_WIDTH - 15, y, 0, 0, 0.9, 0x80E0E0E0, buf, -1, TEXT_ALIGN_TOPRIGHT, COMMON_DZO_DRAW_NORMAL);
 }
@@ -253,20 +267,27 @@ void drawTimer(int time)
 //--------------------------------------------------------------------------
 void raidsDrawHud(void)
 {
-  if (!Initialized || !isInGame() || !hasMapConfig() || mapConfig->State != &State) return;
+  if (!Initialized || !isInGame() || !hasMapConfig() || mapConfig->State != &State)
+    return;
 
-  if (!State.GameOver && !gameIsAnyStartMenuOpen()) {
+  if (!State.GameOver && !gameIsAnyStartMenuOpen())
+  {
     int timer = -1;
-    if (missionIsComplete()) {
+    if (missionIsComplete())
+    {
       timer = State.MissionCompleteTime - State.MissionStartTime;
       drawMissionCompleteMessage();
-    } else if (missionIsActive()) {
+    }
+    else if (missionIsActive())
+    {
       drawStars(SCREEN_WIDTH - 15, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
-      if (missionIsBossRaid()) drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
+      if (missionIsBossRaid())
+        drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
       timer = gameGetTime() - State.MissionStartTime;
     }
 
-    if (timer > 0) {
+    if (timer > 0)
+    {
       drawTimer(timer);
     }
   }
@@ -289,9 +310,9 @@ int collisionIdIsWalkable(int collisionId)
 void onMissionComplete(int cuboidIdx)
 {
   int lootCount = 7;
-  Player* player = playerGetFromSlot(0);
+  Player *player = playerGetFromSlot(0);
   VECTOR pos;
-  VECTOR up = {0,0,5,0};
+  VECTOR up = { 0, 0, 5, 0 };
 
   // play challenge complete track
   musicPlayTrack(0x98, 0);
@@ -299,32 +320,39 @@ void onMissionComplete(int cuboidIdx)
   // all players should be alive
   respawnDeadPlayers();
 
-  SpawnPoint* cuboid = spawnPointGet(cuboidIdx);
+  SpawnPoint *cuboid = spawnPointGet(cuboidIdx);
 
   // spawn N loot drops near local player 0
   int i;
-  for (i = 0; i < lootCount; ++i) {
+  for (i = 0; i < lootCount; ++i)
+  {
 
     // try get random nearby pos above solid ground
     int r = 0;
-    for (r = 0; r < 5; ++r) {
+    for (r = 0; r < 5; ++r)
+    {
 
-      if (cuboidIdx < 0) {
+      if (cuboidIdx < 0)
+      {
         vector_fromyaw(pos, randRadian());
         vector_scale(pos, pos, randRange(5, 15));
         vector_add(pos, pos, up);
         vector_add(pos, pos, player->PlayerPosition);
-      } else {
+      }
+      else
+      {
         pos[0] = randRange(-1, 1);
         pos[1] = randRange(-1, 1);
         pos[2] = 1;
         vector_apply(pos, pos, cuboid->M0);
       }
 
-      VECTOR to = {0,0,-50,0};
+      VECTOR to = { 0, 0, -50, 0 };
       vector_add(to, to, pos);
-      if (CollLine_Fix(pos, to, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL)) {
-        if (collisionIdIsWalkable(CollLine_Fix_GetHitCollisionId())) {
+      if (CollLine_Fix(pos, to, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL))
+      {
+        if (collisionIdIsWalkable(CollLine_Fix_GetHitCollisionId()))
+        {
           // found spot above ground
           vector_copy(pos, CollLine_Fix_GetHitPosition());
           pos[2] += 1;
@@ -336,16 +364,18 @@ void onMissionComplete(int cuboidIdx)
     lootRequestFromMissionComplete(pos);
   }
 
-  // 
+  //
   mapConfig->BankVTable->AddBolts(missionCompleteGetBoltReward());
-  RaidsPlayerBank_t* bank = mapConfig->BankVTable->GetLocalBank();
-  if (bank) mapConfig->BankVTable->AddClassXP(missionCompleteGetClassXpReward(), bank->Account.EquippedClass);
+  RaidsPlayerBank_t *bank = mapConfig->BankVTable->GetLocalBank();
+  if (bank)
+    mapConfig->BankVTable->AddClassXP(missionCompleteGetClassXpReward(), bank->Account.EquippedClass);
   mapConfig->BankVTable->SendAccountToServer();
 
   // send time to server
   struct RaidsSetMissionCompleteRequest msg;
-  void* connection = netGetLobbyServerConnection();
-  if (!connection) return;
+  void *connection = netGetLobbyServerConnection();
+  if (!connection)
+    return;
 
   msg.MissionStartTime = State.MissionStartTime;
   msg.TimeMs = State.MissionCompleteTime - State.MissionStartTime;
@@ -366,26 +396,31 @@ void onMissionFail(void)
 
   // explode all players
   int i;
-  Player** players = playerGetAll();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player) player->timers.explodeTimer = TPS;
+  Player **players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (player)
+      player->timers.explodeTimer = TPS;
   }
 }
 
 //--------------------------------------------------------------------------
 void missionCheckForMissionFailed(void)
 {
-  if (!missionIsActive()) return;
+  if (!missionIsActive())
+    return;
 
   int canFail = !State.OnHubWorld && State.ClientsReady && State.ActivePlayerCount && !hasPendingWorldHop();
   int failed = State.TicksWithNoLivingPlayers > TPS && !State.LivesLeft;
   int timeRanOut = State.MissionCompleteTime < State.MissionStartTime;
-  if (!(canFail && failed) || !(canFail && timeRanOut)) return;
+  if (!(canFail && failed) || !(canFail && timeRanOut))
+    return;
 
   // broadcast
-  void* connection = netGetDmeServerConnection();
-  if (connection) {
+  void *connection = netGetDmeServerConnection();
+  if (connection)
+  {
     netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_SET_MISSION_FAILED, 0, NULL);
   }
 
@@ -395,12 +430,15 @@ void missionCheckForMissionFailed(void)
 //--------------------------------------------------------------------------
 void missionUseLife(void)
 {
-  if (State.LivesLeft <= 0) return;
-  if (missionIsActive()) {
-    
+  if (State.LivesLeft <= 0)
+    return;
+  if (missionIsActive())
+  {
+
     // broadcast
-    void* connection = netGetDmeServerConnection();
-    if (connection) {
+    void *connection = netGetDmeServerConnection();
+    if (connection)
+    {
       netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_USE_LIFE, 0, NULL);
     }
 
@@ -411,95 +449,104 @@ void missionUseLife(void)
 }
 
 //--------------------------------------------------------------------------
-struct Guber* getGuber(Moby* moby)
+struct Guber *getGuber(Moby *moby)
 {
-  if (!moby) return NULL;
+  if (!moby)
+    return NULL;
 
-	//if (moby->OClass == UPGRADE_MOBY_OCLASS && moby->PVar)
-	//	return moby->GuberMoby;
-	
-	return 0;
+  //if (moby->OClass == UPGRADE_MOBY_OCLASS && moby->PVar)
+  //	return moby->GuberMoby;
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------
-int handleEvent(Moby* moby, GuberEvent* event)
+int handleEvent(Moby *moby, GuberEvent *event)
 {
-	if (!moby || !event || !isInGame())
-		return 0;
+  if (!moby || !event || !isInGame())
+    return 0;
 
-  if (mobyIsMob(moby)) return mobHandleEvent(moby, event);
+  if (mobyIsMob(moby))
+    return mobHandleEvent(moby, event);
 
-	return 0;
+  return 0;
 }
 
 //--------------------------------------------------------------------------
-void mobyEmptyDrawCallback(Moby* moby)
+void mobyEmptyDrawCallback(Moby *moby)
 {
-
 }
 
 //--------------------------------------------------------------------------
-void mobyRemoveDrawFunctions(Moby* moby)
+void mobyRemoveDrawFunctions(Moby *moby)
 {
-  struct DrawFunction {
-    void* pCallback;
-    Moby* pMoby;
-    struct DrawFunction* pNext;
-    void* pUNK_C;
+  struct DrawFunction
+  {
+    void *pCallback;
+    Moby *pMoby;
+    struct DrawFunction *pNext;
+    void *pUNK_C;
   };
 
-  int count = *(int*)0x00222574;
-  struct DrawFunction* pDrawFuncs = (struct DrawFunction*)0x0023e700;
+  int count = *(int *)0x00222574;
+  struct DrawFunction *pDrawFuncs = (struct DrawFunction *)0x0023e700;
 
   int i;
-  for (i = 0; i < count; ++i) {
-    struct DrawFunction* pDrawFunc = pDrawFuncs + i;
-    if (pDrawFunc->pMoby == moby) {
+  for (i = 0; i < count; ++i)
+  {
+    struct DrawFunction *pDrawFunc = pDrawFuncs + i;
+    if (pDrawFunc->pMoby == moby)
+    {
       pDrawFunc->pCallback = &mobyEmptyDrawCallback;
     }
   }
 }
 
 //--------------------------------------------------------------------------
-void mobyRemoveDamages(Moby* moby)
+void mobyRemoveDamages(Moby *moby)
 {
-  MobyColDamage* damageTable = (MobyColDamage*)0x0023F980;
+  MobyColDamage *damageTable = (MobyColDamage *)0x0023F980;
   int i;
-  for (i = 0; i < 0x40; ++i) {
+  for (i = 0; i < 0x40; ++i)
+  {
     if (damageTable[i].Damager == moby)
       memset(&damageTable[i], 0, sizeof(MobyColDamage));
   }
 }
 
 //--------------------------------------------------------------------------
-void onMobySpawnedInitInstance(Moby* moby, int oclass, int a2)
+void onMobySpawnedInitInstance(Moby *moby, int oclass, int a2)
 {
-  ((void (*)(Moby*, int, int))0x004f7330)(moby, oclass, a2);
+  ((void (*)(Moby *, int, int))0x004f7330)(moby, oclass, a2);
 
   // A reused moby must not inherit damage records from its previous instance.
   mobyRemoveDamages(moby);
 }
 
 //--------------------------------------------------------------------------
-void onMobyDestroyedCleanupAnimLayers(Moby* moby)
+void onMobyDestroyedCleanupAnimLayers(Moby *moby)
 {
   // base func
-  ((void (*)(Moby*))0x004fb480)(moby);
+  ((void (*)(Moby *))0x004fb480)(moby);
   mobyRemoveDrawFunctions(moby);
 
   // let moby be reused instantly
   // unless mob, then let is die normal
-  if (mobyIsMob(moby) || mobyIsMob(moby->PParent)) return;
+  if (mobyIsMob(moby) || mobyIsMob(moby->PParent))
+    return;
   moby->CollCnt = 0;
 }
 
 //--------------------------------------------------------------------------
-Moby* onGuberEventCreateMoby(int oclass, int pvarSize)
+Moby *onGuberEventCreateMoby(int oclass, int pvarSize)
 {
-  if (mobyGetNumSpawnableMobys() < 50) {
-    Moby* m = mobyFindNextByOClass(mobyListGetStart(), 0x13A1);
-    if (!m) return NULL;
-    if (m) {
+  if (mobyGetNumSpawnableMobys() < 50)
+  {
+    Moby *m = mobyFindNextByOClass(mobyListGetStart(), 0x13A1);
+    if (!m)
+      return NULL;
+    if (m)
+    {
       mobyDestroy(m);
     }
   }
@@ -510,48 +557,54 @@ Moby* onGuberEventCreateMoby(int oclass, int pvarSize)
 //--------------------------------------------------------------------------
 int shouldDrawHud(void)
 {
-  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(0);
+  PlayerHUDFlags *hudFlags = hudGetPlayerFlags(0);
   return hudFlags && hudFlags->Flags.Raw != 0;
 }
 
 //--------------------------------------------------------------------------
-int playerIsSmashingFlail(Player* player)
+int playerIsSmashingFlail(Player *player)
 {
-  if (!player) return 0;
+  if (!player)
+    return 0;
 
   // jump smash
-  if (player->PlayerState == PLAYER_STATE_JUMP_ATTACK && player->WeaponHeldId == WEAPON_ID_FLAIL) {
+  if (player->PlayerState == PLAYER_STATE_JUMP_ATTACK && player->WeaponHeldId == WEAPON_ID_FLAIL)
+  {
     return 1;
   }
-  
+
   // ground smash
-  if (player->PlayerState == PLAYER_STATE_FLAIL_ATTACK && player->PlayerMoby && player->PlayerMoby->AnimSeqId == 0x33) {
+  if (player->PlayerState == PLAYER_STATE_FLAIL_ATTACK && player->PlayerMoby && player->PlayerMoby->AnimSeqId == 0x33)
+  {
     return 1;
   }
-  
+
   return 0;
 }
 
 //--------------------------------------------------------------------------
-void processPlayer(int pIndex) {
-	int localPlayerIndex, heldWeapon;
-	Player** players = playerGetAll();
-	Player* player = players[pIndex];
-	struct RaidsPlayer * playerData = &State.PlayerStates[pIndex];
+void processPlayer(int pIndex)
+{
+  int localPlayerIndex, heldWeapon;
+  Player **players = playerGetAll();
+  Player *player = players[pIndex];
+  struct RaidsPlayer *playerData = &State.PlayerStates[pIndex];
 
-	if (!playerIsValid(player))
-		return;
+  if (!playerIsValid(player))
+    return;
 
   // respawn if mission completed
   if (playerIsDead(player) && missionIsComplete())
     playerRespawn(player);
 
-	int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
-	int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
-  
+  int actionCooldownTicks = decTimerU8(&playerData->ActionCooldownTicks);
+  int messageCooldownTicks = decTimerU8(&playerData->MessageCooldownTicks);
+
   // last hit
-  if (player->Health != playerData->LastHealth) playerData->TicksSinceHealthChanged = 0;
-  else playerData->TicksSinceHealthChanged += 1;
+  if (player->Health != playerData->LastHealth)
+    playerData->TicksSinceHealthChanged = 0;
+  else
+    playerData->TicksSinceHealthChanged += 1;
   playerData->LastHealth = player->Health;
 
   // player speed
@@ -562,85 +615,102 @@ void processPlayer(int pIndex) {
   raidsModifyPlayerStats(player, &stats);
   player->Speed = stats.Speed;
 
-	// set max health
+  // set max health
   // auto heal if max health increases
   float maxHealth = stats.MaxHealth;
-  if (player->MaxHealth != maxHealth) {
-    if (maxHealth > player->MaxHealth) {
+  if (player->MaxHealth != maxHealth)
+  {
+    if (maxHealth > player->MaxHealth)
+    {
       playerSetHealth(player, player->MaxHealth = maxHealth);
-    } else {
+    }
+    else
+    {
       player->MaxHealth = maxHealth;
-      if (player->Health > maxHealth) playerSetHealth(player, maxHealth);
+      if (player->Health > maxHealth)
+        playerSetHealth(player, maxHealth);
     }
   }
-  
+
   // update death state
-  if (!playerData->IsDead && playerIsDead(player)) {
+  if (!playerData->IsDead && playerIsDead(player))
+  {
     playerData->IsDead = 1;
     raidsOnPlayerDied(player);
-  } else if (playerData->IsDead && !playerIsDead(player)) {
+  }
+  else if (playerData->IsDead && !playerIsDead(player))
+  {
     playerData->IsDead = 0;
     raidsOnPlayerRevived(player);
   }
 
   raidsOnPlayerUpdate(player);
 
-	if (player->IsLocal) {
-		
-		GadgetBox* gBox = player->GadgetBox;
-		localPlayerIndex = player->LocalPlayerIndex;
-		heldWeapon = player->WeaponHeldId;
+  if (player->IsLocal)
+  {
 
-	  // set max xp
-		u64 xp = mapConfig->BankVTable->GetXP();
+    GadgetBox *gBox = player->GadgetBox;
+    localPlayerIndex = player->LocalPlayerIndex;
+    heldWeapon = player->WeaponHeldId;
+
+    // set max xp
+    u64 xp = mapConfig->BankVTable->GetXP();
     int level = mapConfig->BankVTable->GetLevel();
-		u64 lastXp = getXpForLevel(level);
-		u64 nextXp = getXpForLevel(level + 1);
-    if (xp < lastXp) xp = lastXp;
+    u64 lastXp = getXpForLevel(level);
+    u64 nextXp = getXpForLevel(level + 1);
+    if (xp < lastXp)
+      xp = lastXp;
     double xpPerc = (double)((xp - lastXp) / (double)(nextXp - lastXp));
     //printf("lvl:%d perc:%f %'d=>%'d xp:%'d GetXP:%08X\n", level, xpPerc, lastXp, nextXp, xp, (u32)mapConfig->BankVTable->GetXP);
-		setPlayerEXP(localPlayerIndex, (float)xpPerc);
+    setPlayerEXP(localPlayerIndex, (float)xpPerc);
 
-		// decrement flail ammo while spinning flail
-		GameOptions* gameOptions = gameGetOptions();
-		if (!gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo
-			&& player->PlayerState == PLAYER_STATE_FLAIL_ATTACK
-			&& player->timers.state >= 60) {
-				if (gBox->Gadgets[WEAPON_ID_FLAIL].Ammo > 0) {
-					if ((player->timers.state % 60) == 0) {
-            ((void (*)(GadgetBox*, int, int))0x00627180)(gBox, WEAPON_ID_FLAIL, 1);
-						//gBox->Gadgets[WEAPON_ID_FLAIL].Ammo -= 1;
-					}
-				} else {
-					PlayerVTable* vtable = playerGetVTable(player);
-					if (vtable && vtable->UpdateState)
-						vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
-				}
-		}
+    // decrement flail ammo while spinning flail
+    GameOptions *gameOptions = gameGetOptions();
+    if (!gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo && player->PlayerState == PLAYER_STATE_FLAIL_ATTACK && player->timers.state >= 60)
+    {
+      if (gBox->Gadgets[WEAPON_ID_FLAIL].Ammo > 0)
+      {
+        if ((player->timers.state % 60) == 0)
+        {
+          ((void (*)(GadgetBox *, int, int))0x00627180)(gBox, WEAPON_ID_FLAIL, 1);
+          //gBox->Gadgets[WEAPON_ID_FLAIL].Ammo -= 1;
+        }
+      }
+      else
+      {
+        PlayerVTable *vtable = playerGetVTable(player);
+        if (vtable && vtable->UpdateState)
+          vtable->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
+      }
+    }
 
-		//
-		if (actionCooldownTicks > 0 || player->timers.noInput) {
-			if (messageCooldownTicks == 1) {
+    //
+    if (actionCooldownTicks > 0 || player->timers.noInput)
+    {
+      if (messageCooldownTicks == 1)
+      {
         hudHidePopup();
       }
       return;
     }
 
-		if (messageCooldownTicks == 1) {
+    if (messageCooldownTicks == 1)
+    {
       hudHidePopup();
-		}
-	} else {
+    }
+  }
+  else
+  {
 
     // bug where players on GREEN or higher will remain cranking bolt after finishing
     // so we'll check to see if their remote player state is no longer cranking
     // and we'll stop them
-    int remoteState = *(int*)((u32)player + 0x3a80);
+    int remoteState = *(int *)((u32)player + 0x3a80);
     int playerStateTimer = player->timers.state; // playerStateTimers[pIndex];
-    if (player->PlayerState == PLAYER_STATE_BOLT_CRANK
-     && remoteState != PLAYER_STATE_BOLT_CRANK
-     && playerStateTimer > TPS*3) {
+    if (player->PlayerState == PLAYER_STATE_BOLT_CRANK && remoteState != PLAYER_STATE_BOLT_CRANK && playerStateTimer > TPS * 3)
+    {
 
-			PlayerVTable* vtable = playerGetVTable(player);
+      PlayerVTable *vtable = playerGetVTable(player);
       vtable->UpdateState(player, remoteState, 1, 1, 1);
     }
   }
@@ -649,59 +719,64 @@ void processPlayer(int pIndex) {
 //--------------------------------------------------------------------------
 void forcePlayerHUD(void)
 {
-	int i;
+  int i;
 
-	// replace normal scoreboard with bolt counter
-	for (i = 0; i < GAME_MAX_LOCALS; ++i)
-	{
-    if (shouldDrawHud()) {
-      PlayerHUDFlags* hudFlags = hudGetPlayerFlags(i);
-      if (hudFlags) {
+  // replace normal scoreboard with bolt counter
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    if (shouldDrawHud())
+    {
+      PlayerHUDFlags *hudFlags = hudGetPlayerFlags(i);
+      if (hudFlags)
+      {
         hudFlags->Flags.BoltCounter = 1;
         hudFlags->Flags.NormalScoreboard = 0;
       }
     }
-	}
+  }
 
-	// show exp
-	POKE_U32(0x0054ffc0, 0x0000102D);
+  // show exp
+  POKE_U32(0x0054ffc0, 0x0000102D);
   POKE_U16(0x00550054, 0);
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t *gameState)
 {
-	static int startDelay = TPS * 0.2;
-	static int waitingForClientsReady = 0;
+  static int startDelay = TPS * 0.2;
+  static int waitingForClientsReady = 0;
   static int firstTime = 1;
-	char hasTeam[10] = {0,0,0,0,0,0,0,0,0,0};
-	Player** players = playerGetAll();
-	int i;
+  char hasTeam[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  Player **players = playerGetAll();
+  int i;
 
-	// Disable normal game ending
-	*(u32*)0x006219B8 = 0;	// survivor (8)
-	*(u32*)0x00620F54 = 0;	// time end (1)
-	*(u32*)0x00621568 = 0;	// kills reached (2)
-	*(u32*)0x006211A0 = 0;	// all enemies leave (9)
-  *(u32*)0x006210D8 = 0;	// all enemies leave (9)
+  // Disable normal game ending
+  *(u32 *)0x006219B8 = 0; // survivor (8)
+  *(u32 *)0x00620F54 = 0; // time end (1)
+  *(u32 *)0x00621568 = 0; // kills reached (2)
+  *(u32 *)0x006211A0 = 0; // all enemies leave (9)
+  *(u32 *)0x006210D8 = 0; // all enemies leave (9)
 
   // disable MP dialog
   POKE_U32(0x004e3960, 0);
 
-  if (firstTime) {
+  if (firstTime)
+  {
     firstTime = 0;
-    
+
     // clear state
     memset(&State, 0, sizeof(State));
     State.Settings = &raidsUserSettings;
     State.AllMobsSorted = AllMobsSorted;
     State.AllMobsSortedCount = MAX_MOBS_ALIVE;
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
       State.PlayerStates[i].EquippedClassProgress.ClassType = -1;
     }
-    
+
     // load map stats
-    if (PATCH_INTEROP) hopLoadMapStats(PATCH_INTEROP->MapLoaderFilename, "DreadZone Station");
+    if (PATCH_INTEROP)
+      hopLoadMapStats(PATCH_INTEROP->MapLoaderFilename, "DreadZone Station");
   }
 
   // disable timebase query percentile filter
@@ -717,7 +792,7 @@ void initialize(PatchStateContainer_t* gameState)
   POKE_U16(0x005e5b96, 0x10E0);
 
   POKE_U32(0x005F6488, 0); // enable vehicle targeting non-players
-  
+
   HOOK_JAL(0x004f7780, &onMobyDestroyedCleanupAnimLayers);
   HOOK_JAL(0x004f72a4, &onMobySpawnedInitInstance);
   HOOK_JAL(0x0061c3ec, &onGuberEventCreateMoby);
@@ -731,7 +806,7 @@ void initialize(PatchStateContainer_t* gameState)
   //POKE_U32(0x00611518, 0x24040000);
 
   // hook net messages
-	netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_MOB_UNRELIABLE_MSG, &mobOnUnreliableMsgRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_SET_MISSION_FAILED, &onMissionFailedRemote);
   netInstallCustomMsgHandler(CUSTOM_MSG_USE_LIFE, &onUseLifeRemote);
 
@@ -746,15 +821,17 @@ void initialize(PatchStateContainer_t* gameState)
   statsInit();
   trackerInit();
 
-	// change hud
-	forcePlayerHUD();
+  // change hud
+  forcePlayerHUD();
   setPlayerEXP(0, 0);
   setPlayerEXP(1, 0);
 
-  // 
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* p = playerGetFromSlot(i);
-    if (playerIsValid(p)) {
+  //
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    Player *p = playerGetFromSlot(i);
+    if (playerIsValid(p))
+    {
       int pIdx = p->PlayerId;
       playerSetLocalEquipslot(i, 0, State.PlayerStates[pIdx].LastEquipslots[0]);
       playerSetLocalEquipslot(i, 1, State.PlayerStates[pIdx].LastEquipslots[1]);
@@ -763,28 +840,31 @@ void initialize(PatchStateContainer_t* gameState)
   }
 
   // wait for map code seg to load
-  if (!hasMapConfig()) {
+  if (!hasMapConfig())
+  {
     return;
   }
-  
+
   // write map config
   mapConfig->State = &State;
   raidsInteropInit();
 
-	// set game over string
-	//safe_strcpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
+  // set game over string
+  //safe_strcpy(uiMsgString(0x3477), RAIDS_GAME_OVER, strlen(RAIDS_GAME_OVER)+1);
 
   // prevent player from doing anything
   padDisableInput();
 
-  if (startDelay) {
+  if (startDelay)
+  {
     --startDelay;
     return;
   }
 
   // wait for all clients to be ready
   // or for 5 seconds
-  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * TPS)) {
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * TPS))
+  {
     uiShowPopup(0, "Waiting For Players...");
     ++waitingForClientsReady;
     return;
@@ -796,17 +876,21 @@ void initialize(PatchStateContainer_t* gameState)
   //
   State.ClientsReady = 1;
   mapConfig->ClientsReady = 1;
-  if (State.MissionStartTime <= 0 && isInGame()) {
+  if (State.MissionStartTime <= 0 && isInGame())
+  {
     State.MissionStartTime = gameGetTime();
 
     // capture the roster once so deaths and disconnects do not change scaling
-    GameSettings* gameSettings = gameGetSettings();
+    GameSettings *gameSettings = gameGetSettings();
     State.MissionPartySize = 0;
     for (i = 0; gameSettings && i < GAME_MAX_PLAYERS; ++i)
-      if (gameSettings->PlayerClients[i] >= 0) ++State.MissionPartySize;
+      if (gameSettings->PlayerClients[i] >= 0)
+        ++State.MissionPartySize;
 
-    if (State.MissionPartySize < 1) State.MissionPartySize = 1;
-    if (State.MissionPartySize > 5) State.MissionPartySize = 5;
+    if (State.MissionPartySize < 1)
+      State.MissionPartySize = 1;
+    if (State.MissionPartySize > 5)
+      State.MissionPartySize = 5;
   }
 
   // re-enable input
@@ -814,79 +898,84 @@ void initialize(PatchStateContainer_t* gameState)
 
   memset(snackItems, 0, sizeof(snackItems));
 
-	// initialize player states
-	State.LocalPlayerState = NULL;
-	State.NumTeams = 0;
+  // initialize player states
+  State.LocalPlayerState = NULL;
+  State.NumTeams = 0;
   State.TicksWithNoLivingPlayers = 0;
-	State.AlivePlayerCount = -1;
-	State.ActivePlayerCount = 0;
+  State.AlivePlayerCount = -1;
+  State.ActivePlayerCount = 0;
   State.LivesLeft = Lives[State.DifficultyStars];
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player * p = players[i];
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *p = players[i];
 
 #if PAYDAY
-		//State.PlayerStates[i].State.CurrentTokens = 1000;
+    //State.PlayerStates[i].State.CurrentTokens = 1000;
 #endif
 
-		if (p) {
+    if (p)
+    {
 
       State.PlayerStates[i].IsDead = 0;
       State.PlayerStates[i].State.Bolts = 0;
       State.PlayerStates[i].State.Kills = 0;
       State.PlayerStates[i].State.Deaths = 0;
 
-			// is local
-			State.PlayerStates[i].IsLocal = p->IsLocal;
-			if (p->IsLocal && !State.LocalPlayerState)
-				State.LocalPlayerState = &State.PlayerStates[i];
-				
-			if (!hasTeam[p->Team]) {
-				State.NumTeams++;
-				hasTeam[p->Team] = 1;
-			}
+      // is local
+      State.PlayerStates[i].IsLocal = p->IsLocal;
+      if (p->IsLocal && !State.LocalPlayerState)
+        State.LocalPlayerState = &State.PlayerStates[i];
 
-			++State.ActivePlayerCount;
-		}
-	}
+      if (!hasTeam[p->Team])
+      {
+        State.NumTeams++;
+        hasTeam[p->Team] = 1;
+      }
 
-	// initialize state
+      ++State.ActivePlayerCount;
+    }
+  }
+
+  // initialize state
   State.DesiredMusicTrack = -1;
   State.DesiredMusicTrackForce = 0;
   State.DesiredMusicTrackSkipTransition = 0;
   State.AmmoDropChance = GAME_DEFAULT_AMMO_DROP_CHANCE;
   State.AmmoRefillCostMultiplier = 1;
-	State.MobStats.MobsDrawnCurrent = 0;
-	State.MobStats.MobsDrawnLast = 0;
-	State.MobStats.MobsDrawGameTime = 0;
+  State.MobStats.MobsDrawnCurrent = 0;
+  State.MobStats.MobsDrawnLast = 0;
+  State.MobStats.MobsDrawGameTime = 0;
   memset(State.MobStats.NumAlive, 0, sizeof(State.MobStats.NumAlive));
   memset(State.MobStats.NumSpawnedThisRound, 0, sizeof(State.MobStats.NumSpawnedThisRound));
   State.MobStats.TotalAlive = 0;
   State.MobStats.TotalSpawning = 0;
   State.MobStats.TotalSpawned = 0;
-  
-	if (!FirstTimeInitialized) {
+
+  if (!FirstTimeInitialized)
+  {
     State.InitializedTime = gameGetTime();
   }
 
-	Initialized = 1;
+  Initialized = 1;
   FirstTimeInitialized = 1;
 }
 
 //--------------------------------------------------------------------------
-void updateGameState(PatchStateContainer_t * gameState)
+void updateGameState(PatchStateContainer_t *gameState)
 {
-	int i;
+  int i;
 
-	// game state update
-	if (gameState->UpdateGameState)
-	{
+  // game state update
+  if (gameState->UpdateGameState)
+  {
     // Raids has no rounds. Send mission type + 1 in the high byte and the
     // zero-based star difficulty in the low byte; zero remains unreported.
     // Keep this encoding in sync with RaidsCustomMode.GetGameInfo on the server.
     gameState->GameStateUpdate.RoundNumber = ((State.MissionType + 1) << 8) | (State.DifficultyStars & 0xFF);
-	}
+  }
 
-  if (isInGame()) {
+  if (isInGame())
+  {
     // update custom game stats after each round
     // static int roundCompleted = 0;
     // if (roundCompleted != State.RoundNumber && gameAmIHost()) {
@@ -895,66 +984,71 @@ void updateGameState(PatchStateContainer_t * gameState)
     // }
   }
 
-	// stats
-	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
-	{
+  // stats
+  if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
+  {
     gameState->CustomGameStatsSize = sizeof(struct RaidsGameData);
-		struct RaidsGameData* sGameData = (struct RaidsGameData*)gameState->CustomGameStats->Payload;
-		sGameData->Version = 1;
+    struct RaidsGameData *sGameData = (struct RaidsGameData *)gameState->CustomGameStats->Payload;
+    sGameData->Version = 1;
 
     // set per player stats
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		{
-			sGameData->Kills[i] = State.PlayerStates[i].State.Kills;
-			sGameData->Deaths[i] = State.PlayerStates[i].State.Deaths;
-		}
-	}
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      sGameData->Kills[i] = State.PlayerStates[i].State.Kills;
+      sGameData->Deaths[i] = State.PlayerStates[i].State.Deaths;
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
-	Player ** players = playerGetAll();
-	int i;
-	int gameTime = gameGetTime();
+  GameSettings *gameSettings = gameGetSettings();
+  GameOptions *gameOptions = gameGetOptions();
+  Player **players = playerGetAll();
+  int i;
+  int gameTime = gameGetTime();
   static int sendBankAtEnd = 1;
 
-	// first
-	dlPreUpdate();
+  // first
+  dlPreUpdate();
 
-	// 
-	updateGameState(gameState);
+  //
+  updateGameState(gameState);
 
-	// Ensure in game
-	if (!gameSettings || !isInGame() || !hasMapConfig())
-		return;
+  // Ensure in game
+  if (!gameSettings || !isInGame() || !hasMapConfig())
+    return;
 
-	// Determine if host
-	State.IsHost = gameAmIHost();
-  
+  // Determine if host
+  State.IsHost = gameAmIHost();
+
   // run raids lod pass
   raidsLodTick();
 
   // run raids settings pass
   raidsSettingsTick();
 
-	if (!Initialized) {
+  if (!Initialized)
+  {
     State.MissionStartTime = 0;
-		initialize(gameState);
-		return;
-	}
+    initialize(gameState);
+    return;
+  }
 
-  if (!hasMapConfig()) {
+  if (!hasMapConfig())
+  {
     return;
   }
 
   // prevent input in menus
-  if (State.MenuOpen) {
-    for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-      Player* local = playerGetFromSlot(i);
-      if (local) {
+  if (State.MenuOpen)
+  {
+    for (i = 0; i < GAME_MAX_LOCALS; ++i)
+    {
+      Player *local = playerGetFromSlot(i);
+      if (local)
+      {
         local->timers.noInput = 10;
         local->timers.noCamInputTimer = 10;
       }
@@ -968,22 +1062,28 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   {
     static int aaa = 0;
     int play = 0;
-		if (padGetButtonDown(0, PAD_RIGHT) > 0) {
-			aaa += 1;
+    if (padGetButtonDown(0, PAD_RIGHT) > 0)
+    {
+      aaa += 1;
       play = 1;
-		} else if (padGetButtonDown(0, PAD_LEFT) > 0) {
-			aaa -= 1;
+    }
+    else if (padGetButtonDown(0, PAD_LEFT) > 0)
+    {
+      aaa -= 1;
       play = 1;
-		} else if (padGetButtonDown(0, PAD_UP) > 0) {
+    }
+    else if (padGetButtonDown(0, PAD_UP) > 0)
+    {
       play = 1;
-		}
+    }
 
-    if (play) {
+    if (play)
+    {
       //def.Index = aaa;
       //soundPlay(&def, 0, playerGetFromSlot(0)->PlayerMoby, NULL, 0x400);
       //mobyPlaySoundByClass(aaa, 0, playerGetFromSlot(0)->PlayerMoby, MOBY_ID_WEAPON_PICKUP);
-      musicPlayTrack(aaa*2, 1);
-			printf("%d 0x%x\n", aaa*2, aaa*2);
+      musicPlayTrack(aaa * 2, 1);
+      printf("%d 0x%x\n", aaa * 2, aaa * 2);
     }
   }
 #endif
@@ -991,23 +1091,30 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 #if DEBUG_ANIMS
   {
     static int aaa = 0;
-    Moby* animMoby = mobyFindNextByOClass(mobyListGetStart(), 8353);
-    if (animMoby && animMoby->PClass) {
+    Moby *animMoby = mobyFindNextByOClass(mobyListGetStart(), 8353);
+    if (animMoby && animMoby->PClass)
+    {
       int play = 0;
-      if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+      if (padGetButtonDown(0, PAD_RIGHT) > 0)
+      {
         aaa += 1;
         play = 1;
-      } else if (padGetButtonDown(0, PAD_LEFT) > 0) {
+      }
+      else if (padGetButtonDown(0, PAD_LEFT) > 0)
+      {
         aaa -= 1;
         play = 1;
       }
 
-      int animCount = *(char*)(animMoby->PClass + 0x0C);
-      if (play && animCount > 0) {
-        if (aaa >= animCount) aaa = animCount - 1;
-        if (aaa < 0) aaa = 0;
+      int animCount = *(char *)(animMoby->PClass + 0x0C);
+      if (play && animCount > 0)
+      {
+        if (aaa >= animCount)
+          aaa = animCount - 1;
+        if (aaa < 0)
+          aaa = 0;
         mobyAnimTransition(animMoby, aaa, 0, 0);
-			  printf("anim %d 0x%x (of %d)\n", aaa, aaa, animCount);
+        printf("anim %d 0x%x (of %d)\n", aaa, aaa, animCount);
       }
     }
   }
@@ -1018,21 +1125,25 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     int i = 0;
     char buf[32];
     int animJointCount = 0;
-    Moby* jointMoby = mobyFindNextByOClass(mobyListGetStart(), 8353);
+    Moby *jointMoby = mobyFindNextByOClass(mobyListGetStart(), 8353);
     MATRIX jointMtx;
 
-    if (jointMoby) {
+    if (jointMoby)
+    {
       // get anim joint count
-      void* pclass = jointMoby->PClass;
-      if (pclass) {
-        animJointCount = **(u32**)((u32)pclass + 0x1C);
+      void *pclass = jointMoby->PClass;
+      if (pclass)
+      {
+        animJointCount = **(u32 **)((u32)pclass + 0x1C);
       }
 
-      for (i = 0; i < animJointCount; ++i) {
+      for (i = 0; i < animJointCount; ++i)
+      {
         snprintf(buf, sizeof(buf), "%d", i);
         mobyGetJointMatrix(jointMoby, i, jointMtx);
-        int x,y;
-        if (gfxWorldSpaceToScreenSpace(&jointMtx[12], &x, &y)) {
+        int x, y;
+        if (gfxWorldSpaceToScreenSpace(&jointMtx[12], &x, &y))
+        {
           gfxScreenSpaceText(x, y, 0.5, 0.5, 0x80FFFFFF, buf, -1, 4);
         }
       }
@@ -1041,7 +1152,8 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 #endif
 
   // play music
-  if (isInGame() && musicIsLoaded()) {
+  if (isInGame() && musicIsLoaded())
+  {
 
     /*
     static int aaa = 150;
@@ -1067,28 +1179,37 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     int currentTrack = musicGetCurrentTrack();
 
     // if failed or completed, don't update tracks anymore
-    if (State.MissionStatus != RAIDS_MISSION_ACTIVE) {
+    if (State.MissionStatus != RAIDS_MISSION_ACTIVE)
+    {
       State.DesiredMusicTrack = -1;
       currentTrack = -1;
     }
 
     // prevent a blacklisted track from playing
     // unless it was explicitly requested
-    if (mapConfig && mapConfig->TrackWhitelistEnabled && currentTrack >= 0) {
-      if (lastDesiredTrack != currentTrack) {
+    if (mapConfig && mapConfig->TrackWhitelistEnabled && currentTrack >= 0)
+    {
+      if (lastDesiredTrack != currentTrack)
+      {
         int trackIsWhitelisted = 0;
-        for (i = 0; i < mapConfig->TrackWhitelistCount; ++i) {
-          if (mapConfig->TrackWhitelist[i] == currentTrack) {
+        for (i = 0; i < mapConfig->TrackWhitelistCount; ++i)
+        {
+          if (mapConfig->TrackWhitelist[i] == currentTrack)
+          {
             trackIsWhitelisted = 1;
             break;
           }
         }
 
-        if (!trackIsWhitelisted) {
-          if (mapConfig->TrackWhitelistCount <= 0) {
+        if (!trackIsWhitelisted)
+        {
+          if (mapConfig->TrackWhitelistCount <= 0)
+          {
             musicStopTrack();
             DPRINTF("bad track %d, pausing\n", currentTrack);
-          } else {
+          }
+          else
+          {
             int randomTrackId = mapConfig->TrackWhitelist[rand(mapConfig->TrackWhitelistCount)];
             DPRINTF("bad track %d, playing %d\n", currentTrack, randomTrackId);
             musicPlayTrack(randomTrackId, 1);
@@ -1096,19 +1217,24 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
         }
       }
     }
-    
-    if (State.DesiredMusicTrack >= 0 && (currentTrack != State.DesiredMusicTrack || State.DesiredMusicTrackForce)) {
-      
+
+    if (State.DesiredMusicTrack >= 0 && (currentTrack != State.DesiredMusicTrack || State.DesiredMusicTrackForce))
+    {
+
       DPRINTF("music play track %d=>%d (immediate:%d)\n", currentTrack, State.DesiredMusicTrack, State.DesiredMusicTrackSkipTransition);
-      if (State.DesiredMusicTrackSkipTransition) {
+      if (State.DesiredMusicTrackSkipTransition)
+      {
         musicPlayTrack(State.DesiredMusicTrack, 1);
-      } else {
+      }
+      else
+      {
         musicTransitionTrack(0, State.DesiredMusicTrack, 0x400, 0x400);
         POKE_U16(0x00206990, State.DesiredMusicTrack);
       }
 
       lastDesiredTrack = State.DesiredMusicTrack;
-      if (!State.DesiredMusicLoop) {
+      if (!State.DesiredMusicLoop)
+      {
         State.DesiredMusicTrack = -1;
         State.DesiredMusicTrackSkipTransition = 0;
       }
@@ -1118,28 +1244,37 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
 
   // get bank on first load
   // send bank when game ends
-  struct BankVTable* bankVTable = mapConfig->BankVTable;
-  if (bankVTable) {
-    if (!gameHasEnded()) {
-      if (!bankVTable->GetHasAccount() && !bankVTable->HasPendingAccountRequest()) {
+  struct BankVTable *bankVTable = mapConfig->BankVTable;
+  if (bankVTable)
+  {
+    if (!gameHasEnded())
+    {
+      if (!bankVTable->GetHasAccount() && !bankVTable->HasPendingAccountRequest())
+      {
         bankVTable->RequestAccountFromServer();
       }
-      if (!bankVTable->GetHasEquippedClassProgress() && !bankVTable->HasPendingEquippedClassProgressRequest()) {
+      if (!bankVTable->GetHasEquippedClassProgress() && !bankVTable->HasPendingEquippedClassProgressRequest())
+      {
         bankVTable->RequestEquippedClassProgressFromServer();
       }
-      if (!bankVTable->GetHasAllClassProgress() && !bankVTable->HasPendingAllClassProgressRequest()) {
+      if (!bankVTable->GetHasAllClassProgress() && !bankVTable->HasPendingAllClassProgressRequest())
+      {
         bankVTable->RequestAllClassProgressFromServer();
       }
-      if (!bankVTable->GetHasEquippedInventory() && !bankVTable->HasPendingEquippedInventoryRequest()) {
+      if (!bankVTable->GetHasEquippedInventory() && !bankVTable->HasPendingEquippedInventoryRequest())
+      {
         bankVTable->RequestEquippedInventoryFromServer();
       }
-    } else if (sendBankAtEnd) {
+    }
+    else if (sendBankAtEnd)
+    {
       bankVTable->SendContractStatsToServer();
-      if (bankVTable->GetHasAccount()) bankVTable->SendAccountToServer();
+      if (bankVTable->GetHasAccount())
+        bankVTable->SendAccountToServer();
       //bankSendInventoryToServer();
       sendBankAtEnd = 0;
     }
-    
+
     // bolts
     POKE_U32(0x00171b40, bankVTable->GetBolts());
   }
@@ -1150,34 +1285,41 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
     drawSnack();
     missionCheckForMissionFailed();
 
-    // 
+    //
     State.ActivePlayerCount = 0;
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
       if (players[i])
         State.ActivePlayerCount++;
 
       processPlayer(i);
     }
-    
+
     // count num alive
     gameOptions->GameFlags.MultiplayerGameFlags.Survivor = missionIsBossRaid();
-    if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5*TIME_SECOND))
+    if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5 * TIME_SECOND))
     {
       // determine number of players alive
       State.AlivePlayerCount = 0;
-      for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-        if (playerIsValid(players[i]) && !playerIsDead(players[i])) {
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        if (playerIsValid(players[i]) && !playerIsDead(players[i]))
+        {
           State.AlivePlayerCount++;
         }
       }
 
-      if (!State.AlivePlayerCount) {
+      if (!State.AlivePlayerCount)
+      {
         State.TicksWithNoLivingPlayers++;
-        if (State.TicksWithNoLivingPlayers > (3*TPS) && State.LivesLeft > 0) {
+        if (State.TicksWithNoLivingPlayers > (3 * TPS) && State.LivesLeft > 0)
+        {
           missionUseLife();
           State.TicksWithNoLivingPlayers = 0;
         }
-      } else {
+      }
+      else
+      {
         State.TicksWithNoLivingPlayers = 0;
       }
     }
@@ -1199,7 +1341,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // map frame tick
   if (mapConfig && mapConfig->Functions.OnFrameTickFunc)
     mapConfig->Functions.OnFrameTickFunc();
-  
+
   // ticks
   mobTick();
   lootTick();
@@ -1208,9 +1350,12 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   contractTick();
 
 #if DEBUG
-  if (padGetButton(0, PAD_L1 | PAD_CROSS)) {
-    *(float*)0x00347BD8 = 0.125;
-  } else if (padGetButtonDown(0, PAD_UP | PAD_L1) > 0) {
+  if (padGetButton(0, PAD_L1 | PAD_CROSS))
+  {
+    *(float *)0x00347BD8 = 0.125;
+  }
+  else if (padGetButtonDown(0, PAD_UP | PAD_L1) > 0)
+  {
     // static int aaa = 0;
     // Moby* lootSpawn(VECTOR position, int gadgetId, int rarity);
     // VECTOR p = {2,2,1,0};
@@ -1221,60 +1366,61 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   }
 #endif
 
-	// last
-	dlPostUpdate();
-	return;
+  // last
+  dlPostUpdate();
+  return;
 }
 
 //--------------------------------------------------------------------------
-void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
+void setLobbyGameOptions(PatchGameConfig_t *gameConfig)
 {
-	// set game options
-	GameOptions * gameOptions = gameGetOptions();
-	GameSettings* gameSettings = gameGetSettings();
-	if (!gameOptions || gameSettings->GameLoadStartTime <= 0)
-		return;
+  // set game options
+  GameOptions *gameOptions = gameGetOptions();
+  GameSettings *gameSettings = gameGetSettings();
+  if (!gameOptions || gameSettings->GameLoadStartTime <= 0)
+    return;
 
   // force deathmatch
   gameSettings->GameRules = GAMERULE_DM;
-	
-	// apply options
+
+  // apply options
   gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
-	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickupsRandom = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 3;
-	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
-	//gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.SpawnWithChargeboots = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickups = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.SpecialPickupsRandom = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.RespawnTime = 3;
+  gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
+  //gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
 
   // enable all vehicles
-	gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Puma = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 1;
-	gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Puma = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hoverbike = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Landstalker = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Hovership = 1;
 
-	// enable all weapons
-	gameOptions->WeaponFlags.Chargeboots = 1;
-	gameOptions->WeaponFlags.DualVipers = 1;
-	gameOptions->WeaponFlags.MagmaCannon = 1;
-	gameOptions->WeaponFlags.Arbiter = 1;
-	gameOptions->WeaponFlags.FusionRifle = 1;
-	gameOptions->WeaponFlags.MineLauncher = 1;
-	gameOptions->WeaponFlags.B6 = 1;
-	gameOptions->WeaponFlags.Holoshield = 1;
-	gameOptions->WeaponFlags.Flail = 1;
+  // enable all weapons
+  gameOptions->WeaponFlags.Chargeboots = 1;
+  gameOptions->WeaponFlags.DualVipers = 1;
+  gameOptions->WeaponFlags.MagmaCannon = 1;
+  gameOptions->WeaponFlags.Arbiter = 1;
+  gameOptions->WeaponFlags.FusionRifle = 1;
+  gameOptions->WeaponFlags.MineLauncher = 1;
+  gameOptions->WeaponFlags.B6 = 1;
+  gameOptions->WeaponFlags.Holoshield = 1;
+  gameOptions->WeaponFlags.Flail = 1;
 
   // apply custom game rules
-  if (gameConfig) {
+  if (gameConfig)
+  {
     gameConfig->grNoHealthBoxes = 1;
     gameConfig->grNoInvTimer = 0;
     gameConfig->grNoPickups = 0;
@@ -1284,7 +1430,7 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grHealthBars = 1;
     gameConfig->prChargebootForever = 0;
     gameConfig->prHeadbutt = 0;
-	  gameConfig->grInstantDeath = 0;
+    gameConfig->grInstantDeath = 0;
     gameConfig->grCqPersistentCapture = 0;
     gameConfig->grCqDisableTurrets = 0;
     gameConfig->grCqDisableUpgrades = 0;
@@ -1293,66 +1439,71 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
     gameConfig->grLagjump = 1;
   }
 
-	// force everyone to same team as host
-	//for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
-	//	if (gameSettings->PlayerTeams[i] >= 0) {
-	//		gameSettings->PlayerTeams[i] = gameSettings->PlayerTeams[0];
-	//	}
-	//}
+  // force everyone to same team as host
+  //for (i = 1; i < GAME_MAX_PLAYERS; ++i) {
+  //	if (gameSettings->PlayerTeams[i] >= 0) {
+  //		gameSettings->PlayerTeams[i] = gameSettings->PlayerTeams[0];
+  //	}
+  //}
 }
 
 //--------------------------------------------------------------------------
-void setEndGameScoreboard(PatchGameConfig_t * gameConfig)
+void setEndGameScoreboard(PatchGameConfig_t *gameConfig)
 {
-	u32 * uiElements = (u32*)(*(u32*)(0x011C7064 + 4*18) + 0xB0);
-	int i;
+  u32 *uiElements = (u32 *)(*(u32 *)(0x011C7064 + 4 * 18) + 0xB0);
+  int i;
 
-	// column headers start at 17
-	safe_strcpy((char*)(uiElements[19] + 0x60), "BOLTS", 6);
-	safe_strcpy((char*)(uiElements[20] + 0x60), "DEATHS", 7);
+  // column headers start at 17
+  safe_strcpy((char *)(uiElements[19] + 0x60), "BOLTS", 6);
+  safe_strcpy((char *)(uiElements[20] + 0x60), "DEATHS", 7);
 
-	// rows
-	int* pids = (int*)(uiElements[0] - 0x9C);
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		// match scoreboard player row to their respective dme id
-		int pid = pids[i];
-		char* name = (char*)(uiElements[7 + i] + 0x18);
-		if (pid < 0 || name[0] == 0)
-			continue;
+  // rows
+  int *pids = (int *)(uiElements[0] - 0x9C);
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    // match scoreboard player row to their respective dme id
+    int pid = pids[i];
+    char *name = (char *)(uiElements[7 + i] + 0x18);
+    if (pid < 0 || name[0] == 0)
+      continue;
 
-		struct RaidsPlayerState* pState = &State.PlayerStates[pid].State;
+    struct RaidsPlayerState *pState = &State.PlayerStates[pid].State;
 
-		// set kills
-		sprintf((char*)(uiElements[22 + (i*4) + 0] + 0x60), "%d", pState->Kills);
+    // set kills
+    sprintf((char *)(uiElements[22 + (i * 4) + 0] + 0x60), "%d", pState->Kills);
 
-		// copy over deaths
-		safe_strcpy((char*)(uiElements[22 + (i*4) + 2] + 0x60), (char*)(uiElements[22 + (i*4) + 1] + 0x60), 10);
+    // copy over deaths
+    safe_strcpy((char *)(uiElements[22 + (i * 4) + 2] + 0x60), (char *)(uiElements[22 + (i * 4) + 1] + 0x60), 10);
 
-		// set bolts
-		//sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%ld", pState->TotalBolts);
-	}
+    // set bolts
+    //sprintf((char*)(uiElements[22 + (i*4) + 1] + 0x60), "%ld", pState->TotalBolts);
+  }
 }
 
 //--------------------------------------------------------------------------
-void waitForMapConfig(PatchStateContainer_t * gameState)
+void waitForMapConfig(PatchStateContainer_t *gameState)
 {
   //int* state = 0x0021e684;
-  if (*(u16*)0x004a7dec != 0xA9B0) return;
+  if (*(u16 *)0x004a7dec != 0xA9B0)
+    return;
 
-  if (!mapConfig || mapConfig->Magic != MAP_CONFIG_MAGIC) {
-    
+  if (!mapConfig || mapConfig->Magic != MAP_CONFIG_MAGIC)
+  {
+
     // prevent game from finishing loading
     //POKE_U32(0x004A7FD4, 0);
     //POKE_U32(0x004A7FDC, 0);
     //POKE_U32(0x004A7FE4, 0);
     //POKE_U32(0x004A82E8, 0);
-  } else if (!hasMapConfig()) {
+  }
+  else if (!hasMapConfig())
+  {
 
     // call map code to let it initialize
     ((void (*)(int))EXTRA_CODE_SEG_PTR)(1);
-
-  } else if (gameState->AllClientsReady && *(u16*)0x0021ddb4 == 6) {
+  }
+  else if (gameState->AllClientsReady && *(u16 *)0x0021ddb4 == 6)
+  {
 
     // let game load
     //POKE_U32(0x0021e680, 15);
@@ -1362,57 +1513,60 @@ void waitForMapConfig(PatchStateContainer_t * gameState)
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	int i;
-	int activeId = uiGetActive();
-	static int initializedScoreboard = 0;
+  int i;
+  int activeId = uiGetActive();
+  static int initializedScoreboard = 0;
 
   statsDeinit();
 
-	// send final local player stats to others
-	if (Initialized == 1) {
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-			if (State.PlayerStates[i].IsLocal) {
-				//sendPlayerStats(i);
-			}
-		}
+  // send final local player stats to others
+  if (Initialized == 1)
+  {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      if (State.PlayerStates[i].IsLocal)
+      {
+        //sendPlayerStats(i);
+      }
+    }
 
     bubbleDeinit();
-		Initialized = 2;
-	}
+    Initialized = 2;
+  }
 
   // disable ranking
   gameSetIsGameRanked(0);
 
-	// 
-	updateGameState(gameState);
+  //
+  updateGameState(gameState);
 
-	// scoreboard
-	switch (activeId)
-	{
-		case 0x15C:
-		{
-			if (initializedScoreboard)
-				break;
+  // scoreboard
+  switch (activeId)
+  {
+    case 0x15C:
+    {
+      if (initializedScoreboard)
+        break;
 
-			setEndGameScoreboard(gameState->GameConfig);
-			initializedScoreboard = 1;
+      setEndGameScoreboard(gameState->GameConfig);
+      initializedScoreboard = 1;
 
-			// patch rank computation to keep rank unchanged for base mode
-			POKE_U32(0x0077ACE4, 0x4600BB06);
-			break;
-		}
-		case UI_ID_GAME_LOBBY:
-		{
-			setLobbyGameOptions(gameState->GameConfig);
-			break;
-		}
-	}
+      // patch rank computation to keep rank unchanged for base mode
+      POKE_U32(0x0077ACE4, 0x4600BB06);
+      break;
+    }
+    case UI_ID_GAME_LOBBY:
+    {
+      setLobbyGameOptions(gameState->GameConfig);
+      break;
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
-void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
   // the heap survives map loads, but queued events belong to the old map
   statsDeinit();
@@ -1424,29 +1578,39 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
   State.OnHubWorld = 0;
   State.ClientsReady = 0;
 
-	setLobbyGameOptions(gameState->GameConfig);
+  setLobbyGameOptions(gameState->GameConfig);
 
   // reset bolts
   POKE_U32(0x00171b40, 0);
 }
 
 //--------------------------------------------------------------------------
-void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+void start(struct GameModule *module, PatchStateContainer_t *gameState, enum GameModuleContext context)
 {
   if (context != GAMEMODULE_UNLOAD)
     waitForMapConfig(gameState);
 
   switch (context)
   {
-    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
-    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
-    case GAMEMODULE_GAME_UPDATE: break;
-    case GAMEMODULE_SCENE_LOADING: statsDeinit(); break;
+    case GAMEMODULE_LOBBY:
+      lobbyStart(module, gameState);
+      break;
+    case GAMEMODULE_LOAD:
+      loadStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_FRAME:
+      gameStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_UPDATE:
+      break;
+    case GAMEMODULE_SCENE_LOADING:
+      statsDeinit();
+      break;
     case GAMEMODULE_UNLOAD:
       statsDeinit();
       bubbleDeinit();
       break;
-    case GAMEMODULE_UNKNOWN: break;
+    case GAMEMODULE_UNKNOWN:
+      break;
   }
 }

@@ -4,7 +4,7 @@
 #include <tamtypes.h>
 #include "game.h"
 
-void statsFormatValue(char* dest, int size, int value, int format);
+void statsFormatValue(char *dest, int size, int value, int format);
 void statsBroadcastSync(void);
 void statsInit(void);
 

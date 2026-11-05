@@ -45,9 +45,10 @@
 void initialize(void)
 {
   static int initialized = 0;
-  if (initialized) return;
+  if (initialized)
+    return;
 
-  initialized = 1; 
+  initialized = 1;
 }
 
 /*
@@ -64,9 +65,9 @@ void initialize(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int main (void)
+int main(void)
 {
   initialize();
 
-	return 0;
+  return 0;
 }

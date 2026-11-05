@@ -29,17 +29,18 @@
 #include <libdl/utils.h>
 #include <libdl/compression.h>
 
-int main (void)
+int main(void)
 {
   static int init = 0;
-  if (init) return 0;
+  if (init)
+    return 0;
 
   // decompress
-  int len = decompressWad((void*)0x01EF0000, (void*)0x01B10000);
+  int len = decompressWad((void *)0x01EF0000, (void *)0x01B10000);
   printf("decompressed %d bytes\n", len);
   init = 1;
 
   // hook
   HOOK_J(0x00598BA0, 0x01B10000);
-	return 0;
+  return 0;
 }

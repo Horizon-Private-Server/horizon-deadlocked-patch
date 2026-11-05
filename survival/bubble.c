@@ -16,10 +16,10 @@
 
 extern struct SurvivalState State;
 
-struct SurvivalDamageBubble* damageBubbles = NULL;
+struct SurvivalDamageBubble *damageBubbles = NULL;
 
 //--------------------------------------------------------------------------
-float bubbleGetScale(struct SurvivalDamageBubble* bubble)
+float bubbleGetScale(struct SurvivalDamageBubble *bubble)
 {
   return 0.2 + (bubble->Life / (float)BUBBLE_LIFE_TICKS);
 }
@@ -33,10 +33,11 @@ u32 bubbleGetColor(int damage, int life, int team)
 
   // base color
   float t = 1 - clamp((life - 10) / (float)BUBBLE_LIFE_TICKS, 0, 1);
-  u32 baseColor = colorLerp(from, to, t) & 0xffffff;  
+  u32 baseColor = colorLerp(from, to, t) & 0xffffff;
 
   // opacity
-  if (life <= 10) {
+  if (life <= 10)
+  {
     opacity = life * 12;
   }
 
@@ -51,22 +52,28 @@ void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, 
   int lowestLife = BUBBLE_LIFE_TICKS;
   VECTOR offset;
 
-  if (!damageBubbles) return;
+  if (!damageBubbles)
+    return;
 
   vector_fromyaw(offset, randRadian());
   vector_scale(offset, offset, randRange(0, randomRadius));
 
-  for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i) {
-    if (damageBubbles[i].Life == 0) {
+  for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i)
+  {
+    if (damageBubbles[i].Life == 0)
+    {
       lowestLifeIdx = i;
       break;
-    } else if (damageBubbles[i].Life < lowestLife && isLocal >= damageBubbles[i].IsLocal) {
+    }
+    else if (damageBubbles[i].Life < lowestLife && isLocal >= damageBubbles[i].IsLocal)
+    {
       lowestLife = damageBubbles[i].Life;
       lowestLifeIdx = i;
     }
   }
 
-  if (lowestLifeIdx >= 0) {
+  if (lowestLifeIdx >= 0)
+  {
     damageBubbles[lowestLifeIdx].Life = BUBBLE_LIFE_TICKS;
     damageBubbles[lowestLifeIdx].Damage = (int)ceilf(damage);
     damageBubbles[lowestLifeIdx].IsLocal = isLocal;
@@ -85,30 +92,39 @@ void bubblePush(VECTOR position, float randomRadius, float damage, int isLocal, 
 void bubbleTick(void)
 {
   int i;
-  int x,y;
+  int x, y;
   char buf[32];
   float scale;
   VECTOR dt;
-  GameCamera* camera = cameraGetGameCamera(0);
+  GameCamera *camera = cameraGetGameCamera(0);
 
-  if (!damageBubbles) return;
-  if (!camera) return;
-  if (playerGetNumLocals() > 1) return; // don't support more than 1 player
-  
+  if (!damageBubbles)
+    return;
+  if (!camera)
+    return;
+  if (playerGetNumLocals() > 1)
+    return; // don't support more than 1 player
+
   int dzo = PATCH_INTEROP && PATCH_INTEROP->Client == CLIENT_TYPE_DZO;
-  for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i) {
-    if (damageBubbles[i].Life) {
+  for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i)
+  {
+    if (damageBubbles[i].Life)
+    {
 
       damageBubbles[i].Life--;
-      damageBubbles[i].Position[2] += 1*MATH_DT;
-      if (dzo) continue;
+      damageBubbles[i].Position[2] += 1 * MATH_DT;
+      if (dzo)
+        continue;
 
-      if (!damageBubbles[i].IsLocal) {
+      if (!damageBubbles[i].IsLocal)
+      {
         vector_subtract(dt, damageBubbles[i].Position, camera->pos);
-        if (vector_sqrmag(dt) > (BUBBLE_MAX_NONLOCAL_DIST*BUBBLE_MAX_NONLOCAL_DIST)) continue;
+        if (vector_sqrmag(dt) > (BUBBLE_MAX_NONLOCAL_DIST * BUBBLE_MAX_NONLOCAL_DIST))
+          continue;
       }
 
-      if (gfxWorldSpaceToScreenSpace(damageBubbles[i].Position, &x, &y)) {
+      if (gfxWorldSpaceToScreenSpace(damageBubbles[i].Position, &x, &y))
+      {
         snprintf(buf, sizeof(buf), "%d", damageBubbles[i].Damage);
         scale = bubbleGetScale(&damageBubbles[i]);
         gfxScreenSpaceText(x, y, scale, scale, bubbleGetColor(damageBubbles[i].Damage, damageBubbles[i].Life, damageBubbles[i].Team), buf, -1, 4);
@@ -120,10 +136,12 @@ void bubbleTick(void)
 //--------------------------------------------------------------------------
 void bubbleInit(void)
 {
-  if (!damageBubbles) {
+  if (!damageBubbles)
+  {
     DPRINTF("malloc\n");
     damageBubbles = malloc(sizeof(struct SurvivalDamageBubble) * DAMAGE_BUBBLE_MAX_COUNT);
-    if (damageBubbles) {
+    if (damageBubbles)
+    {
       memset(damageBubbles, 0, sizeof(struct SurvivalDamageBubble) * DAMAGE_BUBBLE_MAX_COUNT);
     }
   }
@@ -132,7 +150,8 @@ void bubbleInit(void)
 //--------------------------------------------------------------------------
 void bubbleDeinit(void)
 {
-  if (damageBubbles) {
+  if (damageBubbles)
+  {
     DPRINTF("free\n");
     free(damageBubbles);
     damageBubbles = NULL;

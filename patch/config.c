@@ -20,13 +20,13 @@
 #include "window.h"
 #include "include/config.h"
 
-#define LINE_HEIGHT         (0.05)
-#define LINE_HEIGHT_3_2     (0.075)
-#define DEFAULT_GAMEMODE    (0)
+#define LINE_HEIGHT (0.05)
+#define LINE_HEIGHT_3_2 (0.075)
+#define DEFAULT_GAMEMODE (0)
 #define CHARACTER_TWEAKER_RANGE (10)
-#define THUMBNAIL_SIZE      (9248)
-#define TPS                 (60)
-#define MAX_SURV_GAMBITS    (10)
+#define THUMBNAIL_SIZE (9248)
+#define TPS (60)
+#define MAX_SURV_GAMBITS (10)
 #define MAX_FORGE_CGM_PARAMS (4)
 #define MAX_FORGE_CGM_POPTS (10)
 
@@ -58,7 +58,7 @@ extern char checkForMapLastStates[GAME_MAX_PLAYERS];
 
 extern VoteToEndState_t voteToEndState;
 
-// 
+//
 int isConfigMenuActive = 0;
 int selectedTabItem = 0;
 int hasDevGameConfig = 0;
@@ -80,7 +80,7 @@ const char footerTextBack[] = "\x12 BACK";
 const char footerTextSelect[] = "\x10 SELECT";
 const char footerTextTab[] = "\x14 \x15 TAB";
 const char footerTextFilter[] = "\x13 FILTER";
-char footerTextExtra[32] = {0};
+char footerTextExtra[32] = { 0 };
 FooterExtraCallbackFunc_t footerCallback;
 
 // modes with footer ex stats
@@ -92,7 +92,7 @@ const char modesWithDynamicStatsPage[] = {
 };
 const int modesWithDynamicStatsPageCount = sizeof(modesWithDynamicStatsPage);
 
-// 
+//
 char *modeExDataBuf = NULL;
 int modeExDataBufSize = 2048;
 
@@ -122,12 +122,13 @@ const float tabBarH = 0.075;
 const float tabBarPaddingX = 0.005;
 
 // dynamic popup
-struct {
+struct
+{
   char Enabled;
   char SelectionIdx;
   char DrawIdx;
   int LineItemCount;
-  char* LineItems;
+  char *LineItems;
   char Title[64];
 } DynamicPageState;
 
@@ -138,88 +139,88 @@ void configMenuReset(void);
 void configTrySendGameConfig(void);
 
 // action handlers
-void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
-void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg);
+void buttonActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
+void toggleActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
+void toggleInvertedActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
+void listActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
+void mapsListVerticalActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
+void orderedListActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
+void rangeActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
+void gmOverrideListActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
+void labelActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
 
 // state handlers
-void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateEnabledInMenusHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateDzoDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_MapsListVerticalStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateAlwaysHiddenHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateAlwaysDisabledHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateAlwaysEnabledHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateEnabledInMenusHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateDzoEnabledHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateDzoDisabledHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateScavengerHuntEnabledHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuLabelStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_InstallCustomMaps(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_InstalledCustomMaps(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_GameModeOverride(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_VoteToEndStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_MapsListVerticalStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
 
-int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, char* value);
-int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value);
-int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value);
-int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value);
-int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char* value);
-int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, char* value);
+int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t *listData, char *value);
+int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t *listData, char *value);
+int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t *listData, char *value);
+int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t *listData, char *value);
+int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t *listData, char *value);
+int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t *listData, char *value);
 
-void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_ForgeCgmSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
-void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_SurvivalSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_PayloadSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_TrainingSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_HnsSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_ForgeCgmSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_CTFSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_KOTHSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_CQSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
+void menuStateHandler_SettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state);
 
-void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element);
-void voteToEndSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void downloadMapUpdatesSelectHandler(TabElem_t *tab, MenuElem_t *element);
+void voteToEndSelectHandler(TabElem_t *tab, MenuElem_t *element);
 
 #if MAPEDITOR
-void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state);
+void menuStateHandler_MapEditorSpawnPoints(TabElem_t *tab, MenuElem_t *element, int *state);
 #endif
 
-void tabDefaultStateHandler(TabElem_t* tab, int * state);
-void tabFreecamStateHandler(TabElem_t* tab, int * state);
-void tabGameSettingsStateHandler(TabElem_t* tab, int * state);
-void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state);
-void tabCustomMapStateHandler(TabElem_t* tab, int * state);
+void tabDefaultStateHandler(TabElem_t *tab, int *state);
+void tabFreecamStateHandler(TabElem_t *tab, int *state);
+void tabGameSettingsStateHandler(TabElem_t *tab, int *state);
+void tabGameSettingsHelpStateHandler(TabElem_t *tab, int *state);
+void tabCustomMapStateHandler(TabElem_t *tab, int *state);
 
 // list select handlers
-void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
-void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element);
-void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element);
-void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void mapsSelectHandler(TabElem_t *tab, MenuElem_t *element);
+void gmResetSelectHandler(TabElem_t *tab, MenuElem_t *element);
+void gmRandomPartySelectHandler(TabElem_t *tab, MenuElem_t *element);
+void gmRefreshMapsSelectHandler(TabElem_t *tab, MenuElem_t *element);
 
 #ifdef RELOADPATCH
-void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void downloadPatchSelectHandler(TabElem_t *tab, MenuElem_t *element);
 #endif
 
 #ifdef DEBUG
-void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element);
+void downloadBootElfSelectHandler(TabElem_t *tab, MenuElem_t *element);
 #endif
 
-void navMenu(TabElem_t* tab, int direction, int loop);
+void navMenu(TabElem_t *tab, int direction, int loop);
 void navTab(int direction);
-void tabInput(TabElem_t* tab);
+void tabInput(TabElem_t *tab);
 
 int mapsGetInstallationResult(void);
 int mapsPromptEnableCustomMaps(void);
 int mapsDownloadingModules(void);
-int mapReadCustomMapAuthorDescription(char* mapFilename, char dstAuthor[32], char dstDescription[256]);
-int mapReadCustomMapThumbnail(char* mapFilename, char *buf, int bufSize);
-int mapReadCustomMapExtraData(char* mapFilename, void* dst, int dstLen, int customModeId);
+int mapReadCustomMapAuthorDescription(char *mapFilename, char dstAuthor[32], char dstDescription[256]);
+int mapReadCustomMapThumbnail(char *mapFilename, char *buf, int bufSize);
+int mapReadCustomMapExtraData(char *mapFilename, void *dst, int dstLen, int customModeId);
 void refreshCustomMapList(void);
 void sendClientVoteForEnd(void);
 
@@ -282,8 +283,7 @@ MenuElem_ListData_t dataGameServers = {
   .count = 2,
   .items = {
     "US Central",
-    "Europe"
-  }
+    "Europe" }
 };
 
 // player fov range item
@@ -302,8 +302,7 @@ MenuElem_ListData_t dataFixedCycleOrder = {
   .items = {
     "Off",
     "Mag -> Fusion -> B6",
-    "Mag -> B6 -> Fusion"
-  }
+    "Mag -> B6 -> Fusion" }
 };
 
 // deadzone
@@ -336,7 +335,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Participate in Scavenger Hunt", toggleInvertedActionHandler, menuStateScavengerHuntEnabledHandler, &config.disableScavengerHunt, "If you see this option, there is a Horizon scavenger hunt active. Enabling this will spawn random Horizon bolts in game. Collect the most to win the hunt!" },
 #endif
   { "Game Server (Host)", listActionHandler, menuStateAlwaysEnabledHandler, &dataGameServers, "Which game server you'd like to use when creating a game." },
-  { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x00171DEB },
+  { "16:9 Widescreen", toggleActionHandler, menuStateAlwaysEnabledHandler, (char *)0x00171DEB },
   //{ "Alt USB Module Load (OPL USB)", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.altModuleLoad, "Uses alternative method to load USB modules. May fix custom maps on OPL USB." },
   { "Announcers on all gamemodes", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableGamemodeAnnouncements, "Enables Dallas commentary in all games." },
   { "Camera Pulling", toggleInvertedActionHandler, menuStateAlwaysEnabledHandler, &config.disableAimAssist, "Toggles code that pulls the camera towards nearby targets when aiming." },
@@ -356,7 +355,7 @@ MenuElem_t menuElementsGeneral[] = {
   { "Minimap Big Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapBigZoom, "Tweaks the expanded radar zoom." },
   { "Minimap Small Zoom", rangeActionHandler, menuStateAlwaysEnabledHandler, &dataMinimapSmallZoom, "Tweaks the minimized radar zoom." },
   // { "NPS Lag Compensation", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableNPSLagComp, "When New Player Sync is enabled, attempt to reduce latency of player movements." },
-  { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char*)0x0021DE6C },
+  { "Progressive Scan", toggleActionHandler, menuStateAlwaysEnabledHandler, (char *)0x0021DE6C },
   { "Singleplayer music", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleplayerMusic, "Enables all music tracks in game. Use R3 + Right to skip a track in game." },
   { "Singletap chargeboot", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSingleTapChargeboot, "Toggles tapping L2 once to chargeboot." },
   // { "Spectate mode", toggleActionHandler, menuStateAlwaysEnabledHandler, &config.enableSpectate, "Toggles the custom spectate feature. Use \x13 when dead to spectate." },
@@ -515,8 +514,7 @@ MenuElem_VerticalListData_t dataCustomMaps = {
   .rows = 10,
   .items = {
     "None",
-    [MAX_CUSTOM_MAP_DEFINITIONS+1] NULL
-  }
+    [MAX_CUSTOM_MAP_DEFINITIONS + 1] NULL }
 };
 
 // gamemode override list item
@@ -554,8 +552,8 @@ MenuElem_OrderedListData_t dataCustomModes = {
   }
 };
 
-// 
-const char* CustomModeShortNames[] = {
+//
+const char *CustomModeShortNames[] = {
   [CUSTOM_MODE_NONE] NULL,
   [CUSTOM_MODE_GUN_GAME] NULL,
   [CUSTOM_MODE_HNS] "HnS",
@@ -580,8 +578,8 @@ const char* CustomModeShortNames[] = {
 #endif
 };
 
-// 
-const char* CustomModeMapAttributeNames[] = {
+//
+const char *CustomModeMapAttributeNames[] = {
   [CUSTOM_MODE_NONE] NULL,
   [CUSTOM_MODE_GUN_GAME] "GUN GAME",
   [CUSTOM_MODE_HNS] "HNS",
@@ -613,8 +611,7 @@ MenuElem_ListData_t dataSurvivalGambit = {
   .count = 2, // leave room to navigate and load on demand
   .items = {
     "None",
-    [MAX_SURV_GAMBITS+1] NULL
-  }
+    [MAX_SURV_GAMBITS + 1] NULL }
 };
 
 // payload contest mode
@@ -625,8 +622,7 @@ MenuElem_ListData_t dataPayloadContestMode = {
   .items = {
     [PAYLOAD_CONTEST_OFF] "Off",
     [PAYLOAD_CONTEST_SLOW] "Slow",
-    [PAYLOAD_CONTEST_STOP] "Stop"
-  }
+    [PAYLOAD_CONTEST_STOP] "Stop" }
 };
 
 // training type
@@ -648,8 +644,7 @@ MenuElem_ListData_t dataTrainingVariant = {
   .count = 2,
   .items = {
     "Ranked",
-    "Endless"
-  }
+    "Endless" }
 };
 
 // training aggression
@@ -661,8 +656,7 @@ MenuElem_ListData_t dataTrainingAggression = {
     "Aggressive",
     "Aggressive No Damage",
     "Passive",
-    "Idle"
-  }
+    "Idle" }
 };
 
 // payload contest mode
@@ -685,8 +679,7 @@ MenuElem_ListData_t dataForgeCgmParam1 = {
   .count = 0,
   .items = {
     NULL,
-    [MAX_FORGE_CGM_POPTS] NULL
-  }
+    [MAX_FORGE_CGM_POPTS] NULL }
 };
 
 MenuElem_ListData_t dataForgeCgmParam2 = {
@@ -695,8 +688,7 @@ MenuElem_ListData_t dataForgeCgmParam2 = {
   .count = 0,
   .items = {
     NULL,
-    [MAX_FORGE_CGM_POPTS] NULL
-  }
+    [MAX_FORGE_CGM_POPTS] NULL }
 };
 
 MenuElem_ListData_t dataForgeCgmParam3 = {
@@ -705,8 +697,7 @@ MenuElem_ListData_t dataForgeCgmParam3 = {
   .count = 0,
   .items = {
     NULL,
-    [MAX_FORGE_CGM_POPTS] NULL
-  }
+    [MAX_FORGE_CGM_POPTS] NULL }
 };
 
 MenuElem_ListData_t dataForgeCgmParam4 = {
@@ -715,8 +706,7 @@ MenuElem_ListData_t dataForgeCgmParam4 = {
   .count = 0,
   .items = {
     NULL,
-    [MAX_FORGE_CGM_POPTS] NULL
-  }
+    [MAX_FORGE_CGM_POPTS] NULL }
 };
 
 // player size list item
@@ -742,8 +732,7 @@ MenuElem_ListData_t dataHeadbutt = {
     "Off",
     "Low Damage",
     "Medium Damage",
-    "High Damage"
-  }
+    "High Damage" }
 };
 
 // input restriction list item
@@ -754,8 +743,7 @@ MenuElem_ListData_t dataInputRestriction = {
   .items = {
     "Allow All",
     "Controller Only",
-    "Keyboard Mouse Only"
-  }
+    "Keyboard Mouse Only" }
 };
 
 // weather override list item
@@ -793,8 +781,7 @@ MenuElem_ListData_t dataRadarShortDistance = {
     "1x",
     "2x",
     "3x",
-    "4x"
-  }
+    "4x" }
 };
 
 // fusion reticule allow/disable list item
@@ -804,8 +791,7 @@ MenuElem_ListData_t dataFusionReticule = {
   .count = 2,
   .items = {
     "Permitted",
-    "Disabled"
-  }
+    "Disabled" }
 };
 
 // fusion scoping allow/disable list item
@@ -815,8 +801,7 @@ MenuElem_ListData_t dataFusionScoping = {
   .count = 2,
   .items = {
     "Permitted",
-    "Disabled"
-  }
+    "Disabled" }
 };
 
 // healthbox list item
@@ -827,8 +812,7 @@ MenuElem_ListData_t dataHealthBoxes = {
   .items = {
     "On",
     "No Box",
-    "Off"
-  }
+    "Off" }
 };
 
 // vampire list item
@@ -890,7 +874,7 @@ MenuElem_ListData_t dataGameConfigPreset = {
 
 // Keep writable labels in the binary: the raw patch entrypoint does not clear BSS.
 char forgeCgmParameterNames[MAX_FORGE_CGM_PARAMS][MENU_ELEMENT_NAME_SIZE]
-  __attribute__((section(".data"))) = {{0}};
+  __attribute__((section(".data"))) = { { 0 } };
 
 // game settings tab menu items
 MenuElem_t menuElementsGameSettings[] = {
@@ -916,14 +900,14 @@ MenuElem_t menuElementsGameSettings[] = {
   // HNS SETTINGS
   { "Hide Time", listActionHandler, menuStateHandler_HnsSettingStateHandler, &dataHnsHideDuration, "Time in seconds the hiders have to hide before the seekers can hunt for them." },
 
-  // FORGE CGM SETTINGS 
+  // FORGE CGM SETTINGS
   { forgeCgmParameterNames[0], listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam1, NULL },
   { forgeCgmParameterNames[1], listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam2, NULL },
   { forgeCgmParameterNames[2], listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam3, NULL },
   { forgeCgmParameterNames[3], listActionHandler, menuStateHandler_ForgeCgmSettingStateHandler, &dataForgeCgmParam4, NULL },
 
   // GAME RULES
-  { "Game Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Game Rules", labelActionHandler, menuLabelStateHandler, (void *)LABELTYPE_HEADER },
   { "Camera Input", listActionHandler, menuStateAlwaysEnabledHandler, &dataInputRestriction, "Require a Joystick or Keyboard/Mouse for aiming." },
   { "Better Flags", toggleActionHandler, menuStateHandler_CTFSettingStateHandler, &gameConfig.grBetterFlags, "Moves flag and spawn locations on some vanilla maps to more enjoyable locations." },
   { "Better Hills", toggleActionHandler, menuStateHandler_KOTHSettingStateHandler, &gameConfig.grBetterHills, "Moves hill spawns on some vanilla maps to more enjoyable locations." },
@@ -955,7 +939,7 @@ MenuElem_t menuElementsGameSettings[] = {
   { "Weapon Pickups", toggleInvertedActionHandler, menuStateHandler_SettingStateHandler, &gameConfig.grNoPickups, "Toggle in game weapon pickups." },
 
   // PARTY RULES
-  { "Party Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Party Rules", labelActionHandler, menuLabelStateHandler, (void *)LABELTYPE_HEADER },
   { "Chargeboot Forever", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prChargebootForever, "Double tap and hold L2 to chargeboot forever." },
   { "Headbutt", listActionHandler, menuStateAlwaysEnabledHandler, &dataHeadbutt, "Deal damage by chargebooting into other players." },
   { "Headbutt Friendly Fire", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.prHeadbuttFriendlyFire, "Toggle dealing headbutt damage to teammates." },
@@ -965,7 +949,7 @@ MenuElem_t menuElementsGameSettings[] = {
   //{ "Weather override", listActionHandler, menuStateAlwaysEnabledHandler, &dataWeather, "Enables the weather cheat code." },
 
   // DEV RULES
-  { "Dev Rules", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_HEADER },
+  { "Dev Rules", labelActionHandler, menuLabelStateHandler, (void *)LABELTYPE_HEADER },
   { "Freecam", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drFreecam, "Enables freecam mod. Use D-Pad Up and L1 to activate." },
   { "Don't Save Stats", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drNoRank, "When enabled, stats like Rank, Kills, Deaths, etc will not be saved after this game." },
   { "Reload Custom Map", toggleActionHandler, menuStateAlwaysEnabledHandler, &gameConfig.drLevelReload, "When enabled, pressing L1 + Up + Circle will reload the custom map." },
@@ -973,13 +957,13 @@ MenuElem_t menuElementsGameSettings[] = {
 
 // game settings tab menu items
 MenuElem_t menuElementsGameSettingsHelp[] = {
-  { "", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "Please create a game to configure", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
-  { "the custom game settings.", labelActionHandler, menuLabelStateHandler, (void*)LABELTYPE_LABEL },
+  { "", labelActionHandler, menuLabelStateHandler, (void *)LABELTYPE_LABEL },
+  { "Please create a game to configure", labelActionHandler, menuLabelStateHandler, (void *)LABELTYPE_LABEL },
+  { "the custom game settings.", labelActionHandler, menuLabelStateHandler, (void *)LABELTYPE_LABEL },
 };
 
 // game settings tab menu items
-char* mapOverrideSelectedMapThumbnail = NULL;
+char *mapOverrideSelectedMapThumbnail = NULL;
 int mapOverrideSelectedMapHasThumbnail = 0;
 char mapOverrideSelectedMapAuthor[32] = {};
 char mapOverrideSelectedMapDesc[256] = {};
@@ -1015,33 +999,39 @@ MenuElem_t menuElementsMapEditor[] = {
 
 // tab items
 TabElem_t tabElements[] = {
-  { "General", tabDefaultStateHandler, menuElementsGeneral, sizeof(menuElementsGeneral)/sizeof(MenuElem_t) },
-  { "Free Cam", tabFreecamStateHandler, menuElementsFreecam, sizeof(menuElementsFreecam)/sizeof(MenuElem_t) },
+  { "General", tabDefaultStateHandler, menuElementsGeneral, sizeof(menuElementsGeneral) / sizeof(MenuElem_t) },
+  { "Free Cam", tabFreecamStateHandler, menuElementsFreecam, sizeof(menuElementsFreecam) / sizeof(MenuElem_t) },
 #if TWEAKERS
-  { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter)/sizeof(MenuElem_t) },
+  { "Character", tabDefaultStateHandler, menuElementsCharacter, sizeof(menuElementsCharacter) / sizeof(MenuElem_t) },
 #endif
-  { "Game Settings", tabGameSettingsStateHandler, menuElementsGameSettings, sizeof(menuElementsGameSettings)/sizeof(MenuElem_t) },
-  { "Game Settings", tabGameSettingsHelpStateHandler, menuElementsGameSettingsHelp, sizeof(menuElementsGameSettingsHelp)/sizeof(MenuElem_t) },
-  { "Custom Maps", tabCustomMapStateHandler, menuElementsGameSettingsCustomMaps, sizeof(menuElementsGameSettingsCustomMaps)/sizeof(MenuElem_t) },
+  { "Game Settings", tabGameSettingsStateHandler, menuElementsGameSettings, sizeof(menuElementsGameSettings) / sizeof(MenuElem_t) },
+  { "Game Settings", tabGameSettingsHelpStateHandler, menuElementsGameSettingsHelp, sizeof(menuElementsGameSettingsHelp) / sizeof(MenuElem_t) },
+  { "Custom Maps", tabCustomMapStateHandler, menuElementsGameSettingsCustomMaps, sizeof(menuElementsGameSettingsCustomMaps) / sizeof(MenuElem_t) },
 #if MAPEDITOR
-  { "Map Editor", tabDefaultStateHandler, menuElementsMapEditor, sizeof(menuElementsMapEditor)/sizeof(MenuElem_t) },
+  { "Map Editor", tabDefaultStateHandler, menuElementsMapEditor, sizeof(menuElementsMapEditor) / sizeof(MenuElem_t) },
 #endif
 };
 
-const int tabsCount = sizeof(tabElements)/sizeof(TabElem_t);
+const int tabsCount = sizeof(tabElements) / sizeof(TabElem_t);
 
 //------------------------------------------------------------------------------
-char* getCustomModeName(int modeId, int type)
+char *getCustomModeName(int modeId, int type)
 {
-  if (modeId < 0 && type == 2) return "MINIGAME";
-  if (modeId <= 0) return "None";
+  if (modeId < 0 && type == 2)
+    return "MINIGAME";
+  if (modeId <= 0)
+    return "None";
 
-  char* modeName = type > 1 ? (char*)CustomModeMapAttributeNames[modeId] : NULL;
-  if (!modeName && type > 0) modeName = (char*)CustomModeShortNames[modeId];
-  if (!modeName) {
+  char *modeName = type > 1 ? (char *)CustomModeMapAttributeNames[modeId] : NULL;
+  if (!modeName && type > 0)
+    modeName = (char *)CustomModeShortNames[modeId];
+  if (!modeName)
+  {
     int i;
-    for (i = 0; i < dataCustomModes.count; ++i) {
-      if (dataCustomModes.items[i].value == modeId) {
+    for (i = 0; i < dataCustomModes.count; ++i)
+    {
+      if (dataCustomModes.items[i].value == modeId)
+      {
         modeName = dataCustomModes.items[i].name;
         break;
       }
@@ -1054,54 +1044,63 @@ char* getCustomModeName(int modeId, int type)
 //------------------------------------------------------------------------------
 int getCustomMapMode(int mapIdx)
 {
-  if (mapIdx <= 0) return 0;
+  if (mapIdx <= 0)
+    return 0;
 
   return customMapDefs[mapIdx - 1].ForcedCustomModeId;
 }
 
 //------------------------------------------------------------------------------
-char* getCustomMapName(int mapIdx)
+char *getCustomMapName(int mapIdx)
 {
-  if (mapIdx <= 0) return "None";
+  if (mapIdx <= 0)
+    return "None";
 
   return customMapDefs[mapIdx - 1].Name;
 }
 
 //------------------------------------------------------------------------------
-void cgmSendMapData(int mapIdx, int modeId, char* exDataBuf, int exDataBufLen)
+void cgmSendMapData(int mapIdx, int modeId, char *exDataBuf, int exDataBufLen)
 {
   int len = 1024;
   char buf[1024];
-  char* exData = (char*)buf;
+  char *exData = (char *)buf;
 
   // no map
-  if (mapIdx <= 0) return;
+  if (mapIdx <= 0)
+    return;
 
   // no mode
-  if (modeId == 0) return;
+  if (modeId == 0)
+    return;
 
   // no connection
-  void * lobbyConnection = netGetLobbyServerConnection();
-  if (!lobbyConnection) return;
+  void *lobbyConnection = netGetLobbyServerConnection();
+  if (!lobbyConnection)
+    return;
 
   // read use/extra data
-  if (exDataBuf) {
+  if (exDataBuf)
+  {
     exData = exDataBuf;
     len = exDataBufLen;
-  } else if ((len = mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, buf, sizeof(buf), modeId)) <= 0) {
+  }
+  else if ((len = mapReadCustomMapExtraData(customMapDefs[mapIdx - 1].Filename, buf, sizeof(buf), modeId)) <= 0)
+  {
     return;
   }
 
   // send latest map data to server first
   UpdateCustomMapExDataRequest_t msg;
-  safe_strcpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
+  safe_strcpy(msg.MapFilename, customMapDefs[mapIdx - 1].Filename, sizeof(msg.MapFilename));
 
   // send in fragments
   int off = 0;
-  while (off < len) {
-    int size = (int)minf(len-off, sizeof(msg.Data));
+  while (off < len)
+  {
+    int size = (int)minf(len - off, sizeof(msg.Data));
     msg.CustomModeId = modeId;
-    msg.LastSegment = (off+size) >= len;
+    msg.LastSegment = (off + size) >= len;
     msg.Offset = off;
     msg.Len = size;
     memcpy(msg.Data, exData + off, size);
@@ -1116,11 +1115,13 @@ void dynamicPageEnable(int mapIdx, int type)
   dynamicPageDisable();
 
   // no map
-  if (isUnloading || mapIdx <= 0) return;
+  if (isUnloading || mapIdx <= 0)
+    return;
 
   // no connection
-  void * lobbyConnection = netGetLobbyServerConnection();
-  if (!lobbyConnection) return;
+  void *lobbyConnection = netGetLobbyServerConnection();
+  if (!lobbyConnection)
+    return;
 
   // init
   safe_strcpy(DynamicPageState.Title, getCustomMapName(mapIdx), sizeof(DynamicPageState.Title));
@@ -1130,7 +1131,8 @@ void dynamicPageEnable(int mapIdx, int type)
 
   // alloc
   DynamicPageState.LineItems = malloc(1024);
-  if (!DynamicPageState.LineItems) {
+  if (!DynamicPageState.LineItems)
+  {
     DynamicPageState.Enabled = 0;
     return;
   }
@@ -1148,7 +1150,7 @@ void dynamicPageEnable(int mapIdx, int type)
     .LineItemsCountAddress = &DynamicPageState.LineItemCount,
     .LineItemsAddress = DynamicPageState.LineItems
   };
-  safe_strcpy(msg.MapFilename, customMapDefs[mapIdx-1].Filename, sizeof(msg.MapFilename));
+  safe_strcpy(msg.MapFilename, customMapDefs[mapIdx - 1].Filename, sizeof(msg.MapFilename));
   netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_DYNAMIC_PAGE_CONTENT, sizeof(msg), &msg);
 }
 
@@ -1168,7 +1170,8 @@ void dynamicPageEnableForCurrentMap(void)
     mapIdx = *dataCustomMaps.stagingValue;
 
   int modeId = getCustomMapMode(mapIdx);
-  if (!modeId) modeId = *dataCustomModes.value;
+  if (!modeId)
+    modeId = *dataCustomModes.value;
 
   switch (modeId)
   {
@@ -1205,14 +1208,15 @@ void dynamicPageDisable(void)
   DynamicPageState.Enabled = 0;
 
   // free
-  if (DynamicPageState.LineItems) {
+  if (DynamicPageState.LineItems)
+  {
     free(DynamicPageState.LineItems);
     DynamicPageState.LineItems = NULL;
   }
 }
 
 //------------------------------------------------------------------------------
-int findIndexOfMenuElemByUserData(MenuElem_t* elements, int count, void* userdata)
+int findIndexOfMenuElemByUserData(MenuElem_t *elements, int count, void *userdata)
 {
   int i;
   for (i = 0; i < count; ++i)
@@ -1225,13 +1229,13 @@ int findIndexOfMenuElemByUserData(MenuElem_t* elements, int count, void* userdat
 }
 
 //------------------------------------------------------------------------------
-void tabDefaultStateHandler(TabElem_t* tab, int * state)
+void tabDefaultStateHandler(TabElem_t *tab, int *state)
 {
   *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
 //------------------------------------------------------------------------------
-void tabFreecamStateHandler(TabElem_t* tab, int * state)
+void tabFreecamStateHandler(TabElem_t *tab, int *state)
 {
   if (gameConfig.drFreecam && isInGame())
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
@@ -1240,10 +1244,10 @@ void tabFreecamStateHandler(TabElem_t* tab, int * state)
 }
 
 //------------------------------------------------------------------------------
-void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
+void gmRefreshMapsSelectHandler(TabElem_t *tab, MenuElem_t *element)
 {
   refreshCustomMapList();
-  
+
   // popup
   if (isInMenus())
   {
@@ -1254,12 +1258,12 @@ void gmRefreshMapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
 }
 
 //------------------------------------------------------------------------------
-void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
+void tabGameSettingsStateHandler(TabElem_t *tab, int *state)
 {
 
 #if COMP
 
-  GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
   if (!gameSettings)
   {
     *state = ELEMENT_VISIBLE;
@@ -1272,14 +1276,14 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
 
 #else
 
-  GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
   if (!gameSettings)
   {
     *state = ELEMENT_HIDDEN;
   }
 #if !DEBUG
   // if game has started or not the host, disable editing
-  else if (gameSettings->GameLoadStartTime > 0 || *(u8*)0x00172170 != 0)
+  else if (gameSettings->GameLoadStartTime > 0 || *(u8 *)0x00172170 != 0)
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
   }
@@ -1291,21 +1295,25 @@ void tabGameSettingsStateHandler(TabElem_t* tab, int * state)
 #endif
 
   // only for selected tab
-  if (&tabElements[selectedTabItem] != tab) return;
+  if (&tabElements[selectedTabItem] != tab)
+    return;
 
   // add stats footer interaction
   int mapIdx = *dataCustomMaps.value;
   int modeIdx = *dataCustomModes.value;
-  if (mapIdx && modeIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, modeIdx)) {
+  if (mapIdx && modeIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, modeIdx))
+  {
     snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
     footerCallback = &dynamicPageEnableForCurrentMap;
-  } else {
+  }
+  else
+  {
     footerTextExtra[0] = 0;
   }
 }
 
 //------------------------------------------------------------------------------
-void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state)
+void tabGameSettingsHelpStateHandler(TabElem_t *tab, int *state)
 {
 
 #if COMP
@@ -1314,7 +1322,7 @@ void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state)
 
 #else
 
-  GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
   if (!gameSettings)
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
@@ -1324,16 +1332,15 @@ void tabGameSettingsHelpStateHandler(TabElem_t* tab, int * state)
     *state = ELEMENT_HIDDEN;
   }
 #endif
-
 }
 
 //------------------------------------------------------------------------------
-void tabCustomMapStateHandler(TabElem_t* tab, int * state)
+void tabCustomMapStateHandler(TabElem_t *tab, int *state)
 {
-  GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
 
   // if game has started or not the host, disable editing
-  if (!gameSettings || gameSettings->GameLoadStartTime > 0 || *(u8*)0x00172170 != 0)
+  if (!gameSettings || gameSettings->GameLoadStartTime > 0 || *(u8 *)0x00172170 != 0)
   {
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
   }
@@ -1344,9 +1351,11 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state)
 
   // add stats footer interaction
   int mapIdx = *dataCustomMaps.stagingValue;
-  int modeIdx = customMapDefs[mapIdx-1].ForcedCustomModeId;
-  if (!modeIdx) modeIdx = *dataCustomModes.value;
-  if (mapIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, modeIdx)) {
+  int modeIdx = customMapDefs[mapIdx - 1].ForcedCustomModeId;
+  if (!modeIdx)
+    modeIdx = *dataCustomModes.value;
+  if (mapIdx && charArrayContains(modesWithDynamicStatsPage, modesWithDynamicStatsPageCount, modeIdx))
+  {
     snprintf(footerTextExtra, sizeof(footerTextExtra), "\x11 STATS");
     footerCallback = &dynamicPageEnableForCurrentMap;
   }
@@ -1355,15 +1364,15 @@ void tabCustomMapStateHandler(TabElem_t* tab, int * state)
 #ifdef RELOADPATCH
 
 //------------------------------------------------------------------------------
-void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
+void downloadPatchSelectHandler(TabElem_t *tab, MenuElem_t *element)
 {
   // close menu
   configMenuDisable();
 
   // send request
-  void * lobbyConnection = netGetLobbyServerConnection();
+  void *lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
-    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void*)element);
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_PATCH, 0, (void *)element);
 }
 
 #endif
@@ -1371,7 +1380,7 @@ void downloadPatchSelectHandler(TabElem_t* tab, MenuElem_t* element)
 #ifdef DEBUG
 
 //------------------------------------------------------------------------------
-void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
+void downloadBootElfSelectHandler(TabElem_t *tab, MenuElem_t *element)
 {
   ClientRequestBootElf_t request;
   request.BootElfId = 1;
@@ -1380,7 +1389,7 @@ void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
   configMenuDisable();
 
   // send request
-  void * lobbyConnection = netGetLobbyServerConnection();
+  void *lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
 }
@@ -1390,7 +1399,7 @@ void downloadBootElfSelectHandler(TabElem_t* tab, MenuElem_t* element)
 #ifdef MAPEDITOR
 
 //------------------------------------------------------------------------------
-void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, int* state)
+void menuStateHandler_MapEditorSpawnPoints(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   if (mapEditorState == 1)
     *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
@@ -1401,16 +1410,16 @@ void menuStateHandler_MapEditorSpawnPoints(TabElem_t* tab, MenuElem_t* element, 
 #endif
 
 //------------------------------------------------------------------------------
-void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
+void mapsSelectHandler(TabElem_t *tab, MenuElem_t *element)
 {
-  // 
+  //
   if (!isInMenus())
     return;
 
   // close menu
   configMenuDisable();
 
-  // 
+  //
   if (mapsPromptEnableCustomMaps() < 0)
   {
     uiShowOkDialog("Custom Maps", "Error. Not enough memory.");
@@ -1418,7 +1427,7 @@ void mapsSelectHandler(TabElem_t* tab, MenuElem_t* element)
 }
 
 //------------------------------------------------------------------------------
-void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
+void gmResetSelectHandler(TabElem_t *tab, MenuElem_t *element)
 {
   preset = 0;
   memset(&gameConfig, 0, sizeof(gameConfig));
@@ -1426,7 +1435,7 @@ void gmResetSelectHandler(TabElem_t* tab, MenuElem_t* element)
 }
 
 //------------------------------------------------------------------------------
-void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
+void gmRandomPartySelectHandler(TabElem_t *tab, MenuElem_t *element)
 {
   const char validPartyModes[] = {
     CUSTOM_MODE_NONE,
@@ -1453,17 +1462,21 @@ void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
   };
 
   int retry = 0;
-  while (retry < 5) {
+  while (retry < 5)
+  {
 
     int map = libcRand() % (customMapDefCount + 1);
     int mode = weightedPartyModes[libcRand() % sizeof(weightedPartyModes)];
 
     // if mode has dedicate map select that map
-    if (mode < 0) {
+    if (mode < 0)
+    {
       int count;
       int i;
-      for (i = 0; i < customMapDefCount; ++i) {
-        if (customMapDefs[i].ForcedCustomModeId == mode) {
+      for (i = 0; i < customMapDefCount; ++i)
+      {
+        if (customMapDefs[i].ForcedCustomModeId == mode)
+        {
           ++count;
           map = i + 1;
         }
@@ -1481,8 +1494,10 @@ void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
       {
         int selMapIdx = libcRand() % count;
         int curMapIdx = 0;
-        for (i = 0; i < customMapDefCount; ++i) {
-          if (customMapDefs[i].ForcedCustomModeId == mode) {
+        for (i = 0; i < customMapDefCount; ++i)
+        {
+          if (customMapDefs[i].ForcedCustomModeId == mode)
+          {
             if (curMapIdx == selMapIdx)
             {
               map = i + 1;
@@ -1498,12 +1513,14 @@ void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
     int mapMode = getCustomMapMode(map);
 
     // make sure we support the respective mode
-    if (!charArrayContains(validPartyModes, sizeof(validPartyModes), mapMode)) {
+    if (!charArrayContains(validPartyModes, sizeof(validPartyModes), mapMode))
+    {
       ++retry;
       continue;
     }
 
-    if (mapMode) mode = mapMode;
+    if (mapMode)
+      mode = mapMode;
 
     // set map and mode
     *dataCustomMaps.value = map;
@@ -1517,57 +1534,60 @@ void gmRandomPartySelectHandler(TabElem_t* tab, MenuElem_t* element)
 }
 
 //------------------------------------------------------------------------------
-void downloadMapUpdatesSelectHandler(TabElem_t* tab, MenuElem_t* element)
+void downloadMapUpdatesSelectHandler(TabElem_t *tab, MenuElem_t *element)
 {
   // close menu
   configMenuDisable();
 
   // prompt
-  if (uiShowYesNoDialog("Are you sure?", "Launching the map downloader will exit the game.") == 1) {
+  if (uiShowYesNoDialog("Are you sure?", "Launching the map downloader will exit the game.") == 1)
+  {
     ClientRequestBootElf_t request;
     request.BootElfId = 0;
-    
+
     // send request
-    void * lobbyConnection = netGetLobbyServerConnection();
+    void *lobbyConnection = netGetLobbyServerConnection();
     if (lobbyConnection)
       netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_REQUEST_BOOT_ELF, sizeof(ClientRequestBootElf_t), &request);
   }
 }
 
 //------------------------------------------------------------------------------
-void voteToEndSelectHandler(TabElem_t* tab, MenuElem_t* element)
+void voteToEndSelectHandler(TabElem_t *tab, MenuElem_t *element)
 {
   sendClientVoteForEnd();
   configMenuDisable();
 }
 
 //------------------------------------------------------------------------------
-void menuStateAlwaysHiddenHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+void menuStateAlwaysHiddenHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   *state = ELEMENT_HIDDEN;
 }
 
-// 
-void menuStateAlwaysDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateAlwaysDisabledHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_SELECTABLE;
 }
 
-// 
-void menuStateAlwaysEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateAlwaysEnabledHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
 }
 
-// 
-void menuStateEnabledInMenusHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateEnabledInMenusHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
-  if (isInMenus()) *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
-  else *state = ELEMENT_HIDDEN;
+  if (isInMenus())
+    *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
+  else
+    *state = ELEMENT_HIDDEN;
 }
 
-// 
-void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateDzoEnabledHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   if (CLIENT_TYPE_DZO == PATCH_INTEROP->Client)
     *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
@@ -1575,8 +1595,8 @@ void menuStateDzoEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
     *state = ELEMENT_HIDDEN;
 }
 
-// 
-void menuStateDzoDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateDzoDisabledHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   if (CLIENT_TYPE_DZO == PATCH_INTEROP->Client)
     *state = ELEMENT_HIDDEN;
@@ -1584,14 +1604,14 @@ void menuStateDzoDisabledHandler(TabElem_t* tab, MenuElem_t* element, int* state
     *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE;
 }
 
-// 
-void menuLabelStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuLabelStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateScavengerHuntEnabledHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   if (!scavHuntEnabled)
     *state = ELEMENT_HIDDEN;
@@ -1599,23 +1619,23 @@ void menuStateScavengerHuntEnabledHandler(TabElem_t* tab, MenuElem_t* element, i
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_InstallCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_InstallCustomMaps(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   *state = isInMenus() && mapsGetInstallationResult() == 0 ? (ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE) : ELEMENT_HIDDEN;
 }
 
-// 
-void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_CheckForUpdatesCustomMaps(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   *state = isInMenus() && uiGetActive() == UI_ID_ONLINE_MAIN_MENU && mapsGetInstallationResult() == 1 ? (ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE) : ELEMENT_HIDDEN;
 }
 
-// 
-void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_InstalledCustomMaps(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE;
-  
+
   int installResult = mapsGetInstallationResult();
   switch (installResult)
   {
@@ -1642,8 +1662,8 @@ void menuStateHandler_InstalledCustomMaps(TabElem_t* tab, MenuElem_t* element, i
   }
 }
 
-// 
-int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, char* value)
+//
+int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t *listData, char *value)
 {
   int i;
   if (!value)
@@ -1657,7 +1677,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
   if (!gm)
   {
     // hide raids non-hub maps
-    if (v && customMapDefs[v-1].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[v-1].Filename, RAIDS_HUB_MAPFILENAME, sizeof(customMapDefs[v-1].Filename)) != 0)
+    if (v && customMapDefs[v - 1].ForcedCustomModeId == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[v - 1].Filename, RAIDS_HUB_MAPFILENAME, sizeof(customMapDefs[v - 1].Filename)) != 0)
       return 0;
 
     return 1;
@@ -1671,12 +1691,12 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
     //   for (i = 0; i < customMapDefCount; ++i) {
     //     if (strcmp("benchmark", customMapDefs[i].Filename) == 0) {
     //       if (v == (i+1)) return 1;
-          
+
     //       *value = i+1;
     //       return 0;
     //     }
     //   }
-      
+
     //   *value = 0;
     //   return 0;
     // }
@@ -1685,15 +1705,16 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
     case CUSTOM_MODE_OBSTACLE:
     {
       int firstMatch = 0;
-      for (i = 0; i < customMapDefCount; ++i) {
+      for (i = 0; i < customMapDefCount; ++i)
+      {
         if (customMapDefs[i].ForcedCustomModeId != gm)
           continue;
         if (gm == CUSTOM_MODE_RAIDS && strncmp(customMapDefs[i].Filename, RAIDS_HUB_MAPFILENAME, sizeof(customMapDefs[i].Filename)) != 0)
           continue;
-        if (v == i+1)
+        if (v == i + 1)
           return 1;
         if (!firstMatch)
-          firstMatch = i+1;
+          firstMatch = i + 1;
       }
 
       *value = firstMatch;
@@ -1705,13 +1726,15 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
       //  printf("%s => %x\n", customMapDefs[v-1].Name, customMapDefs[v-1].CustomModeExtraDataMask);
 
       // supported custom maps only
-      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << gm)) != 0)
+      if (v && (customMapDefs[v - 1].CustomModeExtraDataMask & (1 << gm)) != 0)
         return 1;
 
       // force first map
-      for (i = 0; i < customMapDefCount; ++i) {
-        if ((customMapDefs[i].CustomModeExtraDataMask & (1 << gm)) != 0) {
-          *value = i+1;
+      for (i = 0; i < customMapDefCount; ++i)
+      {
+        if ((customMapDefs[i].CustomModeExtraDataMask & (1 << gm)) != 0)
+        {
+          *value = i + 1;
           //*dataCustomMaps.value = i+1;
           return 0;
         }
@@ -1724,11 +1747,12 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
     case CUSTOM_MODE_SEARCH_AND_DESTROY:
     {
       // supported custom maps
-      if (v && (customMapDefs[v-1].CustomModeExtraDataMask & (1 << gm)) != 0)
+      if (v && (customMapDefs[v - 1].CustomModeExtraDataMask & (1 << gm)) != 0)
         return 1;
 
       // supports all vanilla maps
-      if (v == 0) return 1;
+      if (v == 0)
+        return 1;
 
       *value = 0;
       return 0;
@@ -1736,8 +1760,10 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
     case CUSTOM_MODE_TRAINING:
     {
       // endless cycle supports custom maps
-      if ((gameConfig.trainingConfig.type == TRAINING_TYPE_CYCLE || gameConfig.trainingConfig.type == TRAINING_TYPE_RUSH) && gameConfig.trainingConfig.variant != 0) {
-        if (v && customMapDefs[v-1].ForcedCustomModeId) {
+      if ((gameConfig.trainingConfig.type == TRAINING_TYPE_CYCLE || gameConfig.trainingConfig.type == TRAINING_TYPE_RUSH) && gameConfig.trainingConfig.variant != 0)
+      {
+        if (v && customMapDefs[v - 1].ForcedCustomModeId)
+        {
           *value = 0;
           return 0;
         }
@@ -1757,7 +1783,7 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
       // hide maps with gamemode override
       if (gm > CUSTOM_MODE_NONE)
       {
-        if (v && customMapDefs[v-1].ForcedCustomModeId && customMapDefs[v-1].ForcedCustomModeId != gm)
+        if (v && customMapDefs[v - 1].ForcedCustomModeId && customMapDefs[v - 1].ForcedCustomModeId != gm)
         {
           *value = 0;
           return 0;
@@ -1765,7 +1791,8 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
       }
 
       // hide unless forced mode is negative (benchmark, spleef) or selected mode matches map
-      if (v && customMapDefs[v-1].ForcedCustomModeId > 0 && customMapDefs[v-1].ForcedCustomModeId != gm) {
+      if (v && customMapDefs[v - 1].ForcedCustomModeId > 0 && customMapDefs[v - 1].ForcedCustomModeId != gm)
+      {
         *value = 0;
         return 0;
       }
@@ -1775,14 +1802,15 @@ int menuStateHandler_SelectedMapOverride(MenuElem_VerticalListData_t* listData, 
   }
 }
 
-// 
-void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_GameModeOverride(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   int i = 0;
 
   // hide gamemode for maps with exclusive gamemode
 #if !DEBUG
-  if (patchStateContainer.SelectedCustomMapId && customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId < 0) {
+  if (patchStateContainer.SelectedCustomMapId && customMapDefs[patchStateContainer.SelectedCustomMapId - 1].ForcedCustomModeId < 0)
+  {
     *state = ELEMENT_HIDDEN;
     return;
   }
@@ -1791,13 +1819,13 @@ void menuStateHandler_GameModeOverride(TabElem_t* tab, MenuElem_t* element, int*
   *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listData, char* value)
+//
+int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t *listData, char *value)
 {
   if (!value)
     return 0;
 
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
   char v = *value;
 
   if (gs)
@@ -1809,7 +1837,7 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listDa
       {
         if (gs->GameRules == GAMERULE_DM)
           return 1;
-          
+
         *value = CUSTOM_MODE_NONE;
         return 0;
       }
@@ -1819,13 +1847,13 @@ int menuStateHandler_SelectedGameModeOverride(MenuElem_OrderedListData_t* listDa
   return 1;
 }
 
-// 
-int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData, char* value)
+//
+int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t *listData, char *value)
 {
   if (!value)
     return 0;
 
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
   char v = *value;
 
   return 1;
@@ -1863,13 +1891,13 @@ int menuStateHandler_SelectedTrainingTypeOverride(MenuElem_ListData_t* listData,
   return 0;
 }
 
-// 
-int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* listData, char* value)
+//
+int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t *listData, char *value)
 {
   if (!value)
     return 0;
 
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
   char v = *value;
 
   switch (gameConfig.trainingConfig.type)
@@ -1919,42 +1947,46 @@ int menuStateHandler_SelectedTrainingAggressionOverride(MenuElem_ListData_t* lis
   return 0;
 }
 
-// 
-int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char* value)
+//
+int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t *listData, char *value)
 {
-  if (isInGame()) return 1;
+  if (isInGame())
+    return 1;
 
   char buf[1024];
   int mapIdx = *dataCustomMaps.value;
   int selIdx = *value;
   safe_strcpy(dataSurvivalGambitDesc, "Choose a gambit to tweak the selected map's gameplay mechanics.", sizeof(dataSurvivalGambitDesc));
-  if (getCustomMapMode(mapIdx) != CUSTOM_MODE_SURVIVAL) return 0;
+  if (getCustomMapMode(mapIdx) != CUSTOM_MODE_SURVIVAL)
+    return 0;
 
-  int exDataLen = mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, buf, sizeof(buf), CUSTOM_MODE_SURVIVAL);
+  int exDataLen = mapReadCustomMapExtraData(customMapDefs[mapIdx - 1].Filename, buf, sizeof(buf), CUSTOM_MODE_SURVIVAL);
   if (exDataLen < 8)
     return 0;
 
   // send to server
-  if (!isInGame()) {
+  if (!isInGame())
+  {
     cgmSendMapData(mapIdx, CUSTOM_MODE_SURVIVAL, buf, exDataLen);
     //survivalSendMapData(selIdx, buf);
   }
 
   // parse
-  int gambitCount = minf(MAX_SURV_GAMBITS, *(int*)(buf + 4));
-  char* gambits = (char*)(buf + 8);
+  int gambitCount = minf(MAX_SURV_GAMBITS, *(int *)(buf + 4));
+  char *gambits = (char *)(buf + 8);
 
   int i;
-  for (i = 0; i < gambitCount; ++i) {
+  for (i = 0; i < gambitCount; ++i)
+  {
     snprintf(dataSurvivalGambitNames[i], sizeof(dataSurvivalGambitNames[i]), "%s", gambits);
-    dataSurvivalGambit.items[i+1] = dataSurvivalGambitNames[i];
-    gambits += strlen(gambits)+1;
-    
+    dataSurvivalGambit.items[i + 1] = dataSurvivalGambitNames[i];
+    gambits += strlen(gambits) + 1;
+
     // update help text
-    if ((i+1) == selIdx)
+    if ((i + 1) == selIdx)
       safe_strcpy(dataSurvivalGambitDesc, gambits, sizeof(dataSurvivalGambitDesc));
-      
-    gambits += strlen(gambits)+1;
+
+    gambits += strlen(gambits) + 1;
   }
 
   // reset to 0
@@ -1965,18 +1997,20 @@ int menuStateHandler_SelectedSurvivalGambit(MenuElem_ListData_t* listData, char*
   return 1;
 }
 
-// 
-int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, char* value)
+//
+int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t *listData, char *value)
 {
-  if (isInGame()) return 1;
-  if (modeExDataBuf == NULL) return 0;
+  if (isInGame())
+    return 1;
+  if (modeExDataBuf == NULL)
+    return 0;
 
   int mapIdx = *dataCustomMaps.value;
   int selIdx = *value;
   if (getCustomMapMode(mapIdx) != CUSTOM_MODE_FORGE_CUSTOM)
     return 0;
 
-  int exDataLen = mapReadCustomMapExtraData(customMapDefs[mapIdx-1].Filename, modeExDataBuf, modeExDataBufSize, CUSTOM_MODE_FORGE_CUSTOM);
+  int exDataLen = mapReadCustomMapExtraData(customMapDefs[mapIdx - 1].Filename, modeExDataBuf, modeExDataBufSize, CUSTOM_MODE_FORGE_CUSTOM);
   if (exDataLen < 72)
     return 0;
 
@@ -1984,18 +2018,19 @@ int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, ch
   // cgmSendMapData(mapIdx, CUSTOM_MODE_FORGE_CUSTOM, modeExDataBuf, exDataLen);
 
   // parse
-  int paramOffset = *(int*)(modeExDataBuf + 64 + 4);
+  int paramOffset = *(int *)(modeExDataBuf + 64 + 4);
   if (paramOffset == 0)
     return 0;
 
   int thisParamIdx = (int)((u32)listData->value - (u32)gameConfig.forgeCgmConfig.params);
   int selectedElemIdx = findIndexOfMenuElemByUserData(menuElementsGameSettings, sizeof(menuElementsGameSettings), listData);
   int selectedParamIdx = selectedElemIdx - findIndexOfMenuElemByUserData(menuElementsGameSettings, sizeof(menuElementsGameSettings), &dataForgeCgmParam1);
-  int paramCount = minf(MAX_FORGE_CGM_PARAMS, *(int*)(modeExDataBuf + paramOffset));
-  struct ForgeCgmParameterDef* params = (struct ForgeCgmParameterDef*)(modeExDataBuf + paramOffset + 4);
+  int paramCount = minf(MAX_FORGE_CGM_PARAMS, *(int *)(modeExDataBuf + paramOffset));
+  struct ForgeCgmParameterDef *params = (struct ForgeCgmParameterDef *)(modeExDataBuf + paramOffset + 4);
 
   int i;
-  for (i = 0; i < MAX_FORGE_CGM_PARAMS; ++i) {
+  for (i = 0; i < MAX_FORGE_CGM_PARAMS; ++i)
+  {
     if (i >= paramCount)
     {
       if (thisParamIdx == i)
@@ -2005,7 +2040,7 @@ int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, ch
 
     if (thisParamIdx == i)
     {
-      char *paramStrPtr = (char*)params->Strings;
+      char *paramStrPtr = (char *)params->Strings;
 
       char *paramName = paramStrPtr;
       paramStrPtr += strlen(paramName) + 1;
@@ -2016,9 +2051,9 @@ int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, ch
       int o;
       for (o = 0; o < params->OptionCount; ++o)
       {
-        char* option = paramStrPtr;
+        char *option = paramStrPtr;
         paramStrPtr += strlen(option) + 1;
-        
+
         listData->items[o] = option;
       }
 
@@ -2033,14 +2068,14 @@ int menuStateHandler_SelectedForgeCgmParameter(MenuElem_ListData_t* listData, ch
     }
 
     // move to next
-    params = (struct ForgeCgmParameterDef*)(modeExDataBuf + (u32)params->NextParamOffset);
+    params = (struct ForgeCgmParameterDef *)(modeExDataBuf + (u32)params->NextParamOffset);
   }
 
   return 1;
 }
 
-// 
-void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_SurvivalSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   if (gameConfig.customModeId != CUSTOM_MODE_SURVIVAL)
     *state = ELEMENT_HIDDEN;
@@ -2048,8 +2083,8 @@ void menuStateHandler_SurvivalSettingStateHandler(TabElem_t* tab, MenuElem_t* el
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_PayloadSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   if (gameConfig.customModeId != CUSTOM_MODE_PAYLOAD)
     *state = ELEMENT_HIDDEN;
@@ -2057,10 +2092,10 @@ void menuStateHandler_PayloadSettingStateHandler(TabElem_t* tab, MenuElem_t* ele
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_TrainingSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
 
   if (gameConfig.customModeId != CUSTOM_MODE_TRAINING)
     *state = ELEMENT_HIDDEN;
@@ -2068,8 +2103,8 @@ void menuStateHandler_TrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* el
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_HnsSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   if (gameConfig.customModeId != CUSTOM_MODE_HNS)
     *state = ELEMENT_HIDDEN;
@@ -2077,8 +2112,8 @@ void menuStateHandler_HnsSettingStateHandler(TabElem_t* tab, MenuElem_t* element
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_ForgeCgmSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_ForgeCgmSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   int mapIdx = *dataCustomMaps.value;
   if (mapIdx <= 0 || getCustomMapMode(mapIdx) != CUSTOM_MODE_FORGE_CUSTOM)
@@ -2086,15 +2121,15 @@ void menuStateHandler_ForgeCgmSettingStateHandler(TabElem_t* tab, MenuElem_t* el
   else
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 
-  MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
+  MenuElem_ListData_t *listData = (MenuElem_ListData_t *)element->userdata;
   if (listData != NULL && listData->count == 0)
     *state = ELEMENT_HIDDEN;
 }
 
-// 
-void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
 
   if (gameConfig.customModeId != CUSTOM_MODE_TRAINING || gameConfig.trainingConfig.type != TRAINING_TYPE_CYCLE)
     *state = ELEMENT_HIDDEN;
@@ -2102,10 +2137,10 @@ void menuStateHandler_CycleTrainingSettingStateHandler(TabElem_t* tab, MenuElem_
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_CTFSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
 
   if (!gs || gs->GameRules != GAMERULE_CTF)
     *state = ELEMENT_HIDDEN;
@@ -2115,10 +2150,10 @@ void menuStateHandler_CTFSettingStateHandler(TabElem_t* tab, MenuElem_t* element
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_CQSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
 
   if (!gs || gs->GameRules != GAMERULE_CQ)
     *state = ELEMENT_HIDDEN;
@@ -2128,10 +2163,10 @@ void menuStateHandler_CQSettingStateHandler(TabElem_t* tab, MenuElem_t* element,
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_KOTHSettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
 
   if (!gs || gs->GameRules != GAMERULE_KOTH)
     *state = ELEMENT_HIDDEN;
@@ -2141,8 +2176,8 @@ void menuStateHandler_KOTHSettingStateHandler(TabElem_t* tab, MenuElem_t* elemen
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_SettingStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   if (preset)
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
@@ -2150,31 +2185,34 @@ void menuStateHandler_SettingStateHandler(TabElem_t* tab, MenuElem_t* element, i
     *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE | ELEMENT_EDITABLE;
 }
 
-// 
-void menuStateHandler_VoteToEndStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_VoteToEndStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
   int i = 0;
-  
-  if (isInGame()) {
-    Player* p = playerGetFromSlot(0);
-    if (p) {
+
+  if (isInGame())
+  {
+    Player *p = playerGetFromSlot(0);
+    if (p)
+    {
       *state = ELEMENT_SELECTABLE | ELEMENT_VISIBLE;
-      if (!voteToEndState.Votes[p->PlayerId]) *state |= ELEMENT_EDITABLE;
+      if (!voteToEndState.Votes[p->PlayerId])
+        *state |= ELEMENT_EDITABLE;
       return;
     }
   }
-  
+
   *state = ELEMENT_HIDDEN;
 }
 
-// 
-void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+//
+void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
   int i = 0;
   int hidden = CLIENT_TYPE_DZO == PATCH_INTEROP->Client || isInGame();
-  
+
   if (hidden)
     *state = ELEMENT_HIDDEN;
   else
@@ -2182,13 +2220,13 @@ void menuStateHandler_BootMapDownloaderStateHandler(TabElem_t* tab, MenuElem_t* 
 }
 
 //
-void menuStateHandler_MapsListVerticalStateHandler(TabElem_t* tab, MenuElem_t* element, int* state)
+void menuStateHandler_MapsListVerticalStateHandler(TabElem_t *tab, MenuElem_t *element, int *state)
 {
   *state = ELEMENT_VISIBLE | ELEMENT_EDITABLE | ELEMENT_SELECTABLE | ELEMENT_FILTERABLE;
 }
 
 //------------------------------------------------------------------------------
-int getMenuElementState(TabElem_t* tab, MenuElem_t* element)
+int getMenuElementState(TabElem_t *tab, MenuElem_t *element)
 {
   // get tab and element state
   int tabState = 0, state = 0;
@@ -2199,12 +2237,12 @@ int getMenuElementState(TabElem_t* tab, MenuElem_t* element)
 }
 
 //------------------------------------------------------------------------------
-void drawToggleMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect, int inverted)
+void drawToggleMenuElement(TabElem_t *tab, MenuElem_t *element, RECT *rect, int inverted)
 {
   // get element state
   int state = getMenuElementState(tab, element);
 
-  float x,y;
+  float x, y;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
 
@@ -2215,19 +2253,19 @@ void drawToggleMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect, int 
 
   // draw value
   x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
-  int enabled = (*(char*)element->userdata != 0) != inverted;
+  int enabled = (*(char *)element->userdata != 0) != inverted;
   gfxScreenSpaceText(x, y, 1, 1, color, enabled ? "On" : "Off", -1, 2);
 }
 
 //------------------------------------------------------------------------------
-void drawRangeMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_RangeData_t * rangeData, RECT* rect)
+void drawRangeMenuElement(TabElem_t *tab, MenuElem_t *element, MenuElem_RangeData_t *rangeData, RECT *rect)
 {
   char buf[32];
 
   // get element state
   int state = getMenuElementState(tab, element);
 
-  float x,y,w,v,h;
+  float x, y, w, v, h;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
 
@@ -2251,17 +2289,17 @@ void drawRangeMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_RangeDat
 }
 
 //------------------------------------------------------------------------------
-void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_t * listData, RECT* rect)
+void drawListMenuElement(TabElem_t *tab, MenuElem_t *element, MenuElem_ListData_t *listData, RECT *rect)
 {
   // get element state
   int state = getMenuElementState(tab, element);
-  char* activeValue = listData->value;
+  char *activeValue = listData->value;
 
   int selectedIdx = (int)*activeValue;
   if (selectedIdx < 0)
     selectedIdx = 0;
-  
-  float x,y;
+
+  float x, y;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
 
@@ -2271,31 +2309,33 @@ void drawListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_ListData_
   gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
 
   // draw value
-  if (listData->items[selectedIdx]) {
+  if (listData->items[selectedIdx])
+  {
     x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
     gfxScreenSpaceText(x, y, 1, 1, color, listData->items[selectedIdx], -1, 2);
   }
 }
 
 //------------------------------------------------------------------------------
-void drawMapsListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_VerticalListData_t * listData, int drawIdx, int itemIdx, RECT* rect)
+void drawMapsListVerticalMenuElement(TabElem_t *tab, MenuElem_t *element, MenuElem_VerticalListData_t *listData, int drawIdx, int itemIdx, RECT *rect)
 {
   char buf[64];
   RECT r;
   memcpy(&r, rect, sizeof(r));
   float yOff = drawIdx * LINE_HEIGHT;
-  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
+  char *activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
 
   int isSelectedIdx = (int)*activeValue == itemIdx;
-  float x,y;
+  float x, y;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
 
   // draw name
-  if (drawIdx == 0 && 0) {
+  if (drawIdx == 0 && 0)
+  {
     x = (r.TopLeft[0] * SCREEN_WIDTH) + 5;
     y = ((r.TopLeft[1] + r.BottomLeft[1]) * 0.5 * SCREEN_HEIGHT) + 5;
     gfxScreenSpaceText(x, y, 1, 1, color, element->name, -1, 0);
@@ -2305,51 +2345,57 @@ void drawMapsListVerticalMenuElement(TabElem_t* tab, MenuElem_t* element, MenuEl
   x = (r.TopRight[0] * SCREEN_WIDTH) - 5;
   y = ((r.TopLeft[1] + yOff) * SCREEN_HEIGHT) + 5;
   float w = 0;
-  if (listData->items[itemIdx]) {
+  if (listData->items[itemIdx])
+  {
     w = gfxScreenSpaceText(x, y, 1, 1, color, listData->items[itemIdx], -1, TEXT_ALIGN_TOPRIGHT) - x;
   }
 
   int modeId = getCustomMapMode(itemIdx);
-  if (modeId != 0) {
+  if (modeId != 0)
+  {
     snprintf(buf, sizeof(buf), "[\x09%s\x08]", getCustomModeName(modeId, 2));
     gfxScreenSpaceText(x - w - 10, y + 7, 0.8, 0.8, color, buf, -1, TEXT_ALIGN_MIDDLERIGHT);
   }
 }
 
 //------------------------------------------------------------------------------
-void drawMapsListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, MenuElem_VerticalListData_t * listData, RECT* rect)
+void drawMapsListVerticalMenuElementInfo(TabElem_t *tab, MenuElem_t *element, MenuElem_VerticalListData_t *listData, RECT *rect)
 {
   RECT r;
   memcpy(&r, rect, sizeof(r));
-  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
+  char *activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
   int selIdx = (int)*activeValue;
 
-  float x,y,w,h;
+  float x, y, w, h;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
 
   // get info
-  if (mapOverrideLastSelectedMapIdx != selIdx) {
+  if (mapOverrideLastSelectedMapIdx != selIdx)
+  {
     mapOverrideLastSelectedMapIdx = selIdx;
     mapOverrideSelectedMapTicks = 0;
 
     // read author/description
-    if (selIdx <= 0 || !mapReadCustomMapAuthorDescription(customMapDefs[selIdx-1].Filename, mapOverrideSelectedMapAuthor, mapOverrideSelectedMapDesc)) {
+    if (selIdx <= 0 || !mapReadCustomMapAuthorDescription(customMapDefs[selIdx - 1].Filename, mapOverrideSelectedMapAuthor, mapOverrideSelectedMapDesc))
+    {
       mapOverrideSelectedMapAuthor[0] = 0;
       mapOverrideSelectedMapDesc[0] = 0;
     }
 
     // alloc thumbnail -- only in menus
-    if (selIdx > 0 && !mapOverrideSelectedMapThumbnail && isInMenus()) {
+    if (selIdx > 0 && !mapOverrideSelectedMapThumbnail && isInMenus())
+    {
       mapOverrideSelectedMapThumbnail = malloc(THUMBNAIL_SIZE);
     }
 
     // try read thumbnail
     mapOverrideSelectedMapHasThumbnail = 0;
-    if (selIdx > 0 && mapOverrideSelectedMapThumbnail && mapReadCustomMapThumbnail(customMapDefs[selIdx-1].Filename, mapOverrideSelectedMapThumbnail, THUMBNAIL_SIZE) == THUMBNAIL_SIZE) {
+    if (selIdx > 0 && mapOverrideSelectedMapThumbnail && mapReadCustomMapThumbnail(customMapDefs[selIdx - 1].Filename, mapOverrideSelectedMapThumbnail, THUMBNAIL_SIZE) == THUMBNAIL_SIZE)
+    {
       mapOverrideSelectedMapHasThumbnail = 1;
     }
   }
@@ -2359,13 +2405,14 @@ void drawMapsListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, Me
   gfxScreenSpaceQuad(&r, infoBgColor, infoBgColor, infoBgColor, infoBgColor);
 
   // draw thumb
-  if (mapOverrideSelectedMapHasThumbnail && mapOverrideSelectedMapThumbnail) {
+  if (mapOverrideSelectedMapHasThumbnail && mapOverrideSelectedMapThumbnail)
+  {
     u16 ulog = 7;
     u16 vlog = 6;
     int r1 = gfxLoadPalToGs(mapOverrideSelectedMapThumbnail + 0x020, 0x13);
     int r2 = gfxLoadTexToGs(mapOverrideSelectedMapThumbnail + 0x420, ulog, vlog, 0x13);
     u64 t = gfxConstructEffectTex(r2, r1, ulog, vlog, 0x13);
-      
+
     x = (r.TopLeft[0] * SCREEN_WIDTH) - 0;
     y = ((r.TopLeft[1] + 0) * SCREEN_HEIGHT) + 0;
     w = (r.TopRight[0] - r.TopLeft[0]) * SCREEN_WIDTH;
@@ -2375,26 +2422,25 @@ void drawMapsListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, Me
     gfxDrawSprite(x, y, w, h, 0, 0, 1 << ulog, 1 << vlog, 0x80808080, t);
     gfxDoGifPaging();
   }
-  
+
   // draw description
-  if (mapOverrideSelectedMapDesc[0]) {
+  if (mapOverrideSelectedMapDesc[0])
+  {
     mapOverrideSelectedMapTicks += 1;
     w = (r.TopRight[0] - r.TopLeft[0]) * SCREEN_WIDTH;
-    h = (r.BottomLeft[1] - r.TopLeft[1] - LINE_HEIGHT) * SCREEN_HEIGHT - w*0.5;
+    h = (r.BottomLeft[1] - r.TopLeft[1] - LINE_HEIGHT) * SCREEN_HEIGHT - w * 0.5;
     x = (r.TopLeft[0] * SCREEN_WIDTH) - 0;
-    y = ((r.TopLeft[1] + 0) * SCREEN_HEIGHT) + w*0.5;
+    y = ((r.TopLeft[1] + 0) * SCREEN_HEIGHT) + w * 0.5;
     gfxSetScissor(x, x + w, y, y + h);
     float maxOffset = maxf(0, mapOverrideSelectedMapDescHeight - h + (LINE_HEIGHT * SCREEN_HEIGHT));
-    y -= (int)minf(maxOffset, maxf(0, (mapOverrideSelectedMapTicks%(10*TPS) - 3*TPS) * 0.3));
-    mapOverrideSelectedMapDescHeight = gfxHelperDrawTextWindow(x, y, 0, 0, w, SCREEN_HEIGHT, 5, 5
-      , 0.9, color
-      , mapOverrideSelectedMapDesc, -1
-      , TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NONE);
+    y -= (int)minf(maxOffset, maxf(0, (mapOverrideSelectedMapTicks % (10 * TPS) - 3 * TPS) * 0.3));
+    mapOverrideSelectedMapDescHeight = gfxHelperDrawTextWindow(x, y, 0, 0, w, SCREEN_HEIGHT, 5, 5, 0.9, color, mapOverrideSelectedMapDesc, -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NONE);
     gfxSetScissor(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);
   }
-    
+
   // draw author
-  if (mapOverrideSelectedMapAuthor[0]) {
+  if (mapOverrideSelectedMapAuthor[0])
+  {
     x = (r.BottomLeft[0] * SCREEN_WIDTH) + 5;
     y = ((r.BottomLeft[1] + 0) * SCREEN_HEIGHT) - 2;
     char authorBuf[40];
@@ -2405,7 +2451,7 @@ void drawMapsListVerticalMenuElementInfo(TabElem_t* tab, MenuElem_t* element, Me
 }
 
 //------------------------------------------------------------------------------
-void drawOrderedListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_OrderedListData_t * listData, RECT* rect)
+void drawOrderedListMenuElement(TabElem_t *tab, MenuElem_t *element, MenuElem_OrderedListData_t *listData, RECT *rect)
 {
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2413,8 +2459,8 @@ void drawOrderedListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_Or
   int selectedIdx = (int)*listData->value;
   if (selectedIdx < 0)
     selectedIdx = 0;
-  
-  float x,y;
+
+  float x, y;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color = colorLerp(colorText, 0, lerp);
 
@@ -2425,12 +2471,15 @@ void drawOrderedListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_Or
 
   // find name
   int i;
-  for (i = 0; i < listData->count; ++i) {
-    if (listData->items[i].value == selectedIdx) break;
+  for (i = 0; i < listData->count; ++i)
+  {
+    if (listData->items[i].value == selectedIdx)
+      break;
   }
 
   // invalid
-  if (i >= listData->count) return;
+  if (i >= listData->count)
+    return;
 
   // draw value
   x = (rect->TopRight[0] * SCREEN_WIDTH) - 5;
@@ -2438,12 +2487,12 @@ void drawOrderedListMenuElement(TabElem_t* tab, MenuElem_t* element, MenuElem_Or
 }
 
 //------------------------------------------------------------------------------
-void drawButtonMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
+void drawButtonMenuElement(TabElem_t *tab, MenuElem_t *element, RECT *rect)
 {
   // get element state
   int state = getMenuElementState(tab, element);
 
-  float x,y,b = 0.005;
+  float x, y, b = 0.005;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
   u32 color;
   RECT rBg = {
@@ -2461,11 +2510,11 @@ void drawButtonMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
 
   // bg
   color = colorLerp(colorButtonBg, 0, lerp);
-	gfxScreenSpaceQuad(&rBg, color, color, color, color);
+  gfxScreenSpaceQuad(&rBg, color, color, color, color);
 
   // fg
   color = colorLerp(colorButtonFg, 0, lerp);
-	gfxScreenSpaceQuad(&rFg, color, color, color, color);
+  gfxScreenSpaceQuad(&rFg, color, color, color, color);
 
   // draw name
   x = 0.5 * SCREEN_WIDTH;
@@ -2478,12 +2527,12 @@ void drawButtonMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
 }
 
 //------------------------------------------------------------------------------
-void drawLabelMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
+void drawLabelMenuElement(TabElem_t *tab, MenuElem_t *element, RECT *rect)
 {
   // get element state
   int state = getMenuElementState(tab, element);
 
-  float x,y;
+  float x, y;
   float lerp = (state & ELEMENT_EDITABLE) ? 0.0 : 0.5;
 
   // draw label
@@ -2493,7 +2542,7 @@ void drawLabelMenuElement(TabElem_t* tab, MenuElem_t* element, RECT* rect)
 }
 
 //------------------------------------------------------------------------------
-void mapsListVerticalInput(TabElem_t* tab)
+void mapsListVerticalInput(TabElem_t *tab)
 {
   int i;
   if (!tab)
@@ -2544,7 +2593,7 @@ void mapsListVerticalInput(TabElem_t* tab)
 }
 
 //------------------------------------------------------------------------------
-void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void buttonActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2557,12 +2606,14 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
   {
     case ACTIONTYPE_SELECT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
 
-      if (element->userdata) {
+      if (element->userdata)
+      {
         uiPlaySound(UI_SOUND_ID_SELECT, 0);
         ((ButtonSelectHandler)element->userdata)(tab, element);
       }
@@ -2570,17 +2621,17 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
     }
     case ACTIONTYPE_GETHEIGHT:
     {
-      *(float*)actionArg = LINE_HEIGHT * 1;
+      *(float *)actionArg = LINE_HEIGHT * 1;
       break;
     }
     case ACTIONTYPE_DRAW:
     {
-      drawButtonMenuElement(tab, element, (RECT*)actionArg);
+      drawButtonMenuElement(tab, element, (RECT *)actionArg);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
     {
-      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      gfxScreenSpaceQuad((RECT *)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
       break;
     }
     case ACTIONTYPE_INPUT:
@@ -2592,7 +2643,7 @@ void buttonActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, vo
 }
 
 //------------------------------------------------------------------------------
-void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void labelActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2609,12 +2660,12 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
       {
         case LABELTYPE_LABEL:
         {
-          *(float*)actionArg = LINE_HEIGHT * 0.75;
+          *(float *)actionArg = LINE_HEIGHT * 0.75;
           break;
         }
         default:
         {
-          *(float*)actionArg = LINE_HEIGHT * 2;
+          *(float *)actionArg = LINE_HEIGHT * 2;
           break;
         }
       }
@@ -2622,12 +2673,12 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     }
     case ACTIONTYPE_DRAW:
     {
-      drawLabelMenuElement(tab, element, (RECT*)actionArg);
+      drawLabelMenuElement(tab, element, (RECT *)actionArg);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
     {
-      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      gfxScreenSpaceQuad((RECT *)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
       break;
     }
     case ACTIONTYPE_INPUT:
@@ -2639,9 +2690,9 @@ void labelActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
 }
 
 //------------------------------------------------------------------------------
-void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void rangeActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
-  MenuElem_RangeData_t* rangeData = (MenuElem_RangeData_t*)element->userdata;
+  MenuElem_RangeData_t *rangeData = (MenuElem_RangeData_t *)element->userdata;
 
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2655,7 +2706,8 @@ void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     case ACTIONTYPE_INCREMENT:
     case ACTIONTYPE_SELECT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -2675,7 +2727,8 @@ void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     }
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -2690,17 +2743,17 @@ void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
     }
     case ACTIONTYPE_GETHEIGHT:
     {
-      *(float*)actionArg = LINE_HEIGHT;
+      *(float *)actionArg = LINE_HEIGHT;
       break;
     }
     case ACTIONTYPE_DRAW:
     {
-      drawRangeMenuElement(tab, element, rangeData, (RECT*)actionArg);
+      drawRangeMenuElement(tab, element, rangeData, (RECT *)actionArg);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
     {
-      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      gfxScreenSpaceQuad((RECT *)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
       break;
     }
     case ACTIONTYPE_VALIDATE:
@@ -2718,11 +2771,11 @@ void rangeActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, voi
 }
 
 //------------------------------------------------------------------------------
-void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void listActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
-  MenuElem_ListData_t* listData = (MenuElem_ListData_t*)element->userdata;
+  MenuElem_ListData_t *listData = (MenuElem_ListData_t *)element->userdata;
   int itemCount = listData->count;
-  char* activeValue = listData->value;
+  char *activeValue = listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2744,7 +2797,8 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
       if (!isVisible)
         break;
 
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -2769,8 +2823,9 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     {
       if (!isVisible)
         break;
-        
-      if ((state & ELEMENT_EDITABLE) == 0) {
+
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -2795,24 +2850,24 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     {
       if (!isVisible)
         break;
-        
-      *(float*)actionArg = LINE_HEIGHT;
+
+      *(float *)actionArg = LINE_HEIGHT;
       break;
     }
     case ACTIONTYPE_DRAW:
     {
       if (!isVisible)
         break;
-        
-      drawListMenuElement(tab, element, listData, (RECT*)actionArg);
+
+      drawListMenuElement(tab, element, listData, (RECT *)actionArg);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
     {
       if (!isVisible)
         break;
-        
-      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+
+      gfxScreenSpaceQuad((RECT *)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
       break;
     }
     case ACTIONTYPE_VALIDATE:
@@ -2825,7 +2880,7 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
     {
       if (!isVisible)
         break;
-        
+
       tabInput(tab);
       break;
     }
@@ -2833,11 +2888,11 @@ void listActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void
 }
 
 //------------------------------------------------------------------------------
-void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void orderedListActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
-  MenuElem_OrderedListData_t* listData = (MenuElem_OrderedListData_t*)element->userdata;
+  MenuElem_OrderedListData_t *listData = (MenuElem_OrderedListData_t *)element->userdata;
   int itemCount = listData->count;
-  char* activeValue = listData->value;
+  char *activeValue = listData->value;
 
   // get element state
   int state = getMenuElementState(tab, element);
@@ -2852,7 +2907,8 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
     case ACTIONTYPE_SELECT:
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         return;
       }
@@ -2860,8 +2916,10 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
       char value = *activeValue;
 
       int index = 0;
-      for (index = 0; index < listData->count; ++index) {
-        if (listData->items[index].value == value) {
+      for (index = 0; index < listData->count; ++index)
+      {
+        if (listData->items[index].value == value)
+        {
           break;
         }
       }
@@ -2886,17 +2944,17 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
     }
     case ACTIONTYPE_GETHEIGHT:
     {
-      *(float*)actionArg = LINE_HEIGHT;
+      *(float *)actionArg = LINE_HEIGHT;
       break;
     }
     case ACTIONTYPE_DRAW:
     {
-      drawOrderedListMenuElement(tab, element, listData, (RECT*)actionArg);
+      drawOrderedListMenuElement(tab, element, listData, (RECT *)actionArg);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
     {
-      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      gfxScreenSpaceQuad((RECT *)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
       break;
     }
     case ACTIONTYPE_VALIDATE:
@@ -2914,15 +2972,17 @@ void orderedListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionTyp
 }
 
 //------------------------------------------------------------------------------
-int verticalListFindNextValidValue(MenuElem_VerticalListData_t* listData, int currentValue, int direction)
+int verticalListFindNextValidValue(MenuElem_VerticalListData_t *listData, int currentValue, int direction)
 {
   char newValue = currentValue;
 
   do
   {
     newValue += direction;
-    if (newValue < 0) newValue += listData->count;
-    if (newValue >= listData->count) newValue = 0;
+    if (newValue < 0)
+      newValue += listData->count;
+    if (newValue >= listData->count)
+      newValue = 0;
 
     char tValue = newValue;
     if (listData->stateHandler == NULL || listData->stateHandler(listData, &tValue))
@@ -2933,11 +2993,11 @@ int verticalListFindNextValidValue(MenuElem_VerticalListData_t* listData, int cu
 }
 
 //------------------------------------------------------------------------------
-void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void mapsListVerticalActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
   char buf[128];
-  MenuElem_VerticalListData_t* listData = (MenuElem_VerticalListData_t*)element->userdata;
-  char* activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
+  MenuElem_VerticalListData_t *listData = (MenuElem_VerticalListData_t *)element->userdata;
+  char *activeValue = listData->stagingValue ? listData->stagingValue : listData->value;
   int itemCount = listData->count;
   int itemsToDraw = (&tab->elements[tab->selectedMenuItemIdx] == element) ? (listData->rows ? listData->rows : 5) : 1;
 
@@ -2960,28 +3020,32 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
     }
     case ACTIONTYPE_SELECT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
 
       // must have staging value to apply
-      if (!listData->stagingValue) break;
+      if (!listData->stagingValue)
+        break;
 
       //
       uiPlaySound(UI_SOUND_ID_SELECT, 0);
 
       // if map changes mode prompt user
       int forcedModeId = getCustomMapMode(*activeValue);
-      if (forcedModeId != 0 && forcedModeId != gameConfig.customModeId) {
+      if (forcedModeId != 0 && forcedModeId != gameConfig.customModeId)
+      {
         snprintf(buf, sizeof(buf), "%s will overwrite the current custom game mode.", getCustomMapName(*activeValue));
-        
+
         uiPlaySound(UI_SOUND_ID_OPEN_SUBMENU_2, 0);
         padEnableInput();
         int dialogResult = uiShowYesNoDialog("Switch Game Mode?", buf);
         padDisableInput();
         uiPlaySound(UI_SOUND_ID_CLOSE_MENU_DECLINE, 0);
-        if (dialogResult != 1) break;
+        if (dialogResult != 1)
+          break;
       }
 
       // save
@@ -2992,7 +3056,8 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
     }
     case ACTIONTYPE_INCREMENT:
     {
-      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0) {
+      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
@@ -3015,11 +3080,12 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
     }
     case ACTIONTYPE_DECREMENT:
     {
-      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0) {
+      if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
-      
+
       char newValue = *activeValue;
 
       do
@@ -3043,7 +3109,7 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
     }
     case ACTIONTYPE_GETHEIGHT:
     {
-      *(float*)actionArg = LINE_HEIGHT * itemsToDraw;
+      *(float *)actionArg = LINE_HEIGHT * itemsToDraw;
       break;
     }
     case ACTIONTYPE_DRAW:
@@ -3056,28 +3122,30 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
       RECT rectLeft, rectRight;
 
       // create map list rect
-      memcpy(&rectLeft, (RECT*)actionArg, sizeof(rectLeft));
+      memcpy(&rectLeft, (RECT *)actionArg, sizeof(rectLeft));
       rectLeft.TopRight[0] *= 0.5;
       rectLeft.BottomRight[0] *= 0.5;
-      
+
       // create map info rect
-      memcpy(&rectRight, (RECT*)actionArg, sizeof(rectRight));
+      memcpy(&rectRight, (RECT *)actionArg, sizeof(rectRight));
       rectRight.TopLeft[0] = rectLeft.TopRight[0];
       rectRight.BottomLeft[0] = rectLeft.BottomRight[0];
 
       // draw items up
-      for (i = 0; i < halfToDraw; ++i) {
+      for (i = 0; i < halfToDraw; ++i)
+      {
         lastIdx = verticalListFindNextValidValue(listData, lastIdx, -1);
         drawMapsListVerticalMenuElement(tab, element, listData, halfToDraw - i - 1, lastIdx, &rectRight);
       }
-      
+
       // draw selected item
       lastIdx = *activeValue;
       drawMapsListVerticalMenuElement(tab, element, listData, halfToDraw, lastIdx, &rectRight);
       ++i;
 
       // draw items down
-      for (; i < itemsToDraw; ++i) {
+      for (; i < itemsToDraw; ++i)
+      {
         lastIdx = verticalListFindNextValidValue(listData, lastIdx, 1);
         drawMapsListVerticalMenuElement(tab, element, listData, i, lastIdx, &rectRight);
       }
@@ -3089,7 +3157,7 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
     case ACTIONTYPE_DRAW_HIGHLIGHT:
     {
       RECT r;
-      memcpy(&r, (RECT*)actionArg, sizeof(r));
+      memcpy(&r, (RECT *)actionArg, sizeof(r));
       float y = r.TopLeft[1] + (itemsToDraw / 2) * LINE_HEIGHT;
 
       r.TopLeft[1] = y;
@@ -3117,10 +3185,10 @@ void mapsListVerticalActionHandler(TabElem_t* tab, MenuElem_t* element, int acti
 }
 
 //------------------------------------------------------------------------------
-void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void gmOverrideListActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
   // update name to be based on current gamemode
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
   //if (gs && actionType == ACTIONTYPE_DRAW)
   //  snprintf(element->name, 40, "%s override", gameGetGameModeName(gs->GameRules));
 
@@ -3129,7 +3197,7 @@ void gmOverrideListActionHandler(TabElem_t* tab, MenuElem_t* element, int action
 }
 
 //------------------------------------------------------------------------------
-void toggleActionHandlerCommon(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg, int inverted)
+void toggleActionHandlerCommon(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg, int inverted)
 {
   // get element state
   int state = getMenuElementState(tab, element);
@@ -3144,29 +3212,30 @@ void toggleActionHandlerCommon(TabElem_t* tab, MenuElem_t* element, int actionTy
     case ACTIONTYPE_SELECT:
     case ACTIONTYPE_DECREMENT:
     {
-      if ((state & ELEMENT_EDITABLE) == 0) {
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
         uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
         break;
       }
 
       // toggle
       uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
-      *(char*)element->userdata = !(*(char*)element->userdata);
+      *(char *)element->userdata = !(*(char *)element->userdata);
       break;
     }
     case ACTIONTYPE_GETHEIGHT:
     {
-      *(float*)actionArg = LINE_HEIGHT;
+      *(float *)actionArg = LINE_HEIGHT;
       break;
     }
     case ACTIONTYPE_DRAW:
     {
-      drawToggleMenuElement(tab, element, (RECT*)actionArg, inverted);
+      drawToggleMenuElement(tab, element, (RECT *)actionArg, inverted);
       break;
     }
     case ACTIONTYPE_DRAW_HIGHLIGHT:
     {
-      gfxScreenSpaceQuad((RECT*)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
+      gfxScreenSpaceQuad((RECT *)actionArg, colorSelected, colorSelected, colorSelected, colorSelected);
       break;
     }
     case ACTIONTYPE_INPUT:
@@ -3178,13 +3247,13 @@ void toggleActionHandlerCommon(TabElem_t* tab, MenuElem_t* element, int actionTy
 }
 
 //------------------------------------------------------------------------------
-void toggleActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void toggleActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
   toggleActionHandlerCommon(tab, element, actionType, actionArg, 0);
 }
 
 //------------------------------------------------------------------------------
-void toggleInvertedActionHandler(TabElem_t* tab, MenuElem_t* element, int actionType, void * actionArg)
+void toggleInvertedActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg)
 {
   toggleActionHandlerCommon(tab, element, actionType, actionArg, 1);
 }
@@ -3217,24 +3286,29 @@ void drawDynamicPage(void)
   if (DynamicPageState.Enabled == 1)
   {
     // draw loading
-    windowDrawText(&drawWindowContent, TEXT_ALIGN_MIDDLECENTER, 0, 0, 1, colorText, "Loading...", 7 + (gameGetTime()/1000)%4, TEXT_ALIGN_MIDDLECENTER);
+    windowDrawText(&drawWindowContent, TEXT_ALIGN_MIDDLECENTER, 0, 0, 1, colorText, "Loading...", 7 + (gameGetTime() / 1000) % 4, TEXT_ALIGN_MIDDLECENTER);
   }
   else
   {
     // draw line content
     int maxRows = (drawWindowContent.Height / lineHeight) - 1;
     int drawFrom = DynamicPageState.DrawIdx;
-    if ((DynamicPageState.SelectionIdx - DynamicPageState.DrawIdx) > maxRows) DynamicPageState.DrawIdx = DynamicPageState.SelectionIdx - maxRows;
-    else if ((DynamicPageState.DrawIdx - DynamicPageState.SelectionIdx) > 0) DynamicPageState.DrawIdx = DynamicPageState.SelectionIdx;
-    for (i = 0; i < DynamicPageState.LineItemCount; ++i) {
+    if ((DynamicPageState.SelectionIdx - DynamicPageState.DrawIdx) > maxRows)
+      DynamicPageState.DrawIdx = DynamicPageState.SelectionIdx - maxRows;
+    else if ((DynamicPageState.DrawIdx - DynamicPageState.SelectionIdx) > 0)
+      DynamicPageState.DrawIdx = DynamicPageState.SelectionIdx;
+    for (i = 0; i < DynamicPageState.LineItemCount; ++i)
+    {
       Window_t drawWindowContentLine;
-      windowCreateFrom(&drawWindowContentLine, &drawWindowContent, 0, lineHeight*(i-drawFrom), drawWindowContent.Width, lineHeight, TEXT_ALIGN_TOPLEFT);
+      windowCreateFrom(&drawWindowContentLine, &drawWindowContent, 0, lineHeight * (i - drawFrom), drawWindowContent.Width, lineHeight, TEXT_ALIGN_TOPLEFT);
 
-      if (i == DynamicPageState.SelectionIdx) {
+      if (i == DynamicPageState.SelectionIdx)
+      {
         windowFill(&drawWindowContentLine, colorSelected);
       }
 
-      if (line) {
+      if (line)
+      {
         windowDrawText(&drawWindowContentLine, TEXT_ALIGN_TOPLEFT, 2, 0, 1, colorText, line, -1, TEXT_ALIGN_TOPLEFT);
         line += strlen(line) + 1;
         windowDrawText(&drawWindowContentLine, TEXT_ALIGN_TOPRIGHT, -2, 0, 1, colorText, line, -1, TEXT_ALIGN_TOPRIGHT);
@@ -3244,27 +3318,36 @@ void drawDynamicPage(void)
 
     windowSetScissor(&drawWindow);
     gfxSetupGifPaging(0);
-    if (drawFrom > 0) {
-      float x,y;
+    if (drawFrom > 0)
+    {
+      float x, y;
       windowResolve(&x, &y, &drawWindowContent, 0, 0, TEXT_ALIGN_TOPCENTER);
       gfxDrawSprite(drawWindowContent.AnchorPoint[0] + x - 8, drawWindowContent.AnchorPoint[1] + y - 10, 16, 16, 0, 0, 32, 32, colorText, gfxGetFrameTex(74));
     }
-    if ((drawFrom + maxRows) < (DynamicPageState.LineItemCount-1)) {
-      float x,y;
+    if ((drawFrom + maxRows) < (DynamicPageState.LineItemCount - 1))
+    {
+      float x, y;
       windowResolve(&x, &y, &drawWindowContent, 0, 0, TEXT_ALIGN_BOTTOMCENTER);
       gfxDrawSprite(drawWindowContent.AnchorPoint[0] + x - 8, drawWindowContent.AnchorPoint[1] + y + 10, 16, -16, 0, 0, 32, 32, colorText, gfxGetFrameTex(74));
     }
     gfxDoGifPaging();
 
     // nav
-    if (padGetButtonDown(0, PAD_UP) > 0 && DynamicPageState.SelectionIdx > 0) {
+    if (padGetButtonDown(0, PAD_UP) > 0 && DynamicPageState.SelectionIdx > 0)
+    {
       --DynamicPageState.SelectionIdx;
-    } else if (padGetButtonDown(0, PAD_DOWN) > 0 && DynamicPageState.SelectionIdx < (DynamicPageState.LineItemCount-1)) {
+    }
+    else if (padGetButtonDown(0, PAD_DOWN) > 0 && DynamicPageState.SelectionIdx < (DynamicPageState.LineItemCount - 1))
+    {
       ++DynamicPageState.SelectionIdx;
-    } else if (padGetButtonDown(0, PAD_LEFT) > 0 && DynamicPageState.SelectionIdx > 0) {
-      DynamicPageState.SelectionIdx = clamp(DynamicPageState.SelectionIdx - 5, 0, DynamicPageState.LineItemCount-1);
-    } else if (padGetButtonDown(0, PAD_RIGHT) > 0 && DynamicPageState.SelectionIdx < (DynamicPageState.LineItemCount-1)) {
-      DynamicPageState.SelectionIdx = clamp(DynamicPageState.SelectionIdx + 5, 0, DynamicPageState.LineItemCount-1);
+    }
+    else if (padGetButtonDown(0, PAD_LEFT) > 0 && DynamicPageState.SelectionIdx > 0)
+    {
+      DynamicPageState.SelectionIdx = clamp(DynamicPageState.SelectionIdx - 5, 0, DynamicPageState.LineItemCount - 1);
+    }
+    else if (padGetButtonDown(0, PAD_RIGHT) > 0 && DynamicPageState.SelectionIdx < (DynamicPageState.LineItemCount - 1))
+    {
+      DynamicPageState.SelectionIdx = clamp(DynamicPageState.SelectionIdx + 5, 0, DynamicPageState.LineItemCount - 1);
     }
   }
 
@@ -3282,7 +3365,7 @@ void drawFrame(void)
 {
   char buf[128];
   int i;
-  TabElem_t * tab = NULL;
+  TabElem_t *tab = NULL;
   int state = 0;
   float tabX = frameX;
   float tabY = frameY + frameTitleH;
@@ -3297,7 +3380,7 @@ void drawFrame(void)
   gfxScreenSpaceText(0.5 * SCREEN_WIDTH, (frameY + frameTitleH * 0.5) * SCREEN_HEIGHT, 1, 1, colorText, "Patch Config", -1, 4);
 
   // content bg
-  gfxScreenSpaceBox(frameX + contentPaddingX, frameY + frameTitleH + tabBarH + contentPaddingY, frameW - (contentPaddingX*2), frameH - frameTitleH - tabBarH - frameFooterH - (contentPaddingY * 2), colorContentBg);
+  gfxScreenSpaceBox(frameX + contentPaddingX, frameY + frameTitleH + tabBarH + contentPaddingY, frameW - (contentPaddingX * 2), frameH - frameTitleH - tabBarH - frameFooterH - (contentPaddingY * 2), colorContentBg);
 
   // tab bar
   gfxScreenSpaceBox(tabX, tabY, frameW, tabBarH, colorTabBarBg);
@@ -3324,7 +3407,7 @@ void drawFrame(void)
       gfxScreenSpaceBox(tabX + tabBarPaddingX, tabY, pWidth - (2 * tabBarPaddingX), tabBarH, barColor);
 
       // draw text
-      gfxScreenSpaceText((tabX + 2*tabBarPaddingX) * SCREEN_WIDTH, (tabY + (0.5 * tabBarH)) * SCREEN_HEIGHT, 1, 1, color, tab->name, -1, 3);
+      gfxScreenSpaceText((tabX + 2 * tabBarPaddingX) * SCREEN_WIDTH, (tabY + (0.5 * tabBarH)) * SCREEN_HEIGHT, 1, 1, color, tab->name, -1, 3);
 
       // increment X
       tabX += pWidth - tabBarPaddingX;
@@ -3343,15 +3426,18 @@ void drawFooter(void)
   // footer
   buf[0] = 0;
   strcat(buf, footerTextTab);
-  if (footerCanFilter) {
+  if (footerCanFilter)
+  {
     strcat(buf, footerTextGap);
     strcat(buf, footerTextFilter);
   }
-  if (footerCanSelect) {
+  if (footerCanSelect)
+  {
     strcat(buf, footerTextGap);
     strcat(buf, footerTextSelect);
   }
-  if (footerTextExtra[0]) {
+  if (footerTextExtra[0])
+  {
     strcat(buf, footerTextGap);
     strcat(buf, footerTextExtra);
   }
@@ -3361,7 +3447,7 @@ void drawFooter(void)
 }
 
 //------------------------------------------------------------------------------
-void tabInput(TabElem_t* tab)
+void tabInput(TabElem_t *tab)
 {
   int i;
   if (!tab)
@@ -3424,7 +3510,7 @@ void tabInput(TabElem_t* tab)
 }
 
 //------------------------------------------------------------------------------
-void drawTab(TabElem_t* tab)
+void drawTab(TabElem_t *tab)
 {
   if (!tab)
     return;
@@ -3436,9 +3522,9 @@ void drawTab(TabElem_t* tab)
 
   int i = 0, state = 0;
   int menuElementRenderEnd = tab->menuOffset;
-  MenuElem_t * menuElements = tab->elements;
-	int menuElementsCount = tab->elementsCount;
-  MenuElem_t* currentElement;
+  MenuElem_t *menuElements = tab->elements;
+  int menuElementsCount = tab->elementsCount;
+  MenuElem_t *currentElement;
 
   float contentX = frameX + contentPaddingX;
   float contentY = frameY + frameTitleH + tabBarH + contentPaddingY;
@@ -3467,17 +3553,21 @@ void drawTab(TabElem_t* tab)
     drawRect.BottomRight[1] = drawRect.TopRight[1] + itemHeight;
 
     // draw selection
-    if (i == tab->selectedMenuItemIdx) {
+    if (i == tab->selectedMenuItemIdx)
+    {
       state = getMenuElementState(tab, currentElement);
       footerCanSelect = state & ELEMENT_EDITABLE;
       //footerCanFilter = state & ELEMENT_FILTERABLE;
-      if (state & ELEMENT_SELECTABLE) {
+      if (state & ELEMENT_SELECTABLE)
+      {
         currentElement->handler(tab, currentElement, ACTIONTYPE_DRAW_HIGHLIGHT, &drawRect);
 
         // draw help text
-        if (currentElement->help && strlen(currentElement->help) > 0) {
+        if (currentElement->help && strlen(currentElement->help) > 0)
+        {
 
-          if (i != helpLastItemIdx) {
+          if (i != helpLastItemIdx)
+          {
             helpLastItemIdx = i;
             helpLastXOffset = 0;
             helpItemCooldown1 = 60 * 3;
@@ -3485,7 +3575,7 @@ void drawTab(TabElem_t* tab)
           }
 
           // draw background
-          gfxScreenSpaceBox(frameX, frameY + frameH - 1.0/SCREEN_HEIGHT, frameW, LINE_HEIGHT, 0x80000000);
+          gfxScreenSpaceBox(frameX, frameY + frameH - 1.0 / SCREEN_HEIGHT, frameW, LINE_HEIGHT, 0x80000000);
 
           // set scissor
           gfxSetScissor(
@@ -3493,13 +3583,21 @@ void drawTab(TabElem_t* tab)
             (frameX + frameW) * SCREEN_WIDTH,
             (frameY + frameH) * SCREEN_HEIGHT,
             (frameY + frameH + LINE_HEIGHT) * SCREEN_HEIGHT);
-          
+
           // get width
           float w = gfxGetFontWidth(currentElement->help, -1, 1) / (float)SCREEN_WIDTH;
-          if (helpItemCooldown1) --helpItemCooldown1;
-          else if ((helpLastXOffset + w + contentPaddingX*2) >= frameW) helpLastXOffset -= 0.002;
-          else if (helpItemCooldown2) --helpItemCooldown2;
-          else { helpItemCooldown1 = 60 * 3; helpItemCooldown2 = 60 * 6; helpLastXOffset = 0; }
+          if (helpItemCooldown1)
+            --helpItemCooldown1;
+          else if ((helpLastXOffset + w + contentPaddingX * 2) >= frameW)
+            helpLastXOffset -= 0.002;
+          else if (helpItemCooldown2)
+            --helpItemCooldown2;
+          else
+          {
+            helpItemCooldown1 = 60 * 3;
+            helpItemCooldown2 = 60 * 6;
+            helpLastXOffset = 0;
+          }
           gfxScreenSpaceText((frameX + contentPaddingX + helpLastXOffset) * SCREEN_WIDTH, (frameY + frameH) * SCREEN_HEIGHT, 1, 1, 0x80FFFFFF, currentElement->help, -1, 0);
 
           // reset scissor
@@ -3517,18 +3615,18 @@ void drawTab(TabElem_t* tab)
 
     menuElementRenderEnd = i + 1;
   }
-  
+
   // draw scroll bar
   if (tab->menuOffset > 0 || menuElementRenderEnd < menuElementsCount)
   {
-    float scrollValue = tab->menuOffset / (float)(menuElementsCount - (menuElementRenderEnd-tab->menuOffset));
+    float scrollValue = tab->menuOffset / (float)(menuElementsCount - (menuElementRenderEnd - tab->menuOffset));
     float scrollBarHeight = 0.05;
     float contentRectHeight = contentH - scrollBarHeight;
 
     gfxScreenSpaceBox(contentX + contentW, contentY + (scrollValue * contentRectHeight), 0.01, scrollBarHeight, colorRed);
   }
 
-  // 
+  //
   if (tab->selectedMenuItemIdx >= menuElementRenderEnd)
     ++tab->menuOffset;
   if (tab->selectedMenuItemIdx < tab->menuOffset)
@@ -3555,12 +3653,13 @@ void configUnload(void)
   configMenuReset();
 
   // unload thumbnail
-  if (mapOverrideSelectedMapThumbnail) {
+  if (mapOverrideSelectedMapThumbnail)
+  {
     free(mapOverrideSelectedMapThumbnail);
     mapOverrideSelectedMapThumbnail = NULL;
     mapOverrideSelectedMapHasThumbnail = 0;
   }
-  
+
   // unload exdata buf
   if (modeExDataBuf)
   {
@@ -3572,13 +3671,14 @@ void configUnload(void)
 //------------------------------------------------------------------------------
 void onMenuUpdate(int inGame)
 {
-  if (isUnloading) {
+  if (isUnloading)
+  {
     configUnload();
     return;
   }
 
   char buf[16];
-  TabElem_t* tab = &tabElements[selectedTabItem];
+  TabElem_t *tab = &tabElements[selectedTabItem];
   footerTextExtra[0] = 0;
   footerCallback = NULL;
 
@@ -3604,7 +3704,7 @@ void onMenuUpdate(int inGame)
     // prevent pad from affecting menus
     padDisableInput();
     drawDynamicPage();
-    
+
     // close
     if (DynamicPageState.Enabled == 3 || padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
     {
@@ -3663,11 +3763,11 @@ void onMenuUpdate(int inGame)
       gfxScreenSpaceText(SCREEN_WIDTH * 0.3, SCREEN_HEIGHT * 0.775, 1, 1, 0x80FFFFFF, "\x1f Open Config Menu", -1, 4);
     }
 
-		// check for pad input
-		if (padGetButtonUp(0, PAD_START) > 0)
-		{
+    // check for pad input
+    if (padGetButtonUp(0, PAD_START) > 0)
+    {
       configMenuEnable();
-		}
+    }
   }
 }
 
@@ -3678,40 +3778,50 @@ void onConfigUpdate(void)
   char exDataBuf[36];
 
   // reset when we lose connection
-  void* connection = netGetLobbyServerConnection();
-  if (dlTotalBytes > 0 && (netDoIHaveNetError() || !connection || (!dlIsActive && !dlIgnore))) {
-    if (netDoIHaveNetError() || dlConnectionTimeout > 60 || !dlIsActive) {
+  void *connection = netGetLobbyServerConnection();
+  if (dlTotalBytes > 0 && (netDoIHaveNetError() || !connection || (!dlIsActive && !dlIgnore)))
+  {
+    if (netDoIHaveNetError() || dlConnectionTimeout > 60 || !dlIsActive)
+    {
       dlTotalBytes = 0;
       dlBytesReceived = 0;
       dlIsActive = 0;
       dlIgnore = 0;
       dlConnectionTimeout = 0;
       DPRINTF("lost connection\n");
-    } else {
+    }
+    else
+    {
       ++dlConnectionTimeout;
     }
-  } else { dlConnectionTimeout = 0; }
+  }
+  else
+  {
+    dlConnectionTimeout = 0;
+  }
 
   // check for unload
-  if (isUnloading) {
+  if (isUnloading)
+  {
     configUnload();
     return;
   }
 
   // if in game we lost our allocs
-  if (!isConfigMenuActive && mapOverrideSelectedMapThumbnail) {
+  if (!isConfigMenuActive && mapOverrideSelectedMapThumbnail)
+  {
     free(mapOverrideSelectedMapThumbnail);
     mapOverrideSelectedMapThumbnail = NULL;
     mapOverrideSelectedMapHasThumbnail = 0;
   }
 
   // in staging, update game info
-  GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
   if (isInMenus() && gameSettings && gameSettings->GameLoadStartTime < 0 && netGetLobbyServerConnection())
   {
-    // 
-    char * mapName = mapGetName(gameSettings->GameLevel);
-    char * modeName = gameGetGameModeName(gameSettings->GameRules);
+    //
+    char *mapName = mapGetName(gameSettings->GameLevel);
+    char *modeName = gameGetGameModeName(gameSettings->GameRules);
 
     // get map override name
     if (patchStateContainer.SelectedCustomMapId > 0 && dataCustomMaps.items[patchStateContainer.SelectedCustomMapId])
@@ -3725,7 +3835,8 @@ void onConfigUpdate(void)
       modeName = getCustomModeName(gameConfig.customModeId, 1);
 
       // set map name to training type
-      if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) {
+      if (gameConfig.customModeId == CUSTOM_MODE_TRAINING)
+      {
         mapName = dataTrainingType.items[gameConfig.trainingConfig.type];
       }
     }
@@ -3733,38 +3844,38 @@ void onConfigUpdate(void)
     // override gamemode name with map if map has exclusive gamemode
     if (patchStateContainer.SelectedCustomMapId)
     {
-      int forcedCustomModeId = customMapDefs[patchStateContainer.SelectedCustomMapId-1].ForcedCustomModeId;
+      int forcedCustomModeId = customMapDefs[patchStateContainer.SelectedCustomMapId - 1].ForcedCustomModeId;
       if (forcedCustomModeId < 0)
         modeName = mapName;
 
       // if forge custom mode, try and parse from map extra data
       if (forcedCustomModeId == CUSTOM_MODE_FORGE_CUSTOM)
       {
-        int exDataSize = mapReadCustomMapExtraData(customMapDefs[patchStateContainer.SelectedCustomMapId-1].Filename, exDataBuf, sizeof(exDataBuf), forcedCustomModeId);
+        int exDataSize = mapReadCustomMapExtraData(customMapDefs[patchStateContainer.SelectedCustomMapId - 1].Filename, exDataBuf, sizeof(exDataBuf), forcedCustomModeId);
         if (exDataSize == sizeof(exDataBuf))
           modeName = exDataBuf + 4;
       }
     }
 
-	  u32 * stagingUiElements = (u32*)(*(u32*)(0x011C7064 + 4*33) + 0xB0);
-	  u32 * stagingDetailsUiElements = (u32*)(*(u32*)(0x011C7064 + 4*34) + 0xB0);
+    u32 *stagingUiElements = (u32 *)(*(u32 *)(0x011C7064 + 4 * 33) + 0xB0);
+    u32 *stagingDetailsUiElements = (u32 *)(*(u32 *)(0x011C7064 + 4 * 34) + 0xB0);
 
     // update ui strings
     if ((u32)stagingUiElements > 0x100000)
     {
-      safe_strcpy((char*)(stagingUiElements[3] + 0x60), mapName, 32);
-      safe_strcpy((char*)(stagingUiElements[4] + 0x60), modeName, 32);
+      safe_strcpy((char *)(stagingUiElements[3] + 0x60), mapName, 32);
+      safe_strcpy((char *)(stagingUiElements[4] + 0x60), modeName, 32);
     }
     if ((u32)stagingDetailsUiElements > 0x100000)
     {
-      safe_strcpy((char*)(stagingDetailsUiElements[2] + 0x60), mapName, 32);
-      safe_strcpy((char*)(stagingDetailsUiElements[3] + 0x60), modeName, 32);
+      safe_strcpy((char *)(stagingDetailsUiElements[2] + 0x60), mapName, 32);
+      safe_strcpy((char *)(stagingDetailsUiElements[3] + 0x60), modeName, 32);
     }
   }
 }
 
 //------------------------------------------------------------------------------
-void navMenu(TabElem_t* tab, int direction, int loop)
+void navMenu(TabElem_t *tab, int direction, int loop)
 {
   int newElement = tab->selectedMenuItemIdx + direction;
   MenuElem_t *elem = NULL;
@@ -3825,7 +3936,7 @@ void navTab(int direction)
       break;
     if (newTab < 0)
       break;
-    
+
     // get new tab state
     tab = &tabElements[newTab];
     tab->stateHandler(tab, &state);
@@ -3845,32 +3956,32 @@ void navTab(int direction)
 }
 
 //------------------------------------------------------------------------------
-int onServerDownloadDataRequest(void * connection, void * data)
+int onServerDownloadDataRequest(void *connection, void *data)
 {
-	ServerDownloadDataRequest_t request;
-	memcpy(&request, data, offsetof(ServerDownloadDataRequest_t, Data));
+  ServerDownloadDataRequest_t request;
+  memcpy(&request, data, offsetof(ServerDownloadDataRequest_t, Data));
   int msgSize = offsetof(ServerDownloadDataRequest_t, Data) + request.DataSize;
   if (request.DataSize < 0 || request.DataSize > sizeof(request.Data))
     return msgSize;
-  memcpy(request.Data, (char*)data + offsetof(ServerDownloadDataRequest_t, Data), request.DataSize);
+  memcpy(request.Data, (char *)data + offsetof(ServerDownloadDataRequest_t, Data), request.DataSize);
 
-	// copy bytes to target
+  // copy bytes to target
   dlIsActive = request.Id;
-	dlTotalBytes = request.TotalSize;
-	dlBytesReceived += request.DataSize;
+  dlTotalBytes = request.TotalSize;
+  dlBytesReceived += request.DataSize;
   if (!dlIgnore && request.DataSize > 0)
-    memcpy((void*)request.TargetAddress, request.Data, request.DataSize);
-	DPRINTF("DOWNLOAD: %d/%d, writing %d to %08X\n", dlBytesReceived, request.TotalSize, request.DataSize, request.TargetAddress);
-  
-	// respond
-	if (connection && (!request.Chunk || dlBytesReceived >= request.TotalSize))
-	{
-		ClientDownloadDataResponse_t response;
-		response.Id = request.Id;
-		response.BytesReceived = dlBytesReceived;
+    memcpy((void *)request.TargetAddress, request.Data, request.DataSize);
+  DPRINTF("DOWNLOAD: %d/%d, writing %d to %08X\n", dlBytesReceived, request.TotalSize, request.DataSize, request.TargetAddress);
+
+  // respond
+  if (connection && (!request.Chunk || dlBytesReceived >= request.TotalSize))
+  {
+    ClientDownloadDataResponse_t response;
+    response.Id = request.Id;
+    response.BytesReceived = dlBytesReceived;
     response.Stop = dlIgnore;
-		netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE, sizeof(ClientDownloadDataResponse_t), &response);
-	}
+    netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_DOWNLOAD_DATA_RESPONSE, sizeof(ClientDownloadDataResponse_t), &response);
+  }
 
   // reset at end
   if (dlBytesReceived >= request.TotalSize)
@@ -3886,11 +3997,11 @@ int onServerDownloadDataRequest(void * connection, void * data)
     //*(u32*)0x00167F54 = 1000 * 15;
   }
 
-	return msgSize;
+  return msgSize;
 }
 
 //------------------------------------------------------------------------------
-int onSetGameConfig(void * connection, void * data)
+int onSetGameConfig(void *connection, void *data)
 {
   PatchGameConfig_t config;
 
@@ -3902,7 +4013,7 @@ int onSetGameConfig(void * connection, void * data)
 
   // copy it over
   memcpy(&gameConfig, data, sizeof(PatchGameConfig_t));
-  
+
   // reset last states
   memset(checkForMapLastStates, 0, sizeof(checkForMapLastStates));
   return sizeof(PatchGameConfig_t);
@@ -3918,15 +4029,15 @@ void onConfigGameMenu(void)
 void onConfigOnlineMenu(void)
 {
   // draw download data box
-	if (dlTotalBytes > 0)
-	{
+  if (dlTotalBytes > 0)
+  {
     gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, colorBlack);
     gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, colorContentBg);
-    gfxScreenSpaceText(SCREEN_WIDTH * 0.4, SCREEN_HEIGHT * 0.4, 1, 1, colorText, "Downloading...", 11 + (gameGetTime()/240 % 4), 3);
+    gfxScreenSpaceText(SCREEN_WIDTH * 0.4, SCREEN_HEIGHT * 0.4, 1, 1, colorText, "Downloading...", 11 + (gameGetTime() / 240 % 4), 3);
 
-		float w = (float)dlBytesReceived / (float)dlTotalBytes;
-		gfxScreenSpaceBox(0.2, 0.45, 0.6 * w, 0.05, colorRed);
-	}
+    float w = (float)dlBytesReceived / (float)dlTotalBytes;
+    gfxScreenSpaceBox(0.2, 0.45, 0.6 * w, 0.05, colorRed);
+  }
 
   onMenuUpdate(0);
 }
@@ -3934,9 +4045,9 @@ void onConfigOnlineMenu(void)
 //------------------------------------------------------------------------------
 void onConfigInitialize(void)
 {
-	// install net handlers
-  *(u32*)0x00211E64 = 0; // reset net callbacks
-	netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_GAME_CONFIG, &onSetGameConfig);
+  // install net handlers
+  *(u32 *)0x00211E64 = 0; // reset net callbacks
+  netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_SET_GAME_CONFIG, &onSetGameConfig);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_DATA_REQUEST, &onServerDownloadDataRequest);
 
   // reset game configs
@@ -3960,7 +4071,7 @@ void configSendGameConfig(void)
   // disable changing game config in COMP mode
   return;
 #else
-  DPRINTF("sending map %d=>%d %s=>%s\n", selectedMapIdHostBackup, patchStateContainer.SelectedCustomMapId, customMapDefs[selectedMapIdHostBackup-1].Filename, customMapDefs[patchStateContainer.SelectedCustomMapId-1].Filename);
+  DPRINTF("sending map %d=>%d %s=>%s\n", selectedMapIdHostBackup, patchStateContainer.SelectedCustomMapId, customMapDefs[selectedMapIdHostBackup - 1].Filename, customMapDefs[patchStateContainer.SelectedCustomMapId - 1].Filename);
 
   // detect when new map selected
   patchStateContainer.SelectedCustomMapChanged = isInMenus() && selectedMapIdHostBackup != patchStateContainer.SelectedCustomMapId;
@@ -3970,13 +4081,14 @@ void configSendGameConfig(void)
   selectedMapIdHostBackup = patchStateContainer.SelectedCustomMapId;
 
   // send
-  void * lobbyConnection = netGetLobbyServerConnection();
-  if (lobbyConnection) {
+  void *lobbyConnection = netGetLobbyServerConnection();
+  if (lobbyConnection)
+  {
     ClientSetGameConfig_t msg;
 
     memset(&msg, 0, sizeof(msg));
     if (patchStateContainer.SelectedCustomMapId > 0)
-      memcpy(&msg.CustomMap, &customMapDefs[patchStateContainer.SelectedCustomMapId-1], sizeof(msg.CustomMap));
+      memcpy(&msg.CustomMap, &customMapDefs[patchStateContainer.SelectedCustomMapId - 1], sizeof(msg.CustomMap));
     memcpy(&msg.GameConfig, &gameConfig, sizeof(msg.GameConfig));
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_GAME_CONFIG, sizeof(ClientSetGameConfig_t), &msg);
   }
@@ -3992,7 +4104,7 @@ void configTrySendGameConfig(void)
 #else
   int state = 0;
   int i = 0, j = 0;
-  TabElem_t* gameSettingsTab = &tabElements[2];
+  TabElem_t *gameSettingsTab = &tabElements[2];
 
   // send game config to server for saving if tab is enabled
   gameSettingsTab->stateHandler(gameSettingsTab, &state);
@@ -4001,10 +4113,10 @@ void configTrySendGameConfig(void)
     // validate everything
     for (i = 0; i < tabsCount; ++i)
     {
-      TabElem_t* tab = &tabElements[i];
+      TabElem_t *tab = &tabElements[i];
       for (j = 0; j < tab->elementsCount; ++j)
       {
-        MenuElem_t* elem = &tab->elements[j];
+        MenuElem_t *elem = &tab->elements[j];
         if (elem->handler)
           elem->handler(tab, elem, ACTIONTYPE_VALIDATE, NULL);
       }
@@ -4013,7 +4125,6 @@ void configTrySendGameConfig(void)
     configSendGameConfig();
   }
 #endif
-
 }
 
 //------------------------------------------------------------------------------
@@ -4030,14 +4141,14 @@ void configMenuDisable(void)
 {
   if (!isConfigMenuActive)
     return;
-  
+
   isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 0;
 
   // disable dynamic popup
   dynamicPageDisable();
 
   // send config to server for saving
-  void * lobbyConnection = netGetLobbyServerConnection();
+  void *lobbyConnection = netGetLobbyServerConnection();
   if (lobbyConnection)
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, lobbyConnection, NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_ID_CLIENT_USER_CONFIG, sizeof(PatchConfig_t), &config);
 
@@ -4113,14 +4224,15 @@ void configMenuEnable(void)
 
   // reset staging values
   int t;
-  for (t = 0; t < tabsCount; ++t) {
+  for (t = 0; t < tabsCount; ++t)
+  {
     int e;
-    for (e = 0; e < tabElements[t].elementsCount; ++e) {
+    for (e = 0; e < tabElements[t].elementsCount; ++e)
+    {
       tabElements[t].elements[e].handler(&tabElements[t], &tabElements[t].elements[e], ACTIONTYPE_INIT, NULL);
     }
   }
 }
-
 
 //------------------------------------------------------------------------------
 int configHasDevRules(void)

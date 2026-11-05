@@ -7,131 +7,131 @@
 #include "messageid.h"
 #include "bank.h"
 
-#define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
+#define MAP_CONFIG_MAGIC (0xDEADBEEF)
 
-#define RAIDS_HUB_MAPFILENAME                 ("raids_hub")
-#define RAIDS_MAX_EXDATA_SIZE                 (2048)
+#define RAIDS_HUB_MAPFILENAME ("raids_hub")
+#define RAIDS_MAX_EXDATA_SIZE (2048)
 
-#define TPS																		(60)
+#define TPS (60)
 
-#define NPC_MOBY_OCLASS                       (0x4006)
-#define VENDOR_MOBY_OCLASS                    (0x263A)
+#define NPC_MOBY_OCLASS (0x4006)
+#define VENDOR_MOBY_OCLASS (0x263A)
 
-#define GRAVITY_MAGNITUDE                     (15 * MATH_DT)
+#define GRAVITY_MAGNITUDE (15 * MATH_DT)
 
-#define RAIDS_DAMAGE_FLAG_SUPER_CRITICAL      (0x10000000)
-#define RAIDS_DAMAGE_FLAG_CRITICAL            (0x20000000)
-#define RAIDS_DAMAGE_FLAG_SHORT_FREEZE        (0x40000000)
-#define RAIDS_DAMAGE_FLAG_FORCE_KNOCKBACK     (0x80000000)
+#define RAIDS_DAMAGE_FLAG_SUPER_CRITICAL (0x10000000)
+#define RAIDS_DAMAGE_FLAG_CRITICAL (0x20000000)
+#define RAIDS_DAMAGE_FLAG_SHORT_FREEZE (0x40000000)
+#define RAIDS_DAMAGE_FLAG_FORCE_KNOCKBACK (0x80000000)
 
-#define RAIDS_DAMAGE_BUBBLE_CRIT_POP_SCALE       (0.125f)
+#define RAIDS_DAMAGE_BUBBLE_CRIT_POP_SCALE (0.125f)
 #define RAIDS_DAMAGE_BUBBLE_SUPER_CRIT_POP_SCALE (0.25f)
 
-#define MOBS_PLAY_SOUND_COOLDOWN              (10)
+#define MOBS_PLAY_SOUND_COOLDOWN (10)
 #define MOBS_PLAY_SOUND_COOLDOWN_MAX_SOUNDIDS (20)
 
-#define MAX_MOBS_BASE													(10)
-#define MAX_MOBS_ROUND_WEIGHT									(10)
-#define MAX_MOBS_ALIVE											  (50)
-#define MAX_MOBS_ALIVE_BUFFER									(10)
-#define MAX_MOBS_ALIVE_REAL									  (MAX_MOBS_ALIVE - MAX_MOBS_ALIVE_BUFFER)
+#define MAX_MOBS_BASE (10)
+#define MAX_MOBS_ROUND_WEIGHT (10)
+#define MAX_MOBS_ALIVE (50)
+#define MAX_MOBS_ALIVE_BUFFER (10)
+#define MAX_MOBS_ALIVE_REAL (MAX_MOBS_ALIVE - MAX_MOBS_ALIVE_BUFFER)
 
-#define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH 	(100)
-#define MOB_MOVE_SKIP_TICKS                   (6)
-#define MOB_MAX_STUCK_COUNTER_FOR_NEW_PATH    (5)
+#define MOB_TARGET_DIST_IN_SIGHT_IGNORE_PATH (100)
+#define MOB_MOVE_SKIP_TICKS (6)
+#define MOB_MAX_STUCK_COUNTER_FOR_NEW_PATH (5)
 
-#define MOB_SHORT_FREEZE_DURATION_TICKS       (60)
-#define MOB_SHORT_FREEZE_SPEED_FACTOR         (0.15)
+#define MOB_SHORT_FREEZE_DURATION_TICKS (60)
+#define MOB_SHORT_FREEZE_SPEED_FACTOR (0.15)
 
-#define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY 		(1)
-#define MOB_SPAWN_NEAR_PLAYER_PROBABILITY 				(0.25)
-#define MOB_SPAWN_AT_PLAYER_PROBABILITY 					(0.01)
-#define MOB_SPAWN_NEAR_HEALTHBOX_PROBABILITY 			(0.1)
+#define MOB_SPAWN_SEMI_NEAR_PLAYER_PROBABILITY (1)
+#define MOB_SPAWN_NEAR_PLAYER_PROBABILITY (0.25)
+#define MOB_SPAWN_AT_PLAYER_PROBABILITY (0.01)
+#define MOB_SPAWN_NEAR_HEALTHBOX_PROBABILITY (0.1)
 
-#define MOB_SPAWN_BURST_MIN_DELAY							(1 * 60)
-#define MOB_SPAWN_BURST_MAX_DELAY							(10 * 60)
-#define MOB_SPAWN_BURST_MIN										(3)
-#define MOB_SPAWN_BURST_MAX										(10)
-#define MOB_SPAWN_BURST_MAX_INC_PER_ROUND			(1)
-#define MOB_SPAWN_BURST_MIN_INC_PER_ROUND			(0)
+#define MOB_SPAWN_BURST_MIN_DELAY (1 * 60)
+#define MOB_SPAWN_BURST_MAX_DELAY (10 * 60)
+#define MOB_SPAWN_BURST_MIN (3)
+#define MOB_SPAWN_BURST_MAX (10)
+#define MOB_SPAWN_BURST_MAX_INC_PER_ROUND (1)
+#define MOB_SPAWN_BURST_MIN_INC_PER_ROUND (0)
 
-#define MOB_AUTO_DIRTY_COOLDOWN_TICKS			    (60 * 5)
+#define MOB_AUTO_DIRTY_COOLDOWN_TICKS (60 * 5)
 
-#define MOB_BASE_SPEED											  (3)
+#define MOB_BASE_SPEED (3)
 
-#define MAX_MOB_AMMO_DROPS                    (10)
-#define MOB_SPECIAL_MUTATION_PROBABILITY		  (0.005)
-#define MOB_SPECIAL_MUTATION_BASE_COST			  (200)
-#define MOB_SPECIAL_MUTATION_REL_COST			    (1.0)
+#define MAX_MOB_AMMO_DROPS (10)
+#define MOB_SPECIAL_MUTATION_PROBABILITY (0.005)
+#define MOB_SPECIAL_MUTATION_BASE_COST (200)
+#define MOB_SPECIAL_MUTATION_REL_COST (1.0)
 
 #if PAYDAY
-#define MOB_BASE_BOLTS											  (1000000)
+#define MOB_BASE_BOLTS (1000000)
 #else
-#define MOB_BASE_BOLTS											  (220)
+#define MOB_BASE_BOLTS (220)
 #endif
 
-#define MOB_POSTFX_ACID_COLOR                 (0x00008000)
-#define MOB_POSTFX_FREEZE_COLOR               (0x00808000)
-#define MOB_POSTFX_FACTOR                     (0.75)
-#define MOB_POSTFX_ACID_DUR_TICKS             (TPS * 5)
-#define MOB_POSTFX_ACID_FREQ_TICKS            ((int)(TPS * 0.5))
-#define MOB_POSTFX_ACID_DMG_PERC              (0.05)
-#define MOB_POSTFX_FREEZE_DUR_TICKS           (TPS * 5)
-#define MOB_POSTFX_FREEZE_FACTOR              (0.75)
-#define MOB_POSTFX_NAPALM_DMG_PERC            (0.15)
-#define MOB_POSTFX_MINIBOMB_DMG_PERC          (0.25)
+#define MOB_POSTFX_ACID_COLOR (0x00008000)
+#define MOB_POSTFX_FREEZE_COLOR (0x00808000)
+#define MOB_POSTFX_FACTOR (0.75)
+#define MOB_POSTFX_ACID_DUR_TICKS (TPS * 5)
+#define MOB_POSTFX_ACID_FREQ_TICKS ((int)(TPS * 0.5))
+#define MOB_POSTFX_ACID_DMG_PERC (0.05)
+#define MOB_POSTFX_FREEZE_DUR_TICKS (TPS * 5)
+#define MOB_POSTFX_FREEZE_FACTOR (0.75)
+#define MOB_POSTFX_NAPALM_DMG_PERC (0.15)
+#define MOB_POSTFX_MINIBOMB_DMG_PERC (0.25)
 
-#define JACKPOT_BOLTS													(50)
-#define XP_ALPHAMOD_XP_PERC 									(0.5)
-#define NANOLEECH_HEALTH											(3)
-#define NANOLEECH_CHANCE											(0.1)
+#define JACKPOT_BOLTS (50)
+#define XP_ALPHAMOD_XP_PERC (0.5)
+#define NANOLEECH_HEALTH (3)
+#define NANOLEECH_CHANCE (0.1)
 
-#define LEVELUP_MAX_PROF_LEVEL                (98)
-#define LEVELUP_MAX_PLAYER_LEVEL              (98)
-#define LEVELUP_PLAYER_LINEAR_FACTOR          (100)
-#define LEVELUP_PLAYER_STEP_FACTOR            (50)
-#define LEVELUP_PLAYER_STEP_EVERY             (10)
-#define LEVELUP_PLAYER_INCREMENT_AMOUNT       (25)
-#define LEVELUP_CHALLENGE_INCREMENT_AMOUNT    (25)
+#define LEVELUP_MAX_PROF_LEVEL (98)
+#define LEVELUP_MAX_PLAYER_LEVEL (98)
+#define LEVELUP_PLAYER_LINEAR_FACTOR (100)
+#define LEVELUP_PLAYER_STEP_FACTOR (50)
+#define LEVELUP_PLAYER_STEP_EVERY (10)
+#define LEVELUP_PLAYER_INCREMENT_AMOUNT (25)
+#define LEVELUP_CHALLENGE_INCREMENT_AMOUNT (25)
 
-#define PLAYER_BASE_REVIVE_TICKS					    (60 * TPS)
-#define PLAYER_MIN_REVIVE_TICKS					      (10 * TPS)
-#define PLAYER_REVIVE_COST_PER_REVIVE_TICKS		(10 * TPS)
-#define PLAYER_TIME_TO_REVIVE_TICKS		        (5 * TPS)
-#define PLAYER_REVIVE_MAX_DIST								(2.5)
-#define PLAYER_REVIVE_COOLDOWN_TICKS					(120)
-#define PLAYER_KNOCKBACK_BASE_POWER						(3.0)
-#define PLAYER_KNOCKBACK_BASE_TICKS						(10)
-#define PLAYER_COLL_RADIUS          					(0.5)
+#define PLAYER_BASE_REVIVE_TICKS (60 * TPS)
+#define PLAYER_MIN_REVIVE_TICKS (10 * TPS)
+#define PLAYER_REVIVE_COST_PER_REVIVE_TICKS (10 * TPS)
+#define PLAYER_TIME_TO_REVIVE_TICKS (5 * TPS)
+#define PLAYER_REVIVE_MAX_DIST (2.5)
+#define PLAYER_REVIVE_COOLDOWN_TICKS (120)
+#define PLAYER_KNOCKBACK_BASE_POWER (3.0)
+#define PLAYER_KNOCKBACK_BASE_TICKS (10)
+#define PLAYER_COLL_RADIUS (0.5)
 
-#define BIG_AL_MAX_DIST												(5)
-#define WEAPON_VENDOR_MAX_DIST								(3)
-#define WEAPON_UPGRADE_COOLDOWN_TICKS					(15)
-#define WEAPON_MENU_COOLDOWN_TICKS						(60)
+#define BIG_AL_MAX_DIST (5)
+#define WEAPON_VENDOR_MAX_DIST (3)
+#define WEAPON_UPGRADE_COOLDOWN_TICKS (15)
+#define WEAPON_MENU_COOLDOWN_TICKS (60)
 
-#define PLAYER_LEVEL_HEALTH_FACTOR            (10)
-#define PLAYER_LEVEL_DAMAGE_FACTOR            (0.04)
-#define PLAYER_LEVEL_WRENCH_DAMAGE            (10)
+#define PLAYER_LEVEL_HEALTH_FACTOR (10)
+#define PLAYER_LEVEL_DAMAGE_FACTOR (0.04)
+#define PLAYER_LEVEL_WRENCH_DAMAGE (10)
 
-#define SNACK_ITEM_MAX_COUNT                  (8)
-#define DAMAGE_BUBBLE_MAX_COUNT               (16)
+#define SNACK_ITEM_MAX_COUNT (8)
+#define DAMAGE_BUBBLE_MAX_COUNT (16)
 
-#define MAX_MOB_SPAWN_PARAMS                  (16)
-#define MAX_MOB_COMPLEXITY_DRAWN              (7500)
-#define MAX_MOB_COMPLEXITY_DRAWN_DZO          (MAX_MOB_COMPLEXITY_DRAWN * 1)
-#define MOB_COMPLEXITY_SKIN_FACTOR            (500)
-#define MAX_MOB_COMPLEXITY_MIN                (1000)
-#define MOB_COMPLEXITY_LOD_FACTOR             (500)
-#define MOB_MAX_FLINCH_PROBABILITY            (0.25)
+#define MAX_MOB_SPAWN_PARAMS (16)
+#define MAX_MOB_COMPLEXITY_DRAWN (7500)
+#define MAX_MOB_COMPLEXITY_DRAWN_DZO (MAX_MOB_COMPLEXITY_DRAWN * 1)
+#define MOB_COMPLEXITY_SKIN_FACTOR (500)
+#define MAX_MOB_COMPLEXITY_MIN (1000)
+#define MOB_COMPLEXITY_LOD_FACTOR (500)
+#define MOB_MAX_FLINCH_PROBABILITY (0.25)
 
-#define GAME_DEFAULT_AMMO_DROP_CHANCE         (0.1f)
-#define GAME_DEFAULT_LOOT_DROP_CHANCE         (0.015)
+#define GAME_DEFAULT_AMMO_DROP_CHANCE (0.1f)
+#define GAME_DEFAULT_LOOT_DROP_CHANCE (0.015)
 
-#define BADGE_SHARPSHOOTER_CRIT_AMOUNT        (0.05)
+#define BADGE_SHARPSHOOTER_CRIT_AMOUNT (0.05)
 
 enum GameNetMessage
 {
-	CUSTOM_MSG_MOB_UNRELIABLE_MSG = CUSTOM_MSG_ID_GAME_MODE_START,
+  CUSTOM_MSG_MOB_UNRELIABLE_MSG = CUSTOM_MSG_ID_GAME_MODE_START,
   CUSTOM_MSG_BEGIN_WORLD_HOP,
   CUSTOM_MSG_WORLD_HOP_MISSING_MAP,
   CUSTOM_MSG_SET_PLAYER_EQUIPPED_INVENTORY,
@@ -211,36 +211,36 @@ struct RaidsPlayerState
 {
   u32 Bolts;
   int Level;
-	int Kills;
-	int Deaths;
+  int Kills;
+  int Deaths;
 };
 
 struct RaidsPlayer
 {
-	float MinSqrDistFromMob;
-	float MaxSqrDistFromMob;
+  float MinSqrDistFromMob;
+  float MaxSqrDistFromMob;
   float LastHealth;
-	struct RaidsPlayerState State;
+  struct RaidsPlayerState State;
   RaidsPlayerEquippedInventory_t Inventory;
   int TicksSinceHealthChanged;
   u16 RevivingPlayerTicks;
-	u8 ActionCooldownTicks;
-	u8 MessageCooldownTicks;
-	char IsLocal;
-	char IsDead;
-	char IsDoublePoints;
-	char IsDoubleXP;
+  u8 ActionCooldownTicks;
+  u8 MessageCooldownTicks;
+  char IsLocal;
+  char IsDead;
+  char IsDoublePoints;
+  char IsDoubleXP;
   char LastEquipslots[3];
-	char HealthBarStrBuf[8];
+  char HealthBarStrBuf[8];
   RaidsPlayerClassProgress_t EquippedClassProgress;
   u64 EquippedClassXp;
 };
 
 struct RaidsMobStats
 {
-	int MobsDrawnCurrent;
-	int MobsDrawnLast;
-	int MobsDrawGameTime;
+  int MobsDrawnCurrent;
+  int MobsDrawnLast;
+  int MobsDrawGameTime;
   int TotalSpawning;
   int TotalAlive;
   int TotalSpawned;
@@ -288,41 +288,41 @@ typedef char RaidsContractsMenuStateSizeCheck[sizeof(struct RaidsContractsMenuSt
 
 struct RaidsState
 {
-	int InitializedTime;
+  int InitializedTime;
   int MapBaseComplexity;
-  const RaidsUserSettings_t* Settings;
+  const RaidsUserSettings_t *Settings;
   struct RaidsMobStats MobStats;
-  Moby** AllMobsSorted;
+  Moby **AllMobsSorted;
   int AllMobsSortedCount;
-	struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
+  struct RaidsPlayer PlayerStates[GAME_MAX_PLAYERS];
   struct RaidsHubState Hub;
   struct RaidsInventoryMenuState InventoryMenu;
   struct RaidsContractsMenuState ContractsMenu;
   int ClientsReady;
-	int MenuOpen;
+  int MenuOpen;
   int OnHubWorld;
-	struct RaidsPlayer* LocalPlayerState;
-	int GameOver;
+  struct RaidsPlayer *LocalPlayerState;
+  int GameOver;
   int MissionType;
   int MissionStatus;
   int MissionStartTime;
   int MissionCompleteTime;
   int LivesLeft;
-	int WinningTeam;
-	int ActivePlayerCount;
-	int AlivePlayerCount;
+  int WinningTeam;
+  int ActivePlayerCount;
+  int AlivePlayerCount;
   int TicksWithNoLivingPlayers;
-	int IsHost;
+  int IsHost;
   float AmmoDropChance;
   float AmmoRefillCostMultiplier;
   int DifficultyStars;
   int DesiredMusicTrack;
   int PendingWorldHopAtTime;
   int PendingWorldHopDifficultyStars;
-  CustomMapDef_t* PendingWorldHopMapDef;
-  CustomMapDef_t* CurrentMapDef;
+  CustomMapDef_t *PendingWorldHopMapDef;
+  CustomMapDef_t *CurrentMapDef;
   struct RaidsBankMapStats CurrentMapStats;
-	char NumTeams;
+  char NumTeams;
   char DesiredMusicTrackSkipTransition;
   char DesiredMusicTrackForce;
   char DesiredMusicLoop;
@@ -331,7 +331,7 @@ struct RaidsState
 
 struct RaidsMapData
 {
-  int AllKills[GAME_MAX_PLAYERS][MOB_DAMAGE_SOURCE_COUNT-1][MAX_MOB_SPAWN_PARAMS];
+  int AllKills[GAME_MAX_PLAYERS][MOB_DAMAGE_SOURCE_COUNT - 1][MAX_MOB_SPAWN_PARAMS];
 };
 
 struct RaidsPartyScaling
@@ -349,14 +349,14 @@ struct RaidsMapConfig
 {
   u32 Magic;
   int ClientsReady;
-  struct RaidsState* State;
-  struct MobSpawnParams* MobSpawnParams;
+  struct RaidsState *State;
+  struct MobSpawnParams *MobSpawnParams;
   int MobSpawnParamsCount;
-  int* TrackWhitelist;
+  int *TrackWhitelist;
   int TrackWhitelistCount;
   int TrackWhitelistEnabled;
-  struct BankVTable* BankVTable;
-  struct RaidsMapData* MapData;
+  struct BankVTable *BankVTable;
+  struct RaidsMapData *MapData;
   int ClassXpRewards[RAIDS_DIFFICULTY_COUNT];
 
   struct RaidsPartyScaling PartyScaling;
@@ -375,17 +375,17 @@ struct RaidsCustomMapExtraData
   char Description[256];
   u16 ContractRulesOffset;
   u16 ContractRulesCount;
-  char* Challenges[0]; // array of char* tuples, for challenge name & description
+  char *Challenges[0]; // array of char* tuples, for challenge name & description
 };
 
 typedef char RaidsExtraDataSizeCheck[sizeof(struct RaidsCustomMapExtraData) == 332 ? 1 : -1];
 
 struct RaidsGameData
 {
-	u32 Version;
-	u64 Points[GAME_MAX_PLAYERS];
-	int Kills[GAME_MAX_PLAYERS];
-	int Deaths[GAME_MAX_PLAYERS];
+  u32 Version;
+  u64 Points[GAME_MAX_PLAYERS];
+  int Kills[GAME_MAX_PLAYERS];
+  int Deaths[GAME_MAX_PLAYERS];
 };
 
 struct RaidsSnackItem
@@ -403,10 +403,10 @@ struct RaidsSetMissionCompleteRequest
   int MissionStartTime;
 };
 
-struct Guber* getGuber(Moby* moby);
-int handleEvent(Moby* moby, GuberEvent* event);
+struct Guber *getGuber(Moby *moby);
+int handleEvent(Moby *moby, GuberEvent *event);
 
 extern struct RaidsState State;
-extern struct RaidsMapConfig* mapConfig;
+extern struct RaidsMapConfig *mapConfig;
 
 #endif // RAIDS_GAME_H

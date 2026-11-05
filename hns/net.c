@@ -24,53 +24,53 @@
 #include "include/utils.h"
 
 //--------------------------------------------------------------------------
-int onSetPlayerTeamRemote(void * connection, void * data)
+int onSetPlayerTeamRemote(void *connection, void *data)
 {
   SetPlayerTeamMessage_t message;
   memcpy(&message, data, sizeof(message));
-	onSetPlayerTeam(message.PlayerId, message.Team);
+  onSetPlayerTeam(message.PlayerId, message.Team);
 
-	return sizeof(message);
+  return sizeof(message);
 }
 
 //--------------------------------------------------------------------------
 void sendPlayerTeam(int playerId, int team)
 {
-	int i;
-	SetPlayerTeamMessage_t message;
+  int i;
+  SetPlayerTeamMessage_t message;
 
   DPRINTF("send %d team to %d\n", playerId, team);
 
-	// send out
-	message.PlayerId = playerId;
+  // send out
+  message.PlayerId = playerId;
   message.Team = team;
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_TEAM, sizeof(message), &message);
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_SET_TEAM, sizeof(message), &message);
 }
 
 //--------------------------------------------------------------------------
-int onReceiveRoundStageRemote(void * connection, void * data)
+int onReceiveRoundStageRemote(void *connection, void *data)
 {
   SetRoundStageMessage_t message;
   memcpy(&message, data, sizeof(message));
-	onReceiveRoundStage(message.Stage);
+  onReceiveRoundStage(message.Stage);
 
-	return sizeof(message);
+  return sizeof(message);
 }
 
 //--------------------------------------------------------------------------
 void sendRoundStage(enum GameStage stage)
 {
-	int i;
-	SetRoundStageMessage_t message;
+  int i;
+  SetRoundStageMessage_t message;
 
-	// send out
-	message.Stage = stage;
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SET_ROUND_STAGE, sizeof(message), &message);
+  // send out
+  message.Stage = stage;
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SET_ROUND_STAGE, sizeof(message), &message);
 }
 
 void netHookMessages(void)
 {
-	// Hook custom net events
-	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_TEAM, &onSetPlayerTeamRemote);
-	netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_STAGE, &onReceiveRoundStageRemote);
+  // Hook custom net events
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_SET_TEAM, &onSetPlayerTeamRemote);
+  netInstallCustomMsgHandler(CUSTOM_MSG_SET_ROUND_STAGE, &onReceiveRoundStageRemote);
 }

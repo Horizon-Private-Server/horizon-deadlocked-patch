@@ -74,66 +74,66 @@ typedef void (*MapMobAfterDamage_func)(Moby *moby, struct MobDamageEventArgs *ar
 
 struct SurvivalInteropTable
 {
-	// mode
-	ModeSpawnGetRandomPoint_func ModeSpawnGetRandomPointFunc;
-	ModeUpgradePlayerWeapon_func ModeUpgradePlayerWeaponFunc;
-	ModePushSnack_func ModePushSnackFunc;
-	ModePushBubble_func ModePushBubbleFunc;
-	ModePopulateSpawnArgs_func ModePopulateSpawnArgsFunc;
-	ModeCreateMob_func ModeCreateMobFunc;
-	ModeMobNuke_func ModeMobNukeFunc;
-	ModeSetDoublePoints_func ModeSetDoublePointsFunc;
-	ModeSetDoubleXP_func ModeSetDoubleXPFunc;
-	ModeSetFreezeMobs_func ModeSetFreezeMobsFunc;
-	ModeRevivePlayer_func ModeRevivePlayerFunc;
-	ModeGetGuber_func ModeOnGetGuberFunc;
-	ModeHandleGuberEvent_func ModeOnGuberEventFunc;
-	ModeSendPlayerStats_func ModeSendPlayerStatsFunc;
-	ModeSendOnPlayerItemAcquired_func ModeSendOnPlayerItemAcquiredFunc;
-	ModeSendOnPlayerItemConsumed_func ModeSendOnPlayerItemConsumedFunc;
+  // mode
+  ModeSpawnGetRandomPoint_func ModeSpawnGetRandomPointFunc;
+  ModeUpgradePlayerWeapon_func ModeUpgradePlayerWeaponFunc;
+  ModePushSnack_func ModePushSnackFunc;
+  ModePushBubble_func ModePushBubbleFunc;
+  ModePopulateSpawnArgs_func ModePopulateSpawnArgsFunc;
+  ModeCreateMob_func ModeCreateMobFunc;
+  ModeMobNuke_func ModeMobNukeFunc;
+  ModeSetDoublePoints_func ModeSetDoublePointsFunc;
+  ModeSetDoubleXP_func ModeSetDoubleXPFunc;
+  ModeSetFreezeMobs_func ModeSetFreezeMobsFunc;
+  ModeRevivePlayer_func ModeRevivePlayerFunc;
+  ModeGetGuber_func ModeOnGetGuberFunc;
+  ModeHandleGuberEvent_func ModeOnGuberEventFunc;
+  ModeSendPlayerStats_func ModeSendPlayerStatsFunc;
+  ModeSendOnPlayerItemAcquired_func ModeSendOnPlayerItemAcquiredFunc;
+  ModeSendOnPlayerItemConsumed_func ModeSendOnPlayerItemConsumedFunc;
 
-	// map
-	MapOnMobCreate_func OnMobCreateFunc;
-	MapOnMobSpawned_func OnMobSpawnedFunc;
-	MapOnMobKilled_func OnMobKilledFunc;
-	MapCanSpawnMobs_func CanSpawnMobsFunc;
-	MapGetSpawnPoints_func GetSpawnPointsFunc;
-	MapConsiderMobSpawnPoint_func ConsiderMobSpawnPointFunc;
-	MapOnPlayerGetRes_func OnPlayerGetResFunc;
-	MapOnPlayerRevived_func OnPlayerRevivedFunc;
-	MapCreateUpgradePickup_func CreateUpgradePickupFunc;
-	MapPickupUpgradePickup_func PickupUpgradeFunc;
-	MapCreateMobDrop_func CreateMobDropFunc;
-	MapFrameTick_func OnFrameTickFunc;
-	MapGetDifficultyMultiplier_func GetDifficultyMultiplierFunc;
-	MapGetBoltMultiplier_func GetBoltMultiplierFunc;
-	MapGetXpMultiplier_func GetXpMultiplierFunc;
-	MapGetBoltRankMultiplier_func GetBoltRankMultiplierFunc;
-	MapGetSpawnDistanceMultiplier_func GetSpawnDistanceMultiplierFunc;
-	MapGetWeaponPickupCooldownMultiplier_func GetWeaponPickupCooldownMultiplierFunc;
-	MapGetBakedSpawnPoints_func GetBakedSpawnPointsFunc;
-	MapCanPrestigePlayerWeapon_func CanPrestigePlayerWeaponFunc;
-	MapGetPrestigePlayerWeaponCost_func GetPrestigePlayerWeaponCostFunc;
-	MapCanUpgradePlayerWeapon_func CanUpgradePlayerWeaponFunc;
-	MapGetUpgradePlayerWeaponCost_func GetUpgradePlayerWeaponCostFunc;
-	MapGetXpForNextToken_func GetXpForNextTokenFunc;
-	MapGetCurrentDifficulty_func GetCurrentDifficultyFunc;
-	MapGetDropItemOnMobKilled_func GetDropItemOnMobKilledFunc;
-	MapGetRoundTransitionTime_func GetRoundTransitionTimeFunc;
-	MapGetPlayerItemCount_func GetPlayerItemCountFunc;
-	MapOnPlayerItemAcquired_func GetOnPlayerItemAcquiredFunc;
-	MapOnPlayerItemConsumed_func GetOnPlayerItemConsumedFunc;
-	MapOnPlayerUpdate_func OnPlayerUpdateFunc;
-	MapOnPlayerDied_func OnPlayerDiedFunc;
-	MapOnPlayerGetVendorReward_func OnPlayerGetVendorRewardFunc;
-	MapOnBeforeDamageMob_func OnBeforeDamageMobFunc;
-	MapMobAfterDamage_func MobAfterDamageFunc;
-	ModeReportGambitState_func ModeReportGambitStateFunc;
+  // map
+  MapOnMobCreate_func OnMobCreateFunc;
+  MapOnMobSpawned_func OnMobSpawnedFunc;
+  MapOnMobKilled_func OnMobKilledFunc;
+  MapCanSpawnMobs_func CanSpawnMobsFunc;
+  MapGetSpawnPoints_func GetSpawnPointsFunc;
+  MapConsiderMobSpawnPoint_func ConsiderMobSpawnPointFunc;
+  MapOnPlayerGetRes_func OnPlayerGetResFunc;
+  MapOnPlayerRevived_func OnPlayerRevivedFunc;
+  MapCreateUpgradePickup_func CreateUpgradePickupFunc;
+  MapPickupUpgradePickup_func PickupUpgradeFunc;
+  MapCreateMobDrop_func CreateMobDropFunc;
+  MapFrameTick_func OnFrameTickFunc;
+  MapGetDifficultyMultiplier_func GetDifficultyMultiplierFunc;
+  MapGetBoltMultiplier_func GetBoltMultiplierFunc;
+  MapGetXpMultiplier_func GetXpMultiplierFunc;
+  MapGetBoltRankMultiplier_func GetBoltRankMultiplierFunc;
+  MapGetSpawnDistanceMultiplier_func GetSpawnDistanceMultiplierFunc;
+  MapGetWeaponPickupCooldownMultiplier_func GetWeaponPickupCooldownMultiplierFunc;
+  MapGetBakedSpawnPoints_func GetBakedSpawnPointsFunc;
+  MapCanPrestigePlayerWeapon_func CanPrestigePlayerWeaponFunc;
+  MapGetPrestigePlayerWeaponCost_func GetPrestigePlayerWeaponCostFunc;
+  MapCanUpgradePlayerWeapon_func CanUpgradePlayerWeaponFunc;
+  MapGetUpgradePlayerWeaponCost_func GetUpgradePlayerWeaponCostFunc;
+  MapGetXpForNextToken_func GetXpForNextTokenFunc;
+  MapGetCurrentDifficulty_func GetCurrentDifficultyFunc;
+  MapGetDropItemOnMobKilled_func GetDropItemOnMobKilledFunc;
+  MapGetRoundTransitionTime_func GetRoundTransitionTimeFunc;
+  MapGetPlayerItemCount_func GetPlayerItemCountFunc;
+  MapOnPlayerItemAcquired_func GetOnPlayerItemAcquiredFunc;
+  MapOnPlayerItemConsumed_func GetOnPlayerItemConsumedFunc;
+  MapOnPlayerUpdate_func OnPlayerUpdateFunc;
+  MapOnPlayerDied_func OnPlayerDiedFunc;
+  MapOnPlayerGetVendorReward_func OnPlayerGetVendorRewardFunc;
+  MapOnBeforeDamageMob_func OnBeforeDamageMobFunc;
+  MapMobAfterDamage_func MobAfterDamageFunc;
+  ModeReportGambitState_func ModeReportGambitStateFunc;
 
-	// creates extra empty function slots
-	// so that when adding new ones, old maps at least have a nullptr
-	// instead of garbage pointing to a random, invalid piece of memory
-	void *PlaceholderForFutureUseFuncs[16];
+  // creates extra empty function slots
+  // so that when adding new ones, old maps at least have a nullptr
+  // instead of garbage pointing to a random, invalid piece of memory
+  void *PlaceholderForFutureUseFuncs[16];
 };
 
 /* NTSC EE ABI: consume the first reserved pointer without shifting old fields. */
@@ -153,15 +153,15 @@ int canPrestigePlayerWeapon(Player *player, int gadgetId, int prestigeNum, char 
 u32 getPrestigePlayerWeaponCost(Player *player, int gadgetId, int prestigeNum);
 int canUpgradePlayerWeapon(Player *player, int gadgetId, int levelNum);
 u32 getUpgradePlayerWeaponCost(Player *player, int gadgetId, int levelNum);
-u32 getXpForNextToken(Player* player, int token);
+u32 getXpForNextToken(Player *player, int token);
 float getCurrentDifficulty(void);
 int getDropItemOnMobKilled(Player *killedByPlayer, Moby *mob, int gadgetId);
 int getRoundTransitionTime(int round);
-void passPlayerOnItemAcquiredToMap(Player* player, int itemId);
-void passPlayerOnItemConsumedToMap(Player* player, int itemId);
-void passPlayerUpdateToMap(Player* player);
-void passPlayerDiedToMap(Player* player);
-void passPlayerGetVendorRewardToMap(Player* player, int gadgetId, int levelNum);
+void passPlayerOnItemAcquiredToMap(Player *player, int itemId);
+void passPlayerOnItemConsumedToMap(Player *player, int itemId);
+void passPlayerUpdateToMap(Player *player);
+void passPlayerDiedToMap(Player *player);
+void passPlayerGetVendorRewardToMap(Player *player, int gadgetId, int levelNum);
 int mobOnBeforeDamage(Player *player, Moby *sourceMoby, Moby *mobMoby, struct MobDamageEventArgs *args);
 
 #endif // SURVIVAL_INTEROP_H

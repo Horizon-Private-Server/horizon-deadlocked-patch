@@ -27,8 +27,8 @@
 #include "common.h"
 #include "include/config.h"
 
-#define FREECAM_MOVE_SPEED                      (0.1)
-#define FREECAM_FAST_MOVE_SPEED                 (1)
+#define FREECAM_MOVE_SPEED (0.1)
+#define FREECAM_FAST_MOVE_SPEED (1)
 
 int FreecamInitialized = 0;
 
@@ -51,23 +51,23 @@ FreecamSettings_t freecamSettings = {
 // This contains the spectate related info per local
 struct PlayerFreecamData
 {
-    int Enabled;
-    int HideControls;
-    int ControlCharacter;
-    int IgnoreCharacterCamera;
-    int LockStateId;
-    VECTOR LastCameraPos;
-    float CharacterCameraPitch;
-    float CharacterCameraYaw;
-    float SpectateCameraPitch;
-    float SpectateCameraYaw;
-    VECTOR LockedCharacterPosition;
-    VECTOR SavedFreecamPosition;
-    float SavedYaw;
-    float SavedPitch;
+  int Enabled;
+  int HideControls;
+  int ControlCharacter;
+  int IgnoreCharacterCamera;
+  int LockStateId;
+  VECTOR LastCameraPos;
+  float CharacterCameraPitch;
+  float CharacterCameraYaw;
+  float SpectateCameraPitch;
+  float SpectateCameraYaw;
+  VECTOR LockedCharacterPosition;
+  VECTOR SavedFreecamPosition;
+  float SavedYaw;
+  float SavedPitch;
 } FreecamData[GAME_MAX_LOCALS];
 
-void clearFreecamData(struct PlayerFreecamData* data)
+void clearFreecamData(struct PlayerFreecamData *data)
 {
   // backup saved values
   VECTOR lastSavedPosition;
@@ -84,7 +84,7 @@ void clearFreecamData(struct PlayerFreecamData* data)
   data->SavedPitch = lastSavedPitch;
 }
 
-void freecamGetRotationMatrix(MATRIX output, struct PlayerFreecamData * freecamData)
+void freecamGetRotationMatrix(MATRIX output, struct PlayerFreecamData *freecamData)
 {
   matrix_unit(output);
   matrix_rotate_y(output, output, freecamData->SpectateCameraPitch);
@@ -98,12 +98,12 @@ void freecamUpdateCamera_PostHook(void)
   VECTOR pBackup;
   for (i = 0; i < playerGetNumLocals(); ++i)
   {
-    struct PlayerFreecamData * freecamData = FreecamData + i;
+    struct PlayerFreecamData *freecamData = FreecamData + i;
     if (!freecamData->Enabled)
       continue;
 
     // get game camera
-    GameCamera * camera = cameraGetGameCamera(i);
+    GameCamera *camera = cameraGetGameCamera(i);
 
     // backup position + rotation
     vector_copy(pBackup, camera->pos);
@@ -123,12 +123,12 @@ void freecamUpdateCamera_PostHook(void)
     ((void (*)(int))0x004b2010)(i);
 
     // restore backup
-    if (freecamData->IgnoreCharacterCamera) {
+    if (freecamData->IgnoreCharacterCamera)
+    {
       //vector_copy(camera->pos, pBackup);
       memcpy(camera->uMtx, mBackup, sizeof(float) * 12);
     }
   }
-
 }
 
 /*
@@ -139,12 +139,13 @@ void freecamUpdateCamera_PostHook(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void enableFreecam(Player * player, struct PlayerFreecamData * data)
+void enableFreecam(Player *player, struct PlayerFreecamData *data)
 {
   data->Enabled = 1;
   data->ControlCharacter = 0;
   //data->LockStateId = -1;
-  if (data->LastCameraPos[2] == 0) {
+  if (data->LastCameraPos[2] == 0)
+  {
     vector_copy(data->LastCameraPos, player->CameraPos);
     data->SpectateCameraPitch = player->CameraPitch.Value;
     data->SpectateCameraYaw = player->CameraYaw.Value;
@@ -156,7 +157,7 @@ void enableFreecam(Player * player, struct PlayerFreecamData * data)
   POKE_U32(0x004B3970, 0); // disable reticule
   HOOK_J(0x004b2428, &freecamUpdateCamera_PostHook);
 
-  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(player->LocalPlayerIndex);
+  PlayerHUDFlags *hudFlags = hudGetPlayerFlags(player->LocalPlayerIndex);
   if (hudFlags)
     hudFlags->Flags.Raw = 0;
 }
@@ -169,7 +170,7 @@ void enableFreecam(Player * player, struct PlayerFreecamData * data)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void disableFreecam(Player * player, struct PlayerFreecamData * data)
+void disableFreecam(Player *player, struct PlayerFreecamData *data)
 {
   clearFreecamData(data);
 
@@ -181,7 +182,7 @@ void disableFreecam(Player * player, struct PlayerFreecamData * data)
   POKE_U32(0x004B3970, 0x0C12CB28); // enable reticule
   POKE_U32(0x004b2428, 0x03E00008);
 
-  PlayerHUDFlags* hudFlags = hudGetPlayerFlags(player->LocalPlayerIndex);
+  PlayerHUDFlags *hudFlags = hudGetPlayerFlags(player->LocalPlayerIndex);
   if (hudFlags)
     hudFlags->Flags.Raw = 0x333;
 }
@@ -197,27 +198,32 @@ void disableFreecam(Player * player, struct PlayerFreecamData * data)
 void resetFreecam(void)
 {
   int i = 0;
-  
-  if (isInGame()) {
-    Player** players = playerGetAll();
 
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      Player* player = players[i];
+  if (isInGame())
+  {
+    Player **players = playerGetAll();
+
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      Player *player = players[i];
       if (!player)
         continue;
-        
+
       if (!playerIsLocal(player) || player->LocalPlayerIndex >= playerGetNumLocals())
         continue;
 
-      struct PlayerFreecamData * freecamData = FreecamData + player->LocalPlayerIndex;
-      if (freecamData->Enabled) {
+      struct PlayerFreecamData *freecamData = FreecamData + player->LocalPlayerIndex;
+      if (freecamData->Enabled)
+      {
         disableFreecam(player, freecamData);
       }
     }
   }
-  
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    if (FreecamData[i].Enabled) {
+
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    if (FreecamData[i].Enabled)
+    {
       clearFreecamData(&FreecamData[i]);
     }
   }
@@ -234,10 +240,10 @@ void resetFreecam(void)
 float padJoystickToFloat(char value)
 {
   u8 deadzone = 0x10;
-  
+
   if (value < 0)
     return clamp(((u8)value - (128.0 + deadzone)) / (128.0 - deadzone), 0, 1);
-  
+
   return clamp(((127.0 - deadzone) - value) / (-127.0 + deadzone), -1, 0);
 }
 
@@ -273,16 +279,16 @@ float padJoystickSmoothCurve(float value)
  * 
  * AUTHOR :			Connor "Badger41" Williams
  */
-void freecam(Player * currentPlayer)
+void freecam(Player *currentPlayer)
 {
   VECTOR t1;
   MATRIX rotationMatrix;
   if (!currentPlayer)
     return;
 
-  memset((void*)0x00240a40, -1, 0x80);
-  struct PlayerFreecamData * freecamData = FreecamData + currentPlayer->LocalPlayerIndex;
-  PadButtonStatus * pad = playerGetPad(currentPlayer);
+  memset((void *)0x00240a40, -1, 0x80);
+  struct PlayerFreecamData *freecamData = FreecamData + currentPlayer->LocalPlayerIndex;
+  PadButtonStatus *pad = playerGetPad(currentPlayer);
 
   // draw controls
   if (!freecamData->HideControls)
@@ -291,50 +297,64 @@ void freecam(Player * currentPlayer)
     int row = 0;
 
     // hide show hud
-    gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1c Toggle Controls", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1c Toggle Controls", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
     row++;
 
     // ignore character camera
-    if (freecamData->IgnoreCharacterCamera) {
-      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1b Use Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
-    } else {
-      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1b Ignore Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+    if (freecamData->IgnoreCharacterCamera)
+    {
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1b Use Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+    }
+    else
+    {
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1b Ignore Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
     }
     row++;
 
     // control character
-    if (freecamData->ControlCharacter) {
-      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1a Lock Character", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
-    } else {
-      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1a Control Character", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+    if (freecamData->ControlCharacter)
+    {
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1a Lock Character", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+    }
+    else
+    {
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1a Control Character", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
     }
     row++;
 
     // animation locking
-    if (freecamSettings.lockStateToggle) {
-      if (freecamData->LockStateId < 0) {
-        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1d Lock Animation", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
-      } else {
-        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight*row, 1, 0x80FFFFFF, "\x1d Release Animation", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+    if (freecamSettings.lockStateToggle)
+    {
+      if (freecamData->LockStateId < 0)
+      {
+        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1d Lock Animation", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+      }
+      else
+      {
+        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1d Release Animation", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
       }
     }
     row++;
   }
 
-  if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_DOWN) > 0) {
+  if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_DOWN) > 0)
+  {
     freecamData->HideControls = !freecamData->HideControls;
   }
 
-  if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_RIGHT) > 0) {
+  if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_RIGHT) > 0)
+  {
     freecamData->IgnoreCharacterCamera = !freecamData->IgnoreCharacterCamera;
   }
 
-  if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_SELECT | PAD_TRIANGLE) > 0) {
+  if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_SELECT | PAD_TRIANGLE) > 0)
+  {
     vector_copy(freecamData->SavedFreecamPosition, freecamData->LastCameraPos);
     freecamData->SavedYaw = freecamData->SpectateCameraYaw;
     freecamData->SavedPitch = freecamData->SpectateCameraPitch;
   }
-  else if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_SELECT | PAD_SQUARE) > 0 && vector_sqrmag(freecamData->SavedFreecamPosition) > 0.001) {
+  else if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_SELECT | PAD_SQUARE) > 0 && vector_sqrmag(freecamData->SavedFreecamPosition) > 0.001)
+  {
     vector_copy(freecamData->LastCameraPos, freecamData->SavedFreecamPosition);
     freecamData->SpectateCameraYaw = freecamData->SavedYaw;
     freecamData->SpectateCameraPitch = freecamData->SavedPitch;
@@ -354,25 +374,34 @@ void freecam(Player * currentPlayer)
 
     // prevent dying
     currentPlayer->timers.stuck = 0;
-  } else { vector_copy(freecamData->LockedCharacterPosition, currentPlayer->PlayerPosition); }
+  }
+  else
+  {
+    vector_copy(freecamData->LockedCharacterPosition, currentPlayer->PlayerPosition);
+  }
 
   // lock character state
   if (freecamSettings.lockStateToggle)
   {
     if (freecamData->LockStateId >= 0 && currentPlayer->PlayerState != freecamData->LockStateId)
     {
-			PlayerVTable* vtable = playerGetVTable(currentPlayer);
+      PlayerVTable *vtable = playerGetVTable(currentPlayer);
       vtable->UpdateState(currentPlayer, freecamData->LockStateId, 1, 1, 1);
     }
 
-    if (freecamData->LockStateId < 0 && padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_UP) > 0) {
+    if (freecamData->LockStateId < 0 && padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_UP) > 0)
+    {
       freecamData->LockStateId = currentPlayer->PlayerState;
     }
-    else if (freecamData->LockStateId >= 0 && padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_UP) > 0) {
+    else if (freecamData->LockStateId >= 0 && padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_UP) > 0)
+    {
       freecamData->LockStateId = -1;
     }
   }
-  else { freecamData->LockStateId = -1; }
+  else
+  {
+    freecamData->LockStateId = -1;
+  }
 
   // handle control
   if (freecamData->ControlCharacter)
@@ -381,7 +410,8 @@ void freecam(Player * currentPlayer)
     currentPlayer->timers.noInput = 0;
 
     // toggle off
-    if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_LEFT) > 0) {
+    if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_LEFT) > 0)
+    {
       freecamData->ControlCharacter = 0;
 
       // save character rotation to start
@@ -396,7 +426,8 @@ void freecam(Player * currentPlayer)
   else
   {
     // toggle character mode
-    if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_LEFT) > 0) {
+    if (padGetButtonDown(currentPlayer->LocalPlayerIndex, PAD_LEFT) > 0)
+    {
       freecamData->ControlCharacter = 1;
 
       // restore rotation to character
@@ -424,18 +455,22 @@ void freecam(Player * currentPlayer)
       speed = FREECAM_FAST_MOVE_SPEED;
 
     // move joystick
-    if (fabsf(mv) > 0.001) {
+    if (fabsf(mv) > 0.001)
+    {
       vector_copy(t1, rotationMatrix);
-      if (lockVertical) {
+      if (lockVertical)
+      {
         t1[2] = 0;
         vector_normalize(t1, t1);
       }
       vector_scale(t1, t1, -mv * speed);
       vector_add(freecamData->LastCameraPos, freecamData->LastCameraPos, t1);
     }
-    if (fabsf(mh) > 0.001) {
+    if (fabsf(mh) > 0.001)
+    {
       vector_copy(t1, &rotationMatrix[4]);
-      if (lockVertical) {
+      if (lockVertical)
+      {
         t1[2] = 0;
         vector_normalize(t1, t1);
       }
@@ -451,8 +486,9 @@ void freecam(Player * currentPlayer)
 
     // look joystick
     float lookSpeed = 0.1;
-    if (fabsf(lv) > 0.001) {
-      float angle = clampAngle(freecamData->SpectateCameraPitch + lv*lookSpeed);
+    if (fabsf(lv) > 0.001)
+    {
+      float angle = clampAngle(freecamData->SpectateCameraPitch + lv * lookSpeed);
       const float limit = 89 * MATH_DEG2RAD;
       if (angle > limit)
         angle = limit;
@@ -461,8 +497,9 @@ void freecam(Player * currentPlayer)
 
       freecamData->SpectateCameraPitch = angle;
     }
-    if (fabsf(lh) > 0.001) {
-      freecamData->SpectateCameraYaw = clampAngle(freecamData->SpectateCameraYaw + -lh*lookSpeed);
+    if (fabsf(lh) > 0.001)
+    {
+      freecamData->SpectateCameraYaw = clampAngle(freecamData->SpectateCameraYaw + -lh * lookSpeed);
     }
   }
 }
@@ -473,15 +510,15 @@ void freecamInitialize(void)
   FreecamInitialized = 1;
 }
 
-void processFreecam(void) 
+void processFreecam(void)
 {
-  GameSettings * gameSettings = gameGetSettings();
-	Player ** players = playerGetAll();
-  struct PlayerFreecamData * freecamData = NULL;
+  GameSettings *gameSettings = gameGetSettings();
+  Player **players = playerGetAll();
+  struct PlayerFreecamData *freecamData = NULL;
   int i = 0;
 
   // First, we have to ensure we are in-game
-	if (!gameSettings || !isInGame()) 
+  if (!gameSettings || !isInGame())
   {
     clearFreecamData(&FreecamData[0]);
     clearFreecamData(&FreecamData[1]);
@@ -494,13 +531,13 @@ void processFreecam(void)
 
   // Loop through every player
   for (i = 0; i < GAME_MAX_LOCALS; ++i)
-	{
-    Player * player = playerGetFromSlot(i);
+  {
+    Player *player = playerGetFromSlot(i);
     if (!players[i])
       continue;
 
     // Next, we have to ensure the player is the local player and they are not dead
-    if (!gameIsStartMenuOpen(i) && !isConfigMenuActive) 
+    if (!gameIsStartMenuOpen(i) && !isConfigMenuActive)
     {
       // Grab player-specific spectate data
       freecamData = FreecamData + player->LocalPlayerIndex;
@@ -514,7 +551,7 @@ void processFreecam(void)
         if (!freecamData->Enabled)
         {
           // Enable freecam
-          if (playerPadGetButtonDown(player, PAD_L1 | PAD_UP) > 0) 
+          if (playerPadGetButtonDown(player, PAD_L1 | PAD_UP) > 0)
           {
             enableFreecam(player, freecamData);
           }

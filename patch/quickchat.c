@@ -16,11 +16,11 @@
 #include "config.h"
 #include "include/config.h"
 
-#define QUICK_CHAT_MSG_ID_START     (50)
-#define QUICK_CHAT_MAX_MSGS         (5)
-#define QUICK_CHAT_SHOW_TICKS       (60 * 5)
-#define MENU_OPEN_TICKS             (60 * 3)
-#define NAME_MAX_WIDTH              (60)
+#define QUICK_CHAT_MSG_ID_START (50)
+#define QUICK_CHAT_MAX_MSGS (5)
+#define QUICK_CHAT_SHOW_TICKS (60 * 5)
+#define MENU_OPEN_TICKS (60 * 3)
+#define NAME_MAX_WIDTH (60)
 
 struct QuickChatMsg
 {
@@ -57,14 +57,14 @@ enum QuickChatIds
 
 extern PatchGameConfig_t gameConfig;
 
-char* CHAT_GROUPS[4] = {
+char *CHAT_GROUPS[4] = {
   "Post Game",
   "Reactions",
   "Status",
   "Commands"
 };
 
-char* CHAT_SHORTNAMES[QUICK_CHAT_COUNT] = {
+char *CHAT_SHORTNAMES[QUICK_CHAT_COUNT] = {
   "gg",
   "ff",
   "rm",
@@ -83,7 +83,7 @@ char* CHAT_SHORTNAMES[QUICK_CHAT_COUNT] = {
   "help"
 };
 
-char* CHAT_MESSAGES[QUICK_CHAT_COUNT] = {
+char *CHAT_MESSAGES[QUICK_CHAT_COUNT] = {
   "gg",
   "ff",
   "rematch!",
@@ -128,45 +128,65 @@ int QuickChatShowTicks = 0;
 struct QuickChatMsg QuickChats[QUICK_CHAT_MAX_MSGS];
 
 //--------------------------------------------------------------------------
-char * quickChatGetMsgString(int fragMsgId)
+char *quickChatGetMsgString(int fragMsgId)
 {
-  u32* msgIds = (u32*)0x00398218;
-  if (fragMsgId < QUICK_CHAT_MSG_ID_START) return uiMsgString(msgIds[fragMsgId]);
+  u32 *msgIds = (u32 *)0x00398218;
+  if (fragMsgId < QUICK_CHAT_MSG_ID_START)
+    return uiMsgString(msgIds[fragMsgId]);
 
   switch (fragMsgId - QUICK_CHAT_MSG_ID_START)
   {
-    case QUICK_CHAT_GG: return "gg";
-    case QUICK_CHAT_FF: return "ff";
-    case QUICK_CHAT_REMATCH: return "rematch!";
-    case QUICK_CHAT_ONE_MORE_GAME: return "one. more. game.";
-    case QUICK_CHAT_WHAT_A_SAVE: return "what a save!";
-    case QUICK_CHAT_WOW: return "wow!";
-    case QUICK_CHAT_CLOSE_ONE: return "close one!";
-    case QUICK_CHAT_NICE_SHOT: return "nice shot!";
-    case QUICK_CHAT_PUSHING: return "pushing!";
-    case QUICK_CHAT_DEFENDING: return "defending!";
-    case QUICK_CHAT_IN_POSITION: return "in position!";
-    case QUICK_CHAT_NEED_HEALTH: return "need health!";
-    case QUICK_CHAT_GET_THE_FLAG: return "get the flag!";
-    case QUICK_CHAT_PUSH_UP: return "push up!";
-    case QUICK_CHAT_STAY_BACK: return "stay back!";
-    case QUICK_CHAT_HELP_ME: return "help me!";
+    case QUICK_CHAT_GG:
+      return "gg";
+    case QUICK_CHAT_FF:
+      return "ff";
+    case QUICK_CHAT_REMATCH:
+      return "rematch!";
+    case QUICK_CHAT_ONE_MORE_GAME:
+      return "one. more. game.";
+    case QUICK_CHAT_WHAT_A_SAVE:
+      return "what a save!";
+    case QUICK_CHAT_WOW:
+      return "wow!";
+    case QUICK_CHAT_CLOSE_ONE:
+      return "close one!";
+    case QUICK_CHAT_NICE_SHOT:
+      return "nice shot!";
+    case QUICK_CHAT_PUSHING:
+      return "pushing!";
+    case QUICK_CHAT_DEFENDING:
+      return "defending!";
+    case QUICK_CHAT_IN_POSITION:
+      return "in position!";
+    case QUICK_CHAT_NEED_HEALTH:
+      return "need health!";
+    case QUICK_CHAT_GET_THE_FLAG:
+      return "get the flag!";
+    case QUICK_CHAT_PUSH_UP:
+      return "push up!";
+    case QUICK_CHAT_STAY_BACK:
+      return "stay back!";
+    case QUICK_CHAT_HELP_ME:
+      return "help me!";
   }
 }
 
 //--------------------------------------------------------------------------
 void quickChatDraw(void)
 {
-  GameSettings* gs = gameGetSettings();
-  Player** players = playerGetAll();
-  if (!gs) return;
+  GameSettings *gs = gameGetSettings();
+  Player **players = playerGetAll();
+  if (!gs)
+    return;
 
   int yOff = 100;
-  if (playerGetNumLocals() > 1) yOff = 10;
+  if (playerGetNumLocals() > 1)
+    yOff = 10;
 
   char buf[64];
   int i;
-  for (i = 0; i < QuickChatCount; ++i) {
+  for (i = 0; i < QuickChatCount; ++i)
+  {
 
     int pid = QuickChats[i].FromPlayerId;
     int chatid = QuickChats[i].ChatId;
@@ -180,15 +200,18 @@ void quickChatDraw(void)
 
     // draw team *
     int width = gfxScreenSpaceText(490, yOff + (i * 14), 0.8, 0.8, 0x80FFFFFF, buf, -1, 2);
-    if (chatid > 7) {
+    if (chatid > 7)
+    {
       int team = gs->PlayerTeams[pid];
-      Player* player = players[pid];
-      if (player) team = player->Team;
+      Player *player = players[pid];
+      if (player)
+        team = player->Team;
       gfxScreenSpaceText(490 + (490 - width) - 4, yOff + (i * 14), 1, 1, hudGetTeamColor(team, 1), "*", -1, 2);
     }
 
     // pass to dzo
-    if (CLIENT_TYPE_DZO == PATCH_INTEROP->Client) {
+    if (CLIENT_TYPE_DZO == PATCH_INTEROP->Client)
+    {
       CustomDzoCommandDrawQuickChat_t cmd;
       cmd.FromPlayerId = pid;
       cmd.ChatId = chatid;
@@ -203,46 +226,54 @@ void quickChatPush(int sourcePlayerId, int chatId)
   //((void (*)(int, int, int))0x00621AE0)(sourcePlayerId, -1, chatId + QUICK_CHAT_MSG_ID_START);
   QuickChatShowTicks = QUICK_CHAT_SHOW_TICKS;
 
-  if (QuickChatCount == QUICK_CHAT_MAX_MSGS) {
+  if (QuickChatCount == QUICK_CHAT_MAX_MSGS)
+  {
 
     // move down
     memmove(QuickChats, &QuickChats[1], sizeof(struct QuickChatMsg) * (QUICK_CHAT_MAX_MSGS - 1));
 
-    QuickChats[QuickChatCount-1].FromPlayerId = sourcePlayerId;
-    QuickChats[QuickChatCount-1].ChatId = chatId;
-  } else {
+    QuickChats[QuickChatCount - 1].FromPlayerId = sourcePlayerId;
+    QuickChats[QuickChatCount - 1].ChatId = chatId;
+  }
+  else
+  {
     QuickChats[QuickChatCount].FromPlayerId = sourcePlayerId;
     QuickChats[QuickChatCount].ChatId = chatId;
     QuickChatCount++;
   }
-
 }
 
 //--------------------------------------------------------------------------
-int quickChatOnReceiveRemoteQuickChat(void* connection, void* data)
+int quickChatOnReceiveRemoteQuickChat(void *connection, void *data)
 {
-  if (!isInGame()) return sizeof(struct QuickChatMsg);
+  if (!isInGame())
+    return sizeof(struct QuickChatMsg);
 
   struct QuickChatMsg msg;
   memcpy(&msg, data, sizeof(msg));
 
   // if chat msg is post game, then it is global so always show
   // otherwise it is team, make sure local player(s) are on same team as remote
-  if (msg.ChatId >= 8) {
-    Player* fromPlayer = playerGetAll()[msg.FromPlayerId];
-    if (!fromPlayer) return sizeof(struct QuickChatMsg);
+  if (msg.ChatId >= 8)
+  {
+    Player *fromPlayer = playerGetAll()[msg.FromPlayerId];
+    if (!fromPlayer)
+      return sizeof(struct QuickChatMsg);
 
     int i;
-    for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-      Player* localPlayer = playerGetFromSlot(i);
-      if (!localPlayer || !localPlayer->PlayerMoby) continue;
-      if (localPlayer->Team == fromPlayer->Team) goto push;
+    for (i = 0; i < GAME_MAX_LOCALS; ++i)
+    {
+      Player *localPlayer = playerGetFromSlot(i);
+      if (!localPlayer || !localPlayer->PlayerMoby)
+        continue;
+      if (localPlayer->Team == fromPlayer->Team)
+        goto push;
     }
 
     return sizeof(struct QuickChatMsg);
   }
 
-  push:;
+push:;
   quickChatPush(msg.FromPlayerId, msg.ChatId);
   return sizeof(struct QuickChatMsg);
 }
@@ -250,7 +281,8 @@ int quickChatOnReceiveRemoteQuickChat(void* connection, void* data)
 //--------------------------------------------------------------------------
 void quickChatBroadcast(int playerId, int chatId)
 {
-  if (!isInGame()) return;
+  if (!isInGame())
+    return;
 
   struct QuickChatMsg msg;
   msg.FromPlayerId = playerId;
@@ -260,8 +292,9 @@ void quickChatBroadcast(int playerId, int chatId)
   quickChatPush(msg.FromPlayerId, msg.ChatId);
 
   // broadcast
-  void* connection = netGetDmeServerConnection();
-  if (connection) {
+  void *connection = netGetDmeServerConnection();
+  if (connection)
+  {
     netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, connection, CUSTOM_MSG_PLAYER_QUICK_CHAT, sizeof(msg), &msg);
   }
 }
@@ -276,8 +309,10 @@ void quickChatRun(void)
   // save quick chat menu for p0
   PATCH_POINTERS_QUICKCHAT = quickChatMenu[0];
 
-  if (!isInGame()) {
-    if (init) {
+  if (!isInGame())
+  {
+    if (init)
+    {
       memset(quickChatMenu, 0, sizeof(quickChatMenu));
       memset(ticksMenuOpen, 0, sizeof(ticksMenuOpen));
       memset(QuickChats, 0, sizeof(QuickChats));
@@ -286,13 +321,19 @@ void quickChatRun(void)
     }
     return;
   }
-  if (!gameConfig.grQuickChat) return;
-  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL) return;
-  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS) return;
-  if (gameConfig.customModeId == CUSTOM_MODE_TRAINING) return;
-  if (gameGetSettings()->GameRules == GAMERULE_CQ) return;
-  if (isConfigMenuActive) return;
-  
+  if (!gameConfig.grQuickChat)
+    return;
+  if (gameConfig.customModeId == CUSTOM_MODE_SURVIVAL)
+    return;
+  if (gameConfig.customModeId == CUSTOM_MODE_RAIDS)
+    return;
+  if (gameConfig.customModeId == CUSTOM_MODE_TRAINING)
+    return;
+  if (gameGetSettings()->GameRules == GAMERULE_CQ)
+    return;
+  if (isConfigMenuActive)
+    return;
+
   int localCount = playerGetNumLocals();
   int splitScreen = localCount > 1;
 
@@ -307,67 +348,83 @@ void quickChatRun(void)
   //POKE_U32(0x0061fa78, 0x8E440000);
 
   // draw quick chats
-  if (QuickChatShowTicks) {
+  if (QuickChatShowTicks)
+  {
     quickChatDraw();
   }
 
-  int l,i;
-  for (l = 0; l < GAME_MAX_LOCALS; ++l) {
+  int l, i;
+  for (l = 0; l < GAME_MAX_LOCALS; ++l)
+  {
 
     int menuId = quickChatMenu[l];
-    Player* player = playerGetFromSlot(l);
-    if (!player || !player->PlayerMoby) continue;
-    if (gameIsStartMenuOpen(l)) continue;
+    Player *player = playerGetFromSlot(l);
+    if (!player || !player->PlayerMoby)
+      continue;
+    if (gameIsStartMenuOpen(l))
+      continue;
 
     // draw
-    PlayerHUDFlags* hudFlags = hudGetPlayerFlags(l);
-    if (menuId) {
+    PlayerHUDFlags *hudFlags = hudGetPlayerFlags(l);
+    if (menuId)
+    {
 
       // enable cq select menu
       hudFlags->Flags.ConquestUpgradeSelect = 1;
 
       // print group
-      char * group = CHAT_GROUPS[menuId-1];
+      char *group = CHAT_GROUPS[menuId - 1];
       gfxScreenSpaceText(60, 300 * (splitScreen ? 0.5 : 1.0), 1, 1, 0x80FFFFFF, group, -1, 4);
 
       // print options
-      for (i = 0; i < 4; ++i) {
-        char * name = CHAT_SHORTNAMES[(menuId-1)*4 + i];
+      for (i = 0; i < 4; ++i)
+      {
+        char *name = CHAT_SHORTNAMES[(menuId - 1) * 4 + i];
         gfxScreenSpaceText(60 + CHAT_GRID_X_OFF[i], (352 + CHAT_GRID_Y_OFF[i]) * (splitScreen ? 0.5 : 1.0), 0.7, 0.75, 0x80202020, name, -1, 4);
       }
-
-    } else {
+    }
+    else
+    {
       hudFlags->Flags.ConquestUpgradeSelect = 0;
     }
 
     // input
     int pad = -1;
-    for (i = 0; i < 4; ++i) {
-      if (padGetAnyButtonDown(l, PAD_INDICES[i]) > 0) {
+    for (i = 0; i < 4; ++i)
+    {
+      if (padGetAnyButtonDown(l, PAD_INDICES[i]) > 0)
+      {
         pad = i;
         break;
       }
     }
 
-    if (pad >= 0) {
+    if (pad >= 0)
+    {
 
       // send chat or open menu
-      if (menuId) {
-        quickChatBroadcast(player->PlayerId, (menuId - 1)*4 + pad);
+      if (menuId)
+      {
+        quickChatBroadcast(player->PlayerId, (menuId - 1) * 4 + pad);
         quickChatMenu[l] = 0;
-      } else {
+      }
+      else
+      {
         quickChatMenu[l] = pad + 1;
         ticksMenuOpen[l] = MENU_OPEN_TICKS;
       }
     }
-    
+
     // ticks
-    if (ticksMenuOpen[l]) {
+    if (ticksMenuOpen[l])
+    {
       ticksMenuOpen[l]--;
-      if (!ticksMenuOpen[l]) quickChatMenu[l] = 0;
+      if (!ticksMenuOpen[l])
+        quickChatMenu[l] = 0;
     }
   }
 
-  if (QuickChatShowTicks) --QuickChatShowTicks;
+  if (QuickChatShowTicks)
+    --QuickChatShowTicks;
   init = 1;
 }

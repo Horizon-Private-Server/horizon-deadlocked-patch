@@ -40,46 +40,52 @@
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int main (void)
+int main(void)
 {
-	static int initialized = 0;
-	int i;
-	int hasGreenOrangeFlag = 0;
+  static int initialized = 0;
+  int i;
+  int hasGreenOrangeFlag = 0;
 
-	if (initialized)
-		return;
+  if (initialized)
+    return;
 
-	// determine if green or orange flags are spawned
-	GameSettings* gs = gameGetSettings();
-	if (!gs)
-		return;
+  // determine if green or orange flags are spawned
+  GameSettings *gs = gameGetSettings();
+  if (!gs)
+    return;
 
-	if (gs->GameRules == GAMERULE_CTF) {
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-			if (gs->PlayerTeams[i] == TEAM_GREEN || gs->PlayerTeams[i] == TEAM_ORANGE) {
-				hasGreenOrangeFlag = 1;
-				break;
-			}
-		}
-	}
+  if (gs->GameRules == GAMERULE_CTF)
+  {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      if (gs->PlayerTeams[i] == TEAM_GREEN || gs->PlayerTeams[i] == TEAM_ORANGE)
+      {
+        hasGreenOrangeFlag = 1;
+        break;
+      }
+    }
+  }
 
-	// if we don't have then destroy mobys in 0xFE group
-	if (!hasGreenOrangeFlag) {
-		Moby* moby = mobyListGetStart();
-		Moby* mEnd = mobyListGetEnd();
+  // if we don't have then destroy mobys in 0xFE group
+  if (!hasGreenOrangeFlag)
+  {
+    Moby *moby = mobyListGetStart();
+    Moby *mEnd = mobyListGetEnd();
 
-		while (moby < mEnd) {
+    while (moby < mEnd)
+    {
 
-			if (moby->Group == 0xFE) {
-				DPRINTF("destroying %d %04X\n", (u32)moby, moby->OClass);
-				mobyDestroy(moby);
-			}
+      if (moby->Group == 0xFE)
+      {
+        DPRINTF("destroying %d %04X\n", (u32)moby, moby->OClass);
+        mobyDestroy(moby);
+      }
 
-			++moby;
-		}
-	}
+      ++moby;
+    }
+  }
 
-	initialized = 1;
+  initialized = 1;
 
-	return 0;
+  return 0;
 }

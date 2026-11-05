@@ -7,17 +7,17 @@
 
 typedef struct BezierPoint
 {
-	VECTOR HandleIn;
-	VECTOR ControlPoint;
-	VECTOR HandleOut;
+  VECTOR HandleIn;
+  VECTOR ControlPoint;
+  VECTOR HandleOut;
 } BezierPoint_t;
 
-void bezierGetPosition(VECTOR out, BezierPoint_t * a, BezierPoint_t * b, float t);
-void bezierGetTangent(VECTOR out, BezierPoint_t * a, BezierPoint_t * b, float t);
-void bezierGetNormal(VECTOR out, BezierPoint_t * a, BezierPoint_t * b, float t);
-float bezierGetLength(BezierPoint_t * a, BezierPoint_t * b, float tA, float tB);
-float bezierMove(float* t, BezierPoint_t * a, BezierPoint_t * b, float distance);
-float bezierMovePath(float* time, int* index, BezierPoint_t* vertices, int vertexCount, float distance);
-float bezierGetClosestPointOnPath(VECTOR out, VECTOR position, BezierPoint_t* vertices, float* segmentLengths, int vertexCount);
+void bezierGetPosition(VECTOR out, BezierPoint_t *a, BezierPoint_t *b, float t);
+void bezierGetTangent(VECTOR out, BezierPoint_t *a, BezierPoint_t *b, float t);
+void bezierGetNormal(VECTOR out, BezierPoint_t *a, BezierPoint_t *b, float t);
+float bezierGetLength(BezierPoint_t *a, BezierPoint_t *b, float tA, float tB);
+float bezierMove(float *t, BezierPoint_t *a, BezierPoint_t *b, float distance);
+float bezierMovePath(float *time, int *index, BezierPoint_t *vertices, int vertexCount, float distance);
+float bezierGetClosestPointOnPath(VECTOR out, VECTOR position, BezierPoint_t *vertices, float *segmentLengths, int vertexCount);
 
 #endif // BEZIER_H

@@ -9,17 +9,15 @@
 /*
  * Infected team.
  */
-#define INFECTED_TEAM			(TEAM_GREEN)
-
+#define INFECTED_TEAM (TEAM_GREEN)
 
 struct InfectedGameData
 {
-	u32 Version;
-	int Infections[GAME_MAX_PLAYERS];
-	char IsInfected[GAME_MAX_PLAYERS];
-	char IsFirstInfected[GAME_MAX_PLAYERS];
+  u32 Version;
+  int Infections[GAME_MAX_PLAYERS];
+  char IsInfected[GAME_MAX_PLAYERS];
+  char IsFirstInfected[GAME_MAX_PLAYERS];
 };
-
 
 void updateTeamScore(int team);
 

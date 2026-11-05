@@ -40,15 +40,14 @@
 #include "halftime.h"
 #include "include/config.h"
 
-
-#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN					(TIME_SECOND * 10)
-#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX					(TIME_SECOND * 20)
-#define HEADBUTT_COOLDOWN_TICKS												(4)
+#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN (TIME_SECOND * 10)
+#define ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX (TIME_SECOND * 20)
+#define HEADBUTT_COOLDOWN_TICKS (4)
 
 typedef struct RotatingWeaponsChangedMessage
 {
-	int gameTime;
-	int weaponId;
+  int gameTime;
+  int weaponId;
 } RotatingWeaponsChangedMessage_t;
 
 // config
@@ -78,7 +77,7 @@ int FirstPass = 1;
 /*
  *
  */
-float InputRestrictionLastCamYawPitch[GAME_MAX_LOCALS][2] = {0};
+float InputRestrictionLastCamYawPitch[GAME_MAX_LOCALS][2] = { 0 };
 int InputRestrictionDisplayMessageTicks = 0;
 float InputRestrictionDetectionThreshold = 0;
 float InputRestrictionDetectionCounter = 0;
@@ -107,9 +106,9 @@ short PlayerKills[GAME_MAX_PLAYERS];
  *
  */
 float VampireHealRate[] = {
-	PLAYER_MAX_HEALTH * 0.25,
-	PLAYER_MAX_HEALTH * 0.50,
-	PLAYER_MAX_HEALTH * 1.00
+  PLAYER_MAX_HEALTH * 0.25,
+  PLAYER_MAX_HEALTH * 0.50,
+  PLAYER_MAX_HEALTH * 1.00
 };
 
 /*
@@ -198,33 +197,45 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
   {
     .MapId = MAP_ID_SARATHOS,
     .Flags = {
-      { 412.28, 144, 105.34 }, // BLUE
+      { 412.28, 144, 105.34 },      // BLUE
       { 272.392, 141.32, 103.578 }, // RED
-      { 0,0,0 }, // GREEN
-      { 0,0,0 }, // ORANGE
+      { 0, 0, 0 },                  // GREEN
+      { 0, 0, 0 },                  // ORANGE
     },
     .PointsAndYaw = {
-      { 414.91, 104.74, 102.93, 2.808 }, { 410.04, 163.64, 106.25, -3.068 }, { 373.25, 143.46, 105.90, -0.062 }, // BLUE
-      { 242.77, 128.67, 103.27, 0.160 }, { 275.04, 166.57, 103.93, -0.392 }, { 323.09, 144.96, 105.93, -1.697 }, // RED
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
-    }
-  },
-  {
-    .MapId = MAP_ID_SHAAR,
-    .Flags = {
-      { 0,0,0 }, // BLUE
-      { 0,0,0 }, // RED
-      { 459.81, 623.16, 515.54 }, // GREEN
-      { 629.86, 623.02, 515.55 }, // ORANGE
-    },
+      { 414.91, 104.74, 102.93, 2.808 },
+      { 410.04, 163.64, 106.25, -3.068 },
+      { 373.25, 143.46, 105.90, -0.062 }, // BLUE
+      { 242.77, 128.67, 103.27, 0.160 },
+      { 275.04, 166.57, 103.93, -0.392 },
+      { 323.09, 144.96, 105.93, -1.697 }, // RED
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // GREEN
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // ORANGE
+    } },
+  { .MapId = MAP_ID_SHAAR, .Flags = {
+                             { 0, 0, 0 },                // BLUE
+                             { 0, 0, 0 },                // RED
+                             { 459.81, 623.16, 515.54 }, // GREEN
+                             { 629.86, 623.02, 515.55 }, // ORANGE
+                           },
     .PointsAndYaw = {
-      { 532.33, 568.525, 509.842, -2.206 }, { 0,0,0,0 }, { 0,0,0,0 }, // BLUE
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // RED
-      { 452.02, 649.29, 515.47, 0.133 }, { 459.69, 603.02, 515.55, -0.481 }, { 449.62, 672.57, 515.47, -0.456 }, // GREEN
-      { 636.13, 650.44, 515.47, 3.047 }, { 629.32, 602.55, 515.55, -2.624 }, { 633.95, 672.63, 515.47, -2.575 }, // ORANGE
-    }
-  },
+      { 532.33, 568.525, 509.842, -2.206 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // BLUE
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // RED
+      { 452.02, 649.29, 515.47, 0.133 },
+      { 459.69, 603.02, 515.55, -0.481 },
+      { 449.62, 672.57, 515.47, -0.456 }, // GREEN
+      { 636.13, 650.44, 515.47, 3.047 },
+      { 629.32, 602.55, 515.55, -2.624 },
+      { 633.95, 672.63, 515.47, -2.575 }, // ORANGE
+    } },
   /*{
     .MapId = MAP_ID_SHAAR,
     .Flags = {
@@ -240,51 +251,66 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
       { 636.13, 650.44, 515.47, 3.047 }, { 629.32, 602.55, 515.55, -2.624 }, { 633.95, 672.63, 515.47, -2.575 }, // ORANGE
     }
   },*/
-  {
-    .MapId = MAP_ID_VALIX,
-    .Flags = {
-      { 0,0,0 }, // BLUE
-      { 0,0,0 }, // RED
-      { 0,0,0 }, // GREEN
-      { 0,0,0 }, // ORANGE
-    },
+  { .MapId = MAP_ID_VALIX, .Flags = {
+                             { 0, 0, 0 }, // BLUE
+                             { 0, 0, 0 }, // RED
+                             { 0, 0, 0 }, // GREEN
+                             { 0, 0, 0 }, // ORANGE
+                           },
     .PointsAndYaw = {
-      { 330.245, 413.115, 330.326, 1.039 }, { 0,0,0,0 }, { 0,0,0,0 }, // BLUE
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // RED
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
-    }
-  },
-  {
-    .MapId = MAP_ID_TORVAL,
-    .Flags = {
-      { 0,0,0 }, // BLUE
-      { 362.49, 328.12, 100.95 }, // RED
-      { 0,0,0 }, // GREEN
-      { 0,0,0 }, // ORANGE
-    },
+      { 330.245, 413.115, 330.326, 1.039 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // BLUE
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // RED
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // GREEN
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // ORANGE
+    } },
+  { .MapId = MAP_ID_TORVAL, .Flags = {
+                              { 0, 0, 0 },                // BLUE
+                              { 362.49, 328.12, 100.95 }, // RED
+                              { 0, 0, 0 },                // GREEN
+                              { 0, 0, 0 },                // ORANGE
+                            },
     .PointsAndYaw = {
-      { 234.78, 428.95, 101, -0.567 }, { 238.51, 397.26, 101, 0.357 }, { 299.35, 415.85, 106, -1.54 }, // BLUE
-      { 332.01, 367.16, 100.61, 1.589 }, { 361.49, 352.84, 100.55, 2.772 }, { 381.82, 321.13, 101.01, 2.747 }, // RED
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
-    }
-  },
-  {
-    .MapId = MAP_ID_MARAXUS,
-    .Flags = {
-      { 0,0,0 }, // BLUE
-      { 0,0,0 }, // RED
-      { 0,0,0 }, // GREEN
-      { 0,0,0 }, // ORANGE
-    },
+      { 234.78, 428.95, 101, -0.567 },
+      { 238.51, 397.26, 101, 0.357 },
+      { 299.35, 415.85, 106, -1.54 }, // BLUE
+      { 332.01, 367.16, 100.61, 1.589 },
+      { 361.49, 352.84, 100.55, 2.772 },
+      { 381.82, 321.13, 101.01, 2.747 }, // RED
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // GREEN
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // ORANGE
+    } },
+  { .MapId = MAP_ID_MARAXUS, .Flags = {
+                               { 0, 0, 0 }, // BLUE
+                               { 0, 0, 0 }, // RED
+                               { 0, 0, 0 }, // GREEN
+                               { 0, 0, 0 }, // ORANGE
+                             },
     .PointsAndYaw = {
-      { 433.97, 746.63, 103.00, 0.12 }, { 0,0,0,0 }, { 469.47, 738.819, 102.785, 2.279 }, // BLUE
-      { 0,0,0,0 }, { 0,0,0,0 }, { 524.65, 704.33, 99.99, 1.57 }, // RED
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // GREEN
-      { 0,0,0,0 }, { 0,0,0,0 }, { 0,0,0,0 }, // ORANGE
-    }
-  },
+      { 433.97, 746.63, 103.00, 0.12 },
+      { 0, 0, 0, 0 },
+      { 469.47, 738.819, 102.785, 2.279 }, // BLUE
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 524.65, 704.33, 99.99, 1.57 }, // RED
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // GREEN
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 },
+      { 0, 0, 0, 0 }, // ORANGE
+    } },
   // {
   //   .MapId = MAP_ID_GS,
   //   .Flags = {
@@ -304,7 +330,7 @@ struct CompactCTFSpawnReplacement BetterFlagRules[] = {
 
 const int BetterFlagRulesCount = COUNT_OF(BetterFlagRules);
 
-void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay);
+void onGameplayLoadBetterFlags(GameplayHeaderDef_t *gameplay);
 
 /*
  * NAME :		onRotatingWeaponsChangedRemote
@@ -320,13 +346,13 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay);
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int onRotatingWeaponsChangedRemote(void * connection, void * data)
+int onRotatingWeaponsChangedRemote(void *connection, void *data)
 {
-	RotatingWeaponsChangedMessage_t message;
-	memcpy(&message, data, sizeof(RotatingWeaponsChangedMessage_t));
+  RotatingWeaponsChangedMessage_t message;
+  memcpy(&message, data, sizeof(RotatingWeaponsChangedMessage_t));
 
-	RotatingWeaponsNextRotationTime = message.gameTime;
-	RotatingWeaponsActiveId = message.weaponId;
+  RotatingWeaponsNextRotationTime = message.gameTime;
+  RotatingWeaponsActiveId = message.weaponId;
   RotatingWeaponsGiveAmmo = 1;
 
   return sizeof(RotatingWeaponsChangedMessage_t);
@@ -348,104 +374,110 @@ int onRotatingWeaponsChangedRemote(void * connection, void * data)
  */
 void rotatingWeaponsLogic(void)
 {
-	int i;
-	int gameTime = gameGetTime();
-	Player** players = playerGetAll();
+  int i;
+  int gameTime = gameGetTime();
+  Player **players = playerGetAll();
 
-	// don't run when playing gun game.
-	if (gameConfig.customModeId == CUSTOM_MODE_GUN_GAME)
-		return;
+  // don't run when playing gun game.
+  if (gameConfig.customModeId == CUSTOM_MODE_GUN_GAME)
+    return;
 
-	// hook
-	netInstallCustomMsgHandler(CUSTOM_MSG_ROTATING_WEAPONS_CHANGED, &onRotatingWeaponsChangedRemote);
+  // hook
+  netInstallCustomMsgHandler(CUSTOM_MSG_ROTATING_WEAPONS_CHANGED, &onRotatingWeaponsChangedRemote);
 
-	// determine new weapon from enabled weapons randomly
-	if (gameAmIHost() && (RotatingWeaponsNextRotationTime == 0 || gameTime > RotatingWeaponsNextRotationTime))
-	{
-		GameOptions* gameOptions = gameGetOptions();
-		int r = 1 + randRangeInt(0, 8);
-		int slotId = weaponIdToSlot(RotatingWeaponsActiveId);
-		int iterations = 0;
-		int matches = 0;
-		
-		// randomly select weapon from enabled weapons
-		while (r) {
-			slotId = (slotId + 1) % 7;
+  // determine new weapon from enabled weapons randomly
+  if (gameAmIHost() && (RotatingWeaponsNextRotationTime == 0 || gameTime > RotatingWeaponsNextRotationTime))
+  {
+    GameOptions *gameOptions = gameGetOptions();
+    int r = 1 + randRangeInt(0, 8);
+    int slotId = weaponIdToSlot(RotatingWeaponsActiveId);
+    int iterations = 0;
+    int matches = 0;
 
-			if (gameOptions->WeaponFlags.Raw & (1 << weaponSlotToId(1 + slotId))) {
-				--r;
-				++matches;
-			}
-			++iterations;
+    // randomly select weapon from enabled weapons
+    while (r)
+    {
+      slotId = (slotId + 1) % 7;
 
-			if (iterations > 7 && matches == 0)
-				return;
-		}
+      if (gameOptions->WeaponFlags.Raw & (1 << weaponSlotToId(1 + slotId)))
+      {
+        --r;
+        ++matches;
+      }
+      ++iterations;
 
-		// set weapon
-		RotatingWeaponsActiveId = weaponSlotToId(1 + slotId);
+      if (iterations > 7 && matches == 0)
+        return;
+    }
 
-		// determine next rotation time
-		RotatingWeaponsNextRotationTime = gameTime + randRangeInt(ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN, ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX);
+    // set weapon
+    RotatingWeaponsActiveId = weaponSlotToId(1 + slotId);
+
+    // determine next rotation time
+    RotatingWeaponsNextRotationTime = gameTime + randRangeInt(ROTATING_WEAPONS_SWITCH_FREQUENCY_MIN, ROTATING_WEAPONS_SWITCH_FREQUENCY_MAX);
 
     // give ammo
     RotatingWeaponsGiveAmmo = 1;
 
-		// send to others
-		RotatingWeaponsChangedMessage_t message = {
-			.gameTime = RotatingWeaponsNextRotationTime,
-			.weaponId = RotatingWeaponsActiveId
-		};
-		netBroadcastCustomAppMessage(0x40, netGetDmeServerConnection(), CUSTOM_MSG_ROTATING_WEAPONS_CHANGED, sizeof(message), &message);
-	}
+    // send to others
+    RotatingWeaponsChangedMessage_t message = {
+      .gameTime = RotatingWeaponsNextRotationTime,
+      .weaponId = RotatingWeaponsActiveId
+    };
+    netBroadcastCustomAppMessage(0x40, netGetDmeServerConnection(), CUSTOM_MSG_ROTATING_WEAPONS_CHANGED, sizeof(message), &message);
+  }
 
-	// if active weapon is wrench then just exit
-	if (RotatingWeaponsActiveId == WEAPON_ID_WRENCH)
-		return;
+  // if active weapon is wrench then just exit
+  if (RotatingWeaponsActiveId == WEAPON_ID_WRENCH)
+    return;
 
-	// force weapons
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		Player * player = players[i];
-		if (player)
-		{
-			// don't change weapons of the infected
-			if (gameConfig.customModeId == CUSTOM_MODE_INFECTED)
-				if (player->Team == TEAM_GREEN)
-					continue;
+  // force weapons
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (player)
+    {
+      // don't change weapons of the infected
+      if (gameConfig.customModeId == CUSTOM_MODE_INFECTED)
+        if (player->Team == TEAM_GREEN)
+          continue;
 
-			// give weapon
-			GadgetBox* gBox = player->GadgetBox;
-			if (gBox->Gadgets[RotatingWeaponsActiveId].Level < 0) {
-				playerGiveWeapon(gBox, RotatingWeaponsActiveId, 0, 0);
-			}
+      // give weapon
+      GadgetBox *gBox = player->GadgetBox;
+      if (gBox->Gadgets[RotatingWeaponsActiveId].Level < 0)
+      {
+        playerGiveWeapon(gBox, RotatingWeaponsActiveId, 0, 0);
+      }
 
-			// set slot and weapon
-			if (player->IsLocal) {
+      // set slot and weapon
+      if (player->IsLocal)
+      {
 
-				// hide slots 2 and 3
-				playerSetLocalEquipslot(player->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
-				playerSetLocalEquipslot(player->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
+        // hide slots 2 and 3
+        playerSetLocalEquipslot(player->LocalPlayerIndex, 1, WEAPON_ID_EMPTY);
+        playerSetLocalEquipslot(player->LocalPlayerIndex, 2, WEAPON_ID_EMPTY);
 
-				// force equip if not holding correct weapon
-				if (player->WeaponHeldId != WEAPON_ID_WRENCH &&
-						player->WeaponHeldId != WEAPON_ID_SWINGSHOT &&
-						player->WeaponHeldId != WEAPON_ID_HACKER_RAY &&
-						player->WeaponHeldId != RotatingWeaponsActiveId)
-				{
-					playerEquipWeapon(player, RotatingWeaponsActiveId);
-				}
+        // force equip if not holding correct weapon
+        if (player->WeaponHeldId != WEAPON_ID_WRENCH &&
+            player->WeaponHeldId != WEAPON_ID_SWINGSHOT &&
+            player->WeaponHeldId != WEAPON_ID_HACKER_RAY &&
+            player->WeaponHeldId != RotatingWeaponsActiveId)
+        {
+          playerEquipWeapon(player, RotatingWeaponsActiveId);
+        }
 
         //
-        if (RotatingWeaponsGiveAmmo) {
-          struct GadgetEntry* gadgetEntry = &player->GadgetBox->Gadgets[RotatingWeaponsActiveId];
-          if (gadgetEntry->Level >= 0) {
+        if (RotatingWeaponsGiveAmmo)
+        {
+          struct GadgetEntry *gadgetEntry = &player->GadgetBox->Gadgets[RotatingWeaponsActiveId];
+          if (gadgetEntry->Level >= 0)
+          {
             gadgetEntry->Ammo = playerGetWeaponMaxAmmo(player->GadgetBox, RotatingWeaponsActiveId);
           }
         }
-			}
-		}
-	}
+      }
+    }
+  }
 
   RotatingWeaponsGiveAmmo = 0;
 }
@@ -467,10 +499,10 @@ void rotatingWeaponsLogic(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void playerSizeScaleMoby(Moby* moby, float scale)
+void playerSizeScaleMoby(Moby *moby, float scale)
 {
-	float* mobyDef = *(float**)(0x002495c0 + (4 * moby->MClass));
-	moby->Scale = scale * mobyDef[9];
+  float *mobyDef = *(float **)(0x002495c0 + (4 * moby->MClass));
+  moby->Scale = scale * mobyDef[9];
 }
 
 /*
@@ -492,7 +524,7 @@ void playerSizeScaleMoby(Moby* moby, float scale)
 // 	int i, j;
 // 	Player** players = playerGetAll();
 // 	float size, cameraHeight, tpHeight, moveSpeed = 1;
-	
+
 // 	switch (gameConfig.prPlayerSize)
 // 	{
 // 		case 1: size = 1.5; cameraHeight = 0.75; tpHeight = 3; moveSpeed = 1.5; break; // large
@@ -634,31 +666,32 @@ void playerSizeScaleMoby(Moby* moby, float scale)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damageFlags, VECTOR fromPos, VECTOR t0)
+void headbuttDamage(float hitpoints, Moby *hitMoby, Moby *sourceMoby, int damageFlags, VECTOR fromPos, VECTOR t0)
 {
-	Player * sourcePlayer = guberMobyGetPlayerDamager(sourceMoby);
-	Player * hitPlayer = guberMobyGetPlayerDamager(hitMoby);
-	if (sourcePlayer && hitPlayer) {
+  Player *sourcePlayer = guberMobyGetPlayerDamager(sourceMoby);
+  Player *hitPlayer = guberMobyGetPlayerDamager(hitMoby);
+  if (sourcePlayer && hitPlayer)
+  {
 
-		// prevent friendly fire
-		if (!gameConfig.prHeadbuttFriendlyFire && playerGetJuggSafeTeam(sourcePlayer) == playerGetJuggSafeTeam(hitPlayer))
-			return;
+    // prevent friendly fire
+    if (!gameConfig.prHeadbuttFriendlyFire && playerGetJuggSafeTeam(sourcePlayer) == playerGetJuggSafeTeam(hitPlayer))
+      return;
 
-		// give a cooldown to the headbutt
-		if (HeadbuttHitTimers[hitPlayer->PlayerId] > 0)
-			return;
+    // give a cooldown to the headbutt
+    if (HeadbuttHitTimers[hitPlayer->PlayerId] > 0)
+      return;
 
-		// if target is low health, run them over
-		if (hitPlayer->Health <= hitpoints)
-			damageFlags = 0x808;
-		else
-			damageFlags = 0x801;
+    // if target is low health, run them over
+    if (hitPlayer->Health <= hitpoints)
+      damageFlags = 0x808;
+    else
+      damageFlags = 0x801;
 
-		HeadbuttHitTimers[hitPlayer->PlayerId] = HEADBUTT_COOLDOWN_TICKS;
-		//DPRINTF("damaging %d (health:%f) with %f and %X\n", hitPlayer->PlayerId, hitPlayer->Health, hitpoints, damageFlags);
-	}
+    HeadbuttHitTimers[hitPlayer->PlayerId] = HEADBUTT_COOLDOWN_TICKS;
+    //DPRINTF("damaging %d (health:%f) with %f and %X\n", hitPlayer->PlayerId, hitPlayer->Health, hitpoints, damageFlags);
+  }
 
-	((void (*)(float, Moby*, Moby*, int, VECTOR, VECTOR))0x00503500)(hitpoints, hitMoby, sourceMoby, damageFlags, fromPos, t0);
+  ((void (*)(float, Moby *, Moby *, int, VECTOR, VECTOR))0x00503500)(hitpoints, hitMoby, sourceMoby, damageFlags, fromPos, t0);
 }
 
 /*
@@ -677,27 +710,33 @@ void headbuttDamage(float hitpoints, Moby* hitMoby, Moby* sourceMoby, int damage
  */
 void headbuttLogic(void)
 {
-	int i;
+  int i;
 
-	// enable for all mobies
-	*(u32*)0x005F98D0 = 0x24020001;
+  // enable for all mobies
+  *(u32 *)0x005F98D0 = 0x24020001;
 
-	// hook damage so we can consider teams/health
-	*(u32*)0x005f9920 = 0x0C000000 | ((u32)&headbuttDamage >> 2);
+  // hook damage so we can consider teams/health
+  *(u32 *)0x005f9920 = 0x0C000000 | ((u32)&headbuttDamage >> 2);
 
-	// set damage
-	u16 * damageInstr = (u16*)0x005F9918;
-	switch (gameConfig.prHeadbutt)
-	{
-		case 1: *damageInstr = 0x4148; break; // 25%
-		case 2: *damageInstr = 0x41c8; break; // 50%
-		case 3: *damageInstr = 0x4248; break; // 100%
-	}
+  // set damage
+  u16 *damageInstr = (u16 *)0x005F9918;
+  switch (gameConfig.prHeadbutt)
+  {
+    case 1:
+      *damageInstr = 0x4148;
+      break; // 25%
+    case 2:
+      *damageInstr = 0x41c8;
+      break; // 50%
+    case 3:
+      *damageInstr = 0x4248;
+      break; // 100%
+  }
 
-	// decrement counters
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		if (HeadbuttHitTimers[i] > 0)
-			HeadbuttHitTimers[i]--;
+  // decrement counters
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    if (HeadbuttHitTimers[i] > 0)
+      HeadbuttHitTimers[i]--;
 }
 
 /*
@@ -716,31 +755,31 @@ void headbuttLogic(void)
  */
 void alwaysV2sLogic(void)
 {
-	int i, j = 0;
-	Player** players = NULL;
-	Player* player = NULL;
+  int i, j = 0;
+  Player **players = NULL;
+  Player *player = NULL;
 
-	// force v2 on give weapon
-	*(u32*)0x005F0504 = 0x24100001;
+  // force v2 on give weapon
+  *(u32 *)0x005F0504 = 0x24100001;
 
-	// set all player weapons to v2
-	if (FirstPass)
-	{
-		players = playerGetAll();
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		{
-			player = players[i];
-			if (player && player->GadgetBox)
-			{
-				for (j = 0; j < 8; ++j)
-				{
-					struct GadgetEntry *gadget = &player->GadgetBox->Gadgets[weaponSlotToId(j + 1)];
-					if (gadget->Level == 0)
-						gadget->Level = 1;
-				}
-			}
-		}
-	}
+  // set all player weapons to v2
+  if (FirstPass)
+  {
+    players = playerGetAll();
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      player = players[i];
+      if (player && player->GadgetBox)
+      {
+        for (j = 0; j < 8; ++j)
+        {
+          struct GadgetEntry *gadget = &player->GadgetBox->Gadgets[weaponSlotToId(j + 1)];
+          if (gadget->Level == 0)
+            gadget->Level = 1;
+        }
+      }
+    }
+  }
 }
 
 /*
@@ -780,22 +819,21 @@ void healthBoxNoEnclosureLogic(void)
  */
 void unlimitedChargebootLogic(void)
 {
-	int i;
-	Player** players = playerGetAll();
+  int i;
+  Player **players = playerGetAll();
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		Player * p = players[i];
-		if (!p)
-			continue;
-		
-		// if player is cbooting, holding l2, and about to end cboot state
-		// then force state to not reach end (keep chargebooting)
-		if (p->PlayerState == PLAYER_STATE_CHARGE && playerPadGetButton(p, PAD_L2) > 0 && p->timers.state > 55)
-			p->timers.state = 55;
-	}
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *p = players[i];
+    if (!p)
+      continue;
+
+    // if player is cbooting, holding l2, and about to end cboot state
+    // then force state to not reach end (keep chargebooting)
+    if (p->PlayerState == PLAYER_STATE_CHARGE && playerPadGetButton(p, PAD_L2) > 0 && p->timers.state > 55)
+      p->timers.state = 55;
+  }
 }
-
 
 /*
  * NAME :		fusionShotsAlwaysHitLogic_Hook
@@ -815,21 +853,22 @@ void unlimitedChargebootLogic(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int fusionShotsAlwaysHitLogic_Hook(VECTOR from, VECTOR to, Moby* shotMoby, Moby* moby, u64 t0)
+int fusionShotsAlwaysHitLogic_Hook(VECTOR from, VECTOR to, Moby *shotMoby, Moby *moby, u64 t0)
 {
-	u64 hitFlag = 0;
+  u64 hitFlag = 0;
 
-	if (shotMoby && shotMoby->PVar)
-	{
-		Moby * hitMoby = *(Moby**)((u32)shotMoby->PVar + 0x68);
-		if (hitMoby) {
-			Player * hitPlayer = guberGetObjectByMoby(hitMoby);
-			if (hitPlayer)
-				hitFlag = 1;
-		}
-	}
+  if (shotMoby && shotMoby->PVar)
+  {
+    Moby *hitMoby = *(Moby **)((u32)shotMoby->PVar + 0x68);
+    if (hitMoby)
+    {
+      Player *hitPlayer = guberGetObjectByMoby(hitMoby);
+      if (hitPlayer)
+        hitFlag = 1;
+    }
+  }
 
-	return CollLine_Fix(from, to, hitFlag, moby, t0);
+  return CollLine_Fix(from, to, hitFlag, moby, t0);
 }
 
 /*
@@ -848,8 +887,8 @@ int fusionShotsAlwaysHitLogic_Hook(VECTOR from, VECTOR to, Moby* shotMoby, Moby*
  */
 void fusionShotsAlwaysHitLogic(void)
 {
-	HOOK_JAL(0x003FC66C, &fusionShotsAlwaysHitLogic_Hook);
-	POKE_U32(0x003FC670, 0x0240302D);
+  HOOK_JAL(0x003FC66C, &fusionShotsAlwaysHitLogic_Hook);
+  POKE_U32(0x003FC670, 0x0240302D);
 }
 
 /*
@@ -869,14 +908,17 @@ void fusionShotsAlwaysHitLogic(void)
 void instantDeathLogic(void)
 {
   int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* player = playerGetFromSlot(i);
-    if (!playerIsValid(player)) continue;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    Player *player = playerGetFromSlot(i);
+    if (!playerIsValid(player))
+      continue;
 
     // instantly call Hero::Death on death, so that the killer can get their ammo point immediately
     // does break the animation on the local players screen
-    if (player->IsLocal && player->Health <= 0 && *(char*)((u32)player + 0x2ed7) == 0) {
-      ((void (*)(Player*))0x005e2188)(player);
+    if (player->IsLocal && player->Health <= 0 && *(char *)((u32)player + 0x2ed7) == 0)
+    {
+      ((void (*)(Player *))0x005e2188)(player);
     }
   }
 }
@@ -940,9 +982,11 @@ void inputRestrictionLogic_NoKbm_PreTick(void)
     return;
 
   int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* local = playerGetFromSlot(i);
-    if (!playerIsValid(local)) continue;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    Player *local = playerGetFromSlot(i);
+    if (!playerIsValid(local))
+      continue;
 
     float oYaw = InputRestrictionLastCamYawPitch[i][0];
     float oPitch = InputRestrictionLastCamYawPitch[i][1];
@@ -983,14 +1027,16 @@ void inputRestrictionLogic_NoKbm_PostTick(void)
 {
   if (gameConfig.grInputRestriction != GAMERULE_INPUT_RESTRICTION_CONTROLLER_ONLY)
     return;
-    
+
   if (inputRestrictionLogic_IgnoreRestriction())
     return;
 
   int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* local = playerGetFromSlot(i);
-    if (!playerIsValid(local)) continue;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    Player *local = playerGetFromSlot(i);
+    if (!playerIsValid(local))
+      continue;
 
     float cYaw = local->CameraYaw.Value;
     float cPitch = local->CameraPitch.Value;
@@ -1022,19 +1068,22 @@ void inputRestrictionLogic_NoPad(void)
 
   // disable yaw write
   POKE_U32(0x004DC7AC, 0);
-  
+
   // disable pitch write
   POKE_U32(0x004DC780, 0);
   POKE_U32(0x004DC7B8, 0);
 
   // check for pad right joystick input
   int i;
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* local = playerGetFromSlot(i);
-    if (!playerIsValid(local)) continue;
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    Player *local = playerGetFromSlot(i);
+    if (!playerIsValid(local))
+      continue;
 
-    struct PAD* pad = (struct PAD*)local->Paddata;
-    if (!pad) continue;
+    struct PAD *pad = (struct PAD *)local->Paddata;
+    if (!pad)
+      continue;
 
     int rh = pad->rdata[4];
     int rv = pad->rdata[5];
@@ -1063,7 +1112,8 @@ void inputRestrictionLogic_NoPad(void)
  */
 void inputRestrictionLogic(void)
 {
-  if (gameConfig.grInputRestriction == GAMERULE_INPUT_RESTRICTION_KBM_ONLY) {
+  if (gameConfig.grInputRestriction == GAMERULE_INPUT_RESTRICTION_KBM_ONLY)
+  {
     inputRestrictionLogic_NoPad();
   }
 
@@ -1071,25 +1121,29 @@ void inputRestrictionLogic(void)
   // detect when bad input threshold is reached within a period of time
   if (InputRestrictionDetectionCounter >= 15)
   {
-    if (InputRestrictionDetectionThreshold > 5) {
+    if (InputRestrictionDetectionThreshold > 5)
+    {
       InputRestrictionDisplayMessageTicks = 60 * 3;
     }
 
     InputRestrictionDetectionThreshold = 0;
     InputRestrictionDetectionCounter = 0;
-  } else {
+  }
+  else
+  {
     InputRestrictionDetectionCounter++;
   }
 
   // display message
   if (InputRestrictionDisplayMessageTicks > 0)
   {
-    const char* msg = gameConfig.grInputRestriction == GAMERULE_INPUT_RESTRICTION_CONTROLLER_ONLY
-      ? "Joystick input is required for camera aiming"
-      : "Mouse input is required for camera aiming";
+    const char *msg = gameConfig.grInputRestriction == GAMERULE_INPUT_RESTRICTION_CONTROLLER_ONLY
+                        ? "Joystick input is required for camera aiming"
+                        : "Mouse input is required for camera aiming";
 
     // draw message
-    if (!gameIsAnyStartMenuOpen() && PATCH_POINTERS_PATCHMENU != 1) {
+    if (!gameIsAnyStartMenuOpen() && PATCH_POINTERS_PATCHMENU != 1)
+    {
       Window_t wnd;
       windowCreate(&wnd, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 250, 42, TEXT_ALIGN_MIDDLECENTER, 1);
       windowFill(&wnd, 0x60000000);
@@ -1122,13 +1176,15 @@ void inputRestrictionLogic(void)
  */
 void noSpawnImmunityLogic(void)
 {
-  Player** players = playerGetAll();
-  
+  Player **players = playerGetAll();
+
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!playerIsValid(player)) continue;
-      
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (!playerIsValid(player))
+      continue;
+
     // disable respawn invincibility
     player->timers.invincibilityTimer = 0;
   }
@@ -1149,21 +1205,23 @@ void noSpawnImmunityLogic(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void onGameplayLoadRemoveWeaponPickups(GameplayHeaderDef_t * gameplay)
+void onGameplayLoadRemoveWeaponPickups(GameplayHeaderDef_t *gameplay)
 {
-	int i;
-	GameplayMobyHeaderDef_t * mobyInstancesHeader = (GameplayMobyHeaderDef_t*)((u32)gameplay + gameplay->MobyInstancesOffset);
+  int i;
+  GameplayMobyHeaderDef_t *mobyInstancesHeader = (GameplayMobyHeaderDef_t *)((u32)gameplay + gameplay->MobyInstancesOffset);
 
-	if (!gameConfig.grNoPickups)
-		return;
-		
-	// iterate each moby, moving all pickups to below the map
-	for (i = 0; i < mobyInstancesHeader->StaticCount; ++i) {
-		GameplayMobyDef_t* mobyDef = &mobyInstancesHeader->MobyInstances[i];
-		if (mobyDef->OClass == MOBY_ID_WEAPON_PICKUP) {
-			mobyDef->PosZ = -100;
-		}
-	}
+  if (!gameConfig.grNoPickups)
+    return;
+
+  // iterate each moby, moving all pickups to below the map
+  for (i = 0; i < mobyInstancesHeader->StaticCount; ++i)
+  {
+    GameplayMobyDef_t *mobyDef = &mobyInstancesHeader->MobyInstances[i];
+    if (mobyDef->OClass == MOBY_ID_WEAPON_PICKUP)
+    {
+      mobyDef->PosZ = -100;
+    }
+  }
 }
 
 /*
@@ -1181,27 +1239,25 @@ void onGameplayLoadRemoveWeaponPickups(GameplayHeaderDef_t * gameplay)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void onGameplayLoad(void * gameplayMobies, void * a1, void * a2)
+void onGameplayLoad(void *gameplayMobies, void *a1, void *a2)
 {
-	GameplayHeaderDef_t * gameplay;
+  GameplayHeaderDef_t *gameplay;
 
-	// pointer to gameplay data is stored in $s1
-	asm volatile (
-		"move %0, $s1"
-		: : "r" (gameplay)
-	);
+  // pointer to gameplay data is stored in $s1
+  asm volatile(
+    "move %0, $s1"
+    : : "r"(gameplay));
 
-	// 
-	onGameplayLoadRemoveWeaponPickups(gameplay);
-	onGameplayLoadBetterFlags(gameplay);
+  //
+  onGameplayLoadRemoveWeaponPickups(gameplay);
+  onGameplayLoadBetterFlags(gameplay);
 
   // disable initial box spawn
   if (gameConfig.grNoHealthBoxes == 1)
     healthBoxNoEnclosureLogic();
 
-	// call base
-	((void (*)())0x004ec720)();
-
+  // call base
+  ((void (*)())0x004ec720)();
 }
 
 /*
@@ -1220,25 +1276,25 @@ void onGameplayLoad(void * gameplayMobies, void * a1, void * a2)
  */
 void vampireLogic(float healRate)
 {
-	int i;
-	Player ** playerObjects = playerGetAll();
-	Player * player;
-	GameData * gameData = gameGetData();
+  int i;
+  Player **playerObjects = playerGetAll();
+  Player *player;
+  GameData *gameData = gameGetData();
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		// Check if player has killed someone
-		if (gameData->PlayerStats.Kills[i] > PlayerKills[i])
-		{
-			// Try to heal if player exists
-			player = playerObjects[i];
-			if (player)
-				playerSetHealth(player, clamp(player->Health + healRate, 0, PLAYER_MAX_HEALTH));
-			
-			// Update our cached kills count
-			PlayerKills[i] = gameData->PlayerStats.Kills[i];
-		}
-	}
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    // Check if player has killed someone
+    if (gameData->PlayerStats.Kills[i] > PlayerKills[i])
+    {
+      // Try to heal if player exists
+      player = playerObjects[i];
+      if (player)
+        playerSetHealth(player, clamp(player->Health + healRate, 0, PLAYER_MAX_HEALTH));
+
+      // Update our cached kills count
+      PlayerKills[i] = gameData->PlayerStats.Kills[i];
+    }
+  }
 }
 
 /*
@@ -1311,7 +1367,8 @@ float cqPersistentCaptureGetHackerOrbCapRate(int team)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void cqPersistentCaptureLogic(void) {
+void cqPersistentCaptureLogic(void)
+{
   if (!isInGame())
     return;
 
@@ -1325,11 +1382,12 @@ void cqPersistentCaptureLogic(void) {
 
   // increase time to capture if upgrades are off
   // since we don't want to mess with capture resistance
-  if (gameConfig.grCqDisableUpgrades) {
+  if (gameConfig.grCqDisableUpgrades)
+  {
     POKE_U32(0x00440E68, 0x0C000000 | ((u32)&cqPersistentCaptureGetHackerOrbCapRate >> 2));
     POKE_U32(0x00440E6C, 0x8E040004);
     POKE_U32(0x00440E70, 0x00000000);
-		//*(u16*)0x00440E68 = 0x3BA3;
+    //*(u16*)0x00440E68 = 0x3BA3;
   }
 }
 
@@ -1346,7 +1404,8 @@ void cqPersistentCaptureLogic(void) {
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void cqDisableTurretsLogic(void) {
+void cqDisableTurretsLogic(void)
+{
   if (!isInGame())
     return;
 
@@ -1367,7 +1426,8 @@ void cqDisableTurretsLogic(void) {
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void cqDisableUpgradesLogic(void) {
+void cqDisableUpgradesLogic(void)
+{
   if (!isInGame())
     return;
 
@@ -1394,15 +1454,15 @@ void radarSetShortDistance(void)
   float baseDist = 20.0;
   float mult = 1 + gameConfig.grRadarShortDistance;
   volatile float finalDist = (mult * baseDist) * (mult * baseDist);
-  volatile u16* finalDistPtr = (u16*)&finalDist + 1;
+  volatile u16 *finalDistPtr = (u16 *)&finalDist + 1;
 
   POKE_U16(0x0055627c, *finalDistPtr);
 }
 
-int radarIsBlipNearPlayerOnTeam(RadarBlip* blip, int team)
+int radarIsBlipNearPlayerOnTeam(RadarBlip *blip, int team)
 {
   int i;
-  Player** players = playerGetAll();
+  Player **players = playerGetAll();
   VECTOR blipPos = { blip->X, blip->Y, 0, 0 };
   VECTOR dt;
   float maxDist = 20 * (1 + gameConfig.grRadarShortDistance);
@@ -1412,9 +1472,10 @@ int radarIsBlipNearPlayerOnTeam(RadarBlip* blip, int team)
   if (blip->Team == team)
     return 1;
 
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+
     // filter out bad players
     if (!player || !player->pNetPlayer || !playerIsConnected(player))
       continue;
@@ -1454,13 +1515,14 @@ int radarIsBlipNearPlayerOnTeam(RadarBlip* blip, int team)
  */
 long radarUpdateBlipHook(int blipIdx, int a1)
 {
-  GameOptions* go = gameGetOptions();
-  RadarBlip* blip = radarGetBlips() + blipIdx;
+  GameOptions *go = gameGetOptions();
+  RadarBlip *blip = radarGetBlips() + blipIdx;
   int radarMode = go->GameFlags.MultiplayerGameFlags.RadarBlips;
-  Player* localPlayer = playerGetFromSlot(hudGetCurrentCanvas());
+  Player *localPlayer = playerGetFromSlot(hudGetCurrentCanvas());
 
   // turn radar always on for this blip if Fog of War and near a teammate
-  if (localPlayer && gameConfig.grFogOfWarRadar && radarIsBlipNearPlayerOnTeam(blip, localPlayer->Team)) {
+  if (localPlayer && gameConfig.grFogOfWarRadar && radarIsBlipNearPlayerOnTeam(blip, localPlayer->Team))
+  {
     go->GameFlags.MultiplayerGameFlags.RadarBlips = 1;
   }
 
@@ -1468,7 +1530,8 @@ long radarUpdateBlipHook(int blipIdx, int a1)
   long v0 = ((long (*)(int, int))0x005560b8)(blipIdx, a1);
 
   // revert
-  if (gameConfig.grFogOfWarRadar) {
+  if (gameConfig.grFogOfWarRadar)
+  {
     go->GameFlags.MultiplayerGameFlags.RadarBlips = radarMode;
   }
 
@@ -1492,18 +1555,22 @@ long radarUpdateBlipHook(int blipIdx, int a1)
 void betterHillsLogic(void)
 {
   int i, j;
-  if (BetterHillsInitialized) return;
+  if (BetterHillsInitialized)
+    return;
   BetterHillsInitialized = 1;
 
   int mapId = gameGetSettings()->GameLevel;
   const u8 matrixIndices[] = { 0, 1, 4, 5, 10 };
-  for (i = 0; i < COUNT_OF(BetterHillPoints); ++i) {
-    const struct BetterHillPoint* point = &BetterHillPoints[i];
-    if (point->MapId != mapId) continue;
+  for (i = 0; i < COUNT_OF(BetterHillPoints); ++i)
+  {
+    const struct BetterHillPoint *point = &BetterHillPoints[i];
+    if (point->MapId != mapId)
+      continue;
 
-    SpawnPoint spawn = {0};
-    const float* transform = BetterHillTransforms[point->TransformIndex];
-    for (j = 0; j < COUNT_OF(matrixIndices); ++j) {
+    SpawnPoint spawn = { 0 };
+    const float *transform = BetterHillTransforms[point->TransformIndex];
+    for (j = 0; j < COUNT_OF(matrixIndices); ++j)
+    {
       spawn.M0[matrixIndices[j]] = transform[j];
       spawn.M1[matrixIndices[j]] = transform[j + COUNT_OF(matrixIndices)];
     }
@@ -1517,29 +1584,35 @@ void betterHillsLogic(void)
     hillPointSetCount(8); // remove last hill (top of ramp area)
 }
 
-void setFlag(GameplayMobyDef_t * flag, u32 * mpInitPVarData, float pX, float pY, float pZ, int sp1, int sp2, int sp3)
+void setFlag(GameplayMobyDef_t *flag, u32 *mpInitPVarData, float pX, float pY, float pZ, int sp1, int sp2, int sp3)
 {
-	if (flag) {
-		flag->PosX = pX;
-		flag->PosY = pY;
-		flag->PosZ = pZ;
-	}
-	mpInitPVarData[0] = sp1;
-	mpInitPVarData[1] = sp2;
-	mpInitPVarData[2] = sp3;
+  if (flag)
+  {
+    flag->PosX = pX;
+    flag->PosY = pY;
+    flag->PosZ = pZ;
+  }
+  mpInitPVarData[0] = sp1;
+  mpInitPVarData[1] = sp2;
+  mpInitPVarData[2] = sp3;
 }
 
-void addFlagRef(GameplayMobyDef_t** flags, GameplayMobyDef_t* flag, int team) {
-	flags[team] = flag;
+void addFlagRef(GameplayMobyDef_t **flags, GameplayMobyDef_t *flag, int team)
+{
+  flags[team] = flag;
 }
 
-int teamHasPlayer(int team) {
-  GameSettings* gs = gameGetSettings();
-  if (!gs) return 0;
+int teamHasPlayer(int team)
+{
+  GameSettings *gs = gameGetSettings();
+  if (!gs)
+    return 0;
 
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    if (gs->PlayerTeams[i] == team) return 1;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    if (gs->PlayerTeams[i] == team)
+      return 1;
   }
 
   return 0;
@@ -1559,62 +1632,71 @@ int teamHasPlayer(int team) {
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
+void onGameplayLoadBetterFlags(GameplayHeaderDef_t *gameplay)
 {
-	const int BLUE_SPAWN_OFF = 0;
-	const int RED_SPAWN_OFF = 3;
-	const int GREEN_SPAWN_OFF = 90;
-	const int ORANGE_SPAWN_OFF = 93;
+  const int BLUE_SPAWN_OFF = 0;
+  const int RED_SPAWN_OFF = 3;
+  const int GREEN_SPAWN_OFF = 90;
+  const int ORANGE_SPAWN_OFF = 93;
   const SPAWN_OFFS[4] = { 0, 3, 90, 93 };
   u128 zero128 = 0;
-	int i,j,k;
+  int i, j, k;
 
-	// better flags disabled
-	if (!gameConfig.grBetterFlags || MapLoaderState.MapFileName[0])
-		return;
+  // better flags disabled
+  if (!gameConfig.grBetterFlags || MapLoaderState.MapFileName[0])
+    return;
 
-	GameSettings* gameSettings = gameGetSettings();
-	if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
-		return;
+  GameSettings *gameSettings = gameGetSettings();
+  if (!gameSettings || gameSettings->GameRules != GAMERULE_CTF)
+    return;
 
-	GameplayMobyHeaderDef_t * mobyInstancesHeader = (GameplayMobyHeaderDef_t*)((u32)gameplay + gameplay->MobyInstancesOffset);
-	GameplayCuboidHeaderDef_t * cuboidsHeader = (GameplayCuboidHeaderDef_t*)((u32)gameplay + gameplay->CuboidsOffset);
-	GameplayPVarDef_t* pvarTable = (GameplayPVarDef_t*)((u32)gameplay + gameplay->PVarTableOffset);
-	GameplayMobyDef_t* flags[4] = {0,0,0,0};
-	u32* mpInitPVarData = NULL;
-	
-	// find mp initialization moby
-	// then grab pointer to its pvar data so we can configure spawns
-	for (i = 0; i < mobyInstancesHeader->StaticCount; ++i) {
-		GameplayMobyDef_t* mobyDef = &mobyInstancesHeader->MobyInstances[i];
-		if (mobyDef->OClass == 0x106A) {
-			mpInitPVarData = pvarTable[mobyDef->PVarIndex].Offset + gameplay->PVarDataOffset + (u32)gameplay;
-		} else if (mobyDef->OClass == 0x266E) {
-			addFlagRef(flags, mobyDef, *(u8*)(pvarTable[mobyDef->PVarIndex].Offset + gameplay->PVarDataOffset + (u32)gameplay));
-		}
-	}
+  GameplayMobyHeaderDef_t *mobyInstancesHeader = (GameplayMobyHeaderDef_t *)((u32)gameplay + gameplay->MobyInstancesOffset);
+  GameplayCuboidHeaderDef_t *cuboidsHeader = (GameplayCuboidHeaderDef_t *)((u32)gameplay + gameplay->CuboidsOffset);
+  GameplayPVarDef_t *pvarTable = (GameplayPVarDef_t *)((u32)gameplay + gameplay->PVarTableOffset);
+  GameplayMobyDef_t *flags[4] = { 0, 0, 0, 0 };
+  u32 *mpInitPVarData = NULL;
 
-	//DPRINTF("BETTER FLAGS\n\t SPAWN DATA: %08X\n\tBLUE: %08X\n\t RED: %08X\n\t GREEN: %08X\n\t ORANGE: %08X\n"
-	//	, (u32)mpInitPVarData, (u32)flags[0], (u32)flags[1], (u32)flags[2], (u32)flags[3]);
+  // find mp initialization moby
+  // then grab pointer to its pvar data so we can configure spawns
+  for (i = 0; i < mobyInstancesHeader->StaticCount; ++i)
+  {
+    GameplayMobyDef_t *mobyDef = &mobyInstancesHeader->MobyInstances[i];
+    if (mobyDef->OClass == 0x106A)
+    {
+      mpInitPVarData = pvarTable[mobyDef->PVarIndex].Offset + gameplay->PVarDataOffset + (u32)gameplay;
+    }
+    else if (mobyDef->OClass == 0x266E)
+    {
+      addFlagRef(flags, mobyDef, *(u8 *)(pvarTable[mobyDef->PVarIndex].Offset + gameplay->PVarDataOffset + (u32)gameplay));
+    }
+  }
 
-	// 
+  //DPRINTF("BETTER FLAGS\n\t SPAWN DATA: %08X\n\tBLUE: %08X\n\t RED: %08X\n\t GREEN: %08X\n\t ORANGE: %08X\n"
+  //	, (u32)mpInitPVarData, (u32)flags[0], (u32)flags[1], (u32)flags[2], (u32)flags[3]);
+
+  //
   int mapId = gameGetSettings()->GameLevel;
 
   // find better flag rules
-  struct CompactCTFSpawnReplacement* rule = NULL;
-  for (i = 0; i < BetterFlagRulesCount; ++i) {
-    if (BetterFlagRules[i].MapId == mapId) {
+  struct CompactCTFSpawnReplacement *rule = NULL;
+  for (i = 0; i < BetterFlagRulesCount; ++i)
+  {
+    if (BetterFlagRules[i].MapId == mapId)
+    {
       rule = &BetterFlagRules[i];
       //DPRINTF("found better flag rule for map %d at %d\n", mapId, i);
       break;
     }
   }
 
-  if (rule) {
+  if (rule)
+  {
 
     // move flags
-    for (i = 0; i < 4; ++i) {
-      if (memcmp(rule->Flags[i], &zero128, 3 * sizeof(float)) != 0) {
+    for (i = 0; i < 4; ++i)
+    {
+      if (memcmp(rule->Flags[i], &zero128, 3 * sizeof(float)) != 0)
+      {
 
         flags[i]->PosX = rule->Flags[i][0];
         flags[i]->PosY = rule->Flags[i][1];
@@ -1622,12 +1704,15 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
         //DPRINTF("better flags update flag %d\n", i);
       }
 
-      if (!teamHasPlayer(i)) continue;
-      
+      if (!teamHasPlayer(i))
+        continue;
+
       // set spawn points
-      for (j = 0; j < 3; ++j) {
+      for (j = 0; j < 3; ++j)
+      {
         int ptsAndYawIdx = (i * 3) + j;
-        if (memcmp(rule->PointsAndYaw[ptsAndYawIdx], &zero128, 3 * sizeof(float)) == 0) continue;
+        if (memcmp(rule->PointsAndYaw[ptsAndYawIdx], &zero128, 3 * sizeof(float)) == 0)
+          continue;
 
         int spIndex = mpInitPVarData[SPAWN_OFFS[i] + j];
         memcpy(&cuboidsHeader->CuboidInstances[spIndex].M0[12], rule->PointsAndYaw[ptsAndYawIdx], 3 * sizeof(float));
@@ -1635,11 +1720,10 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
         //DPRINTF("better flags update flag %d sp %d\n", i, j);
       }
     }
-
   }
 
   // extra changes
-	switch (mapId)
+  switch (mapId)
   {
     case MAP_ID_TORVAL:
     {
@@ -1652,48 +1736,60 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
     }
     case MAP_ID_GS:
     {
-			// move hb into center of blue/green
-			// move three swingshots
-			j = 0; k = 0;
-			for (i = 0; i < mobyInstancesHeader->StaticCount; ++i) {
-				GameplayMobyDef_t* mobyDef = &mobyInstancesHeader->MobyInstances[i];
-				if (mobyDef->OClass == MOBY_ID_HEALTH_BOX_MULT) {
-					
-					if (j == 4) {
-						mobyDef->PosX = 637.5065918;
-						mobyDef->PosY = 647.1673584;
-						mobyDef->PosZ = 99;
-						mobyDef->UNK_54 = 0xFFFF;
-					} else if (j == 5) {
-						mobyDef->PosX = 692.2220459;
-						mobyDef->PosY = 473.4746704;
-						mobyDef->PosZ = 103;
-						mobyDef->UNK_54 = 0xFFFF;
-					}
+      // move hb into center of blue/green
+      // move three swingshots
+      j = 0;
+      k = 0;
+      for (i = 0; i < mobyInstancesHeader->StaticCount; ++i)
+      {
+        GameplayMobyDef_t *mobyDef = &mobyInstancesHeader->MobyInstances[i];
+        if (mobyDef->OClass == MOBY_ID_HEALTH_BOX_MULT)
+        {
 
-					++j;
-				}
-				else if (mobyDef->OClass == MOBY_ID_SWINGSHOT_ORB) {
-					if (k == 7) {
-						mobyDef->PosX = 645;
-						mobyDef->PosY = 543.118;
-						mobyDef->PosZ = 109.441;
-						mobyDef->UNK_54 = 0xFFFF;
-					} else if (k == 2) {
-						mobyDef->PosX = 645;
-						mobyDef->PosY = 560.5831;
-						mobyDef->PosZ = 108.3354;
-						mobyDef->UNK_54 = 0xFFFF;
-					} else if (k == 1) {
-						mobyDef->PosX = 645;
-						mobyDef->PosY = 578.0481;
-						mobyDef->PosZ = 107.2299;
-						mobyDef->UNK_54 = 0xFFFF;
-					}
+          if (j == 4)
+          {
+            mobyDef->PosX = 637.5065918;
+            mobyDef->PosY = 647.1673584;
+            mobyDef->PosZ = 99;
+            mobyDef->UNK_54 = 0xFFFF;
+          }
+          else if (j == 5)
+          {
+            mobyDef->PosX = 692.2220459;
+            mobyDef->PosY = 473.4746704;
+            mobyDef->PosZ = 103;
+            mobyDef->UNK_54 = 0xFFFF;
+          }
 
-					++k;
-				}
-			}
+          ++j;
+        }
+        else if (mobyDef->OClass == MOBY_ID_SWINGSHOT_ORB)
+        {
+          if (k == 7)
+          {
+            mobyDef->PosX = 645;
+            mobyDef->PosY = 543.118;
+            mobyDef->PosZ = 109.441;
+            mobyDef->UNK_54 = 0xFFFF;
+          }
+          else if (k == 2)
+          {
+            mobyDef->PosX = 645;
+            mobyDef->PosY = 560.5831;
+            mobyDef->PosZ = 108.3354;
+            mobyDef->UNK_54 = 0xFFFF;
+          }
+          else if (k == 1)
+          {
+            mobyDef->PosX = 645;
+            mobyDef->PosY = 578.0481;
+            mobyDef->PosZ = 107.2299;
+            mobyDef->UNK_54 = 0xFFFF;
+          }
+
+          ++k;
+        }
+      }
 
       break;
     }
@@ -1928,37 +2024,36 @@ void onGameplayLoadBetterFlags(GameplayHeaderDef_t * gameplay)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void healthbarsHook(int nameX, int nameY, u32 nameColor, char * nameStr, int nameStrLen)
+void healthbarsHook(int nameX, int nameY, u32 nameColor, char *nameStr, int nameStrLen)
 {
-	// get player index
-	int i;
-	asm volatile (
-		"move %0, $s7"
-		: : "r" (i)
-	);
+  // get player index
+  int i;
+  asm volatile(
+    "move %0, $s7"
+    : : "r"(i));
 
-	// call pass through function
-	gfxScreenSpaceText(nameX, nameY, 1, 1, nameColor, nameStr, nameStrLen, 1);
-	
-	// ensure player index is valid
-	if (i < 0 || i >= GAME_MAX_PLAYERS)
-		return;
+  // call pass through function
+  gfxScreenSpaceText(nameX, nameY, 1, 1, nameColor, nameStr, nameStrLen, 1);
 
-	// get player and validate state
-	Player ** players = playerGetAll();
-	Player * player = players[i];
-	if (!player || player->Health <= 0)
-		return;
+  // ensure player index is valid
+  if (i < 0 || i >= GAME_MAX_PLAYERS)
+    return;
 
-	// Draw boxes
-	float x = (float)nameX / SCREEN_WIDTH;
-	float y = (float)nameY / SCREEN_HEIGHT;
-	float health = clamp(player->Health / player->MaxHealth, 0, 1);
-	float w = (0.05 * 1) + 0.02, h = 0.01, p = 0.002;
-	float right = w * health;
-	x -= w / 2;
-	gfxScreenSpaceBox(x,y,w-p,h-p, 0x80000000);
-	gfxScreenSpaceBox(x,y,right,h, nameColor);
+  // get player and validate state
+  Player **players = playerGetAll();
+  Player *player = players[i];
+  if (!player || player->Health <= 0)
+    return;
+
+  // Draw boxes
+  float x = (float)nameX / SCREEN_WIDTH;
+  float y = (float)nameY / SCREEN_HEIGHT;
+  float health = clamp(player->Health / player->MaxHealth, 0, 1);
+  float w = (0.05 * 1) + 0.02, h = 0.01, p = 0.002;
+  float right = w * health;
+  x -= w / 2;
+  gfxScreenSpaceBox(x, y, w - p, h - p, 0x80000000);
+  gfxScreenSpaceBox(x, y, right, h, nameColor);
 }
 
 /*
@@ -1977,15 +2072,15 @@ void healthbarsHook(int nameX, int nameY, u32 nameColor, char * nameStr, int nam
  */
 void invTimerLogic(void)
 {
-	int i;
-	Player ** players = playerGetAll();
+  int i;
+  Player **players = playerGetAll();
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-	{
-		Player * p = players[i];
-		if (p)
-			p->timers.postHitInvinc = 0;
-	}
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *p = players[i];
+    if (p)
+      p->timers.postHitInvinc = 0;
+  }
 }
 
 /*
@@ -2002,11 +2097,12 @@ void invTimerLogic(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void mobyHealthOrbRadarBlip(Moby* moby)
+void mobyHealthOrbRadarBlip(Moby *moby)
 {
   int blipIdx = radarGetBlipIndex(moby);
-  if (blipIdx >= 0) {
-    RadarBlip* blip = radarGetBlips() + blipIdx;
+  if (blipIdx >= 0)
+  {
+    RadarBlip *blip = radarGetBlips() + blipIdx;
     blip->Type = 3;
     blip->Team = TEAM_GREEN;
     blip->Life = 0x1F;
@@ -2016,70 +2112,73 @@ void mobyHealthOrbRadarBlip(Moby* moby)
     blip->Rotation = 0;
   }
 
-  ((void (*)(Moby*, int))0x003bb8d8)(moby, 0);
+  ((void (*)(Moby *, int))0x003bb8d8)(moby, 0);
 }
 
 #if TWEAKERS
 float tweakerGetPos(char value)
 {
-	// value between 0.75 and 1.25
-	return 0 + ((float)value / 10.0) * 1024 * 2;
+  // value between 0.75 and 1.25
+  return 0 + ((float)value / 10.0) * 1024 * 2;
 }
 
 float tweakerGetScale(char value)
 {
-	// value between 0.75 and 1.25
-	return 1 + ((float)value / 10.0) * 0.9;
+  // value between 0.75 and 1.25
+  return 1 + ((float)value / 10.0) * 0.9;
 }
 
 void tweakers(void)
 {
-	int i;
-	Player** players = playerGetAll();
-	GameSettings* gs = gameGetSettings();
+  int i;
+  Player **players = playerGetAll();
+  GameSettings *gs = gameGetSettings();
 
-	// locally disabled
-	if (config.characterTweakers[CHARACTER_TWEAKER_TOGGLE])
-		return;
+  // locally disabled
+  if (config.characterTweakers[CHARACTER_TWEAKER_TOGGLE])
+    return;
 
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player * player = players[i];
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
 
-		if (player) {
-			int clientId = gs->PlayerClients[i];
-			if (clientId >= 0) {
+    if (player)
+    {
+      int clientId = gs->PlayerClients[i];
+      if (clientId >= 0)
+      {
 
-				// use local config if local player
-				PatchConfig_t * patchConfig = &lobbyPlayerConfigs[clientId];
-				if (player->IsLocal)
-					patchConfig = &config;
+        // use local config if local player
+        PatchConfig_t *patchConfig = &lobbyPlayerConfigs[clientId];
+        if (player->IsLocal)
+          patchConfig = &config;
 
-				// if remote disabled always return normal scale
-				if (patchConfig->characterTweakers[CHARACTER_TWEAKER_TOGGLE])
-					continue;
+        // if remote disabled always return normal scale
+        if (patchConfig->characterTweakers[CHARACTER_TWEAKER_TOGGLE])
+          continue;
 
-				// set scale
-				float lowerTorsoScale = tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_SCALE]);
-				float upperTorsoScale = tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_SCALE]);
-				player->Tweakers[3].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_HEAD_SCALE]) / upperTorsoScale; // head
-				player->Tweakers[8].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_SCALE]) / upperTorsoScale; // left arm
-				player->Tweakers[9].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_SCALE]) / upperTorsoScale; // right arm
-				player->Tweakers[6].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_SCALE]); // left leg
-				player->Tweakers[7].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_LEG_SCALE]); // right leg
-				player->Tweakers[1].scale *= lowerTorsoScale; // hips
-				player->Tweakers[15].scale *= upperTorsoScale / lowerTorsoScale; // torso
+        // set scale
+        float lowerTorsoScale = tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_SCALE]);
+        float upperTorsoScale = tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_SCALE]);
+        player->Tweakers[3].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_HEAD_SCALE]) / upperTorsoScale;      // head
+        player->Tweakers[8].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_SCALE]) / upperTorsoScale;  // left arm
+        player->Tweakers[9].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_SCALE]) / upperTorsoScale; // right arm
+        player->Tweakers[6].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_SCALE]);                    // left leg
+        player->Tweakers[7].scale *= tweakerGetScale(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_LEG_SCALE]);                   // right leg
+        player->Tweakers[1].scale *= lowerTorsoScale;                                                                                      // hips
+        player->Tweakers[15].scale *= upperTorsoScale / lowerTorsoScale;                                                                   // torso
 
-				// set pos
-				player->Tweakers[3].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_HEAD_POS]); // head
-				player->Tweakers[8].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_POS]); // left arm
-				player->Tweakers[9].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_POS]) ; // right arm
-				player->Tweakers[6].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_POS]); // left leg
-				player->Tweakers[7].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_POS]); // right leg
-				player->Tweakers[1].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_POS]); // lower torso
-				player->Tweakers[15].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_POS]); // upper torso
-			}
-		}
-	}
+        // set pos
+        player->Tweakers[3].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_HEAD_POS]);         // head
+        player->Tweakers[8].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_ARM_POS]);     // left arm
+        player->Tweakers[9].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_ARM_POS]);    // right arm
+        player->Tweakers[6].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LEFT_LEG_POS]);     // left leg
+        player->Tweakers[7].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_RIGHT_POS]);        // right leg
+        player->Tweakers[1].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_LOWER_TORSO_POS]);  // lower torso
+        player->Tweakers[15].trans[2] = tweakerGetPos(patchConfig->characterTweakers[CHARACTER_TWEAKER_UPPER_TORSO_POS]); // upper torso
+      }
+    }
+  }
 }
 #endif
 
@@ -2100,29 +2199,29 @@ void tweakers(void)
  */
 void grInitialize(void)
 {
-	int i;
+  int i;
 
-	// Initialize player kills to 0
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		PlayerKills[i] = 0;
+  // Initialize player kills to 0
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    PlayerKills[i] = 0;
 
   // hooks
   HOOK_JAL(0x003BCC68, &mobyHealthOrbRadarBlip);
 
-	// reset
-	htReset();
+  // reset
+  htReset();
   otReset();
   InputRestrictionDisplayMessageTicks = 0;
   InputRestrictionDetectionCounter = 0;
   InputRestrictionDetectionThreshold = 0;
   memset(InputRestrictionLastCamYawPitch, 0, sizeof(InputRestrictionLastCamYawPitch));
-	BetterHillsInitialized = 0;
-	HasDisabledHealthboxes = 0;
-	RotatingWeaponsNextRotationTime = 0;
-	RotatingWeaponsActiveId = WEAPON_ID_WRENCH;
-	memset(HeadbuttHitTimers, 0, sizeof(HeadbuttHitTimers));
+  BetterHillsInitialized = 0;
+  HasDisabledHealthboxes = 0;
+  RotatingWeaponsNextRotationTime = 0;
+  RotatingWeaponsActiveId = WEAPON_ID_WRENCH;
+  memset(HeadbuttHitTimers, 0, sizeof(HeadbuttHitTimers));
 
-	GameRulesInitialized = 1;
+  GameRulesInitialized = 1;
 }
 
 /*
@@ -2182,95 +2281,96 @@ void grMobyUpdatePostTick(void)
  */
 void grGameStart(void)
 {
-	int i = 0;
-	GameSettings * gameSettings = gameGetSettings();
+  int i = 0;
+  GameSettings *gameSettings = gameGetSettings();
 
-  if (!isInGame()) return;
+  if (!isInGame())
+    return;
 
   // respawn anywhere
   //POKE_U32(0x0034a06c, 0x00000099);
 
-	// Initialize
-	if (GameRulesInitialized != 1)
-	{
-		// 
-		grInitialize();
+  // Initialize
+  if (GameRulesInitialized != 1)
+  {
+    //
+    grInitialize();
 
-		// // convert weather id to game value
-		// WeatherOverrideId = gameConfig.prWeatherId;
+    // // convert weather id to game value
+    // WeatherOverrideId = gameConfig.prWeatherId;
 
-		// // random weather
-		// if (WeatherOverrideId == 1)
-		// {
-		// 	sha1(&gameSettings->GameLoadStartTime, 4, &WeatherOverrideId, 4);
-		// 	WeatherOverrideId = 1 + (WeatherOverrideId % 16);
-		// 	if (WeatherOverrideId == 8)
-		// 		WeatherOverrideId = 9;
-		// 	else if (WeatherOverrideId == 15)
-		// 		WeatherOverrideId = 16;
-		// }
-		// // shift down weather (so that the list value is equivalent to game value)
-		// else if (WeatherOverrideId > 1 && WeatherOverrideId < 9)
-		// 	--WeatherOverrideId;
-	}
+    // // random weather
+    // if (WeatherOverrideId == 1)
+    // {
+    // 	sha1(&gameSettings->GameLoadStartTime, 4, &WeatherOverrideId, 4);
+    // 	WeatherOverrideId = 1 + (WeatherOverrideId % 16);
+    // 	if (WeatherOverrideId == 8)
+    // 		WeatherOverrideId = 9;
+    // 	else if (WeatherOverrideId == 15)
+    // 		WeatherOverrideId = 16;
+    // }
+    // // shift down weather (so that the list value is equivalent to game value)
+    // else if (WeatherOverrideId > 1 && WeatherOverrideId < 9)
+    // 	--WeatherOverrideId;
+  }
 
-	// Apply weather
-	// cheatsApplyWeather(WeatherOverrideId);
+  // Apply weather
+  // cheatsApplyWeather(WeatherOverrideId);
 
-	if (gameConfig.grNoPacks)
-		cheatsApplyNoPacks();
+  if (gameConfig.grNoPacks)
+    cheatsApplyNoPacks();
 
-	if (gameConfig.grV2s == 2)
-		cheatsApplyNoV2s();
-	else if (gameConfig.grV2s == 1)
-		alwaysV2sLogic();
+  if (gameConfig.grV2s == 2)
+    cheatsApplyNoV2s();
+  else if (gameConfig.grV2s == 1)
+    alwaysV2sLogic();
 
-	// if (gameConfig.prMirrorWorld)
-	// 	cheatsApplyMirrorWorld(1);
+  // if (gameConfig.prMirrorWorld)
+  // 	cheatsApplyMirrorWorld(1);
 
-	if (gameConfig.grNoHealthBoxes == 2 && !HasDisabledHealthboxes)
-		HasDisabledHealthboxes = cheatsDisableHealthboxes();
-    
-	if (gameConfig.grVampire)
-		vampireLogic(VampireHealRate[gameConfig.grVampire-1]);
+  if (gameConfig.grNoHealthBoxes == 2 && !HasDisabledHealthboxes)
+    HasDisabledHealthboxes = cheatsDisableHealthboxes();
 
-	if (gameConfig.grHalfTime)
-		halftimeLogic();
+  if (gameConfig.grVampire)
+    vampireLogic(VampireHealRate[gameConfig.grVampire - 1]);
+
+  if (gameConfig.grHalfTime)
+    halftimeLogic();
 
   if (gameConfig.grOvertime)
     overtimeLogic();
 
-	if (gameConfig.grBetterHills && patchStateContainer.SelectedCustomMapId == 0)
-		betterHillsLogic();
+  if (gameConfig.grBetterHills && patchStateContainer.SelectedCustomMapId == 0)
+    betterHillsLogic();
 
-	if (gameConfig.grHealthBars && isInGame())
-	{
-		u32 hookValue = 0x0C000000 | ((u32)&healthbarsHook >> 2);
-		*(u32*)0x005d608c = hookValue;
-		*(u32*)0x005d60c4 = hookValue;
-	}
+  if (gameConfig.grHealthBars && isInGame())
+  {
+    u32 hookValue = 0x0C000000 | ((u32)&healthbarsHook >> 2);
+    *(u32 *)0x005d608c = hookValue;
+    *(u32 *)0x005d60c4 = hookValue;
+  }
 
-	if (gameConfig.grNoNames)
-		gameSettings->PlayerNamesOn = 0;
+  if (gameConfig.grNoNames)
+    gameSettings->PlayerNamesOn = 0;
 
-	if (gameConfig.grNoInvTimer)
-		invTimerLogic();
+  if (gameConfig.grNoInvTimer)
+    invTimerLogic();
 
-	// if (gameConfig.prPlayerSize)
-	// 	playerSizeLogic();
+  // if (gameConfig.prPlayerSize)
+  // 	playerSizeLogic();
 
-	if (gameConfig.prRotatingWeapons)
-		rotatingWeaponsLogic();
+  if (gameConfig.prRotatingWeapons)
+    rotatingWeaponsLogic();
 
-	if (gameConfig.prHeadbutt)
-		headbuttLogic();
+  if (gameConfig.prHeadbutt)
+    headbuttLogic();
 
-	if (gameConfig.prChargebootForever)
-		unlimitedChargebootLogic();
+  if (gameConfig.prChargebootForever)
+    unlimitedChargebootLogic();
 
   // always on
-	//if (gameConfig.grFusionShotsAlwaysHit)
-		fusionShotsAlwaysHitLogic();
+  //if (gameConfig.grFusionShotsAlwaysHit)
+  fusionShotsAlwaysHitLogic();
 
   if (gameConfig.grCqPersistentCapture)
     cqPersistentCaptureLogic();
@@ -2283,7 +2383,7 @@ void grGameStart(void)
 
   if (gameConfig.grFogOfWarRadar)
     HOOK_JAL(0x00556010, &radarUpdateBlipHook);
-  
+
   if (gameConfig.grRadarShortDistance)
     radarSetShortDistance();
 
@@ -2296,23 +2396,26 @@ void grGameStart(void)
   if (gameConfig.grInputRestriction)
     inputRestrictionLogic();
 
-  if (gameConfig.grNoFusionADS && isInGame()) {
+  if (gameConfig.grNoFusionADS && isInGame())
+  {
     POKE_U16(0x00528320, 0x000F);
     POKE_U16(0x00528326, 0);
   }
 
-  if (gameConfig.grRespawnOverride && isInGame()) {
-    GameOptions* go = gameGetOptions();
-    if (go) {
+  if (gameConfig.grRespawnOverride && isInGame())
+  {
+    GameOptions *go = gameGetOptions();
+    if (go)
+    {
       go->GameFlags.MultiplayerGameFlags.RespawnTime = gameConfig.grRespawnOverride - 1;
     }
   }
 
 #if TWEAKERS
-	tweakers();
+  tweakers();
 #endif
 
-	FirstPass = 0;
+  FirstPass = 0;
 }
 
 /*
@@ -2332,20 +2435,19 @@ void grGameStart(void)
  */
 void grLobbyStart(void)
 {
-	GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
 
-	// If we're not in staging then reset
-	if (gameSettings)
-		return;
+  // If we're not in staging then reset
+  if (gameSettings)
+    return;
 
-	// Reset
-	GameRulesInitialized = 0;
-	FirstPass = 1;
+  // Reset
+  GameRulesInitialized = 0;
+  FirstPass = 1;
 
-	// Reset mirror world in lobby
-	//cheatsApplyMirrorWorld(0);
+  // Reset mirror world in lobby
+  //cheatsApplyMirrorWorld(0);
 }
-
 
 /*
  * NAME :		grLoadStart
@@ -2364,17 +2466,17 @@ void grLobbyStart(void)
  */
 void grLoadStart(void)
 {
-	// only handle when loading level
+  // only handle when loading level
   if (!hasGameCodeSeg())
     return;
 
-	// Reset
-	GameRulesInitialized = 0;
-	FirstPass = 1;
+  // Reset
+  GameRulesInitialized = 0;
+  FirstPass = 1;
 
   //gameGetOptions()->GameFlags.MultiplayerGameFlags.Timelimit = 1;
 
-	// Hook load gameplay file
-	if (*(u32*)0x004EE598 == 0x0C13B1C8)
-		*(u32*)0x004EE598 = 0x0C000000 | (u32)&onGameplayLoad / 4;
+  // Hook load gameplay file
+  if (*(u32 *)0x004EE598 == 0x0C13B1C8)
+    *(u32 *)0x004EE598 = 0x0C000000 | (u32)&onGameplayLoad / 4;
 }

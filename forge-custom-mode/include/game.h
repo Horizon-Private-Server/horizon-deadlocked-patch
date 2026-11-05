@@ -6,17 +6,17 @@
 #include <libdl/math3d.h>
 #include "messageid.h"
 
-#define MAP_CONFIG_MAGIC                      (0xDEADBEEF)
-#define MAX_SCOREBOARD_STATS                  (4)
-#define MAX_TRACKED_STATS                     (8)
-#define MAX_CUSTOM_STATS                      (16)
+#define MAP_CONFIG_MAGIC (0xDEADBEEF)
+#define MAX_SCOREBOARD_STATS (4)
+#define MAX_TRACKED_STATS (8)
+#define MAX_CUSTOM_STATS (16)
 
 enum CgmMessageIds
 {
   CGM_MSG_ID_SEND_GAME_STATS = CUSTOM_MSG_ID_GAME_MODE_START,
   CGM_MSG_ID_SEND_CUSTOM_PLAYER_STAT,
   CGM_MSG_ID_SEND_CUSTOM_TEAM_STAT,
-	CGM_MSG_ID_SEND_ROUND_ENDED,
+  CGM_MSG_ID_SEND_ROUND_ENDED,
 };
 
 enum CgmTeamType
@@ -32,26 +32,26 @@ enum CgmTeamType
 
 enum CgmScoreStatValueType
 {
-	CGM_SCORE_STAT_TYPE_INT,
-	CGM_SCORE_STAT_TYPE_TIME_SECONDS,
-	CGM_SCORE_STAT_TYPE_FLOAT,
-	CGM_SCORE_STAT_TYPE_TIME_MILLISECONDS,
+  CGM_SCORE_STAT_TYPE_INT,
+  CGM_SCORE_STAT_TYPE_TIME_SECONDS,
+  CGM_SCORE_STAT_TYPE_FLOAT,
+  CGM_SCORE_STAT_TYPE_TIME_MILLISECONDS,
 };
 
 enum CgmScoreStatTrackerType
 {
-	CGM_SCORE_STAT_TRACK_ADD,
-	CGM_SCORE_STAT_TRACK_MAX,
-	CGM_SCORE_STAT_TRACK_MIN,
-	CGM_SCORE_STAT_TRACK_SET,
+  CGM_SCORE_STAT_TRACK_ADD,
+  CGM_SCORE_STAT_TRACK_MAX,
+  CGM_SCORE_STAT_TRACK_MIN,
+  CGM_SCORE_STAT_TRACK_SET,
 };
 
 struct CgmStats;
 
 typedef void (*Stub_func)(void);
-typedef void (*Tick_func)(PatchStateContainer_t * gameState);
-typedef void (*UpdateGameState_func)(PatchStateContainer_t * gameState);
-typedef void (*UpdateStats_func)(struct CgmStats* stats);
+typedef void (*Tick_func)(PatchStateContainer_t *gameState);
+typedef void (*UpdateGameState_func)(PatchStateContainer_t *gameState);
+typedef void (*UpdateStats_func)(struct CgmStats *stats);
 
 struct CgmMapFunctions
 {
@@ -70,13 +70,15 @@ struct CgmMapConfig
   u32 Magic;
 
   // 64 mode functions
-  union {
+  union
+  {
     struct CgmModeFunctions ModeFunctions;
     Stub_func _padding[64];
   };
-  
+
   // 64 map functions
-  union {
+  union
+  {
     struct CgmMapFunctions MapFunctions;
     Stub_func _padding[64];
   };
@@ -84,48 +86,48 @@ struct CgmMapConfig
 
 struct CgmStats
 {
-	int WinningTeam;
-	int TeamScores[GAME_MAX_PLAYERS];
-	char PlayerStatNames[MAX_SCOREBOARD_STATS][16];
-	int PlayerStatValues[GAME_MAX_PLAYERS][MAX_SCOREBOARD_STATS];
-	char PlayerStatTypes[MAX_SCOREBOARD_STATS];
-	char TeamScoreType;
-	char TeamPlacements[GAME_MAX_PLAYERS];
+  int WinningTeam;
+  int TeamScores[GAME_MAX_PLAYERS];
+  char PlayerStatNames[MAX_SCOREBOARD_STATS][16];
+  int PlayerStatValues[GAME_MAX_PLAYERS][MAX_SCOREBOARD_STATS];
+  char PlayerStatTypes[MAX_SCOREBOARD_STATS];
+  char TeamScoreType;
+  char TeamPlacements[GAME_MAX_PLAYERS];
 };
 
 struct CgmTrackedStat
 {
-	char Name[16];
-	char ValueType;
-	char TrackerType;
-	char TrackerSlot;
-	char TrackerSave;
+  char Name[16];
+  char ValueType;
+  char TrackerType;
+  char TrackerSlot;
+  char TrackerSave;
 };
 
 struct CgmCustomGameStats
 {
-	int Version;
-	int RuntimeMs;
-	char Name[32];
-	char SharedRankCode[32];
-	char MinTeamsForRank;
-	char MinTeamsForStats;
-	char PADDING[2];
-	int TeamScores[GAME_MAX_PLAYERS];
-	char PlayerTeams[GAME_MAX_PLAYERS];
-	char TeamsEnabled;
-	char OrderScoreByAscending; // if non-zero, indicates a lower score is better
-	struct CgmTrackedStat TrackedStats[MAX_TRACKED_STATS];
-	int TrackedStatValues[MAX_TRACKED_STATS][GAME_MAX_PLAYERS];
+  int Version;
+  int RuntimeMs;
+  char Name[32];
+  char SharedRankCode[32];
+  char MinTeamsForRank;
+  char MinTeamsForStats;
+  char PADDING[2];
+  int TeamScores[GAME_MAX_PLAYERS];
+  char PlayerTeams[GAME_MAX_PLAYERS];
+  char TeamsEnabled;
+  char OrderScoreByAscending; // if non-zero, indicates a lower score is better
+  struct CgmTrackedStat TrackedStats[MAX_TRACKED_STATS];
+  int TrackedStatValues[MAX_TRACKED_STATS][GAME_MAX_PLAYERS];
 };
 
 struct CGMCustomMapExData
 {
-	u32 Version;
+  u32 Version;
   char GameModeName[32];
   char SharedRankCode[32];
   int ParametersOffset;
-	u32 GadgetsMask;
+  u32 GadgetsMask;
 
   // general
   char GameRule;
@@ -151,7 +153,7 @@ struct CGMCustomMapExData
   char VehicleCarry;
   char GrCtfHalftime;
   char GrCtfOvertime;
-  
+
   // koth
   char HillTimeToWin;
   char MovingHillTime;

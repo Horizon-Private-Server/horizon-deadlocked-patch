@@ -42,5 +42,4 @@ extern int HalfTimeState;
 
 #endif
 
-
 #endif // _GAMERULES_HALFTIME_

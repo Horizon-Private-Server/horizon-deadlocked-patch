@@ -5,12 +5,12 @@
 #include <tamtypes.h>
 #include <libdl/player.h>
 
-#define DZO_SURVIVAL_STATS_PAUSED              (1u << 0)
-#define DZO_SURVIVAL_STATS_GAME_OVER           (1u << 1)
-#define DZO_SURVIVAL_STATS_PERKS_AVAILABLE     (1u << 2)
-#define DZO_SURVIVAL_STATS_PRESTIGE_AVAILABLE  (1u << 3)
-#define DZO_SURVIVAL_STATS_GAMBIT_AVAILABLE    (1u << 4)
-#define DZO_SURVIVAL_STATS_GAMBIT_COMPLETED    (1u << 5)
+#define DZO_SURVIVAL_STATS_PAUSED (1u << 0)
+#define DZO_SURVIVAL_STATS_GAME_OVER (1u << 1)
+#define DZO_SURVIVAL_STATS_PERKS_AVAILABLE (1u << 2)
+#define DZO_SURVIVAL_STATS_PRESTIGE_AVAILABLE (1u << 3)
+#define DZO_SURVIVAL_STATS_GAMBIT_AVAILABLE (1u << 4)
+#define DZO_SURVIVAL_STATS_GAMBIT_COMPLETED (1u << 5)
 
 typedef struct DzoSurvivalStats
 {
@@ -31,8 +31,7 @@ typedef struct DzoSurvivalStats
   u32 MaxPrestigeV10WeaponsMask;
 } DzoSurvivalStats_t;
 
-typedef char DzoSurvivalStatsSizeCheck[
-  sizeof(DzoSurvivalStats_t) == 60 ? 1 : -1];
+typedef char DzoSurvivalStatsSizeCheck[sizeof(DzoSurvivalStats_t) == 60 ? 1 : -1];
 
 typedef char DzoSurvivalStatsOffset0[offsetof(DzoSurvivalStats_t, RunStartTime) == 0 ? 1 : -1];
 typedef char DzoSurvivalStatsOffset1[offsetof(DzoSurvivalStats_t, GameTime) == 4 ? 1 : -1];

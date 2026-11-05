@@ -24,39 +24,43 @@
 #include "include/utils.h"
 
 //--------------------------------------------------------------------------
-int onPlayerCollectedBoltRemote(void * connection, void * data)
+int onPlayerCollectedBoltRemote(void *connection, void *data)
 {
   PlayerCollectedBoltMessage_t msg;
-	memcpy(&msg, data, sizeof(msg));
+  memcpy(&msg, data, sizeof(msg));
 
-  GameSettings* gs = gameGetSettings();
+  GameSettings *gs = gameGetSettings();
   snprintf(State.PopupMessageBuf, sizeof(State.PopupMessageBuf), "%s found a bolt!", gs->PlayerNames[msg.PlayerId]);
   uiShowPopup(0, State.PopupMessageBuf);
   uiShowPopup(1, State.PopupMessageBuf);
 
-	return sizeof(msg);
+  return sizeof(msg);
 }
 
 //--------------------------------------------------------------------------
 void sendCollectedBolt(u32 boltUid)
 {
-  Player* player = playerGetFromSlot(0);
-  if (!playerIsValid(player)) return;
+  Player *player = playerGetFromSlot(0);
+  if (!playerIsValid(player))
+    return;
 
   // send to server
-	PlayerCollectedBoltMessage_t msg;
-	msg.PlayerId = player->PlayerId;
-	msg.BoltUid = boltUid;
-	netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_CLIENT_COLLECTED_BOLT, sizeof(msg), &msg);
+  PlayerCollectedBoltMessage_t msg;
+  msg.PlayerId = player->PlayerId;
+  msg.BoltUid = boltUid;
+  netSendCustomAppMessage(NET_DELIVERY_CRITICAL, netGetLobbyServerConnection(), NET_LOBBY_CLIENT_INDEX, CUSTOM_MSG_CLIENT_COLLECTED_BOLT, sizeof(msg), &msg);
 
-	// send out to other players
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_CLIENT_COLLECTED_BOLT, sizeof(msg), &msg);
+  // send out to other players
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_CLIENT_COLLECTED_BOLT, sizeof(msg), &msg);
 
   // add to list if not already
   int i;
-  for (i = 0; i < MAX_BOLTS; ++i) {
-    if (ServerConfig.CollectedBoltsUids[i] == boltUid) break;
-    if (ServerConfig.CollectedBoltsUids[i] == 0) {
+  for (i = 0; i < MAX_BOLTS; ++i)
+  {
+    if (ServerConfig.CollectedBoltsUids[i] == boltUid)
+      break;
+    if (ServerConfig.CollectedBoltsUids[i] == 0)
+    {
       ServerConfig.CollectedBoltsUids[i] = boltUid;
       break;
     }
@@ -66,6 +70,6 @@ void sendCollectedBolt(u32 boltUid)
 //--------------------------------------------------------------------------
 void netHookMessages(void)
 {
-	// Hook custom net events
-	netInstallCustomMsgHandler(CUSTOM_MSG_CLIENT_COLLECTED_BOLT, &onPlayerCollectedBoltRemote);
+  // Hook custom net events
+  netInstallCustomMsgHandler(CUSTOM_MSG_CLIENT_COLLECTED_BOLT, &onPlayerCollectedBoltRemote);
 }

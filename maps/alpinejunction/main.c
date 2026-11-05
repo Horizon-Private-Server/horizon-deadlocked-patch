@@ -28,18 +28,19 @@
 #include <libdl/graphics.h>
 #include <libdl/utils.h>
 
-int main (void)
+int main(void)
 {
   static int initialized = 0;
 
   if (!initialized)
   {
-    if (!PATCH_INTEROP || PATCH_INTEROP->Month != 12) {
+    if (!PATCH_INTEROP || PATCH_INTEROP->Month != 12)
+    {
       POKE_U32(0x00223074, 0);
     }
 
     initialized = 1;
   }
 
-	return 0;
+  return 0;
 }

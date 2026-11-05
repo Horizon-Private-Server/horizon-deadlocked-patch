@@ -16,32 +16,36 @@
 #include "common.h"
 
 //--------------------------------------------------------------------------
-int windowGetDzo(Window_t* window)
+int windowGetDzo(Window_t *window)
 {
   return window->Dzo ? COMMON_DZO_DRAW_NORMAL : COMMON_DZO_DRAW_NONE;
 }
 
 //--------------------------------------------------------------------------
-void windowReset(Window_t* out)
+void windowReset(Window_t *out)
 {
   out->Position[0] = 0;
   out->Position[1] = 0;
 }
 
 //--------------------------------------------------------------------------
-void windowMove(Window_t* out, float x, float y)
+void windowMove(Window_t *out, float x, float y)
 {
   out->Position[0] += x;
   out->Position[1] += y;
 }
 
 //--------------------------------------------------------------------------
-void windowCrop(Window_t* out, float left, float top, float right, float bottom)
+void windowCrop(Window_t *out, float left, float top, float right, float bottom)
 {
-  if (left < 0) left = 0;
-  if (top < 0) top = 0;
-  if (right < 0) right = 0;
-  if (bottom < 0) bottom = 0;
+  if (left < 0)
+    left = 0;
+  if (top < 0)
+    top = 0;
+  if (right < 0)
+    right = 0;
+  if (bottom < 0)
+    bottom = 0;
 
   out->Position[0] += left;
   out->Position[1] += top;
@@ -49,12 +53,14 @@ void windowCrop(Window_t* out, float left, float top, float right, float bottom)
   out->Width -= (left + right);
   out->Height -= (top + bottom);
 
-  if (out->Width < 0) out->Width = 0;
-  if (out->Height < 0) out->Height = 0;
+  if (out->Width < 0)
+    out->Width = 0;
+  if (out->Height < 0)
+    out->Height = 0;
 }
 
 //--------------------------------------------------------------------------
-void windowResolve(float* x, float *y, Window_t* window, float offsetX, float offsetY, enum TextAlign alignment)
+void windowResolve(float *x, float *y, Window_t *window, float offsetX, float offsetY, enum TextAlign alignment)
 {
   *x = window->WindowPoint[0] + window->Position[0] + offsetX;
   *y = window->WindowPoint[1] + window->Position[1] + offsetY;
@@ -62,110 +68,117 @@ void windowResolve(float* x, float *y, Window_t* window, float offsetX, float of
 }
 
 //--------------------------------------------------------------------------
-void windowSetScissor(Window_t* window)
+void windowSetScissor(Window_t *window)
 {
-  if (!windowHasArea(window)) return;
+  if (!windowHasArea(window))
+    return;
 
-  float x,y;
-  float x2,y2;
+  float x, y;
+  float x2, y2;
   windowResolve(&x, &y, window, 0, 0, TEXT_ALIGN_TOPLEFT);
   windowResolve(&x2, &y2, window, 0, 0, TEXT_ALIGN_BOTTOMRIGHT);
   gfxSetScissor(
-      window->AnchorPoint[0] + x
-    , window->AnchorPoint[0] + x2 - 1
-    , window->AnchorPoint[1] + y
-    , window->AnchorPoint[1] + y2 - 1);
+    window->AnchorPoint[0] + x, window->AnchorPoint[0] + x2 - 1, window->AnchorPoint[1] + y, window->AnchorPoint[1] + y2 - 1);
 }
 
 //--------------------------------------------------------------------------
-void windowDrawSprite(Window_t* window, enum TextAlign windowAnchor, float offsetX, float offsetY, float width, float height, int spriteId, int spriteDimW, int spriteDimH, u32 color, enum TextAlign alignment)
+void windowDrawSprite(Window_t *window, enum TextAlign windowAnchor, float offsetX, float offsetY, float width, float height, int spriteId, int spriteDimW, int spriteDimH, u32 color, enum TextAlign alignment)
 {
-  if (!windowHasArea(window)) return;
+  if (!windowHasArea(window))
+    return;
 
-  float x,y;
+  float x, y;
   windowResolve(&x, &y, window, 0, 0, windowAnchor);
   gfxHelperDrawSprite(window->AnchorPoint[0], window->AnchorPoint[1], x + offsetX, y + offsetY, width, height, spriteDimW, spriteDimH, spriteId, color, alignment, windowGetDzo(window));
 }
 
 //--------------------------------------------------------------------------
-void windowDrawBox(Window_t* window, enum TextAlign windowAnchor, float offsetX, float offsetY, float width, float height, u32 color, enum TextAlign alignment)
+void windowDrawBox(Window_t *window, enum TextAlign windowAnchor, float offsetX, float offsetY, float width, float height, u32 color, enum TextAlign alignment)
 {
-  if (!windowHasArea(window)) return;
+  if (!windowHasArea(window))
+    return;
 
-  float x,y;
+  float x, y;
   windowResolve(&x, &y, window, 0, 0, windowAnchor);
   gfxHelperDrawBox(window->AnchorPoint[0], window->AnchorPoint[1], x + offsetX, y + offsetY, width, height, color, alignment, windowGetDzo(window));
 }
 
 //--------------------------------------------------------------------------
-void windowFill(Window_t* window, u32 color)
+void windowFill(Window_t *window, u32 color)
 {
-  if (!windowHasArea(window)) return;
+  if (!windowHasArea(window))
+    return;
 
-  float x,y;
+  float x, y;
   windowResolve(&x, &y, window, 0, 0, window->AnchorAlign);
   gfxHelperDrawBox(window->AnchorPoint[0], window->AnchorPoint[1], x, y, window->Width - window->Position[0], window->Height - window->Position[1], color, window->AnchorAlign, windowGetDzo(window));
 }
 
 //--------------------------------------------------------------------------
-void windowBorder(Window_t* window, u32 color, float left, float top, float right, float bottom)
+void windowBorder(Window_t *window, u32 color, float left, float top, float right, float bottom)
 {
-  if (!windowHasArea(window)) return;
+  if (!windowHasArea(window))
+    return;
 
-  float x,y;
+  float x, y;
   windowResolve(&x, &y, window, 0, 0, window->AnchorAlign);
 
-  if (left > 0) {
+  if (left > 0)
+  {
     windowResolve(&x, &y, window, 0, 0, TEXT_ALIGN_MIDDLELEFT);
     gfxHelperDrawBox(window->AnchorPoint[0], window->AnchorPoint[1], x, y, left, window->Height - window->Position[1], color, TEXT_ALIGN_MIDDLELEFT, windowGetDzo(window));
   }
-  
-  if (right > 0) {
+
+  if (right > 0)
+  {
     windowResolve(&x, &y, window, 0, 0, TEXT_ALIGN_MIDDLERIGHT);
     gfxHelperDrawBox(window->AnchorPoint[0], window->AnchorPoint[1], x, y, right, window->Height - window->Position[1], color, TEXT_ALIGN_MIDDLERIGHT, windowGetDzo(window));
   }
-  
-  if (top > 0) {
+
+  if (top > 0)
+  {
     windowResolve(&x, &y, window, 0, 0, TEXT_ALIGN_TOPCENTER);
-    gfxHelperDrawBox(window->AnchorPoint[0], window->AnchorPoint[1], x, y, window->Width - window->Position[0], top*SCREEN_RATIO_INV, color, TEXT_ALIGN_TOPCENTER, windowGetDzo(window));
+    gfxHelperDrawBox(window->AnchorPoint[0], window->AnchorPoint[1], x, y, window->Width - window->Position[0], top * SCREEN_RATIO_INV, color, TEXT_ALIGN_TOPCENTER, windowGetDzo(window));
   }
-  
-  if (bottom > 0) {
+
+  if (bottom > 0)
+  {
     windowResolve(&x, &y, window, 0, 0, TEXT_ALIGN_BOTTOMCENTER);
-    gfxHelperDrawBox(window->AnchorPoint[0], window->AnchorPoint[1], x, y, window->Width - window->Position[0], bottom*SCREEN_RATIO_INV, color, TEXT_ALIGN_BOTTOMCENTER, windowGetDzo(window));
+    gfxHelperDrawBox(window->AnchorPoint[0], window->AnchorPoint[1], x, y, window->Width - window->Position[0], bottom * SCREEN_RATIO_INV, color, TEXT_ALIGN_BOTTOMCENTER, windowGetDzo(window));
   }
 }
 
 //--------------------------------------------------------------------------
-void windowDrawTextWindow(Window_t* window, enum TextAlign windowAnchor, float offsetX, float offsetY, float scale, u32 color, char* str, int length, enum TextAlign alignment)
+void windowDrawTextWindow(Window_t *window, enum TextAlign windowAnchor, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment)
 {
-  if (!windowHasArea(window)) return;
+  if (!windowHasArea(window))
+    return;
 
-  float x,y;
+  float x, y;
   windowResolve(&x, &y, window, 0, 0, windowAnchor);
   gfxHelperDrawTextWindow(window->AnchorPoint[0], window->AnchorPoint[1], x, y, window->Width - window->Position[0], window->Height - window->Position[1], offsetX, offsetY, scale, color, str, -1, alignment, FONT_WINDOW_FLAGS_NO_SCISSOR, windowGetDzo(window));
 }
 
 //--------------------------------------------------------------------------
-float windowDrawText(Window_t* window, enum TextAlign windowAnchor, float offsetX, float offsetY, float scale, u32 color, char* str, int length, enum TextAlign alignment)
+float windowDrawText(Window_t *window, enum TextAlign windowAnchor, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment)
 {
-  if (!windowHasArea(window)) return 0;
+  if (!windowHasArea(window))
+    return 0;
 
-  float x,y;
+  float x, y;
   windowResolve(&x, &y, window, 0, 0, windowAnchor);
   gfxHelperDrawText(window->AnchorPoint[0], window->AnchorPoint[1], x + offsetX, y + offsetY, scale, color, str, length, alignment, windowGetDzo(window));
   return gfxGetFontWidth(str, length, scale);
 }
 
 //--------------------------------------------------------------------------
-int windowHasArea(Window_t* window)
+int windowHasArea(Window_t *window)
 {
-  return window->Width > window->Position[0]
-      && window->Height > window->Position[1];
+  return window->Width > window->Position[0] && window->Height > window->Position[1];
 }
 
 //--------------------------------------------------------------------------
-void windowCreateFrom(Window_t* out, Window_t* window, float winOffsetX, float winOffsetY, float winWidth, float winHeight, enum TextAlign winAlignment)
+void windowCreateFrom(Window_t *out, Window_t *window, float winOffsetX, float winOffsetY, float winWidth, float winHeight, enum TextAlign winAlignment)
 {
   memcpy(out, window, sizeof(Window_t));
   float x = window->WindowPoint[0] + window->Position[0];
@@ -184,7 +197,7 @@ void windowCreateFrom(Window_t* out, Window_t* window, float winOffsetX, float w
 }
 
 //--------------------------------------------------------------------------
-void windowCreate(Window_t* out, float anchorX, float anchorY, float offsetX, float offsetY, float width, float height, enum TextAlign anchorAlignment, int dzo)
+void windowCreate(Window_t *out, float anchorX, float anchorY, float offsetX, float offsetY, float width, float height, enum TextAlign anchorAlignment, int dzo)
 {
   out->AnchorPoint[0] = anchorX;
   out->AnchorPoint[1] = anchorY;
@@ -199,7 +212,7 @@ void windowCreate(Window_t* out, float anchorX, float anchorY, float offsetX, fl
 }
 
 //--------------------------------------------------------------------------
-void windowDrawDialog(Window_t* drawWindow, char* titleStr, char* subtitleStr, char* bodyStr, char* buttonStr)
+void windowDrawDialog(Window_t *drawWindow, char *titleStr, char *subtitleStr, char *bodyStr, char *buttonStr)
 {
   u32 textColor = 0x80FFFFFF; // white
   Window_t window;
@@ -210,24 +223,27 @@ void windowDrawDialog(Window_t* drawWindow, char* titleStr, char* subtitleStr, c
   windowBorder(drawWindow, 0x80000000, 2, 2, 2, 2);
 
   // draw title text
-  if (titleStr) {
+  if (titleStr)
+  {
     windowDrawText(drawWindow, TEXT_ALIGN_TOPCENTER, 0, 2, 0.9, textColor, titleStr, -1, TEXT_ALIGN_TOPCENTER);
     windowMove(&window, 0, 20);
     window.Height -= 20;
   }
 
   // draw subtitle text
-  if (subtitleStr) {
+  if (subtitleStr)
+  {
     windowDrawText(drawWindow, TEXT_ALIGN_TOPCENTER, 0, 20, 0.7, textColor, subtitleStr, -1, TEXT_ALIGN_TOPCENTER);
     windowMove(&window, 0, 14);
     window.Height -= 14;
   }
-  
+
   // draw body text
-  if (bodyStr) {
+  if (bodyStr)
+  {
     windowDrawTextWindow(&window, TEXT_ALIGN_TOPCENTER, 0, 0, 0.75, textColor, bodyStr, -1, TEXT_ALIGN_TOPCENTER);
   }
-  
+
   // footer buttons
   windowDrawText(drawWindow, TEXT_ALIGN_BOTTOMCENTER, 0, -4, 0.9, textColor, buttonStr, -1, TEXT_ALIGN_BOTTOMCENTER);
 }

@@ -8,8 +8,8 @@
 #include "include/settings.h"
 #include "include/utils.h"
 
-#define SHRUB_RENDER_DISTANCE (*(float*)0x0022308C)
-#define DRAW_SHADOW_FUNC ((u32*)0x00587b30)
+#define SHRUB_RENDER_DISTANCE (*(float *)0x0022308C)
+#define DRAW_SHADOW_FUNC ((u32 *)0x00587b30)
 
 extern struct RaidsState State;
 extern float _raidsLodScale;
@@ -47,21 +47,24 @@ const int raidsLodPatchesNormal[][2] = {
   { 0x0042608C, 0x0C131194 }, // enable jump pad blur effect
 };
 
-
 //--------------------------------------------------------------------------
 void raidsLodMapInit(void)
 {
   raidsLastLod = -1;
   raidsMinShrubRenderDistance = 0;
   raidsForcePotatoLod = 0;
-  if (PATCH_INTEROP && PATCH_INTEROP->MapLoaderFilename) {
+  if (PATCH_INTEROP && PATCH_INTEROP->MapLoaderFilename)
+  {
     raidsForcePotatoLod = strcmp(PATCH_INTEROP->MapLoaderFilename, "canal city") == 0;
-    if (PATCH_INTEROP->GetCustomMapDefCount && PATCH_INTEROP->GetCustomMapDef) {
+    if (PATCH_INTEROP->GetCustomMapDefCount && PATCH_INTEROP->GetCustomMapDef)
+    {
       int i;
       int count = PATCH_INTEROP->GetCustomMapDefCount();
-      for (i = 0; i < count; ++i) {
-        CustomMapDef_t* def = PATCH_INTEROP->GetCustomMapDef(i);
-        if (def && strcmp(def->Filename, PATCH_INTEROP->MapLoaderFilename) == 0) {
+      for (i = 0; i < count; ++i)
+      {
+        CustomMapDef_t *def = PATCH_INTEROP->GetCustomMapDef(i);
+        if (def && strcmp(def->Filename, PATCH_INTEROP->MapLoaderFilename) == 0)
+        {
           raidsMinShrubRenderDistance = def->ShrubMinRenderDistance;
           break;
         }
@@ -76,15 +79,20 @@ void raidsLodMapInit(void)
 //--------------------------------------------------------------------------
 void raidsLodTick(void)
 {
-  if (!isInGame()) return;
+  if (!isInGame())
+    return;
 
   int lod = raidsForcePotatoLod ? 0 : raidsUserSettings.MapLod;
-  if (lod == raidsLastLod) return;
+  if (lod == raidsLastLod)
+    return;
 
   int i;
-  int terrainDistance = lod == 0 ? 120 : lod == 1 ? 480 : 960;
-  float shrubDistance = lod < 2 ? 50 : lod == 2 ? 500 : 5000;
-  _raidsLodScale = lod < 2 ? 0.2 : lod == 2 ? 1.0 : 10.0;
+  int terrainDistance = lod == 0 ? 120 : lod == 1 ? 480
+                                                  : 960;
+  float shrubDistance = lod < 2 ? 50 : lod == 2 ? 500
+                                                : 5000;
+  _raidsLodScale = lod < 2 ? 0.2 : lod == 2 ? 1.0
+                                            : 10.0;
   SHRUB_RENDER_DISTANCE = maxf(raidsMinShrubRenderDistance, shrubDistance);
   DRAW_SHADOW_FUNC[0] = lod < 2 ? 0x03E00008 : 0x27BDFF90;
   DRAW_SHADOW_FUNC[1] = lod < 2 ? 0 : 0xFFB30038;
@@ -93,8 +101,10 @@ void raidsLodTick(void)
 
   const int (*patches)[2] = lod == 0 ? raidsLodPatchesPotato : raidsLodPatchesNormal;
   int count = lod == 0 ? sizeof(raidsLodPatchesPotato) / sizeof(raidsLodPatchesPotato[0])
-    : sizeof(raidsLodPatchesNormal) / sizeof(raidsLodPatchesNormal[0]);
-  for (i = 0; i < count; ++i) POKE_U32(patches[i][0], patches[i][1]);
-  if (lod == 1) POKE_U32(0x0042608c, 0);
+                       : sizeof(raidsLodPatchesNormal) / sizeof(raidsLodPatchesNormal[0]);
+  for (i = 0; i < count; ++i)
+    POKE_U32(patches[i][0], patches[i][1]);
+  if (lod == 1)
+    POKE_U32(0x0042608c, 0);
   raidsLastLod = lod;
 }

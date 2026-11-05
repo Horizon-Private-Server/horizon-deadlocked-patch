@@ -8,16 +8,16 @@
 #include <libdl/player.h>
 #include <libdl/sound.h>
 
-Moby * spawnExplosion(VECTOR position, float size);
+Moby *spawnExplosion(VECTOR position, float size);
 void playTimerTickSound();
-u8 decTimerU8(u8* timeValue);
-u16 decTimerU16(u16* timeValue);
-u32 decTimerU32(u32* timeValue);
-void drawRoundMessage(const char * message, float scale);
-Player * playerGetRandom(void);
+u8 decTimerU8(u8 *timeValue);
+u16 decTimerU16(u16 *timeValue);
+u32 decTimerU32(u32 *timeValue);
+void drawRoundMessage(const char *message, float scale);
+Player *playerGetRandom(void);
 int spawnPointGetNearestTo(VECTOR point, VECTOR out, float minDist);
 int spawnGetRandomPoint(VECTOR out);
-void patchVoidFallCameraBug(Player* player);
-void unpatchVoidFallCameraBug(Player* player);
+void patchVoidFallCameraBug(Player *player);
+void unpatchVoidFallCameraBug(Player *player);
 
 #endif // OITC_UTILS_H

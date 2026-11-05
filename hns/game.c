@@ -45,11 +45,13 @@ void initializeScoreboard(void);
 //--------------------------------------------------------------------------
 void onSetPlayerTeam(int playerId, int team)
 {
-  if (!isInGame()) return;
+  if (!isInGame())
+    return;
 
   DPRINTF("set %d team to %d\n", playerId, team);
-  Player* player = playerGetAll()[playerId];
-  if (player) playerSetTeam(player, team);
+  Player *player = playerGetAll()[playerId];
+  if (player)
+    playerSetTeam(player, team);
 }
 
 //--------------------------------------------------------------------------
@@ -60,24 +62,26 @@ void onReceiveRoundStage(enum GameStage stage)
 }
 
 //--------------------------------------------------------------------------
-void onPlayerKill(char * fragMsg)
+void onPlayerKill(char *fragMsg)
 {
-	VECTOR delta;
-	Player** players = playerGetAll();
+  VECTOR delta;
+  Player **players = playerGetAll();
 
-	// call base function
-	((void (*)(char*))0x00621CF8)(fragMsg);
+  // call base function
+  ((void (*)(char *))0x00621CF8)(fragMsg);
 
-	char weaponId = fragMsg[3];
-	char killedPlayerId = fragMsg[2];
-	char sourcePlayerId = fragMsg[0];
+  char weaponId = fragMsg[3];
+  char killedPlayerId = fragMsg[2];
+  char sourcePlayerId = fragMsg[0];
 }
 
 //--------------------------------------------------------------------------
 int gameGetTeamScore(int team, int score)
 {
-  if (team == TEAM_HIDERS) return State.NumHiders;
-  else if (team == TEAM_SEEKERS && !countRemainingHiders()) return 10;
+  if (team == TEAM_HIDERS)
+    return State.NumHiders;
+  else if (team == TEAM_SEEKERS && !countRemainingHiders())
+    return 10;
 
   return 0;
 }
@@ -90,24 +94,29 @@ void drawSeekerOverlay(int localPlayerIndex, int time)
   float vertScale = 1.0 / localCount;
   float yOff = localPlayerIndex * 0.5;
   snprintf(buf, sizeof(buf), "It's not rabbit season yet... %02d", time);
-  gfxHelperDrawBox(0, SCREEN_HEIGHT*yOff, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT*vertScale, 0x80000000, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_STRETCHED);
-  gfxHelperDrawText(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(0, SCREEN_HEIGHT * yOff, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT * vertScale, 0x80000000, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_STRETCHED);
+  gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 }
 
 //--------------------------------------------------------------------------
 int countRemainingHiders(void)
 {
   int count = 0;
-  Player** players = playerGetAll();
-  if (!players) return 0;
+  Player **players = playerGetAll();
+  if (!players)
+    return 0;
 
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!player || !player->PlayerMoby || !player->pNetPlayer) continue;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (!player || !player->PlayerMoby || !player->pNetPlayer)
+      continue;
 
-    if (player->Team == TEAM_HIDERS) {
-      if (State.Stage == GAME_STAGE_HIDE || !playerIsDead(player)) {
+    if (player->Team == TEAM_HIDERS)
+    {
+      if (State.Stage == GAME_STAGE_HIDE || !playerIsDead(player))
+      {
         ++count;
       }
     }
@@ -120,15 +129,19 @@ int countRemainingHiders(void)
 int countSeekers(void)
 {
   int count = 0;
-  Player** players = playerGetAll();
-  if (!players) return 0;
+  Player **players = playerGetAll();
+  if (!players)
+    return 0;
 
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!player || !player->PlayerMoby || !player->pNetPlayer) continue;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (!player || !player->PlayerMoby || !player->pNetPlayer)
+      continue;
 
-    if (player->Team == TEAM_SEEKERS) {
+    if (player->Team == TEAM_SEEKERS)
+    {
       ++count;
     }
   }
@@ -139,44 +152,52 @@ int countSeekers(void)
 //--------------------------------------------------------------------------
 void stageHideLogic(void)
 {
-  Player** players = playerGetAll();
-  GameSettings* gs = gameGetSettings();
+  Player **players = playerGetAll();
+  GameSettings *gs = gameGetSettings();
   int i;
 
   int hideTime = (PATCH_INTEROP->GameConfig->hnsConfig.hideStageTime + 1) * HIDE_STAGE_INCREMENT_SEC;
   int stageTimeSec = State.StageTicks / TPS;
 
   // disable nametags during hide stage
-  if (gs) gs->PlayerNamesOn = 0;
+  if (gs)
+    gs->PlayerNamesOn = 0;
 
   // disable radar for everyone during initial phase
   POKE_U32(0x00613108, 0x24020001);
 
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!player || !player->PlayerMoby || !player->pNetPlayer) continue;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (!player || !player->PlayerMoby || !player->pNetPlayer)
+      continue;
 
     // lock seekers in place with no vision
-    if (player->Team == TEAM_SEEKERS) {
+    if (player->Team == TEAM_SEEKERS)
+    {
       player->timers.noCamInputTimer = 5;
       player->timers.noInput = 5;
       player->Health = 50;
 
-      if (player->IsLocal) {
+      if (player->IsLocal)
+      {
         vector_write(player->CameraPos, 0);
         drawSeekerOverlay(player->LocalPlayerIndex, hideTime - stageTimeSec);
       }
     }
 
     // respawn hider immediately if they die during hide stage
-    if (player->Team == TEAM_HIDERS) {
-      if (player->IsLocal && playerIsDead(player)) playerRespawn(player);
+    if (player->Team == TEAM_HIDERS)
+    {
+      if (player->IsLocal && playerIsDead(player))
+        playerRespawn(player);
       player->MaxHealth = player->Health = 100;
     }
   }
 
   // switch to seek stage after hide time runs out
-  if (gameAmIHost() && stageTimeSec >= hideTime) {
+  if (gameAmIHost() && stageTimeSec >= hideTime)
+  {
     State.Stage = GAME_STAGE_SEEK;
     State.StageTicks = 0;
     sendRoundStage(State.Stage);
@@ -186,25 +207,30 @@ void stageHideLogic(void)
 //--------------------------------------------------------------------------
 void stageSeekLogic(void)
 {
-  Player** players = playerGetAll();
-  GameSettings* gs = gameGetSettings();
-  GameOptions* gameOptions = gameGetOptions();
+  Player **players = playerGetAll();
+  GameSettings *gs = gameGetSettings();
+  GameOptions *gameOptions = gameGetOptions();
   static int init = 0;
 
   // enable nametags during seek stage
-  if (gs) gs->PlayerNamesOn = !PATCH_INTEROP->GameConfig->grNoNames;
+  if (gs)
+    gs->PlayerNamesOn = !PATCH_INTEROP->GameConfig->grNoNames;
 
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!player || !player->PlayerMoby || !player->pNetPlayer) continue;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (!player || !player->PlayerMoby || !player->pNetPlayer)
+      continue;
 
     // give seekers inf health
-    if (player->Team == TEAM_SEEKERS) {
+    if (player->Team == TEAM_SEEKERS)
+    {
       player->Health = 50;
 
       // enable team radar for seekers
-      if (player->IsLocal) {
+      if (player->IsLocal)
+      {
         POKE_U32(0x00613108, 0x8E022EF4);
       }
 
@@ -212,10 +238,13 @@ void stageSeekLogic(void)
       // alpha seekers have juggy pack
       int level = State.AlphaSeeker[i];
       int w;
-      for (w = WEAPON_SLOT_VIPERS; w <= WEAPON_SLOT_OMNI_SHIELD; ++w) {
+      for (w = WEAPON_SLOT_VIPERS; w <= WEAPON_SLOT_OMNI_SHIELD; ++w)
+      {
         int wId = weaponSlotToId(w);
-        if (gameOptions->WeaponFlags.Raw & (1 << wId)) {
-          if (player->GadgetBox->Gadgets[wId].Level != level) {
+        if (gameOptions->WeaponFlags.Raw & (1 << wId))
+        {
+          if (player->GadgetBox->Gadgets[wId].Level != level)
+          {
             player->GadgetBox->Gadgets[wId].Level = -1;
             playerGiveWeapon(player->GadgetBox, wId, level, 1);
           }
@@ -223,27 +252,38 @@ void stageSeekLogic(void)
       }
     }
 
-    if (player->IsLocal && player->Team == TEAM_HIDERS) {
+    if (player->IsLocal && player->Team == TEAM_HIDERS)
+    {
 
       // disable team radar for hiders
       POKE_U32(0x00613108, 0x24020001);
 
       // switch hider to seeker when dead
-      if (playerIsDead(player)) {
-        if (player->timers.resurrectWait == 0) {
+      if (playerIsDead(player))
+      {
+        if (player->timers.resurrectWait == 0)
+        {
           player->timers.resurrectWait = 100;
-        } else if (player->timers.resurrectWait == 1) {
+        }
+        else if (player->timers.resurrectWait == 1)
+        {
           playerSetTeam(player, TEAM_SEEKERS);
           sendPlayerTeam(i, TEAM_SEEKERS);
           playerRespawn(player);
         }
-      } else {
-        if (!init) uiShowPopup(player->LocalPlayerIndex, "Press L3 to toggle between spectate mode");
+      }
+      else
+      {
+        if (!init)
+          uiShowPopup(player->LocalPlayerIndex, "Press L3 to toggle between spectate mode");
 
         // toggle spectate
-        if (!gameIsStartMenuOpen(player->LocalPlayerIndex) && !PATCH_POINTERS_PATCHMENU && padGetButtonDown(player->LocalPlayerIndex, PAD_L3) > 0 && PATCH_POINTERS_SPECTATE == 0) {
+        if (!gameIsStartMenuOpen(player->LocalPlayerIndex) && !PATCH_POINTERS_PATCHMENU && padGetButtonDown(player->LocalPlayerIndex, PAD_L3) > 0 && PATCH_POINTERS_SPECTATE == 0)
+        {
           PATCH_INTEROP->SetSpectate(player->LocalPlayerIndex, i);
-        } else if (!gameIsStartMenuOpen(player->LocalPlayerIndex) && !PATCH_POINTERS_PATCHMENU && padGetButtonDown(player->LocalPlayerIndex, PAD_L3) > 0 && PATCH_POINTERS_SPECTATE > 0) {
+        }
+        else if (!gameIsStartMenuOpen(player->LocalPlayerIndex) && !PATCH_POINTERS_PATCHMENU && padGetButtonDown(player->LocalPlayerIndex, PAD_L3) > 0 && PATCH_POINTERS_SPECTATE > 0)
+        {
           PATCH_INTEROP->SetSpectate(player->LocalPlayerIndex, -1);
         }
       }
@@ -251,7 +291,8 @@ void stageSeekLogic(void)
   }
 
   // end when hiders die
-  if (gameAmIHost() && !State.NumHiders) {
+  if (gameAmIHost() && !State.NumHiders)
+  {
     gameSetWinner(TEAM_SEEKERS, 1);
     gameEnd(2);
     gameSetWinner(TEAM_SEEKERS, 1);
@@ -263,34 +304,37 @@ void stageSeekLogic(void)
 //--------------------------------------------------------------------------
 void frameTick(void)
 {
-  
 }
 
 //--------------------------------------------------------------------------
 void gameTick(void)
 {
-	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
-  GameData * gameData = gameGetData();
-	Player ** players = playerGetAll();
-	int i;
-	char buffer[32];
-	int gameTime = gameGetTime();
+  GameSettings *gameSettings = gameGetSettings();
+  GameOptions *gameOptions = gameGetOptions();
+  GameData *gameData = gameGetData();
+  Player **players = playerGetAll();
+  int i;
+  char buffer[32];
+  int gameTime = gameGetTime();
 
   State.NumHiders = countRemainingHiders();
 
   // end when seekers leave
   int seekersLeft = countSeekers();
-  if (gameAmIHost() && seekersLeft <= 0) {
+  if (gameAmIHost() && seekersLeft <= 0)
+  {
     gameSetWinner(TEAM_HIDERS, 1);
     gameEnd(9);
     gameSetWinner(TEAM_HIDERS, 1);
   }
 
   // stage logic
-  if (State.Stage == GAME_STAGE_HIDE) {
+  if (State.Stage == GAME_STAGE_HIDE)
+  {
     stageHideLogic();
-  } else {
+  }
+  else
+  {
     stageSeekLogic();
   }
 
@@ -299,18 +343,18 @@ void gameTick(void)
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t *gameState)
 {
   static int startDelay = 60 * 0.2;
-	static int waitingForClientsReady = 0;
+  static int waitingForClientsReady = 0;
 
-	GameSettings* gameSettings = gameGetSettings();
-	Player** players = playerGetAll();
-	GameData* gameData = gameGetData();
-	int i;
+  GameSettings *gameSettings = gameGetSettings();
+  Player **players = playerGetAll();
+  GameData *gameData = gameGetData();
+  int i;
 
-	// hook into player kill event
-	*(u32*)0x00621c7c = 0x0C000000 | ((u32)&onPlayerKill >> 2);
+  // hook into player kill event
+  *(u32 *)0x00621c7c = 0x0C000000 | ((u32)&onPlayerKill >> 2);
 
   // hook into computePlayerScore (endgame pts)
   //HOOK_J(0x00625510, &getPlayerScore);
@@ -322,33 +366,39 @@ void initialize(PatchStateContainer_t* gameState)
   //POKE_U32(0x006236D8, 0x8CA2FFD8); // read points as word
   //POKE_U32(0x006236F4, 0x8CA2FFD8); // read points as word
   POKE_U32(0x00623700, 0); // stop counting suicides
-  //POKE_U32(0x00623708, 0); // stop counting deaths (tiebreaker)
-  //POKE_U16(0x00623710, 4); // increment by 4 (sizeof(int))
+                           //POKE_U32(0x00623708, 0); // stop counting deaths (tiebreaker)
+                           //POKE_U16(0x00623710, 4); // increment by 4 (sizeof(int))
 
-	// hook messages
-	netHookMessages();
+  // hook messages
+  netHookMessages();
 
-  // 
+  //
   initializeScoreboard();
 
-  if (startDelay) {
+  if (startDelay)
+  {
     --startDelay;
     return;
   }
-  
+
   // wait for all clients to be ready
   // or for 5 seconds
-  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60))
+  {
     uiShowPopup(0, "Waiting For Players...");
     ++waitingForClientsReady;
     return;
   }
 
   // save who is first seeker(s)
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    if (gameSettings->PlayerClients[i] >= 0 && gameSettings->PlayerTeams[i] == TEAM_SEEKERS) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    if (gameSettings->PlayerClients[i] >= 0 && gameSettings->PlayerTeams[i] == TEAM_SEEKERS)
+    {
       State.AlphaSeeker[i] = 1;
-    } else {
+    }
+    else
+    {
       State.AlphaSeeker[i] = 0;
     }
   }
@@ -356,56 +406,56 @@ void initialize(PatchStateContainer_t* gameState)
   // hide waiting for players popup
   hudHidePopup();
 
-	// initialize state
+  // initialize state
   State.Stage = GAME_STAGE_HIDE;
   State.StageTicks = 0;
-	State.InitializedTime = gameGetTime();
+  State.InitializedTime = gameGetTime();
 
   sendRoundStage(State.Stage);
-	Initialized = 1;
+  Initialized = 1;
 }
 
 //--------------------------------------------------------------------------
-void updateGameState(PatchStateContainer_t * gameState)
+void updateGameState(PatchStateContainer_t *gameState)
 {
-	int i;
+  int i;
 
-	// game state update
-	if (gameState->UpdateGameState)
-	{
-    // 
-	}
+  // game state update
+  if (gameState->UpdateGameState)
+  {
+    //
+  }
 
-	// stats
-	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
-	{
+  // stats
+  if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
+  {
     // no cgm data
     gameState->CustomGameStatsSize = 0;
-	}
+  }
 }
 
 //--------------------------------------------------------------------------
-void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
+void setLobbyGameOptions(PatchGameConfig_t *gameConfig)
 {
   static int set = 0;
 
-	// set game options
-	GameOptions * gameOptions = gameGetOptions();
-	GameSettings* gameSettings = gameGetSettings();
-	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0 || set)
-		return;
-	
+  // set game options
+  GameOptions *gameOptions = gameGetOptions();
+  GameSettings *gameSettings = gameGetSettings();
+  if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0 || set)
+    return;
+
   // force deathmatch
   gameSettings->GameRules = GAMERULE_DM;
-	
-	// apply options
+
+  // apply options
   gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
-	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
   gameOptions->GameFlags.MultiplayerGameFlags.KillsToWin = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.RadarBlips = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 0;
@@ -421,19 +471,25 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
 
   gameConfig->grRespawnOverride = 0;
 
-  if (gameAmIHost()) {
+  if (gameAmIHost())
+  {
 
     // set everyone not red to blue team
     int i;
     int numPlayers = 0;
     int numHiders = 0;
     int numPreSeekers = 0;
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (gameSettings->PlayerClients[i] >= 0) {
-        if (gameSettings->PlayerTeams[i] != TEAM_SEEKERS) {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      if (gameSettings->PlayerClients[i] >= 0)
+      {
+        if (gameSettings->PlayerTeams[i] != TEAM_SEEKERS)
+        {
           gameSettings->PlayerTeams[i] = TEAM_HIDERS;
           ++numHiders;
-        } else {
+        }
+        else
+        {
           ++numPreSeekers;
         }
 
@@ -454,22 +510,30 @@ void setLobbyGameOptions(PatchGameConfig_t * gameConfig)
       while (r)
       {
         i = (i + 1) % GAME_MAX_PLAYERS;
-        if (gameSettings->PlayerClients[i] >= 0) {
-          if (numSeekers > seekerTargetCount) {
-            if (gameSettings->PlayerTeams[i] == TEAM_SEEKERS) {
+        if (gameSettings->PlayerClients[i] >= 0)
+        {
+          if (numSeekers > seekerTargetCount)
+          {
+            if (gameSettings->PlayerTeams[i] == TEAM_SEEKERS)
+            {
               --r;
             }
-          } else {
+          }
+          else
+          {
             --r;
           }
         }
       }
 
-      if (numSeekers > seekerTargetCount) {
+      if (numSeekers > seekerTargetCount)
+      {
         --numSeekers;
         gameSettings->PlayerTeams[i] = TEAM_HIDERS;
         ++numHiders;
-      } else {
+      }
+      else
+      {
         ++numSeekers;
         gameSettings->PlayerTeams[i] = TEAM_SEEKERS;
         --numHiders;

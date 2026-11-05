@@ -38,127 +38,139 @@ struct RaceState State;
 
 void processPlayer(int pIndex);
 void resetRoundState(void);
-void initialize(PatchStateContainer_t* gameState);
-void updateGameState(PatchStateContainer_t * gameState);
+void initialize(PatchStateContainer_t *gameState);
+void updateGameState(PatchStateContainer_t *gameState);
 void gameTick(void);
 void setLobbyGameOptions(void);
-void setEndGameScoreboard(PatchGameConfig_t * gameConfig);
+void setEndGameScoreboard(PatchGameConfig_t *gameConfig);
 
 //--------------------------------------------------------------------------
-void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
-	Player ** players = playerGetAll();
-	int i;
-	char buffer[32];
-	int gameTime = gameGetTime();
+  GameSettings *gameSettings = gameGetSettings();
+  GameOptions *gameOptions = gameGetOptions();
+  Player **players = playerGetAll();
+  int i;
+  char buffer[32];
+  int gameTime = gameGetTime();
 
-	// first
-	dlPreUpdate();
+  // first
+  dlPreUpdate();
 
-	// 
-	updateGameState(gameState);
+  //
+  updateGameState(gameState);
 
-	// Ensure in game
-	if (!gameSettings || !isInGame())
-		return;
+  // Ensure in game
+  if (!gameSettings || !isInGame())
+    return;
 
-	// Determine if host
-	State.IsHost = gameAmIHost();
+  // Determine if host
+  State.IsHost = gameAmIHost();
 
-	if (!Initialized)
-	{
-		initialize(gameState);
-		return;
-	}
+  if (!Initialized)
+  {
+    initialize(gameState);
+    return;
+  }
 
-	//
-	if (!State.GameOver)
-	{
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-			processPlayer(i);
-		}
+  //
+  if (!State.GameOver)
+  {
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      processPlayer(i);
+    }
 
-		// handle game tick
-		gameTick();
-	}
-	else
-	{
-		// end game
-		if (State.GameOver == 1)
-		{
-			gameSetWinner(State.WinningTeam, 1);
-			gameEnd(4);
-			State.GameOver = 2;
-		}
-	}
+    // handle game tick
+    gameTick();
+  }
+  else
+  {
+    // end game
+    if (State.GameOver == 1)
+    {
+      gameSetWinner(State.WinningTeam, 1);
+      gameEnd(4);
+      State.GameOver = 2;
+    }
+  }
 
-	// last
-	dlPostUpdate();
-	return;
+  // last
+  dlPostUpdate();
+  return;
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	int i;
-	int activeId = uiGetActive();
-	static int initializedScoreboard = 0;
+  int i;
+  int activeId = uiGetActive();
+  static int initializedScoreboard = 0;
 
-	// send final player stats to others
-	if (Initialized == 1) {
-		if (State.IsHost) {
-			for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-				if (State.PlayerStates[i].Player) {
-					//sendPlayerStats(i);
-				}
-			}
-		}
+  // send final player stats to others
+  if (Initialized == 1)
+  {
+    if (State.IsHost)
+    {
+      for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+      {
+        if (State.PlayerStates[i].Player)
+        {
+          //sendPlayerStats(i);
+        }
+      }
+    }
 
-		Initialized = 2;
-	}
+    Initialized = 2;
+  }
 
-	// 
-	updateGameState(gameState);
+  //
+  updateGameState(gameState);
 
-	// scoreboard
-	switch (activeId)
-	{
-		case 0x15C:
-		{
-			if (initializedScoreboard)
-				break;
+  // scoreboard
+  switch (activeId)
+  {
+    case 0x15C:
+    {
+      if (initializedScoreboard)
+        break;
 
-			setEndGameScoreboard(gameState->GameConfig);
-			initializedScoreboard = 1;
+      setEndGameScoreboard(gameState->GameConfig);
+      initializedScoreboard = 1;
 
-			// patch rank computation to keep rank unchanged for base mode
-			POKE_U32(0x0077ACE4, 0x4600BB06);
-			break;
-		}
-		case UI_ID_GAME_LOBBY:
-		{
-			setLobbyGameOptions();
-			break;
-		}
-	}
+      // patch rank computation to keep rank unchanged for base mode
+      POKE_U32(0x0077ACE4, 0x4600BB06);
+      break;
+    }
+    case UI_ID_GAME_LOBBY:
+    {
+      setLobbyGameOptions();
+      break;
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
-void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
   setLobbyGameOptions();
 }
 
 //--------------------------------------------------------------------------
-void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+void start(struct GameModule *module, PatchStateContainer_t *gameState, enum GameModuleContext context)
 {
   switch (context)
   {
-    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
-    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
-    case GAMEMODULE_GAME_UPDATE: break;
+    case GAMEMODULE_LOBBY:
+      lobbyStart(module, gameState);
+      break;
+    case GAMEMODULE_LOAD:
+      loadStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_FRAME:
+      gameStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_UPDATE:
+      break;
   }
 }

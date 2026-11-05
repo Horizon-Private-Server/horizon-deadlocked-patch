@@ -25,32 +25,32 @@
 extern struct State State;
 
 //--------------------------------------------------------------------------
-int onSpawnRemote(void * connection, void * data)
+int onSpawnRemote(void *connection, void *data)
 {
-	SpawnMessage_t* message = (SpawnMessage_t*)data;
-	onReceiveSpawn(message->Seed, message->GameTime);
+  SpawnMessage_t *message = (SpawnMessage_t *)data;
+  onReceiveSpawn(message->Seed, message->GameTime);
 
-	return sizeof(SpawnMessage_t);
+  return sizeof(SpawnMessage_t);
 }
 
 //--------------------------------------------------------------------------
 void sendSpawn(u32 seed, int gameTime)
 {
-	int i;
-	SpawnMessage_t message;
+  int i;
+  SpawnMessage_t message;
 
-	if (!State.IsHost)
-		return;
+  if (!State.IsHost)
+    return;
 
-	// send out
-	DPRINTF("send %d\n", gameTime);
-	message.GameTime = gameTime;
-	message.Seed = seed;
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SPAWN, sizeof(SpawnMessage_t), &message);
+  // send out
+  DPRINTF("send %d\n", gameTime);
+  message.GameTime = gameTime;
+  message.Seed = seed;
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_SPAWN, sizeof(SpawnMessage_t), &message);
 }
 
 void netHookMessages(void)
 {
-	// Hook custom net events
-	netInstallCustomMsgHandler(CUSTOM_MSG_SPAWN, &onSpawnRemote);
+  // Hook custom net events
+  netInstallCustomMsgHandler(CUSTOM_MSG_SPAWN, &onSpawnRemote);
 }

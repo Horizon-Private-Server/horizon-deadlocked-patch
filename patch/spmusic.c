@@ -10,8 +10,8 @@
 #include <libdl/random.h>
 #include "config.h"
 
-#define SP_MUSIC_TRACK_COUNT                (62)
-#define SP_MUSIC_RAIDS_TRACK_COUNT          (SP_MUSIC_TRACK_COUNT + 2)
+#define SP_MUSIC_TRACK_COUNT (62)
+#define SP_MUSIC_RAIDS_TRACK_COUNT (SP_MUSIC_TRACK_COUNT + 2)
 
 extern PatchConfig_t config;
 extern PatchGameConfig_t gameConfig;
@@ -97,13 +97,14 @@ void spMusicLoad(void)
   int i;
   int trackCount = gameConfig.customModeId == CUSTOM_MODE_RAIDS ? SP_MUSIC_RAIDS_TRACK_COUNT : SP_MUSIC_TRACK_COUNT;
   u32 newTracksAddr = 0x001CF940;
-  for (i = 0; i < trackCount; ++i) {
+  for (i = 0; i < trackCount; ++i)
+  {
     POKE_U32(newTracksAddr + 0x00, spMusicTrackTable[i][0]);
     POKE_U32(newTracksAddr + 0x08, spMusicTrackTable[i][1]);
     newTracksAddr += 0x10;
   }
 
-  ((void (*)(int,int,int))0x0051f928)(4,13 + trackCount,0x400);
+  ((void (*)(int, int, int))0x0051f928)(4, 13 + trackCount, 0x400);
   POKE_U16(0x004A8328, 13 + trackCount);
   //musicPlayTrack(MUSIC_TRACK_DREADZONE_STATION, 1);
 
@@ -115,17 +116,22 @@ void spMusicRun(void)
 {
   static int hasLoaded = 0;
   int shouldLoadSpMusic = config.enableSingleplayerMusic || gameConfig.customModeId == CUSTOM_MODE_RAIDS;
-  if (!shouldLoadSpMusic) return;
-  
-  if (!isInGame()) {
+  if (!shouldLoadSpMusic)
+    return;
+
+  if (!isInGame())
+  {
     hasLoaded = 0;
-  } else if (!hasLoaded) {
+  }
+  else if (!hasLoaded)
+  {
     spMusicLoad();
     hasLoaded = 1;
   }
 
   // skip track
-  if (isInGame() && padGetButtonDown(0, PAD_RIGHT | PAD_R3) > 0) {
+  if (isInGame() && padGetButtonDown(0, PAD_RIGHT | PAD_R3) > 0)
+  {
     int track = spMusicGetRandom();
     while (track == musicGetCurrentTrack())
       track = spMusicGetRandom();

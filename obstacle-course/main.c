@@ -39,45 +39,46 @@ struct CGMState State;
 
 void processPlayer(int pIndex);
 void resetRoundState(void);
-void initialize(PatchStateContainer_t* gameState);
-void updateGameState(PatchStateContainer_t * gameState);
+void initialize(PatchStateContainer_t *gameState);
+void updateGameState(PatchStateContainer_t *gameState);
 void gameTick(void);
 void frameTick(void);
-void setLobbyGameOptions(PatchStateContainer_t * gameState);
+void setLobbyGameOptions(PatchStateContainer_t *gameState);
 
 //--------------------------------------------------------------------------
-void gameUpdateTick(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameUpdateTick(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
-	Player ** players = playerGetAll();
-	int i;
-	char buffer[32];
-	int gameTime = gameGetTime();
+  GameSettings *gameSettings = gameGetSettings();
+  GameOptions *gameOptions = gameGetOptions();
+  Player **players = playerGetAll();
+  int i;
+  char buffer[32];
+  int gameTime = gameGetTime();
 
-	dlPreUpdate();
-	updateGameState(gameState);
+  dlPreUpdate();
+  updateGameState(gameState);
 
-	// Ensure in game
-	if (!gameSettings || !isInGame()) {
-		return;
+  // Ensure in game
+  if (!gameSettings || !isInGame())
+  {
+    return;
   }
 
-	// determine if host
-	State.IsHost = gameAmIHost();
+  // determine if host
+  State.IsHost = gameAmIHost();
 
   // initialize
-	if (!Initialized)
-	{
-		initialize(gameState);
-		return;
-	}
+  if (!Initialized)
+  {
+    initialize(gameState);
+    return;
+  }
 
   if (!State.GameOver)
   {
-		// end if all but one team left
-		// int teamsLeft = getTeamCount();
-		// if (teamsLeft <= 1 && teamsLeft < teamsAtStart) {
+    // end if all but one team left
+    // int teamsLeft = getTeamCount();
+    // if (teamsLeft <= 1 && teamsLeft < teamsAtStart) {
     //   State.GameOver = 9; // enemies left
     // }
 
@@ -92,84 +93,89 @@ void gameUpdateTick(struct GameModule * module, PatchStateContainer_t * gameStat
   }
 
   // check for restart
-  if (padGetButtonDown(0, PAD_SQUARE | PAD_L1 | PAD_R2 | PAD_L3) > 0) {
+  if (padGetButtonDown(0, PAD_SQUARE | PAD_L1 | PAD_R2 | PAD_L3) > 0)
+  {
     Restart = 1;
   }
 
-	dlPostUpdate();
+  dlPostUpdate();
 }
 
 //--------------------------------------------------------------------------
-void gameFrameTick(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameFrameTick(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	if (!gameGetSettings() || !isInGame())
-		return;
+  if (!gameGetSettings() || !isInGame())
+    return;
 
   // init game start time
-  if (!State.HasFirstFrame) {
+  if (!State.HasFirstFrame)
+  {
     State.HasFirstFrame = 1;
     State.InitializedTime = gameGetTime();
-    
+
     // init restart str
-    char* a = uiMsgString(0x2400 - 4);
+    char *a = uiMsgString(0x2400 - 4);
     safe_strcpy(a, "Full Restart \x13 + \x14 + L3 + \x17", 64);
   }
 
   // reload save
-  if (!State.HasLoadedLast) {
+  if (!State.HasLoadedLast)
+  {
     checkpointLoadSaved();
   }
 
   // show restart combo
-  if (State.ShowRestartComboTicks > 0) {
+  if (State.ShowRestartComboTicks > 0)
+  {
     --State.ShowRestartComboTicks;
 
     uiShowLowerPopup(0, 0x2400 - 4);
   }
 
   // restart
-  if (Restart) {
+  if (Restart)
+  {
     Restart = 0;
     State.ShowRestartComboTicks = 0;
     tryFullRestart();
   }
 
   // invoke custom mode frame update logic
-	if (!State.GameOver)
-		frameTick();
+  if (!State.GameOver)
+    frameTick();
 }
 
 //--------------------------------------------------------------------------
-void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	int i;
-	int activeId = uiGetActive();
-	Player** players = playerGetAll();
+  int i;
+  int activeId = uiGetActive();
+  Player **players = playerGetAll();
 
-	// 
-	updateGameState(gameState);
+  //
+  updateGameState(gameState);
 
   // disable ranking
   gameSetIsGameRanked(0);
 
-	// scoreboard
-	switch (activeId)
-	{
-		case UI_ID_GAME_LOBBY:
-		{
-			setLobbyGameOptions(gameState);
-			break;
-		}
-	}
+  // scoreboard
+  switch (activeId)
+  {
+    case UI_ID_GAME_LOBBY:
+    {
+      setLobbyGameOptions(gameState);
+      break;
+    }
+  }
 }
 
 //--------------------------------------------------------------------------
-void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
   State.HasMapData = 0;
-  
+
   setLobbyGameOptions(gameState);
-  
+
   Initialized = 0;
   memset(State.PlayerStates, 0, sizeof(State.PlayerStates));
   State.StartDelay = 0.2 * TPS;
@@ -183,13 +189,21 @@ void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
 }
 
 //--------------------------------------------------------------------------
-void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+void start(struct GameModule *module, PatchStateContainer_t *gameState, enum GameModuleContext context)
 {
   switch (context)
   {
-    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
-    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME_FRAME: gameFrameTick(module, gameState); break;
-    case GAMEMODULE_GAME_UPDATE: gameUpdateTick(module, gameState); break;
+    case GAMEMODULE_LOBBY:
+      lobbyStart(module, gameState);
+      break;
+    case GAMEMODULE_LOAD:
+      loadStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_FRAME:
+      gameFrameTick(module, gameState);
+      break;
+    case GAMEMODULE_GAME_UPDATE:
+      gameUpdateTick(module, gameState);
+      break;
   }
 }

@@ -4,11 +4,11 @@
 #include "messageid.h"
 #include <libdl/gamesettings.h>
 
-#define MAX_CUSTOM_MAP_DEFINITIONS              (128)
-#define CONFIG_ITEM_HELP_SIZE                   (64)
-#define MENU_ELEMENT_NAME_SIZE                  (48)
-#define RAIDS_HUB_MAPFILENAME                   ("raids_hub")
-#define RAIDS_MAX_PLAYERS                       (5)
+#define MAX_CUSTOM_MAP_DEFINITIONS (128)
+#define CONFIG_ITEM_HELP_SIZE (64)
+#define MENU_ELEMENT_NAME_SIZE (48)
+#define RAIDS_HUB_MAPFILENAME ("raids_hub")
+#define RAIDS_MAX_PLAYERS (5)
 
 enum PatchGameNetMessage
 {
@@ -59,42 +59,42 @@ struct MenuElem_ListData;
 struct MenuElem_OrderedListData;
 struct MenuElem_RangeData;
 
-typedef void (*ActionHandler)(struct TabElem* tab, struct MenuElem* element, int actionType, void * actionArg);
-typedef void (*ButtonSelectHandler)(struct TabElem* tab, struct MenuElem* element);
-typedef void (*MenuElementStateHandler)(struct TabElem* tab, struct MenuElem* element, int * state);
-typedef int (*MenuElementListStateHandler)(struct MenuElem_ListData* listData, char* value);
-typedef int (*MenuElementVerticalListStateHandler)(struct MenuElem_VerticalListData* listData, char* value);
-typedef int (*MenuElementOrderedListStateHandler)(struct MenuElem_OrderedListData* listData, char* value);
-typedef int (*MenuElementRangeStateHandler)(struct MenuElem_RangeData* listData, char* value);
-typedef void (*TabStateHandler)(struct TabElem* tab, int * state);
+typedef void (*ActionHandler)(struct TabElem *tab, struct MenuElem *element, int actionType, void *actionArg);
+typedef void (*ButtonSelectHandler)(struct TabElem *tab, struct MenuElem *element);
+typedef void (*MenuElementStateHandler)(struct TabElem *tab, struct MenuElem *element, int *state);
+typedef int (*MenuElementListStateHandler)(struct MenuElem_ListData *listData, char *value);
+typedef int (*MenuElementVerticalListStateHandler)(struct MenuElem_VerticalListData *listData, char *value);
+typedef int (*MenuElementOrderedListStateHandler)(struct MenuElem_OrderedListData *listData, char *value);
+typedef int (*MenuElementRangeStateHandler)(struct MenuElem_RangeData *listData, char *value);
+typedef void (*TabStateHandler)(struct TabElem *tab, int *state);
 
 typedef struct MenuElem
 {
-  char * name;
+  char *name;
   ActionHandler handler;
   MenuElementStateHandler stateHandler;
-  void * userdata;
-  char * help;
+  void *userdata;
+  char *help;
 } MenuElem_t;
 
 typedef struct MenuElem_ListData
 {
-  char * value;
+  char *value;
   MenuElementListStateHandler stateHandler;
   int count;
   int rows;
-  char * items[];
+  char *items[];
 } MenuElem_ListData_t;
 
 typedef struct MenuElem_OrderedListDataItem
 {
   char value;
-  char* name;
+  char *name;
 } MenuElem_OrderedListDataItem_t;
 
 typedef struct MenuElem_OrderedListData
 {
-  char * value;
+  char *value;
   MenuElementOrderedListStateHandler stateHandler;
   int count;
   MenuElem_OrderedListDataItem_t items[];
@@ -102,17 +102,17 @@ typedef struct MenuElem_OrderedListData
 
 typedef struct MenuElem_VerticalListData
 {
-  char * value;
-  char * stagingValue;
+  char *value;
+  char *stagingValue;
   MenuElementVerticalListStateHandler stateHandler;
   int count;
   int rows;
-  char * items[];
+  char *items[];
 } MenuElem_VerticalListData_t;
 
 typedef struct MenuElem_RangeData
 {
-  char * value;
+  char *value;
   MenuElementRangeStateHandler stateHandler;
   char minValue;
   char maxValue;
@@ -123,7 +123,7 @@ typedef struct TabElem
 {
   char name[32];
   TabStateHandler stateHandler;
-  MenuElem_t * elements;
+  MenuElem_t *elements;
   int elementsCount;
   int selectedMenuItemIdx;
   int menuOffset;
@@ -150,21 +150,21 @@ typedef void (*SndCompleteProc)(int loc, int user_data);
 
 typedef struct MapLoaderState
 {
-    u8 Enabled;
-    u8 MapId;
-		u8 CheckState;
-    char MapName[32];
-    char MapFileName[128];
-    int LoadedBytes;
-    int LoadingFileSize;
-    int LoadingFd;
-    int Loaded;
-    int FinishedLoading;
-    int MapCodeInited;
-    void * LevelBuffer;
-    void * SoundBuffer;
-    SndCompleteProc SoundLoadCb;
-    u64 SoundLoadUserData;
+  u8 Enabled;
+  u8 MapId;
+  u8 CheckState;
+  char MapName[32];
+  char MapFileName[128];
+  int LoadedBytes;
+  int LoadingFileSize;
+  int LoadingFd;
+  int Loaded;
+  int FinishedLoading;
+  int MapCodeInited;
+  void *LevelBuffer;
+  void *SoundBuffer;
+  SndCompleteProc SoundLoadCb;
+  u64 SoundLoadUserData;
 } MapLoaderState_t;
 
 typedef struct FreecamSettings
@@ -221,7 +221,8 @@ typedef struct PlayerSyncStateUpdatePacked
   char GadgetLevel;
   char State;
   char StateId;
-  struct {
+  struct
+  {
     char PlayerIdx : 5;
     char Flags : 3;
   };
@@ -237,7 +238,7 @@ extern MapLoaderState_t MapLoaderState;
 extern u32 SONY_MAC_ADDRESSES[];
 extern int SONY_MAC_ADDRESSES_COUNT;
 
-char* getCustomModeName(int modeId, int type);
+char *getCustomModeName(int modeId, int type);
 int configHasDevRules(void);
 int dynamicPageAvailableForCurrentMap(void);
 void dynamicPageEnableForCurrentMap(void);

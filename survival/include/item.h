@@ -14,23 +14,23 @@ struct SurvivalItemDef;
 
 enum SurvivalItemType
 {
-	// items that offer passive effects (stackable or singular)
-	SURVIVAL_ITEM_PASSIVE,
-	// items that can be held and used by the player
-	// auto = item consumed automatically, ie self revive
-	// manual = item consumed by player pressing button
-	// immediate = item consumed as soon as it's acquired
-	SURVIVAL_ITEM_CONSUMABLE_AUTO,
-	SURVIVAL_ITEM_CONSUMABLE_MANUAL,
-	SURVIVAL_ITEM_CONSUMABLE_IMMEDIATE,
+  // items that offer passive effects (stackable or singular)
+  SURVIVAL_ITEM_PASSIVE,
+  // items that can be held and used by the player
+  // auto = item consumed automatically, ie self revive
+  // manual = item consumed by player pressing button
+  // immediate = item consumed as soon as it's acquired
+  SURVIVAL_ITEM_CONSUMABLE_AUTO,
+  SURVIVAL_ITEM_CONSUMABLE_MANUAL,
+  SURVIVAL_ITEM_CONSUMABLE_IMMEDIATE,
 };
 
 enum SurvivalItemStoreCostType
 {
-	SURVIVAL_ITEM_STORE_COST_BOLTS_LINEAR,
-	SURVIVAL_ITEM_STORE_COST_BOLTS_EXPONENTIAL,
-	SURVIVAL_ITEM_STORE_COST_TOKENS_LINEAR,
-	SURVIVAL_ITEM_STORE_COST_TOKENS_EXPONENTIAL,
+  SURVIVAL_ITEM_STORE_COST_BOLTS_LINEAR,
+  SURVIVAL_ITEM_STORE_COST_BOLTS_EXPONENTIAL,
+  SURVIVAL_ITEM_STORE_COST_TOKENS_LINEAR,
+  SURVIVAL_ITEM_STORE_COST_TOKENS_EXPONENTIAL,
 };
 
 typedef void (*ItemInit_func)(int defIdx, struct SurvivalItemDef *def);
@@ -48,52 +48,52 @@ typedef float (*ItemGetVendorRewardChance_func)(int defIdx, struct SurvivalItemD
 
 typedef struct SurvivalItemVTable
 {
-	ItemInit_func InitFunc;
-	ItemTickUpdate_func TickUpdateFunc;
-	ItemDrawUpdate_func DrawUpdateFunc;
-	ItemOnAcquired_func OnAcquiredFunc;
-	ItemOnConsumed_func OnConsumedFunc;
-	ItemHasRoomForMore_func HasRoomForMoreFunc;
-	ItemGetConsumeCooldownTicks_func GetConsumeCooldownTicksFunc;
-	ItemCanBuyInStore_func CanBuyInStoreFunc;
-	ItemGetStoreCost_func GetStoreCostFunc;
-	ItemGetMysteryBoxChance_func GetMysteryboxChanceFunc;
-	ItemGetDropChance_func GetDropChanceFunc;
-	ItemGetVendorRewardChance_func GetVendorRewardChanceFunc;
+  ItemInit_func InitFunc;
+  ItemTickUpdate_func TickUpdateFunc;
+  ItemDrawUpdate_func DrawUpdateFunc;
+  ItemOnAcquired_func OnAcquiredFunc;
+  ItemOnConsumed_func OnConsumedFunc;
+  ItemHasRoomForMore_func HasRoomForMoreFunc;
+  ItemGetConsumeCooldownTicks_func GetConsumeCooldownTicksFunc;
+  ItemCanBuyInStore_func CanBuyInStoreFunc;
+  ItemGetStoreCost_func GetStoreCostFunc;
+  ItemGetMysteryBoxChance_func GetMysteryboxChanceFunc;
+  ItemGetDropChance_func GetDropChanceFunc;
+  ItemGetVendorRewardChance_func GetVendorRewardChanceFunc;
 } SurvivalItemVTable_t;
 
 typedef struct SurvivalItemDef
 {
-	char Name[32];
-	char Description[64];
-	int TexId;
-	u32 TexColor;
-	enum SurvivalItemType Type;
-	int MaxHeldAtOnce;
-	char AppearOnWall;
-	u32 ConsumeCooldownTicks;
+  char Name[32];
+  char Description[64];
+  int TexId;
+  u32 TexColor;
+  enum SurvivalItemType Type;
+  int MaxHeldAtOnce;
+  char AppearOnWall;
+  u32 ConsumeCooldownTicks;
 
-	// mystery box
-	float MysteryboxChanceWeight;
-	int MysteryboxForceAcquire;
+  // mystery box
+  float MysteryboxChanceWeight;
+  int MysteryboxForceAcquire;
 
-	// drops
-	float DropChanceWeight;
-	char DropPickupByAnyPlayer;
+  // drops
+  float DropChanceWeight;
+  char DropPickupByAnyPlayer;
 
-	// chance to get on weapon upgrade at weapon vendor
-	float VendorRewardChanceWeight;
+  // chance to get on weapon upgrade at weapon vendor
+  float VendorRewardChanceWeight;
 
-	// store
-	enum SurvivalItemStoreCostType StoreCostType;
-	u32 StoreCost;
-	union
-	{
-		u32 Linear;
-		float Exponential;
-	} StoreCostIncrease;
+  // store
+  enum SurvivalItemStoreCostType StoreCostType;
+  u32 StoreCost;
+  union
+  {
+    u32 Linear;
+    float Exponential;
+  } StoreCostIncrease;
 
-	SurvivalItemVTable_t VTable;
+  SurvivalItemVTable_t VTable;
 } SurvivalItemDef_t;
 
 #endif // SURVIVAL_ITEM_H

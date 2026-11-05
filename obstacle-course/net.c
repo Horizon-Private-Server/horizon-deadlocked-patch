@@ -24,7 +24,7 @@
 #include "include/utils.h"
 
 //--------------------------------------------------------------------------
-void onPlayerReachedEnd(PlayerReachedEndMessage_t* msg)
+void onPlayerReachedEnd(PlayerReachedEndMessage_t *msg)
 {
   // mark completed
   State.PlayerStates[msg->PlayerId].TimeCompleted = gameGetTime();
@@ -32,28 +32,28 @@ void onPlayerReachedEnd(PlayerReachedEndMessage_t* msg)
 }
 
 //--------------------------------------------------------------------------
-int onPlayerReachedEndRemote(void * connection, void * data)
+int onPlayerReachedEndRemote(void *connection, void *data)
 {
   PlayerReachedEndMessage_t msg;
-	memcpy(&msg, data, sizeof(msg));
+  memcpy(&msg, data, sizeof(msg));
   onPlayerReachedEnd(&msg);
-	return sizeof(msg);
+  return sizeof(msg);
 }
 
 //--------------------------------------------------------------------------
 void sendPlayerReachedEnd(int playerId, u64 ticks)
 {
-	// send out
-	PlayerReachedEndMessage_t msg;
-	msg.PlayerId = playerId;
-	msg.Ticks = ticks;
-	netBroadcastCustomAppMessage(0, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_REACHED_END, sizeof(msg), &msg);
+  // send out
+  PlayerReachedEndMessage_t msg;
+  msg.PlayerId = playerId;
+  msg.Ticks = ticks;
+  netBroadcastCustomAppMessage(0, netGetDmeServerConnection(), CUSTOM_MSG_PLAYER_REACHED_END, sizeof(msg), &msg);
   onPlayerReachedEnd(&msg);
 }
 
 //--------------------------------------------------------------------------
 void netHookMessages(void)
 {
-	// Hook custom net events
-	netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_REACHED_END, &onPlayerReachedEndRemote);
+  // Hook custom net events
+  netInstallCustomMsgHandler(CUSTOM_MSG_PLAYER_REACHED_END, &onPlayerReachedEndRemote);
 }

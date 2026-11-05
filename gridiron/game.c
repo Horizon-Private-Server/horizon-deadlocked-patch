@@ -41,15 +41,15 @@
 extern int Initialized;
 
 int tryEquipBall(int playerIdx, int resetCounter);
-int playerStateCanHoldBall(Player * player);
-int (*baseFlagHandleGuberEvent)(Moby*, GuberEvent*) = (int (*)(Moby*, GuberEvent*))0x00417BB8;
+int playerStateCanHoldBall(Player *player);
+int (*baseFlagHandleGuberEvent)(Moby *, GuberEvent *) = (int (*)(Moby *, GuberEvent *))0x00417BB8;
 
 char ScoreMessageBuffer[64];
 
 //--------------------------------------------------------------------------
-void onSetPlayerStats(int playerId, struct CGMPlayerStats* stats)
+void onSetPlayerStats(int playerId, struct CGMPlayerStats *stats)
 {
-	memcpy(&State.PlayerStates[playerId].Stats, stats, sizeof(struct CGMPlayerStats));
+  memcpy(&State.PlayerStates[playerId].Stats, stats, sizeof(struct CGMPlayerStats));
 }
 
 //--------------------------------------------------------------------------
@@ -62,32 +62,38 @@ void onReceiveTeamScore(int teamScores[2])
 //--------------------------------------------------------------------------
 void onBallScored(int scoredByPlayerIdx)
 {
-  Player** players = playerGetAll();
+  Player **players = playerGetAll();
 
   // return to base
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    if (players[i] && players[i]->PlayerMoby) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    if (players[i] && players[i]->PlayerMoby)
+    {
       playerRespawn(players[i]);
     }
   }
 
   // popup and play sound
-  Player* local = playerGetFromSlot(0);
-  if (local && local->PlayerMoby) mobyPlaySoundByClass(3, 0, local->PlayerMoby, MOBY_ID_RED_FLAG);
+  Player *local = playerGetFromSlot(0);
+  if (local && local->PlayerMoby)
+    mobyPlaySoundByClass(3, 0, local->PlayerMoby, MOBY_ID_RED_FLAG);
   snprintf(ScoreMessageBuffer, sizeof(ScoreMessageBuffer), "%s scored!", gameGetSettings()->PlayerNames[scoredByPlayerIdx]);
   uiShowPopup(0, ScoreMessageBuffer);
 }
 
 //--------------------------------------------------------------------------
-void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRes)
+void getResurrectPoint(Player *player, VECTOR outPos, VECTOR outRot, int firstRes)
 {
   VECTOR offset;
 
   // always spawn at base facing ball spawn
-  if (player->Team == State.Teams[0].TeamId) {
+  if (player->Team == State.Teams[0].TeamId)
+  {
     vector_copy(outPos, State.Teams[0].BasePosition);
-  } else {
+  }
+  else
+  {
     vector_copy(outPos, State.Teams[1].BasePosition);
   }
 
@@ -107,35 +113,34 @@ void getResurrectPoint(Player* player, VECTOR outPos, VECTOR outRot, int firstRe
 //--------------------------------------------------------------------------
 int gameGetTeamScore(int team, int score)
 {
-  if (State.Teams[0].TeamId == team) return State.Teams[0].Score;
-  if (State.Teams[1].TeamId == team) return State.Teams[1].Score;
+  if (State.Teams[0].TeamId == team)
+    return State.Teams[0].Score;
+  if (State.Teams[1].TeamId == team)
+    return State.Teams[1].Score;
 
   return 0;
 }
 
 //--------------------------------------------------------------------------
-int playerStateCanHoldBall(Player * player)
+int playerStateCanHoldBall(Player *player)
 {
-	if (player->Health <= 0)
-		return 0;
+  if (player->Health <= 0)
+    return 0;
 
   if (player->InVehicle)
     return 0;
 
-	if (player->PlayerState == PLAYER_STATE_DEATH
-	 || player->PlayerState == PLAYER_STATE_DEATH_FALL
-	 || player->PlayerState == PLAYER_STATE_LAVA_DEATH
-	 || player->PlayerState == PLAYER_STATE_QUICKSAND_SINK
-	 || player->PlayerState == PLAYER_STATE_DEATH_NO_FALL)
-	 return 0;
+  if (player->PlayerState == PLAYER_STATE_DEATH || player->PlayerState == PLAYER_STATE_DEATH_FALL || player->PlayerState == PLAYER_STATE_LAVA_DEATH || player->PlayerState == PLAYER_STATE_QUICKSAND_SINK || player->PlayerState == PLAYER_STATE_DEATH_NO_FALL)
+    return 0;
 
-	return 1;
+  return 1;
 }
 
 //--------------------------------------------------------------------------
 int tryEquipBall(int playerIdx, int resetCounter)
 {
-  if (!State.BallMoby || playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS) return 0;
+  if (!State.BallMoby || playerIdx < 0 || playerIdx >= GAME_MAX_PLAYERS)
+    return 0;
   ballPickup(State.BallMoby, playerIdx, resetCounter);
   return ballGetCarrierIdx(State.BallMoby) == playerIdx || ballHasPendingPickup(State.BallMoby, playerIdx);
 }
@@ -147,15 +152,18 @@ void tryDropBall(int playerIdx)
 }
 
 //--------------------------------------------------------------------------
-void playerTryEnterThrowState(Player* player)
+void playerTryEnterThrowState(Player *player)
 {
-  Moby* nextSwingTarget = *(Moby**)((u32)player + 0x1ed0);
-  char forceSwingSwitch = *(char*)((u32)player + 0x266c);
-  if (forceSwingSwitch || nextSwingTarget) {
-    PlayerVTable * table = playerGetVTable(player);
+  Moby *nextSwingTarget = *(Moby **)((u32)player + 0x1ed0);
+  char forceSwingSwitch = *(char *)((u32)player + 0x266c);
+  if (forceSwingSwitch || nextSwingTarget)
+  {
+    PlayerVTable *table = playerGetVTable(player);
     table->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
-  } else {
-    PlayerVTable * table = playerGetVTable(player);
+  }
+  else
+  {
+    PlayerVTable *table = playerGetVTable(player);
     table->UpdateState(player, PLAYER_STATE_THROW_SHURIKEN, 1, 1, 1);
   }
 }
@@ -163,13 +171,14 @@ void playerTryEnterThrowState(Player* player)
 //--------------------------------------------------------------------------
 void playerLogic(int playerIdx)
 {
-	Player * localPlayer = playerGetFromSlot(0);
-  Player * player = playerGetFromIndex(playerIdx);
-  struct CGMPlayer * playerState = &State.PlayerStates[playerIdx];
-	VECTOR temp = {0,0,0,0};
-	int gameTime = gameGetTime();
+  Player *localPlayer = playerGetFromSlot(0);
+  Player *player = playerGetFromIndex(playerIdx);
+  struct CGMPlayer *playerState = &State.PlayerStates[playerIdx];
+  VECTOR temp = { 0, 0, 0, 0 };
+  int gameTime = gameGetTime();
 
-  if (!player) return;
+  if (!player)
+    return;
 
   // get hero state
   int state = player->PlayerState;
@@ -179,30 +188,38 @@ void playerLogic(int playerIdx)
   if (State.Teams[friendlyTeamIdx].TeamId != player->Team)
     friendlyTeamIdx = 1;
   int enemyTeamIdx = !friendlyTeamIdx;
-  
+
   // Predicted pickups remain separate from confirmed ownership.
-  if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
+  if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0)
+  {
     vector_subtract(temp, player->PlayerPosition, State.BallMoby->Position);
-    if (vector_sqrmag(temp) < 4) {
+    if (vector_sqrmag(temp) < 4)
+    {
       tryEquipBall(playerIdx, ballGetResetCounter(State.BallMoby));
     }
   }
-  
+
 #if DEBUG
   // quick pickup
-  if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0) {
-    if (padGetButtonDown(player->LocalPlayerIndex, PAD_L1 | PAD_UP) > 0) {
+  if (player->IsLocal && canHoldBall && State.BallMoby && ballCarrierIdx < 0)
+  {
+    if (padGetButtonDown(player->LocalPlayerIndex, PAD_L1 | PAD_UP) > 0)
+    {
       tryEquipBall(playerIdx, ballGetResetCounter(State.BallMoby));
     }
   }
 #endif
 
-  if (State.BallMoby && player->HeldMoby == State.BallMoby) {
+  if (State.BallMoby && player->HeldMoby == State.BallMoby)
+  {
 
     // drop if ball belongs to someone else
-    if (ballCarrierIdx >= 0 && ballCarrierIdx != playerIdx) {
-		  playerDropFlag(player, 0);
-    } else {
+    if (ballCarrierIdx >= 0 && ballCarrierIdx != playerIdx)
+    {
+      playerDropFlag(player, 0);
+    }
+    else
+    {
       vector_subtract(temp, State.Teams[enemyTeamIdx].BasePosition, player->PlayerPosition);
 
       if (player->IsLocal && ballCarrierIdx == playerIdx && vector_sqrmag(temp) < 5 && player->Ground.onGood && player->Ground.pMoby && player->Ground.pMoby->OClass == MOBY_ID_FLAG_SPAWN_POINT)
@@ -215,16 +232,7 @@ void playerLogic(int playerIdx)
       }
       else if (playerPadGetButtonDown(player, PAD_R1))
       {
-        if (state == PLAYER_STATE_CHARGE
-          || state == PLAYER_STATE_WALK
-          || state == PLAYER_STATE_IDLE
-          || state == PLAYER_STATE_THROW_SHURIKEN
-          || state == PLAYER_STATE_JUMP
-          || state == PLAYER_STATE_DOUBLE_JUMP
-          || state == PLAYER_STATE_SKID
-          || state == PLAYER_STATE_SLIDE
-          || state == PLAYER_STATE_SLOPESLIDE
-          )
+        if (state == PLAYER_STATE_CHARGE || state == PLAYER_STATE_WALK || state == PLAYER_STATE_IDLE || state == PLAYER_STATE_THROW_SHURIKEN || state == PLAYER_STATE_JUMP || state == PLAYER_STATE_DOUBLE_JUMP || state == PLAYER_STATE_SKID || state == PLAYER_STATE_SLIDE || state == PLAYER_STATE_SLOPESLIDE)
         {
           playerTryEnterThrowState(player);
         }
@@ -235,7 +243,7 @@ void playerLogic(int playerIdx)
       }
       else if (playerPadGetButtonDown(player, PAD_TRIANGLE) && state == PLAYER_STATE_THROW_SHURIKEN)
       {
-        PlayerVTable * table = playerGetVTable(player);
+        PlayerVTable *table = playerGetVTable(player);
         table->UpdateState(player, PLAYER_STATE_IDLE, 1, 1, 1);
       }
       else if (playerPadGetButton(player, PAD_R1) && state == PLAYER_STATE_THROW_SHURIKEN)
@@ -251,49 +259,57 @@ void playerLogic(int playerIdx)
 }
 
 //--------------------------------------------------------------------------
-void frameTick(PatchStateContainer_t * gameState)
+void frameTick(PatchStateContainer_t *gameState)
 {
-  
 }
 
 //--------------------------------------------------------------------------
-void gameTick(PatchStateContainer_t * gameState)
+void gameTick(PatchStateContainer_t *gameState)
 {
-	GameSettings * gameSettings = gameGetSettings();
-	GameOptions * gameOptions = gameGetOptions();
-  GameData * gameData = gameGetData();
-	Player ** players = playerGetAll();
-	int i;
-	char buffer[32];
-	int gameTime = gameGetTime();
+  GameSettings *gameSettings = gameGetSettings();
+  GameOptions *gameOptions = gameGetOptions();
+  GameData *gameData = gameGetData();
+  Player **players = playerGetAll();
+  int i;
+  char buffer[32];
+  int gameTime = gameGetTime();
 
-  if (gameState->HalfTimeState == 1 || gameState->HalfTimeState == 2) return;
-  if (gameState->OverTimeState == 1 || gameState->OverTimeState == 2) return;
+  if (gameState->HalfTimeState == 1 || gameState->HalfTimeState == 2)
+    return;
+  if (gameState->OverTimeState == 1 || gameState->OverTimeState == 2)
+    return;
 
   // track time holding flag pts
   int carrierIdx = ballGetCarrierIdx(State.BallMoby);
-  if (carrierIdx >= 0 && carrierIdx < GAME_MAX_PLAYERS) {
+  if (carrierIdx >= 0 && carrierIdx < GAME_MAX_PLAYERS)
+  {
     State.PlayerStates[carrierIdx].Stats.TimeWithBall += 1 / 60.0;
   }
 
   // move scores into game data
   // which will be used by the game to determine who wins
   // and how to sort the end game scoreboard
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     playerLogic(i);
   }
 
   // end game logic
-  if (gameAmIHost()) {
+  if (gameAmIHost())
+  {
 
     // target reached
     int capsToWin = gameOptions->GameFlags.MultiplayerGameFlags.CapsToWin;
-    if (capsToWin > 0) {
-      if (State.Teams[0].Score > capsToWin) {
+    if (capsToWin > 0)
+    {
+      if (State.Teams[0].Score > capsToWin)
+      {
         gameSetWinner(State.Teams[0].TeamId, 1);
         gameEnd(1);
         gameSetWinner(State.Teams[0].TeamId, 1);
-      } else if (State.Teams[1].Score > capsToWin) {
+      }
+      else if (State.Teams[1].Score > capsToWin)
+      {
         gameSetWinner(State.Teams[1].TeamId, 1);
         gameEnd(1);
         gameSetWinner(State.Teams[1].TeamId, 1);
@@ -315,14 +331,17 @@ int findClosestSpawnPointToPosition(VECTOR position, float deadzone)
   float bestDist = 1000000;
   float sqrDeadzone = deadzone * deadzone;
   int spCount = spawnPointGetCount();
-  for (i = 0; i < spCount; ++i) {
-    if (!spawnPointIsPlayer(i)) continue;
+  for (i = 0; i < spCount; ++i)
+  {
+    if (!spawnPointIsPlayer(i))
+      continue;
 
-    struct SpawnPoint* sp = spawnPointGet(i);
+    struct SpawnPoint *sp = spawnPointGet(i);
     VECTOR delta;
     vector_subtract(delta, position, &sp->M0[12]);
     float sqrDist = vector_sqrmag(delta);
-    if (sqrDist < bestDist && sqrDist >= sqrDeadzone) {
+    if (sqrDist < bestDist && sqrDist >= sqrDeadzone)
+    {
       bestDist = sqrDist;
       bestIdx = i;
     }
@@ -343,14 +362,17 @@ void findTeamBallSpawnPoint(int teamIdx)
   vector_add(dt, dt, State.Teams[teamIdx].BasePosition);
 
   // check for ground
-  VECTOR ground, down = {0,0,-5,0}, up = {0,0,1,0};
+  VECTOR ground, down = { 0, 0, -5, 0 }, up = { 0, 0, 1, 0 };
   vector_add(ground, dt, down);
-  if (CollLine_Fix(dt, ground, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL)) {
+  if (CollLine_Fix(dt, ground, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL))
+  {
     int cType = CollLine_Fix_GetHitCollisionId() & 0xF;
-    if (cType != 0x0B && cType != 0x01 && cType != 0x04 && cType != 0x05 && cType != 0x0D && cType != 0x03) {
+    if (cType != 0x0B && cType != 0x01 && cType != 0x04 && cType != 0x05 && cType != 0x0D && cType != 0x03)
+    {
 
       vector_add(ground, State.Teams[teamIdx].BasePosition, up);
-      if (!CollLine_Fix(ground, dt, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL)) {
+      if (!CollLine_Fix(ground, dt, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, NULL, NULL))
+      {
         vector_copy(State.Teams[teamIdx].BallSpawnPosition, dt);
         DPRINTF("found team ball spawn near base %d\n", State.Teams[teamIdx].TeamId);
         return;
@@ -360,10 +382,13 @@ void findTeamBallSpawnPoint(int teamIdx)
 
   int spIdx = findClosestSpawnPointToPosition(dt, 0);
   DPRINTF("closest sp team:%d is %d\n", State.Teams[teamIdx].TeamId, spIdx);
-  if (spIdx >= 0) {
+  if (spIdx >= 0)
+  {
     vector_copy(State.Teams[teamIdx].BallSpawnPosition, &spawnPointGet(spIdx)->M0[12]);
     State.Teams[teamIdx].BallSpawnPosition[2] += 2;
-  } else {
+  }
+  else
+  {
     vector_copy(State.Teams[teamIdx].BallSpawnPosition, State.Teams[teamIdx].BasePosition);
   }
 }
@@ -372,45 +397,60 @@ void findTeamBallSpawnPoint(int teamIdx)
 void findBallCenterSpawnPoint(void)
 {
   static int found = 0;
-  if (found) return;
+  if (found)
+    return;
 
-	// reset team scores
-	GameSettings* gameSettings = gameGetSettings();
+  // reset team scores
+  GameSettings *gameSettings = gameGetSettings();
   int i;
-	for (i = 0; i < 2; ++i) {
-		State.Teams[i].Score = 0;
+  for (i = 0; i < 2; ++i)
+  {
+    State.Teams[i].Score = 0;
     State.Teams[i].TeamId = -1;
-	}
+  }
 
   // determine teams
   int teamCount = 0;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     int team = gameSettings->PlayerTeams[i];
-    if (team < 0) continue;
+    if (team < 0)
+      continue;
 
-    if (teamCount == 0 || team != State.Teams[teamCount-1].TeamId) {
+    if (teamCount == 0 || team != State.Teams[teamCount - 1].TeamId)
+    {
       State.Teams[teamCount].TeamId = team;
       teamCount += 1;
     }
   }
 
   // auto team if game started with only 1 team
-  if (teamCount == 1) {
-    switch (State.Teams[0].TeamId) {
-      case TEAM_BLUE: State.Teams[1].TeamId = TEAM_RED; break;
-      case TEAM_RED: State.Teams[1].TeamId = TEAM_BLUE; break;
-      case TEAM_GREEN: State.Teams[1].TeamId = TEAM_ORANGE; break;
-      case TEAM_ORANGE: State.Teams[1].TeamId = TEAM_GREEN; break;
+  if (teamCount == 1)
+  {
+    switch (State.Teams[0].TeamId)
+    {
+      case TEAM_BLUE:
+        State.Teams[1].TeamId = TEAM_RED;
+        break;
+      case TEAM_RED:
+        State.Teams[1].TeamId = TEAM_BLUE;
+        break;
+      case TEAM_GREEN:
+        State.Teams[1].TeamId = TEAM_ORANGE;
+        break;
+      case TEAM_ORANGE:
+        State.Teams[1].TeamId = TEAM_GREEN;
+        break;
     }
   }
 
   // find and update flags
-  Moby* moby = mobyListGetStart();
-  Moby* mEnd = mobyListGetEnd();
+  Moby *moby = mobyListGetStart();
+  Moby *mEnd = mobyListGetEnd();
   VECTOR basePositions[4];
-  int hasBasePosition[4] = {0,0,0,0};
-	while (moby < mEnd)
-	{
+  int hasBasePosition[4] = { 0, 0, 0, 0 };
+  while (moby < mEnd)
+  {
     int flag = 0, team = 0;
     switch (moby->OClass)
     {
@@ -440,25 +480,33 @@ void findBallCenterSpawnPoint(void)
       }
     }
 
-    if (flag) {
+    if (flag)
+    {
       // hide and disable
       moby->ModeBits |= MOBY_MODE_BIT_DISABLED | MOBY_MODE_BIT_HIDDEN | MOBY_MODE_BIT_NO_UPDATE;
       moby->State = 2;
-    
+
       // update team base position
-      if (!hasBasePosition[team]) { vector_copy(basePositions[team], (float*)moby->PVar); hasBasePosition[team] = 1; }
-      else { vector_copy((float*)moby->PVar, basePositions[team]); }
-      *(u16*)(moby->PVar + 0x14) = team;
+      if (!hasBasePosition[team])
+      {
+        vector_copy(basePositions[team], (float *)moby->PVar);
+        hasBasePosition[team] = 1;
+      }
+      else
+      {
+        vector_copy((float *)moby->PVar, basePositions[team]);
+      }
+      *(u16 *)(moby->PVar + 0x14) = team;
 
 #if DEBUG
       printf("flag %04X at %08X ", moby->OClass, (u32)moby);
-      vector_print((float*)moby->PVar);
+      vector_print((float *)moby->PVar);
       printf("\n");
 #endif
     }
 
-		++moby;
-	}
+    ++moby;
+  }
 
   // set team base
   vector_copy(State.Teams[0].BasePosition, basePositions[State.Teams[0].TeamId]);
@@ -467,7 +515,7 @@ void findBallCenterSpawnPoint(void)
   // determine ball spawn
   // as closest player spawn
   // to median of bases
-  VECTOR spMedianPosition={0,0,0,0};
+  VECTOR spMedianPosition = { 0, 0, 0, 0 };
   vector_add(spMedianPosition, spMedianPosition, State.Teams[0].BasePosition);
   vector_add(spMedianPosition, spMedianPosition, State.Teams[1].BasePosition);
   vector_scale(spMedianPosition, spMedianPosition, 0.5);
@@ -482,20 +530,20 @@ void findBallCenterSpawnPoint(void)
   findTeamBallSpawnPoint(1);
 
   found = 1;
-  
+
   DPRINTF("teams %d %d\n", State.Teams[0].TeamId, State.Teams[1].TeamId);
 }
 
 //--------------------------------------------------------------------------
-void initialize(PatchStateContainer_t* gameState)
+void initialize(PatchStateContainer_t *gameState)
 {
   static int startDelay = 60 * 0.2;
-	static int waitingForClientsReady = 0;
+  static int waitingForClientsReady = 0;
 
-	GameSettings* gameSettings = gameGetSettings();
-	Player** players = playerGetAll();
-	GameData* gameData = gameGetData();
-	int i;
+  GameSettings *gameSettings = gameGetSettings();
+  Player **players = playerGetAll();
+  GameData *gameData = gameGetData();
+  int i;
 
   // change deathmatch points to use playerPoints
   // instead of playerKills - playerSuicides
@@ -517,12 +565,12 @@ void initialize(PatchStateContainer_t* gameState)
   // this fix is required to ensure that important mob guber events trigger on everyone's screen
   POKE_U32(0x00611518, 0x24040000);
 
-	// point get resurrect point to ours
-	*(u32*)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
-	*(u32*)0x005e2d44 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
+  // point get resurrect point to ours
+  *(u32 *)0x00610724 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
+  *(u32 *)0x005e2d44 = 0x0C000000 | ((u32)&getResurrectPoint >> 2);
 
-	// hook messages
-	netHookMessages();
+  // hook messages
+  netHookMessages();
 
   //
   initializeScoreboard();
@@ -531,14 +579,16 @@ void initialize(PatchStateContainer_t* gameState)
   ballInitialize();
   findBallCenterSpawnPoint();
 
-  if (startDelay) {
+  if (startDelay)
+  {
     --startDelay;
     return;
   }
-  
+
   // wait for all clients to be ready
   // or for 5 seconds
-  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60)) {
+  if (!gameState->AllClientsReady && waitingForClientsReady < (5 * 60))
+  {
     uiShowPopup(0, "Waiting For Players...");
     ++waitingForClientsReady;
     return;
@@ -548,68 +598,73 @@ void initialize(PatchStateContainer_t* gameState)
   hudHidePopup();
 
   // spawn ball
-  if (State.IsHost) {
+  if (State.IsHost)
+  {
     ballCreate(State.BallSpawnPosition);
   }
 
-	// initialize player states
-	State.LocalPlayerState = NULL;
-	for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-		Player * p = players[i];
-		State.PlayerStates[i].PlayerIndex = i;
-		State.PlayerStates[i].Stats.Points = 0;
-		State.PlayerStates[i].Stats.TimeWithBall = 0;
+  // initialize player states
+  State.LocalPlayerState = NULL;
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *p = players[i];
+    State.PlayerStates[i].PlayerIndex = i;
+    State.PlayerStates[i].Stats.Points = 0;
+    State.PlayerStates[i].Stats.TimeWithBall = 0;
 
-		// is local
-		if (p && p->IsLocal && !State.LocalPlayerState) {
+    // is local
+    if (p && p->IsLocal && !State.LocalPlayerState)
+    {
       State.LocalPlayerState = &State.PlayerStates[i];
-		}
-	}
+    }
+  }
 
-	// initialize state
-	State.InitializedTime = gameGetTime();
+  // initialize state
+  State.InitializedTime = gameGetTime();
 
   // respawn locals
-  for (i = 0; i < GAME_MAX_LOCALS; ++i) {
-    Player* local = playerGetFromSlot(i);
-    if (local && local->PlayerMoby && local->pNetPlayer) {
+  for (i = 0; i < GAME_MAX_LOCALS; ++i)
+  {
+    Player *local = playerGetFromSlot(i);
+    if (local && local->PlayerMoby && local->pNetPlayer)
+    {
       playerRespawn(local);
     }
   }
-  
-	Initialized = 1;
+
+  Initialized = 1;
 }
 
 //--------------------------------------------------------------------------
-void updateGameState(PatchStateContainer_t * gameState)
+void updateGameState(PatchStateContainer_t *gameState)
 {
-	int i;
+  int i;
 
-	// game state update
-	if (gameState->UpdateGameState)
-	{
-    // 
-	}
+  // game state update
+  if (gameState->UpdateGameState)
+  {
+    //
+  }
 
-	// stats
-	if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
-	{
+  // stats
+  if (gameState->UpdateCustomGameStats && gameState->CustomGameStats)
+  {
     gameState->CustomGameStatsSize = sizeof(struct CGMGameData);
-		struct CGMGameData* sGameData = (struct CGMGameData*)gameState->CustomGameStats->Payload;
-		sGameData->Version = 0x00000001;
+    struct CGMGameData *sGameData = (struct CGMGameData *)gameState->CustomGameStats->Payload;
+    sGameData->Version = 0x00000001;
 
-		for (i = 0; i < GAME_MAX_PLAYERS; ++i)
-		{
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
       sGameData->TimeWithBall[i] = State.PlayerStates[i].Stats.TimeWithBall;
-			sGameData->Points[i] = State.PlayerStates[i].Stats.Points;
-		}
+      sGameData->Points[i] = State.PlayerStates[i].Stats.Points;
+    }
 
     for (i = 0; i < 2; ++i)
     {
-			sGameData->TeamIds[i] = State.Teams[i].TeamId;
-			sGameData->TeamScore[i] = State.Teams[i].Score;
+      sGameData->TeamIds[i] = State.Teams[i].TeamId;
+      sGameData->TeamScore[i] = State.Teams[i].Score;
     }
-	}
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -617,56 +672,66 @@ void setLobbyGameOptions(void)
 {
   static int set = 0;
 
-	// set game options
-	GameOptions * gameOptions = gameGetOptions();
-	GameSettings* gameSettings = gameGetSettings();
-	if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0 || set)
-		return;
-	
+  // set game options
+  GameOptions *gameOptions = gameGetOptions();
+  GameSettings *gameSettings = gameGetSettings();
+  if (!gameOptions || !gameSettings || gameSettings->GameLoadStartTime <= 0 || set)
+    return;
+
   // force ctf
-  if (gameSettings->GameRules != GAMERULE_CTF) {
+  if (gameSettings->GameRules != GAMERULE_CTF)
+  {
     gameSettings->GameRules = GAMERULE_CTF;
     gameOptions->GameFlags.MultiplayerGameFlags.Timelimit = (int)maxf(10, gameOptions->GameFlags.MultiplayerGameFlags.Timelimit);
     gameOptions->GameFlags.MultiplayerGameFlags.CapsToWin = 0;
   }
-	
-	// apply options
+
+  // apply options
   gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Flags = 1;
   gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 2; // CTF SPAWNS
-	gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
-	gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Juggernaut = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
 
   // force 2 teams of blue,red,green,orange
   int team1 = -1;
   int team2 = -1;
-  int mappings[GAME_MAX_PLAYERS] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+  int mappings[GAME_MAX_PLAYERS] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
   int alternator = 0;
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     int team = gameSettings->PlayerTeams[i];
-    if (team >= 0) {
-      if (team1 < 0) {
+    if (team >= 0)
+    {
+      if (team1 < 0)
+      {
         team1 = team;
-        if (team1 > TEAM_ORANGE) team1 = team1 % 4;
+        if (team1 > TEAM_ORANGE)
+          team1 = team1 % 4;
         mappings[team] = 0;
       }
-      else if (team != team1 && team2 < 0) {
+      else if (team != team1 && team2 < 0)
+      {
         team2 = team;
-        if (team2 > TEAM_ORANGE) team2 = !team1;
+        if (team2 > TEAM_ORANGE)
+          team2 = !team1;
         mappings[team] = 1;
       }
-      else if (mappings[team] < 0) {
+      else if (mappings[team] < 0)
+      {
         mappings[team] = alternator++ % 2;
       }
     }
   }
-  
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
+
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
     int team = gameSettings->PlayerTeams[i];
-    if (team >= 0 && team != team1 && team != team2) {
+    if (team >= 0 && team != team1 && team != team2)
+    {
       gameSettings->PlayerTeams[i] = mappings[team] ? team2 : team1;
     }
   }

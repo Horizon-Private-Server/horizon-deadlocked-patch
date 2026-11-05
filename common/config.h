@@ -6,32 +6,32 @@
 /*
  * Fixed pointers to patch container for use by external modules.
  */
-#define PATCH_INTEROP             (*(PatchInterop_t**)0x000CFFC0)
-#define PATCH_DZO_INTEROP_FUNCS	  (*(DzoInteropFunctions_t**)0x000CFFC4)
-#define PATCH_POINTERS_SPECTATE   (*(u8*)(0x000CFFC0 + 8))
-#define PATCH_POINTERS_PATCHMENU  (*(u8*)(0x000CFFC0 + 9))
-#define PATCH_POINTERS_SCOREBOARD (*(u8*)(0x000CFFC0 + 10))
-#define PATCH_POINTERS_QUICKCHAT  (*(u8*)(0x000CFFC0 + 11))
-#define DZO_MAPLOADER_WAD_BUFFER  ((void*)0x02100000)
+#define PATCH_INTEROP (*(PatchInterop_t **)0x000CFFC0)
+#define PATCH_DZO_INTEROP_FUNCS (*(DzoInteropFunctions_t **)0x000CFFC4)
+#define PATCH_POINTERS_SPECTATE (*(u8 *)(0x000CFFC0 + 8))
+#define PATCH_POINTERS_PATCHMENU (*(u8 *)(0x000CFFC0 + 9))
+#define PATCH_POINTERS_SCOREBOARD (*(u8 *)(0x000CFFC0 + 10))
+#define PATCH_POINTERS_QUICKCHAT (*(u8 *)(0x000CFFC0 + 11))
+#define DZO_MAPLOADER_WAD_BUFFER ((void *)0x02100000)
 
-#define CMODE_SURVIVAL_VERSION    (12)
-#define CMODE_RAIDS_VERSION       (9)
+#define CMODE_SURVIVAL_VERSION (12)
+#define CMODE_RAIDS_VERSION (9)
 
 struct CustomMapDef;
 
-typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void * data);
+typedef void (*SendCustomCommandToClientFunc_t)(int id, int size, void *data);
 typedef void (*SetSpectateFunc_t)(int localPlayerIndex, int spectatePlayerOrDisable);
 typedef int (*GetCustomMapDefCountFunc_t)(void);
-typedef struct CustomMapDef* (*GetCustomMapDefFunc_t)(int index);
-typedef int (*ReadCustomMapExtraDataFunc_t)(char* mapFilename, void* buffer, int bufferSize, int customModeId);
+typedef struct CustomMapDef *(*GetCustomMapDefFunc_t)(int index);
+typedef int (*ReadCustomMapExtraDataFunc_t)(char *mapFilename, void *buffer, int bufferSize, int customModeId);
 typedef void (*RefreshCustomMapDefsFunc_t)(void);
-typedef void (*HopToCustomMapFunc_t)(struct CustomMapDef* def);
+typedef void (*HopToCustomMapFunc_t)(struct CustomMapDef *def);
 
 /*
  * 			Function that reads the custom map extra data from the usb drive for the current game mode.
  *      Returns 1 on success, 0 on failure.
  */
-typedef int (*ReadExtraData_f)(void* dst, int len);
+typedef int (*ReadExtraData_f)(void *dst, int len);
 
 typedef struct PatchConfig
 {
@@ -60,13 +60,13 @@ typedef struct PatchConfig
   char levelOfDetailMobs;
 
 #if TWEAKERS
-  char characterTweakers[1 + 7*2];
+  char characterTweakers[1 + 7 * 2];
 #endif
 } PatchConfig_t;
 
 typedef struct SurvivalConfig
 {
-	u8 gambit;
+  u8 gambit;
 } SurvivalConfig_t;
 
 enum FixedCycleOrderMode
@@ -79,9 +79,9 @@ enum FixedCycleOrderMode
 
 enum PayloadContestMode
 {
-	PAYLOAD_CONTEST_OFF,
-	PAYLOAD_CONTEST_SLOW,
-	PAYLOAD_CONTEST_STOP
+  PAYLOAD_CONTEST_OFF,
+  PAYLOAD_CONTEST_SLOW,
+  PAYLOAD_CONTEST_STOP
 };
 
 enum GameRuleInputRestrictions
@@ -91,14 +91,15 @@ enum GameRuleInputRestrictions
   GAMERULE_INPUT_RESTRICTION_KBM_ONLY,
 };
 
-typedef struct UpdateGameStateRequest {
-	char TeamsEnabled;
+typedef struct UpdateGameStateRequest
+{
+  char TeamsEnabled;
   char PADDING;
   short Version;
-	int RoundNumber;
-	int TeamScores[GAME_MAX_PLAYERS];
-	char ClientIds[GAME_MAX_PLAYERS];
-	char Teams[GAME_MAX_PLAYERS];
+  int RoundNumber;
+  int TeamScores[GAME_MAX_PLAYERS];
+  char ClientIds[GAME_MAX_PLAYERS];
+  char Teams[GAME_MAX_PLAYERS];
 } UpdateGameStateRequest_t;
 
 typedef struct CustomGameModeStats
@@ -114,12 +115,12 @@ typedef struct SetNameOverridesMessage
 
 typedef struct PayloadConfig
 {
-	u8 contestMode;
+  u8 contestMode;
 } PayloadConfig_t;
 
 typedef struct TrainingConfig
 {
-	u8 type;
+  u8 type;
   u8 variant;
   u8 aggression;
   u8 opt3;
@@ -183,12 +184,12 @@ typedef struct PatchGameConfig
 
 typedef struct PatchStateContainer
 {
-  PatchConfig_t* Config;
-  PatchGameConfig_t* GameConfig;
+  PatchConfig_t *Config;
+  PatchGameConfig_t *GameConfig;
   int UpdateGameState;
   UpdateGameStateRequest_t GameStateUpdate;
   int UpdateCustomGameStats;
-  CustomGameModeStats_t* CustomGameStats;
+  CustomGameModeStats_t *CustomGameStats;
   GameSettings GameSettingsAtStart;
   int CustomGameStatsSize;
   int ClientsReadyMask;
@@ -204,19 +205,19 @@ typedef struct PatchStateContainer
 
 typedef struct PatchInterop
 {
-  PatchConfig_t* Config;
-  PatchGameConfig_t* GameConfig;
+  PatchConfig_t *Config;
+  PatchGameConfig_t *GameConfig;
   char Client;
   char Month;
   SetSpectateFunc_t SetSpectate;
-  char* MapLoaderFilename;
+  char *MapLoaderFilename;
   GetCustomMapDefCountFunc_t GetCustomMapDefCount;
   GetCustomMapDefFunc_t GetCustomMapDef;
   ReadCustomMapExtraDataFunc_t ReadCustomMapExtraData;
   RefreshCustomMapDefsFunc_t RefreshCustomMapDefs;
   HopToCustomMapFunc_t HopToCustomMap;
-  PatchStateContainer_t* PatchStateContainer;
-  int* ClientLatency;
+  PatchStateContainer_t *PatchStateContainer;
+  int *ClientLatency;
 } PatchInterop_t;
 
 typedef struct DzoInteropFunctions
@@ -279,7 +280,7 @@ enum CUSTOM_MODE_ID
   CUSTOM_MODE_OITC,
   CUSTOM_MODE_OBSTACLE,
   CUSTOM_MODE_COLLECTATHON,
-  
+
 #if DEV
   CUSTOM_MODE_ANIM_EXTRACTOR,
 #endif
@@ -290,18 +291,18 @@ enum CUSTOM_MODE_ID
 
 enum TRAINING_TYPE
 {
-	TRAINING_TYPE_FUSION,
-	TRAINING_TYPE_CYCLE,
+  TRAINING_TYPE_FUSION,
+  TRAINING_TYPE_CYCLE,
   TRAINING_TYPE_RUSH,
-	TRAINING_TYPE_MAX
+  TRAINING_TYPE_MAX
 };
 
 enum TRAINING_AGGRESSION
 {
-	TRAINING_AGGRESSION_AGGRO,
-	TRAINING_AGGRESSION_AGGRO_NO_DAMAGE,
-	TRAINING_AGGRESSION_PASSIVE,
-	TRAINING_AGGRESSION_IDLE,
+  TRAINING_AGGRESSION_AGGRO,
+  TRAINING_AGGRESSION_AGGRO_NO_DAMAGE,
+  TRAINING_AGGRESSION_PASSIVE,
+  TRAINING_AGGRESSION_IDLE,
   TRAINING_AGGRESSION_MAX
 };
 

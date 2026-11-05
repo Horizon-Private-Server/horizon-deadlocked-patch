@@ -33,7 +33,8 @@ enum MobEvent
 };
 
 // what kind of spawn a mob can have
-enum MobSpawnType {
+enum MobSpawnType
+{
   SPAWN_TYPE_DEFAULT_RANDOM = 0,
   SPAWN_TYPE_SEMI_NEAR_PLAYER = 1,
   SPAWN_TYPE_NEAR_PLAYER = 2,
@@ -41,18 +42,20 @@ enum MobSpawnType {
   SPAWN_TYPE_NEAR_HEALTHBOX = 8,
 };
 
-// 
-enum MobSpawnFlags {
+//
+enum MobSpawnFlags
+{
   MOB_SPAWN_FLAG_NONE = 0,
   MOB_SPAWN_FLAG_FREE_AGENT = 1,
 };
 
-// 
-enum MobUnreliableMsgId {
+//
+enum MobUnreliableMsgId
+{
   MOB_UNRELIABLE_MSG_ID_STATE_UPDATE
 };
 
-// 
+//
 enum MobTargetingRules
 {
   MOB_TARGET_NEAREST = 0x00,
@@ -86,26 +89,27 @@ struct MobLocalDamageEventArgs;
 struct MobSpawnEventArgs;
 struct MobFullStateUpdateEventArgs;
 
-typedef void (*MobGenericCallback_func)(Moby* moby);
-typedef Moby* (*MobGetNextTarget_func)(Moby* moby);
-typedef int (*MobGetPreferredState_func)(Moby* moby, int * delayTicks);
+typedef void (*MobGenericCallback_func)(Moby *moby);
+typedef Moby *(*MobGetNextTarget_func)(Moby *moby);
+typedef int (*MobGetPreferredState_func)(Moby *moby, int *delayTicks);
 typedef int (*MobGetExtraDataSize_func)(int spawnParamsIdx);
-typedef void (*MobOnSpawning_func)(int spawnParamsIdx, VECTOR position, float* yaw, int* spawnFromUID, int* spawnFlags, char* random, struct MobSpawnEventArgs *args);
-typedef void (*MobOnSpawn_func)(Moby* moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs* e);
-typedef void (*MobOnDestroy_func)(Moby* moby, int killedByPlayerId, int weaponId);
-typedef void (*MobOnDamage_func)(Moby* moby, struct MobDamageEventArgs* e);
-typedef int (*MobOnLocalDamage_func)(Moby* moby, struct MobLocalDamageEventArgs* e);
-typedef void (*MobOnFullStateUpdate_func)(Moby* moby, struct MobFullStateUpdateEventArgs* e);
-typedef int (*MobOnRespawn_func)(Moby* moby);
-typedef void (*MobOnCustomEvent_func)(Moby* moby, GuberEvent* event);
-typedef void (*MobForceLocalState_func)(Moby* moby, int state);
-typedef void (*MobDoDamage_func)(Moby* moby, float radius, float amount, int damageFlags, int friendlyFire);
-typedef short (*MobGetArmor_func)(Moby* moby);
-typedef int (*MobIsAttacking_func)(Moby* moby);
-typedef int (*MobCanNonOwnerTransitionToState_func)(Moby* moby, int state);
-typedef int (*MobShouldForceStateUpdateOnState_func)(Moby* moby, int state);
+typedef void (*MobOnSpawning_func)(int spawnParamsIdx, VECTOR position, float *yaw, int *spawnFromUID, int *spawnFlags, char *random, struct MobSpawnEventArgs *args);
+typedef void (*MobOnSpawn_func)(Moby *moby, VECTOR position, float yaw, u32 spawnFromUID, char random, struct MobSpawnEventArgs *e);
+typedef void (*MobOnDestroy_func)(Moby *moby, int killedByPlayerId, int weaponId);
+typedef void (*MobOnDamage_func)(Moby *moby, struct MobDamageEventArgs *e);
+typedef int (*MobOnLocalDamage_func)(Moby *moby, struct MobLocalDamageEventArgs *e);
+typedef void (*MobOnFullStateUpdate_func)(Moby *moby, struct MobFullStateUpdateEventArgs *e);
+typedef int (*MobOnRespawn_func)(Moby *moby);
+typedef void (*MobOnCustomEvent_func)(Moby *moby, GuberEvent *event);
+typedef void (*MobForceLocalState_func)(Moby *moby, int state);
+typedef void (*MobDoDamage_func)(Moby *moby, float radius, float amount, int damageFlags, int friendlyFire);
+typedef short (*MobGetArmor_func)(Moby *moby);
+typedef int (*MobIsAttacking_func)(Moby *moby);
+typedef int (*MobCanNonOwnerTransitionToState_func)(Moby *moby, int state);
+typedef int (*MobShouldForceStateUpdateOnState_func)(Moby *moby, int state);
 
-struct MobVTable {
+struct MobVTable
+{
   MobGenericCallback_func PreUpdate;
   MobGenericCallback_func PostUpdate;
   MobGenericCallback_func PostDraw;
@@ -130,7 +134,8 @@ struct MobVTable {
   MobShouldForceStateUpdateOnState_func ShouldForceStateUpdateOnState;
 };
 
-struct MobConfig {
+struct MobConfig
+{
   int Bolts;
   float Damage;
   float MaxDamage;
@@ -154,39 +159,42 @@ struct MobConfig {
   char SharedXp;
 };
 
-struct MobSpawnParams {
-	struct MobVTable *MobVTable;
-	int RenderCost;
-	float Scale;
-	int OClass;
-	int MaxSpawnedAtOnce;
-	int MaxSpawnedPerRound;
-	int MinRound;
-	int CooldownTicks;
-	float CooldownOffsetPerRoundFactor; // 0 is unchanged, -1 is -1 tick per round, +1 is +1 tick per round
-	float Probability;
-	float RangedAttackDistance;
-	u32 BaseColor;
-	u32 GlowColor;
-	u32 SpriteColor;
-	int SpriteTexId;
-	int BossTexUid;
-	enum MobSpawnType SpawnType;
-	enum MobStatId StatId;
-	char Name[32];
-	struct MobConfig Config;
-	char SpecialRoundOnly;
-	char BlipType;
+struct MobSpawnParams
+{
+  struct MobVTable *MobVTable;
+  int RenderCost;
+  float Scale;
+  int OClass;
+  int MaxSpawnedAtOnce;
+  int MaxSpawnedPerRound;
+  int MinRound;
+  int CooldownTicks;
+  float CooldownOffsetPerRoundFactor; // 0 is unchanged, -1 is -1 tick per round, +1 is +1 tick per round
+  float Probability;
+  float RangedAttackDistance;
+  u32 BaseColor;
+  u32 GlowColor;
+  u32 SpriteColor;
+  int SpriteTexId;
+  int BossTexUid;
+  enum MobSpawnType SpawnType;
+  enum MobStatId StatId;
+  char Name[32];
+  struct MobConfig Config;
+  char SpecialRoundOnly;
+  char BlipType;
 };
 
-struct Knockback {
+struct Knockback
+{
   short Angle;
   u8 Power;
   u8 Ticks;
   char Force;
 };
 
-struct MobMoveVars {
+struct MobMoveVars
+{
   VECTOR LastPosition;
   VECTOR NextPosition;
   VECTOR Velocity;
@@ -194,7 +202,7 @@ struct MobMoveVars {
   VECTOR LastJumpPosition;
   VECTOR SumPositionDelta;
   VECTOR LastTargetPos;
-  Moby* HitWallMoby;
+  Moby *HitWallMoby;
   float SumSpeedOver;
   float WallSlope;
   float PathEdgeAlpha;
@@ -224,7 +232,8 @@ struct MobMoveVars {
   u8 CurrentPath[20];
 };
 
-struct MobVars {
+struct MobVars
+{
   struct MobConfig Config;
   struct Knockback Knockback;
   struct MobMoveVars MoveVars;
@@ -237,7 +246,7 @@ struct MobVars {
   float Health;
   float ClosestDist;
   float LastSpeed;
-  Moby * Target;
+  Moby *Target;
   int LastHitBy;
   u16 LastHitByOClass;
   u16 NextCheckStateDelayTicks;
@@ -274,10 +283,11 @@ struct MobVars {
 };
 
 // warning: multiple differing types with the same name, only one recovered
-struct ReactVars {
+struct ReactVars
+{
   /*   0 */ int flags;
   /*   4 */ int lastReactFrame;
-  /*   8 */ Moby* pInfectionMoby;
+  /*   8 */ Moby *pInfectionMoby;
   /*   c */ float acidDamage;
   /*  10 */ char eternalDeathCount;
   /*  11 */ char doHotSpotChecks;
@@ -316,22 +326,23 @@ struct ReactVars {
   /*  60 */ short unsigned int effectTimers[16];
 };
 
-struct MobPVar {
-  struct TargetVars * TargetVarsPtr;
+struct MobPVar
+{
+  struct TargetVars *TargetVarsPtr;
   char _pad0[0x0C];
-  struct ReactVars * ReactVarsPtr;
+  struct ReactVars *ReactVarsPtr;
   char _pad1[0x08];
-  struct MoveVars_V2 * MoveVarsPtr;
+  struct MoveVars_V2 *MoveVarsPtr;
   char _pad2[0x14];
-   struct FlashVars * FlashVarsPtr;
+  struct FlashVars *FlashVarsPtr;
   char _pad3[0x14];
-   void * AdditionalMobVarsPtr;
+  void *AdditionalMobVarsPtr;
 
   struct TargetVars TargetVars;
   struct ReactVars ReactVars;
   struct FlashVars FlashVars;
   struct MobVars MobVars;
-  struct MobVTable* VTable;
+  struct MobVTable *VTable;
   int TicksSinceLastStateUpdate;
 };
 
@@ -348,8 +359,8 @@ struct MobLocalDamageEventArgs
 {
   float Damage;
   u32 DamageFlags;
-  Moby* Damager;
-  Player* PlayerDamager;
+  Moby *Damager;
+  Player *PlayerDamager;
 };
 
 struct MobStateUpdateEventArgs
@@ -405,10 +416,10 @@ struct MobUnreliableMsgStateUpdateArgs
   struct MobFullStateUpdateEventArgs StateUpdate;
 };
 
-int mobOnUnreliableMsgRemote(void* connection, void* data);
+int mobOnUnreliableMsgRemote(void *connection, void *data);
 void mobReactToExplosionAt(int byPlayerId, VECTOR position, float damage, float radius, int knockbackPower);
 void mobNuke(int killedByPlayerId);
-int mobHandleEvent(Moby* moby, GuberEvent* event);
+int mobHandleEvent(Moby *moby, GuberEvent *event);
 int mobCreate(int spawnParamsIdx, VECTOR position, float yaw, int spawnFromUID, int spawnFlags, struct MobConfig *config);
 void mobInitialize(void);
 void mobTick(void);

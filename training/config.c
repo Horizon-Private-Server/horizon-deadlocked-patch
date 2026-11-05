@@ -1,7 +1,6 @@
 #include "include/game.h"
 #include <libdl/math3d.h>
 
-
 const float TARGET_MIN_SPAWN_DISTANCE[TRAINING_TYPE_MAX] = {
   [TRAINING_TYPE_FUSION] 50,
   [TRAINING_TYPE_CYCLE] 10,
@@ -20,7 +19,7 @@ const float TARGET_BUFFER_SPAWN_DISTANCE[TRAINING_TYPE_MAX] = {
   [TRAINING_TYPE_RUSH] 10,
 };
 
-const char * NAMES[] = {
+const char *NAMES[] = {
   "cHivAs JoKeR",
   "BooKooKiLLa",
   "Sunny D",
@@ -221,4 +220,4 @@ const char * NAMES[] = {
   "Tuberculosis"
 };
 
-const int NAMES_COUNT = sizeof(NAMES) / sizeof(char*);
+const int NAMES_COUNT = sizeof(NAMES) / sizeof(char *);

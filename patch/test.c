@@ -26,30 +26,26 @@ extern PatchGameConfig_t gameConfig;
 extern MapLoaderState_t MapLoaderState;
 
 struct CubicLineEndPoint endpoints[2] = {
-  {
-    .iCoreRGBA = 0,
+  { .iCoreRGBA = 0,
     .iGlowRGBA = 0,
     .bDisabled = 0,
     .bFadeEnd = 0,
     .iNumSkipPoints = 0,
     .numEndPoints = 2,
     .style = 0,
-    .vPos = { 0,0,0,0 },
-    .vTangent = { 0,0,1,0 },
-    .vTangentOccQuat = { 0,0,0,1 }
-  },
-  {
-    .iCoreRGBA = 0,
+    .vPos = { 0, 0, 0, 0 },
+    .vTangent = { 0, 0, 1, 0 },
+    .vTangentOccQuat = { 0, 0, 0, 1 } },
+  { .iCoreRGBA = 0,
     .iGlowRGBA = 0,
     .bDisabled = 0,
     .bFadeEnd = 0,
     .iNumSkipPoints = 0,
     .numEndPoints = 2,
     .style = 0,
-    .vPos = { 0,0,0,0 },
-    .vTangent = { 0,0,1,0 },
-    .vTangentOccQuat = { 0,0,0,1 }
-  }
+    .vPos = { 0, 0, 0, 0 },
+    .vTangent = { 0, 0, 1, 0 },
+    .vTangentOccQuat = { 0, 0, 0, 1 } }
 };
 
 /*
@@ -155,56 +151,59 @@ void runHitmarkerLogic(void)
 
 */
 
-#define FrameJointMatrixStart   ((u32*)0x00091000)
-#define TestMoby   (*(Moby**)0x00091004)
-#define Header   ((struct KeysHeader*)0x00091010)
+#define FrameJointMatrixStart ((u32 *)0x00091000)
+#define TestMoby (*(Moby **)0x00091004)
+#define Header ((struct KeysHeader *)0x00091010)
 #define MaxKeyframes (64)
 
-struct Keyframe {
+struct Keyframe
+{
   float Time;
-  void * Data;
+  void *Data;
 };
 
-struct KeysHeader {
+struct KeysHeader
+{
   int FrameCount;
   int FrameOffset;
   int SeqId;
   int JointCount;
-  Moby* Moby;
+  Moby *Moby;
   int State;
   struct Keyframe Frames[MaxKeyframes];
 };
-
 
 int active = 0;
 int frame = 0;
 float lastTime = 0;
 u32 currentFrameJointMatrixAddr = 0;
-void* fixedAnimationBuffer = NULL;
+void *fixedAnimationBuffer = NULL;
 
 VECTOR b6ExplosionPositions[64];
 int b6ExplosionPositionCount = 0;
 
 SoundDef baseSoundDef = {
-	0.0,	  // MinRange
-	45.0,	  // MaxRange
-	0,		  // MinVolume
-	1228,		// MaxVolume
-	-635,			// MinPitch
-	635,			// MaxPitch
-	0,			// Loop
-	0x10,		// Flags
-	0x17D,		// Index
-	3			  // Bank
+  0.0,   // MinRange
+  45.0,  // MaxRange
+  0,     // MinVolume
+  1228,  // MaxVolume
+  -635,  // MinPitch
+  635,   // MaxPitch
+  0,     // Loop
+  0x10,  // Flags
+  0x17D, // Index
+  3      // Bank
 };
 
-void setActive(int v) {
+void setActive(int v)
+{
   if (v == active)
     return;
 
   active = v;
 
-  if (active) {
+  if (active)
+  {
     frame = -1;
     Header->FrameCount = 0;
     Header->FrameOffset = 0;
@@ -212,25 +211,30 @@ void setActive(int v) {
     Header->State = 0;
     currentFrameJointMatrixAddr = *FrameJointMatrixStart;
   }
-  else {
+  else
+  {
     Header->State = -1;
     Header->JointCount = 0;
   }
   DPRINTF("active:%d\n", active);
 }
 
-void w() {
-  if (Header->Moby) {
+void w()
+{
+  if (Header->Moby)
+  {
     int j = 8;
-    if (Header->Moby->JointCache && j < Header->Moby->JointCnt) {
+    if (Header->Moby->JointCache && j < Header->Moby->JointCnt)
+    {
       MATRIX m;
       matrix_rotate_x(m, m, MATH_PI / 2);
-      memcpy((void*)((u32)Header->Moby->JointCache + 0x40*j), m, sizeof(float)*12);
+      memcpy((void *)((u32)Header->Moby->JointCache + 0x40 * j), m, sizeof(float) * 12);
     }
   }
 }
 
-u32 h(u32 a0, u32 a1, u32 a2) {
+u32 h(u32 a0, u32 a1, u32 a2)
+{
   //w();
   u32 v = ((u32 (*)(u32, u32, u32))0x004FB5A8)(a0, a1, a2);
   MATRIX m;
@@ -238,27 +242,26 @@ u32 h(u32 a0, u32 a1, u32 a2) {
   matrix_unit(m);
   //memcpy((void*)v, m, sizeof(MATRIX));
 
-
   return v;
 }
 
-void * getBoneMatrices(Moby* moby, int jointIdx)
+void *getBoneMatrices(Moby *moby, int jointIdx)
 {
-  return (void*)((u32)moby->JointCache + (jointIdx * 0x40));
+  return (void *)((u32)moby->JointCache + (jointIdx * 0x40));
 }
 
-void getMobyJointMatrix(Moby* moby, int jointIdx, MATRIX out)
+void getMobyJointMatrix(Moby *moby, int jointIdx, MATRIX out)
 {
-  u32 v = *(u32*)0x004f8178;
+  u32 v = *(u32 *)0x004f8178;
   HOOK_JAL(0x004f8178, &getBoneMatrices);
-  ((void (*)(Moby*,int,float*))0x004F8150)(moby, jointIdx, out);
+  ((void (*)(Moby *, int, float *))0x004F8150)(moby, jointIdx, out);
   POKE_U32(0x004f8178, v);
 }
 
 void drawRing(MATRIX m3, VECTOR position, float scale0, float scale1, u32 color)
 {
   // draw
-  ((void (*)(void*, u128, float, float, int, int, int, int))0x00420c80)(
+  ((void (*)(void *, u128, float, float, int, int, int, int))0x00420c80)(
     m3,
     vector_read(position),
     scale0,
@@ -266,8 +269,7 @@ void drawRing(MATRIX m3, VECTOR position, float scale0, float scale1, u32 color)
     color,
     22,
     1,
-    0
-  );
+    0);
 }
 
 void drawAxisGizmos(MATRIX m)
@@ -292,7 +294,7 @@ void drawAxisGizmos(MATRIX m)
   vector_scale(vs, &t[4], 0.1);
   vector_add(&t[12], &t[12], vs);
   drawRing(t, &t[12], 0.1, 0.1, 0x8000FF00);
-  
+
   // X
   matrix_unit(t);
   matrix_multiply(t, t, m);
@@ -303,7 +305,7 @@ void drawAxisGizmos(MATRIX m)
   drawRing(t, &t[12], 0.1, 0.1, 0x800000FF);
 }
 
-void drawJoints(Moby* moby)
+void drawJoints(Moby *moby)
 {
   static int selectedJoint = 0;
   moby = Header->Moby;
@@ -312,59 +314,69 @@ void drawJoints(Moby* moby)
 
   int j = 0;
   int count = moby->JointCnt;
-  int x,y;
+  int x, y;
   MATRIX m;
   char buf[12];
   moby->Opacity = 0x80;
-  
-  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+
+  if (padGetButtonDown(0, PAD_LEFT) > 0)
+  {
     if (selectedJoint > 0)
       --selectedJoint;
     else
       selectedJoint = count - 1;
   }
-  else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+  else if (padGetButtonDown(0, PAD_RIGHT) > 0)
+  {
     if (selectedJoint < count)
       ++selectedJoint;
     else
       selectedJoint = 0;
   }
 
-  for (j = 0; j < moby->JointCnt; ++j) {
+  for (j = 0; j < moby->JointCnt; ++j)
+  {
     if (j != selectedJoint)
       continue;
 
     getMobyJointMatrix(moby, j, m);
-    if (gfxWorldSpaceToScreenSpace((float*)(&m[12]), &x, &y)) {
+    if (gfxWorldSpaceToScreenSpace((float *)(&m[12]), &x, &y))
+    {
       sprintf(buf, "%d", j);
-      gfxScreenSpaceText(x, y+15, 0.5, 0.5, 0x80FFFFFF, buf, -1, 4);
+      gfxScreenSpaceText(x, y + 15, 0.5, 0.5, 0x80FFFFFF, buf, -1, 4);
     }
 
     drawAxisGizmos(m);
 
-    // 
+    //
     memset(Header->Moby->Rotation, 0, sizeof(VECTOR));
     memset(Header->Moby->Position, 0, sizeof(VECTOR));
     getMobyJointMatrix(moby, j, m);
 
-    if (padGetButtonDown(0, PAD_R3) > 0) {
-      vector_print(&m[0]); printf("\n");
-      vector_print(&m[4]); printf("\n");
-      vector_print(&m[8]); printf("\n");
-      vector_print(&m[12]); printf("\n");
+    if (padGetButtonDown(0, PAD_R3) > 0)
+    {
+      vector_print(&m[0]);
+      printf("\n");
+      vector_print(&m[4]);
+      printf("\n");
+      vector_print(&m[8]);
+      printf("\n");
+      vector_print(&m[12]);
+      printf("\n");
     }
   }
-
 }
 
 void testDeinit(void)
 {
-  if (!fixedAnimationBuffer) return;
+  if (!fixedAnimationBuffer)
+    return;
 
   // stop recording before releasing the backing joint matrices
   active = 0;
   currentFrameJointMatrixAddr = 0;
-  if (*FrameJointMatrixStart == (u32)fixedAnimationBuffer) {
+  if (*FrameJointMatrixStart == (u32)fixedAnimationBuffer)
+  {
     memset(Header, 0, sizeof(*Header));
     *FrameJointMatrixStart = 0;
   }
@@ -374,15 +386,17 @@ void testDeinit(void)
 
 void runFixedAnimation(void)
 {
-  int x,y;
-  if (isUnloading || !isInGame()) {
+  int x, y;
+  if (isUnloading || !isInGame())
+  {
     testDeinit();
     return;
   }
 
   gameSetDeathHeight(-100);
 
-  if (!(*FrameJointMatrixStart)) {
+  if (!(*FrameJointMatrixStart))
+  {
     int size = 16 * sizeof(float) * MaxKeyframes * 0x45;
     fixedAnimationBuffer = malloc(size);
     *FrameJointMatrixStart = (u32)fixedAnimationBuffer;
@@ -390,20 +404,22 @@ void runFixedAnimation(void)
     return;
   }
 
-  Player* p = playerGetFromSlot(0);
+  Player *p = playerGetFromSlot(0);
   if (p)
     Header->Moby = p->Gadgets[0].pMoby;
-  
+
   if (!Header->Moby)
     return;
-  
-  Moby* mobyStart = mobyListGetStart();
-  Moby* mobyEnd = mobyListGetEnd();
-  if (!Header->Moby) {
+
+  Moby *mobyStart = mobyListGetStart();
+  Moby *mobyEnd = mobyListGetEnd();
+  if (!Header->Moby)
+  {
     Header->Moby = mobyFindNextByOClass(mobyStart, 0x108A);
     //Header->Moby = mobyStart;
     DPRINTF("bp at %08X\n", (u32)&getBoneMatrices);
-    if (Header->Moby) {
+    if (Header->Moby)
+    {
       DPRINTF("moby at %08X\n", (u32)Header->Moby);
     }
     Header->SeqId = 0;
@@ -437,26 +453,30 @@ void runFixedAnimation(void)
   }
   */
 
-  if (Header->Moby) {
+  if (Header->Moby)
+  {
     Header->Moby->Opacity = 0;
-    gfxRegisterDrawFunction((void**)0x0022251C, &drawJoints, TestMoby);
+    gfxRegisterDrawFunction((void **)0x0022251C, &drawJoints, TestMoby);
     //drawJoints(Header->Moby);
   }
 
   return;
 
   // move animation
-  if (Header->Moby && Header->Moby->PClass) {
-    int seqCount = *(char*)((u32)Header->Moby->PClass + 0xC);
+  if (Header->Moby && Header->Moby->PClass)
+  {
+    int seqCount = *(char *)((u32)Header->Moby->PClass + 0xC);
 
-    if (padGetButtonDown(0, PAD_UP) > 0) {
+    if (padGetButtonDown(0, PAD_UP) > 0)
+    {
       if (Header->SeqId < seqCount)
         ++Header->SeqId;
 
       setActive(0);
       DPRINTF("anim:%d seqCnt:%d\n", Header->SeqId, seqCount);
     }
-    else if (padGetButtonDown(0, PAD_DOWN) > 0) {
+    else if (padGetButtonDown(0, PAD_DOWN) > 0)
+    {
       if (Header->SeqId > 0)
         --Header->SeqId;
 
@@ -466,33 +486,38 @@ void runFixedAnimation(void)
   }
 
   // enable disable
-  if (padGetButtonDown(0, PAD_L3) > 0) {
+  if (padGetButtonDown(0, PAD_L3) > 0)
+  {
     setActive(!active);
   }
 
-  if (Header->Moby && !active) {
+  if (Header->Moby && !active)
+  {
     //mobyAnimTransition(Header->Moby, Header->SeqId, 0, 0);
   }
 
-  if (active && Header->Moby) {
+  if (active && Header->Moby)
+  {
     // draw marker over moby
-    if (gfxWorldSpaceToScreenSpace(Header->Moby->Position, &x, &y)) {
+    if (gfxWorldSpaceToScreenSpace(Header->Moby->Position, &x, &y))
+    {
       gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 1);
     }
 
-    // 
+    //
     Header->JointCount = Header->Moby->JointCnt;
 
-    // patch to prevent 
+    // patch to prevent
     POKE_U32(0x00606BA8, 0);
     POKE_U32(0x00606C9C, 0);
 
-    // 
+    //
     memset(Header->Moby->Rotation, 0, sizeof(VECTOR));
     memset(Header->Moby->Position, 0, sizeof(VECTOR));
 
     // lock anim
-    if (Header->Moby->AnimSeqId != Header->SeqId || frame < 0) {
+    if (Header->Moby->AnimSeqId != Header->SeqId || frame < 0)
+    {
       mobyAnimTransition(Header->Moby, Header->SeqId, 0, 0);
       lastTime = 0;
       frame = 0;
@@ -505,29 +530,34 @@ void runFixedAnimation(void)
     {
       int storeFrame = 0;
 
-      if (Header->State == 4) {
+      if (Header->State == 4)
+      {
         setActive(0); // reached end
       }
-      else if (Header->State == 0) {
-        if (Header->Moby->AnimSeqT < lastTime) {
+      else if (Header->State == 0)
+      {
+        if (Header->Moby->AnimSeqT < lastTime)
+        {
           Header->State = 3;
         }
-        else if (Header->Moby->AnimSeqT > lastTime) {
+        else if (Header->Moby->AnimSeqT > lastTime)
+        {
           storeFrame = 1;
         }
 
-        if (storeFrame) {
+        if (storeFrame)
+        {
           // store joint matrix in keyframe
           //int j = 0;
           const int matrix4_size = 16 * sizeof(float);
           //for (j = 0; j < Header->Moby->JointCnt; ++j) {
           //  getMobyJointMatrix(Header->Moby, j, (void*)(currentFrameJointMatrixAddr + (j * matrix4_size)));
           //}
-          memcpy((void*)currentFrameJointMatrixAddr, Header->Moby->JointCache, Header->Moby->JointCnt * sizeof(float) * 16);
+          memcpy((void *)currentFrameJointMatrixAddr, Header->Moby->JointCache, Header->Moby->JointCnt * sizeof(float) * 16);
 
           // save frame
           Header->Frames[Header->FrameCount].Time = Header->Moby->AnimSeqT;
-          Header->Frames[Header->FrameCount].Data = (void*)currentFrameJointMatrixAddr;
+          Header->Frames[Header->FrameCount].Data = (void *)currentFrameJointMatrixAddr;
 
           DPRINTF("frame %d:%f\n", Header->FrameCount + Header->FrameOffset, Header->Moby->AnimSeqT);
 
@@ -536,7 +566,8 @@ void runFixedAnimation(void)
           currentFrameJointMatrixAddr += Header->Moby->JointCnt * matrix4_size;
 
           // check for end
-          if (Header->FrameCount >= MaxKeyframes) {
+          if (Header->FrameCount >= MaxKeyframes)
+          {
             DPRINTF("frame limit hit.. waiting for controller to reset\n");
             Header->State = 1;
           }
@@ -545,11 +576,14 @@ void runFixedAnimation(void)
         ++frame;
         lastTime = Header->Moby->AnimSeqT;
       }
-      else if (Header->State == 1) {
+      else if (Header->State == 1)
+      {
         // waiting
       }
-      else if (Header->State == 2) {
-        if (Header->Moby->AnimSeqT == lastTime) {
+      else if (Header->State == 2)
+      {
+        if (Header->Moby->AnimSeqT == lastTime)
+        {
           Header->FrameOffset += Header->FrameCount;
           Header->FrameCount = 0;
           Header->State = 0;
@@ -558,27 +592,32 @@ void runFixedAnimation(void)
       }
     }
   }
-  else {
+  else
+  {
   }
 }
 
 void runAnimJointThing(void)
 {
-  if (isInGame()) {
-    Player* localPlayer = playerGetFromSlot(0);
-    VECTOR off = {0,0,-10,0};
+  if (isInGame())
+  {
+    Player *localPlayer = playerGetFromSlot(0);
+    VECTOR off = { 0, 0, -10, 0 };
 
-    if (!TestMoby) {
+    if (!TestMoby)
+    {
       Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
       m->Scale *= 0.1;
     }
 
-    if (isUnloading && TestMoby) {
+    if (isUnloading && TestMoby)
+    {
       TestMoby->PUpdate = 0;
       setActive(0);
       POKE_U32(0x004F8178, 0x0C13ED6A);
     }
-    else if (TestMoby && localPlayer) {
+    else if (TestMoby && localPlayer)
+    {
       TestMoby->DrawDist = 0xFF;
       TestMoby->UpdateDist = 0xFF;
       vector_add(TestMoby->Position, localPlayer->PlayerPosition, off);
@@ -592,119 +631,123 @@ void runAnimJointThing(void)
 //--------------------------------------------------------------------------
 void drawEffectQuad(VECTOR position, int texId, float scale, u32 color)
 {
-	struct QuadDef quad;
-	MATRIX m2;
-	VECTOR t;
-	VECTOR pTL = {0.5,0,0.5,1};
-	VECTOR pTR = {-0.5,0,0.5,1};
-	VECTOR pBL = {0.5,0,-0.5,1};
-	VECTOR pBR = {-0.5,0,-0.5,1};
-  
-	// set draw args
-	matrix_unit(m2);
+  struct QuadDef quad;
+  MATRIX m2;
+  VECTOR t;
+  VECTOR pTL = { 0.5, 0, 0.5, 1 };
+  VECTOR pTR = { -0.5, 0, 0.5, 1 };
+  VECTOR pBL = { 0.5, 0, -0.5, 1 };
+  VECTOR pBR = { -0.5, 0, -0.5, 1 };
 
-	// init
+  // set draw args
+  matrix_unit(m2);
+
+  // init
   gfxResetQuad(&quad);
 
-	// color of each corner?
-	vector_copy(quad.VertexPositions[0], pTL);
-	vector_copy(quad.VertexPositions[1], pTR);
-	vector_copy(quad.VertexPositions[2], pBL);
-	vector_copy(quad.VertexPositions[3], pBR);
-	quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
-  quad.VertexUVs[0] = (struct UV){0,0};
-  quad.VertexUVs[1] = (struct UV){1,0};
-  quad.VertexUVs[2] = (struct UV){0,1};
-  quad.VertexUVs[3] = (struct UV){1,1};
-	quad.Clamp = 0;
-	quad.Tex0 = gfxGetEffectTex(texId, 1);
-	quad.Tex1 = 0xFF9000000260;
-	quad.Alpha = 0x8000000044;
+  // color of each corner?
+  vector_copy(quad.VertexPositions[0], pTL);
+  vector_copy(quad.VertexPositions[1], pTR);
+  vector_copy(quad.VertexPositions[2], pBL);
+  vector_copy(quad.VertexPositions[3], pBR);
+  quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
+  quad.VertexUVs[0] = (struct UV){ 0, 0 };
+  quad.VertexUVs[1] = (struct UV){ 1, 0 };
+  quad.VertexUVs[2] = (struct UV){ 0, 1 };
+  quad.VertexUVs[3] = (struct UV){ 1, 1 };
+  quad.Clamp = 0;
+  quad.Tex0 = gfxGetEffectTex(texId, 1);
+  quad.Tex1 = 0xFF9000000260;
+  quad.Alpha = 0x8000000044;
 
-	GameCamera* camera = cameraGetGameCamera(0);
-	if (!camera)
-		return;
+  GameCamera *camera = cameraGetGameCamera(0);
+  if (!camera)
+    return;
 
-	// get forward vector
-	vector_subtract(t, camera->pos, position);
-	t[2] = 0;
-	vector_normalize(&m2[4], t);
+  // get forward vector
+  vector_subtract(t, camera->pos, position);
+  t[2] = 0;
+  vector_normalize(&m2[4], t);
 
-	// up vector
-	m2[8 + 2] = 1;
+  // up vector
+  m2[8 + 2] = 1;
 
-	// right vector
-	vector_outerproduct(&m2[0], &m2[4], &m2[8]);
+  // right vector
+  vector_outerproduct(&m2[0], &m2[4], &m2[8]);
 
   t[0] = t[1] = t[2] = scale;
   t[3] = 1;
   matrix_scale(m2, m2, t);
 
-	// position
-	memcpy(&m2[12], position, sizeof(VECTOR));
+  // position
+  memcpy(&m2[12], position, sizeof(VECTOR));
 
-	// draw
-	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
+  // draw
+  gfxDrawQuad((void *)0x00222590, &quad, m2, 1);
 }
 
 //--------------------------------------------------------------------------
-void dropPostDraw(Moby* moby)
+void dropPostDraw(Moby *moby)
 {
-	struct QuadDef quad;
-	MATRIX m2;
-	VECTOR t;
-  
-	// determine color
-	u32 color = 0x70FFFFFF;
+  struct QuadDef quad;
+  MATRIX m2;
+  VECTOR t;
 
-	// set draw args
-	matrix_unit(m2);
+  // determine color
+  u32 color = 0x70FFFFFF;
 
-	// init
+  // set draw args
+  matrix_unit(m2);
+
+  // init
   gfxResetQuad(&quad);
 
-	// color of each corner?
-	quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
-  quad.VertexUVs[0] = (struct UV){0,0};
-  quad.VertexUVs[1] = (struct UV){1,0};
-  quad.VertexUVs[2] = (struct UV){0,1};
-  quad.VertexUVs[3] = (struct UV){1,1};
-	quad.Clamp = 0;
-	quad.Tex0 = gfxGetFrameTex(43);
-	quad.Tex1 = gfxGetFrameTex(44); //0xFF9000000260;
-	quad.Alpha = 0x8000000044;
+  // color of each corner?
+  quad.VertexColors[0] = quad.VertexColors[1] = quad.VertexColors[2] = quad.VertexColors[3] = color;
+  quad.VertexUVs[0] = (struct UV){ 0, 0 };
+  quad.VertexUVs[1] = (struct UV){ 1, 0 };
+  quad.VertexUVs[2] = (struct UV){ 0, 1 };
+  quad.VertexUVs[3] = (struct UV){ 1, 1 };
+  quad.Clamp = 0;
+  quad.Tex0 = gfxGetFrameTex(43);
+  quad.Tex1 = gfxGetFrameTex(44); //0xFF9000000260;
+  quad.Alpha = 0x8000000044;
 
-	// position
-	memcpy(&m2[12], moby->Position, sizeof(VECTOR));
-	m2[14] += 2;
+  // position
+  memcpy(&m2[12], moby->Position, sizeof(VECTOR));
+  m2[14] += 2;
 
-	// draw
-	gfxDrawQuad((void*)0x00222590, &quad, m2, 1);
+  // draw
+  gfxDrawQuad((void *)0x00222590, &quad, m2, 1);
 }
 
-void drawQuadTestMobyUpdate(Moby* moby)
+void drawQuadTestMobyUpdate(Moby *moby)
 {
   moby->Opacity = 0;
-  gfxRegisterDrawFunction((void**)0x0022251C, &dropPostDraw, TestMoby);
+  gfxRegisterDrawFunction((void **)0x0022251C, &dropPostDraw, TestMoby);
 }
 
 void runDrawQuad(void)
 {
-  if (isInGame()) {
-    Player* localPlayer = playerGetFromSlot(0);
-    VECTOR off = {0,0,-10,0};
+  if (isInGame())
+  {
+    Player *localPlayer = playerGetFromSlot(0);
+    VECTOR off = { 0, 0, -10, 0 };
 
-    if (!TestMoby && padGetButtonDown(0, PAD_LEFT) > 0) {
+    if (!TestMoby && padGetButtonDown(0, PAD_LEFT) > 0)
+    {
       Moby *m = TestMoby = mobySpawn(0x1F5, 0);
       //m->Scale = 1;
       vector_copy(m->Position, localPlayer->PlayerPosition);
       DPRINTF("spawned moby at %08X\n", (u32)m);
     }
 
-    if (isUnloading && TestMoby) {
+    if (isUnloading && TestMoby)
+    {
       TestMoby->PUpdate = 0;
     }
-    else if (TestMoby && localPlayer) {
+    else if (TestMoby && localPlayer)
+    {
       TestMoby->DrawDist = 0xFF;
       TestMoby->UpdateDist = 0xFF;
       TestMoby->PUpdate = &drawQuadTestMobyUpdate;
@@ -716,8 +759,9 @@ void runCameraHeight(void)
 {
   char buf[32];
 
-  GameCamera* camera = cameraGetGameCamera(0);
-  if (camera) {
+  GameCamera *camera = cameraGetGameCamera(0);
+  if (camera)
+  {
 
     sprintf(buf, "%f\n", camera->pos[2]);
     gfxScreenSpaceText(15, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, buf, -1, 0);
@@ -726,11 +770,12 @@ void runCameraHeight(void)
 
 static inline void nopdelay(void)
 {
-    int i = 0xfffff;
+  int i = 0xfffff;
 
-    do {
-        __asm__("nop\nnop\nnop\nnop\nnop\n");
-    } while (i-- != -1);
+  do
+  {
+    __asm__("nop\nnop\nnop\nnop\nnop\n");
+  } while (i-- != -1);
 }
 
 void runSystemTime(void)
@@ -740,47 +785,55 @@ void runSystemTime(void)
   char buf[32];
 
   long t = timerGetSystemTime();
-	long tMs = t / SYSTEM_TIME_TICKS_PER_MS;
+  long tMs = t / SYSTEM_TIME_TICKS_PER_MS;
 
   sprintf(buf, "%d: %.2f\n", aaa, (int)tMs / 1000.0);
   gfxScreenSpaceText(15, SCREEN_HEIGHT - 30, 1, 1, 0x80FFFFFF, buf, -1, 0);
 
-  if (padGetButton(0, PAD_LEFT) > 0) {
-    if (!d) {
+  if (padGetButton(0, PAD_LEFT) > 0)
+  {
+    if (!d)
+    {
       --aaa;
       if (aaa < 0)
         aaa = 0;
     }
     d = 1;
   }
-  else if (padGetButton(0, PAD_RIGHT) > 0) {
-    if (!d) {
+  else if (padGetButton(0, PAD_RIGHT) > 0)
+  {
+    if (!d)
+    {
       ++aaa;
     }
     d = 1;
   }
-  else if (padGetButton(0, PAD_DOWN) > 0) {
-    if (!d) {
-      POKE_U32(0x0021df60, *(int*)0x0021df60 == 60 ? 30 : 60);
+  else if (padGetButton(0, PAD_DOWN) > 0)
+  {
+    if (!d)
+    {
+      POKE_U32(0x0021df60, *(int *)0x0021df60 == 60 ? 30 : 60);
     }
     d = 1;
   }
-  else {
+  else
+  {
     d = 0;
   }
 
   int i = 0;
-  while (i) {
+  while (i)
+  {
     nopdelay();
     --i;
   }
 }
 
-void drawCBoot(Moby* moby)
+void drawCBoot(Moby *moby)
 {
   MATRIX m;
   int i = 0;
-  int x,y;
+  int x, y;
   char buf[12];
 
   matrix_unit(m);
@@ -788,14 +841,16 @@ void drawCBoot(Moby* moby)
   m[12 + 0] += 2;
   m[12 + 2] += 0;
 
-  for (i = 0; i < 0x40; ++i) {
+  for (i = 0; i < 0x40; ++i)
+  {
     vector_copy(&m[12], moby->Position);
     m[12 + 0] += 2 * (i / 0x10);
     m[12 + 1] += 2 * (i % 0x10);
 
     float gt = (gameGetTime() % 1000) / 1000.0f;
     ((void (*)(float, u32, MATRIX, u32, u64, int, int))0x004CCF98)(gt, 0x002225A8, m, i, 0xFFFFFFFF97396BC0, 5, 2);
-    if (gfxWorldSpaceToScreenSpace(&m[12], &x, &y)) {
+    if (gfxWorldSpaceToScreenSpace(&m[12], &x, &y))
+    {
       sprintf(buf, "%d", i);
       gfxScreenSpaceText(x, y, 1, 1, 0xFFFFFFFF, buf, -1, 4);
     }
@@ -804,18 +859,19 @@ void drawCBoot(Moby* moby)
   }
 }
 
-VECTOR * drawColliderFrom = (VECTOR*)0x000A0000;
-VECTOR * drawColliderTo = (VECTOR*)0x000A0100;
+VECTOR *drawColliderFrom = (VECTOR *)0x000A0000;
+VECTOR *drawColliderTo = (VECTOR *)0x000A0100;
 
-void drawCollider(Moby* moby)
+void drawCollider(Moby *moby)
 {
-  VECTOR pos,t,o = {0,0,0.7,0};
-  int i,j = 0;
-  int x,y;
+  VECTOR pos, t, o = { 0, 0, 0.7, 0 };
+  int i, j = 0;
+  int x, y;
   char buf[12];
-  Player * p = playerGetAll()[moby->Bolts];
+  Player *p = playerGetAll()[moby->Bolts];
 
-  if (gfxWorldSpaceToScreenSpace(p->Ground.point, &x, &y)) {
+  if (gfxWorldSpaceToScreenSpace(p->Ground.point, &x, &y))
+  {
     gfxScreenSpaceText(x, y, 1, 1, 0x80FFFFFF, "+", -1, 4);
   }
   return;
@@ -823,10 +879,12 @@ void drawCollider(Moby* moby)
   const int steps = 10 * 2;
   const float radius = 2;
 
-  for (i = 0; i < steps; ++i) {
-    for (j = 0; j < steps; ++j) {
+  for (i = 0; i < steps; ++i)
+  {
+    for (j = 0; j < steps; ++j)
+    {
       float theta = (i / (float)steps) * MATH_TAU;
-      float omega = (j / (float)steps) * MATH_TAU;  
+      float omega = (j / (float)steps) * MATH_TAU;
 
       vector_copy(pos, p->PlayerPosition);
       pos[0] += radius * sinf(theta) * cosf(omega);
@@ -835,31 +893,39 @@ void drawCollider(Moby* moby)
 
       vector_add(t, p->PlayerPosition, o);
 
-      if (CollLine_Fix(pos, t, COLLISION_FLAG_IGNORE_NONDAMAGEABLE, NULL, 0)) {
+      if (CollLine_Fix(pos, t, COLLISION_FLAG_IGNORE_NONDAMAGEABLE, NULL, 0))
+      {
         vector_copy(t, CollLine_Fix_GetHitPosition());
         drawEffectQuad(t, 22, 0.05, 0x80FFFFFF);
       }
     }
   }
 
-  if (0) {
+  if (0)
+  {
     VECTOR dt, offset;
-    for (j = 0; j < 4; ++j) {
+    for (j = 0; j < 4; ++j)
+    {
 
       u32 color = 0x800000FF;
-      if (j == 1) color = 0x8000FFFF;
-      if (j == 2) color = 0x80FF00FF;
-      if (j == 3) color = 0x80FF0000;
+      if (j == 1)
+        color = 0x8000FFFF;
+      if (j == 2)
+        color = 0x80FF00FF;
+      if (j == 3)
+        color = 0x80FF0000;
 
       vector_subtract(dt, drawColliderTo[j], drawColliderFrom[j]);
-      for (i = 0; i < 20; ++i) {
+      for (i = 0; i < 20; ++i)
+      {
         float t = i / 20.0;
         vector_scale(offset, dt, t);
         vector_add(offset, offset, drawColliderFrom[j]);
         drawEffectQuad(offset, 21, 0.1, color);
       }
 
-      if (CollLine_Fix(drawColliderFrom[j], drawColliderTo[j], 0, NULL, NULL)) {
+      if (CollLine_Fix(drawColliderFrom[j], drawColliderTo[j], 0, NULL, NULL))
+      {
         drawEffectQuad(CollLine_Fix_GetHitPosition(), 21, 0.3, 0x8000FF00);
         //DPRINTF("%08X\n", CollLine_Fix_GetHitMoby());
       }
@@ -869,24 +935,27 @@ void drawCollider(Moby* moby)
 
 void drawPlayerCollider(void);
 
-renderCBootPUpdate(Moby* m)
+renderCBootPUpdate(Moby *m)
 {
-  gfxRegisterDrawFunction((void**)0x0022251C, &drawCollider, m);
+  gfxRegisterDrawFunction((void **)0x0022251C, &drawCollider, m);
 }
 
 void runRenderCboot(int localPlayerIndex)
 {
-  VECTOR off = {0,0,2,0};
+  VECTOR off = { 0, 0, 2, 0 };
 
-  if (isUnloading) {
-    if (TestMoby) {
+  if (isUnloading)
+  {
+    if (TestMoby)
+    {
       mobyDestroy(TestMoby);
       TestMoby = NULL;
     }
     return;
   }
 
-  if (!TestMoby) {
+  if (!TestMoby)
+  {
     Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
     m->Scale *= 0.1;
     m->PUpdate = &renderCBootPUpdate;
@@ -905,31 +974,35 @@ drawB6Visualizer(void)
 {
   int i;
 
-  for (i = 0; i < b6ExplosionPositionCount; ++i) {
+  for (i = 0; i < b6ExplosionPositionCount; ++i)
+  {
     drawEffectQuad(b6ExplosionPositions[i], 4, 0.2, 0x80FFFFFF);
   }
 
   drawB6Hits();
 }
 
-renderB6Visualizer(Moby* m)
+renderB6Visualizer(Moby *m)
 {
-  gfxRegisterDrawFunction((void**)0x0022251C, &drawB6Visualizer, m);
+  gfxRegisterDrawFunction((void **)0x0022251C, &drawB6Visualizer, m);
 }
 
 void runB6HitVisualizer(void)
 {
-  VECTOR off = {0,0,2,0};
+  VECTOR off = { 0, 0, 2, 0 };
 
-  if (isUnloading) {
-    if (TestMoby) {
+  if (isUnloading)
+  {
+    if (TestMoby)
+    {
       mobyDestroy(TestMoby);
       TestMoby = NULL;
     }
     return;
   }
 
-  if (!TestMoby) {
+  if (!TestMoby)
+  {
     Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
     m->Scale *= 0.1;
     m->PUpdate = &renderB6Visualizer;
@@ -937,16 +1010,17 @@ void runB6HitVisualizer(void)
     vector_add(m->Position, playerGetFromSlot(0)->PlayerPosition, off);
   }
 
-  // 
+  //
   TestMoby->DrawDist = 0xFF;
   TestMoby->UpdateDist = 0xFF;
 
   // check for b6
-  Moby* m = mobyListGetStart();
-  Moby* mEnd = mobyListGetEnd();
+  Moby *m = mobyListGetStart();
+  Moby *mEnd = mobyListGetEnd();
   while (m < mEnd)
   {
-    if (!mobyIsDestroyed(m) && m->OClass == MOBY_ID_B6_BALL0 && m->State == 4) {
+    if (!mobyIsDestroyed(m) && m->OClass == MOBY_ID_B6_BALL0 && m->State == 4)
+    {
       DPRINTF("%08X\n", (u32)m->PUpdate);
       vector_copy(b6ExplosionPositions[b6ExplosionPositionCount], m->Position);
       b6ExplosionPositionCount = (b6ExplosionPositionCount + 1) % 64;
@@ -958,15 +1032,18 @@ void runB6HitVisualizer(void)
 
 void drawPositionYaw(void)
 {
-  if (isInGame()) {
-    Player * p = playerGetFromSlot(0);
+  if (isInGame())
+  {
+    Player *p = playerGetFromSlot(0);
 
-    if (padGetButtonDown(0, PAD_UP) > 0) {
+    if (padGetButtonDown(0, PAD_UP) > 0)
+    {
       p->PlayerState = PLAYER_STATE_WAIT_FOR_RESURRECT;
       p->timers.resurrectWait = 1;
     }
 
-    if (p) {
+    if (p)
+    {
       char buf[64];
       sprintf(buf, "%.2f %.2f %.2f   %.3f", p->PlayerPosition[0], p->PlayerPosition[1], p->PlayerPosition[2], p->PlayerRotation[2]);
       gfxScreenSpaceText(15, SCREEN_HEIGHT - 40, 1, 1, 0x80FFFFFF, buf, -1, 0);
@@ -976,12 +1053,13 @@ void drawPositionYaw(void)
 
 void sendFusionShot(void)
 {
-  if (padGetButton(0, PAD_DOWN) <= 0) return;
-  
-  Player* player = playerGetFromSlot(0);
-  void * connection = netGetDmeServerConnection();
+  if (padGetButton(0, PAD_DOWN) <= 0)
+    return;
 
-  VECTOR from={0,0,1,0};
+  Player *player = playerGetFromSlot(0);
+  void *connection = netGetDmeServerConnection();
+
+  VECTOR from = { 0, 0, 1, 0 };
   VECTOR to;
   vector_add(from, from, player->PlayerPosition);
   vector_add(from, from, player->CameraDir);
@@ -1006,16 +1084,19 @@ struct LatencyPing
   long Ticks;
 };
 
-int runLatencyPing_OnRemotePing(void* connection, void* data)
+int runLatencyPing_OnRemotePing(void *connection, void *data)
 {
   struct LatencyPing msg;
   memcpy(&msg, data, sizeof(msg));
 
-  if (msg.FromClientIdx == gameGetMyClientId()) {
+  if (msg.FromClientIdx == gameGetMyClientId())
+  {
     long dticks = timerGetSystemTime() - msg.Ticks;
     int dms = dticks / SYSTEM_TIME_TICKS_PER_MS;
     DPRINTF("RTT to CLIENT %d : %dms\n", msg.ToClientIdx, dms);
-  } else {
+  }
+  else
+  {
     // send back
     netSendCustomAppMessage(NET_DELIVERY_CRITICAL, connection, msg.FromClientIdx, 250, sizeof(msg), &msg);
   }
@@ -1025,20 +1106,27 @@ int runLatencyPing_OnRemotePing(void* connection, void* data)
 
 void runLatencyPing(void)
 {
-  static int pingCooldownTicks[GAME_MAX_PLAYERS] = {0,0,0,0,0,0,0,0,0,0};
+  static int pingCooldownTicks[GAME_MAX_PLAYERS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
   netInstallCustomMsgHandler(250, &runLatencyPing_OnRemotePing);
-  void * connection = netGetDmeServerConnection();
-  if (!connection) return;
+  void *connection = netGetDmeServerConnection();
+  if (!connection)
+    return;
 
   patchAggTime(5);
   long ticks = timerGetSystemTime();
-  Player** players = playerGetAll();
+  Player **players = playerGetAll();
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!player || !player->pNetPlayer) continue;
-    if (pingCooldownTicks[i]) { pingCooldownTicks[i]--; continue; }
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (!player || !player->pNetPlayer)
+      continue;
+    if (pingCooldownTicks[i])
+    {
+      pingCooldownTicks[i]--;
+      continue;
+    }
 
     // send
     struct LatencyPing msg;
@@ -1052,7 +1140,7 @@ void runLatencyPing(void)
   }
 }
 
-int onSniperCollLineFix(VECTOR from, VECTOR to, int hitFlag, Moby* ignore, MobyColDamageIn* damageIn)
+int onSniperCollLineFix(VECTOR from, VECTOR to, int hitFlag, Moby *ignore, MobyColDamageIn *damageIn)
 {
   static int idx = 0;
   vector_copy(drawColliderFrom[idx], from);
@@ -1067,21 +1155,23 @@ int onSniperCollLineFix(VECTOR from, VECTOR to, int hitFlag, Moby* ignore, MobyC
   printf(" %d %08X %08X => %d (%08X)\n", hitFlag, ignore, damageIn, r, CollLine_Fix_GetHitMoby());
 
   idx = idx + 1;
-  if (idx > 4) idx = 0;
+  if (idx > 4)
+    idx = 0;
 
   return r;
 }
 
-void rotEffects(Player* player)
+void rotEffects(Player *player)
 {
-  if (player->PlayerState == PLAYER_STATE_CHARGE) {
+  if (player->PlayerState == PLAYER_STATE_CHARGE)
+  {
     //player->PlayerMoby->Rotation[1] += MATH_PI / 2;
   }
 
-  ((void (*)(Player*))0x005d2388)(player);
+  ((void (*)(Player *))0x005d2388)(player);
 }
 
-void onSetMobyCollPill(Moby* moby, int index, VECTOR pos, float radius, float height)
+void onSetMobyCollPill(Moby *moby, int index, VECTOR pos, float radius, float height)
 {
   //((void (*)(Moby*, int, VECTOR, float, float))0x004F79A8)(moby, index, pos, radius, height);
 }
@@ -1091,67 +1181,76 @@ void runLocalPlayerChargeboot(void)
   static VECTOR pos;
   int pid = 1;
 
-  if (!isInGame()) return;
-  Player* player = playerGetAll()[pid];
-  if (!player || !player->PlayerMoby) return;
+  if (!isInGame())
+    return;
+  Player *player = playerGetAll()[pid];
+  if (!player || !player->PlayerMoby)
+    return;
 
-  if (isUnloading) {
+  if (isUnloading)
+  {
     //POKE_U32(0x003FC66C, 0x0C12DF94);
     //POKE_U32(0x005d6318, 0x0C13DE6A);
     //POKE_U32(0x005D638C, 0x0C13DE6A);
     //POKE_U32(0x005d6250, 0x0C1748E2);
-  } else {
+  }
+  else
+  {
     //HOOK_JAL(0x003FC66C, &onSniperCollLineFix);
     //HOOK_JAL(0x005d6318, &onSetMobyCollPill);
     //HOOK_JAL(0x005D638C, &onSetMobyCollPill);
     //HOOK_JAL(0x005d6250, &rotEffects);
   }
 
-  if (0) {
+  if (0)
+  {
     VECTOR pfixed = { 352.42, 208.53, 107.75, 0 };
     VECTOR dt;
     vector_subtract(dt, pfixed, player->PlayerPosition);
-    if (player->PlayerState != PLAYER_STATE_CHARGE && vector_sqrmag(dt) > 0.1) {
+    if (player->PlayerState != PLAYER_STATE_CHARGE && vector_sqrmag(dt) > 0.1)
+    {
       playerSetPosRot(player, pfixed, player->PlayerRotation);
     }
   }
 
   player->Health = 50;
-  if (player->PlayerState == PLAYER_STATE_CHARGE && player->timers.state <= 21) {
+  if (player->PlayerState == PLAYER_STATE_CHARGE && player->timers.state <= 21)
+  {
     player->timers.state = 20;
     vector_copy(player->PlayerPosition, pos);
     vector_copy(player->PlayerMoby->Position, pos);
     //player->Tweakers[0].rot[1] = -MATH_PI / 2;
-  } else {
+  }
+  else
+  {
     vector_copy(pos, player->PlayerPosition);
   }
-  
+
   runRenderCboot(pid);
 }
 
-int runSendMonitor_Hook(void* a0, void* a1, int a2)
+int runSendMonitor_Hook(void *a0, void *a1, int a2)
 {
   u32 ra;
-  
-	// pointer to gameplay data is stored in $s1
-	asm volatile (
-		"move %0, $ra"
-		: : "r" (ra)
-	);
 
+  // pointer to gameplay data is stored in $s1
+  asm volatile(
+    "move %0, $ra"
+    : : "r"(ra));
 
   POKE_U32(0x01EA1270, 0x27BDFFE0);
   POKE_U32(0x01EA1274, 0x0080482D);
 
-  int msgId = *(int*)((u32)a0 + 0x08);
-  int msgLen = *(int*)((u32)a0 + 0x38);
-  void* msgPtr = *(void**)((u32)a0 + 0x3C);
-  if (a2 == 2 && msgId == 15) {
-    
+  int msgId = *(int *)((u32)a0 + 0x08);
+  int msgLen = *(int *)((u32)a0 + 0x38);
+  void *msgPtr = *(void **)((u32)a0 + 0x3C);
+  if (a2 == 2 && msgId == 15)
+  {
+
     DPRINTF("SEND msgClass:%d msgId:%d msgLen:%d msgBuf:%08X ra:%08X\n", a2, msgId, msgLen, msgPtr, ra);
   }
-  int result = ((int (*)(void*, void*, int))0x01ea1270)(a0, a1, a2);
-  
+  int result = ((int (*)(void *, void *, int))0x01ea1270)(a0, a1, a2);
+
   HOOK_J(0x01EA1270, &runSendMonitor_Hook);
   POKE_U32(0x01EA1274, 0);
 
@@ -1160,45 +1259,51 @@ int runSendMonitor_Hook(void* a0, void* a1, int a2)
 
 void runSendMonitor(void)
 {
-  if (isUnloading) {
+  if (isUnloading)
+  {
     POKE_U32(0x01EA1270, 0x27BDFFE0);
     POKE_U32(0x01EA1274, 0x0080482D);
     return;
   }
-  
+
   HOOK_J(0x01EA1270, &runSendMonitor_Hook);
   POKE_U32(0x01EA1274, 0);
 }
 
-void playSound(Moby* moby, int id)
+void playSound(Moby *moby, int id)
 {
   static short sHandle = 0;
 
-  if (sHandle != 0) {
+  if (sHandle != 0)
+  {
     soundKillByHandle(sHandle);
     sHandle = 0;
   }
 
-	baseSoundDef.Index = id;
-	short sId = soundPlay(&baseSoundDef, 0, moby, 0, 0x400);
-  if (sId >= 0) {
+  baseSoundDef.Index = id;
+  short sId = soundPlay(&baseSoundDef, 0, moby, 0, 0x400);
+  if (sId >= 0)
+  {
     sHandle = soundCreateHandle(sId);
   }
 }
 
 void runDualViperNapalm(void)
 {
-  VECTOR offset = {0,0,-0.1,0};
-  Moby* m = mobyListGetStart();
-  Moby* mEnd = mobyListGetEnd();
+  VECTOR offset = { 0, 0, -0.1, 0 };
+  Moby *m = mobyListGetStart();
+  Moby *mEnd = mobyListGetEnd();
 
   static int aaa = 386;
 
-  if (padGetButtonDown(0, PAD_LEFT) > 0) {
+  if (padGetButtonDown(0, PAD_LEFT) > 0)
+  {
     --aaa;
     DPRINTF("%d\n", aaa);
     playSound(playerGetFromSlot(0)->PlayerMoby, aaa);
-  } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+  }
+  else if (padGetButtonDown(0, PAD_RIGHT) > 0)
+  {
     ++aaa;
     DPRINTF("%d\n", aaa);
     playSound(playerGetFromSlot(0)->PlayerMoby, aaa);
@@ -1212,7 +1317,8 @@ void runDualViperNapalm(void)
 
   while (m < mEnd)
   {
-    if (mobyIsDestroyed(m)) {
+    if (mobyIsDestroyed(m))
+    {
       ++m;
       continue;
     }
@@ -1240,7 +1346,7 @@ void runDualViperNapalm(void)
       {
         rate = 3;
 
-        Moby* flail = m->PParent;
+        Moby *flail = m->PParent;
         if (flail && flail->State == 2)
           fire = 1;
         break;
@@ -1248,11 +1354,14 @@ void runDualViperNapalm(void)
     }
 
     // napalm
-    if (fire) {
-      if (m->Mission >= rate) {
-        Player* player = guberMobyGetPlayerDamager(m);
-        if (player) {
-          Moby* napalm = ((Moby* (*)(u128 pos, u128 a1, u128 a2, Player* player, u32 t0, int t1, u32 t2, u32 t3))0x00450380)(
+    if (fire)
+    {
+      if (m->Mission >= rate)
+      {
+        Player *player = guberMobyGetPlayerDamager(m);
+        if (player)
+        {
+          Moby *napalm = ((Moby * (*)(u128 pos, u128 a1, u128 a2, Player * player, u32 t0, int t1, u32 t2, u32 t3))0x00450380)(
             vector_read(m->Position),
             0,
             0,
@@ -1260,16 +1369,18 @@ void runDualViperNapalm(void)
             0x1801,
             4,
             0,
-            0
-          );
+            0);
 
-          if (napalm && napalm->PVar) {
-            ((float*)napalm->PVar)[12] = 10;
+          if (napalm && napalm->PVar)
+          {
+            ((float *)napalm->PVar)[12] = 10;
           }
         }
 
         m->Mission = 0;
-      } else {
+      }
+      else
+      {
         m->Mission++;
       }
     }
@@ -1281,41 +1392,46 @@ void runDualViperNapalm(void)
 void runCubicLineDraw_PostDraw(void)
 {
   u32 color = 0x80FFFFFF;
-  VECTOR delta, playerOffset = {0,0,1,0};
+  VECTOR delta, playerOffset = { 0, 0, 1, 0 };
 
-  Player* player = playerGetFromSlot(0);
-  if (!player) return;
+  Player *player = playerGetFromSlot(0);
+  if (!player)
+    return;
 
-  VECTOR target = {0,5,2,0};
+  VECTOR target = { 0, 5, 2, 0 };
   vector_add(target, target, player->PlayerPosition);
 
   endpoints[1].iGlowRGBA = endpoints[0].iGlowRGBA = endpoints[1].iCoreRGBA = endpoints[0].iCoreRGBA = color;
   vector_add(endpoints[1].vPos, player->PlayerPosition, playerOffset);
   vector_copy(endpoints[0].vPos, target);
-  gfxDrawCubicLine((void*)0x2225a8, endpoints, 2, (void*)0x383a68, 1);
+  gfxDrawCubicLine((void *)0x2225a8, endpoints, 2, (void *)0x383a68, 1);
 }
 
-void runCubicLineDraw_Update(Moby* moby)
+void runCubicLineDraw_Update(Moby *moby)
 {
-	// register post draw function
-	gfxRegisterDrawFunction((void**)0x0022251C, &runCubicLineDraw_PostDraw, moby);
+  // register post draw function
+  gfxRegisterDrawFunction((void **)0x0022251C, &runCubicLineDraw_PostDraw, moby);
 }
 
 void runCubicLineDraw(void)
 {
-  if (isInGame()) {
-    Player* localPlayer = playerGetFromSlot(0);
-    VECTOR off = {0,0,-10,0};
+  if (isInGame())
+  {
+    Player *localPlayer = playerGetFromSlot(0);
+    VECTOR off = { 0, 0, -10, 0 };
 
-    if (!TestMoby) {
+    if (!TestMoby)
+    {
       Moby *m = TestMoby = mobySpawn(MOBY_ID_BETA_BOX, 0);
       m->Scale *= 0.1;
     }
 
-    if (isUnloading && TestMoby) {
+    if (isUnloading && TestMoby)
+    {
       TestMoby->PUpdate = 0;
     }
-    else if (TestMoby && localPlayer) {
+    else if (TestMoby && localPlayer)
+    {
       TestMoby->DrawDist = 0xFF;
       TestMoby->UpdateDist = 0xFF;
       vector_add(TestMoby->Position, localPlayer->PlayerPosition, off);
@@ -1328,19 +1444,22 @@ void runSceneSwitcher(void)
 {
   int i;
 
-  if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0) {
+  if (padGetButtonDown(0, PAD_L1 | PAD_UP) > 0)
+  {
 
     // find map def
-    for (i = 0; i < customMapDefCount; ++i) {
-      if (strncmp(customMapDefs[i].Filename, "bakisi isles", sizeof(customMapDefs[i].Name)) == 0) {
+    for (i = 0; i < customMapDefCount; ++i)
+    {
+      if (strncmp(customMapDefs[i].Filename, "bakisi isles", sizeof(customMapDefs[i].Name)) == 0)
+      {
         break;
       }
     }
 
-    if (i >= customMapDefCount) return;
+    if (i >= customMapDefCount)
+      return;
 
     int mapId = customMapDefs[i].BaseMapId;
-
 
     //POKE_U32(0x0021de80, 4);
     POKE_U32(0x0021e6a4, 6);
@@ -1355,37 +1474,39 @@ void runSceneSwitcher(void)
     MapLoaderState.LoadingFd = -1;
     MapLoaderState.LoadingFileSize = -1;
 
-    void** binPtrs = (void**)0x001dfbf0;
-    void** texPtrs = (void**)0x001dfc18;
-    void* buffer = *(void**)0x00240D78;
-    GameSettings* gs = gameGetSettings();
-  
+    void **binPtrs = (void **)0x001dfbf0;
+    void **texPtrs = (void **)0x001dfc18;
+    void *buffer = *(void **)0x00240D78;
+    GameSettings *gs = gameGetSettings();
+
     // read onlinewad
-    void* onlineWadBuffer = *(u32*)0x0021dd90 - 0x7D0000;
-    int sectorOffset = *(u32*)0x001ce410 + *(u32*)0x001ce40c;
-    int sectorCount = *(u32*)0x001ce414;
-    ((void (*)(int))0x001634a8)(1); // fs::sync(1)
-    ((void (*)(int loadType, void* dest, int sectorOffset, int sectorCount, int t0, void* loadCompleteCallback, void* loadCompleteArgs))0x00163808)
-      (0, onlineWadBuffer, sectorOffset, sectorCount, 0, 0, 0); // fs::load()
+    void *onlineWadBuffer = *(u32 *)0x0021dd90 - 0x7D0000;
+    int sectorOffset = *(u32 *)0x001ce410 + *(u32 *)0x001ce40c;
+    int sectorCount = *(u32 *)0x001ce414;
+    ((void (*)(int))0x001634a8)(1);                                                                                                                                                                          // fs::sync(1)
+    ((void (*)(int loadType, void *dest, int sectorOffset, int sectorCount, int t0, void *loadCompleteCallback, void *loadCompleteArgs))0x00163808)(0, onlineWadBuffer, sectorOffset, sectorCount, 0, 0, 0); // fs::load()
 
     // load player skins
-    for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-      if (gs->PlayerClients[i] < 0) continue;
+    for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+    {
+      if (gs->PlayerClients[i] < 0)
+        continue;
       int armorIdx = gs->PlayerSkins[i];
-      if (armorIdx <= 0) continue;
+      if (armorIdx <= 0)
+        continue;
 
       // parse armor table
-      void* armorDef = onlineWadBuffer + 0x250 + (0x28 * armorIdx);
-      void* armorMobyPtr = onlineWadBuffer + *(u32*)(armorDef + 0x4);
-      void* armorTexPtr = onlineWadBuffer + *(u32*)(armorDef + 0xc);
+      void *armorDef = onlineWadBuffer + 0x250 + (0x28 * armorIdx);
+      void *armorMobyPtr = onlineWadBuffer + *(u32 *)(armorDef + 0x4);
+      void *armorTexPtr = onlineWadBuffer + *(u32 *)(armorDef + 0xc);
 
       // decompress moby data
-      int len = ((int (*)(void* src, void* dst))0x004f5140)(armorMobyPtr, buffer);
+      int len = ((int (*)(void *src, void *dst))0x004f5140)(armorMobyPtr, buffer);
       binPtrs[i] = buffer;
       buffer += (len + 0x3F) & 0xFFFFFFC0;
 
       // decompress tex data
-      len = ((int (*)(void* src, void* dst))0x004f5140)(armorTexPtr, buffer);
+      len = ((int (*)(void *src, void *dst))0x004f5140)(armorTexPtr, buffer);
       texPtrs[i] = buffer;
       buffer += (len + 0x3F) & 0xFFFFFFC0;
     }
@@ -1402,12 +1523,16 @@ float runRngMarteCarloSim(float probability, int count)
   int yes = 0;
   int no = 0;
   int i = 0;
-  while (i < count) {
+  while (i < count)
+  {
 
     float r = randRange(0, 1);
-    if (r < probability) {
+    if (r < probability)
+    {
       ++yes;
-    } else {
+    }
+    else
+    {
       ++no;
     }
 
@@ -1420,26 +1545,25 @@ float runRngMarteCarloSim(float probability, int count)
   return percentYes;
 }
 
-void* myMobyProc(Moby* mobyInstances, void* mobyAnimPtr, int mobyCount, int flags)
+void *myMobyProc(Moby *mobyInstances, void *mobyAnimPtr, int mobyCount, int flags)
 {
-  return ((void* (*)(Moby*, void*, int, int))0x004fec20)(mobyInstances, mobyAnimPtr, mobyCount, flags);
+  return ((void *(*)(Moby *, void *, int, int))0x004fec20)(mobyInstances, mobyAnimPtr, mobyCount, flags);
   char backup[0x1d0];
-  memcpy(backup, (void*)0x0022CBC0, 0x1d0);
+  memcpy(backup, (void *)0x0022CBC0, 0x1d0);
 
-
-  float* cameraPos = (float*)0x0022CD00;
-  float* cameraR = (float*)0x0022CD10;
+  float *cameraPos = (float *)0x0022CD00;
+  float *cameraR = (float *)0x0022CD10;
 
   // face down from player
   //cameraPos[2] += 100;
   //vector_write(cameraR, 0);
   //cameraR[1] = MATH_PI/2;
-  
+
   // recompute camera matrices
   //((void (*)(void))0x004c0000)();
 
   // force fov
-  float fov = *(float*)0x0023D4B0;
+  float fov = *(float *)0x0023D4B0;
   //*(float*)0x0023D4B0 = 1024;
   //((void (*)(void))0x004c0d18)();
   //((void (*)(int))0x004c2f98)(0);
@@ -1448,16 +1572,18 @@ void* myMobyProc(Moby* mobyInstances, void* mobyAnimPtr, int mobyCount, int flag
   int batchsize = 240;
   int count = 240; //(mobyListGetEnd() - mobyListGetStart()); // / sizeof(Moby);
   int i;
-  for (i = 0; i < count; i += batchsize) {
+  for (i = 0; i < count; i += batchsize)
+  {
     int cnt = count - i;
-    if (cnt > batchsize) cnt = batchsize;
+    if (cnt > batchsize)
+      cnt = batchsize;
     printf("MobyProc(%08X, %08X, %d/%d, %d)", mobyInstances + i, mobyAnimPtr, cnt + i, count, flags);
-    ((void (*)(Moby*, int, int))0x004f8d08)(mobyInstances + i, cnt, flags);
-    mobyAnimPtr = *(void**)0x002227a8;
+    ((void (*)(Moby *, int, int))0x004f8d08)(mobyInstances + i, cnt, flags);
+    mobyAnimPtr = *(void **)0x002227a8;
     //mobyAnimPtr = ((void* (*)(Moby*, void*, int, int))0x004fec20)(mobyInstances + i, mobyAnimPtr, cnt, flags);
     printf(" => %08X\n", mobyAnimPtr);
   }
-  
+
   //printf("MobyProc(%08X, %08X, %d (%d), %d) => %08X\n", mobyInstances, mobyAnimPtr, mobyCount, count, flags, mobyAnimPtr);
 
   // force fov
@@ -1465,7 +1591,7 @@ void* myMobyProc(Moby* mobyInstances, void* mobyAnimPtr, int mobyCount, int flag
   //((void (*)(int))0x004c2f98)(0);
 
   //23D4B0
-  memcpy((void*)0x0022CBC0, backup, 0x1d0);
+  memcpy((void *)0x0022CBC0, backup, 0x1d0);
   return mobyAnimPtr;
 }
 
@@ -1474,18 +1600,21 @@ void onBeforeDrawMobys(void)
   int count = 0;
   Moby mobysToDraw[20] = {};
 
-  float* cameraPos = (float*)0x0022CD00;
-  float* cameraForw = (float*)0x0022CD30;
+  float *cameraPos = (float *)0x0022CD00;
+  float *cameraForw = (float *)0x0022CD30;
 
   // collect mobys
   int i;
-  Player** players = playerGetAll();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (!player || !player->PlayerMoby) continue;
+  Player **players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (!player || !player->PlayerMoby)
+      continue;
 
-    Moby* moby = player->PlayerMoby;
-    if ((moby->ModeBits & 1) == 0) {
+    Moby *moby = player->PlayerMoby;
+    if ((moby->ModeBits & 1) == 0)
+    {
       vector_add(moby->Position, cameraPos, cameraForw);
       //memcpy(&mobysToDraw[count], moby, sizeof(Moby));
       //mobysToDraw[count].PChain = moby;
@@ -1495,7 +1624,8 @@ void onBeforeDrawMobys(void)
     }
   }
 
-  if (count > 0) {
+  if (count > 0)
+  {
 
     // draw
     ((void (*)(void))0x004f8c00)(); // DrawMobysSetup
@@ -1503,8 +1633,8 @@ void onBeforeDrawMobys(void)
     ((void (*)(void))0x004f8ba0)(); // StashMobyClassDists
 
     printf("draw %d\n", count);
-    ((void (*)(Moby*, int, int))0x004f8d08)(mobysToDraw, count, 1);
-    
+    ((void (*)(Moby *, int, int))0x004f8d08)(mobysToDraw, count, 1);
+
     ((void (*)(void))0x004f8bd0)(); // RestoreMobyClassDists
     ((void (*)(void))0x004f8da8)(); // DrawMobysCleanup
   }
@@ -1513,7 +1643,8 @@ void onBeforeDrawMobys(void)
   ((void (*)(void))0x004f8e08)();
 
   // unhide
-  for (i = 0; i < count; ++i) {
+  for (i = 0; i < count; ++i)
+  {
     //mobysToDraw[i].PChain->ModeBits &= ~1;
   }
 }
@@ -1525,11 +1656,11 @@ void onAfterDrawMobys(void)
   ((void (*)(void))0x004f8b78)(); // InitMobyClassDists
   ((void (*)(void))0x004f8ba0)(); // StashMobyClassDists
 
-  Moby* moby = playerGetFromSlot(0)->PlayerMoby;
+  Moby *moby = playerGetFromSlot(0)->PlayerMoby;
   moby->Position[2] += 2;
-  ((void (*)(Moby*, int, int))0x004f8d08)(moby, 1, 0);
+  ((void (*)(Moby *, int, int))0x004f8d08)(moby, 1, 0);
   moby->Position[2] -= 2;
-  
+
   ((void (*)(void))0x004f8bd0)(); // RestoreMobyClassDists
   ((void (*)(void))0x004f8da8)(); // DrawMobysCleanup
 }
@@ -1537,8 +1668,8 @@ void onAfterDrawMobys(void)
 long myTimebaseGetSystemTime(void)
 {
   long systemTime = timerGetSystemTime();
-  long* hostTicks = (long*)(0x00090000 + 0x38);
-  
+  long *hostTicks = (long *)(0x00090000 + 0x38);
+
   long time = *hostTicks;
   if (time == 0)
     return systemTime;
@@ -1546,11 +1677,12 @@ long myTimebaseGetSystemTime(void)
   return time; // * SYSTEM_TIME_TICKS_PER_MS;
 }
 
-void myTimebaseGetLocalTimeMs(int* out)
+void myTimebaseGetLocalTimeMs(int *out)
 {
-  long* hostTicks = (long*)(0x00090000 + 0x38);
+  long *hostTicks = (long *)(0x00090000 + 0x38);
 
-  if (out) {
+  if (out)
+  {
     *out = (int)(*hostTicks / SYSTEM_TIME_TICKS_PER_MS);
   }
 }
@@ -1558,15 +1690,15 @@ void myTimebaseGetLocalTimeMs(int* out)
 int myTimebaseUpdate(void)
 {
   u32 value = ((u32 (*)(void))0x01eabae8)();
-  u32* secs = (u32*)0x001b23e8;
-  u32* counts = (u32*)0x001b23ec;
-  u32* usecs = (u32*)0x001b23f0;
-  u32* lastValue = (u32*)0x001b23f4;
+  u32 *secs = (u32 *)0x001b23e8;
+  u32 *counts = (u32 *)0x001b23ec;
+  u32 *usecs = (u32 *)0x001b23f0;
+  u32 *lastValue = (u32 *)0x001b23f4;
   int dt = value - *lastValue;
 
-  long hostTicks = *(long*)(0x00090000 + 0x38);
+  long hostTicks = *(long *)(0x00090000 + 0x38);
   long maxUsecs = 1000 * 1000;
-  
+
   *secs = hostTicks / (SYSTEM_TIME_TICKS_PER_MS * 1000);
   *usecs = ((hostTicks * 1000) / SYSTEM_TIME_TICKS_PER_MS) % maxUsecs;
   *counts += dt;
@@ -1580,10 +1712,10 @@ void runFrameRateVariationTest(void)
   static int lastGameTime = 0;
   static long lastSystemTime = 0;
   static long lastHostTime = 0;
-  
-  int* globalTimebase = (int*)0x00168ba8;
-  int* gameTime = (int*)0x00172378;
-  long* hostMs = (long*)(0x00090000 + 0x38);
+
+  int *globalTimebase = (int *)0x00168ba8;
+  int *gameTime = (int *)0x00172378;
+  long *hostMs = (long *)(0x00090000 + 0x38);
 
   int gDt = gameGetTime() - lastGameTime;
   long sDt = (timerGetSystemTime() - lastSystemTime) / SYSTEM_TIME_TICKS_PER_MS;
@@ -1591,13 +1723,14 @@ void runFrameRateVariationTest(void)
   int dt = (int)(hDt - sDt);
 
   char buf[64];
-  snprintf(buf, sizeof(buf), "%.3f %d %lld %lld %d", gameGetTime()/1000.0, gDt, sDt, hDt, dt);
+  snprintf(buf, sizeof(buf), "%.3f %d %lld %lld %d", gameGetTime() / 1000.0, gDt, sDt, hDt, dt);
   gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-  
+
   // always ignore timebase query
   POKE_U32(0x01eabd60, 0x10000003);
   //POKE_U32(0x0015B118, 0); // disable timebanditshack
-  if (padGetButton(0, PAD_CROSS)) {
+  if (padGetButton(0, PAD_CROSS))
+  {
     POKE_U32(0x01eabd60, 0);
   }
 
@@ -1605,8 +1738,8 @@ void runFrameRateVariationTest(void)
   lastSystemTime = timerGetSystemTime();
   lastHostTime = *hostMs;
 
-  u32* secs = (u32*)0x001b23e8;
-  u32* usecs = (u32*)0x001b23f0;
+  u32 *secs = (u32 *)0x001b23e8;
+  u32 *usecs = (u32 *)0x001b23f0;
   snprintf(buf, sizeof(buf), "%lld %lld", *secs, *usecs);
   gfxHelperDrawText(15, 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
 
@@ -1616,7 +1749,8 @@ void runFrameRateVariationTest(void)
   //HOOK_JAL(0x01eabc20, &myTimebaseGetLocalTimeMs);
   //HOOK_JAL(0x01eab6c0, &myTimebaseUpdate);
   //POKE_U32(0x01eab21c, 0x087AAC8A);
-  if (isUnloading) {
+  if (isUnloading)
+  {
     //POKE_U32(0x01eab6c0, 0x0C7AAEBE);
     //POKE_U32(0x0015acc8, 0x0C04B8DC);
     //POKE_U32(0x0015ac6c, 0x0C04B8DC);
@@ -1629,20 +1763,23 @@ static VECTOR bounceVels[GAME_MAX_PLAYERS] = {};
 static VECTOR lastGoodPos[GAME_MAX_PLAYERS] = {};
 static VECTOR lastGoodPos2[GAME_MAX_PLAYERS] = {};
 
-void onB6Explode(Moby* moby)
+void onB6Explode(Moby *moby)
 {
   const float MAX_DIST = 10;
   const float POWER = 30;
   const float RAMP = 2;
 
-  Player** players = playerGetAll();
+  Player **players = playerGetAll();
   int i;
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player && playerIsConnected(player)) {
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (player && playerIsConnected(player))
+    {
       float dist = vector_distance(player->PlayerPosition, moby->Position);
-      if (dist < 10) {
-        
+      if (dist < 10)
+      {
+
         VECTOR thrust;
         vector_subtract(thrust, player->PlayerPosition, moby->Position);
         thrust[2] = 2;
@@ -1651,7 +1788,9 @@ void onB6Explode(Moby* moby)
         thrust[0] = thrust[1] = 0;
         thrust[2] = POWER * powf((MAX_DIST - dist) / MAX_DIST, RAMP);
         vector_add(bounceVels[i], bounceVels[i], thrust);
-        printf("hit %f ", dist); vector_print(thrust); printf("\n");
+        printf("hit %f ", dist);
+        vector_print(thrust);
+        printf("\n");
       }
     }
   }
@@ -1665,34 +1804,44 @@ void bounceReflect(int i, VECTOR normal)
   return;
 
   float d = vector_innerproduct(bounceVels[i], normal);
-  if (d >= 0.1) {
+  if (d >= 0.1)
+  {
     // do nothing
     // normal facing same dir of velocity
-  } else if (fabsf(d) < 0.1) {
+  }
+  else if (fabsf(d) < 0.1)
+  {
     //vector_write(bounceVels[i], 0);
     vector_scale(bounceVels[i], bounceVels[i], 0.5);
-  } else {
+  }
+  else
+  {
     vector_normalize(n, normal);
     vector_reflect(bounceVels[i], bounceVels[i], n);
     vector_scale(bounceVels[i], bounceVels[i], 0.9);
   }
 }
 
-void playerOnPushedIntoWall(Player* player)
+void playerOnPushedIntoWall(Player *player)
 {
-  if (!player || !player->SkinMoby || !player->PlayerMoby) return;
-  
+  if (!player || !player->SkinMoby || !player->PlayerMoby)
+    return;
+
   int i = player->PlayerId;
   printf("contact:%d\n", player->Coll.contact);
-  if (player->Coll.contact) {
+  if (player->Coll.contact)
+  {
     bounceReflect(i, player->Coll.normal);
-  } else if (player->Ground.onGood) {
+  }
+  else if (player->Ground.onGood)
+  {
     bounceReflect(i, player->Ground.normal);
   }
 
   // move player out of clipped wall
   // using lastGoodPos doesn't always return us to before the clip
-  if (1) {
+  if (1)
+  {
     playerSetPosRot(player, lastGoodPos2[i], player->PlayerRotation);
   }
 }
@@ -1710,57 +1859,69 @@ void runBounce(void)
   POKE_U32(0x005e419c, 0);
   HOOK_JAL(0x005e41bc, &playerOnPushedIntoWall);
 
-  VECTOR gravity = {0,0,-1 * MATH_DT,0};
+  VECTOR gravity = { 0, 0, -1 * MATH_DT, 0 };
 
   // move speed 2x
-  Player** players = playerGetAll();
-  for (i = 0; i < GAME_MAX_PLAYERS; ++i) {
-    Player* player = players[i];
-    if (player && playerIsConnected(player)) {
+  Player **players = playerGetAll();
+  for (i = 0; i < GAME_MAX_PLAYERS; ++i)
+  {
+    Player *player = players[i];
+    if (player && playerIsConnected(player))
+    {
       player->Speed = 1;
 
-      if (playerIsDead(player)) {
+      if (playerIsDead(player))
+      {
         vector_write(bounceVels[i], 0);
       }
 
-      if (player->IsLocal && padGetButtonDown(0, PAD_UP) > 0) {
-        VECTOR vup = {1,1,1,0};
+      if (player->IsLocal && padGetButtonDown(0, PAD_UP) > 0)
+      {
+        VECTOR vup = { 1, 1, 1, 0 };
         vector_scale(vup, vup, 20);
         vector_add(bounceVels[i], bounceVels[i], vup);
       }
 
-      if (vector_sqrmag(bounceVels[i]) > 0.01) {
-        if (player->Coll.contact || player->Ground.onGood) {
+      if (vector_sqrmag(bounceVels[i]) > 0.01)
+      {
+        if (player->Coll.contact || player->Ground.onGood)
+        {
           vector_write(bounceVels[i], 0);
         }
 
-        float* extVel = (float*)((u32)player + 0x130 + 0x10);
+        float *extVel = (float *)((u32)player + 0x130 + 0x10);
         vector_scale(extVel, bounceVels[i], MATH_DT);
         vector_add(bounceVels[i], bounceVels[i], gravity);
         vector_scale(bounceVels[i], bounceVels[i], 0.99);
-
       }
 
-      if (0 && vector_sqrmag(bounceVels[i]) > 0.01) {
-        float* extVel = (float*)((u32)player + 0x130 + 0x10);
-        
-        if (CollLine_Fix(lastGoodPos[i], player->PlayerPosition, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, player->PlayerMoby, NULL) > 0) {
-          
+      if (0 && vector_sqrmag(bounceVels[i]) > 0.01)
+      {
+        float *extVel = (float *)((u32)player + 0x130 + 0x10);
+
+        if (CollLine_Fix(lastGoodPos[i], player->PlayerPosition, COLLISION_FLAG_IGNORE_MOBY_SPECIAL_COLLIDERS, player->PlayerMoby, NULL) > 0)
+        {
+
           bounceReflect(i, CollLine_Fix_GetHitNormal());
 
           vector_copy(player->PlayerPosition, lastGoodPos2[i]);
           vector_copy(player->PlayerMoby->Position, lastGoodPos2[i]);
-        } else {
+        }
+        else
+        {
           vector_copy(lastGoodPos2[i], lastGoodPos[i]);
           vector_copy(lastGoodPos[i], player->PlayerPosition);
         }
 
-        if (player->Coll.contact) {
+        if (player->Coll.contact)
+        {
           bounceReflect(i, player->Coll.normal);
           //vector_normalize(n, bounceVels[i]);
           //vector_add(player->PlayerPosition, player->PlayerPosition, n);
           //vector_copy(player->PlayerMoby->Position, player->PlayerPosition);
-        } else if (player->Ground.onGood) {
+        }
+        else if (player->Ground.onGood)
+        {
           bounceReflect(i, player->Ground.normal);
         }
 
@@ -1769,7 +1930,8 @@ void runBounce(void)
         vector_add(bounceVels[i], bounceVels[i], gravity);
         vector_scale(bounceVels[i], bounceVels[i], 0.99);
 
-        if (!player->Ground.onGood) {
+        if (!player->Ground.onGood)
+        {
           player->Ground.onGood = 0;
           player->Ground.offAny = 1;
           player->Ground.offGood = 1;
@@ -1781,19 +1943,21 @@ void runBounce(void)
         int targetState = PLAYER_STATE_GET_HIT;
         //if (player->PlayerState != targetState)
         //  playerGetVTable(player)->UpdateState(player, targetState, 0, 0, 0);
-      } else {
+      }
+      else
+      {
         //vector_write(bounceVels[i], 0);
       }
     }
   }
 
-  
   // check for b6
-  Moby* m = mobyListGetStart();
-  Moby* mEnd = mobyListGetEnd();
+  Moby *m = mobyListGetStart();
+  Moby *mEnd = mobyListGetEnd();
   while (m < mEnd)
   {
-    if (!mobyIsDestroyed(m) && m->OClass == MOBY_ID_B6_BALL0 && m->State == 4) {
+    if (!mobyIsDestroyed(m) && m->OClass == MOBY_ID_B6_BALL0 && m->State == 4)
+    {
       DPRINTF("%08X\n", (u32)m->PUpdate);
       onB6Explode(m);
     }
@@ -1804,23 +1968,23 @@ void runBounce(void)
 
 void printCameraOctant(void)
 {
-  float* cameraPos = (float*)0x0022CD00;
+  float *cameraPos = (float *)0x0022CD00;
   int xOctant = (int)(cameraPos[0] * 0.25);
   int yOctant = (int)(cameraPos[1] * 0.25);
   int zOctant = (int)(cameraPos[2] * 0.25);
 
   char strBuf[64];
-  snprintf(strBuf, sizeof(strBuf), "%d %d %d", xOctant*4, yOctant*4, zOctant*4);
-  gfxScreenSpaceText(10, SCREEN_HEIGHT-10, 1, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT);
+  snprintf(strBuf, sizeof(strBuf), "%d %d %d", xOctant * 4, yOctant * 4, zOctant * 4);
+  gfxScreenSpaceText(10, SCREEN_HEIGHT - 10, 1, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMLEFT);
 }
 
 void runMatrixTester(void)
 {
-  Player* p = playerGetFromSlot(0);
+  Player *p = playerGetFromSlot(0);
   VECTOR pivot;
   vector_copy(pivot, p->PlayerPosition);
 
-  ((void (*)(Player*, VECTOR pivot, float x, float y, float z))0x005d7278)(p, pivot, 0, 0, 0);
+  ((void (*)(Player *, VECTOR pivot, float x, float y, float z))0x005d7278)(p, pivot, 0, 0, 0);
 
   MATRIX m;
   VECTOR a;
@@ -1858,7 +2022,8 @@ void runTestLogic(void)
 
   //runFrameRateVariationTest();
   //runSystemTime();
-  if (isInGame()) {
+  if (isInGame())
+  {
     // if (padGetButtonDown(0, PAD_DOWN) > 0) {
     //   Player* p = playerGetFromSlot(0);
     //   VECTOR to = {5,5,5,0};
@@ -1920,14 +2085,14 @@ void runTestLogic(void)
     //   vector_scale(pos, p->CameraForward, 4);
     //   vector_add(pos, pos, p->PlayerPosition);
     //   pos[2] += 1;
-    //   u128 vPos = vector_read(pos); 
+    //   u128 vPos = vector_read(pos);
     //   u32 clear = 0;
     //   u32 red = 0x800000FF;
     //   u32 green = 0x8000FF00;
     //   u32 white = 0x80FFFFFF;
     //   mobySpawnExplosion(vPos, 0,
     //     0, 0, 0, 0, 0, 10, 1, 1, 0, 0, 1, 1,
-    //     0, 0, 
+    //     0, 0,
     //     white, white, white, white, white, white, white, white, white,
     //     0, 0, 0, 0, 1, 0, 0, 0);
     // }
@@ -1939,13 +2104,17 @@ void runTestLogic(void)
     //     p->Health = 50;
     // }
 
-    if (padGetButton(0, PAD_L1 | PAD_CIRCLE) > 0) {
-      *(float*)0x00347BD8 = 0.125;
+    if (padGetButton(0, PAD_L1 | PAD_CIRCLE) > 0)
+    {
+      *(float *)0x00347BD8 = 0.125;
     }
-    else if (padGetButton(0, PAD_L1 | PAD_R1 | PAD_TRIANGLE) > 0) {
+    else if (padGetButton(0, PAD_L1 | PAD_R1 | PAD_TRIANGLE) > 0)
+    {
       playerGetFromSlot(0)->Health = 0;
     }
-  } else {
+  }
+  else
+  {
     TestMoby = NULL;
   }
 }

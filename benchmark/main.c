@@ -20,9 +20,9 @@
 #include <libdl/ui.h>
 #include "module.h"
 
-#define MAX_MOB_COUNT                 (75)
-#define MAX_MOB_DRAW_FREE             (55)
-#define MOB_OCLASS                    (0x20F6)
+#define MAX_MOB_COUNT (75)
+#define MAX_MOB_DRAW_FREE (55)
+#define MOB_OCLASS (0x20F6)
 
 enum BenchmarkTest
 {
@@ -33,7 +33,7 @@ enum BenchmarkTest
   BTEST_MOBY_SPAWN
 };
 
-void mobUpdate(Moby* moby);
+void mobUpdate(Moby *moby);
 
 int CurrentTest = BTEST_NONE;
 int UpdatesSinceTestBegan = 0;
@@ -43,19 +43,21 @@ long TestBegan = 0;
 long TestEnd = 0;
 int MobsDrawn = 0;
 int MobysCreated = 0;
-Moby* Mobs[MAX_MOB_COUNT];
+Moby *Mobs[MAX_MOB_COUNT];
 
 void spawnMobs(void)
 {
   static int spawned = 0;
-  if (spawned) return;
+  if (spawned)
+    return;
 
   int i;
   for (i = 0; i < MAX_MOB_COUNT; ++i)
   {
-    Moby* moby = Mobs[i] = mobySpawn(MOB_OCLASS, 0);
+    Moby *moby = Mobs[i] = mobySpawn(MOB_OCLASS, 0);
     DPRINTF("spawn %d %08X\n", i, (u32)moby);
-    if (!moby) continue;
+    if (!moby)
+      continue;
 
     int row = i % 12;
     int col = i / 12;
@@ -74,17 +76,18 @@ void spawnMobs(void)
 
 void updateCamera_PostHook(void)
 {
-  VECTOR CAM_POS = {367,618,445,0};
+  VECTOR CAM_POS = { 367, 618, 445, 0 };
   float CAM_PITCH = 15 * MATH_DEG2RAD;
 
-  if (CurrentTest != BTEST_DRAW && CurrentTest != BTEST_COLLISION) return;
+  if (CurrentTest != BTEST_DRAW && CurrentTest != BTEST_COLLISION)
+    return;
 
   int i;
   MATRIX m;
   for (i = 0; i < 1; ++i)
   {
     // get game camera
-    GameCamera * camera = cameraGetGameCamera(i);
+    GameCamera *camera = cameraGetGameCamera(i);
 
     // write spectate position
     vector_copy(camera->pos, CAM_POS);
@@ -101,13 +104,12 @@ void updateCamera_PostHook(void)
     // update render camera
     ((void (*)(int))0x004b2010)(i);
   }
-
 }
 
-void drawTestName(char* name)
+void drawTestName(char *name)
 {
   char buf[32];
-  char* LODs[] = { "Potato", "Low", "Normal", "High" };
+  char *LODs[] = { "Potato", "Low", "Normal", "High" };
   snprintf(buf, sizeof(buf), "LOD %s", LODs[PATCH_INTEROP->Config->levelOfDetail]);
   gfxScreenSpaceText(10, SCREEN_HEIGHT - 40, 1, 1, 0x80FFFFFF, buf, -1, 0);
   gfxScreenSpaceText(10, SCREEN_HEIGHT - 20, 1, 1, 0x80FFFFFF, name, -1, 0);
@@ -143,7 +145,8 @@ void drawScoreFloat(float score)
 
 long getMsSinceTestBegan(void)
 {
-  if (TestEnd) return (TestEnd - TestBegan) / SYSTEM_TIME_TICKS_PER_MS;
+  if (TestEnd)
+    return (TestEnd - TestBegan) / SYSTEM_TIME_TICKS_PER_MS;
   return (timerGetSystemTime() - TestBegan) / SYSTEM_TIME_TICKS_PER_MS;
 }
 
@@ -176,7 +179,8 @@ void handleTestDraw(void)
   drawTestName("Draw");
 
   float s = (int)getMsSinceTestBegan() / 1000.0;
-  if (!TestEnd && s > 25) TestEnd = timerGetSystemTime();
+  if (!TestEnd && s > 25)
+    TestEnd = timerGetSystemTime();
   drawScore(FramesSinceTestBegan, (int)ceilf(59.94 * s));
   drawMobCount();
 }
@@ -186,7 +190,8 @@ void handleTestCollision(void)
   drawTestName("Collision");
 
   float s = (int)getMsSinceTestBegan() / 1000.0;
-  if (!TestEnd && s > 25) TestEnd = timerGetSystemTime();
+  if (!TestEnd && s > 25)
+    TestEnd = timerGetSystemTime();
   drawScore(FramesSinceTestBegan, (int)ceilf(59.94 * s));
   drawMobCount();
 }
@@ -195,20 +200,27 @@ void handleTestMobySpawn(void)
 {
   // spawn and destroy
   int i;
-  for (i = 0; i < 1; ++i) {
-    Moby* m = mobySpawn(MOB_OCLASS, 0);
-    if (m) { mobyDestroy(m); ++MobysCreated; }
+  for (i = 0; i < 1; ++i)
+  {
+    Moby *m = mobySpawn(MOB_OCLASS, 0);
+    if (m)
+    {
+      mobyDestroy(m);
+      ++MobysCreated;
+    }
   }
 
   drawTestName("Moby");
   drawMobysCount();
 }
 
-void mobUpdate(Moby* moby)
+void mobUpdate(Moby *moby)
 {
-  if (moby->Bolts == 0) {
+  if (moby->Bolts == 0)
+  {
     MobsDrawn = 0;
-    if (!TestEnd) ++UpdatesSinceTestBegan;
+    if (!TestEnd)
+      ++UpdatesSinceTestBegan;
   }
 
   long ms = getMsSinceTestBegan();
@@ -217,13 +229,15 @@ void mobUpdate(Moby* moby)
     draw = moby->Bolts <= (ms / 250);
 
   moby->DrawDist = draw ? 0x1FF : 0;
-  if (moby->AnimSeqId != 3) {
+  if (moby->AnimSeqId != 3)
+  {
     mobyAnimTransition(moby, 3, 0, 0);
   }
 
-  if (draw && !TestEnd) {
-    VECTOR from = {0,0,1,0};
-    VECTOR to = {0,0,-1,0};
+  if (draw && !TestEnd)
+  {
+    VECTOR from = { 0, 0, 1, 0 };
+    VECTOR to = { 0, 0, -1, 0 };
     vector_add(from, from, moby->Position);
     vector_add(to, to, moby->Position);
     CollLine_Fix(from, to, COLLISION_FLAG_IGNORE_NONE, moby, NULL);
@@ -232,7 +246,8 @@ void mobUpdate(Moby* moby)
     ++CollisionChecksSinceTestBegan;
   }
 
-  if (draw) ++MobsDrawn;
+  if (draw)
+    ++MobsDrawn;
 }
 
 /*
@@ -250,37 +265,48 @@ void mobUpdate(Moby* moby)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	GameSettings * gameSettings = gameGetSettings();
+  GameSettings *gameSettings = gameGetSettings();
 
-	// Ensure in game
-	if (!gameSettings || !isInGame())
-		return;
+  // Ensure in game
+  if (!gameSettings || !isInGame())
+    return;
 
   dlPreUpdate();
-  
+
   HOOK_J(0x004b2428, &updateCamera_PostHook);
 
   // spawn
   spawnMobs();
 
   // moonjump
-  if (padGetButton(0, PAD_L1) > 0) {
-    *(float*)0x00347BD8 = 0.125;
+  if (padGetButton(0, PAD_L1) > 0)
+  {
+    *(float *)0x00347BD8 = 0.125;
   }
 
   // select test
-  if (!gameIsStartMenuOpen(0)) {
-    if (padGetButtonDown(0, PAD_UP) > 0) {
+  if (!gameIsStartMenuOpen(0))
+  {
+    if (padGetButtonDown(0, PAD_UP) > 0)
+    {
       changeTest(BTEST_NONE);
-    } else if (padGetButtonDown(0, PAD_RIGHT) > 0) {
+    }
+    else if (padGetButtonDown(0, PAD_RIGHT) > 0)
+    {
       changeTest(BTEST_FREE);
-    } else if (padGetButtonDown(0, PAD_DOWN) > 0) {
+    }
+    else if (padGetButtonDown(0, PAD_DOWN) > 0)
+    {
       changeTest(BTEST_DRAW);
-    } else if (padGetButtonDown(0, PAD_LEFT) > 0) {
+    }
+    else if (padGetButtonDown(0, PAD_LEFT) > 0)
+    {
       changeTest(BTEST_COLLISION);
-    } else if (padGetButtonDown(0, PAD_L3) > 0) {
+    }
+    else if (padGetButtonDown(0, PAD_L3) > 0)
+    {
       changeTest(BTEST_MOBY_SPAWN);
     }
   }
@@ -288,14 +314,25 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
   // draw test
   switch (CurrentTest)
   {
-    case BTEST_NONE: handleTestNone(); break;
-    case BTEST_FREE: handleTestFree(); break;
-    case BTEST_DRAW: handleTestDraw(); break;
-    case BTEST_COLLISION: handleTestCollision(); break;
-    case BTEST_MOBY_SPAWN: handleTestMobySpawn(); break;
+    case BTEST_NONE:
+      handleTestNone();
+      break;
+    case BTEST_FREE:
+      handleTestFree();
+      break;
+    case BTEST_DRAW:
+      handleTestDraw();
+      break;
+    case BTEST_COLLISION:
+      handleTestCollision();
+      break;
+    case BTEST_MOBY_SPAWN:
+      handleTestMobySpawn();
+      break;
   }
 
-  if (!TestEnd) ++FramesSinceTestBegan;
+  if (!TestEnd)
+    ++FramesSinceTestBegan;
   dlPostUpdate();
 }
 
@@ -314,7 +351,7 @@ void gameStart(struct GameModule * module, PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void lobbyStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
   // disable ranking
   gameSetIsGameRanked(0);
@@ -335,19 +372,25 @@ void lobbyStart(struct GameModule * module, PatchStateContainer_t * gameState)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-void loadStart(struct GameModule * module, PatchStateContainer_t * gameState)
+void loadStart(struct GameModule *module, PatchStateContainer_t *gameState)
 {
-	
 }
 
 //--------------------------------------------------------------------------
-void start(struct GameModule * module, PatchStateContainer_t * gameState, enum GameModuleContext context)
+void start(struct GameModule *module, PatchStateContainer_t *gameState, enum GameModuleContext context)
 {
   switch (context)
   {
-    case GAMEMODULE_LOBBY: lobbyStart(module, gameState); break;
-    case GAMEMODULE_LOAD: loadStart(module, gameState); break;
-    case GAMEMODULE_GAME_FRAME: gameStart(module, gameState); break;
-    case GAMEMODULE_GAME_UPDATE: break;
+    case GAMEMODULE_LOBBY:
+      lobbyStart(module, gameState);
+      break;
+    case GAMEMODULE_LOAD:
+      loadStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_FRAME:
+      gameStart(module, gameState);
+      break;
+    case GAMEMODULE_GAME_UPDATE:
+      break;
   }
 }

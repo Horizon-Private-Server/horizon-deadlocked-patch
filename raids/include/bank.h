@@ -17,21 +17,21 @@
 // defines
 //--------------------------------------------------------------------------
 // inventory
-#define BANK_MAX_ITEMS                 (64)
-#define BANK_UPDATE_SIZE               (16)
+#define BANK_MAX_ITEMS (64)
+#define BANK_UPDATE_SIZE (16)
 
 // badges
-#define BANK_BADGE_EFFECT_COUNT        (8)
-#define BADGE_HEALTH_BUFF_AMOUNT       (200)
-#define BADGE_AMMO_MOD_BUFF_AMOUNT     (6)
-#define BADGE_AREA_MOD_BUFF_AMOUNT     (3)
-#define BADGE_SPEED_MOD_BUFF_AMOUNT    (4)
-#define BADGE_IMPACT_MOD_BUFF_AMOUNT   (4)
+#define BANK_BADGE_EFFECT_COUNT (8)
+#define BADGE_HEALTH_BUFF_AMOUNT (200)
+#define BADGE_AMMO_MOD_BUFF_AMOUNT (6)
+#define BADGE_AREA_MOD_BUFF_AMOUNT (3)
+#define BADGE_SPEED_MOD_BUFF_AMOUNT (4)
+#define BADGE_IMPACT_MOD_BUFF_AMOUNT (4)
 
 // classes
-#define BANK_MAX_CLASSES               (RAIDS_MAX_CLASSES)
-#define BANK_MAX_CLASS_UNLOCK_RULES    (RAIDS_MAX_CLASS_UNLOCK_RULES)
-#define BANK_MAX_CLASS_SKILLS          (RAIDS_MAX_CLASS_SKILLS)
+#define BANK_MAX_CLASSES (RAIDS_MAX_CLASSES)
+#define BANK_MAX_CLASS_UNLOCK_RULES (RAIDS_MAX_CLASS_UNLOCK_RULES)
+#define BANK_MAX_CLASS_SKILLS (RAIDS_MAX_CLASS_SKILLS)
 
 // contracts
 #define BANK_MAX_CONTRACTS (3)
@@ -161,22 +161,25 @@ typedef struct RaidsInventoryItem
   u32 Price;
   u32 Uid;
 
-  union {
-    struct {
+  union
+  {
+    struct
+    {
       int Damage; // damage
       u8 GadgetId;
-      u8 Paint : 4; // 0=none, 1=blue, etc (teams)
+      u8 Paint : 4;            // 0=none, 1=blue, etc (teams)
       u8 PaintSpecialMask : 4; // RaidsGadgetPaintSpecialMask
-      u8 Proficiency; // what proficiency the item was created at (v1-v99)
-      u8 CritChance; // 0-255 (0-100%) chance crit
-      u8 ModType; // RaidsWeaponModType
-      u8 ModQuality; // 0-255
-      u8 AlphaModCounts[ALPHA_MOD_COUNT-1];
+      u8 Proficiency;          // what proficiency the item was created at (v1-v99)
+      u8 CritChance;           // 0-255 (0-100%) chance crit
+      u8 ModType;              // RaidsWeaponModType
+      u8 ModQuality;           // 0-255
+      u8 AlphaModCounts[ALPHA_MOD_COUNT - 1];
       u8 Upgrades;
       u8 MaxUpgrades;
     } WeaponData;
 
-    struct {
+    struct
+    {
       u8 Effects[BANK_BADGE_EFFECT_COUNT];
       u8 EffectStrength[BANK_BADGE_EFFECT_COUNT];
     } BadgeData;
@@ -199,7 +202,7 @@ typedef struct RaidsPlayerInventoryPage
 
 typedef struct RaidsPlayerEquippedInventory
 {
-  RaidsInventoryItem_t Items[WEAPON_SLOT_COUNT-1];
+  RaidsInventoryItem_t Items[WEAPON_SLOT_COUNT - 1];
   RaidsInventoryItem_t Badge;
   int RefreshLocalInventory;
 } RaidsPlayerEquippedInventory_t;
@@ -235,7 +238,7 @@ struct RaidsUpdateBankInventoryRequest
   int Count;
   RaidsInventoryItem_t Items[BANK_UPDATE_SIZE];
   char EquippedBadgeIdx;
-  char EquippedWeaponIdxs[WEAPON_SLOT_COUNT-1];
+  char EquippedWeaponIdxs[WEAPON_SLOT_COUNT - 1];
 };
 
 struct RaidsBankSetPlayerEquippedInventoryMsg
@@ -357,13 +360,16 @@ typedef struct RaidsContract
   u32 Uid;
   u32 OwnerAccountId;
   RaidsContractReward_t Reward;
-  union {
-    struct {
+  union
+  {
+    struct
+    {
       u32 RequiredKills;
       u32 Kills;
     } Kill;
 
-    struct {
+    struct
+    {
       u32 CompletedTimeMs;
       u32 SpeedTargetMs;
       RaidsContractReward_t SpeedBonus;
@@ -383,8 +389,8 @@ typedef struct RaidsContractPage
 {
   u32 BoardId; // per-map id in owner's account, 0 if no board
   u32 OwnerAccountId;
-  u32 Sequence; // host progress counter used to discard stale updates
-  u32 RequestId; // echoed page request id used to discard stale responses
+  u32 Sequence;     // host progress counter used to discard stale updates
+  u32 RequestId;    // echoed page request id used to discard stale responses
   u16 PendingCount; // total unclaimed rewards for this player across all maps
   u8 Difficulty;
   u8 Count;
@@ -406,7 +412,8 @@ struct RaidsGetContractsRequest
 struct RaidsContractProgress
 {
   u32 ContractUid;
-  union {
+  union
+  {
     u32 Kills;
     u32 CompletedTimeMs;
   };
@@ -492,19 +499,19 @@ typedef struct RaidsPlayerBank
 // bank vtable and function types
 //--------------------------------------------------------------------------
 // local bank
-typedef RaidsPlayerBank_t* (*BankGetLocalBank_func)(void);
+typedef RaidsPlayerBank_t *(*BankGetLocalBank_func)(void);
 
 // inventory
-typedef void (*BankGetItemName_func)(RaidsInventoryItem_t* item, char* buf, int bufSize);
+typedef void (*BankGetItemName_func)(RaidsInventoryItem_t *item, char *buf, int bufSize);
 typedef enum RaidsItemRarity (*BankGetRarityFromQuality_func)(int quality);
-typedef void (*BankRequestInventoryFromServer_func)(RaidsPlayerInventoryPage_t* inventory, int filter, int page, int sort);
-typedef void (*BankSendInventoryItemToServer_func)(RaidsInventoryItem_t* item, enum RaidsItemUpdateAction action);
+typedef void (*BankRequestInventoryFromServer_func)(RaidsPlayerInventoryPage_t *inventory, int filter, int page, int sort);
+typedef void (*BankSendInventoryItemToServer_func)(RaidsInventoryItem_t *item, enum RaidsItemUpdateAction action);
 typedef void (*BankRequestEquippedInventoryFromServer_func)(void);
 typedef int (*BankGetHasEquippedInventory_func)(void);
 typedef int (*BankHasPendingEquippedInventoryRequest_func)(void);
 
 // weapons
-typedef RaidsInventoryItem_t* (*BankGetEquippedWeaponFromGadgetBox_func)(GadgetBox* gbox, int gadgetId);
+typedef RaidsInventoryItem_t *(*BankGetEquippedWeaponFromGadgetBox_func)(GadgetBox *gbox, int gadgetId);
 typedef enum RaidsItemRarity (*BankGetEquippedWeaponModRarity_func)(int playerId, int gadgetId, enum RaidsWeaponModType modType);
 typedef double (*BankGetWeaponXP_func)(void);
 typedef double (*BankAddWeaponXP_func)(double amt);
@@ -525,7 +532,7 @@ typedef u32 (*BankAddBolts_func)(u32 amt);
 typedef u32 (*BankSubBolts_func)(u32 amt);
 
 // classes
-typedef RaidsPlayerClassProgress_t* (*BankGetPlayerEquippedClass_func)(int playerId);
+typedef RaidsPlayerClassProgress_t *(*BankGetPlayerEquippedClass_func)(int playerId);
 typedef int (*BankGetPlayerClassSkillRank_func)(int playerId, enum RaidsClassSkillId skillId);
 typedef float (*BankGetPlayerClassSkillMultiplier_func)(int playerId, enum RaidsClassSkillId skillId);
 typedef void (*BankRequestEquippedClassProgressFromServer_func)(void);
@@ -538,8 +545,8 @@ typedef int (*BankGetHasAllClassProgress_func)(void);
 typedef int (*BankHasPendingAllClassProgressRequest_func)(void);
 typedef u64 (*BankGetClassXP_func)(int classType);
 typedef u64 (*BankAddClassXP_func)(u64 amount, int classType);
-typedef int (*BankGetClassLevel_func)(RaidsPlayerClassProgress_t* playerClass, u64 xp);
-typedef const RaidsClassDef_t* (*BankGetClassDefinition_func)(int classType);
+typedef int (*BankGetClassLevel_func)(RaidsPlayerClassProgress_t *playerClass, u64 xp);
+typedef const RaidsClassDef_t *(*BankGetClassDefinition_func)(int classType);
 
 // contracts
 typedef void (*BankRequestContractsFromServer_func)(void);
@@ -548,7 +555,7 @@ typedef int (*BankGetHasContracts_func)(void);
 typedef int (*BankHasPendingContractsRequest_func)(void);
 
 // map progression
-typedef void (*BankRequestMapStats_func)(char* mapFilename, char* mapName, struct RaidsBankMapStats* dest, int missionType);
+typedef void (*BankRequestMapStats_func)(char *mapFilename, char *mapName, struct RaidsBankMapStats *dest, int missionType);
 
 // keep shared callback offsets stable
 struct BankVTable

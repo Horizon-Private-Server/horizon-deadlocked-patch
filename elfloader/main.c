@@ -35,7 +35,7 @@ int selfDestruct __attribute__((section(".config"))) = 0;
 int bytesReceived = 0;
 int totalBytes = 0;
 
-int loadelf (u32 loadFromAddress, u32 size);
+int loadelf(u32 loadFromAddress, u32 size);
 int doBootElf = 0;
 ServerResponseBootElf_t bootElf = {
   .BootElfId = 0,
@@ -43,19 +43,18 @@ ServerResponseBootElf_t bootElf = {
   .Size = 0
 };
 
-int onServerDownloadDataRequest(void * connection, void * data)
+int onServerDownloadDataRequest(void *connection, void *data)
 {
   ServerDownloadDataRequest_t request;
   memcpy(&request, data, offsetof(ServerDownloadDataRequest_t, Data));
   if (request.DataSize < 0 || request.DataSize > sizeof(request.Data))
     return sizeof(ServerDownloadDataRequest_t) - sizeof(request.Data) + request.DataSize;
-  memcpy(request.Data, (char*)data + offsetof(ServerDownloadDataRequest_t, Data), request.DataSize);
-
+  memcpy(request.Data, (char *)data + offsetof(ServerDownloadDataRequest_t, Data), request.DataSize);
 
   // copy bytes to target
   totalBytes = request.TotalSize;
   bytesReceived += request.DataSize;
-  memcpy((void*)request.TargetAddress, request.Data, request.DataSize);
+  memcpy((void *)request.TargetAddress, request.Data, request.DataSize);
   DPRINTF("DOWNLOAD: {%d} %d/%d, writing %d to %08X\n", request.Id, bytesReceived, request.TotalSize, request.DataSize, request.TargetAddress);
 
   // respond
@@ -85,7 +84,7 @@ int onServerDownloadDataRequest(void * connection, void * data)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int onBootElfResponse(void * connection, void * data)
+int onBootElfResponse(void *connection, void *data)
 {
   memcpy(&bootElf, data, sizeof(ServerResponseBootElf_t));
 
@@ -94,7 +93,6 @@ int onBootElfResponse(void * connection, void * data)
 
   return sizeof(ServerResponseBootElf_t);
 }
-
 
 /*
  * NAME :		onOnlineMenu
@@ -120,7 +118,8 @@ void onOnlineMenu(void)
   // call normal draw routine
   ((void (*)(void))0x00707F28)();
 
-  if (bootElf.Address && bootElf.Size && doBootElf == 1) {
+  if (bootElf.Address && bootElf.Size && doBootElf == 1)
+  {
     doBootElf = 2;
     loadelf(bootElf.Address, bootElf.Size);
   }
@@ -131,7 +130,7 @@ void onOnlineMenu(void)
 
   gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, bgColorDownload);
   gfxScreenSpaceBox(0.2, 0.45, 0.6, 0.05, barBgColor);
-  gfxScreenSpaceText(SCREEN_WIDTH * 0.35, SCREEN_HEIGHT * 0.4, 1, 1, textColor, "Downloading elf...", 17 + (gameGetTime()/240 % 4), 3);
+  gfxScreenSpaceText(SCREEN_WIDTH * 0.35, SCREEN_HEIGHT * 0.4, 1, 1, textColor, "Downloading elf...", 17 + (gameGetTime() / 240 % 4), 3);
 
   if (totalBytes > 0)
   {
@@ -154,39 +153,41 @@ void onOnlineMenu(void)
  * 
  * AUTHOR :			Daniel "Dnawrkshp" Gerendasy
  */
-int main (void)
+int main(void)
 {
   int i;
   static int initialized = 0;
 
-  if (!initialized) {
-      
+  if (!initialized)
+  {
+
     // stop server select
-    *(u32*)0x00138D7C = 0x0C04E138;
+    *(u32 *)0x00138D7C = 0x0C04E138;
 
     // reset global net callbacks table ptr
-    *(u32*)0x00211E64 = 0;
+    *(u32 *)0x00211E64 = 0;
 
     initialized = 1;
   }
-  
-  if (doBootElf == 2) {
+
+  if (doBootElf == 2)
+  {
     gfxScreenSpaceBox(0.2, 0.35, 0.6, 0.125, 0x80000000);
-    gfxScreenSpaceText(SCREEN_WIDTH * 0.26, SCREEN_HEIGHT * 0.41, 1, 1, 0x80C0C0C0, "Loading... this may take awhile...", 31 + (gameGetTime()/240 % 4), 3);
+    gfxScreenSpaceText(SCREEN_WIDTH * 0.26, SCREEN_HEIGHT * 0.41, 1, 1, 0x80C0C0C0, "Loading... this may take awhile...", 31 + (gameGetTime() / 240 % 4), 3);
   }
-  
+
   // just clear if selfDestruct is true
-  if (selfDestruct) {
+  if (selfDestruct)
+  {
     return;
   }
 
-
-  // 
+  //
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_DOWNLOAD_DATA_REQUEST, &onServerDownloadDataRequest);
   netInstallCustomMsgHandler(CUSTOM_MSG_ID_SERVER_RESPONSE_BOOT_ELF, &onBootElfResponse);
 
   // Hook menu loop
-  *(u32*)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
+  *(u32 *)0x00594CB8 = 0x0C000000 | ((u32)(&onOnlineMenu) / 4);
 
   // disable pad on online main menu
   if (uiGetActive() == UI_ID_ONLINE_MAIN_MENU)

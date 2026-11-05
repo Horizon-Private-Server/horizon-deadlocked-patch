@@ -24,36 +24,36 @@
 #include "include/utils.h"
 
 //--------------------------------------------------------------------------
-int onPickupItemSpawnedRemote(void * connection, void * data)
+int onPickupItemSpawnedRemote(void *connection, void *data)
 {
-	PickupItemSpawnedMessage_t * message = (PickupItemSpawnedMessage_t*)data;
-	if (isInGame())
-		onPickupItemSpawned(message->Type, message->Position);
+  PickupItemSpawnedMessage_t *message = (PickupItemSpawnedMessage_t *)data;
+  if (isInGame())
+    onPickupItemSpawned(message->Type, message->Position);
 
-	return sizeof(PickupItemSpawnedMessage_t);
+  return sizeof(PickupItemSpawnedMessage_t);
 }
 
 //--------------------------------------------------------------------------
 void spawnPickupItem(VECTOR position, int type)
 {
-	PickupItemSpawnedMessage_t message;
+  PickupItemSpawnedMessage_t message;
 
-	// don't allow spawning item when not host
-	if (!State.IsHost)
-		return;
+  // don't allow spawning item when not host
+  if (!State.IsHost)
+    return;
 
-	// send out
-	vector_copy(message.Position, position);
-	message.Type = type;
-	netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PICKUP_ITEM_SPAWNED, sizeof(PickupItemSpawnedMessage_t), &message);
+  // send out
+  vector_copy(message.Position, position);
+  message.Type = type;
+  netBroadcastCustomAppMessage(NET_DELIVERY_CRITICAL, netGetDmeServerConnection(), CUSTOM_MSG_PICKUP_ITEM_SPAWNED, sizeof(PickupItemSpawnedMessage_t), &message);
 
-	// set locally
-	onPickupItemSpawned(message.Type, message.Position);
+  // set locally
+  onPickupItemSpawned(message.Type, message.Position);
 }
 
 //--------------------------------------------------------------------------
 void netHookMessages(void)
 {
-	// Hook custom net events
-	netInstallCustomMsgHandler(CUSTOM_MSG_PICKUP_ITEM_SPAWNED, &onPickupItemSpawnedRemote);
+  // Hook custom net events
+  netInstallCustomMsgHandler(CUSTOM_MSG_PICKUP_ITEM_SPAWNED, &onPickupItemSpawnedRemote);
 }

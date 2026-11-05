@@ -32,8 +32,10 @@ int dzoStatsSyncSelectedGambit(void)
 {
   PatchInterop_t *patch = PATCH_INTEROP;
   int selected = patch && patch->GameConfig
-    ? patch->GameConfig->survivalConfig.gambit : 0;
-  if (selected != dzoSelectedGambit) {
+                   ? patch->GameConfig->survivalConfig.gambit
+                   : 0;
+  if (selected != dzoSelectedGambit)
+  {
     dzoSelectedGambit = selected;
     dzoGambitFlags = 0;
   }
@@ -44,8 +46,7 @@ int dzoStatsSyncSelectedGambit(void)
 void dzoStatsReportGambitState(int gambitIdx, int completed)
 {
   int selected = dzoStatsSyncSelectedGambit();
-  if (selected <= 0 || gambitIdx != selected
-      || (completed != 0 && completed != 1))
+  if (selected <= 0 || gambitIdx != selected || (completed != 0 && completed != 1))
     return;
 
   dzoGambitFlags |= DZO_SURVIVAL_STATS_GAMBIT_AVAILABLE;
@@ -62,16 +63,13 @@ int dzoStatsValidPlayerId(int playerId)
 //--------------------------------------------------------------------------
 int dzoStatsPerksAvailable(void)
 {
-  return hasMapConfig() && mapConfig->ItemDefs
-    && mapConfig->ItemDefCount > 0
-    && mapConfig->ItemDefCount <= MAX_ITEM_COUNT;
+  return hasMapConfig() && mapConfig->ItemDefs && mapConfig->ItemDefCount > 0 && mapConfig->ItemDefCount <= MAX_ITEM_COUNT;
 }
 
 //--------------------------------------------------------------------------
 int dzoStatsPrestigeAvailable(void)
 {
-  return hasMapConfig()
-    && mapConfig->Functions.CanPrestigePlayerWeaponFunc != 0;
+  return hasMapConfig() && mapConfig->Functions.CanPrestigePlayerWeaponFunc != 0;
 }
 
 //--------------------------------------------------------------------------
@@ -85,9 +83,9 @@ u32 dzoStatsCountPerksHeld(int playerId)
     return 0;
 
   state = &State.PlayerStates[playerId].State;
-  for (i = 0; i < mapConfig->ItemDefCount; ++i) {
-    if (mapConfig->ItemDefs[i].Type == SURVIVAL_ITEM_PASSIVE
-        && state->ItemCounts[i] > 0)
+  for (i = 0; i < mapConfig->ItemDefCount; ++i)
+  {
+    if (mapConfig->ItemDefs[i].Type == SURVIVAL_ITEM_PASSIVE && state->ItemCounts[i] > 0)
       count += (u32)state->ItemCounts[i];
   }
 
@@ -143,19 +141,17 @@ void dzoStatsObserveWeapons(Player *player)
   progress = &dzoProgress[playerId];
   prestigeAvailable = dzoStatsPrestigeAvailable();
 
-  for (slot = 1; slot <= 8; ++slot) {
+  for (slot = 1; slot <= 8; ++slot)
+  {
     int weaponId = weaponSlotToId(slot);
     int level = player->GadgetBox->Gadgets[weaponId].Level;
     int prestige = (unsigned char)state->WeaponPrestige[slot];
     u32 bit = 1u << (slot - 1);
 
-    if (state->BestWeaponLevel[slot] >= VENDOR_MAX_WEAPON_LEVEL
-        || level >= VENDOR_MAX_WEAPON_LEVEL)
+    if (state->BestWeaponLevel[slot] >= VENDOR_MAX_WEAPON_LEVEL || level >= VENDOR_MAX_WEAPON_LEVEL)
       progress->V10WeaponsMask |= bit;
 
-    if ((progress->MaxPrestigeV10WeaponsMask & bit)
-        || level != VENDOR_MAX_WEAPON_LEVEL || prestige <= 0
-        || !prestigeAvailable)
+    if ((progress->MaxPrestigeV10WeaponsMask & bit) || level != VENDOR_MAX_WEAPON_LEVEL || prestige <= 0 || !prestigeAvailable)
       continue;
 
     /*
@@ -164,8 +160,7 @@ void dzoStatsObserveWeapons(Player *player)
      * next establishes that current prestige is the maximum.
      * See the custom-map verification gate following this listing.
      */
-    if (canPrestigePlayerWeapon(player, weaponId, prestige, NULL)
-        && !canPrestigePlayerWeapon(player, weaponId, prestige + 1, NULL))
+    if (canPrestigePlayerWeapon(player, weaponId, prestige, NULL) && !canPrestigePlayerWeapon(player, weaponId, prestige + 1, NULL))
       progress->MaxPrestigeV10WeaponsMask |= bit;
   }
 }
@@ -179,7 +174,7 @@ void dzoStatsSend(void)
   struct SurvivalPlayerState *state;
   DzoPlayerProgress_t *progress;
   DzoInteropFunctions_t *interop;
-  DzoSurvivalStats_t cmd = {0};
+  DzoSurvivalStats_t cmd = { 0 };
 
   if (!Initialized)
     return;

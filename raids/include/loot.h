@@ -35,7 +35,7 @@ struct RaidsGenerateLootDropResponse
   RaidsInventoryItem_t Drop;
 };
 
-void lootRequestFromMob(Moby* mob, int gadgetId);
+void lootRequestFromMob(Moby *mob, int gadgetId);
 void lootRequest(int gadgetId);
 void lootRequestFromMissionComplete(VECTOR position);
 void lootTick(void);

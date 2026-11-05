@@ -7,27 +7,32 @@
 
 struct GuberEvent;
 
-#define BALL_MOBY_OCLASS          (MOBY_ID_BETA_BOX)
+#define BALL_MOBY_OCLASS (MOBY_ID_BETA_BOX)
 
-void ballReset(Moby* moby, int resetType);
-void ballMoveToResetPosition(Moby* moby, int resetType);
-int ballGetResetCounter(Moby* moby);
-int ballGetCarrierIdx(Moby* moby);
-void ballPickup(Moby * moby, int playerIdx, int resetCounter);
-void ballThrow(Moby * moby, int playerIdx, float power);
-void ballRequestDrop(Moby* moby, int playerIdx);
-void ballRequestScore(Moby* moby, int playerIdx);
-void ballNetworkUpdate(Moby* moby);
-void ballNetworkInitialize(Moby* moby);
-int ballHandleNetworkEvent(Moby* moby, struct GuberEvent* event);
-int ballHasPendingPickup(Moby* moby, int playerIdx);
-int ballGetVisualCarrierIdx(Moby* moby);
-void ballRequestAction(Moby* moby, int playerIdx, int action, const float* position, const float* velocity);
-void ballUpdate(Moby * moby);
+void ballReset(Moby *moby, int resetType);
+void ballMoveToResetPosition(Moby *moby, int resetType);
+int ballGetResetCounter(Moby *moby);
+int ballGetCarrierIdx(Moby *moby);
+void ballPickup(Moby *moby, int playerIdx, int resetCounter);
+void ballThrow(Moby *moby, int playerIdx, float power);
+void ballRequestDrop(Moby *moby, int playerIdx);
+void ballRequestScore(Moby *moby, int playerIdx);
+void ballNetworkUpdate(Moby *moby);
+void ballNetworkInitialize(Moby *moby);
+int ballHandleNetworkEvent(Moby *moby, struct GuberEvent *event);
+int ballHasPendingPickup(Moby *moby, int playerIdx);
+int ballGetVisualCarrierIdx(Moby *moby);
+void ballRequestAction(Moby *moby, int playerIdx, int action, const float *position, const float *velocity);
+void ballUpdate(Moby *moby);
 void ballCreate(VECTOR position);
 void ballInitialize(void);
 
-enum BallAction { BALL_ACTION_PICKUP, BALL_ACTION_DROP, BALL_ACTION_SCORE };
+enum BallAction
+{
+  BALL_ACTION_PICKUP,
+  BALL_ACTION_DROP,
+  BALL_ACTION_SCORE
+};
 
 // Wire vectors contain three floats; VECTOR's fourth, aligned lane is local only.
 typedef struct BallRequest
@@ -91,7 +96,7 @@ typedef struct BallRequestResult
 typedef struct BallPVars
 {
   VECTOR Velocity;
-  Moby* VisualMoby;
+  Moby *VisualMoby;
   int CarrierIdx;
   int DieTime;
   int ResetCounter;
@@ -107,11 +112,12 @@ typedef struct BallPVars
   BallRequestResult_t Results[GAME_MAX_PLAYERS];
 } BallPVars_t;
 
-enum BallEventType {
-	BALL_EVENT_SPAWN,
+enum BallEventType
+{
+  BALL_EVENT_SPAWN,
 
   // Reserve the old ownership event IDs; they no longer change ball state.
-	BALL_EVENT_RESET,
+  BALL_EVENT_RESET,
   BALL_EVENT_PICKUP,
   BALL_EVENT_DROP,
   BALL_EVENT_REQUEST,
