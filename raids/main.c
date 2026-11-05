@@ -227,8 +227,7 @@ void drawMissionCompleteMessage(void)
   char strBuf[64];
 
   drawStars(x, y, 0, 0, 24, 6, 0x80008080, TEXT_ALIGN_MIDDLECENTER, State.DifficultyStars + 1);
-  snprintf(strBuf, sizeof(strBuf), "%s", State.CurrentMapDef->Name);
-  gfxHelperDrawText(x, y, 0, 30, 1.5, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(x, y, 0, 30, 1.5, 0x80FFFFFF, State.CurrentMapDef->Name, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
   int time = State.MissionCompleteTime - State.MissionStartTime;
   snprintf(strBuf, sizeof(strBuf), "Completed in %02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
@@ -237,8 +236,7 @@ void drawMissionCompleteMessage(void)
   snprintf(strBuf, sizeof(strBuf), "\x0A+%'ld\x08 Bolts        \x0A+%'d\x08 Class XP", missionCompleteGetBoltReward(), missionCompleteGetClassXpReward());
   gfxHelperDrawText(x, y, 0, 65, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
-  snprintf(strBuf, sizeof(strBuf), "Press [UP] to open the Planet Select menu");
-  gfxHelperDrawText(x, SCREEN_HEIGHT - 20, 0, 0, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_BOTTOMCENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(x, SCREEN_HEIGHT - 20, 0, 0, 0.7, 0x80FFFFFF, "Press [UP] to open the Planet Select menu", -1, TEXT_ALIGN_BOTTOMCENTER, COMMON_DZO_DRAW_NORMAL);
 }
 
 //--------------------------------------------------------------------------

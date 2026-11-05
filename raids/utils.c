@@ -223,8 +223,8 @@ double getXpForProficiency(int proficiency)
   if (proficiency > LEVELUP_MAX_PROF_LEVEL) proficiency = LEVELUP_MAX_PROF_LEVEL;
   if (proficiency <= 0) return 0;
 
-  // 10x^3 + 100x + 250
-  return 10*pow(proficiency, 3) + 100*proficiency + 250;
+  // 10x^3 + 100x + 250; the capped proficiency range fits in a 32-bit int.
+  return 10 * proficiency * proficiency * proficiency + 100 * proficiency + 250;
   //return getXpFromLevelQuadratic(proficiency, 250, 500);
 }
 
@@ -233,7 +233,7 @@ long getAmmoRefillCost(Player* player)
 {
   if (!player || !player->GadgetBox) return -1;
     
-  float ammoRefillCostPerShot[WEAPON_SLOT_COUNT] = {
+  static const float ammoRefillCostPerShot[WEAPON_SLOT_COUNT] = {
     [WEAPON_SLOT_VIPERS] 10,
     [WEAPON_SLOT_MAGMA_CANNON] 40,
     [WEAPON_SLOT_ARBITER] 200,

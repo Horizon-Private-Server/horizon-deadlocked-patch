@@ -229,19 +229,10 @@ void trackerTick(void)
   trackerUpdatePlayerLevel();
 
 
-  if (!TrackerState.Enabled) {
-    if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && !PATCH_POINTERS_PATCHMENU
-        && localPlayerHasInput() && padGetButtonDown(0, PAD_DOWN) > 0) {
-      TrackerState.Enabled = 1;
-      trackerReset();
-    }
-    return;
-  } else {
-    if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && !PATCH_POINTERS_PATCHMENU
-        && localPlayerHasInput() && padGetButtonDown(0, PAD_DOWN) > 0) {
-      TrackerState.Enabled = 0;
-      trackerReset();
-    }
+  if (State.MenuOpen == RAIDS_CUSTOM_MENU_NONE && !gameIsAnyStartMenuOpen() && !PATCH_POINTERS_PATCHMENU
+      && localPlayerHasInput() && padGetButtonDown(0, PAD_DOWN) > 0) {
+    TrackerState.Enabled = !TrackerState.Enabled;
+    trackerReset();
   }
 }
 
