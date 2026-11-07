@@ -55,6 +55,8 @@ void helperRealign(float *pX, float *pY, float w, float h, enum TextAlign fromAl
  *       Draws a box on the screen.
  * 
  * NOTES :
+ *       Native bounds snap to pixels; positive subpixel sizes draw at least one pixel.
+ *       DZO retains the original floating point bounds.
  * 
  * ARGS : 
  *      x:              Screen X position (0-SCREEN_WIDTH).

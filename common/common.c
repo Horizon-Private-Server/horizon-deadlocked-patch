@@ -116,6 +116,31 @@ void helperRealign(float *pX, float *pY, float w, float h, enum TextAlign fromAl
 //------------------------------------------------------------------------------
 //------------------------------------ DRAW ------------------------------------
 //------------------------------------------------------------------------------
+void gfxHelperDrawNativeBox(float x, float y, float w, float h, u32 color)
+{
+  if (w <= 0 || h <= 0) return;
+
+  // snap aligned edges together so adjacent boxes keep their spacing
+  float edges[4] = { x, y, x + w, y + h };
+  int i;
+  for (i = 0; i < 4; ++i) {
+    float rounded = edges[i] + 0.5f;
+    int pixel = (int)rounded;
+    if (pixel > rounded) --pixel;
+    edges[i] = pixel;
+  }
+
+  // keep positive subpixel boxes visible without padding every height
+  if (edges[2] <= edges[0]) edges[2] = edges[0] + 1;
+  if (edges[3] <= edges[1]) edges[3] = edges[1] + 1;
+
+  // the game truncates scaled vertices; stay clear of float rounding at edges
+  for (i = 0; i < 4; ++i)
+    edges[i] += edges[i] < 0 ? -0.5f : 0.5f;
+  gfxPixelSpaceBox(edges[0], edges[1], edges[2] - edges[0], edges[3] - edges[1], color);
+}
+
+//------------------------------------------------------------------------------
 void gfxHelperDrawBox(float anchorX, float anchorY, float offsetX, float offsetY, float w, float h, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
 {
   // pass to dzo
@@ -140,7 +165,7 @@ void gfxHelperDrawBox(float anchorX, float anchorY, float offsetX, float offsetY
     float x = anchorX + offsetX;
     float y = anchorY + offsetY;
     helperAlign(&x, &y, w, h, alignment);
-    gfxPixelSpaceBox(x, y, w, h, color);
+    gfxHelperDrawNativeBox(x, y, w, h, color);
   }
 }
 
@@ -170,7 +195,7 @@ void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum
     {
       float fx = x, fy = y;
       helperAlign(&fx, &fy, w, h, alignment);
-      gfxPixelSpaceBox(fx, fy, w, h, color);
+      gfxHelperDrawNativeBox(fx, fy, w, h, color);
     }
   }
 }
