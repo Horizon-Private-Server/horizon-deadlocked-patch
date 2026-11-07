@@ -147,6 +147,16 @@ enum RaidsContractAction
   RAIDS_CONTRACT_ACTION_CLAIM = 1,
   RAIDS_CONTRACT_ACTION_DISMISS_EXPIRED = 3,
   RAIDS_CONTRACT_ACTION_CLAIM_PARTY_REWARDS = 4,
+  RAIDS_CONTRACT_ACTION_PROCESS_ALL = 5,
+  RAIDS_CONTRACT_ACTION_GET_STATUS = 6,
+};
+
+enum RaidsContractResult
+{
+  RAIDS_CONTRACT_RESULT_SUCCESS = 1,
+  RAIDS_CONTRACT_RESULT_STATUS = 3,
+  RAIDS_CONTRACT_RESULT_CLAIMED = 4,
+  RAIDS_CONTRACT_RESULT_REFRESHED = 8,
 };
 
 //--------------------------------------------------------------------------
@@ -440,6 +450,15 @@ struct RaidsActionContractRequest
   u32 Action;
 };
 
+struct RaidsContractStatusResponse
+{
+  u32 RequestId;
+  u32 ClaimableCount;
+  u32 Result;
+  u32 ExpiredCount;
+};
+
+typedef char RaidsContractStatusSizeCheck[sizeof(struct RaidsContractStatusResponse) == 16 ? 1 : -1];
 typedef char RaidsContractRuleHeaderSizeCheck[sizeof(struct RaidsContractRuleHeader) == 36 ? 1 : -1];
 typedef char RaidsKillContractRuleSizeCheck[sizeof(struct RaidsKillContractRule) == 32 ? 1 : -1];
 typedef char RaidsContractRewardSizeCheck[sizeof(RaidsContractReward_t) == 16 ? 1 : -1];

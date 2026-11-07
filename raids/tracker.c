@@ -99,7 +99,7 @@ void trackerDraw(void)
   windowMove(&drawWindow, 0, 10);
 
   // class XP
-  strcpy(strBuf, "Class XP: --");
+  strcpy(strBuf, "Dread Points: --");
   if (hasMapConfig())
   {
     struct BankVTable *bank = mapConfig->BankVTable;
@@ -111,7 +111,7 @@ void trackerDraw(void)
       if (def)
       {
         double classXpPerMinute = dt > 0 ? (double)TrackerState.ClassXp[classType] * 60 / dt : 0;
-        snprintf(strBuf, sizeof(strBuf), "%s (+%dLVL) Class XP: %'llu (%.0f /min)", def->Name, TrackerState.ClassLevels[classType], (unsigned long long)TrackerState.ClassXp[classType], classXpPerMinute);
+        snprintf(strBuf, sizeof(strBuf), "%s (+%dLVL) Dread Points: %'llu (%.0f /min)", def->Name, TrackerState.ClassLevels[classType], (unsigned long long)TrackerState.ClassXp[classType], classXpPerMinute);
       }
     }
   }

@@ -252,7 +252,7 @@ void drawMissionCompleteMessage(void)
   snprintf(strBuf, sizeof(strBuf), "Completed in %02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
   gfxHelperDrawText(x, y, 0, 50, 0.9, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
-  snprintf(strBuf, sizeof(strBuf), "\x0A+%'ld\x08 Bolts        \x0A+%'d\x08 Class XP", missionCompleteGetBoltReward(), missionCompleteGetClassXpReward());
+  snprintf(strBuf, sizeof(strBuf), "\x0A+%'ld\x08 Bolts        \x0A+%'d\x08 Dread Points", missionCompleteGetBoltReward(), missionCompleteGetClassXpReward());
   gfxHelperDrawText(x, y, 0, 65, 0.7, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
 
   gfxHelperDrawText(x, SCREEN_HEIGHT - 20, 0, 0, 0.7, 0x80FFFFFF, "Press [UP] to open the Planet Select menu", -1, TEXT_ALIGN_BOTTOMCENTER, COMMON_DZO_DRAW_NORMAL);
