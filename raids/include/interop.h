@@ -45,7 +45,6 @@ typedef void (*ModeOnMissionComplete_func)(int cuboidIdx);
 typedef void (*ModeOnMissionFail_func)(void);
 typedef void (*ModeProcessPlayerDamage_func)(Moby *target, Moby *source, float *damage, u32 *damageFlags);
 typedef void (*ModeDrawHud_func)(void);
-typedef void (*ModeOpenSettings_func)(void);
 
 typedef int (*MapOnMobCreate_func)(struct MobCreateArgs *args);
 typedef void (*MapOnMobSpawned_func)(Moby *moby);
@@ -82,7 +81,6 @@ struct RaidsInteropTable
   ModeOnMissionFail_func ModeOnMissionFailFunc;
   ModeProcessPlayerDamage_func ModeProcessPlayerDamageFunc;
   ModeDrawHud_func ModeDrawHudFunc;
-  ModeOpenSettings_func ModeOpenSettingsFunc;
 
   // map: populated by the loaded map
   MapOnMobCreate_func OnMobCreateFunc;
@@ -108,14 +106,13 @@ struct RaidsInteropTable
 };
 
 typedef char RaidsInteropPointerSizeCheck[sizeof(void *) == 4 ? 1 : -1];
-typedef char RaidsInteropSizeCheck[sizeof(struct RaidsInteropTable) == 188 ? 1 : -1];
-typedef char RaidsInteropMapOffsetCheck[offsetof(struct RaidsInteropTable, OnMobCreateFunc) == 60 ? 1 : -1];
+typedef char RaidsInteropSizeCheck[sizeof(struct RaidsInteropTable) == 184 ? 1 : -1];
+typedef char RaidsInteropMapOffsetCheck[offsetof(struct RaidsInteropTable, OnMobCreateFunc) == 56 ? 1 : -1];
 typedef char RaidsInteropPlayerDamageOffsetCheck[offsetof(struct RaidsInteropTable, ModeProcessPlayerDamageFunc) == 48 ? 1 : -1];
 typedef char RaidsInteropDrawHudOffsetCheck[offsetof(struct RaidsInteropTable, ModeDrawHudFunc) == 52 ? 1 : -1];
-typedef char RaidsInteropMobBlowCornOffsetCheck[offsetof(struct RaidsInteropTable, MobBlowCornFunc) == 120 ? 1 : -1];
-typedef char RaidsInteropSettingsOffsetCheck[offsetof(struct RaidsInteropTable, ModeOpenSettingsFunc) == 56 ? 1 : -1];
-typedef char RaidsInteropTrackerHudOffsetCheck[offsetof(struct RaidsInteropTable, OnTrackerDrawHudFunc) == 124 ? 1 : -1];
-typedef char RaidsInteropReservedOffsetCheck[offsetof(struct RaidsInteropTable, PlaceholderForFutureUseFuncs) == 128 ? 1 : -1];
+typedef char RaidsInteropMobBlowCornOffsetCheck[offsetof(struct RaidsInteropTable, MobBlowCornFunc) == 116 ? 1 : -1];
+typedef char RaidsInteropTrackerHudOffsetCheck[offsetof(struct RaidsInteropTable, OnTrackerDrawHudFunc) == 120 ? 1 : -1];
+typedef char RaidsInteropReservedOffsetCheck[offsetof(struct RaidsInteropTable, PlaceholderForFutureUseFuncs) == 124 ? 1 : -1];
 
 void raidsDrawHud(void);
 void raidsInteropInit(void);

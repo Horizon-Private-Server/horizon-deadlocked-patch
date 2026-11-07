@@ -1,7 +1,6 @@
 #include "include/mob.h"
 #include "include/utils.h"
 #include "include/game.h"
-#include "include/settings.h"
 #include "include/xp.h"
 #include "include/bubble.h"
 #include "config.h"
@@ -276,7 +275,7 @@ int getMaxComplexity(void)
   Player **players = playerGetAll();
 
   // reduce by lod
-  int lod = raidsUserSettings.MobLod;
+  int lod = State.Settings ? State.Settings->MobLod : 2;
   int lodFactor = (int)powf(maxf(0, 2 - lod), 2);
   maxComplexity -= MOB_COMPLEXITY_LOD_FACTOR * lodFactor;
 

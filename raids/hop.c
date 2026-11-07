@@ -13,7 +13,6 @@
 #include <libdl/graphics.h>
 #include "include/utils.h"
 #include "include/hop.h"
-#include "include/settings.h"
 #include "include/game.h"
 #include "config.h"
 #include "common.h"
@@ -231,8 +230,6 @@ void hopDo(void)
   State.DifficultyStars = State.PendingWorldHopDifficultyStars;
   Initialized = 0;
   PATCH_INTEROP->PatchStateContainer->AllClientsReady = 0;
-
-  raidsSettingsSave();
 
   // save inventory before hop
   struct BankVTable *bankVTable = mapConfig ? mapConfig->BankVTable : NULL;

@@ -290,7 +290,7 @@ struct RaidsState
 {
   int InitializedTime;
   int MapBaseComplexity;
-  const RaidsUserSettings_t *Settings;
+  RaidsUserSettings_t *Settings; // patch-owned buffer, updated by map code
   struct RaidsMobStats MobStats;
   Moby **AllMobsSorted;
   int AllMobsSortedCount;

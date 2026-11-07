@@ -48,7 +48,6 @@
 #include "include/tracker.h"
 #include "include/utils.h"
 #include "include/interop.h"
-#include "include/settings.h"
 #include "include/xp.h"
 #include "include/lod.h"
 
@@ -58,6 +57,13 @@ int FirstTimeInitialized = 0;
 
 struct RaidsState State;
 struct RaidsMapConfig *mapConfig = (struct RaidsMapConfig *)(EXTRA_CODE_SEG_PTR + 0x10);
+
+// defaults until account settings are loaded; the map updates this buffer
+RaidsUserSettings_t settingsUserSettings = {
+  .MapLod = 2,
+  .MobLod = 2,
+  .Flags = RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS | RAIDS_USER_SETTINGS_KILL_XP_POPUPS
+};
 
 struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
 int snackItemsCount = 0;
@@ -296,7 +302,6 @@ void raidsDrawHud(void)
   bubbleDraw();
   hopDraw();
   trackerDraw();
-  raidsSettingsDraw();
 }
 
 //--------------------------------------------------------------------------
@@ -766,7 +771,7 @@ void initialize(PatchStateContainer_t *gameState)
 
     // clear state
     memset(&State, 0, sizeof(State));
-    State.Settings = &raidsUserSettings;
+    State.Settings = &settingsUserSettings;
     State.AllMobsSorted = AllMobsSorted;
     State.AllMobsSortedCount = MAX_MOBS_ALIVE;
     for (i = 0; i < GAME_MAX_PLAYERS; ++i)
@@ -811,7 +816,6 @@ void initialize(PatchStateContainer_t *gameState)
   netInstallCustomMsgHandler(CUSTOM_MSG_USE_LIFE, &onUseLifeRemote);
 
   // component init
-  raidsSettingsMapInit();
   raidsXpInit();
   raidsLodMapInit();
   mobInitialize();
@@ -1025,9 +1029,6 @@ void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
 
   // run raids lod pass
   raidsLodTick();
-
-  // run raids settings pass
-  raidsSettingsTick();
 
   if (!Initialized)
   {

@@ -5,7 +5,6 @@
 #include "config.h"
 #include "include/game.h"
 #include "include/lod.h"
-#include "include/settings.h"
 #include "include/utils.h"
 
 #define SHRUB_RENDER_DISTANCE (*(float *)0x0022308C)
@@ -82,7 +81,7 @@ void raidsLodTick(void)
   if (!isInGame())
     return;
 
-  int lod = raidsForcePotatoLod ? 0 : raidsUserSettings.MapLod;
+  int lod = raidsForcePotatoLod ? 0 : State.Settings ? State.Settings->MapLod : 2;
   if (lod == raidsLastLod)
     return;
 

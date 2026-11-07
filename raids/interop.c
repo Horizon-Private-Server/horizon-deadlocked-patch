@@ -9,7 +9,6 @@
 #include "include/mob.h"
 #include "include/bubble.h"
 #include "include/loot.h"
-#include "include/settings.h"
 
 void onMissionComplete(int cuboidIdx);
 void onMissionFail(void);
@@ -34,7 +33,6 @@ void raidsInteropInit(void)
   mapConfig->Functions.ModeOnMissionFailFunc = &onMissionFail;
   mapConfig->Functions.ModeProcessPlayerDamageFunc = &raidsProcessPlayerDamage;
   mapConfig->Functions.ModeDrawHudFunc = &raidsDrawHud;
-  mapConfig->Functions.ModeOpenSettingsFunc = &raidsSettingsOpen;
 }
 
 //--------------------------------------------------------------------------

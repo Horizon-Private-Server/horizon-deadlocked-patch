@@ -7,7 +7,6 @@
 #include "config.h"
 #include "common.h"
 #include "include/game.h"
-#include "include/settings.h"
 #include "include/utils.h"
 #include "include/xp.h"
 
@@ -33,7 +32,7 @@ void raidsXpInit(void)
 //--------------------------------------------------------------------------
 void raidsXpNotifyKill(u64 xp)
 {
-  if (!(raidsUserSettings.Flags & RAIDS_USER_SETTINGS_KILL_XP_POPUPS))
+  if (State.Settings && !(State.Settings->Flags & RAIDS_USER_SETTINGS_KILL_XP_POPUPS))
     return;
   if (!xp)
     return;
@@ -57,7 +56,7 @@ void raidsXpDraw(void)
 
   int age = gameGetTime() - raidsXpPopup.LastKillTime;
   PlayerHUDFlags *hudFlags = hudGetPlayerFlags(0);
-  if (age < 0 || age >= XP_POPUP_LIFETIME_MS || !(raidsUserSettings.Flags & RAIDS_USER_SETTINGS_KILL_XP_POPUPS) || State.GameOver || State.MenuOpen != RAIDS_CUSTOM_MENU_NONE || gameIsAnyStartMenuOpen() || PATCH_POINTERS_PATCHMENU != 0 || hasPendingWorldHop() || !hudFlags || !hudFlags->Flags.Raw)
+  if (age < 0 || age >= XP_POPUP_LIFETIME_MS || (State.Settings && !(State.Settings->Flags & RAIDS_USER_SETTINGS_KILL_XP_POPUPS)) || State.GameOver || State.MenuOpen != RAIDS_CUSTOM_MENU_NONE || gameIsAnyStartMenuOpen() || PATCH_POINTERS_PATCHMENU != 0 || hasPendingWorldHop() || !hudFlags || !hudFlags->Flags.Raw)
   {
     raidsXpInit();
     return;
