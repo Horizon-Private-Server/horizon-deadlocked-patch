@@ -232,11 +232,14 @@ void hopDo(void)
   PATCH_INTEROP->PatchStateContainer->AllClientsReady = 0;
 
   // save inventory before hop
-  struct BankVTable *bankVTable = mapConfig ? mapConfig->BankVTable : NULL;
-  if (bankVTable && bankVTable->GetHasAccount())
+  if (hasMapConfig())
   {
-    bankVTable->SendAccountToServer();
-    //bankVTable->SendInventoryToServer();
+    if (mapConfig->Functions.PayoutBoltRewardsForWorldHopFunc)
+      mapConfig->Functions.PayoutBoltRewardsForWorldHopFunc();
+
+    struct BankVTable *bankVTable = mapConfig->BankVTable;
+    if (bankVTable && bankVTable->GetHasAccount())
+      bankVTable->SendAccountToServer();
   }
 
   //

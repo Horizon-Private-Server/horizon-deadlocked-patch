@@ -63,6 +63,8 @@ typedef void (*MapFinalizePlayerDamage_func)(struct RaidsPlayerDamageContext *co
 typedef void (*MapMobAfterDamage_func)(Moby *moby, struct MobDamageEventArgs *args, float appliedDamage);
 typedef void (*MapMobBlowCorn_func)(Moby *moby, int bangles);
 typedef void (*MapOnTrackerDrawHud_func)(float x, float y);
+typedef void (*MapSpawnBoltReward_func)(VECTOR position, u32 amount, int difficulty);
+typedef void (*MapPayoutBoltRewardsForWorldHop_func)(void);
 
 struct RaidsInteropTable
 {
@@ -100,19 +102,23 @@ struct RaidsInteropTable
   MapMobAfterDamage_func MobAfterDamageFunc;
   MapMobBlowCorn_func MobBlowCornFunc;
   MapOnTrackerDrawHud_func OnTrackerDrawHudFunc;
+  MapSpawnBoltReward_func SpawnBoltRewardFunc;
+  MapPayoutBoltRewardsForWorldHop_func PayoutBoltRewardsForWorldHopFunc;
 
   // Reserved for future callbacks.
   void *PlaceholderForFutureUseFuncs[15];
 };
 
 typedef char RaidsInteropPointerSizeCheck[sizeof(void *) == 4 ? 1 : -1];
-typedef char RaidsInteropSizeCheck[sizeof(struct RaidsInteropTable) == 184 ? 1 : -1];
+typedef char RaidsInteropSizeCheck[sizeof(struct RaidsInteropTable) == 192 ? 1 : -1];
 typedef char RaidsInteropMapOffsetCheck[offsetof(struct RaidsInteropTable, OnMobCreateFunc) == 56 ? 1 : -1];
 typedef char RaidsInteropPlayerDamageOffsetCheck[offsetof(struct RaidsInteropTable, ModeProcessPlayerDamageFunc) == 48 ? 1 : -1];
 typedef char RaidsInteropDrawHudOffsetCheck[offsetof(struct RaidsInteropTable, ModeDrawHudFunc) == 52 ? 1 : -1];
 typedef char RaidsInteropMobBlowCornOffsetCheck[offsetof(struct RaidsInteropTable, MobBlowCornFunc) == 116 ? 1 : -1];
 typedef char RaidsInteropTrackerHudOffsetCheck[offsetof(struct RaidsInteropTable, OnTrackerDrawHudFunc) == 120 ? 1 : -1];
-typedef char RaidsInteropReservedOffsetCheck[offsetof(struct RaidsInteropTable, PlaceholderForFutureUseFuncs) == 124 ? 1 : -1];
+typedef char RaidsInteropSpawnBoltRewardOffsetCheck[offsetof(struct RaidsInteropTable, SpawnBoltRewardFunc) == 124 ? 1 : -1];
+typedef char RaidsInteropPayoutBoltRewardsOffsetCheck[offsetof(struct RaidsInteropTable, PayoutBoltRewardsForWorldHopFunc) == 128 ? 1 : -1];
+typedef char RaidsInteropReservedOffsetCheck[offsetof(struct RaidsInteropTable, PlaceholderForFutureUseFuncs) == 132 ? 1 : -1];
 
 void raidsDrawHud(void);
 void raidsInteropInit(void);

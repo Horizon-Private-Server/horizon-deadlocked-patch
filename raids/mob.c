@@ -1153,7 +1153,7 @@ int mobHandleEvent_Destroy(Moby *moby, GuberEvent *event)
     {
       if (killedByLocal)
         pState->State.Bolts += bolts;
-      mapConfig->BankVTable->AddBolts(bolts);
+      mapConfig->Functions.SpawnBoltRewardFunc(moby->Position, (u32)bolts, pvars->MobVars.DifficultyStars);
       if (killedByLocal || canShareKill)
       {
         // share half hero xp with nearby living party members
