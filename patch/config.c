@@ -137,6 +137,7 @@ void configMenuDisable(void);
 void configMenuEnable(void);
 void configMenuReset(void);
 void configTrySendGameConfig(void);
+void dynamicPageDisable(void);
 
 // action handlers
 void buttonActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void *actionArg);
@@ -2608,13 +2609,13 @@ void buttonActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, vo
     {
       if ((state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
       if (element->userdata)
       {
-        uiPlaySound(UI_SOUND_ID_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_CONFIRM, 0);
         ((ButtonSelectHandler)element->userdata)(tab, element);
       }
       break;
@@ -2708,7 +2709,7 @@ void rangeActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, voi
     {
       if ((state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
@@ -2716,20 +2717,30 @@ void rangeActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, voi
       if (newValue > rangeData->maxValue)
         newValue = rangeData->minValue;
 
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      if (newValue != *rangeData->value)
+        uiPlaySound(UI_SOUND_ID_ADJUST_SLIDER, 0);
       *rangeData->value = newValue;
       break;
     }
     case ACTIONTYPE_SELECT_SECONDARY:
     {
-      *rangeData->value = (rangeData->minValue + rangeData->maxValue) / 2;
+      if ((state & ELEMENT_EDITABLE) == 0)
+      {
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
+        break;
+      }
+
+      char newValue = (rangeData->minValue + rangeData->maxValue) / 2;
+      if (newValue != *rangeData->value)
+        uiPlaySound(UI_SOUND_ID_ADJUST_SLIDER, 0);
+      *rangeData->value = newValue;
       break;
     }
     case ACTIONTYPE_DECREMENT:
     {
       if ((state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
@@ -2737,7 +2748,8 @@ void rangeActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, voi
       if (newValue < rangeData->minValue)
         newValue = rangeData->maxValue;
 
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      if (newValue != *rangeData->value)
+        uiPlaySound(UI_SOUND_ID_ADJUST_SLIDER, 0);
       *rangeData->value = newValue;
       break;
     }
@@ -2799,7 +2811,7 @@ void listActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void
 
       if ((state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
@@ -2815,7 +2827,8 @@ void listActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void
           break;
       } while (newValue != *activeValue);
 
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      if (newValue != *activeValue)
+        uiPlaySound(UI_SOUND_ID_CHANGE_OPTION, 0);
       *activeValue = newValue;
       break;
     }
@@ -2826,7 +2839,7 @@ void listActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void
 
       if ((state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
@@ -2842,7 +2855,8 @@ void listActionHandler(TabElem_t *tab, MenuElem_t *element, int actionType, void
           break;
       } while (newValue != *activeValue);
 
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      if (newValue != *activeValue)
+        uiPlaySound(UI_SOUND_ID_CHANGE_OPTION, 0);
       *activeValue = newValue;
       break;
     }
@@ -2909,7 +2923,7 @@ void orderedListActionHandler(TabElem_t *tab, MenuElem_t *element, int actionTyp
     {
       if ((state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         return;
       }
 
@@ -2938,7 +2952,8 @@ void orderedListActionHandler(TabElem_t *tab, MenuElem_t *element, int actionTyp
           break;
       } while (index != startIndex);
 
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      if (listData->items[index].value != *activeValue)
+        uiPlaySound(UI_SOUND_ID_CHANGE_OPTION, 0);
       *activeValue = listData->items[index].value;
       break;
     }
@@ -3022,7 +3037,7 @@ void mapsListVerticalActionHandler(TabElem_t *tab, MenuElem_t *element, int acti
     {
       if ((state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
@@ -3030,26 +3045,25 @@ void mapsListVerticalActionHandler(TabElem_t *tab, MenuElem_t *element, int acti
       if (!listData->stagingValue)
         break;
 
-      //
-      uiPlaySound(UI_SOUND_ID_SELECT, 0);
-
       // if map changes mode prompt user
       int forcedModeId = getCustomMapMode(*activeValue);
       if (forcedModeId != 0 && forcedModeId != gameConfig.customModeId)
       {
         snprintf(buf, sizeof(buf), "%s will overwrite the current custom game mode.", getCustomMapName(*activeValue));
 
-        uiPlaySound(UI_SOUND_ID_OPEN_SUBMENU_2, 0);
+        uiPlaySound(UI_SOUND_ID_OPEN_DIALOG, 0);
         padEnableInput();
         int dialogResult = uiShowYesNoDialog("Switch Game Mode?", buf);
         padDisableInput();
-        uiPlaySound(UI_SOUND_ID_CLOSE_MENU_DECLINE, 0);
         if (dialogResult != 1)
+        {
+          uiPlaySound(UI_SOUND_ID_CANCEL, 0);
           break;
+        }
       }
 
       // save
-      uiPlaySound(UI_SOUND_ID_CLOSE_MENU_ACCEPT, 0);
+      uiPlaySound(UI_SOUND_ID_CONFIRM, 0);
       *listData->value = *listData->stagingValue;
       configTrySendGameConfig();
       break;
@@ -3058,7 +3072,7 @@ void mapsListVerticalActionHandler(TabElem_t *tab, MenuElem_t *element, int acti
     {
       if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
@@ -3074,7 +3088,8 @@ void mapsListVerticalActionHandler(TabElem_t *tab, MenuElem_t *element, int acti
           break;
       } while (newValue != *activeValue);
 
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      if (newValue != *activeValue)
+        uiPlaySound(UI_SOUND_ID_NAVIGATE, 0);
       *activeValue = newValue;
       break;
     }
@@ -3082,7 +3097,7 @@ void mapsListVerticalActionHandler(TabElem_t *tab, MenuElem_t *element, int acti
     {
       if (!listData->stagingValue && (state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
@@ -3098,7 +3113,8 @@ void mapsListVerticalActionHandler(TabElem_t *tab, MenuElem_t *element, int acti
           break;
       } while (newValue != *activeValue);
 
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      if (newValue != *activeValue)
+        uiPlaySound(UI_SOUND_ID_NAVIGATE, 0);
       *activeValue = newValue;
       break;
     }
@@ -3214,12 +3230,12 @@ void toggleActionHandlerCommon(TabElem_t *tab, MenuElem_t *element, int actionTy
     {
       if ((state & ELEMENT_EDITABLE) == 0)
       {
-        uiPlaySound(UI_SOUND_ID_BAD_SELECT, 0);
+        uiPlaySound(UI_SOUND_ID_REJECT, 0);
         break;
       }
 
       // toggle
-      uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+      uiPlaySound(UI_SOUND_ID_CHANGE_OPTION, 0);
       *(char *)element->userdata = !(*(char *)element->userdata);
       break;
     }
@@ -3751,6 +3767,7 @@ void onMenuUpdate(int inGame)
     // close
     else if (padGetButtonUp(0, PAD_TRIANGLE) > 0 || padGetButtonUp(0, PAD_START) > 0)
     {
+      uiPlaySound(UI_SOUND_ID_SCREEN_TRANSITION, 0);
       configMenuDisable();
     }
   }
@@ -3919,7 +3936,7 @@ void navMenu(TabElem_t *tab, int direction, int loop)
 
     // set new tab
     tab->selectedMenuItemIdx = newElement;
-    uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+    uiPlaySound(UI_SOUND_ID_NAVIGATE, 0);
     break;
   }
 }
@@ -3950,7 +3967,7 @@ void navTab(int direction)
 
     // set new tab
     selectedTabItem = newTab;
-    uiPlaySound(UI_SOUND_ID_NAV_UP_DOWN, 0);
+    uiPlaySound(UI_SOUND_ID_NAVIGATE, 0);
     break;
   }
 }
@@ -4210,6 +4227,9 @@ void configMenuDisable(void)
 //------------------------------------------------------------------------------
 void configMenuEnable(void)
 {
+  if (isConfigMenuActive)
+    return;
+
   // enable
   isConfigMenuActive = PATCH_POINTERS_PATCHMENU = 1;
 
@@ -4232,6 +4252,7 @@ void configMenuEnable(void)
       tabElements[t].elements[e].handler(&tabElements[t], &tabElements[t].elements[e], ACTIONTYPE_INIT, NULL);
     }
   }
+  uiPlaySound(UI_SOUND_ID_OPEN_MENU, 0);
 }
 
 //------------------------------------------------------------------------------
