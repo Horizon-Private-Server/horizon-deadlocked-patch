@@ -265,6 +265,7 @@ typedef struct RaidsPlayerAccount
   int EquippedClass;
   u64 ClassXp[BANK_MAX_CLASSES];
   double WeaponExperience;
+  u64 Dreadpoints;
 } RaidsPlayerAccount_t;
 
 struct RaidsGetBankAccountRequest
@@ -282,7 +283,7 @@ struct RaidsBankSetPlayerAccountMsg
   u32 Bolts;
 };
 
-typedef char RaidsAccountSizeCheck[sizeof(RaidsPlayerAccount_t) == 152 ? 1 : -1];
+typedef char RaidsAccountSizeCheck[sizeof(RaidsPlayerAccount_t) == 160 ? 1 : -1];
 
 // classes
 typedef struct RaidsPlayerClassSkill
@@ -563,7 +564,7 @@ typedef int (*BankHasPendingEquippedClassProgressRequest_func)(void);
 typedef int (*BankGetHasAllClassProgress_func)(void);
 typedef int (*BankHasPendingAllClassProgressRequest_func)(void);
 typedef u64 (*BankGetClassXP_func)(int classType);
-typedef u64 (*BankAddClassXP_func)(u64 amount, int classType);
+typedef u64 (*BankAddDreadpoints_func)(u64 amount, int classType);
 typedef int (*BankGetClassLevel_func)(RaidsPlayerClassProgress_t *playerClass, u64 xp);
 typedef const RaidsClassDef_t *(*BankGetClassDefinition_func)(int classType);
 
@@ -626,7 +627,7 @@ struct BankVTable
   BankGetWeaponXP_func GetWeaponXP;
   BankAddWeaponXP_func AddWeaponXP;
   BankGetClassXP_func GetClassXP;
-  BankAddClassXP_func AddClassXP;
+  BankAddDreadpoints_func AddDreadpoints;
   BankGetClassLevel_func GetClassLevel;
   BankGetClassDefinition_func GetClassDefinition;
 };

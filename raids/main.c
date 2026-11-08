@@ -373,7 +373,7 @@ void onMissionComplete(int cuboidIdx)
   mapConfig->BankVTable->AddBolts(missionCompleteGetBoltReward());
   RaidsPlayerBank_t *bank = mapConfig->BankVTable->GetLocalBank();
   if (bank)
-    mapConfig->BankVTable->AddClassXP(missionCompleteGetClassXpReward(), bank->Account.EquippedClass);
+    mapConfig->BankVTable->AddDreadpoints(missionCompleteGetClassXpReward(), bank->Account.EquippedClass);
   mapConfig->BankVTable->SendAccountToServer();
 
   // send time to server
