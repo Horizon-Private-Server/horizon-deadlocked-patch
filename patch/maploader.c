@@ -366,7 +366,7 @@ void mapHopTo(CustomMapDef_t *def)
   // draw we're loading the wad
   HOOK_JAL(0x004c4a94, &mapHopToLoadingOnlineWadDraw);
   char loadingMessage[64];
-  snprintf(loadingMessage, sizeof(loadingMessage), "Loading %.*s...", (int)sizeof(def->Name), def->Name);
+  snprintf(loadingMessage, sizeof(loadingMessage), "Traveling to %.*s...", (int)sizeof(def->Name), def->Name);
   mapHopToRefreshLoadingScreen(loadingMessage);
 
   // read onlinewad

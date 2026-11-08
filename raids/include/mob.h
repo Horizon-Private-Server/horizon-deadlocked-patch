@@ -255,6 +255,9 @@ struct MobVars
   char Behavior;
   u8 DifficultyStars;
   u16 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
+  u16 HitSoundCooldownTicks;
+  u8 HitSoundId;
+  u8 HitSoundId2;
 };
 
 // warning: multiple differing types with the same name, only one recovered
