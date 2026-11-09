@@ -1296,9 +1296,12 @@ void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
       processPlayer(i);
     }
 
+    // enable survivor in a raid
+    if (missionIsBossRaid())
+      gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+
     // count num alive
-    gameOptions->GameFlags.MultiplayerGameFlags.Survivor = missionIsBossRaid();
-    if (State.IsHost && gameOptions->GameFlags.MultiplayerGameFlags.Survivor && gameTime > (State.InitializedTime + 5 * TIME_SECOND))
+    if (State.IsHost && missionIsBossRaid() && gameTime > (State.InitializedTime + 5 * TIME_SECOND))
     {
       // determine number of players alive
       State.AlivePlayerCount = 0;
@@ -1399,7 +1402,7 @@ void setLobbyGameOptions(PatchGameConfig_t *gameConfig)
   gameOptions->GameFlags.MultiplayerGameFlags.Teamplay = 1;
   gameOptions->GameFlags.MultiplayerGameFlags.AutospawnWeapons = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.UnlimitedAmmo = 0;
-  //gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 1;
+  gameOptions->GameFlags.MultiplayerGameFlags.Survivor = 0;
 
   // enable all vehicles
   gameOptions->GameFlags.MultiplayerGameFlags.Vehicles = 1;
