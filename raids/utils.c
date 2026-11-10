@@ -520,7 +520,7 @@ void drawSprites(float anchorX, float anchorY, float offsetX, float offsetY, flo
   int i;
   for (i = 0; i < count; ++i)
   {
-    gfxHelperDrawSprite(anchorX, anchorY, offsetX + i * (size + spacing), offsetY, size, size, texDim, texDim, texId, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawSprite(anchorX, anchorY, offsetX + i * (size + spacing), offsetY, size, size, texDim, texDim, texId, color, TEXT_ALIGN_TOPLEFT, 0);
   }
   gfxDoGifPaging();
 }

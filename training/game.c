@@ -248,9 +248,12 @@ void frameTick(void)
   if (shouldDrawHud())
   {
     sprintf(buf, "%02d:%02d", secondsLeftInt / 60, secondsLeftInt % 60);
-    gfxHelperDrawText(SCREEN_WIDTH - 33, 57, 1, 1, 0.8, 0x80000000, buf, -1, 1, COMMON_DZO_DRAW_NONE);
-    gfxHelperDrawText(SCREEN_WIDTH - 33, 57, 0, 0, 0.8, 0x80FFFFFF, buf, -1, 1, COMMON_DZO_DRAW_NONE);
-    gfxHelperDrawText(SCREEN_WIDTH, 70, -30, 0, 0.8, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPRIGHT, COMMON_DZO_DRAW_ONLY);
+    gfxHelperSetDrawTarget(COMMON_DRAW_TARGET_NATIVE);
+    gfxHelperDrawText(SCREEN_WIDTH - 33, 57, 1, 1, 0.8, 0x80000000, buf, -1, 1);
+    gfxHelperDrawText(SCREEN_WIDTH - 33, 57, 0, 0, 0.8, 0x80FFFFFF, buf, -1, 1);
+    gfxHelperSetDrawTarget(COMMON_DRAW_TARGET_DZO);
+    gfxHelperDrawText(SCREEN_WIDTH, 70, -30, 0, 0.8, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPRIGHT);
+    gfxHelperResetDrawTarget();
   }
 
   modeTick();

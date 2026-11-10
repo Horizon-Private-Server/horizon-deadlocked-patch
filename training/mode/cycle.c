@@ -655,8 +655,8 @@ void modeTick(void)
       color = colorLerp(color, 0x800000FF, timeT);
 
     snprintf(buf, 32, "x%.1f", multiplier);
-    gfxHelperDrawText(0, 130, 32 + 1, 1, 0.8, 0x80000000, buf, -1, 1, COMMON_DZO_DRAW_NORMAL);
-    gfxHelperDrawText(0, 130, 32, 0, 0.8, color, buf, -1, 1, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(0, 130, 32 + 1, 1, 0.8, 0x80000000, buf, -1, 1);
+    gfxHelperDrawText(0, 130, 32, 0, 0.8, color, buf, -1, 1);
   }
 
   // find hill moby

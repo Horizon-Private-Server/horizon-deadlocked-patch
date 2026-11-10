@@ -297,28 +297,28 @@ void freecam(Player *currentPlayer)
     int row = 0;
 
     // hide show hud
-    gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1c Toggle Controls", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1c Toggle Controls", -1, TEXT_ALIGN_BOTTOMLEFT);
     row++;
 
     // ignore character camera
     if (freecamData->IgnoreCharacterCamera)
     {
-      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1b Use Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1b Use Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT);
     }
     else
     {
-      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1b Ignore Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1b Ignore Character Camera", -1, TEXT_ALIGN_BOTTOMLEFT);
     }
     row++;
 
     // control character
     if (freecamData->ControlCharacter)
     {
-      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1a Lock Character", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1a Lock Character", -1, TEXT_ALIGN_BOTTOMLEFT);
     }
     else
     {
-      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1a Control Character", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1a Control Character", -1, TEXT_ALIGN_BOTTOMLEFT);
     }
     row++;
 
@@ -327,11 +327,11 @@ void freecam(Player *currentPlayer)
     {
       if (freecamData->LockStateId < 0)
       {
-        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1d Lock Animation", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1d Lock Animation", -1, TEXT_ALIGN_BOTTOMLEFT);
       }
       else
       {
-        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1d Release Animation", -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+        gfxHelperDrawText(0, SCREEN_HEIGHT, 5, -5 - lineHeight * row, 1, 0x80FFFFFF, "\x1d Release Animation", -1, TEXT_ALIGN_BOTTOMLEFT);
       }
     }
     row++;

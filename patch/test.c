@@ -1724,7 +1724,7 @@ void runFrameRateVariationTest(void)
 
   char buf[64];
   snprintf(buf, sizeof(buf), "%.3f %d %lld %lld %d", gameGetTime() / 1000.0, gDt, sDt, hDt, dt);
-  gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT);
 
   // always ignore timebase query
   POKE_U32(0x01eabd60, 0x10000003);
@@ -1741,7 +1741,7 @@ void runFrameRateVariationTest(void)
   u32 *secs = (u32 *)0x001b23e8;
   u32 *usecs = (u32 *)0x001b23f0;
   snprintf(buf, sizeof(buf), "%lld %lld", *secs, *usecs);
-  gfxHelperDrawText(15, 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(15, 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_TOPLEFT);
 
   // hooks
   //HOOK_JAL(0x0015acc8, &myTimebaseGetSystemTime);

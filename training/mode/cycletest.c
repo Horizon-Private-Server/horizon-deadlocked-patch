@@ -834,9 +834,9 @@ void modeTick(void)
 
   // draw difficulty
   gfxSetupGifPaging(0);
-  u64 difficultySprite = gfxGetFrameTex(64 + computeDifficultyIdx());
-  gfxHelperDrawSprite(20, 180, 1, 1, 24, 24, 32, 32, 0x40000000, difficultySprite);
-  gfxHelperDrawSprite(20, 180, 0, 0, 24, 24, 32, 32, 0x80808080, difficultySprite);
+  int difficultySpriteId = 64 + computeDifficultyIdx();
+  gfxHelperDrawSprite(20, 180, 1, 1, 24, 24, 32, 32, difficultySpriteId, 0x40000000, TEXT_ALIGN_TOPLEFT, 0);
+  gfxHelperDrawSprite(20, 180, 0, 0, 24, 24, 32, 32, difficultySpriteId, 0x80808080, TEXT_ALIGN_TOPLEFT, 0);
   gfxDoGifPaging();
 
 #if DEBUG

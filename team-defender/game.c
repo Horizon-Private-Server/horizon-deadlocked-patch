@@ -189,8 +189,8 @@ void drawAssistFeed(void)
 
       // draw
       snprintf(buf, sizeof(buf), "+%d", POINTS_PER_ASSIST);
-      gfxHelperDrawText(0.77 * SCREEN_WIDTH, 0.09 * SCREEN_HEIGHT, 2, (drawn * 16) + 2, 1, alphaCol, buf, -1, 0, COMMON_DZO_DRAW_NORMAL);
-      gfxHelperDrawText(0.77 * SCREEN_WIDTH, 0.09 * SCREEN_HEIGHT, 0, (drawn * 16) + 0, 1, alphaCol | color, buf, -1, 0, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(0.77 * SCREEN_WIDTH, 0.09 * SCREEN_HEIGHT, 2, (drawn * 16) + 2, 1, alphaCol, buf, -1, 0);
+      gfxHelperDrawText(0.77 * SCREEN_WIDTH, 0.09 * SCREEN_HEIGHT, 0, (drawn * 16) + 0, 1, alphaCol | color, buf, -1, 0);
 
       // increment
       item->TicksLeft -= 1;

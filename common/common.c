@@ -177,7 +177,7 @@ void gfxHelperDrawNativeBox(float x, float y, float w, float h, u32 color)
 }
 
 //------------------------------------------------------------------------------
-void gfxHelperDrawBox(float anchorX, float anchorY, float offsetX, float offsetY, float w, float h, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
+void gfxHelperDrawBox(float anchorX, float anchorY, float offsetX, float offsetY, float w, float h, u32 color, enum TextAlign alignment, int dzoStretched)
 {
   // pass to dzo
   if (gfxHelperDrawTarget != COMMON_DRAW_TARGET_NATIVE && PATCH_DZO_INTEROP_FUNCS && isInGame())
@@ -191,7 +191,7 @@ void gfxHelperDrawBox(float anchorX, float anchorY, float offsetX, float offsetY
     boxCmd.H = h / SCREEN_HEIGHT;
     boxCmd.Color = color;
     boxCmd.Alignment = alignment;
-    boxCmd.Stretch = dzoDrawType == COMMON_DZO_DRAW_STRETCHED;
+    boxCmd.Stretch = dzoStretched != 0;
     PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_DRAW_BOX, sizeof(boxCmd), &boxCmd);
   }
 
@@ -206,9 +206,8 @@ void gfxHelperDrawBox(float anchorX, float anchorY, float offsetX, float offsetY
 }
 
 //------------------------------------------------------------------------------
-void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
+void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum TextAlign alignment)
 {
-  (void)dzoDrawType;
   if (!isInGame())
     return;
 
@@ -238,10 +237,8 @@ void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum
 }
 
 //------------------------------------------------------------------------------
-void gfxHelperDrawText(float anchorX, float anchorY, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
+void gfxHelperDrawText(float anchorX, float anchorY, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment)
 {
-  (void)dzoDrawType;
-
   // pass to dzo
   if (gfxHelperDrawTarget != COMMON_DRAW_TARGET_NATIVE && PATCH_DZO_INTEROP_FUNCS && isInGame())
   {
@@ -266,9 +263,8 @@ void gfxHelperDrawText(float anchorX, float anchorY, float offsetX, float offset
 }
 
 //------------------------------------------------------------------------------
-void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
+void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *str, int length, enum TextAlign alignment)
 {
-  (void)dzoDrawType;
   if (!isInGame())
     return;
 
@@ -297,9 +293,8 @@ void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *st
 }
 
 //------------------------------------------------------------------------------
-float gfxHelperDrawTextWindow(float anchorX, float anchorY, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum FontWindowFlags flags, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
+float gfxHelperDrawTextWindow(float anchorX, float anchorY, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum FontWindowFlags flags)
 {
-  (void)dzoDrawType;
   float fx = anchorX + offsetX;
   float fy = anchorY + offsetY;
   //helperAlign(&fx, &fy, width, height, alignment);
@@ -376,7 +371,7 @@ float gfxHelperDrawTextWindow(float anchorX, float anchorY, float offsetX, float
 }
 
 //------------------------------------------------------------------------------
-void gfxHelperDrawSprite(float anchorX, float anchorY, float offsetX, float offsetY, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
+void gfxHelperDrawSprite(float anchorX, float anchorY, float offsetX, float offsetY, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, int dzoStretched)
 {
   // pass to dzo
   if (gfxHelperDrawTarget != COMMON_DRAW_TARGET_NATIVE && PATCH_DZO_INTEROP_FUNCS && isInGame())
@@ -391,7 +386,7 @@ void gfxHelperDrawSprite(float anchorX, float anchorY, float offsetX, float offs
     spriteCmd.H = h / SCREEN_HEIGHT;
     spriteCmd.SpriteId = texId;
     spriteCmd.CustomSpriteId = 0;
-    spriteCmd.Stretch = dzoDrawType == COMMON_DZO_DRAW_STRETCHED;
+    spriteCmd.Stretch = dzoStretched != 0;
     spriteCmd.Color = color;
     PATCH_DZO_INTEROP_FUNCS->SendCustomCommandToClient(CUSTOM_DZO_CMD_ID_DRAW_SPRITE, sizeof(spriteCmd), &spriteCmd);
   }
@@ -407,9 +402,8 @@ void gfxHelperDrawSprite(float anchorX, float anchorY, float offsetX, float offs
 }
 
 //------------------------------------------------------------------------------
-void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType)
+void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment)
 {
-  (void)dzoDrawType;
   if (!isInGame())
     return;
 

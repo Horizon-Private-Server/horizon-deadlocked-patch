@@ -66,7 +66,7 @@ void trackerDraw(void)
   const float left = 10;
   const float bottom = SCREEN_HEIGHT - 10;
   const float height = 70;
-  windowCreate(&drawWindow, left, bottom, 0, 0, 200, height, TEXT_ALIGN_BOTTOMLEFT, 1);
+  windowCreate(&drawWindow, left, bottom, 0, 0, 200, height, TEXT_ALIGN_BOTTOMLEFT);
   //windowFill(&drawWindow, 0x40000000);
 
   // draw additional map-owned tracker hud

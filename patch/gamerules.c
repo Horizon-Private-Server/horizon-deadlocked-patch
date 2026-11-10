@@ -1145,7 +1145,7 @@ void inputRestrictionLogic(void)
     if (!gameIsAnyStartMenuOpen() && PATCH_POINTERS_PATCHMENU != 1)
     {
       Window_t wnd;
-      windowCreate(&wnd, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 250, 42, TEXT_ALIGN_MIDDLECENTER, 1);
+      windowCreate(&wnd, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 250, 42, TEXT_ALIGN_MIDDLECENTER);
       windowFill(&wnd, 0x60000000);
 
       Window_t wndMsg;

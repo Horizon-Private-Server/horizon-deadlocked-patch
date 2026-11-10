@@ -329,10 +329,10 @@ void drawRoundMessage(const char *message, float scale)
   int i;
 
   // draw container
-  gfxHelperDrawBox(x, y, 0, 0, w + p, h + p, 0x20FFFFFF, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(x, y, 0, 0, w + p, h + p, 0x20FFFFFF, TEXT_ALIGN_TOPCENTER, 0);
 
   // draw message
-  gfxHelperDrawText(x, y, 0, 5, scale, 0x80FFFFFF, message, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(x, y, 0, 5, scale, 0x80FFFFFF, message, -1, TEXT_ALIGN_TOPCENTER);
 
   // draw ranks
   y += 24.0 * scale;
@@ -344,8 +344,8 @@ void drawRoundMessage(const char *message, float scale)
     if (pId >= 0)
     {
       y += 18.0 * scale;
-      gfxHelperDrawText(x, y, -(w / 2), 0, scale, 0x80FFFFFF, rankStrings[i - 1], -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
-      gfxHelperDrawText(x, y, (w / 2), 0, scale, 0x80FFFFFF, gameSettings->PlayerNames[pId], -1, TEXT_ALIGN_MIDDLERIGHT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(x, y, -(w / 2), 0, scale, 0x80FFFFFF, rankStrings[i - 1], -1, TEXT_ALIGN_MIDDLELEFT);
+      gfxHelperDrawText(x, y, (w / 2), 0, scale, 0x80FFFFFF, gameSettings->PlayerNames[pId], -1, TEXT_ALIGN_MIDDLERIGHT);
     }
   }
 }

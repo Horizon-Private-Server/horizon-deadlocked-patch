@@ -70,5 +70,5 @@ void raidsXpDraw(void)
 
   snprintf(buf, sizeof(buf), "+%llu XP", (unsigned long long)raidsXpPopup.Xp);
   gfxHelperDrawText(SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f, 40, y, scale,
-                    (alpha << 24) | 0x0080E0FF, buf, -1, TEXT_ALIGN_MIDDLELEFT, COMMON_DZO_DRAW_NORMAL);
+                    (alpha << 24) | 0x0080E0FF, buf, -1, TEXT_ALIGN_MIDDLELEFT);
 }

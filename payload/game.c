@@ -1150,11 +1150,11 @@ void processPlayer(int pIndex)
     // draw payload moving icon
     if (pvar->State == PAYLOAD_STATE_MOVING_FORWARD)
     {
-      gfxHelperDrawSprite(370, 16, 0, 0, 16, 16, 32, 32, 52, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawSprite(370, 16, 0, 0, 16, 16, 32, 32, 52, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), TEXT_ALIGN_TOPLEFT, 0);
     }
     else if (pvar->State == PAYLOAD_STATE_MOVING_BACKWARD)
     {
-      gfxHelperDrawSprite(370, 16, 16, 0, -16, 16, 32, 32, 52, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawSprite(370, 16, 16, 0, -16, 16, 32, 32, 52, colorLerp(0x80808080, 0x80E0E0E0, pulseTime), TEXT_ALIGN_TOPLEFT, 0);
     }
 
     // number of attacking players near payload
@@ -1163,8 +1163,8 @@ void processPlayer(int pIndex)
       sprintf(strBuf, "x%d", pvar->AttackerNearCount);
       u32 color = colorLerp(TEAM_COLORS[State.Teams[1].TeamId], 0x80E0E0E0, pulseTime);
 
-      gfxHelperDrawSprite(370, 16, 25, 0, 16, 16, 32, 32, 16, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-      gfxHelperDrawText(370, 16 + 12, 25 + 10, 0, 0.7, color, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawSprite(370, 16, 25, 0, 16, 16, 32, 32, 16, color, TEXT_ALIGN_TOPLEFT, 0);
+      gfxHelperDrawText(370, 16 + 12, 25 + 10, 0, 0.7, color, strBuf, -1, TEXT_ALIGN_TOPLEFT);
     }
 
     // number of defending players near payload
@@ -1173,8 +1173,8 @@ void processPlayer(int pIndex)
       sprintf(strBuf, "x%d", pvar->DefenderNearCount);
       u32 color = colorLerp(TEAM_COLORS[State.Teams[0].TeamId], 0x80E0E0E0, pulseTime);
 
-      gfxHelperDrawSprite(370, 16, 50, 0, 16, 16, 32, 32, 16, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-      gfxHelperDrawText(370, 16 + 12, 50 + 10, 0, 0.7, color, strBuf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawSprite(370, 16, 50, 0, 16, 16, 32, 32, 16, color, TEXT_ALIGN_TOPLEFT, 0);
+      gfxHelperDrawText(370, 16 + 12, 50 + 10, 0, 0.7, color, strBuf, -1, TEXT_ALIGN_TOPLEFT);
     }
   }
 
@@ -1235,7 +1235,7 @@ void processPlayer(int pIndex)
 
       vector_copy(t, payload->Position);
       t[2] += 4;
-      gfxHelperDrawSprite_WS(t, 24, 24, 32, 32, 81, colorLerp(0x80808080, color, 0.5 + (pulseTime * 0.5)), TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawSprite_WS(t, 24, 24, 32, 32, 81, colorLerp(0x80808080, color, 0.5 + (pulseTime * 0.5)), TEXT_ALIGN_MIDDLECENTER);
     }
 
     // draw bomb site icon
@@ -1244,7 +1244,7 @@ void processPlayer(int pIndex)
     if (CollLine_Fix(player->CameraPos, t, 2, NULL, 0) == 0)
     {
       float opacity = powf(clamp((pvar->Distance / State.PathLength) - 0.5, 0, 0.5) * 2, 3);
-      gfxHelperDrawSprite_WS(t, 16, 16, 32, 32, 10, colorLerp(0x80808080, 0x80FFFFFF, opacity), TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawSprite_WS(t, 16, 16, 32, 32, 10, colorLerp(0x80808080, 0x80FFFFFF, opacity), TEXT_ALIGN_MIDDLECENTER);
     }
 
     // play electricity sound if near
@@ -1316,8 +1316,8 @@ void processPlayer(int pIndex)
     //
     if (shouldDrawHud())
     {
-      gfxHelperDrawText(470, 16, 1, 1, 1, 0x80000000, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
-      gfxHelperDrawText(470, 16, 0, 0, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(470, 16, 1, 1, 1, 0x80000000, strBuf, -1, TEXT_ALIGN_TOPCENTER);
+      gfxHelperDrawText(470, 16, 0, 0, 1, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_TOPCENTER);
     }
 
     // draw end round timer
@@ -1335,7 +1335,7 @@ void processPlayer(int pIndex)
 
       // draw timer
       sprintf(strBuf, "%d", secondsLeftInt);
-      gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.15, 0, 0, scale, color, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.15, 0, 0, scale, color, strBuf, -1, TEXT_ALIGN_MIDDLECENTER);
 
       // tick timer
       if (secondsLeftInt != State.TimerLastPlaySoundSecond)
@@ -1355,8 +1355,8 @@ void processPlayer(int pIndex)
     const float y = 50.0;
 
     // background
-    gfxHelperDrawBox(SCREEN_WIDTH, y, dx + 0, 0, 10, height, 0x80808080, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
-    gfxHelperDrawBox(SCREEN_WIDTH, y, dx + 2, 2, 10 - 4, height - 4, 0x80808080, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawBox(SCREEN_WIDTH, y, dx + 0, 0, 10, height, 0x80808080, TEXT_ALIGN_TOPLEFT, 0);
+    gfxHelperDrawBox(SCREEN_WIDTH, y, dx + 2, 2, 10 - 4, height - 4, 0x80808080, TEXT_ALIGN_TOPLEFT, 0);
 
     // progress
     for (i = 0; i < 2; ++i)
@@ -1367,16 +1367,16 @@ void processPlayer(int pIndex)
       float h = floorf((height - 4.0) * t);
       float yPos = ((height - 4.0) + y + 2.0 - h);
       u32 color = TEAM_COLORS[State.Teams[i].TeamId] + 0x40000000;
-      gfxHelperDrawBox(SCREEN_WIDTH, yPos, dx + 2, 0, 10 - 4, h, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawBox(SCREEN_WIDTH, yPos, dx + 2, 0, 10 - 4, h, color, TEXT_ALIGN_TOPLEFT, 0);
 
       // marker
       if (i == 0 && State.RoundNumber > 0)
       {
-        gfxHelperDrawBox(SCREEN_WIDTH, yPos, dx + 0, 0, 10, 2, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+        gfxHelperDrawBox(SCREEN_WIDTH, yPos, dx + 0, 0, 10, 2, color, TEXT_ALIGN_TOPLEFT, 0);
       }
 
       // draw marker icons
-      gfxHelperDrawSprite(SCREEN_WIDTH, yPos, dx + 20, -6, 12, 12, 32, 32, 42, color, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawSprite(SCREEN_WIDTH, yPos, dx + 20, -6, 12, 12, 32, 32, 42, color, TEXT_ALIGN_TOPLEFT, 0);
     }
   }
 

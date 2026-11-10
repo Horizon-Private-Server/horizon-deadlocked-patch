@@ -2293,7 +2293,7 @@ void processPlayer(int pIndex)
               {
                 float time = (PLAYER_TIME_TO_REVIVE_TICKS - playerData->RevivingPlayerTicks) / (float)TPS;
                 snprintf(LocalPlayerStrBuffer[localPlayerIndex], sizeof(LocalPlayerStrBuffer[localPlayerIndex]), "Reviving %s\x08... %.2f", gs->PlayerNames[i], time);
-                gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 100, 0, 0, 1, 0x80FFFFFF, LocalPlayerStrBuffer[localPlayerIndex], -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+                gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 100, 0, 0, 1, 0x80FFFFFF, LocalPlayerStrBuffer[localPlayerIndex], -1, TEXT_ALIGN_TOPCENTER);
                 //uiShowPopup(localPlayerIndex, LocalPlayerStrBuffer[localPlayerIndex]);
                 //hasMessage = 1;
                 //playerData->MessageCooldownTicks = 2;
@@ -3791,7 +3791,7 @@ void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
     // draw paused
     if (survivalIsPaused())
     {
-      gfxHelperDrawText(SCREEN_WIDTH / 2, 50, 0, 0, 2, 0x8080FFFF, "PAUSED", -1, TEXT_ALIGN_TOPCENTER, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(SCREEN_WIDTH / 2, 50, 0, 0, 2, 0x8080FFFF, "PAUSED", -1, TEXT_ALIGN_TOPCENTER);
     }
 
     // draw timer

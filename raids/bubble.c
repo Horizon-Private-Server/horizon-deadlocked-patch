@@ -128,6 +128,7 @@ void bubbleDraw(void)
     return; // don't support more than 1 player
 
   int dzo = PATCH_INTEROP && PATCH_INTEROP->Client == CLIENT_TYPE_DZO;
+  gfxHelperSetDrawTarget(dzo ? COMMON_DRAW_TARGET_DZO : COMMON_DRAW_TARGET_NATIVE);
   for (i = 0; i < DAMAGE_BUBBLE_MAX_COUNT; ++i)
   {
     if (damageBubbles[i].Life)
@@ -144,9 +145,10 @@ void bubbleDraw(void)
       char suffix[2] = { damageBubbles[i].Suffix, 0 };
       snprintf(buf, sizeof(buf), "%d%s", damageBubbles[i].Damage, suffix);
       scale = bubbleGetScale(&damageBubbles[i]);
-      gfxHelperDrawText_WS(damageBubbles[i].Position, scale, color, buf, -1, TEXT_ALIGN_MIDDLECENTER, dzo ? COMMON_DZO_DRAW_ONLY : COMMON_DZO_DRAW_NONE);
+      gfxHelperDrawText_WS(damageBubbles[i].Position, scale, color, buf, -1, TEXT_ALIGN_MIDDLECENTER);
     }
   }
+  gfxHelperResetDrawTarget();
 }
 
 //--------------------------------------------------------------------------

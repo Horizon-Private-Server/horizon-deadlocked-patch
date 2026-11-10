@@ -11,15 +11,6 @@ enum COMMON_DRAW_TARGET
   COMMON_DRAW_TARGET_DZO = 2,
 };
 
-// legacy destination values are ignored; STRETCHED still controls DZO stretching
-enum COMMON_DZO_DRAW_TYPE
-{
-  COMMON_DZO_DRAW_NONE = 0,
-  COMMON_DZO_DRAW_NORMAL,
-  COMMON_DZO_DRAW_STRETCHED,
-  COMMON_DZO_DRAW_ONLY,
-};
-
 enum COMMON_QUAD_TEXTURE
 {
   COMMON_QUAD_TEXTURE_FX = 0,
@@ -83,7 +74,6 @@ void helperRealign(float *pX, float *pY, float w, float h, enum TextAlign fromAl
  *
  * NOTES :
  *       BOTH is the default. The setting persists until changed or reset.
- *       Legacy dzoDrawType arguments only control DZO stretching.
  *       The setting applies to this linked copy of common.
  *
  * ARGS :
@@ -123,14 +113,14 @@ void gfxHelperResetDrawTarget(void);
  *      h:              Height (0-SCREEN_HEIGHT).
  *      color:          Color of box.
  *      alignment:
- *      dzoDrawType:    Only COMMON_DZO_DRAW_STRETCHED is respected. Use gfxHelperSetDrawTarget for destinations.
+ *      dzoStretched:   Nonzero stretches the DZO box to the screen aspect ratio.
  *
  * RETURN :
  *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
-void gfxHelperDrawBox(float x, float y, float offsetX, float offsetY, float w, float h, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
-void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+void gfxHelperDrawBox(float x, float y, float offsetX, float offsetY, float w, float h, u32 color, enum TextAlign alignment, int dzoStretched);
+void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum TextAlign alignment);
 
 /*
  * NAME :    gfxHelperDrawText
@@ -139,6 +129,7 @@ void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum
  *       Draws text on the screen.
  *
  * NOTES :
+ *       Draw destinations are selected by gfxHelperSetDrawTarget.
  *
  * ARGS :
  *      x:              Screen X position (0-SCREEN_WIDTH).
@@ -148,14 +139,13 @@ void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum
  *      str:            String to draw. Max 64 characters for DZO.
  *      length:         Number of characters to draw. -1 to draw full length of string.
  *      alignment:      Text alignment.
- *      dzoDrawType:    Destination is selected by gfxHelperSetDrawTarget.
  *
  * RETURN :
  *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
-void gfxHelperDrawText(float x, float y, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
-void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+void gfxHelperDrawText(float x, float y, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment);
+void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *str, int length, enum TextAlign alignment);
 
 /*
  * NAME :    gfxHelperDrawTextWindow
@@ -165,6 +155,7 @@ void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *st
  *
  * NOTES :
  *       Native layout is still measured when drawing only to DZO.
+ *       Draw destinations are selected by gfxHelperSetDrawTarget.
  *
  * ARGS :
  *      x:              Screen X position (0-SCREEN_WIDTH).
@@ -174,14 +165,13 @@ void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *st
  *      str:            String to draw. Max 64 characters for DZO.
  *      length:         Number of characters to draw. -1 to draw full length of string.
  *      alignment:      Text alignment.
- *      dzoDrawType:    Destination is selected by gfxHelperSetDrawTarget.
  *
  * RETURN :
  *      Total height of wrapped text.
  *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
-float gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum FontWindowFlags flags, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+float gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum FontWindowFlags flags);
 
 /*
  * NAME :    gfxHelperDrawSprite
@@ -190,6 +180,7 @@ float gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, fl
  *       Draws a sprite on the screen.
  *
  * NOTES :
+ *       Draw destinations are selected by gfxHelperSetDrawTarget.
  *
  * ARGS :
  *      x:              Screen X position (0-SCREEN_WIDTH).
@@ -200,14 +191,14 @@ float gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, fl
  *      texHeight:      Pixel height of the given texture.
  *      color:          Color of box.
  *      alignment:      Image alignment.
- *      dzoDrawType:    Only COMMON_DZO_DRAW_STRETCHED is respected. Use gfxHelperSetDrawTarget for destinations.
+ *      dzoStretched:   Nonzero stretches the DZO sprite to the screen aspect ratio.
  *
  * RETURN :
  *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
-void gfxHelperDrawSprite(float x, float y, float offsetX, float offsetY, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
-void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+void gfxHelperDrawSprite(float x, float y, float offsetX, float offsetY, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, int dzoStretched);
+void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment);
 
 /*
  * NAME :    gfxHelperDrawQuad_WS

@@ -818,8 +818,8 @@ void modeTick(void)
     u32 color = colorLerp(0x8029E5E6, 0x800000FF, timeT);
 
     snprintf(buf, 32, "%02d", capTimeMs / 1000);
-    gfxHelperDrawText(0, 130, 32 + 1, 1, 1, 0x40000000, buf, -1, 1, COMMON_DZO_DRAW_NORMAL);
-    gfxHelperDrawText(0, 130, 32, 0, 1, color, buf, -1, 1, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(0, 130, 32 + 1, 1, 1, 0x40000000, buf, -1, 1);
+    gfxHelperDrawText(0, 130, 32, 0, 1, color, buf, -1, 1);
   }
 
   --tallyTicker;

@@ -2435,7 +2435,9 @@ void drawMapsListVerticalMenuElementInfo(TabElem_t *tab, MenuElem_t *element, Me
     gfxSetScissor(x, x + w, y, y + h);
     float maxOffset = maxf(0, mapOverrideSelectedMapDescHeight - h + (LINE_HEIGHT * SCREEN_HEIGHT));
     y -= (int)minf(maxOffset, maxf(0, (mapOverrideSelectedMapTicks % (10 * TPS) - 3 * TPS) * 0.3));
-    mapOverrideSelectedMapDescHeight = gfxHelperDrawTextWindow(x, y, 0, 0, w, SCREEN_HEIGHT, 5, 5, 0.9, color, mapOverrideSelectedMapDesc, -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR, COMMON_DZO_DRAW_NONE);
+    gfxHelperSetDrawTarget(COMMON_DRAW_TARGET_NATIVE);
+    mapOverrideSelectedMapDescHeight = gfxHelperDrawTextWindow(x, y, 0, 0, w, SCREEN_HEIGHT, 5, 5, 0.9, color, mapOverrideSelectedMapDesc, -1, TEXT_ALIGN_TOPLEFT, FONT_WINDOW_FLAGS_NO_SCISSOR);
+    gfxHelperResetDrawTarget();
     gfxSetScissor(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);
   }
 
@@ -3284,7 +3286,8 @@ void drawDynamicPage(void)
   Window_t drawWindow;
 
   // draw frame
-  windowCreate(&drawWindow, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 350, 300, TEXT_ALIGN_MIDDLECENTER, 0);
+  windowCreate(&drawWindow, SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.5, 0, 0, 350, 300, TEXT_ALIGN_MIDDLECENTER);
+  gfxHelperSetDrawTarget(COMMON_DRAW_TARGET_NATIVE);
   windowFill(&drawWindow, colorBg);
   windowBorder(&drawWindow, colorRed, 0, 30, 0, 20);
 
@@ -3374,6 +3377,7 @@ void drawDynamicPage(void)
   // final border
   gfxSetScissor(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);
   windowBorder(&drawWindow, colorRed, 1, 1, 1, 1);
+  gfxHelperResetDrawTarget();
 }
 
 //------------------------------------------------------------------------------

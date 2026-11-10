@@ -60,7 +60,7 @@ void drawTimer(int time, u32 color)
     time = 0;
 
   snprintf(buf, sizeof(buf), "%d:%02d.%03d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND, time % TIME_SECOND);
-  gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 0.9, color, buf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 0.9, color, buf, -1, TEXT_ALIGN_BOTTOMLEFT);
 }
 
 //--------------------------------------------------------------------------

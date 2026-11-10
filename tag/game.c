@@ -396,7 +396,7 @@ void frameTick(void)
       char buf[32];
       u32 color = colorLerp(0x8000F0F0, 0x800000C0, ptsDt < 0 ? 1 : 0);
       snprintf(buf, sizeof(buf), "%c%d", (ptsDt < 0) ? '-' : '+', (ptsDt < 0) ? -ptsDt : ptsDt);
-      gfxHelperDrawText(0.55 * SCREEN_WIDTH, y, 0, 0, 1, color, buf, -1, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_NORMAL);
+      gfxHelperDrawText(0.55 * SCREEN_WIDTH, y, 0, 0, 1, color, buf, -1, TEXT_ALIGN_TOPLEFT);
 
       cgmPlayer->DisplayLastPtsDeltaTicks = ptsDtTicks - 1;
     }
@@ -435,7 +435,7 @@ void frameTick(void)
       return;
 
     gfxSetupGifPaging(0);
-    gfxHelperDrawSprite_WS(leaderWPos, size, size, 32, 32, 73, color, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawSprite_WS(leaderWPos, size, size, 32, 32, 73, color, TEXT_ALIGN_MIDDLECENTER);
     gfxDoGifPaging();
   }
 }

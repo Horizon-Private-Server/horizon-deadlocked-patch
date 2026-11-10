@@ -476,8 +476,8 @@ void modeTick(void)
   {
     float multiplier = 1 + getComboMultiplier();
     snprintf(buf, 32, "x%.1f", multiplier);
-    gfxHelperDrawText(0, 130, 32 + 1, 1, 0.8, 0x80000000, buf, -1, 1, COMMON_DZO_DRAW_NORMAL);
-    gfxHelperDrawText(0, 130, 32, 0, 0.8, 0x8029E5E6, buf, -1, 1, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(0, 130, 32 + 1, 1, 0.8, 0x80000000, buf, -1, 1);
+    gfxHelperDrawText(0, 130, 32, 0, 0.8, 0x8029E5E6, buf, -1, 1);
   }
 
   // decrement fusion shot hit detect ticker

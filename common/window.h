@@ -17,7 +17,6 @@ typedef struct
   float Width;
   float Height;
   enum TextAlign AnchorAlign;
-  char Dzo;
 } Window_t;
 
 void windowReset(Window_t *out);
@@ -33,7 +32,7 @@ float windowDrawText(Window_t *window, enum TextAlign windowAnchor, float offset
 void windowDrawTextWindow(Window_t *window, enum TextAlign windowAnchor, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment);
 int windowHasArea(Window_t *window);
 void windowCreateFrom(Window_t *out, Window_t *window, float winOffsetX, float winOffsetY, float winWidth, float winHeight, enum TextAlign winAlignment);
-void windowCreate(Window_t *out, float anchorX, float anchorY, float offsetX, float offsetY, float width, float height, enum TextAlign anchorAlignment, int dzo);
+void windowCreate(Window_t *out, float anchorX, float anchorY, float offsetX, float offsetY, float width, float height, enum TextAlign anchorAlignment);
 void windowDrawDialog(Window_t *drawWindow, char *titleStr, char *subtitleStr, char *bodyStr, char *buttonStr);
 
 #endif // _PATCH_WINDOW_

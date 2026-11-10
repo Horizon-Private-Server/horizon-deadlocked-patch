@@ -306,16 +306,16 @@ void hopDraw(void)
     missionTypeName = "Hub";
   if (missionTypeName)
   {
-    gfxHelperDrawText(x, y, 0, offY, 0.65, 0x80FFFFFF, missionTypeName, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+    gfxHelperDrawText(x, y, 0, offY, 0.65, 0x80FFFFFF, missionTypeName, -1, TEXT_ALIGN_MIDDLECENTER);
     offY += 14;
   }
 
-  gfxHelperDrawText(x, y, 0, offY, 0.9, 0x80FFFFFF, State.PendingWorldHopMapDef->Name, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(x, y, 0, offY, 0.9, 0x80FFFFFF, State.PendingWorldHopMapDef->Name, -1, TEXT_ALIGN_MIDDLECENTER);
   offY += 16;
 
   char strBuf[64];
   snprintf(strBuf, sizeof(strBuf), "%d", delaySeconds);
-  gfxHelperDrawText(x, y, 0, offY, 0.8, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawText(x, y, 0, offY, 0.8, 0x80FFFFFF, strBuf, -1, TEXT_ALIGN_MIDDLECENTER);
 }
 
 //--------------------------------------------------------------------------

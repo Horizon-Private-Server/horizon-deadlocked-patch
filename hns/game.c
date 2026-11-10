@@ -94,8 +94,8 @@ void drawSeekerOverlay(int localPlayerIndex, int time)
   float vertScale = 1.0 / localCount;
   float yOff = localPlayerIndex * 0.5;
   snprintf(buf, sizeof(buf), "It's not rabbit season yet... %02d", time);
-  gfxHelperDrawBox(0, SCREEN_HEIGHT * yOff, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT * vertScale, 0x80000000, TEXT_ALIGN_TOPLEFT, COMMON_DZO_DRAW_STRETCHED);
-  gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER, COMMON_DZO_DRAW_NORMAL);
+  gfxHelperDrawBox(0, SCREEN_HEIGHT * yOff, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT * vertScale, 0x80000000, TEXT_ALIGN_TOPLEFT, 1);
+  gfxHelperDrawText(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_MIDDLECENTER);
 }
 
 //--------------------------------------------------------------------------

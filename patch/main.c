@@ -829,7 +829,7 @@ void runLagjumpPatch(void)
   //Player* lp = playerGetFromSlot(0);
   //char buf[64];
   //snprintf(buf, sizeof(buf), "%d", lp->PlayerState);
-  //gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_BOTTOMLEFT, COMMON_DZO_DRAW_NORMAL);
+  //gfxHelperDrawText(15, SCREEN_HEIGHT - 15, 0, 0, 1, 0x80FFFFFF, buf, -1, TEXT_ALIGN_BOTTOMLEFT);
 
   int i;
   for (i = 0; i < 2; ++i)
