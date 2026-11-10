@@ -1505,7 +1505,9 @@ int mobHandleEvent(Moby *moby, GuberEvent *event)
   {
     u32 mobEvent = event->NetEvent.EventID;
     int isFromHost = gameIsHost(event->NetEvent.OriginClientIdx);
-    if (!isFromHost && mobEvent != MOB_EVENT_SPAWN && mobEvent != MOB_EVENT_DAMAGE && mobEvent != MOB_EVENT_DESTROY && pvars->MobVars.Owner != event->NetEvent.OriginClientIdx)
+    // npc dialog handlers validate requests from players who do not own the npc
+    int isNpcCustomEvent = mobEvent == MOB_EVENT_CUSTOM && moby->OClass == NPC_MOBY_OCLASS;
+    if (!isFromHost && !isNpcCustomEvent && mobEvent != MOB_EVENT_SPAWN && mobEvent != MOB_EVENT_DAMAGE && mobEvent != MOB_EVENT_DESTROY && pvars->MobVars.Owner != event->NetEvent.OriginClientIdx)
     {
       DPRINTF("ignoring mob event %d from %d (not owner, %d)\n", mobEvent, event->NetEvent.OriginClientIdx, pvars->MobVars.Owner);
       return 0;
