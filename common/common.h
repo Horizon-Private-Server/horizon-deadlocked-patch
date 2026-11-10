@@ -4,12 +4,39 @@
 #include <libdl/graphics.h>
 #include <libdl/math3d.h>
 
+enum COMMON_DRAW_TARGET
+{
+  COMMON_DRAW_TARGET_BOTH = 0,
+  COMMON_DRAW_TARGET_NATIVE = 1,
+  COMMON_DRAW_TARGET_DZO = 2,
+};
+
+// legacy destination values are ignored; STRETCHED still controls DZO stretching
 enum COMMON_DZO_DRAW_TYPE
 {
   COMMON_DZO_DRAW_NONE = 0,
   COMMON_DZO_DRAW_NORMAL,
   COMMON_DZO_DRAW_STRETCHED,
   COMMON_DZO_DRAW_ONLY,
+};
+
+enum COMMON_QUAD_TEXTURE
+{
+  COMMON_QUAD_TEXTURE_FX = 0,
+  COMMON_QUAD_TEXTURE_FRAME = 1,
+};
+
+enum COMMON_QUAD_BLEND
+{
+  COMMON_QUAD_BLEND_OPAQUE = 0,
+  COMMON_QUAD_BLEND_SEMITRANSPARENT = 1,
+  COMMON_QUAD_BLEND_ADDITIVE = 2,
+};
+
+enum COMMON_QUAD_FLAGS
+{
+  COMMON_QUAD_ZWRITE = 1,
+  COMMON_QUAD_CLAMP = 2,
 };
 
 /*
@@ -49,26 +76,57 @@ void helperRealign(float *pX, float *pY, float w, float h, enum TextAlign fromAl
 //------------------------------------------------------------------------------
 
 /*
+ * NAME :    gfxHelperSetDrawTarget
+ *
+ * DESCRIPTION :
+ *       Selects the draw destination for subsequent gfx helper calls.
+ *
+ * NOTES :
+ *       BOTH is the default. The setting persists until changed or reset.
+ *       Legacy dzoDrawType arguments only control DZO stretching.
+ *       The setting applies to this linked copy of common.
+ *
+ * ARGS :
+ *      target:         BOTH, NATIVE, or DZO. Invalid targets are ignored.
+ *
+ * RETURN :
+ *
+ */
+void gfxHelperSetDrawTarget(enum COMMON_DRAW_TARGET target);
+
+/*
+ * NAME :    gfxHelperResetDrawTarget
+ *
+ * DESCRIPTION :
+ *       Restores COMMON_DRAW_TARGET_BOTH for subsequent gfx helper calls.
+ *
+ * RETURN :
+ *
+ */
+void gfxHelperResetDrawTarget(void);
+
+/*
  * NAME :    gfxHelperDrawBox
- * 
+ *
  * DESCRIPTION :
  *       Draws a box on the screen.
- * 
+ *
  * NOTES :
  *       Native bounds snap to pixels; positive subpixel sizes draw at least one pixel.
  *       DZO retains the original floating point bounds.
- * 
- * ARGS : 
+ *       Draw destinations are selected by gfxHelperSetDrawTarget.
+ *
+ * ARGS :
  *      x:              Screen X position (0-SCREEN_WIDTH).
  *      y:              Screen Y position (0-SCREEN_HEIGHT).
  *      w:              Width (0-SCREEN_WIDTH).
  *      h:              Height (0-SCREEN_HEIGHT).
  *      color:          Color of box.
- *      alignment:      
- *      dzoDrawType:    DZO draw type.
- * 
+ *      alignment:
+ *      dzoDrawType:    Only COMMON_DZO_DRAW_STRETCHED is respected. Use gfxHelperSetDrawTarget for destinations.
+ *
  * RETURN :
- * 
+ *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
 void gfxHelperDrawBox(float x, float y, float offsetX, float offsetY, float w, float h, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
@@ -76,13 +134,13 @@ void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum
 
 /*
  * NAME :    gfxHelperDrawText
- * 
+ *
  * DESCRIPTION :
  *       Draws text on the screen.
- * 
+ *
  * NOTES :
- * 
- * ARGS : 
+ *
+ * ARGS :
  *      x:              Screen X position (0-SCREEN_WIDTH).
  *      y:              Screen Y position (0-SCREEN_HEIGHT).
  *      scale:          Text scale.
@@ -90,10 +148,10 @@ void gfxHelperDrawBox_WS(VECTOR worldPosition, float w, float h, u32 color, enum
  *      str:            String to draw. Max 64 characters for DZO.
  *      length:         Number of characters to draw. -1 to draw full length of string.
  *      alignment:      Text alignment.
- *      dzoDraw:        Whether to draw on the DZO client.
- * 
+ *      dzoDrawType:    Destination is selected by gfxHelperSetDrawTarget.
+ *
  * RETURN :
- * 
+ *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
 void gfxHelperDrawText(float x, float y, float offsetX, float offsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
@@ -101,13 +159,14 @@ void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *st
 
 /*
  * NAME :    gfxHelperDrawTextWindow
- * 
+ *
  * DESCRIPTION :
  *       Draws text on the screen constrained to a window.
- * 
+ *
  * NOTES :
- * 
- * ARGS : 
+ *       Native layout is still measured when drawing only to DZO.
+ *
+ * ARGS :
  *      x:              Screen X position (0-SCREEN_WIDTH).
  *      y:              Screen Y position (0-SCREEN_HEIGHT).
  *      scale:          Text scale.
@@ -115,24 +174,24 @@ void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *st
  *      str:            String to draw. Max 64 characters for DZO.
  *      length:         Number of characters to draw. -1 to draw full length of string.
  *      alignment:      Text alignment.
- *      dzoDraw:        Whether to draw on the DZO client.
- * 
+ *      dzoDrawType:    Destination is selected by gfxHelperSetDrawTarget.
+ *
  * RETURN :
  *      Total height of wrapped text.
- * 
+ *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
 float gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, float width, float height, float textOffsetX, float textOffsetY, float scale, u32 color, char *str, int length, enum TextAlign alignment, enum FontWindowFlags flags, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
 
 /*
  * NAME :    gfxHelperDrawSprite
- * 
+ *
  * DESCRIPTION :
  *       Draws a sprite on the screen.
- * 
+ *
  * NOTES :
- * 
- * ARGS : 
+ *
+ * ARGS :
  *      x:              Screen X position (0-SCREEN_WIDTH).
  *      y:              Screen Y position (0-SCREEN_HEIGHT).
  *      w:              Width (0-SCREEN_WIDTH).
@@ -141,14 +200,101 @@ float gfxHelperDrawTextWindow(float x, float y, float offsetX, float offsetY, fl
  *      texHeight:      Pixel height of the given texture.
  *      color:          Color of box.
  *      alignment:      Image alignment.
- *      dzoDrawType:    DZO draw type.
- * 
+ *      dzoDrawType:    Only COMMON_DZO_DRAW_STRETCHED is respected. Use gfxHelperSetDrawTarget for destinations.
+ *
  * RETURN :
- * 
+ *
  * AUTHOR :      Daniel "Dnawrkshp" Gerendasy
  */
 void gfxHelperDrawSprite(float x, float y, float offsetX, float offsetY, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
 void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth, int texHeight, int texId, u32 color, enum TextAlign alignment, enum COMMON_DZO_DRAW_TYPE dzoDrawType);
+
+/*
+ * NAME :    gfxHelperDrawQuad_WS
+ *
+ * DESCRIPTION :
+ *       Draws a transformed rectangle natively and on the DZO client.
+ *
+ * NOTES :
+ *       Call every frame from the codegen draw hook or an FX draw callback.
+ *       Draw destinations are selected by gfxHelperSetDrawTarget.
+ *       The unit rectangle is centered at the local origin in the X/Z plane.
+ *       Build worldMatrix with libdl matrix functions to position, rotate, and size it.
+ *       The supplied matrix is read without modification.
+ *       Uses the full texture UVs and a uniform color.
+ *       Quads are double-sided, unlit, and independent of the HUD overlay.
+ *       Depth testing is always enabled. ZWRITE enables depth writes for any blend mode.
+ *       UVs repeat by default; CLAMP clamps them to the texture bounds.
+ *
+ * ARGS :
+ *      worldMatrix:    Affine local-to-world transform, including width/height scaling.
+ *      color:          PS2 RGBA. 0x80 alpha is opaque; 0x80 RGB is neutral modulation.
+ *      texId:          Texture id. -1 draws an untextured quad.
+ *      textureSource:  Effect or frame texture source.
+ *      blend:          Opaque, semitransparent, or additive blending.
+ *      flags:          Bitwise COMMON_QUAD_FLAGS. 0 disables depth writes and repeats UVs.
+ *
+ * RETURN :
+ *
+ */
+void gfxHelperDrawQuad_WS(MATRIX worldMatrix, u32 color, int texId, enum COMMON_QUAD_TEXTURE textureSource, enum COMMON_QUAD_BLEND blend, enum COMMON_QUAD_FLAGS flags);
+
+/*
+ * NAME :    gfxHelperDrawQuadFromEuler_WS
+ *
+ * DESCRIPTION :
+ *       Builds a transform and draws a rectangle natively and on the DZO client.
+ *
+ * NOTES :
+ *       Uses matrix_trs to scale, rotate around X/Y/Z, then translate.
+ *       Position and rotation use XYZ only and are read without modification.
+ *       Draw destinations, texture, depth, and blend behavior match gfxHelperDrawQuad_WS.
+ *
+ * ARGS :
+ *      position:       Rectangle center in PS2 world XYZ.
+ *      width:          Width along local +X, before rotation.
+ *      height:         Height along local +Z, before rotation.
+ *      rotation:       XYZ Euler angles in radians.
+ *      color:          PS2 RGBA. 0x80 alpha is opaque; 0x80 RGB is neutral modulation.
+ *      texId:          Texture id. -1 draws an untextured quad.
+ *      textureSource:  Effect or frame texture source.
+ *      blend:          Opaque, semitransparent, or additive blending.
+ *      flags:          Bitwise COMMON_QUAD_FLAGS. 0 disables depth writes and repeats UVs.
+ *
+ * RETURN :
+ *
+ */
+void gfxHelperDrawQuadFromEuler_WS(VECTOR position, float width, float height, VECTOR rotation, u32 color, int texId, enum COMMON_QUAD_TEXTURE textureSource, enum COMMON_QUAD_BLEND blend, enum COMMON_QUAD_FLAGS flags);
+
+/*
+ * NAME :    gfxHelperDrawBillboard_WS
+ *
+ * DESCRIPTION :
+ *       Draws a centered billboard natively and on the DZO client.
+ *
+ * NOTES :
+ *       Call every frame from the codegen draw hook or an FX draw callback.
+ *       Draw destinations are selected by gfxHelperSetDrawTarget.
+ *       Uses the full texture UVs and a uniform color, with the same depth and blend
+ *       behavior as gfxHelperDrawQuad_WS.
+ *
+ * ARGS :
+ *      position:       Billboard anchor in PS2 world XYZ.
+ *      offsetX:        Camera-right offset in world units, independent of rotation.
+ *      offsetY:        Camera-up offset in world units, independent of rotation.
+ *      width:          Width in world units.
+ *      height:         Height in world units.
+ *      rotation:       In-plane rotation in radians. Positive rotates +X toward +Z.
+ *      color:          PS2 RGBA. 0x80 alpha is opaque; 0x80 RGB is neutral modulation.
+ *      texId:          Texture id. -1 draws an untextured billboard.
+ *      textureSource:  Effect or frame texture source.
+ *      blend:          Opaque, semitransparent, or additive blending.
+ *      flags:          Bitwise COMMON_QUAD_FLAGS. 0 disables depth writes and repeats UVs.
+ *
+ * RETURN :
+ *
+ */
+void gfxHelperDrawBillboard_WS(const VECTOR position, float offsetX, float offsetY, float width, float height, float rotation, u32 color, int texId, enum COMMON_QUAD_TEXTURE textureSource, enum COMMON_QUAD_BLEND blend, enum COMMON_QUAD_FLAGS flags);
 
 //------------------------------------------------------------------------------
 int intArrayContains(int *list, int count, int value);
