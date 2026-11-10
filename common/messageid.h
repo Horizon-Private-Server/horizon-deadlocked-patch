@@ -361,10 +361,7 @@ enum CustomMessageId
      */
   CUSTOM_MSG_ID_RAIDS_CONTRACT_PROGRESS = 66,
 
-  /*
-     * 
-     */
-  CUSTOM_MSG_ID_RAIDS_UPDATE_MAP_METADATA_REQUEST = 67,
+  CUSTOM_MSG_ID_UNUSED_67 = 67,
 
   /*
      * 
