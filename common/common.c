@@ -505,12 +505,6 @@ void gfxHelperDrawNativeQuad_WS(const VECTOR positions[4], const u32 colors[4], 
       saved[i] = *states[i].Cached;
   }
 
-  // fx callbacks share the engine's paging block; the codegen draw hook owns one
-  // clear stale frame texture addresses before allocating pages
-  int paging = !tracked && texId >= 0;
-  if (paging)
-    gfxSetupGifPaging(0);
-
   // resolve texture
   u64 texture = 0;
   if (texId >= 0)
@@ -552,9 +546,6 @@ void gfxHelperDrawNativeQuad_WS(const VECTOR positions[4], const u32 colors[4], 
   {
     gfxResetGsRegisters();
   }
-
-  if (paging)
-    gfxDoGifPaging();
 }
 
 //------------------------------------------------------------------------------

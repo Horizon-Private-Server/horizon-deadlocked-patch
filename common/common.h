@@ -208,6 +208,8 @@ void gfxHelperDrawSprite_WS(VECTOR worldPosition, float w, float h, int texWidth
  *
  * NOTES :
  *       Call every frame from the codegen draw hook or an FX draw callback.
+ *       Native textured draws require caller-owned gfxSetupGifPaging(0)/gfxDoGifPaging.
+ *       Reuse the engine's active paging block inside FX draw callbacks.
  *       Draw destinations are selected by gfxHelperSetDrawTarget.
  *       The unit rectangle is centered at the local origin in the X/Z plane.
  *       Build worldMatrix with libdl matrix functions to position, rotate, and size it.
@@ -240,6 +242,7 @@ void gfxHelperDrawQuad_WS(MATRIX worldMatrix, u32 color, int texId, enum COMMON_
  *       Uses matrix_trs to scale, rotate around X/Y/Z, then translate.
  *       Position and rotation use XYZ only and are read without modification.
  *       Draw destinations, texture, depth, and blend behavior match gfxHelperDrawQuad_WS.
+ *       Uses the same caller-owned GIF paging as gfxHelperDrawQuad_WS.
  *
  * ARGS :
  *      position:       Rectangle center in PS2 world XYZ.
@@ -268,6 +271,7 @@ void gfxHelperDrawQuadFromEuler_WS(VECTOR position, float width, float height, V
  *       Draw destinations are selected by gfxHelperSetDrawTarget.
  *       Uses the full texture UVs and a uniform color, with the same depth and blend
  *       behavior as gfxHelperDrawQuad_WS.
+ *       Uses the same caller-owned GIF paging as gfxHelperDrawQuad_WS.
  *
  * ARGS :
  *      position:       Billboard anchor in PS2 world XYZ.
