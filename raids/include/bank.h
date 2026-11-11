@@ -20,14 +20,6 @@
 #define BANK_MAX_ITEMS (64)
 #define BANK_UPDATE_SIZE (16)
 
-// badges
-#define BANK_BADGE_EFFECT_COUNT (8)
-#define BADGE_HEALTH_BUFF_AMOUNT (200)
-#define BADGE_AMMO_MOD_BUFF_AMOUNT (6)
-#define BADGE_AREA_MOD_BUFF_AMOUNT (3)
-#define BADGE_SPEED_MOD_BUFF_AMOUNT (4)
-#define BADGE_IMPACT_MOD_BUFF_AMOUNT (4)
-
 // classes
 #define BANK_MAX_CLASSES (RAIDS_MAX_CLASSES)
 #define BANK_MAX_CLASS_UNLOCK_RULES (RAIDS_MAX_CLASS_UNLOCK_RULES)
@@ -46,7 +38,14 @@ enum RaidsItemTypes
 {
   RAIDS_ITEM_NONE = 0,
   RAIDS_ITEM_WEAPON,
-  RAIDS_ITEM_BADGE,
+  RAIDS_ITEM_MISC,
+};
+
+// misc items
+enum RaidsMiscItemType
+{
+  RAIDS_MISC_ITEM_NONE = 0,
+  RAIDS_MISC_ITEM_DOUBLE_XP,
 };
 
 enum RaidsItemRarity
@@ -100,24 +99,6 @@ enum RaidsWeaponModType
   RAIDS_WEAPON_MOD_WILL_O_WISP,
   RAIDS_WEAPON_MOD_LIGHTFOOT,
   RAIDS_WEAPON_MOD_COUNT
-};
-
-// badges
-enum RaidsBadgeType
-{
-  RAIDS_BADGE_TYPE_NONE = 0,
-  RAIDS_BADGE_TYPE_HEALTH_REGEN,
-  RAIDS_BADGE_TYPE_AMMO_REGEN,
-  RAIDS_BADGE_TYPE_SHARPSHOOTER,
-  RAIDS_BADGE_TYPE_BERSERKER,
-  RAIDS_BADGE_TYPE_FLINCH_RESISTANCE,
-  RAIDS_BADGE_TYPE_HEALTH_BUFF,
-  RAIDS_BADGE_TYPE_ALPHA_AMMO_BUFF,
-  RAIDS_BADGE_TYPE_ALPHA_AREA_BUFF,
-  RAIDS_BADGE_TYPE_ALPHA_SPEED_BUFF,
-  RAIDS_BADGE_TYPE_ALPHA_IMPACT_BUFF,
-  RAIDS_BADGE_TYPE_EXPLODING_ENEMIES,
-  RAIDS_BADGE_TYPE_COUNT
 };
 
 // contracts
@@ -190,11 +171,15 @@ typedef struct RaidsInventoryItem
 
     struct
     {
-      u8 Effects[BANK_BADGE_EFFECT_COUNT];
-      u8 EffectStrength[BANK_BADGE_EFFECT_COUNT];
-    } BadgeData;
+      u32 Type; // RaidsMiscItemType
+      u32 Count;
+    } MiscData;
   };
 } RaidsInventoryItem_t;
+
+typedef char RaidsInventoryItemSizeCheck[sizeof(RaidsInventoryItem_t) == 32 ? 1 : -1];
+typedef char RaidsInventoryWeaponDataOffsetCheck[offsetof(RaidsInventoryItem_t, WeaponData) == 12 ? 1 : -1];
+typedef char RaidsInventoryMiscDataOffsetCheck[offsetof(RaidsInventoryItem_t, MiscData) == 12 ? 1 : -1];
 
 typedef struct RaidsPlayerInventoryPage
 {
@@ -213,9 +198,11 @@ typedef struct RaidsPlayerInventoryPage
 typedef struct RaidsPlayerEquippedInventory
 {
   RaidsInventoryItem_t Items[WEAPON_SLOT_COUNT - 1];
-  RaidsInventoryItem_t Badge;
   int RefreshLocalInventory;
 } RaidsPlayerEquippedInventory_t;
+
+typedef char RaidsEquippedInventorySizeCheck[sizeof(RaidsPlayerEquippedInventory_t) == 260 ? 1 : -1];
+typedef char RaidsEquippedInventoryRefreshOffsetCheck[offsetof(RaidsPlayerEquippedInventory_t, RefreshLocalInventory) == 256 ? 1 : -1];
 
 struct RaidsGetBankRequest
 {
@@ -247,7 +234,6 @@ struct RaidsUpdateBankInventoryRequest
   int Index;
   int Count;
   RaidsInventoryItem_t Items[BANK_UPDATE_SIZE];
-  char EquippedBadgeIdx;
   char EquippedWeaponIdxs[WEAPON_SLOT_COUNT - 1];
 };
 
@@ -536,9 +522,6 @@ typedef enum RaidsItemRarity (*BankGetEquippedWeaponModRarity_func)(int playerId
 typedef double (*BankGetWeaponXP_func)(void);
 typedef double (*BankAddWeaponXP_func)(double amt);
 
-// badges
-typedef float (*BankGetEquippedBadgeEffectStrength_func)(int playerId, enum RaidsBadgeType effect);
-
 // account progression
 typedef void (*BankRequestAccountFromServer_func)(void);
 typedef void (*BankSendAccountToServer_func)(void);
@@ -587,7 +570,6 @@ struct BankVTable
   BankGetPlayerClassSkillMultiplier_func GetPlayerClassSkillMultiplier;
   BankGetItemName_func GetItemName;
   BankGetRarityFromQuality_func GetRarityFromQuality;
-  BankGetEquippedBadgeEffectStrength_func GetEquippedBadgeEffectStrength;
   BankGetEquippedWeaponModRarity_func GetEquippedWeaponModRarity;
   BankGetEquippedWeaponFromGadgetBox_func GetEquippedWeaponFromGadgetBox;
 

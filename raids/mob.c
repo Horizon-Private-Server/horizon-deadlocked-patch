@@ -221,7 +221,6 @@ void mobSendDamageEvent(Moby *moby, Moby *sourcePlayer, Moby *source, float amou
       RaidsInventoryItem_t *item = mapConfig->BankVTable->GetEquippedWeaponFromGadgetBox(pDamager->GadgetBox, weaponId);
       if (item)
         critProbability = item->WeaponData.CritChance / 255.0;
-      //critProbability += 0.5 * mapConfig->BankVTable->GetEquippedBadgeEffectStrength(pDamager->PlayerId, RAIDS_BADGE_TYPE_SHARPSHOOTER);
 
       struct RaidsPlayerDamageContext context = {
         .Attacker = pDamager,
