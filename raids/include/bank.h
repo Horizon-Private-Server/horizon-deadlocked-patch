@@ -106,6 +106,7 @@ enum RaidsContractType
 {
   RAIDS_CONTRACT_KILL = 0,
   RAIDS_CONTRACT_CLEAR = 1,
+  RAIDS_CONTRACT_TASK = 2,
 };
 
 enum RaidsContractFlags
@@ -115,6 +116,7 @@ enum RaidsContractFlags
   RAIDS_CONTRACT_CLAIMABLE = 0x04,
   RAIDS_CONTRACT_CLAIMED = 0x08,
   RAIDS_CONTRACT_SPEED_BONUS = 0x10,
+  RAIDS_CONTRACT_TASK_STARTED = 0x20,
 };
 
 enum RaidsContractRequestFlags
@@ -339,11 +341,11 @@ struct RaidsContractRuleHeader
   char Name[32];
 };
 
-struct RaidsKillContractRule
+struct RaidsCountContractRule
 {
   float XpMult;
   float BoltMult;
-  float ClassXpPerMob;
+  float ClassXpMult;
   u16 MinCount;
   u16 MaxCount;
   u32 MinHeroLevel;
@@ -356,6 +358,7 @@ typedef struct RaidsContract
 {
   u32 Uid;
   u32 OwnerAccountId;
+  int RuleIndex;
   RaidsContractReward_t Reward;
   union
   {
@@ -364,6 +367,11 @@ typedef struct RaidsContract
       u32 RequiredKills;
       u32 Kills;
     } Kill;
+
+    struct {
+      u32 TargetCount;
+      u32 Count;
+    } Task;
 
     struct
     {
@@ -411,7 +419,7 @@ struct RaidsContractProgress
   u32 ContractUid;
   union
   {
-    u32 Kills;
+    u32 Count;
     u32 CompletedTimeMs;
   };
   u8 Flags;
@@ -447,16 +455,17 @@ struct RaidsContractStatusResponse
 
 typedef char RaidsContractStatusSizeCheck[sizeof(struct RaidsContractStatusResponse) == 16 ? 1 : -1];
 typedef char RaidsContractRuleHeaderSizeCheck[sizeof(struct RaidsContractRuleHeader) == 36 ? 1 : -1];
-typedef char RaidsKillContractRuleSizeCheck[sizeof(struct RaidsKillContractRule) == 32 ? 1 : -1];
+typedef char RaidsCountContractRuleSizeCheck[sizeof(struct RaidsCountContractRule) == 32 ? 1 : -1];
 typedef char RaidsContractRewardSizeCheck[sizeof(RaidsContractReward_t) == 16 ? 1 : -1];
 typedef char RaidsContractDifficultySizeCheck[sizeof(RaidsContractDifficulty_t) == 32 ? 1 : -1];
-typedef char RaidsContractSizeCheck[sizeof(RaidsContract_t) == 92 ? 1 : -1];
-typedef char RaidsContractDataOffsetCheck[offsetof(RaidsContract_t, Kill) == 24 && offsetof(RaidsContract_t, Completion) == 24 ? 1 : -1];
-typedef char RaidsContractNameOffsetCheck[offsetof(RaidsContract_t, Name) == 60 ? 1 : -1];
-typedef char RaidsContractPageSizeCheck[sizeof(RaidsContractPage_t) == 392 ? 1 : -1];
+typedef char RaidsContractSizeCheck[sizeof(RaidsContract_t) == 96 ? 1 : -1];
+typedef char RaidsContractRuleIndexOffsetCheck[offsetof(RaidsContract_t, RuleIndex) == 8 && sizeof(((RaidsContract_t*)0)->RuleIndex) == 4 ? 1 : -1];
+typedef char RaidsContractDataOffsetCheck[offsetof(RaidsContract_t, Kill) == 28 && offsetof(RaidsContract_t, Task) == 28 && offsetof(RaidsContract_t, Completion) == 28 ? 1 : -1];
+typedef char RaidsContractNameOffsetCheck[offsetof(RaidsContract_t, Name) == 64 ? 1 : -1];
+typedef char RaidsContractPageSizeCheck[sizeof(RaidsContractPage_t) == 404 ? 1 : -1];
 typedef char RaidsContractRequestSizeCheck[sizeof(struct RaidsGetContractsRequest) == 76 ? 1 : -1];
 typedef char RaidsContractProgressEntrySizeCheck[sizeof(struct RaidsContractProgress) == 12 ? 1 : -1];
-typedef char RaidsContractProgressDataOffsetCheck[offsetof(struct RaidsContractProgress, Kills) == 4 && offsetof(struct RaidsContractProgress, CompletedTimeMs) == 4 ? 1 : -1];
+typedef char RaidsContractProgressDataOffsetCheck[offsetof(struct RaidsContractProgress, Count) == 4 && offsetof(struct RaidsContractProgress, CompletedTimeMs) == 4 ? 1 : -1];
 typedef char RaidsContractProgressSizeCheck[sizeof(struct RaidsUpdateContractStatsRequest) == 52 ? 1 : -1];
 typedef char RaidsContractActionSizeCheck[sizeof(struct RaidsActionContractRequest) == 16 ? 1 : -1];
 
