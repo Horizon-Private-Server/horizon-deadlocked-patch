@@ -1388,7 +1388,7 @@ void setLobbyGameOptions(PatchGameConfig_t *gameConfig)
   gameSettings->GameRules = GAMERULE_DM;
 
   // apply options
-  gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 0;
+  gameOptions->GameFlags.MultiplayerGameFlags.Nodes = 1;
   gameOptions->GameFlags.MultiplayerGameFlags.Flags = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.Hills = 0;
   gameOptions->GameFlags.MultiplayerGameFlags.SpawnType = 3; // NORMAL SPAWNS
