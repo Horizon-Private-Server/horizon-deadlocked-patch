@@ -3,6 +3,7 @@
 #include <libdl/game.h>
 #include <libdl/graphics.h>
 #include <libdl/math.h>
+#include <libdl/random.h>
 #include <libdl/camera.h>
 #include "common.h"
 #include "config.h"
@@ -24,6 +25,23 @@ enum COMMON_DRAW_TARGET gfxHelperDrawTarget = COMMON_DRAW_TARGET_BOTH;
 
 //------------------------------------------------------------------------------
 //------------------------------------ MISC ------------------------------------
+//------------------------------------------------------------------------------
+double randomUnit(void)
+{
+  // combine two native 15-bit draws before scaling; float would discard low bits
+  int high = rand(32768);
+  int low = rand(32768);
+  return ((high << 15) | low) * (1.0 / 1073741824.0);
+}
+
+//------------------------------------------------------------------------------
+int rollChance(float chance)
+{
+  if (!(chance > 0.0f)) return 0;
+  if (chance >= 1.0f) return 1;
+  return randomUnit() < (double)chance;
+}
+
 //------------------------------------------------------------------------------
 void helperAlign(float *pX, float *pY, float w, float h, enum TextAlign alignment)
 {

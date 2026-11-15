@@ -5,6 +5,7 @@
 #include "include/game.h"
 #include "include/interop.h"
 #include "include/utils.h"
+#include "common.h"
 #include "include/hop.h"
 #include "include/mob.h"
 #include "include/bubble.h"
@@ -128,7 +129,7 @@ void raidsFinalizePlayerDamage(struct RaidsPlayerDamageContext *context)
   if (context->CritChance > 1)
     context->CritChance = 1;
 
-  context->IsCritical = randRange(0, 1) < context->CritChance;
+  context->IsCritical = rollChance(context->CritChance);
 
   if (mapConfig->Functions.ModifyPlayerCritDamageFunc)
     mapConfig->Functions.ModifyPlayerCritDamageFunc(context);

@@ -31,6 +31,42 @@ enum COMMON_QUAD_FLAGS
 };
 
 /*
+ * NAME :    randomUnit
+ *
+ * DESCRIPTION :
+ *       Combines two native 15-bit random draws into a 30-bit sample.
+ *
+ * NOTES :
+ *       Returns double to preserve the low bits when scaling to the unit range.
+ *
+ * ARGS :
+ *
+ * RETURN :
+ *       A random value greater than or equal to 0 and less than 1.
+ *
+ */
+double randomUnit(void);
+
+/*
+ * NAME :    rollChance
+ *
+ * DESCRIPTION :
+ *       Tests a probability using randomUnit.
+ *
+ * NOTES :
+ *       Chances at or below 0 always fail; chances at or above 1 always succeed.
+ *       NaN fails. These cases do not consume random draws.
+ *
+ * ARGS :
+ *      chance:         Normalized probability; 0.01f represents 1%.
+ *
+ * RETURN :
+ *       1 if the roll succeeds, otherwise 0.
+ *
+ */
+int rollChance(float chance);
+
+/*
  * NAME :    helperAlign
  *
  * DESCRIPTION :

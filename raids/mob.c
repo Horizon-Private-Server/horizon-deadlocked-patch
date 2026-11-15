@@ -1,5 +1,6 @@
 #include "include/mob.h"
 #include "include/utils.h"
+#include "common.h"
 #include "include/game.h"
 #include "include/xp.h"
 #include "include/bubble.h"
@@ -1184,7 +1185,7 @@ int mobHandleEvent_Destroy(Moby *moby, GuberEvent *event)
     contractHandleKill(pvars->MobVars.SpawnParamsIdx);
 
     // spawn loot chance
-    if (randRange(0, 1) >= (1 - GAME_DEFAULT_LOOT_DROP_CHANCE))
+    if (rollChance(GAME_DEFAULT_LOOT_DROP_CHANCE))
     {
       lootRequestFromMob(moby, killedByLocal ? weaponId : 0);
     }
@@ -1200,7 +1201,7 @@ int mobHandleEvent_Destroy(Moby *moby, GuberEvent *event)
     if (weaponId > 1 && killedByLocal && !playerIsDead(killedByPlayer))
     {
       int nanoleechCount = playerGetWeaponAlphaModCount(killedByPlayer->GadgetBox, weaponId, ALPHA_MOD_NANOLEECH);
-      if (randRange(0, 1) < (NANOLEECH_CHANCE))
+      if (rollChance(NANOLEECH_CHANCE))
       {
         float nanoleechAmount = NANOLEECH_HEALTH * nanoleechCount;
         float newHealth = clamp(killedByPlayer->Health + nanoleechAmount, 0, killedByPlayer->MaxHealth);
