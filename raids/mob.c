@@ -863,7 +863,7 @@ void mobUpdate(Moby *moby)
     // destroy
     if (pvars->MobVars.Destroy)
     {
-      mobDestroy(moby, pvars->MobVars.Destroy == 2 ? -1 : pvars->MobVars.LastHitBy);
+      mobDestroy(moby, pvars->MobVars.Destroy == MOB_DESTROY_UNCREDITED ? -1 : pvars->MobVars.LastHitBy);
     }
 
     // respawn
@@ -1111,6 +1111,12 @@ int mobHandleEvent_Destroy(Moby *moby, GuberEvent *event)
   //
   guberEventRead(event, &killedByPlayerId, sizeof(killedByPlayerId));
   guberEventRead(event, &sourceId, sizeof(sourceId));
+
+  // let the map distinguish saved despawns from kills when updating its counters
+  if (killedByPlayerId == MOB_DESTROY_PLAYER_ID_DESPAWN) {
+    pvars->MobVars.Destroy = MOB_DESTROY_DESPAWN;
+    killedByPlayerId = -1;
+  }
 
   int weaponId = getWeaponIdFromDamageSource(sourceId);
 

@@ -15,6 +15,17 @@
 //#include "reaper.h"
 #include "game.h"
 
+// shared with map code; despawns use the existing destroy event payload
+#define MOB_DESTROY_PLAYER_ID_DESPAWN (-2)
+
+enum MobDestroyType
+{
+  MOB_DESTROY_NONE = 0,
+  MOB_DESTROY_KILLED = 1,
+  MOB_DESTROY_UNCREDITED = 2,
+  MOB_DESTROY_DESPAWN = 3,
+};
+
 enum MobEvent
 {
   MOB_EVENT_SPAWN,
