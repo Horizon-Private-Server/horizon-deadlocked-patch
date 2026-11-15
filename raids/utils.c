@@ -498,7 +498,13 @@ int missionIsComplete(void)
 //--------------------------------------------------------------------------
 int missionIsActive(void)
 {
-  return !isOnHubWorld() && !hasPendingWorldHop() && State.MissionStatus == RAIDS_MISSION_ACTIVE;
+  return !isOnHubWorld() && !missionIsMinigame() && !hasPendingWorldHop() && State.MissionStatus == RAIDS_MISSION_ACTIVE;
+}
+
+//--------------------------------------------------------------------------
+int missionIsMinigame(void)
+{
+  return State.MissionType == RAIDS_MISSION_MINIGAME;
 }
 
 //--------------------------------------------------------------------------

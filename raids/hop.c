@@ -304,6 +304,9 @@ void hopDraw(void)
     missionTypeName = "Raid";
   else if (hopMissionType == RAIDS_MISSION_HUB)
     missionTypeName = "Hub";
+  else if (hopMissionType == RAIDS_MISSION_MINIGAME)
+    missionTypeName = "Minigame";
+    
   if (missionTypeName)
   {
     gfxHelperDrawText(x, y, 0, offY, 0.65, 0x80FFFFFF, missionTypeName, -1, TEXT_ALIGN_MIDDLECENTER);

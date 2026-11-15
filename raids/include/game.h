@@ -181,6 +181,7 @@ enum RaidsMissionTypes
   RAIDS_MISSION_HUB = 0,
   RAIDS_MISSION_OPEN_WORLD = 1,
   RAIDS_MISSION_RAID = 2,
+  RAIDS_MISSION_MINIGAME = 3,
 };
 
 enum MobDamageSource
