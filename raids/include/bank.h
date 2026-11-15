@@ -73,7 +73,6 @@ enum RaidsItemUpdateAction
   RAIDS_ITEM_UPDATE_EQUIP,
   RAIDS_ITEM_UPDATE_UNEQUIP,
   RAIDS_ITEM_UPDATE_UPGRADE,
-  RAIDS_ITEM_UPDATE_UPGRADE_RARITY,
   RAIDS_ITEM_UPDATE_DESTROY,
 };
 
@@ -167,8 +166,7 @@ typedef struct RaidsInventoryItem
       u8 ModType;              // RaidsWeaponModType
       u8 ModQuality;           // 0-255
       u8 AlphaModCounts[ALPHA_MOD_COUNT - 1];
-      u8 Upgrades;
-      u8 MaxUpgrades;
+      u16 Upgrades;
     } WeaponData;
 
     struct
@@ -181,6 +179,7 @@ typedef struct RaidsInventoryItem
 
 typedef char RaidsInventoryItemSizeCheck[sizeof(RaidsInventoryItem_t) == 32 ? 1 : -1];
 typedef char RaidsInventoryWeaponDataOffsetCheck[offsetof(RaidsInventoryItem_t, WeaponData) == 12 ? 1 : -1];
+typedef char RaidsInventoryUpgradesOffsetCheck[offsetof(RaidsInventoryItem_t, WeaponData.Upgrades) == 30 ? 1 : -1];
 typedef char RaidsInventoryMiscDataOffsetCheck[offsetof(RaidsInventoryItem_t, MiscData) == 12 ? 1 : -1];
 
 typedef struct RaidsPlayerInventoryPage
