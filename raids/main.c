@@ -535,10 +535,16 @@ void onMobyDestroyedCleanupAnimLayers(Moby *moby)
   ((void (*)(Moby *))0x004fb480)(moby);
   mobyRemoveDrawFunctions(moby);
 
+  // some child mobys use their parent's subskeleton during destruction pass
+  // all all mobys with joints to go through normal delayed destruction path
+  if (moby->JointCnt > 0)
+    return;
+
   // let moby be reused instantly
-  // unless mob, then let is die normal
+  // unless mob, then let it die normal
   if (mobyIsMob(moby) || mobyIsMob(moby->PParent))
     return;
+
   moby->CollCnt = 0;
 }
 

@@ -551,12 +551,21 @@ void mobyRemoveDamages(Moby *moby)
 //--------------------------------------------------------------------------
 void onMobyDestroyedCleanupAnimLayers(Moby *moby)
 {
-  // call base
+  // base func
   ((void (*)(Moby *))0x004fb480)(moby);
-  moby->CollCnt = 0;
-
-  // remove any persistent draw calls
   mobyRemoveDrawFunctions(moby);
+
+  // some child mobys use their parent's subskeleton during destruction pass
+  // all all mobys with joints to go through normal delayed destruction path
+  if (moby->JointCnt > 0)
+    return;
+
+  // let moby be reused instantly
+  // unless mob, then let it die normal
+  if (mobyIsMob(moby) || mobyIsMob(moby->PParent))
+    return;
+
+  moby->CollCnt = 0;
 }
 
 //--------------------------------------------------------------------------
