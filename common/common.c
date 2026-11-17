@@ -286,6 +286,13 @@ void gfxHelperDrawText_WS(VECTOR worldPosition, float scale, u32 color, char *st
   if (!isInGame())
     return;
 
+  // Cull text behind the camera before either native or DZO rendering.
+  GameCamera *camera = cameraGetGameCamera(0);
+  VECTOR cameraToText;
+  vector_subtract(cameraToText, worldPosition, camera->pos);
+  if (vector_innerproduct_unscaled(cameraToText, camera->uMtx[0]) < 0)
+    return;
+
   // pass to dzo
   if (gfxHelperDrawTarget != COMMON_DRAW_TARGET_NATIVE && PATCH_DZO_INTEROP_FUNCS)
   {
@@ -351,8 +358,8 @@ float gfxHelperDrawTextWindow(float anchorX, float anchorY, float offsetX, float
     fontWindow.windowRight = fx + width * 0.5;
   }
 
-  // pass to dzo
-  if (gfxHelperDrawTarget != COMMON_DRAW_TARGET_NATIVE && PATCH_DZO_INTEROP_FUNCS && isInGame())
+  // pass visible text to dzo; no-draw calls only measure layout
+  if (!(flags & FONT_WINDOW_FLAGS_NO_DRAW) && gfxHelperDrawTarget != COMMON_DRAW_TARGET_NATIVE && PATCH_DZO_INTEROP_FUNCS && isInGame())
   {
     char msgBuf[2048];
     CustomDzoCommandDrawTextWindowVarStr_t textCmd;
