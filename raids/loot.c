@@ -8,6 +8,7 @@
 #include <libdl/radar.h>
 #include <libdl/sound.h>
 #include <libdl/random.h>
+#include <libdl/math3d.h>
 #include <libdl/utils.h>
 #include <libdl/net.h>
 #include <libdl/ui.h>
@@ -225,8 +226,14 @@ void lootRequest(int gadgetId)
     return;
 
   memset(&msg, 0, sizeof(msg));
-  vector_copy(msg.Position, player->PlayerPosition);
-  msg.Type = LOOT_DROP_TYPE_MOB_DEATH;
+
+  // scatter debug loot in a ring around the player
+  VECTOR offset;
+  vector_fromyaw(offset, randRadian());
+  vector_scale(offset, offset, randRange(3, 5));
+  vector_add(msg.Position, player->PlayerPosition, offset);
+  msg.Position[2] += 1;
+  msg.Type = LOOT_DROP_TYPE_MISSION_COMPLETE;
   msg.KilledWithGadgetId = gadgetId;
   msg.DifficultyStars = State.DifficultyStars;
   msg.QuickSelectGadgets[0] = playerGetLocalEquipslot(0, 0);
