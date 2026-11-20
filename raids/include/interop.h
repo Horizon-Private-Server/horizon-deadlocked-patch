@@ -31,7 +31,6 @@ struct RaidsPlayerDamageContext
   u32 DamageFlags;
 };
 
-typedef void (*ModePushSnack_func)(char *string, int ticksAlive, int localPlayerIdx);
 typedef void (*ModePushDamageBubble_func)(VECTOR position, float randomRadius, float damage, int isLocal, int team, float popScale, char suffix);
 typedef long (*ModeGetAmmoRefillCost_func)(Player *player);
 typedef void (*ModeBeginWorldHop_func)(char *mapFilename, int difficulty, int cost, int delayMs);
@@ -66,11 +65,11 @@ typedef void (*MapOnTrackerDrawHud_func)(float x, float y);
 typedef void (*MapSpawnBoltReward_func)(VECTOR position, u32 amount, int difficulty);
 typedef void (*MapPayoutBoltRewardsForWorldHop_func)(void);
 typedef void (*MapOnPlayerDamaged_func)(Player *player, float healthLost);
+typedef void (*MapPushSnack_func)(char *string, int ticksAlive, int localPlayerIdx);
 
 struct RaidsInteropTable
 {
   // mode: populated by the shared patch
-  ModePushSnack_func ModePushSnackFunc;
   ModePushDamageBubble_func ModePushDamageBubbleFunc;
   ModeGetAmmoRefillCost_func ModeGetAmmoRefillCostFunc;
   ModeBeginWorldHop_func ModeBeginWorldHopFunc;
@@ -106,6 +105,7 @@ struct RaidsInteropTable
   MapSpawnBoltReward_func SpawnBoltRewardFunc;
   MapPayoutBoltRewardsForWorldHop_func PayoutBoltRewardsForWorldHopFunc;
   MapOnPlayerDamaged_func OnPlayerDamagedFunc;
+  MapPushSnack_func PushSnackFunc;
 
   // Reserved for future callbacks.
   void *PlaceholderForFutureUseFuncs[15];
@@ -113,14 +113,15 @@ struct RaidsInteropTable
 
 typedef char RaidsInteropPointerSizeCheck[sizeof(void *) == 4 ? 1 : -1];
 typedef char RaidsInteropSizeCheck[sizeof(struct RaidsInteropTable) == 196 ? 1 : -1];
-typedef char RaidsInteropMapOffsetCheck[offsetof(struct RaidsInteropTable, OnMobCreateFunc) == 56 ? 1 : -1];
-typedef char RaidsInteropPlayerDamageOffsetCheck[offsetof(struct RaidsInteropTable, ModeProcessPlayerDamageFunc) == 48 ? 1 : -1];
-typedef char RaidsInteropDrawHudOffsetCheck[offsetof(struct RaidsInteropTable, ModeDrawHudFunc) == 52 ? 1 : -1];
-typedef char RaidsInteropMobBlowCornOffsetCheck[offsetof(struct RaidsInteropTable, MobBlowCornFunc) == 116 ? 1 : -1];
-typedef char RaidsInteropTrackerHudOffsetCheck[offsetof(struct RaidsInteropTable, OnTrackerDrawHudFunc) == 120 ? 1 : -1];
-typedef char RaidsInteropSpawnBoltRewardOffsetCheck[offsetof(struct RaidsInteropTable, SpawnBoltRewardFunc) == 124 ? 1 : -1];
-typedef char RaidsInteropPayoutBoltRewardsOffsetCheck[offsetof(struct RaidsInteropTable, PayoutBoltRewardsForWorldHopFunc) == 128 ? 1 : -1];
-typedef char RaidsInteropPlayerDamagedOffsetCheck[offsetof(struct RaidsInteropTable, OnPlayerDamagedFunc) == 132 ? 1 : -1];
+typedef char RaidsInteropMapOffsetCheck[offsetof(struct RaidsInteropTable, OnMobCreateFunc) == 52 ? 1 : -1];
+typedef char RaidsInteropPlayerDamageOffsetCheck[offsetof(struct RaidsInteropTable, ModeProcessPlayerDamageFunc) == 44 ? 1 : -1];
+typedef char RaidsInteropDrawHudOffsetCheck[offsetof(struct RaidsInteropTable, ModeDrawHudFunc) == 48 ? 1 : -1];
+typedef char RaidsInteropMobBlowCornOffsetCheck[offsetof(struct RaidsInteropTable, MobBlowCornFunc) == 112 ? 1 : -1];
+typedef char RaidsInteropTrackerHudOffsetCheck[offsetof(struct RaidsInteropTable, OnTrackerDrawHudFunc) == 116 ? 1 : -1];
+typedef char RaidsInteropSpawnBoltRewardOffsetCheck[offsetof(struct RaidsInteropTable, SpawnBoltRewardFunc) == 120 ? 1 : -1];
+typedef char RaidsInteropPayoutBoltRewardsOffsetCheck[offsetof(struct RaidsInteropTable, PayoutBoltRewardsForWorldHopFunc) == 124 ? 1 : -1];
+typedef char RaidsInteropPlayerDamagedOffsetCheck[offsetof(struct RaidsInteropTable, OnPlayerDamagedFunc) == 128 ? 1 : -1];
+typedef char RaidsInteropPushSnackOffsetCheck[offsetof(struct RaidsInteropTable, PushSnackFunc) == 132 ? 1 : -1];
 typedef char RaidsInteropReservedOffsetCheck[offsetof(struct RaidsInteropTable, PlaceholderForFutureUseFuncs) == 136 ? 1 : -1];
 
 void raidsDrawHud(void);

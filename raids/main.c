@@ -65,9 +65,6 @@ RaidsUserSettings_t settingsUserSettings = {
   .Flags = RAIDS_USER_SETTINGS_AMMO_DROP_POPUPS | RAIDS_USER_SETTINGS_CONTRACT_PROGRESS_BARS | RAIDS_USER_SETTINGS_KILL_XP_POPUPS
 };
 
-struct RaidsSnackItem snackItems[SNACK_ITEM_MAX_COUNT] = {};
-int snackItemsCount = 0;
-
 extern Moby *AllMobsSorted[MAX_MOBS_ALIVE];
 
 int Lives[RAIDS_DIFFICULTY_COUNT] = {
@@ -159,69 +156,10 @@ void setPlayerEXP(int localPlayerIndex, float expPercent)
 }
 
 //--------------------------------------------------------------------------
-void popSnack(void)
-{
-  memmove(&snackItems[0], &snackItems[1], sizeof(struct RaidsSnackItem) * (SNACK_ITEM_MAX_COUNT - 1));
-  memset(&snackItems[SNACK_ITEM_MAX_COUNT - 1], 0, sizeof(struct RaidsSnackItem));
-
-  if (snackItemsCount)
-    --snackItemsCount;
-}
-
-//--------------------------------------------------------------------------
 void pushSnack(char *str, int ticksAlive, int localPlayerIdx)
 {
-  while (snackItemsCount >= SNACK_ITEM_MAX_COUNT)
-  {
-    popSnack();
-  }
-
-  // clamp
-  if (snackItemsCount < 0)
-    snackItemsCount = 0;
-
-  safe_strcpy(snackItems[snackItemsCount].Str, str, sizeof(snackItems[snackItemsCount].Str));
-  snackItems[snackItemsCount].TicksAlive = ticksAlive;
-  snackItems[snackItemsCount].DisplayForLocalPlayerIdx = localPlayerIdx;
-  ++snackItemsCount;
-}
-
-//--------------------------------------------------------------------------
-void drawSnack(void)
-{
-  if (snackItemsCount <= 0)
-    return;
-
-  // draw
-  //uiShowPopup(0, snackItems[0].Str);
-  char *a = uiMsgString(0x2400);
-  int i = 0;
-  int length = 0;
-  int capacity = sizeof(snackItems[0].Str);
-
-  // lower popups use the message as a printf format, so escape literal percent signs
-  while (snackItems[0].Str[i] && length < capacity - 1)
-  {
-    char c = snackItems[0].Str[i++];
-    if (c == '%')
-    {
-      if (length + 2 >= capacity) break;
-      a[length++] = '%';
-    }
-    a[length++] = c;
-  }
-  a[length] = 0;
-
-  if (snackItems[0].DisplayForLocalPlayerIdx <= 0)
-    uiShowLowerPopup(0, 0x2400);
-  if (snackItems[0].DisplayForLocalPlayerIdx < 0 || snackItems[0].DisplayForLocalPlayerIdx == 1)
-    uiShowLowerPopup(1, 0x2400);
-
-  snackItems[0].TicksAlive--;
-
-  // remove when dead
-  if (snackItems[0].TicksAlive <= 0)
-    popSnack();
+  if (hasMapConfig() && mapConfig->Functions.PushSnackFunc)
+    mapConfig->Functions.PushSnackFunc(str, ticksAlive, localPlayerIdx);
 }
 
 //--------------------------------------------------------------------------
@@ -921,8 +859,6 @@ void initialize(PatchStateContainer_t *gameState)
   // re-enable input
   padEnableInput();
 
-  memset(snackItems, 0, sizeof(snackItems));
-
   // initialize player states
   State.LocalPlayerState = NULL;
   State.NumTeams = 0;
@@ -1304,7 +1240,6 @@ void gameStart(struct GameModule *module, PatchStateContainer_t *gameState)
   if (!State.GameOver)
   {
     forcePlayerHUD();
-    drawSnack();
     missionCheckForMissionFailed();
 
     //

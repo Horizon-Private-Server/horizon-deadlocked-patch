@@ -20,7 +20,6 @@ void raidsInteropInit(void)
   if (!hasMapConfig())
     return;
 
-  mapConfig->Functions.ModePushSnackFunc = &pushSnack;
   mapConfig->Functions.ModePushDamageBubbleFunc = &bubblePush;
   mapConfig->Functions.ModeGetAmmoRefillCostFunc = &getAmmoRefillCost;
   mapConfig->Functions.ModeBeginWorldHopFunc = &hopBegin;

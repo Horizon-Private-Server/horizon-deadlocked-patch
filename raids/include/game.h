@@ -113,7 +113,6 @@
 #define PLAYER_LEVEL_DAMAGE_FACTOR (0.04)
 #define PLAYER_LEVEL_WRENCH_DAMAGE (10)
 
-#define SNACK_ITEM_MAX_COUNT (8)
 #define DAMAGE_BUBBLE_MAX_COUNT (16)
 
 #define MAX_MOB_SPAWN_PARAMS (16)
@@ -391,13 +390,6 @@ struct RaidsGameData
   u64 Points[GAME_MAX_PLAYERS];
   int Kills[GAME_MAX_PLAYERS];
   int Deaths[GAME_MAX_PLAYERS];
-};
-
-struct RaidsSnackItem
-{
-  int TicksAlive;
-  char DisplayForLocalPlayerIdx;
-  char Str[64];
 };
 
 struct RaidsSetMissionCompleteRequest
