@@ -546,6 +546,10 @@ typedef u32 (*BankSubBolts_func)(u32 amt);
 typedef RaidsPlayerClassProgress_t *(*BankGetPlayerEquippedClass_func)(int playerId);
 typedef int (*BankGetPlayerClassSkillRank_func)(int playerId, enum RaidsClassSkillId skillId);
 typedef float (*BankGetPlayerClassSkillMultiplier_func)(int playerId, enum RaidsClassSkillId skillId);
+typedef int (*BankGetPlayerTemporaryClassSkillPoints_func)(int playerId, enum RaidsClassSkillId skillId);
+typedef int (*BankSetPlayerTemporaryClassSkillPoints_func)(int playerId, enum RaidsClassSkillId skillId, int points);
+typedef int (*BankAddPlayerTemporaryClassSkillPoints_func)(int playerId, enum RaidsClassSkillId skillId, int points);
+typedef void (*BankResetPlayerTemporaryClassSkillPoints_func)(int playerId);
 typedef void (*BankRequestEquippedClassProgressFromServer_func)(void);
 typedef void (*BankRequestAllClassProgressFromServer_func)(void);
 typedef int (*BankSpendClassSkillPoint_func)(enum RaidsClassSkillId skillId);
@@ -568,7 +572,7 @@ typedef int (*BankHasPendingContractsRequest_func)(void);
 // map progression
 typedef void (*BankRequestMapStats_func)(char *mapFilename, char *mapName, struct RaidsBankMapStats *dest, int missionType);
 
-// keep shared callback offsets stable
+// shared by map code and the patch runtime
 struct BankVTable
 {
   // bank, class and inventory access
@@ -576,6 +580,10 @@ struct BankVTable
   BankGetPlayerEquippedClass_func GetPlayerEquippedClass;
   BankGetPlayerClassSkillRank_func GetPlayerClassSkillRank;
   BankGetPlayerClassSkillMultiplier_func GetPlayerClassSkillMultiplier;
+  BankGetPlayerTemporaryClassSkillPoints_func GetPlayerTemporaryClassSkillPoints;
+  BankSetPlayerTemporaryClassSkillPoints_func SetPlayerTemporaryClassSkillPoints;
+  BankAddPlayerTemporaryClassSkillPoints_func AddPlayerTemporaryClassSkillPoints;
+  BankResetPlayerTemporaryClassSkillPoints_func ResetPlayerTemporaryClassSkillPoints;
   BankGetItemName_func GetItemName;
   BankGetRarityFromQuality_func GetRarityFromQuality;
   BankGetEquippedWeaponModRarity_func GetEquippedWeaponModRarity;
