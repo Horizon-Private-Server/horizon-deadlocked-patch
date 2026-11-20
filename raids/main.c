@@ -195,7 +195,22 @@ void drawSnack(void)
   // draw
   //uiShowPopup(0, snackItems[0].Str);
   char *a = uiMsgString(0x2400);
-  safe_strcpy(a, snackItems[0].Str, sizeof(snackItems[0].Str));
+  int i = 0;
+  int length = 0;
+  int capacity = sizeof(snackItems[0].Str);
+
+  // lower popups use the message as a printf format, so escape literal percent signs
+  while (snackItems[0].Str[i] && length < capacity - 1)
+  {
+    char c = snackItems[0].Str[i++];
+    if (c == '%')
+    {
+      if (length + 2 >= capacity) break;
+      a[length++] = '%';
+    }
+    a[length++] = c;
+  }
+  a[length] = 0;
 
   if (snackItems[0].DisplayForLocalPlayerIdx <= 0)
     uiShowLowerPopup(0, 0x2400);
