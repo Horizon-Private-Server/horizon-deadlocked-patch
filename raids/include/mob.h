@@ -43,11 +43,13 @@ enum MobUnreliableMsgId
   MOB_UNRELIABLE_MSG_ID_STATE_UPDATE
 };
 
+struct MobCreateArgs;
 struct MobDamageEventArgs;
 struct MobLocalDamageEventArgs;
 struct MobSpawnEventArgs;
 struct MobStateUpdateEventArgs;
 
+typedef int (*MobTryCreate_func)(struct MobCreateArgs *args);
 typedef void (*MobGenericCallback_func)(Moby *moby);
 typedef Moby *(*MobGetNextTarget_func)(Moby *moby);
 typedef int (*MobGetPreferredAction_func)(Moby *moby, int *delayTicks);
@@ -68,6 +70,7 @@ typedef int (*MobGetSeeFromPosition_func)(Moby *moby, VECTOR out);
 
 struct MobVTable
 {
+  MobTryCreate_func Create;
   MobGenericCallback_func PreUpdate;
   MobGenericCallback_func PostUpdate;
   MobGenericCallback_func PostDraw;
@@ -142,7 +145,6 @@ struct MobSpawnedConfig
 
 struct MobSpawnParams
 {
-  MapOnMobCreate_func MobCreate;
   struct MobVTable *MobVTable;
   int RenderCost;
   float Scale;
