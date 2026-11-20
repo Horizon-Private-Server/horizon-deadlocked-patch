@@ -131,14 +131,23 @@ void mobSendStateUpdate(Moby *moby)
   GuberEvent *guberEvent = mobCreateEvent(moby, MOB_EVENT_TARGET_UPDATE);
   if (guberEvent)
   {
+    memset(&args, 0, sizeof(args));
+
+    args.Action = pvars->MobVars.Action;
+    args.ActionId = pvars->MobVars.ActionId;
+    args.Random = pvars->MobVars.DynamicRandom;
+    args.ActionElapsedTicks = pvars->MobVars.CurrentActionForTicks;
+    
     memcpy(args.Position, moby->Position, 12);
     memcpy(args.TargetPosition, pvars->MobVars.MoveVars.TargetPosition, 12);
+    
     args.PathCurrentEdgeIdx = pvars->MobVars.MoveVars.PathEdgeCurrent;
     args.PathEndNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[0];
     args.PathStartNodeIdx = pvars->MobVars.MoveVars.PathStartEndNodes[1];
     args.PathHasReachedEnd = pvars->MobVars.MoveVars.PathHasReachedEnd;
     args.PathHasReachedStart = pvars->MobVars.MoveVars.PathHasReachedStart;
     args.TargetUID = guberGetUID(pvars->MobVars.MoveVars.Target);
+    
     guberEventWrite(guberEvent, &args, sizeof(struct MobStateUpdateEventArgs));
   }
 }
@@ -153,6 +162,8 @@ void mobSendStateUpdateUnreliable(Moby *moby)
   if (!connection)
     return;
 
+  memset(&msg, 0, sizeof(msg));
+
   // base msg
   msg.Base.MsgId = MOB_UNRELIABLE_MSG_ID_STATE_UPDATE;
   msg.Base.MobUID = guberGetUID(moby);
@@ -160,6 +171,7 @@ void mobSendStateUpdateUnreliable(Moby *moby)
   // action update
   msg.StateUpdate.Action = pvars->MobVars.Action;
   msg.StateUpdate.ActionId = pvars->MobVars.ActionId;
+  msg.StateUpdate.ActionElapsedTicks = pvars->MobVars.CurrentActionForTicks;
   msg.StateUpdate.Random = pvars->MobVars.DynamicRandom = (u8)rand(256);
 
   // state update
@@ -1386,6 +1398,10 @@ int mobHandleEvent_StateUpdateUnreliable(Moby *moby, struct MobStateUpdateEventA
   struct MobPVar *pvars = (struct MobPVar *)moby->PVar;
   VECTOR remotePos = { 0, 0, 0, 0 };
   if (!pvars || mobAmIOwner(moby) || !args)
+    return 0;
+
+  // older actions must not overwrite a committed destination or aim point
+  if (SEQ_DIFF_U8(pvars->MobVars.LastActionId, args->ActionId) < 0)
     return 0;
 
   //

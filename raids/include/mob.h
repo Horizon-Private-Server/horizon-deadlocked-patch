@@ -3,6 +3,7 @@
 
 #include <tamtypes.h>
 #include <libdl/moby.h>
+#include <libdl/guber.h>
 #include <libdl/math.h>
 #include <libdl/time.h>
 #include <libdl/player.h>
@@ -376,7 +377,10 @@ struct MobStateUpdateEventArgs
   char PathHasReachedEnd;
   u8 ActionId;
   char Random;
+  u16 ActionElapsedTicks;
 };
+
+GUBER_EVENT_ASSERT_PAYLOAD_FITS(struct MobStateUpdateEventArgs);
 
 struct MobSpawnEventArgs
 {
