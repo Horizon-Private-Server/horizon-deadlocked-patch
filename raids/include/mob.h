@@ -355,6 +355,7 @@ struct MobLocalDamageEventArgs
   u32 DamageFlags;
   Moby *Damager;
   Player *PlayerDamager;
+  MobyColDamage* Collision;
 };
 
 struct MobActionUpdateEventArgs

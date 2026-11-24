@@ -807,7 +807,8 @@ void mobUpdate(Moby *moby)
         .Damage = damage,
         .DamageFlags = damageFlags,
         .Damager = colDamage->Damager,
-        .PlayerDamager = damager
+        .PlayerDamager = damager,
+        .Collision = colDamage
       };
 
       if (!pvars->VTable || pvars->VTable->OnLocalDamage(moby, &e))
@@ -1272,6 +1273,7 @@ int mobHandleEvent_Damage(Moby *moby, GuberEvent *event)
 
   // read event
   guberEventRead(event, &args, sizeof(struct MobDamageEventArgs));
+  if (!args.DamageQuarters) return 0;
 
 #if MOB_INVINCIBLE
   pvars->MobVars.Config.MaxHealth = (args.DamageQuarters / 4.0) + 1;
@@ -1283,9 +1285,14 @@ int mobHandleEvent_Damage(Moby *moby, GuberEvent *event)
   if (pvars->VTable && pvars->VTable->OnDamage)
     pvars->VTable->OnDamage(moby, &args);
 
+  // rejected hits must not trigger map callbacks, effects, or combat rewards
+  if (!args.DamageQuarters) return 0;
+
   // pass damage to map
   if (mapConfig && mapConfig->Functions.OnMobDamagedFunc)
     mapConfig->Functions.OnMobDamagedFunc(moby, &args);
+
+  if (!args.DamageQuarters) return 0;
 
   // flash
   mobyStartFlash(moby, FT_HIT, 0x800000FF, 0);
@@ -1527,9 +1534,9 @@ int mobHandleEvent(Moby *moby, GuberEvent *event)
   {
     u32 mobEvent = event->NetEvent.EventID;
     int isFromHost = gameIsHost(event->NetEvent.OriginClientIdx);
-    // npc dialog handlers validate requests from players who do not own the npc
-    int isNpcCustomEvent = mobEvent == MOB_EVENT_CUSTOM && moby->OClass == NPC_MOBY_OCLASS;
-    if (!isFromHost && !isNpcCustomEvent && mobEvent != MOB_EVENT_SPAWN && mobEvent != MOB_EVENT_DAMAGE && mobEvent != MOB_EVENT_DESTROY && pvars->MobVars.Owner != event->NetEvent.OriginClientIdx)
+    // custom handlers validate their own player requests and owner-only updates
+    int isCustomEvent = mobEvent == MOB_EVENT_CUSTOM && pvars->VTable && pvars->VTable->OnCustomEvent;
+    if (!isFromHost && !isCustomEvent && mobEvent != MOB_EVENT_SPAWN && mobEvent != MOB_EVENT_DAMAGE && mobEvent != MOB_EVENT_DESTROY && pvars->MobVars.Owner != event->NetEvent.OriginClientIdx)
     {
       DPRINTF("ignoring mob event %d from %d (not owner, %d)\n", mobEvent, event->NetEvent.OriginClientIdx, pvars->MobVars.Owner);
       return 0;
