@@ -212,7 +212,7 @@ void drawMissionCompleteMessage(void)
 }
 
 //--------------------------------------------------------------------------
-void drawTimer(int time)
+void drawTimer(int time, int x)
 {
   char buf[32];
   int y = missionIsBossRaid() ? 105 : 85;
@@ -220,7 +220,7 @@ void drawTimer(int time)
   if (time < 0)
     time = 0;
   snprintf(buf, sizeof(buf), "%02d:%02d", time / TIME_MINUTE, (time % TIME_MINUTE) / TIME_SECOND);
-  gfxHelperDrawText(SCREEN_WIDTH - 15, y, 0, 0, 0.9, 0x80E0E0E0, buf, -1, TEXT_ALIGN_TOPRIGHT);
+  gfxHelperDrawText(x, y, 0, 0, 0.9, 0x80E0E0E0, buf, -1, TEXT_ALIGN_TOPRIGHT);
 }
 
 //--------------------------------------------------------------------------
@@ -231,6 +231,13 @@ void raidsDrawHud(void)
 
   if (!State.GameOver && !gameIsAnyStartMenuOpen())
   {
+    int x = SCREEN_WIDTH - 15;
+    PlayerHUDFlags *hud = hudGetPlayerFlags(0);
+
+    // leave room for the boss meter
+    if (hud && hud->Flags.Meter)
+      x -= 35;
+
     int timer = -1;
     if (missionIsComplete())
     {
@@ -239,15 +246,15 @@ void raidsDrawHud(void)
     }
     else if (missionIsActive())
     {
-      drawStars(SCREEN_WIDTH - 15, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
+      drawStars(x, 65, 0, 0, 16, 4, 0x80008080, TEXT_ALIGN_TOPRIGHT, State.DifficultyStars + 1);
       if (missionIsBossRaid())
-        drawLives(SCREEN_WIDTH - 15, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
+        drawLives(x, 85, 0, 0, 16, 4, 0x80808080, TEXT_ALIGN_TOPRIGHT, State.LivesLeft + 1);
       timer = gameGetTime() - State.MissionStartTime;
     }
 
     if (timer > 0)
     {
-      drawTimer(timer);
+      drawTimer(timer, x);
     }
   }
 
