@@ -203,6 +203,10 @@ void hopDo(void)
   if (!PATCH_INTEROP->HopToCustomMap)
     return;
 
+  // keep map-owned replies alive until account actions have reconciled
+  if (hasMapConfig() && mapConfig->BankVTable && mapConfig->BankVTable->HasPendingAccountAction())
+    return;
+
   // save last equipslots
   int i;
   for (i = 0; i < GAME_MAX_LOCALS; ++i)

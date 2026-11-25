@@ -1198,7 +1198,10 @@ int mobHandleEvent_Destroy(Moby *moby, GuberEvent *event)
     contractHandleKill(pvars->MobVars.SpawnParamsIdx);
 
     // spawn loot chance
-    if (rollChance(GAME_DEFAULT_LOOT_DROP_CHANCE))
+    RaidsPlayerBank_t* lootBank = mapConfig->BankVTable->GetLocalBank();
+    float lootChance = GAME_DEFAULT_LOOT_DROP_CHANCE;
+    if (lootBank && lootBank->Consumables.RemainingMs[RAIDS_CONSUMABLE_SALVAGERS_SIGNAL] > 0) lootChance *= 2;
+    if (rollChance(minf(1, lootChance)))
     {
       lootRequestFromMob(moby, killedByLocal ? weaponId : 0);
     }

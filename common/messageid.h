@@ -417,6 +417,17 @@ enum CustomMessageId
      * 
      */
   CUSTOM_MSG_ID_RAIDS_SAVE_SETTINGS_REQUEST = 78,
+
+  /*
+     *
+     */
+  CUSTOM_MSG_ID_RAIDS_TITLE_ACTION = 79,
+
+  /*
+     *
+     */
+  CUSTOM_MSG_ID_RAIDS_CONSUMABLE_ACTION = 80,
+
   /*
      * Start of custom message ids reserved for custom game modes.
      */

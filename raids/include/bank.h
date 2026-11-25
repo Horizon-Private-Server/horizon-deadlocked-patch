@@ -25,6 +25,9 @@
 #define BANK_MAX_CLASS_UNLOCK_RULES (RAIDS_MAX_CLASS_UNLOCK_RULES)
 #define BANK_MAX_CLASS_SKILLS (RAIDS_MAX_CLASS_SKILLS)
 
+// titles
+#define BANK_TITLE_CAPACITY (128)
+
 // contracts
 #define BANK_MAX_CONTRACTS (3)
 #define RAIDS_CONTRACT_MAX_RULES (16)
@@ -46,7 +49,88 @@ enum RaidsMiscItemType
 {
   RAIDS_MISC_ITEM_NONE = 0,
   RAIDS_MISC_ITEM_DOUBLE_XP,
+  RAIDS_MISC_ITEM_SALVAGERS_SIGNAL,
+  RAIDS_MISC_ITEM_FORTUNES_FAVOR,
 };
+
+// shared timer and owned-count indices; independent of inventory item ids
+// append types to preserve saved expiry keys
+enum RaidsConsumableType
+{
+  RAIDS_CONSUMABLE_SALVAGERS_SIGNAL = 0,
+  RAIDS_CONSUMABLE_FORTUNES_FAVOR = 1,
+  RAIDS_CONSUMABLE_DOUBLE_XP = 2,
+  RAIDS_CONSUMABLE_COUNT,
+};
+
+// append titles to preserve saved ids
+enum RaidsPlayerTitle
+{
+  RAIDS_PLAYER_TITLE_NONE = 0,
+  RAIDS_PLAYER_TITLE_BAD_WITH_MONEY = 1,
+  RAIDS_PLAYER_TITLE_WILL_KILL_FOR_BOLTS = 2,
+  RAIDS_PLAYER_TITLE_SUNK_COST_ENTHUSIAST = 3,
+  RAIDS_PLAYER_TITLE_CORPORATE_LIABILITY = 4,
+  RAIDS_PLAYER_TITLE_LOOT_GOBLIN = 5,
+  RAIDS_PLAYER_TITLE_LEGALLY_A_WEAPON = 6,
+  RAIDS_PLAYER_TITLE_MEGACORP_MIDDLE_MANAGER = 7,
+  RAIDS_PLAYER_TITLE_WALKING_TAX_WRITE_OFF = 8,
+  RAIDS_PLAYER_TITLE_TRUST_FUND_BABY = 9,
+  RAIDS_PLAYER_TITLE_MORALLY_BANKRUPT = 10,
+  RAIDS_PLAYER_TITLE_FINANCIALLY_UNSUPERVISED = 11,
+  RAIDS_PLAYER_TITLE_SECRET_AGENT_CLANK = 12,
+  RAIDS_PLAYER_TITLE_OOH_SHINY = 13,
+  RAIDS_PLAYER_TITLE_TOO_MUCH_FREE_TIME = 14,
+  RAIDS_PLAYER_TITLE_KING_LEVIATHAN_COMPLETIONIST = 15,
+  RAIDS_PLAYER_TITLE_KING_LEVIATHAN_EXTERMINATOR = 16,
+  RAIDS_PLAYER_TITLE_WARRANTY_VOIDER = 17,
+  RAIDS_PLAYER_TITLE_UNLICENSED_ENGINEER = 18,
+  RAIDS_PLAYER_TITLE_SKILL_ISSUE = 19,
+  RAIDS_PLAYER_TITLE_MATERIAL_GIRL = 20,
+  RAIDS_PLAYER_TITLE_COMPULSIVE_HOARDER = 21,
+  RAIDS_PLAYER_TITLE_RNGS_FAVORITE_CHILD = 22,
+  RAIDS_PLAYER_TITLE_THE_CHOSEN_ONE = 23,
+  RAIDS_PLAYER_TITLE_BUILT_DIFFERENT = 24,
+  RAIDS_PLAYER_TITLE_NO_LIFER = 25,
+  RAIDS_PLAYER_TITLE_CHRONICALLY_ONLINE = 26,
+  RAIDS_PLAYER_TITLE_GRASS_AVOIDER = 27,
+  RAIDS_PLAYER_TITLE_CERTIFIED_BUTTON_MASHER = 28,
+  RAIDS_PLAYER_TITLE_PROFESSIONALLY_UNQUALIFIED = 29,
+  RAIDS_PLAYER_TITLE_PROBABLY_A_BOT = 30,
+  RAIDS_PLAYER_TITLE_PUBLIC_NUISANCE = 31,
+  RAIDS_PLAYER_TITLE_INSURANCE_NIGHTMARE = 32,
+  RAIDS_PLAYER_TITLE_UNSUPERVISED_ADULT = 33,
+  RAIDS_PLAYER_TITLE_COURTNEY_GEARS_NUMBER_ONE_FAN = 34,
+  RAIDS_PLAYER_TITLE_CLANK_APOLOGIST = 35,
+  RAIDS_PLAYER_TITLE_QWARKS_DEFENSE_ATTORNEY = 36,
+  RAIDS_PLAYER_TITLE_AI_SLOP = 37,
+  RAIDS_PLAYER_TITLE_DEFINITELY_HUMAN = 38,
+  RAIDS_PLAYER_TITLE_DUCT_TAPE_ENGINEER = 39,
+  RAIDS_PLAYER_TITLE_CERTIFIED_FIRE_HAZARD = 40,
+  RAIDS_PLAYER_TITLE_WALKING_RECALL = 41,
+  RAIDS_PLAYER_TITLE_UNINSURABLE = 42,
+  RAIDS_PLAYER_TITLE_WARRANTY_CRIMINAL = 43,
+  RAIDS_PLAYER_TITLE_FAILED_SUCCESSFULLY = 44,
+  RAIDS_PLAYER_TITLE_TAX_EVADER = 45,
+  RAIDS_PLAYER_TITLE_SLEEP_DEPRIVED = 46,
+  RAIDS_PLAYER_TITLE_PART_TIME_HUMAN = 47,
+  RAIDS_PLAYER_TITLE_COMMUNITY_PROBLEM = 48,
+  RAIDS_PLAYER_TITLE_DISCOUNT_LOMBAX = 49,
+  RAIDS_PLAYER_TITLE_DISPOSABLE_TALENT = 50,
+  RAIDS_PLAYER_TITLE_SPONSORS_REGRET = 51,
+  RAIDS_PLAYER_TITLE_RATINGS_LIABILITY = 52,
+  RAIDS_PLAYER_TITLE_BARELY_SENTIENT = 53,
+  RAIDS_PLAYER_TITLE_FACTORY_DEFECT = 54,
+  RAIDS_PLAYER_TITLE_PREVIOUSLY_BANNED = 55,
+  RAIDS_PLAYER_TITLE_THREE_BOLTS_IN_A_TRENCHCOAT = 56,
+  RAIDS_PLAYER_TITLE_CATACROM_COMPLETIONIST = 57,
+  RAIDS_PLAYER_TITLE_RNGESUS = 58,
+  RAIDS_PLAYER_TITLE_NVIDIA_SHAREHOLDER = 59,
+  RAIDS_PLAYER_TITLE_CIRCULAR_FINANCER = 60,
+  RAIDS_PLAYER_TITLE_COUNT
+};
+
+typedef char RaidsTitleMaskSizeCheck[RAIDS_PLAYER_TITLE_COUNT <= BANK_TITLE_CAPACITY ? 1 : -1];
 
 enum RaidsItemRarity
 {
@@ -74,6 +158,8 @@ enum RaidsItemUpdateAction
   RAIDS_ITEM_UPDATE_UNEQUIP,
   RAIDS_ITEM_UPDATE_UPGRADE,
   RAIDS_ITEM_UPDATE_DESTROY,
+  RAIDS_ITEM_UPDATE_CONSUME_MATERIAL,
+  RAIDS_ITEM_UPDATE_UPGRADE_FAILED,
 };
 
 // weapons
@@ -227,8 +313,11 @@ struct RaidsGetBankInventoryRequest
 struct RaidsUpdateBankInventoryItemRequest
 {
   RaidsInventoryItem_t Item;
+  u32 RequestId;
   char Action;
 };
+
+typedef char RaidsInventoryUpdateLayoutCheck[sizeof(struct RaidsUpdateBankInventoryItemRequest) == 40 && offsetof(struct RaidsUpdateBankInventoryItemRequest, RequestId) == 32 && offsetof(struct RaidsUpdateBankInventoryItemRequest, Action) == 36 ? 1 : -1];
 
 struct RaidsUpdateBankInventoryRequest
 {
@@ -247,12 +336,14 @@ struct RaidsBankSetPlayerEquippedInventoryMsg
 // account progression
 typedef struct RaidsPlayerAccount
 {
+  u128 OwnedTitles;
   u64 Experience;
-  u32 Bolts;
-  int EquippedClass;
   u64 ClassXp[BANK_MAX_CLASSES];
   double WeaponExperience;
   u64 Dreadpoints;
+  u32 Bolts;
+  int EquippedClass;
+  u32 EquippedTitle;
 } RaidsPlayerAccount_t;
 
 struct RaidsGetBankAccountRequest
@@ -270,7 +361,9 @@ struct RaidsBankSetPlayerAccountMsg
   u32 Bolts;
 };
 
-typedef char RaidsAccountSizeCheck[sizeof(RaidsPlayerAccount_t) == 160 ? 1 : -1];
+typedef char RaidsAccountSizeCheck[sizeof(RaidsPlayerAccount_t) == 192 ? 1 : -1];
+typedef char RaidsAccountTitlesOffsetCheck[offsetof(RaidsPlayerAccount_t, OwnedTitles) == 0 && offsetof(RaidsPlayerAccount_t, EquippedTitle) == 176 ? 1 : -1];
+typedef char RaidsAccountProgressOffsetCheck[offsetof(RaidsPlayerAccount_t, Experience) == 16 && offsetof(RaidsPlayerAccount_t, ClassXp) == 24 && offsetof(RaidsPlayerAccount_t, WeaponExperience) == 152 && offsetof(RaidsPlayerAccount_t, Dreadpoints) == 160 && offsetof(RaidsPlayerAccount_t, Bolts) == 168 && offsetof(RaidsPlayerAccount_t, EquippedClass) == 172 ? 1 : -1];
 
 // classes
 typedef struct RaidsPlayerClassSkill
@@ -500,6 +593,16 @@ struct RaidsBankSetMapStatsRequest
   char MapFilename[64];
 };
 
+// consumable effects
+// remaining durations are snapshots of server-owned expiry deadlines
+typedef struct RaidsPlayerConsumables
+{
+  u32 Revision;
+  u32 RemainingMs[RAIDS_CONSUMABLE_COUNT];
+} RaidsPlayerConsumables_t;
+
+typedef char RaidsConsumablesSizeCheck[sizeof(RaidsPlayerConsumables_t) == (1 + RAIDS_CONSUMABLE_COUNT) * sizeof(u32) ? 1 : -1];
+
 // local bank
 typedef struct RaidsPlayerBank
 {
@@ -507,6 +610,7 @@ typedef struct RaidsPlayerBank
   RaidsPlayerClassProgress_t EquippedClassProgress;
   RaidsPlayerEquippedInventory_t EquippedInventory;
   RaidsContractPage_t ContractPage;
+  RaidsPlayerConsumables_t Consumables;
 } RaidsPlayerBank_t;
 
 //--------------------------------------------------------------------------
@@ -533,6 +637,7 @@ typedef double (*BankAddWeaponXP_func)(double amt);
 // account progression
 typedef void (*BankRequestAccountFromServer_func)(void);
 typedef void (*BankSendAccountToServer_func)(void);
+typedef int (*BankHasPendingAccountAction_func)(void);
 typedef int (*BankGetHasAccount_func)(void);
 typedef int (*BankHasPendingAccountRequest_func)(void);
 typedef u64 (*BankGetXP_func)(void);
@@ -628,6 +733,9 @@ struct BankVTable
   BankAddDreadpoints_func AddDreadpoints;
   BankGetClassLevel_func GetClassLevel;
   BankGetClassDefinition_func GetClassDefinition;
+
+  // map unload must wait for account replies before saving
+  BankHasPendingAccountAction_func HasPendingAccountAction;
 };
 
 #endif // RAIDS_BANK_H
