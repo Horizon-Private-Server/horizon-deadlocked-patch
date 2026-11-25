@@ -249,6 +249,9 @@ struct MobVars
   u16 TimeTargetOutOfSightTicks;
   u16 AcidEffectActiveTicks;
   u16 FreezeEffectActiveTicks;
+  u16 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
+  u16 HitSoundCooldownTicks;
+  u16 IdleTicks;
   u8 FreezeEffectStrength;
   u8 TargetOutOfSightCheckTicks;
   u8 ActionId;
@@ -268,8 +271,6 @@ struct MobVars
   char BlipTeam;
   char Behavior;
   u8 DifficultyStars;
-  u16 LocalPlayerDamageHitInvTimer[GAME_MAX_LOCALS];
-  u16 HitSoundCooldownTicks;
   u8 HitSoundId;
   u8 HitSoundId2;
 };
